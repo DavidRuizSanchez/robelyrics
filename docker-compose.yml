@@ -1,0 +1,105 @@
+name: robelyrics
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: robelyrics-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - robelyrics
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.1
+    container_name: robelyrics-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    # La imagen de qdrant es distroless (sin shell, wget ni curl), así que
+    # no podemos hacer healthcheck por dentro. Qdrant arranca en <1s, basta
+    # con service_started en los dependents.
+    networks:
+      - robelyrics
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: robelyrics-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      QDRANT_URL: ${QDRANT_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GENIUS_TOKEN: ${GENIUS_TOKEN}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGO: ${JWT_ALGO:-HS256}
+      JWT_TTL_MIN: ${JWT_TTL_MIN:-43200}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./api:/app
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level ${API_LOG_LEVEL:-info}
+    networks:
+      - robelyrics
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: robelyrics-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NODE_ENV: development
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
+      - web-next-cache:/app/.next
+    depends_on:
+      - api
+    command: pnpm dev
+    networks:
+      - robelyrics
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  web-node-modules:
+  web-next-cache:
+
+networks:
+  robelyrics:
+    driver: bridge

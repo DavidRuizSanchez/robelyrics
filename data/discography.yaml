@@ -1,0 +1,113 @@
+# ============================================================
+# Discografía semilla para RobeLyrics
+# ============================================================
+# Fuente: conocimiento general + verificación cruzada en Genius
+# y Wikipedia. Las entradas marcadas con `# verificar` requieren
+# revisión humana antes de ejecutar el pipeline de ingesta —
+# títulos exactos, años, y si Genius los indexa.
+#
+# kind ∈ {studio, live, compilation, ep}
+# ============================================================
+
+artists:
+  - slug: extremoduro
+    name: Extremoduro
+    active_years: "1989-2014"
+    albums:
+      - title: "Rock Transgresivo"
+        year: 1989
+        kind: studio
+        slug: rock-transgresivo
+
+      - title: "Somos unos animales"
+        year: 1991
+        kind: ep
+        slug: somos-unos-animales
+        # verificar: a veces clasificado como EP/maxi, a veces como single
+
+      - title: "Deltoya"
+        year: 1992
+        kind: studio
+        slug: deltoya
+
+      - title: "¿Dónde están mis amigos?"
+        year: 1993
+        kind: studio
+        slug: donde-estan-mis-amigos
+
+      - title: "Agila"
+        year: 1996
+        kind: studio
+        slug: agila
+
+      - title: "Iros todos a tomar por culo"
+        year: 1997
+        kind: live
+        slug: iros-todos-a-tomar-por-culo
+
+      - title: "Canciones prohibidas"
+        year: 1998
+        kind: studio
+        slug: canciones-prohibidas
+
+      - title: "Yo, minoría absoluta"
+        year: 2002
+        kind: studio
+        slug: yo-minoria-absoluta
+
+      - title: "La ley innata"
+        year: 2008
+        kind: studio
+        slug: la-ley-innata
+
+      - title: "Material defectuoso"
+        year: 2011
+        kind: studio
+        slug: material-defectuoso
+        # verificar: tiene rarezas + tomas alternativas, en Genius puede
+        # aparecer mezclado con singles sueltos
+
+      - title: "Para todos los públicos"
+        year: 2013
+        kind: studio
+        slug: para-todos-los-publicos
+
+  - slug: robe
+    name: Robe Iniesta
+    active_years: "2014-presente"
+    albums:
+      - title: "Lo que aletea en nuestras cabezas"
+        year: 2014
+        kind: studio
+        slug: lo-que-aletea-en-nuestras-cabezas
+
+      - title: "Destrozares, Canciones para el Final de los Tiempos"
+        year: 2018
+        kind: studio
+        slug: destrozares
+
+      - title: "Mayéutica"
+        year: 2021
+        kind: studio
+        slug: mayeutica
+
+      - title: "Se nos lleva el aire"
+        year: 2024
+        kind: studio
+        slug: se-nos-lleva-el-aire
+        # verificar: título y año exactos antes de fetch. Si Genius no
+        # lo indexa todavía, fallback a letras.com.
+
+# ============================================================
+# Notas de operación
+# ============================================================
+# 1. El script ingest.py debe usar `slug` como clave estable. Si
+#    cambia el título por algún motivo, el slug NO debe cambiar.
+# 2. Para cada album.kind == "live" o "compilation", el ingest debe
+#    decidir si reusa songs ya existentes (mismo título + artista) o
+#    crea duplicados. Decisión por defecto: crear filas nuevas (la
+#    versión en directo puede tener letra ligeramente distinta).
+# 3. Excluido del corpus por decisión del usuario:
+#    - Extrechinato y tú (2000)
+#    - Iniciativa Sexual Yacumamba (proyecto de Iñaki, no Robe)
+#    - Colaboraciones puntuales con otros artistas

@@ -1,0 +1,54 @@
+# ----- Secrets / env -----
+.env
+.env.*
+!.env.example
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+
+# ----- uv -----
+# uv.lock SÍ se versiona
+.uv-cache/
+
+# ----- Node / Next.js -----
+node_modules/
+.next/
+out/
+.turbo/
+.pnpm-store/
+*.tsbuildinfo
+next-env.d.ts
+
+# ----- Docker volumes (cuando se montan localmente) -----
+.docker-data/
+postgres-data/
+qdrant-data/
+
+# ----- IDE / OS -----
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ----- Logs / temp -----
+*.log
+logs/
+tmp/
+
+# ----- Datos sensibles que no deberían entrar al repo -----
+# (las letras se descargan a la BD, no a disco)
+data/raw_lyrics/
+data/cache/

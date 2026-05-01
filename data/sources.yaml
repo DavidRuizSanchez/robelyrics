@@ -1,0 +1,261 @@
+# ============================================================
+# Fuentes fan curadas para la knowledge base de RobeLyrics
+# ============================================================
+# Generado: 2026-05-01
+# Reglas:
+#   - solo fan-content / contenido analítico independiente
+#   - sin prensa comercial (Mondo Sonoro, Efe Eme, Rockdelux, JeNeSaisPop, El País, etc.)
+#   - sin plataformas de streaming
+#   - sin Forocoches (ruido > señal)
+#   - URLs verificadas con WebFetch o WebSearch en la fecha de generación
+# ============================================================
+
+# ------------------------------------------------------------
+# YouTube — canales especialistas / fan
+# ------------------------------------------------------------
+youtube:
+  - name: "juancaraes"
+    url: "https://www.youtube.com/c/juancaraes"
+    handle: "@juancaraes"
+    status: active
+    since: 2008
+    relevant_videos_estimate: 50  # estimado (serie "Historia de Extremoduro" supera los 25 capítulos)
+    content_type: "biografía + análisis disco por disco + análisis canción por canción"
+    notes: |
+      Referencia principal del universo Robero en YouTube. Series clave:
+      "HISTORIA DE EXTREMODURO" (capítulos numerados, biografía + reviews
+      de discos como Deltoya cap.17, Iros todos a tomar por culo cap.16,
+      etc.) y "ANÁLISIS / INTERPRETACIÓN LETRA" (canción por canción,
+      ej. "Si te vas"). También tiene podcast en Spotify con los mismos
+      contenidos. Multi-plataforma (FB, IG, Twitter, TikTok).
+    podcast_alt_url: "https://creators.spotify.com/pod/profile/juancaraes"
+    priority: high
+
+  # NOTA: el usuario mencionó "El Primo del Aguilar" como canal/figura,
+  # pero no se ha encontrado ningún canal de YouTube con ese nombre, ni
+  # tampoco como personaje canónico en las letras de Extremoduro. Marcado
+  # como NO ENCONTRADO — preguntar al usuario por la URL exacta si insiste.
+
+# ------------------------------------------------------------
+# Reddit
+# ------------------------------------------------------------
+reddit:
+  # Búsqueda exhaustiva no devolvió subreddits dedicados activos a
+  # Extremoduro o Robe Iniesta con masa crítica. r/Extremoduro y
+  # r/RobeIniesta no aparecen en búsqueda y reddit.com bloquea WebFetch
+  # desde este entorno (verificación manual necesaria).
+  # Acción recomendada: el script fetch_reddit.py debe intentar PRAW
+  # contra r/Extremoduro y r/Robe primero; si no existen, fallback a
+  # búsqueda Reddit-wide por ["Extremoduro", "Robe Iniesta"] filtrando
+  # por flair/keywords analíticos ("análisis", "significado", "letra").
+  - name: "r/Extremoduro"
+    url: "https://www.reddit.com/r/Extremoduro/"
+    status: unverified  # no accesible vía WebFetch desde este entorno
+    notes: "Verificar manualmente con PRAW al ejecutar fetch_reddit.py."
+    priority: medium
+
+  - name: "r/Robe"
+    url: "https://www.reddit.com/r/Robe/"
+    status: unverified
+    notes: "Verificar manualmente con PRAW. Probable existencia muy pequeña o nula."
+    priority: low
+
+# ------------------------------------------------------------
+# Foros (web tradicional)
+# ------------------------------------------------------------
+forums:
+  - name: "Noche de Rock — DISCOGRAFÍA COMENTADA: Extremoduro / Robe"
+    url: "https://foro.nochederock.com/viewtopic.php?t=134155"
+    status: active
+    content_type: "thread monográfico, análisis disco a disco con comentarios largos de fans"
+    notes: |
+      Hilo específico que va comentando la discografía completa.
+      Calidad alta de los posts. Buen candidato para scraper específico.
+    priority: high
+
+  - name: "Foro Azkena Rock — Mejor disco de Extremoduro"
+    url: "https://www.foroazkenarock.com/t60704-mejor-disco-de-extremoduro"
+    status: active
+    content_type: "discusión / votación con argumentación fan disco a disco"
+    notes: "Múltiples páginas, mucho material interpretativo en los argumentos."
+    priority: medium
+
+  - name: "Mediavida — Extremoduro: respuestas del Robe"
+    url: "https://www.mediavida.com/foro/musica/extremoduro-respuestas-robe-278253"
+    status: active
+    content_type: "thread con citas de Robe sobre el significado de letras"
+    notes: |
+      Hilo que recopila respuestas/citas de Robe sobre sus propias
+      letras. Particularmente útil porque el autor confirma o niega
+      interpretaciones de fans.
+    priority: high
+
+  # Foros descartados tras verificación:
+  # - forrocoteros.es → dominio inexistente (el usuario probablemente
+  #   confundió con otro nombre). Descartado.
+  # - exiliadosdeextremodu.forosactivos.net → nombre engañoso,
+  #   contenido real es política mexicana / narcotráfico. Descartado.
+  # - mexicosincensura.foroactivo.com → dominio sospechoso, no verificable.
+  # - forocoches.com → ruido > señal, regla del proyecto.
+
+# ------------------------------------------------------------
+# Blogs (WordPress, Blogspot, sitios personales)
+# ------------------------------------------------------------
+blogs:
+  - name: "La Ley de Extremoduro"
+    url: "https://laleydeextremoduro.wordpress.com/"
+    status: active  # actualizaciones irregulares, último post enero 2023
+    content_type: "biografía + entrevistas históricas + reviews disco a disco"
+    notes: |
+      Recopila entrevistas originales de revistas (El Tubo, Free Rock,
+      etc.) y fragmentos de "De Profundis". Más documental que
+      interpretativo, pero útil para context biográfico/histórico.
+      ~10-15 posts principales.
+    priority: high
+
+  - name: "Extremoduro en Plasencia (1988-2008)"
+    url: "http://extremoduroenplasencia.blogspot.com/"
+    status: archived  # último post 2013, sigue accesible
+    content_type: "serie biográfica capítulos 1-26 + análisis canción a canción"
+    notes: |
+      Joya inactiva. Serie "Extremoduro 1988-2008" capítulo por
+      capítulo. Tiene también series como "Para todos los públicos
+      canción a canción". Aunque parado en 2013, el contenido sigue
+      siendo el más detallado disponible para esa franja temporal.
+    priority: high
+
+  - name: "extremoduro26"
+    url: "https://extremoduro.wordpress.com/"
+    status: unverified_activity
+    content_type: "comentarios sobre temas líricos (sexo, drogas, amor)"
+    notes: "Blog antiguo, verificar contenido al scrapear."
+    priority: low
+
+  - name: "malvadocienveces — tag extremoduro"
+    url: "https://malvadocienveces.wordpress.com/tag/extremoduro/"
+    status: unverified_activity
+    content_type: "análisis literario de letras, referencias poéticas"
+    notes: |
+      Enfoque literario serio (referencias intertextuales con poetas).
+      Útil para detectar las referencias cultas que mete Robe.
+    priority: medium
+
+  - name: "Extremoduro Blog (no oficial)"
+    url: "https://extremoduroblog.wordpress.com/"
+    status: unverified_activity
+    content_type: "comentarios sobre material reciente"
+    notes: "Verificar al scrapear."
+    priority: low
+
+  - name: "Discos, Música y Reflexiones — review de Agila"
+    url: "http://discosmusicayreflexiones.blogspot.com/2016/03/extremoduro-agila-1996.html"
+    status: archived
+    content_type: "review individual por disco"
+    notes: "Si se encuentran más posts del mismo blog sobre otros discos, incluirlos también."
+    priority: medium
+
+  - name: "ffvinilo — Yo, minoría absoluta"
+    url: "http://ffvinilo.blogspot.com/2022/11/extremoduro-yo-minoria-absoluta-dro.html"
+    status: active
+    content_type: "review de discos en formato vinilo, análisis técnico + lírico"
+    notes: "Buscar otros posts del blog sobre Extremoduro."
+    priority: medium
+
+  - name: "Canciones de Buen Rollo — Ama, ama, ama y ensancha el alma"
+    url: "https://cancionesdebuenrollo.blogspot.com/2015/11/ama-ama-ama-y-ensancha-el-alma-by-carol.html"
+    status: archived
+    content_type: "post individual, análisis emocional/personal de canción"
+    notes: "Solo este post relevante; no es un blog dedicado."
+    priority: low
+
+# ------------------------------------------------------------
+# Podcasts
+# ------------------------------------------------------------
+podcasts:
+  - name: "LA HISTORIA DE EXTREMODURO (juancaraes)"
+    url: "https://creators.spotify.com/pod/profile/juancaraes"
+    status: active
+    content_type: "audio de los videos de Juancares en formato podcast"
+    notes: "Mismo contenido que el canal YouTube. Útil para extraer transcripts si YouTube falla."
+    priority: high
+
+  - name: "La Gran Travesía — Especiales Extremoduro / Robe"
+    url: "https://www.ivoox.com/en/extremoduro-robe-iniesta-especial-2-parte-1999-audios-mp3_rf_164164848_1.html"
+    status: active
+    content_type: "especial monográfico en 2 partes (1989-1998 y 1999-2025)"
+    notes: |
+      Repaso narrativo + interpretativo de toda la trayectoria. Audio
+      largo, requiere transcripción si se quiere indexar.
+    priority: medium
+
+  - name: "Fuego y Chinchetas (RNE) — episodio Robe"
+    url: "https://open.spotify.com/episode/4Z59NDzVy0KJa3uRJnZx7z"
+    status: active
+    content_type: "entrevista + sección dedicada al rock de Robe"
+    notes: "Carlos G. Cano y Elisa Muñoz. Una sola entrega relevante."
+    priority: low
+
+# ------------------------------------------------------------
+# Social (Instagram, TikTok, Telegram, Facebook)
+# ------------------------------------------------------------
+social:
+  # Lo que hay son agregadores de grupos no verificables individualmente
+  # (grupostelegram.net, gruposwats.com, gruposdiscord.com). NO incluir
+  # grupos de WhatsApp/Telegram/Discord sin verificación humana, porque:
+  #   1. Suelen ser grupos cerrados sin contenido analítico estructurado
+  #   2. Mucho ruido (memes, conciertos, intercambio de tickets)
+  #   3. Datos personales de miembros no consentidos a scraping
+  # Acción: dejar fuera. Si el usuario quiere meter un grupo concreto,
+  # añadirlo manualmente aquí con URL y descripción del contenido.
+  []  # sin hallazgos verificables
+
+# ------------------------------------------------------------
+# References only — no scrapeable, solo contexto humano
+# ------------------------------------------------------------
+references_only:
+  - kind: book
+    name: "Extremoduro: De Profundis. La historia autorizada"
+    author: "Javier Menéndez Flores"
+    publisher: "Libros Cúpula / Planeta"
+    pages: 632
+    notes: |
+      Biografía autorizada con análisis del imaginario lírico. Es la
+      referencia canónica del universo Robe. NO es fan-content puro
+      (es periodismo cultural), pero la autorización del propio Robe
+      la convierte en fuente primaria irreemplazable. NO scrapeable.
+      Útil como lectura humana previa a curar el corpus, no para
+      ingesta automática.
+
+  - kind: thesis
+    name: "TFG sobre análisis narrativo / poética musical en álbumes conceptuales de Robe Iniesta"
+    url: "https://uvadoc.uva.es/bitstream/handle/10324/79280/TFG_F_2025_123.pdf"
+    institution: "Universidad de Valladolid"
+    year: 2025
+    notes: |
+      PDF público. Análisis académico (no extraíble vía WebFetch en este
+      entorno por compresión del PDF). Procesar localmente con
+      pdftotext / pypdf y volcar fragmentos relevantes a
+      interpretation_sources.
+
+  - kind: book_chapter
+    name: "Capítulo sobre 'La ley innata' en 'Movimientos exocanónicos de la literatura contemporánea'"
+    author: "Salvador Calderón de Anta"
+    year: 2022
+    notes: |
+      Análisis académico de cómo La Ley Innata transgrede los géneros
+      literarios convencionales. Posible fuente para el destilador.
+
+# ------------------------------------------------------------
+# Notas operativas para el pipeline de scraping
+# ------------------------------------------------------------
+scraping_hints:
+  rate_limits:
+    blogspot: "1 req / 2s"
+    wordpress: "1 req / 2s"
+    forums: "1 req / 3s"
+    youtube_transcript_api: "sin rate limit explícito; si falla, rotar IP"
+  user_agent: "RobeLyrics-research-bot/1.0 (personal use; contact: davidruizsanchez@gmail.com)"
+  robots_txt: "respetar siempre; si bloquea, no insistir"
+  fallbacks:
+    youtube_transcripts_blocked: "descargar manualmente vía yt-dlp --write-auto-sub"
+    reddit_unavailable: "PRAW con app credentials; si tampoco va, descartar fuente"
