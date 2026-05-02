@@ -38,9 +38,17 @@ export default async function AdminSourcesPage() {
   return (
     <main className="px-5 md:px-14 py-10 md:py-16 max-w-5xl mx-auto">
       <header className="mb-12">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          panel admin
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
+            panel admin
+          </p>
+          <nav className="font-mono text-[10px] tracking-[2px] uppercase flex gap-4">
+            <span className="text-accent">fuentes</span>
+            <Link href="/biblioteca/admin/seo" data-cursor="hover" className="text-ink-dim hover:text-accent">
+              SEO content
+            </Link>
+          </nav>
+        </div>
         <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">
           Alta de fuentes fan
         </h1>

@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.db.models import InterpretationSource, Song, User
+from app.db.models import Album, Artist, InterpretationSource, SeoContent, Song, User
 from app.db.session import get_db
 from app.services.auth import get_current_admin
 from scripts.research.common import (
@@ -304,3 +304,178 @@ def list_sources(
         )
         for r in rows
     ]
+
+
+# --------------------------------------------------------------------------- #
+# SEO content (revisión humana del contenido generado por LLM)
+# --------------------------------------------------------------------------- #
+class SeoContentListItem(BaseModel):
+    id: int
+    entity_type: str  # artist|album|song
+    slug: str
+    entity_label: str  # ej. "Extremoduro · Agila · Asco"
+    chars: int
+    generated_at: datetime
+    generated_by: str
+    reviewed_at: datetime | None
+    published: bool
+
+
+class SeoContentOut(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    slug: str
+    entity_label: str
+    body_md: str
+    meta_title: str | None
+    meta_description: str | None
+    schema_jsonld: dict | None
+    generated_at: datetime
+    generated_by: str
+    reviewed_at: datetime | None
+    published: bool
+    public_url: str  # ruta canónica relativa
+
+
+class SeoContentUpdateIn(BaseModel):
+    body_md: str
+    meta_title: str | None = None
+    meta_description: str | None = None
+
+
+def _entity_label_and_url(db: Session, entity_type: str, entity_id: int) -> tuple[str, str]:
+    """Devuelve (label legible, ruta pública canónica) para una entidad."""
+    if entity_type == "artist":
+        a = db.query(Artist).filter(Artist.id == entity_id).first()
+        if not a:
+            return ("?", "")
+        return (a.name, f"/{a.slug}")
+    if entity_type == "album":
+        al = db.query(Album).filter(Album.id == entity_id).first()
+        if not al:
+            return ("?", "")
+        return (f"{al.artist.name} · {al.title}", f"/{al.artist.slug}/{al.slug}")
+    if entity_type == "song":
+        s = db.query(Song).filter(Song.id == entity_id).first()
+        if not s:
+            return ("?", "")
+        al = s.album
+        return (
+            f"{al.artist.name} · {al.title} · {s.title}",
+            f"/{al.artist.slug}/{al.slug}/{s.slug}",
+        )
+    return ("?", "")
+
+
+@router.get("/seo", response_model=list[SeoContentListItem])
+def list_seo(
+    status: Literal["all", "unreviewed", "reviewed", "published"] = "all",
+    entity_type: Literal["all", "artist", "album", "song"] = "all",
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[SeoContentListItem]:
+    q = db.query(SeoContent)
+    if status == "unreviewed":
+        q = q.filter(SeoContent.reviewed_at.is_(None))
+    elif status == "reviewed":
+        q = q.filter(SeoContent.reviewed_at.is_not(None), SeoContent.published.is_(False))
+    elif status == "published":
+        q = q.filter(SeoContent.published.is_(True))
+    if entity_type != "all":
+        q = q.filter(SeoContent.entity_type == entity_type)
+    rows = q.order_by(SeoContent.entity_type, SeoContent.slug).all()
+    out = []
+    for r in rows:
+        label, _ = _entity_label_and_url(db, r.entity_type, r.entity_id)
+        out.append(
+            SeoContentListItem(
+                id=r.id,
+                entity_type=r.entity_type,
+                slug=r.slug,
+                entity_label=label,
+                chars=len(r.body_md or ""),
+                generated_at=r.generated_at,
+                generated_by=r.generated_by,
+                reviewed_at=r.reviewed_at,
+                published=r.published,
+            )
+        )
+    return out
+
+
+@router.get("/seo/{seo_id}", response_model=SeoContentOut)
+def get_seo(
+    seo_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoContentOut:
+    row = db.query(SeoContent).filter(SeoContent.id == seo_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="seo_content no encontrado")
+    label, public_url = _entity_label_and_url(db, row.entity_type, row.entity_id)
+    return SeoContentOut(
+        id=row.id,
+        entity_type=row.entity_type,
+        entity_id=row.entity_id,
+        slug=row.slug,
+        entity_label=label,
+        body_md=row.body_md,
+        meta_title=row.meta_title,
+        meta_description=row.meta_description,
+        schema_jsonld=row.schema_jsonld,
+        generated_at=row.generated_at,
+        generated_by=row.generated_by,
+        reviewed_at=row.reviewed_at,
+        published=row.published,
+        public_url=public_url,
+    )
+
+
+@router.put("/seo/{seo_id}", response_model=SeoContentOut)
+def update_seo(
+    seo_id: int,
+    body: SeoContentUpdateIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoContentOut:
+    """Guarda cambios y marca como revisado (mantiene published actual)."""
+    row = db.query(SeoContent).filter(SeoContent.id == seo_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="seo_content no encontrado")
+    row.body_md = body.body_md
+    row.meta_title = body.meta_title
+    row.meta_description = body.meta_description
+    row.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+    return get_seo(seo_id, db=db)  # type: ignore[arg-type]
+
+
+@router.post("/seo/{seo_id}/publish", response_model=SeoContentOut)
+def publish_seo(
+    seo_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoContentOut:
+    row = db.query(SeoContent).filter(SeoContent.id == seo_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="seo_content no encontrado")
+    if row.reviewed_at is None:
+        row.reviewed_at = datetime.now(timezone.utc)
+    row.published = True
+    db.commit()
+    return get_seo(seo_id, db=db)  # type: ignore[arg-type]
+
+
+@router.post("/seo/{seo_id}/unpublish", response_model=SeoContentOut)
+def unpublish_seo(
+    seo_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoContentOut:
+    row = db.query(SeoContent).filter(SeoContent.id == seo_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="seo_content no encontrado")
+    row.published = False
+    db.commit()
+    return get_seo(seo_id, db=db)  # type: ignore[arg-type]
