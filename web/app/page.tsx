@@ -1,10 +1,11 @@
 import Link from "next/link";
+import AlbumCover from "@/components/AlbumCover";
 import { LogoSunCloud } from "@/components/Logo";
+import PublicFooter from "@/components/PublicFooter";
+import PublicHeader from "@/components/PublicHeader";
+import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/theme";
-
-// Landing pública placeholder. En F.5 se rediseña con grid de discos + intro
-// editorial + CTA al registro. De momento tiene lo mínimo para que el dominio
-// no devuelva 404 si lo visita un crawler.
+import type { PublicArtistDetail } from "@/lib/types";
 
 export const metadata = {
   title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
@@ -12,52 +13,145 @@ export const metadata = {
     "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
-export default function PublicLandingPage() {
+type SitemapEntry = {
+  url_path: string;
+  last_modified: string;
+  entity_type: string;
+};
+
+export default async function PublicLandingPage() {
+  // Cargar Extremoduro (su detalle público) y la lista de URLs publicadas
+  // para mostrar links reales a lo que ya está vivo. Si algo falla, fallback
+  // suave a CTAs sin grid.
+  let extremoduro: PublicArtistDetail | null = null;
+  let published: SitemapEntry[] = [];
+  try {
+    extremoduro = await apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
+      authenticated: false,
+    });
+  } catch {
+    /* ignoramos */
+  }
+  try {
+    published = await apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
+      authenticated: false,
+    });
+  } catch {
+    /* ignoramos */
+  }
+
+  // Slugs de discos con artículo SEO publicado
+  const publishedAlbumSlugs = new Set(
+    published
+      .filter((e) => e.entity_type === "album")
+      .map((e) => e.url_path.split("/")[2])
+      .filter(Boolean),
+  );
+  const albumsLive = (extremoduro?.albums || []).filter((a) =>
+    publishedAlbumSlugs.has(a.slug),
+  );
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
-      <div className="mb-12 text-center">
-        <LogoSunCloud
-          name="Entre Interiores"
-          color={T.ink}
-          scale={1.1}
-          stack
-        />
-      </div>
+    <>
+      <PublicHeader />
+      <main className="px-5 md:px-14 max-w-[1100px] mx-auto">
+        {/* Hero */}
+        <section className="py-16 md:py-24 text-center">
+          <div className="mb-10 flex justify-center">
+            <LogoSunCloud name="Entre Interiores" color={T.ink} scale={1.1} stack />
+          </div>
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-4">
+            un cancionero íntimo
+          </p>
+          <h1 className="font-serif text-4xl md:text-6xl text-ink leading-[1.05] tracking-[-1px] mb-6">
+            Robe Iniesta y Extremoduro,
+            <br />
+            <span className="italic text-ink-dim">verso a verso</span>
+          </h1>
+          <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
+            Disco a disco, canción a canción. Análisis, contexto y comunidad
+            fan en torno a la obra de Robe.
+          </p>
 
-      <div className="max-w-2xl text-center space-y-6">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-          un cancionero íntimo
-        </p>
-        <h1 className="font-serif text-3xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
-          Robe Iniesta y Extremoduro,<br />
-          <span className="italic text-ink-dim">verso a verso</span>
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-xl mx-auto">
-          La capa pública con catálogo, contexto y análisis de cada canción está en
-          construcción. Mientras tanto, si ya tienes acceso al cancionero íntimo:
-        </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-8">
+            <Link
+              href="/extremoduro"
+              data-cursor="hover"
+              className="border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            >
+              explorar Extremoduro →
+            </Link>
+            <Link
+              href="/registro"
+              data-cursor="hover"
+              className="border border-divider text-ink-dim hover:border-accent hover:text-accent font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            >
+              acceso fan completo
+            </Link>
+          </div>
+        </section>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+        {/* Discos publicados (capa pública SEO) */}
+        {albumsLive.length > 0 && (
+          <section className="py-12 border-t border-divider">
+            <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
+              en lectura
+            </p>
+            <h2 className="font-serif text-3xl md:text-4xl text-ink mb-8 leading-[1.15]">
+              Discos con análisis disponible
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+              {albumsLive.map((alb) => (
+                <Link
+                  key={alb.slug}
+                  href={`/extremoduro/${alb.slug}`}
+                  data-cursor="hover"
+                  className="group block"
+                >
+                  <AlbumCover
+                    coverUrl={alb.cover_url}
+                    slug={alb.slug}
+                    title={alb.title}
+                    variant="md"
+                    className="!w-full !h-auto aspect-square"
+                  />
+                  <p className="mt-3 font-serif text-[17px] text-ink leading-[1.25] transition-colors group-hover:text-accent">
+                    {alb.title}
+                  </p>
+                  <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+                    {alb.year} · {alb.kind}
+                  </p>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-6 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+              El resto del catálogo se va publicando con análisis editorial conforme se completa.
+            </p>
+          </section>
+        )}
+
+        {/* CTA fan */}
+        <section className="py-16 border-t border-divider text-center">
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">
+            el cancionero íntimo
+          </p>
+          <h2 className="font-serif text-2xl md:text-3xl text-ink leading-[1.2] mb-4">
+            Letra completa, karaoke sincronizado y análisis fan
+          </h2>
+          <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
+            Regístrate gratis para acceder a la experiencia completa: 144 canciones con
+            sincronización letra-audio, interpretaciones de la comunidad y buscador semántico.
+          </p>
           <Link
             href="/registro"
             data-cursor="hover"
-            className="border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
           >
-            crear cuenta
+            crear cuenta gratis
           </Link>
-          <Link
-            href="/login"
-            data-cursor="hover"
-            className="border border-divider text-ink-dim hover:border-accent hover:text-accent font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
-          >
-            entrar
-          </Link>
-        </div>
-      </div>
-
-      <footer className="mt-20 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint text-center">
-        sitio fan no oficial · letras © sus autores
-      </footer>
-    </main>
+        </section>
+      </main>
+      <PublicFooter />
+    </>
   );
 }
