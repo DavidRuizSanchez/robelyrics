@@ -35,9 +35,19 @@ class Settings(BaseSettings):
     reddit_user_agent: str | None = Field(None, alias="REDDIT_USER_AGENT")
     youtube_api_key: str | None = Field(None, alias="YOUTUBE_API_KEY")
 
-    # Email (Resend)
+    # Email — dos backends posibles, se elige por config:
+    #   1) SMTP genérico (Gmail con app-password recomendado para uso personal)
+    #   2) Resend (preferible cuando haya dominio verificado en producción)
+    smtp_host: str | None = Field(None, alias="SMTP_HOST")
+    smtp_port: int = Field(587, alias="SMTP_PORT")
+    smtp_user: str | None = Field(None, alias="SMTP_USER")
+    smtp_password: str | None = Field(None, alias="SMTP_PASSWORD")
+    smtp_from: str | None = Field(None, alias="SMTP_FROM")
+    smtp_from_name: str = Field("Entre Interiores", alias="SMTP_FROM_NAME")
+
     resend_api_key: str | None = Field(None, alias="RESEND_API_KEY")
     resend_from_email: str = Field("hola@entreinteriores.com", alias="RESEND_FROM_EMAIL")
+
     site_url: str = Field("http://localhost:3001", alias="SITE_URL")
 
     # Términos: versión vigente. Al cambiar, los users tienen que re-aceptar.

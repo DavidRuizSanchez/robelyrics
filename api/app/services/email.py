@@ -1,13 +1,20 @@
-"""Wrapper minimal sobre la API REST de Resend.
+"""Servicio de envío de emails. Dos backends:
 
-Resend no requiere SDK: es un POST a https://api.resend.com/emails con auth Bearer.
-Si `RESEND_API_KEY` no está configurada (entorno local sin email saliente), las
-funciones loguean el contenido por stderr en lugar de enviar — útil para
-desarrollo, falla rápido en producción si falta la key.
+  1. SMTP genérico (compatible con Gmail vía app-password). Es la opción
+     recomendada para uso personal, sin necesidad de dominio. Si SMTP_HOST,
+     SMTP_USER y SMTP_PASSWORD están configurados, se usa este.
+
+  2. Resend (preferido en producción con dominio verificado). Si solo está
+     RESEND_API_KEY, se usa éste.
+
+Si ninguno está configurado, las funciones loguean por stderr en lugar de
+enviar — útil para desarrollo sin claves.
 """
 from __future__ import annotations
 
+import smtplib
 import sys
+from email.message import EmailMessage
 
 import httpx
 
@@ -21,20 +28,53 @@ class EmailError(Exception):
 
 
 def send_email(to: str, subject: str, html: str, text: str | None = None) -> str | None:
-    """Envía un email. Devuelve el ID de Resend, o None si solo se logueó.
+    """Envía un email. Devuelve un identificador (Message-ID o id de Resend),
+    o None si solo se logueó en stderr.
 
-    No lanza si la key no está configurada (modo dev). Sí lanza EmailError si
-    Resend devuelve error explícito.
+    Selecciona backend según configuración: SMTP > Resend > log.
     """
     settings = get_settings()
-    if not settings.resend_api_key:
-        print(
-            f"[email:dev] sin RESEND_API_KEY; loggeando · to={to} subject={subject!r}",
-            file=sys.stderr,
-        )
-        print(f"[email:dev] body html → {html[:300]}...", file=sys.stderr)
-        return None
 
+    if settings.smtp_host and settings.smtp_user and settings.smtp_password:
+        return _send_smtp(settings, to, subject, html, text)
+
+    if settings.resend_api_key:
+        return _send_resend(settings, to, subject, html, text)
+
+    print(
+        f"[email:dev] sin SMTP_* ni RESEND_API_KEY; loggeando · to={to} subject={subject!r}",
+        file=sys.stderr,
+    )
+    print(f"[email:dev] body html → {html[:300]}...", file=sys.stderr)
+    return None
+
+
+def _send_smtp(settings, to: str, subject: str, html: str, text: str | None) -> str:
+    msg = EmailMessage()
+    from_addr = settings.smtp_from or settings.smtp_user
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.smtp_from_name} <{from_addr}>"
+    msg["To"] = to
+    msg.set_content(text or "Confirma tu email visitando el enlace.")
+    msg.add_alternative(html, subtype="html")
+
+    try:
+        # Gmail (587) y la mayoría de proveedores: STARTTLS.
+        # Para puerto 465 (SMTPS) usaríamos SMTP_SSL — no contemplado de momento
+        # porque app-password de Gmail funciona perfectamente con 587.
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as s:
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
+            s.login(settings.smtp_user, settings.smtp_password)
+            s.send_message(msg)
+    except (smtplib.SMTPException, OSError) as e:
+        raise EmailError(f"smtp error: {type(e).__name__}: {e}") from e
+
+    return msg["Message-ID"] or "smtp-sent"
+
+
+def _send_resend(settings, to: str, subject: str, html: str, text: str | None) -> str:
     payload = {
         "from": settings.resend_from_email,
         "to": [to],
@@ -60,7 +100,7 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> str
     if r.status_code >= 400:
         raise EmailError(f"resend {r.status_code}: {r.text[:300]}")
 
-    return r.json().get("id")
+    return r.json().get("id", "resend-sent")
 
 
 def render_verify_email(verify_url: str) -> tuple[str, str]:
