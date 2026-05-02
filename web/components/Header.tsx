@@ -1,33 +1,80 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { LogoSunCloud } from "@/components/Logo";
+import { T } from "@/lib/theme";
 
 export default function Header() {
+  const [open, setOpen] = useState(false);
+  const items = [
+    { href: "/", label: "Inicio" },
+    { href: "/discografia", label: "Discografía" },
+  ];
   return (
-    <header className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur sticky top-0 z-10">
-      <nav className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between text-sm">
-        <Link
-          href="/"
-          className="font-serif font-bold text-zinc-100 hover:text-white"
-        >
-          RobeLyrics
-        </Link>
-        <div className="flex items-center gap-5 text-zinc-400">
-          <Link href="/extremoduro" className="hover:text-zinc-100">
-            Extremoduro
+    <header className="sticky top-0 z-40 flex items-center justify-between px-5 md:px-14 py-4 md:py-6 border-b border-divider bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
+      <Link href="/" data-cursor="hover" className="block">
+        <LogoSunCloud
+          name="Entre Interiores"
+          color={T.ink}
+          scale={0.78}
+        />
+      </Link>
+
+      <nav className="hidden md:flex items-center gap-8 font-mono text-[11px] tracking-[2.5px] uppercase">
+        {items.map((it) => (
+          <Link
+            key={it.href}
+            href={it.href}
+            data-cursor="hover"
+            className="text-ink-dim hover:text-ink transition-colors"
+          >
+            {it.label}
           </Link>
-          <Link href="/robe" className="hover:text-zinc-100">
-            Robe
-          </Link>
-          <form action="/logout" method="post" className="inline">
+        ))}
+        <form action="/logout" method="post" className="inline">
+          <button
+            type="submit"
+            data-cursor="hover"
+            className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]"
+          >
+            salir
+          </button>
+        </form>
+      </nav>
+
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        data-cursor="hover"
+        className="md:hidden text-ink font-mono text-sm tracking-[2px]"
+        aria-label="Menu"
+      >
+        {open ? "✕" : "☰"}
+      </button>
+
+      {open && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-bg border-b border-divider px-5 pb-5 pt-2">
+          {items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              onClick={() => setOpen(false)}
+              className="block py-3 font-mono text-xs tracking-[2px] uppercase text-ink border-b border-divider"
+            >
+              {it.label}
+            </Link>
+          ))}
+          <form action="/logout" method="post">
             <button
               type="submit"
-              className="hover:text-zinc-100 text-zinc-500"
-              title="Cerrar sesión"
+              className="block py-3 font-mono text-xs tracking-[2px] uppercase text-ink-faint w-full text-left"
             >
               salir
             </button>
           </form>
         </div>
-      </nav>
+      )}
     </header>
   );
 }

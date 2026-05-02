@@ -20,20 +20,28 @@ export default async function SongPage({
   }
 
   return (
-    <main className="min-h-screen px-6 py-12 max-w-3xl mx-auto">
-      <div className="flex items-center gap-2 text-sm text-zinc-500">
-        <Link href={`/${artist}`} className="hover:text-zinc-300">
+    <main className="px-5 md:px-14 py-10 md:py-16 max-w-[1100px] mx-auto">
+      <div className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] uppercase text-ink-dim">
+        <Link
+          href={`/${artist}`}
+          data-cursor="hover"
+          className="hover:text-ink"
+        >
           {detail.artist.name}
         </Link>
-        <span>·</span>
-        <Link href={`/${artist}/${album}`} className="hover:text-zinc-300">
+        <span className="opacity-50">·</span>
+        <Link
+          href={`/${artist}/${album}`}
+          data-cursor="hover"
+          className="hover:text-ink"
+        >
           {detail.album.title}
         </Link>
-        <span className="text-zinc-700">({detail.album.year})</span>
+        <span className="text-ink-faint">({detail.album.year})</span>
       </div>
 
-      <div className="mt-4 mb-10 flex flex-wrap items-center gap-4">
-        <h1 className="font-serif text-4xl md:text-5xl font-bold">
+      <div className="mt-6 mb-10 md:mb-14 flex flex-wrap items-center gap-5">
+        <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink m-0 leading-none tracking-[-1.5px]">
           {detail.title}
         </h1>
         <YoutubeLink
@@ -43,14 +51,14 @@ export default async function SongPage({
         />
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_280px] gap-10">
+      <div className="grid lg:grid-cols-[1fr_300px] gap-10 lg:gap-16">
         <article className="space-y-1">
           {groupByStanza(detail.lines).map((stanza, i) => (
-            <div key={i} className="mb-6">
+            <div key={i} className="mb-8">
               {stanza.map((line) => (
                 <p
                   key={line.line_index}
-                  className="font-serif text-lg md:text-xl leading-relaxed text-zinc-100"
+                  className="font-serif text-[19px] md:text-[22px] leading-relaxed text-ink m-0"
                 >
                   {line.text}
                 </p>
@@ -60,24 +68,26 @@ export default async function SongPage({
         </article>
 
         {detail.interpretation && (
-          <aside className="lg:sticky lg:top-12 self-start bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 text-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-zinc-200">
+          <aside className="lg:sticky lg:top-24 self-start bg-paper border-l-2 border-accent/40 p-5 text-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
                 Interpretación fan
               </h2>
-              <ConfidenceBadge confidence={detail.interpretation_confidence} />
+              <ConfidenceBadge
+                confidence={detail.interpretation_confidence}
+              />
             </div>
 
             {detail.interpretation.themes.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs uppercase tracking-wide text-zinc-500 mb-1">
+                <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
                   Temas
                 </p>
                 <ul className="flex flex-wrap gap-1.5">
                   {detail.interpretation.themes.map((t, i) => (
                     <li
                       key={i}
-                      className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-300 text-xs"
+                      className="bg-paper-hi px-2 py-0.5 text-ink-dim text-xs font-serif italic"
                     >
                       {t.theme}
                     </li>
@@ -88,15 +98,15 @@ export default async function SongPage({
 
             {detail.interpretation.key_metaphors.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs uppercase tracking-wide text-zinc-500 mb-2">
+                <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
                   Metáforas
                 </p>
                 <ul className="space-y-2">
                   {detail.interpretation.key_metaphors.map((m, i) => (
-                    <li key={i}>
-                      <span className="text-zinc-200 italic">«{m.phrase}»</span>{" "}
-                      <span className="text-zinc-500">→</span>{" "}
-                      <span className="text-zinc-400">{m.meaning}</span>
+                    <li key={i} className="font-serif italic text-[14px] leading-relaxed">
+                      <span className="text-ink">«{m.phrase}»</span>{" "}
+                      <span className="text-ink-faint not-italic">→</span>{" "}
+                      <span className="text-ink-dim">{m.meaning}</span>
                     </li>
                   ))}
                 </ul>
@@ -105,10 +115,10 @@ export default async function SongPage({
 
             {detail.interpretation.fan_consensus && (
               <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500 mb-2">
+                <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
                   Consenso
                 </p>
-                <p className="text-zinc-300 leading-relaxed">
+                <p className="font-serif italic text-ink-dim text-[14px] leading-relaxed">
                   {detail.interpretation.fan_consensus}
                 </p>
               </div>
@@ -143,12 +153,14 @@ function ConfidenceBadge({
 }) {
   if (!confidence) return null;
   const styles = {
-    high: "bg-emerald-900/40 text-emerald-300",
-    medium: "bg-amber-900/40 text-amber-300",
-    low: "bg-zinc-800 text-zinc-400",
+    high: "text-accent",
+    medium: "text-accent/70",
+    low: "text-ink-faint",
   } as const;
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded uppercase tracking-wide ${styles[confidence]}`}>
+    <span
+      className={`font-mono text-[9px] tracking-[2px] uppercase ${styles[confidence]}`}
+    >
       {confidence}
     </span>
   );

@@ -2,8 +2,8 @@
 
 import { useYoutubePlayer } from "@/lib/youtube-player-context";
 
-// Botón YouTube. Al hacer click abre el reproductor flotante en la esquina.
-// Si no hay videoId conocido, abre en nueva pestaña (búsqueda).
+// Botón YouTube. Click → abre el reproductor flotante en la esquina.
+// Sin videoId → fallback a búsqueda en nueva pestaña.
 export default function YoutubeLink({
   title,
   artist,
@@ -18,11 +18,19 @@ export default function YoutubeLink({
   size?: "sm" | "md";
 }) {
   const { open } = useYoutubePlayer();
-  const cls = size === "sm" ? "text-xs px-2 py-1" : "text-sm px-3 py-1.5";
-  const iconCls = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
-  const baseCls = `inline-flex items-center gap-1.5 bg-red-600/15 hover:bg-red-600/25 text-red-300 hover:text-red-200 rounded-md transition border border-red-900/40 ${cls}`;
 
-  // Sin videoId conocido → fallback a búsqueda en nueva pestaña.
+  // Pastilla outline granate con fondo translúcido — visible pero coherente
+  // con la paleta. Hover invierte (relleno granate, texto papel).
+  const sizeCls =
+    size === "sm"
+      ? "text-[10px] px-2 py-1"
+      : "text-[11px] px-3 py-1.5";
+  const baseCls =
+    "ml-auto inline-flex items-center gap-1.5 font-mono uppercase tracking-[1.5px] " +
+    "border border-accent/60 bg-accent/15 text-accent " +
+    "hover:bg-accent hover:text-white hover:border-accent " +
+    "transition-colors rounded-sm";
+
   if (!videoId) {
     const href = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${title} ${artist}`)}`;
     return (
@@ -30,42 +38,45 @@ export default function YoutubeLink({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className={baseCls}
+        data-cursor="hover"
+        className={`${baseCls} ${sizeCls}`}
         title="Buscar en YouTube"
       >
-        <YoutubeIcon className={iconCls} />
+        <PlayIcon />
         Buscar YT
       </a>
     );
   }
 
-  // Con videoId → abre el reproductor flotante in-page.
-  const label =
-    seconds != null
-      ? `YouTube · ${formatTime(Math.max(0, seconds - 5))}`
-      : "YouTube";
-  const tooltip =
-    seconds != null
-      ? `Reproducir desde ${formatTime(seconds)}`
-      : "Reproducir";
-
   return (
     <button
       type="button"
       onClick={() => open({ videoId, seconds, title, artist })}
-      className={baseCls}
-      title={tooltip}
+      data-cursor="hover"
+      className={`${baseCls} ${sizeCls}`}
+      title={
+        seconds != null
+          ? `Reproducir desde ${formatTime(seconds)}`
+          : "Reproducir"
+      }
     >
-      <YoutubeIcon className={iconCls} />
-      {label}
+      <PlayIcon />
+      {seconds != null
+        ? formatTime(Math.max(0, seconds - 5))
+        : "youtube"}
     </button>
   );
 }
 
-function YoutubeIcon({ className }: { className: string }) {
+function PlayIcon() {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    <svg
+      viewBox="0 0 16 16"
+      className="w-3 h-3 shrink-0"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M5 3l8 5-8 5V3z" />
     </svg>
   );
 }

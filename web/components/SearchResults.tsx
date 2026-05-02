@@ -32,25 +32,26 @@ export default async function SearchResults({
     const msg =
       e instanceof ApiError ? `Error ${e.status}` : "Error inesperado";
     return (
-      <div className="max-w-3xl mx-auto mt-8 p-4 bg-red-950/30 border border-red-900 rounded-lg text-red-300 text-sm">
+      <div className="mt-8 p-4 border border-accent/30 text-accent font-mono text-[12px] tracking-[1px]">
         {msg}
       </div>
     );
   }
 
   return (
-    <section className="max-w-3xl mx-auto mt-10 space-y-4">
-      <p className="text-sm text-zinc-500">
+    <section className="mt-14 space-y-9 animate-fade-up">
+      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
         {result.results.length} resultado
         {result.results.length === 1 ? "" : "s"} para «{query}»
       </p>
+
       {result.results.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-zinc-500">
+        <div className="border border-divider p-8 text-center text-ink-dim font-serif italic">
           Sin coincidencias. Prueba otra frase.
         </div>
       ) : mode === "semantic" ? (
         (result as SemanticOut).results.map((hit, i) => (
-          <SemanticResultCard key={i} hit={hit} query={query} />
+          <SemanticResultCard key={i} hit={hit} query={query} index={i} />
         ))
       ) : (
         (result as CompleteOut).results.map((hit, i) => (

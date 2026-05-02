@@ -6,4 +6,52 @@
   :root {
     color-scheme: dark;
   }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #070605;
+  }
+
+  body {
+    color: #ede4d3;
+    min-height: 100vh;
+  }
+
+  /* Selección granate (token accent) */
+  ::selection {
+    background: #a83a3a;
+    color: #fff;
+  }
+
+  /* Scrollbar discreto */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(237, 228, 211, 0.1);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(237, 228, 211, 0.2);
+  }
+
+  /* En desktop ocultamos el cursor real y dejamos sólo el InkCursor */
+  @media (pointer: fine) {
+    body,
+    body * {
+      cursor: none !important;
+    }
+  }
 }
