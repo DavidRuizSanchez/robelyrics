@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
-import { cookies } from "next/headers";
-import Header from "@/components/Header";
 import InkCursor from "@/components/InkCursor";
-import YoutubeFloatingPlayer from "@/components/YoutubeFloatingPlayer";
-import { apiFetch } from "@/lib/api";
-import { YoutubePlayerProvider } from "@/lib/youtube-player-context";
-import type { AuthMe } from "@/lib/types";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -32,9 +26,9 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Entre Interiores · RobeLyrics",
+  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
   description:
-    "El universo de Robe Iniesta y Extremoduro, verso a verso. Buscador semántico personal.",
+    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
 export default async function RootLayout({
@@ -42,16 +36,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isAuthed = Boolean((await cookies()).get("robelyrics_token")?.value);
-  let isAdmin = false;
-  if (isAuthed) {
-    try {
-      const me = await apiFetch<AuthMe>("/auth/me");
-      isAdmin = me.is_admin;
-    } catch {
-      isAdmin = false;
-    }
-  }
   const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
 
   return (
@@ -60,12 +44,8 @@ export default async function RootLayout({
         className="bg-bg-deep text-ink antialiased min-h-screen font-serif"
         suppressHydrationWarning
       >
-        <YoutubePlayerProvider>
-          <InkCursor />
-          {isAuthed && <Header isAdmin={isAdmin} />}
-          {children}
-          <YoutubeFloatingPlayer />
-        </YoutubePlayerProvider>
+        <InkCursor />
+        {children}
       </body>
     </html>
   );

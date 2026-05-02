@@ -34,7 +34,7 @@ export default async function SongPage({
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] uppercase text-ink-dim">
           <Link
-            href={`/${artist}`}
+            href={`/biblioteca/${artist}`}
             data-cursor="hover"
             className="hover:text-ink"
           >
@@ -42,7 +42,7 @@ export default async function SongPage({
           </Link>
           <span className="opacity-50">·</span>
           <Link
-            href={`/${artist}/${album}`}
+            href={`/biblioteca/${artist}/${album}`}
             data-cursor="hover"
             className="hover:text-ink"
           >

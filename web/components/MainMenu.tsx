@@ -6,21 +6,21 @@ const ITEMS = [
     title: "Equivalente poético",
     desc: "Cuéntame cómo te sientes y te doy la letra que lo dice.",
     example: '"se acabó lo bonito" → "se acabaron las flores de papel"',
-    href: "/?mode=semantic#search",
+    href: "/biblioteca?mode=semantic#search",
   },
   {
     n: "02",
     title: "Completa la frase",
     desc: "Empieza una línea y descubre cómo continúa en el cancionero.",
     example: '"abre la puerta" → "que soy el diablo…"',
-    href: "/?mode=complete#search",
+    href: "/biblioteca?mode=complete#search",
   },
   {
     n: "03",
     title: "Discos y canciones",
     desc: "Navega el catálogo entero. Cada disco, cada letra, cada año.",
     example: "15 discos · 144 canciones",
-    href: "/discografia",
+    href: "/biblioteca/discografia",
   },
 ];
 

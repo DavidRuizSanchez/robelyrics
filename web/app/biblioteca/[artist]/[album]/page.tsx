@@ -22,7 +22,7 @@ export default async function AlbumPage({
   return (
     <main className="px-5 md:px-14 py-10 md:py-16 max-w-[920px] mx-auto">
       <Link
-        href={`/${artist}`}
+        href={`/biblioteca/${artist}`}
         data-cursor="hover"
         className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
       >
@@ -50,7 +50,7 @@ export default async function AlbumPage({
         {detail.tracks.map((tr, i) => (
           <li key={tr.slug}>
             <Link
-              href={`/${artist}/${album}/${tr.slug}`}
+              href={`/biblioteca/${artist}/${album}/${tr.slug}`}
               data-cursor="hover"
               className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
             >

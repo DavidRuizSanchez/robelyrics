@@ -1,97 +1,56 @@
-import { Suspense } from "react";
 import Link from "next/link";
-import DiscographySection from "@/components/DiscographySection";
-import Footer from "@/components/Footer";
-import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
-import Hero from "@/components/Hero";
-import LoadingResults from "@/components/LoadingResults";
-import MainMenu from "@/components/MainMenu";
-import SearchBox from "@/components/SearchBox";
-import SearchResults from "@/components/SearchResults";
+import { LogoSunCloud } from "@/components/Logo";
+import { T } from "@/lib/theme";
 
-type Mode = "semantic" | "complete";
+// Landing pública placeholder. En F.5 se rediseña con grid de discos + intro
+// editorial + CTA al registro. De momento tiene lo mínimo para que el dominio
+// no devuelva 404 si lo visita un crawler.
 
-const MODE_META: Record<Mode, { n: string; title: string }> = {
-  semantic: { n: "01", title: "Equivalente poético" },
-  complete: { n: "02", title: "Completa la frase" },
+export const metadata = {
+  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
+  description:
+    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; mode?: string }>;
-}) {
-  const sp = await searchParams;
-  const query = (sp.q || "").trim();
-  const mode: Mode | null =
-    sp.mode === "semantic" || sp.mode === "complete" ? sp.mode : null;
-
-  // Modo Experience (form + resultados)
-  if (mode) {
-    return (
-      <Experience mode={mode} query={query} />
-    );
-  }
-
-  // Home
+export default function PublicLandingPage() {
   return (
-    <div className="relative">
-      <HeaderImageBackdrop height="1100px" />
-      <div className="relative z-10">
-        <Hero />
-        <MainMenu />
-        <DiscographySection variant="summary" />
-        <Footer />
-      </div>
-    </div>
-  );
-}
-
-function Experience({ mode, query }: { mode: Mode; query: string }) {
-  const meta = MODE_META[mode];
-  return (
-    <main
-      id="search"
-      className="px-5 md:px-14 py-8 md:py-20 max-w-[920px] mx-auto animate-fade-up"
-    >
-      <Link
-        href="/"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink transition-colors mb-7 inline-block"
-      >
-        ← volver
-      </Link>
-
-      <div className="flex items-center gap-3 mb-3.5">
-        <span className="block w-6 h-px bg-accent" />
-        <span className="font-mono text-[11px] tracking-[4px] uppercase text-accent">
-          {meta.n}
-        </span>
-      </div>
-      <h2 className="font-serif text-4xl md:text-[64px] font-normal text-ink m-0 leading-[1] tracking-[-1px]">
-        {meta.title}
-      </h2>
-
-      <div className="mt-9">
-        <SearchBox initialQuery={query} initialMode={mode} />
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+      <div className="mb-12 text-center">
+        <LogoSunCloud
+          name="Entre Interiores"
+          color={T.ink}
+          scale={1.1}
+          stack
+        />
       </div>
 
-      {query && (
-        <Suspense
-          key={`${mode}:${query}`}
-          fallback={<LoadingResults query={query} />}
-        >
-          <SearchResults query={query} mode={mode} />
-        </Suspense>
-      )}
-
-      {!query && (
-        <p className="mt-6 font-mono text-[10px] tracking-[1px] text-ink-faint">
-          {mode === "semantic"
-            ? 'p.ej. «se acabó lo bonito»'
-            : 'p.ej. «abre la puerta»'}
+      <div className="max-w-2xl text-center space-y-6">
+        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
+          un cancionero íntimo
         </p>
-      )}
+        <h1 className="font-serif text-3xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
+          Robe Iniesta y Extremoduro,<br />
+          <span className="italic text-ink-dim">verso a verso</span>
+        </h1>
+        <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-xl mx-auto">
+          La capa pública con catálogo, contexto y análisis de cada canción está en
+          construcción. Mientras tanto, si ya tienes acceso al cancionero íntimo:
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+          <Link
+            href="/login"
+            data-cursor="hover"
+            className="border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+          >
+            entrar
+          </Link>
+        </div>
+      </div>
+
+      <footer className="mt-20 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint text-center">
+        sitio fan no oficial · letras © sus autores
+      </footer>
     </main>
   );
 }

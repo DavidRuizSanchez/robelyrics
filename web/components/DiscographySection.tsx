@@ -62,7 +62,7 @@ export default async function DiscographySection({
         {albums.map((d) => (
           <Link
             key={`${d.artist.slug}-${d.slug}`}
-            href={`/${d.artist.slug}/${d.slug}`}
+            href={`/biblioteca/${d.artist.slug}/${d.slug}`}
             data-cursor="hover"
             className="group grid grid-cols-[44px_56px_1fr] md:grid-cols-[70px_64px_1fr_auto] gap-2.5 md:gap-6 items-center py-4 md:py-5 border-b border-divider transition-[padding] duration-200 ease-[cubic-bezier(.2,.8,.2,1)] hover:pl-2 md:hover:pl-4"
           >
@@ -88,7 +88,7 @@ export default async function DiscographySection({
       {variant === "summary" && (
         <div className="text-center mt-10">
           <Link
-            href="/discografia"
+            href="/biblioteca/discografia"
             data-cursor="hover"
             className="inline-block font-mono text-[11px] tracking-[3px] uppercase text-ink-dim hover:text-accent transition-colors"
           >

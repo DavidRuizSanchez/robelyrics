@@ -24,11 +24,11 @@ export default function Footer() {
       <div className="mt-8 pt-5 border-t border-divider flex flex-col md:flex-row md:justify-between gap-3 font-mono text-[10px] tracking-[2px] text-ink-faint uppercase">
         <span>No oficial · Letras © sus autores</span>
         <div className="flex gap-4">
-          <Link href="/" data-cursor="hover" className="hover:text-ink">
+          <Link href="/biblioteca" data-cursor="hover" className="hover:text-ink">
             Inicio
           </Link>
           <Link
-            href="/discografia"
+            href="/biblioteca/discografia"
             data-cursor="hover"
             className="hover:text-ink"
           >

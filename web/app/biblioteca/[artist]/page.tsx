@@ -28,7 +28,7 @@ export default async function ArtistPage({
   return (
     <main className="px-5 md:px-14 py-10 md:py-16 max-w-[1100px] mx-auto">
       <Link
-        href="/"
+        href="/biblioteca"
         data-cursor="hover"
         className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
       >
@@ -55,7 +55,7 @@ export default async function ArtistPage({
         {albums.map((alb) => (
           <Link
             key={alb.slug}
-            href={`/${artist}/${alb.slug}`}
+            href={`/biblioteca/${artist}/${alb.slug}`}
             data-cursor="hover"
             className="group block"
           >

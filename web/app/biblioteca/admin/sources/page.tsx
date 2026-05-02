@@ -22,10 +22,10 @@ export default async function AdminSourcesPage() {
   try {
     me = await apiFetch<AuthMe>("/auth/me");
   } catch {
-    redirect("/login?from=/admin/sources");
+    redirect("/login?from=/biblioteca/admin/sources");
   }
   if (!me!.is_admin) {
-    redirect("/");
+    redirect("/biblioteca");
   }
 
   let sources: SourceListItem[] = [];
