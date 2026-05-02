@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AlbumCover from "@/components/AlbumCover";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { AlbumDetail } from "@/lib/types";
 
@@ -28,13 +29,21 @@ export default async function AlbumPage({
         ← {detail.artist.name}
       </Link>
 
-      <header className="mt-6 mb-12">
-        <p className="font-mono text-[11px] tracking-[2px] uppercase text-ink-faint">
-          {detail.year} · {detail.kind}
-        </p>
-        <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink mt-1 leading-none tracking-[-1.5px]">
-          {detail.title}
-        </h1>
+      <header className="mt-6 mb-12 flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
+        <AlbumCover
+          coverUrl={detail.cover_url}
+          slug={detail.slug}
+          title={detail.title}
+          variant="lg"
+        />
+        <div>
+          <p className="font-mono text-[11px] tracking-[2px] uppercase text-ink-faint">
+            {detail.year} · {detail.kind}
+          </p>
+          <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink mt-1 leading-none tracking-[-1.5px]">
+            {detail.title}
+          </h1>
+        </div>
       </header>
 
       <ol className="space-y-1">

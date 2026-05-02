@@ -64,6 +64,9 @@ services:
     volumes:
       - ./api:/app
       - ./data:/app/data:ro
+      # web/public bind para que scripts del api (match_covers) puedan
+      # escribir portadas accesibles luego desde el contenedor web.
+      - ./web/public:/app/web-public
     depends_on:
       postgres:
         condition: service_healthy

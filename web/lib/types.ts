@@ -11,6 +11,7 @@ export type Album = {
   title: string;
   year: number;
   kind: string;
+  cover_url?: string | null;
 };
 
 export type Track = {

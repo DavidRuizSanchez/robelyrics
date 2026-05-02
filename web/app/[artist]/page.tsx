@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SunMark } from "@/components/Logo";
+import AlbumCover from "@/components/AlbumCover";
 import { apiFetch, ApiError } from "@/lib/api";
-import {
-  DEFAULT_DISC_COLOR,
-  DISCOGRAPHY_COLORS,
-} from "@/lib/discography-display";
 import type { Album, Artist } from "@/lib/types";
 
 const VALID = new Set(["extremoduro", "robe"]);
@@ -54,43 +50,33 @@ export default async function ArtistPage({
         </p>
       )}
 
-      <ul className="mt-12">
-        {albums.map((alb) => {
-          const color = DISCOGRAPHY_COLORS[alb.slug] || DEFAULT_DISC_COLOR;
-          return (
-            <li key={alb.slug}>
-              <Link
-                href={`/${artist}/${alb.slug}`}
-                data-cursor="hover"
-                className="group grid grid-cols-[44px_36px_1fr] md:grid-cols-[70px_52px_1fr_auto] gap-2.5 md:gap-6 items-center py-4 md:py-5 border-b border-divider transition-[padding] duration-200 hover:pl-2 md:hover:pl-4"
-              >
-                <span className="font-mono text-[11px] md:text-[13px] text-ink-faint tracking-[1px]">
-                  {alb.year}
-                </span>
-                <span
-                  className="rounded flex items-center justify-center overflow-hidden w-8 h-8 md:w-11 md:h-11"
-                  style={{
-                    background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <SunMark
-                    size={20}
-                    color="rgba(255,235,200,0.85)"
-                    strokeWidth={1.4}
-                  />
-                </span>
-                <p className="font-serif text-[17px] md:text-[26px] text-ink m-0 leading-[1.2] transition-colors group-hover:text-accent">
-                  {alb.title}
-                </p>
-                <span className="hidden md:inline font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                  {alb.kind}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {/* Grid de discos con portadas */}
+      <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+        {albums.map((alb) => (
+          <Link
+            key={alb.slug}
+            href={`/${artist}/${alb.slug}`}
+            data-cursor="hover"
+            className="group block"
+          >
+            <div className="relative">
+              <AlbumCover
+                coverUrl={alb.cover_url}
+                slug={alb.slug}
+                title={alb.title}
+                variant="md"
+                className="!w-full !h-auto aspect-square"
+              />
+            </div>
+            <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
+              {alb.title}
+            </p>
+            <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+              {alb.year} · {alb.kind}
+            </p>
+          </Link>
+        ))}
+      </div>
     </main>
   );
 }
