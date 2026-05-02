@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import KaraokePlayer from "@/components/KaraokePlayer";
 import LyricLine from "@/components/LyricLine";
+import SourcePills, { type SourceLite } from "@/components/SourcePills";
 import { KaraokeProvider } from "@/lib/karaoke-context";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { SongDetail } from "@/lib/types";
+
+type SourceListOut = { total: number; items: SourceLite[] };
 
 export default async function SongPage({
   params,
@@ -27,6 +30,29 @@ export default async function SongPage({
   const linesEffective = withInterpolatedStarts(detail.lines);
   const stanzas = groupByStanza(linesEffective);
   const hasTimestamps = linesEffective.some((l) => l.effective_start != null);
+
+  // Recopilar todos los source_ids citados en la interpretación y bulk-fetch
+  // sus metadatos para que el sidebar pueda enlazarlos (cumple BY de CC-BY-NC-SA).
+  const sourceMap: Record<number, SourceLite> = {};
+  if (detail.interpretation) {
+    const ids = new Set<number>();
+    detail.interpretation.themes?.forEach((t) => t.source_ids?.forEach((id) => ids.add(id)));
+    detail.interpretation.key_metaphors?.forEach((m) => m.source_ids?.forEach((id) => ids.add(id)));
+    detail.interpretation.references?.forEach((r) => r.source_ids?.forEach((id) => ids.add(id)));
+    detail.interpretation.fan_consensus_citations?.forEach((id) => ids.add(id));
+
+    if (ids.size > 0) {
+      try {
+        const idsParam = Array.from(ids).join(",");
+        const data = await apiFetch<SourceListOut>(
+          `/sources?ids=${idsParam}&limit=500`,
+        );
+        for (const s of data.items) sourceMap[s.id] = s;
+      } catch {
+        /* sin fuentes resueltas: el sidebar simplemente no muestra pills */
+      }
+    }
+  }
 
   return (
     <KaraokeProvider>
@@ -135,13 +161,16 @@ export default async function SongPage({
                   <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-2.5">
                     Temas
                   </p>
-                  <ul className="flex flex-wrap gap-1.5">
+                  <ul className="space-y-1.5">
                     {detail.interpretation.themes.map((t, i) => (
                       <li
                         key={i}
-                        className="bg-paper-hi px-2.5 py-0.5 text-ink-dim text-[14px] font-serif italic"
+                        className="text-ink-dim text-[15px] font-serif italic"
                       >
-                        {t.theme}
+                        <span className="bg-paper-hi px-2.5 py-0.5">{t.theme}</span>
+                        {t.source_ids && (
+                          <SourcePills sourceIds={t.source_ids} sources={sourceMap} />
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -162,11 +191,39 @@ export default async function SongPage({
                         <span className="text-ink">«{m.phrase}»</span>{" "}
                         <span className="text-ink-faint not-italic">→</span>{" "}
                         <span className="text-ink-dim">{m.meaning}</span>
+                        {m.source_ids && (
+                          <SourcePills sourceIds={m.source_ids} sources={sourceMap} />
+                        )}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
+
+              {detail.interpretation.references &&
+                detail.interpretation.references.length > 0 && (
+                  <div className="mb-6">
+                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-2.5">
+                      Referencias
+                    </p>
+                    <ul className="space-y-2.5">
+                      {detail.interpretation.references.map((r, i) => (
+                        <li
+                          key={i}
+                          className="font-serif text-ink-dim text-[15px] leading-[1.55]"
+                        >
+                          <span className="font-mono text-[9px] tracking-[1.5px] uppercase text-accent mr-2">
+                            {r.type}
+                          </span>
+                          {r.description}
+                          {r.source_ids && (
+                            <SourcePills sourceIds={r.source_ids} sources={sourceMap} />
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
               {detail.interpretation.fan_consensus && (
                 <div>
@@ -175,9 +232,29 @@ export default async function SongPage({
                   </p>
                   <p className="font-serif italic text-ink-dim text-[17px] leading-[1.55]">
                     {detail.interpretation.fan_consensus}
+                    {detail.interpretation.fan_consensus_citations && (
+                      <SourcePills
+                        sourceIds={detail.interpretation.fan_consensus_citations}
+                        sources={sourceMap}
+                      />
+                    )}
                   </p>
                 </div>
               )}
+
+              {/* Atribución global de la capa privada */}
+              <div className="mt-6 pt-4 border-t border-divider">
+                <p className="font-mono text-[9px] tracking-[1.5px] uppercase text-ink-faint leading-relaxed">
+                  Análisis derivado de fuentes fan ·{" "}
+                  <Link
+                    href="/biblioteca/atribuciones"
+                    className="text-accent hover:underline"
+                    data-cursor="hover"
+                  >
+                    atribuciones
+                  </Link>
+                </p>
+              </div>
             </aside>
           )}
         </div>

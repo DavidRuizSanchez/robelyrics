@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Header from "@/components/Header";
 import YoutubeFloatingPlayer from "@/components/YoutubeFloatingPlayer";
 import { apiFetch } from "@/lib/api";
@@ -32,6 +33,33 @@ export default async function BibliotecaLayout({
       <Header isAdmin={isAdmin} />
       {children}
       <YoutubeFloatingPlayer />
+      <BibliotecaFooter />
     </YoutubePlayerProvider>
+  );
+}
+
+function BibliotecaFooter() {
+  return (
+    <footer className="px-5 md:px-14 py-8 mt-16 border-t border-divider max-w-[1100px] mx-auto">
+      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint text-center leading-relaxed">
+        contenido fan derivado disponible bajo{" "}
+        <Link
+          href="https://creativecommons.org/licenses/by-nc-sa/3.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline"
+        >
+          CC-BY-NC-SA 3.0
+        </Link>{" "}
+        ·{" "}
+        <Link
+          href="/biblioteca/atribuciones"
+          data-cursor="hover"
+          className="text-accent hover:underline"
+        >
+          atribuciones
+        </Link>
+      </p>
+    </footer>
   );
 }
