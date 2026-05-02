@@ -4,6 +4,12 @@
  * El delfín queda como ornamento decorativo aparte.
  */
 
+// Redondea a 3 decimales. Necesario para que server y cliente
+// produzcan el mismo string literal en SVG (de lo contrario, los
+// floats con muchos decimales pueden diferir en el último bit y
+// React lanza un hydration mismatch).
+const r3 = (n: number) => Math.round(n * 1000) / 1000;
+
 type SunMarkProps = {
   size?: number;
   color?: string;
@@ -33,10 +39,10 @@ export function SunMark({
           return (
             <line
               key={i}
-              x1={30 + Math.cos(a) * r1}
-              y1={30 + Math.sin(a) * r1}
-              x2={30 + Math.cos(a) * r2}
-              y2={30 + Math.sin(a) * r2}
+              x1={r3(30 + Math.cos(a) * r1)}
+              y1={r3(30 + Math.sin(a) * r1)}
+              x2={r3(30 + Math.cos(a) * r2)}
+              y2={r3(30 + Math.sin(a) * r2)}
             />
           );
         })}
@@ -81,10 +87,10 @@ export function LogoSunCloud({
           return (
             <line
               key={i}
-              x1={20 + Math.cos(a) * r1}
-              y1={20 + Math.sin(a) * r1}
-              x2={20 + Math.cos(a) * r2}
-              y2={20 + Math.sin(a) * r2}
+              x1={r3(20 + Math.cos(a) * r1)}
+              y1={r3(20 + Math.sin(a) * r1)}
+              x2={r3(20 + Math.cos(a) * r2)}
+              y2={r3(20 + Math.sin(a) * r2)}
             />
           );
         })}

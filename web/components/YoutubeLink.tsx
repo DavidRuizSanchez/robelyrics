@@ -18,9 +18,18 @@ export default function YoutubeLink({
   size?: "sm" | "md";
 }) {
   const { open } = useYoutubePlayer();
+
+  // Pastilla outline granate con fondo translúcido — visible pero coherente
+  // con la paleta. Hover invierte (relleno granate, texto papel).
+  const sizeCls =
+    size === "sm"
+      ? "text-[10px] px-2 py-1"
+      : "text-[11px] px-3 py-1.5";
   const baseCls =
-    "ml-auto inline-flex items-center gap-1.5 font-mono uppercase tracking-[1.5px] text-accent hover:text-accent-bright transition-colors";
-  const sizeCls = size === "sm" ? "text-[10px]" : "text-[11px]";
+    "ml-auto inline-flex items-center gap-1.5 font-mono uppercase tracking-[1.5px] " +
+    "border border-accent/60 bg-accent/15 text-accent " +
+    "hover:bg-accent hover:text-white hover:border-accent " +
+    "transition-colors rounded-sm";
 
   if (!videoId) {
     const href = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${title} ${artist}`)}`;
@@ -39,11 +48,6 @@ export default function YoutubeLink({
     );
   }
 
-  const label =
-    seconds != null
-      ? `▶ ${formatTime(Math.max(0, seconds - 5))}`
-      : "▶ youtube";
-
   return (
     <button
       type="button"
@@ -56,7 +60,10 @@ export default function YoutubeLink({
           : "Reproducir"
       }
     >
-      {label}
+      <PlayIcon />
+      {seconds != null
+        ? formatTime(Math.max(0, seconds - 5))
+        : "youtube"}
     </button>
   );
 }
@@ -65,7 +72,7 @@ function PlayIcon() {
   return (
     <svg
       viewBox="0 0 16 16"
-      className="w-3 h-3"
+      className="w-3 h-3 shrink-0"
       fill="currentColor"
       aria-hidden
     >
