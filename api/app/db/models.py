@@ -251,6 +251,12 @@ class InterpretationSource(Base):
     content_clean: Mapped[str | None] = mapped_column(Text)
     referenced_song_ids: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
     quality_score: Mapped[float | None] = mapped_column()
+    # Si es True, esta fuente NO se usa para destilar interpretaciones fan
+    # (rama privada con citation obligatoria). Solo el generador de contenido SEO
+    # de la capa pública la consume. Útil para prensa comercial (Mondo Sonoro,
+    # Efe Eme, Rockdelux, El País, etc.) cuyo tono mezcla redacción y cita y
+    # rompe la regla de citation pura del destilador.
+    for_seo_only: Mapped[bool] = mapped_column(default=False, nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

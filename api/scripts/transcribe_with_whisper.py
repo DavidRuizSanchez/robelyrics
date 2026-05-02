@@ -4,11 +4,19 @@ existentes en BD usando difflib (mismo matcher que match_lrclib.py).
 
 Idempotente: solo procesa songs cuyas líneas no tienen `start_seconds`.
 
+Modo `--source-mode`: en lugar de alinear con canciones, descarga + transcribe
+entrevistas en vídeo (URL YouTube) y las guarda como InterpretationSource
+(kind=youtube_transcript). Ideal para Robe en La Resistencia, Carne Cruda,
+podcasts, documentales, etc. Lee `data/video_interviews.yaml`.
+
 Coste: ~$0.006/min × 4 min/canción × 35 canciones ≈ $0.84.
+Coste source-mode: ~$0,18-$0,36 por entrevista (30-60 min).
 
 Ejecución:
   docker compose exec api python -m scripts.transcribe_with_whisper
   docker compose exec api python -m scripts.transcribe_with_whisper --song-slug ininteligible
+  docker compose exec api python -m scripts.transcribe_with_whisper --source-mode
+  docker compose exec api python -m scripts.transcribe_with_whisper --source-mode --interview-url https://...
 """
 from __future__ import annotations
 
@@ -119,6 +127,105 @@ def assign_timestamps(
     return out
 
 
+# ─── Modo source: transcribir entrevistas en vídeo a InterpretationSource ── #
+_VIDEO_ID_RE = re.compile(r"(?:v=|youtu\.be/|/embed/|/shorts/)([A-Za-z0-9_-]{11})")
+
+
+def extract_video_id(url: str) -> str | None:
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", url):
+        return url
+    m = _VIDEO_ID_RE.search(url)
+    return m.group(1) if m else None
+
+
+def transcribe_to_source(
+    client: OpenAI,
+    url: str,
+    title: str | None,
+    author: str | None,
+    tmpdir: Path,
+) -> bool:
+    """Descarga + transcribe + upserts como InterpretationSource. Devuelve True si OK."""
+    from datetime import datetime, timezone
+
+    from scripts.research.common import clean_text, upsert_source
+
+    vid = extract_video_id(url)
+    if not vid:
+        log(f"  URL no parseable: {url}", "warn")
+        return False
+
+    audio_path = tmpdir / f"{vid}.mp3"
+    if not download_audio(vid, audio_path):
+        return False
+    log(f"  audio: {audio_path.stat().st_size // 1024} KB")
+
+    segments = transcribe_audio(client, audio_path)
+    audio_path.unlink(missing_ok=True)
+    if not segments:
+        return False
+    log(f"  whisper: {len(segments)} segmentos")
+
+    full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
+    if len(full_text) < 200:
+        log(f"  transcripción demasiado corta ({len(full_text)} chars)", "warn")
+        return False
+
+    with get_session() as db:
+        upsert_source(
+            db,
+            kind="youtube_transcript",
+            url=url,
+            title=title,
+            author=author,
+            published_at=None,
+            content_raw=full_text,
+            content_clean=clean_text(full_text),
+            quality_score=0.7,
+            for_seo_only=False,  # entrevistas son material rico para destilador
+        )
+    return True
+
+
+def _run_source_mode(
+    client: OpenAI,
+    interview_url: str | None,
+    yaml_path: Path | None,
+) -> None:
+    import yaml as _yaml
+
+    interviews: list[dict] = []
+    if interview_url:
+        interviews = [{"url": interview_url, "title": None, "author": None}]
+    elif yaml_path and yaml_path.exists():
+        data = _yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        interviews = data.get("interviews", []) or []
+    else:
+        log(f"sin --interview-url ni YAML válido en {yaml_path}", "err")
+        return
+
+    log(f"source-mode: {len(interviews)} entrevistas a procesar")
+    n_ok = 0
+    n_fail = 0
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        for i, e in enumerate(interviews, 1):
+            log(f"[{i}/{len(interviews)}] {e.get('title') or e['url']}")
+            try:
+                if transcribe_to_source(
+                    client, e["url"], e.get("title"), e.get("author"), tmp
+                ):
+                    n_ok += 1
+                    log("  ✓ insertado/actualizado", "ok")
+                else:
+                    n_fail += 1
+            except Exception as ex:  # noqa: BLE001
+                log(f"  error inesperado: {ex}", "warn")
+                n_fail += 1
+
+    log(f"source-mode → ok: {n_ok} · fail: {n_fail}", "ok")
+
+
 # ─── Main ──────────────────────────────────────────────────────────────── #
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -126,6 +233,14 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--force", action="store_true",
                         help="Reescribir aunque ya tenga timestamps")
+    parser.add_argument(
+        "--source-mode", action="store_true",
+        help="Modo entrevista: transcribe URLs de YouTube como InterpretationSource",
+    )
+    parser.add_argument(
+        "--interview-url", default=None,
+        help="(Con --source-mode) URL única; si no, lee data/video_interviews.yaml",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -133,6 +248,15 @@ def main() -> None:
         log("OPENAI_API_KEY no configurada", "err")
         return
     client = OpenAI(api_key=settings.openai_api_key)
+
+    if args.source_mode:
+        from scripts.research.common import DATA_DIR
+        _run_source_mode(
+            client,
+            interview_url=args.interview_url,
+            yaml_path=DATA_DIR / "video_interviews.yaml",
+        )
+        return
 
     # Materializar candidatos
     with get_session() as db:

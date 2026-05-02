@@ -180,7 +180,13 @@ def select_sources_for_song(db, song: Song) -> tuple[list[InterpretationSource],
     # escriben "primavera" igual con o sin tilde, y el filtro Python con
     # normalize() lo arregla post-hoc.
     or_clauses = [InterpretationSource.content_clean.ilike(f"%{a}%") for a in aliases]
-    stmt = select(InterpretationSource).where(or_(*or_clauses))
+    # Excluir fuentes marcadas como for_seo_only (prensa comercial que mezcla
+    # opinión y cita, no apta para destilación con citation obligatoria).
+    stmt = (
+        select(InterpretationSource)
+        .where(or_(*or_clauses))
+        .where(InterpretationSource.for_seo_only.is_(False))
+    )
     candidates = db.execute(stmt).scalars().all()
 
     aliases_norm = [normalize(a) for a in aliases]
@@ -239,7 +245,9 @@ def vector_search_fallback(
         return []
 
     rows = db.execute(
-        select(InterpretationSource).where(InterpretationSource.id.in_(new_source_ids))
+        select(InterpretationSource)
+        .where(InterpretationSource.id.in_(new_source_ids))
+        .where(InterpretationSource.for_seo_only.is_(False))
     ).scalars().all()
     return list(rows)
 

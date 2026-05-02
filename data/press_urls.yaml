@@ -1,0 +1,144 @@
+# Listado de URLs de prensa, blogs y papers para fetch_press.py
+#
+# Dos secciones:
+#   - press_seo_only: medios cuyo tono mezcla redacción y cita literal
+#     (Mondo Sonoro, Efe Eme, Rockdelux, El País, eldiario.es, etc.).
+#     Estas fuentes entran con for_seo_only=True para que el destilador
+#     poético las excluya y solo las consuma el generador de contenido SEO
+#     de la capa pública.
+#   - press: medios y papers compatibles también con la rama destiladora.
+#
+# Cada entrada acepta:
+#   url     (obligatorio)
+#   title   (obligatorio)
+#   author  (opcional)
+#   kind    (opcional, default 'press' | otros: 'blog', 'thesis')
+
+press_seo_only:
+  # ----- Mondo Sonoro -----
+  - url: https://www.mondosonoro.com/criticas/discos-musica/robe-mayeutica/
+    title: "Robe · crítica del disco Mayéutica (Mondo Sonoro 2021)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/criticas/discos-musica/robe-se-nos-lleva-el-aire/
+    title: "Robe · crítica de Se nos lleva el aire (Mondo Sonoro 2023)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/criticas/discos-musica/robe-iniesta-destrozares/
+    title: "Robe Iniesta · crítica de Destrozares (Mondo Sonoro)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/blog-musica/extremoduro-agila/
+    title: "Agila de Extremoduro cumple 25 años · especial (Mondo Sonoro)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/criticas/conciertos-musica/robe/
+    title: "Robe · crónica del concierto en Madrid (Mondo Sonoro 2022)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/criticas/conciertos-musica/robe-iniesta-zamora/
+    title: "Robe Iniesta · crónica del concierto en Zamora (Mondo Sonoro 2022)"
+    author: "Mondo Sonoro"
+    kind: press
+  - url: https://www.mondosonoro.com/noticias-actualidad-musical/extremoduro-talento-innato-extracto/
+    title: "Extracto de 'Talento innato', biografía no autorizada de Extremoduro"
+    author: "Mondo Sonoro"
+    kind: press
+
+  # ----- Efe Eme -----
+  - url: https://www.efeeme.com/robe-iniesta-el-ser-humano-y-sus-contradicciones/
+    title: "Robe Iniesta · el ser humano y sus contradicciones (Efe Eme)"
+    author: "Efe Eme"
+    kind: press
+  - url: https://www.efeeme.com/canciones-1989-2013-el-legado-de-extremoduro/
+    title: "Canciones 1989-2013 · el legado de Extremoduro (Efe Eme)"
+    author: "Efe Eme"
+    kind: press
+  - url: https://www.efeeme.com/robe-iniesta-publica-hoy-su-disco-en-solitario/
+    title: "Robe Iniesta publica hoy su disco en solitario (Efe Eme)"
+    author: "Efe Eme"
+    kind: press
+
+  # ----- Rockdelux -----
+  - url: https://www.rockdelux.com/en/discos/robe---mayeutica
+    title: "Robe · Mayéutica (Rockdelux)"
+    author: "Rockdelux"
+    kind: press
+  - url: https://www.rockdelux.com/en/discos/extremoduro-agila
+    title: "Extremoduro · Agila (Rockdelux)"
+    author: "Rockdelux"
+    kind: press
+  - url: https://www.rockdelux.com/en/opinion/firma-in-da-house---robe-iniesta--confieso-que-me-dio-miedo-la-primera-vez-que-lo-vi---jesus-rodriguez-lenin
+    title: "Confieso que me dio miedo la primera vez que lo vi (Rockdelux · Jesús Rodríguez Lenin)"
+    author: "Rockdelux"
+    kind: press
+
+  # ----- El País / hemeroteca generalista -----
+  - url: https://laleydeextremoduro.wordpress.com/2017/03/02/entrevista-a-roberto-iniesta-lider-de-extremoduro-para-el-pais-de-las-tentaciones-tras-el-exito-alcanzado-por-el-disco-agila-1996/
+    title: "Entrevista en El País de las Tentaciones · 1996 (reproducción)"
+    author: "Mikel López Iturriaga / El País"
+    kind: press
+  - url: https://www.eldiario.es/cultura/muere-robe-iniesta-lider-extremoduro-63-anos_1_12832622.html
+    title: "Muere Robe Iniesta, líder de Extremoduro, a los 63 años (eldiario.es 2025)"
+    author: "eldiario.es"
+    kind: press
+  - url: https://www.eldiario.es/cultura/musica/cinco-canciones-extremoduro-recordar-mejor-robe-iniesta_1_12833119.html
+    title: "Cinco canciones de Extremoduro para recordar al mejor Robe (eldiario.es 2025)"
+    author: "eldiario.es"
+    kind: press
+  - url: https://www.lamarea.com/2024/03/28/robe-iniesta-una-historia-contra-todos/
+    title: "Robe Iniesta · una historia contra todos (La Marea 2024)"
+    author: "La Marea"
+    kind: press
+  - url: https://www.elplural.com/playtime/libros/entrevista-menendez-flores-biografo-extremoduro_303166102
+    title: "Entrevista a Menéndez Flores, biógrafo de Extremoduro (El Plural)"
+    author: "El Plural"
+    kind: press
+  - url: https://mariskalrock.com/actualidad/robe-extremoduro-invento-crowdfunding-30-anos-asi-lo-conto-la-heavy-rock/
+    title: "Robe inventó el crowdfunding hace 30 años · Heavy Rock (MariskalRock)"
+    author: "MariskalRock"
+    kind: press
+
+  # ----- RockSesión -----
+  - url: https://rocksesion.com/2024/05/21/entrevista-a-robe-me-hace-mas-ilusion-lo-que-hizo-el-museo-del-prado-con-el-poder-del-arte-que-llegar-a-ser-disco-de-oro/
+    title: "Entrevista a Robe · El Poder del Arte (RockSesión 2024)"
+    author: "RockSesión"
+    kind: press
+  - url: https://rocksesion.com/2021/09/01/entrevista-a-robe-tres-dias-antes-del-inicio-de-la-gira-hemos-cambiado-toda-la-sonoridad-de-las-canciones-en-las-de-extremoduro-y-en-las-de-los-discos-anteriores/
+    title: "Entrevista a Robe · tres días antes del inicio de la gira (RockSesión 2021)"
+    author: "RockSesión"
+    kind: press
+  - url: https://rocksesion.com/2020/09/29/coroberaciones/
+    title: "CoROBEraciones (RockSesión 2020)"
+    author: "RockSesión"
+    kind: press
+
+press:
+  - url: https://www.manerasdevivir.com/entrevistas/2017/robe-extremoduro
+    title: "Entrevista a Roberto Iniesta · Maneras de Vivir (2017)"
+    author: "Fernando F. Garayoa"
+    kind: blog
+  - url: https://rocksesion.com/2015/06/12/entrevista-a-robe-me-veo-con-70-anos-en-el-escenario-pero-solo-si-tengo-cosas-nuevas-que-cantar/
+    title: "Entrevista a Robe · me veo con 70 años en el escenario (RockSesión 2015)"
+    author: "RockSesión"
+    kind: blog
+  - url: https://www.jotdown.es/2017/10/extremoduro-y-la-literatura/
+    title: "Extremoduro y la literatura (Jot Down Cultural Magazine, 2017)"
+    author: "Jot Down"
+    kind: blog
+  - url: https://rocknvivo.com/entrevista-a-robe-iniesta-lider-de-extremoduro
+    title: "Entrevista a Robe Iniesta, líder de Extremoduro (RockNVivo)"
+    author: "Rock'n'Vivo"
+    kind: blog
+  - url: https://www.um.es/tonosdigital/znum2/estudios/ExtremoTonos2.htm
+    title: "Estudio sobre Extremoduro · Tonos Digital (Universidad de Murcia)"
+    author: "Nuria Barba Aragón"
+    kind: thesis
+  - url: https://uvadoc.uva.es/bitstream/handle/10324/79280/TFG_F_2025_123.pdf
+    title: "Análisis Poético-Musical de Mayéutica (TFG · UVA 2025)"
+    author: "—"
+    kind: thesis
+  - url: https://www.bonart.cat/internacional/en/n/45999/robe-iniesta-when-rock-and-extremoduro-become-art-poetry-and-life
+    title: "Robe Iniesta · when rock becomes art, poetry and life (Bonart)"
+    author: "Bonart"
+    kind: blog
