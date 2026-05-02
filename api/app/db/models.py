@@ -262,6 +262,37 @@ class InterpretationSource(Base):
     )
 
 
+class SeoContent(Base):
+    """Contenido SEO editorial generado para una entidad pública (artist/album/song).
+
+    `body_md` es el artículo en Markdown (~1500-3000 palabras dependiendo de la
+    entidad). `published=False` significa que la página pública correspondiente
+    devuelve 404 — permite generar masivamente con LLM y publicar solo lo
+    revisado.
+    """
+
+    __tablename__ = "seo_content"
+    __table_args__ = (
+        UniqueConstraint("entity_type", "entity_id", name="uq_seo_content_entity"),
+        Index("ix_seo_content_published", "published"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)  # artist|album|song
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    slug: Mapped[str] = mapped_column(String(256), nullable=False)
+    body_md: Mapped[str] = mapped_column(Text, nullable=False)
+    meta_title: Mapped[str | None] = mapped_column(String(256))
+    meta_description: Mapped[str | None] = mapped_column(String(512))
+    schema_jsonld: Mapped[dict | None] = mapped_column(JSONB)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    generated_by: Mapped[str] = mapped_column(String(32), nullable=False, default="gpt-4o")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+
 class SongInterpretation(Base):
     """Destilado fan por canción. Una fila por canción (max).
 

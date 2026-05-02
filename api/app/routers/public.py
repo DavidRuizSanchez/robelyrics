@@ -13,6 +13,8 @@ Se mantiene aparte del router auth-only de `catalog.py`. NO duplica código com�
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Response, Depends
 from pydantic import BaseModel
 from sqlalchemy import or_
@@ -284,6 +286,56 @@ class PublicSearchHit(BaseModel):
 class PublicSearchOut(BaseModel):
     query: str
     results: list[PublicSearchHit]
+
+
+class PublicSitemapEntry(BaseModel):
+    url_path: str            # ej. "/extremoduro/agila/asco"
+    last_modified: datetime  # generated_at o reviewed_at
+    entity_type: str
+
+
+@router.get("/sitemap-entries", response_model=list[PublicSitemapEntry])
+def public_sitemap_entries(
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicSitemapEntry]:
+    """Lista de entidades con seo_content publicado, para construir sitemap.xml.
+    Devuelve la URL canónica relativa y la última fecha de revisión.
+    """
+    _set_cache(response)
+    from sqlalchemy import text
+    try:
+        rows = db.execute(text(
+            """
+            SELECT sc.entity_type,
+                   sc.slug,
+                   COALESCE(sc.reviewed_at, sc.generated_at) AS last_mod,
+                   CASE
+                     WHEN sc.entity_type='artist' THEN '/' || sc.slug
+                     WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
+                     WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
+                   END AS url_path
+            FROM seo_content sc
+            LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
+            LEFT JOIN artists ar  ON al_a.artist_id = ar.id
+            LEFT JOIN songs s     ON sc.entity_type='song' AND s.id = sc.entity_id
+            LEFT JOIN albums al   ON s.album_id = al.id
+            LEFT JOIN artists ar2 ON al.artist_id = ar2.id
+            WHERE sc.published = true
+            ORDER BY sc.entity_type, sc.slug
+            """
+        )).all()
+    except Exception:
+        db.rollback()
+        return []
+    return [
+        PublicSitemapEntry(
+            url_path=r.url_path,
+            last_modified=r.last_mod,
+            entity_type=r.entity_type,
+        )
+        for r in rows if r.url_path
+    ]
 
 
 @router.get("/search", response_model=PublicSearchOut)
