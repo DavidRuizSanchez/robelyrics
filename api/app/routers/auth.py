@@ -154,6 +154,12 @@ def register(
 
 @router.post("/verify-email/{token}", response_model=VerifyEmailOut)
 def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
+    """Idempotente:
+      - Token válido sin consumir y user no verificado → verifica + autologin.
+      - Token consumido pero user verificado → autologin igual (caso típico
+        cuando Outlook/Gmail Safe Links pre-fetchea el enlace).
+      - Token expirado o desconocido → error.
+    """
     row = (
         db.query(EmailVerification)
         .filter(EmailVerification.token == token)
@@ -161,14 +167,24 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
     )
     if not row:
         raise HTTPException(status_code=404, detail="token no válido")
-    if row.consumed_at is not None:
-        raise HTTPException(status_code=400, detail="token ya consumido")
-    if row.expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="token caducado · solicita uno nuevo")
 
     user = db.query(User).filter(User.id == row.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="usuario no encontrado")
+
+    if row.consumed_at is not None:
+        # Si el token ya se usó pero el user terminó verificado, devolvemos OK
+        # con autologin para que el usuario reintente sin frustración.
+        if user.email_verified_at is not None:
+            return VerifyEmailOut(
+                ok=True,
+                user_id=user.id,
+                access_token=create_access_token(user.id),
+            )
+        raise HTTPException(status_code=400, detail="token ya consumido")
+
+    if row.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="token caducado · solicita uno nuevo")
 
     now = datetime.now(timezone.utc)
     row.consumed_at = now
@@ -176,9 +192,11 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
         user.email_verified_at = now
     db.commit()
 
-    # Auto-login tras verificar
-    token_jwt = create_access_token(user.id)
-    return VerifyEmailOut(ok=True, user_id=user.id, access_token=token_jwt)
+    return VerifyEmailOut(
+        ok=True,
+        user_id=user.id,
+        access_token=create_access_token(user.id),
+    )
 
 
 # --------------------------------------------------------------------------- #
