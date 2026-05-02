@@ -39,9 +39,16 @@ export default function PublicLandingPage() {
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
           <Link
+            href="/registro"
+            data-cursor="hover"
+            className="border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+          >
+            crear cuenta
+          </Link>
+          <Link
             href="/login"
             data-cursor="hover"
-            className="border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            className="border border-divider text-ink-dim hover:border-accent hover:text-accent font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
           >
             entrar
           </Link>

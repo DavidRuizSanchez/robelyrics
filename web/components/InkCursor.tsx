@@ -16,6 +16,7 @@ export default function InkCursor() {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(pointer: coarse)").matches) return;
     setEnabled(true);
+    document.body.classList.add("ink-cursor-active");
 
     const move = (e: MouseEvent) => {
       setPos({ x: e.clientX, y: e.clientY });
@@ -25,8 +26,24 @@ export default function InkCursor() {
       );
       setHovering(interactive);
     };
+    // Si el ratón sale de la ventana, sacamos el cursor de pantalla y
+    // restauramos el del sistema para que el usuario sepa dónde está.
+    const leave = () => {
+      setPos({ x: -100, y: -100 });
+      document.body.classList.remove("ink-cursor-active");
+    };
+    const enter = () => {
+      document.body.classList.add("ink-cursor-active");
+    };
     window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
+    document.addEventListener("mouseleave", leave);
+    document.addEventListener("mouseenter", enter);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseleave", leave);
+      document.removeEventListener("mouseenter", enter);
+      document.body.classList.remove("ink-cursor-active");
+    };
   }, []);
 
   if (!enabled) return null;

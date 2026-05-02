@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     reddit_user_agent: str | None = Field(None, alias="REDDIT_USER_AGENT")
     youtube_api_key: str | None = Field(None, alias="YOUTUBE_API_KEY")
 
+    # Email (Resend)
+    resend_api_key: str | None = Field(None, alias="RESEND_API_KEY")
+    resend_from_email: str = Field("hola@entreinteriores.com", alias="RESEND_FROM_EMAIL")
+    site_url: str = Field("http://localhost:3001", alias="SITE_URL")
+
+    # Términos: versión vigente. Al cambiar, los users tienen que re-aceptar.
+    terms_version: str = Field("2026-05-02", alias="TERMS_VERSION")
+
     # Logging
     api_log_level: str = Field("info", alias="API_LOG_LEVEL")
 
