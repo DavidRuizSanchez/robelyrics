@@ -19,19 +19,20 @@ export default async function AlbumPage({
   }
 
   return (
-    <main className="min-h-screen px-6 py-12 max-w-3xl mx-auto">
+    <main className="px-5 md:px-14 py-10 md:py-16 max-w-[920px] mx-auto">
       <Link
         href={`/${artist}`}
-        className="text-zinc-500 text-sm hover:text-zinc-300"
+        data-cursor="hover"
+        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
       >
         ← {detail.artist.name}
       </Link>
 
-      <header className="mt-4 mb-10">
-        <p className="text-sm text-zinc-500 uppercase tracking-wide">
+      <header className="mt-6 mb-12">
+        <p className="font-mono text-[11px] tracking-[2px] uppercase text-ink-faint">
           {detail.year} · {detail.kind}
         </p>
-        <h1 className="font-serif text-4xl md:text-5xl font-bold mt-1">
+        <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink mt-1 leading-none tracking-[-1.5px]">
           {detail.title}
         </h1>
       </header>
@@ -41,17 +42,18 @@ export default async function AlbumPage({
           <li key={tr.slug}>
             <Link
               href={`/${artist}/${album}/${tr.slug}`}
-              className="flex items-baseline gap-4 px-4 py-3 rounded-lg hover:bg-zinc-900 transition"
+              data-cursor="hover"
+              className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
             >
-              <span className="text-zinc-600 tabular-nums w-8 text-right">
+              <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right">
                 {tr.track_number ?? i + 1}
               </span>
-              <span className="font-serif text-lg flex-1 text-zinc-100">
+              <span className="font-serif text-[18px] md:text-[20px] flex-1 text-ink group-hover:text-accent transition-colors">
                 {tr.title}
               </span>
               {tr.has_interpretation && (
                 <span
-                  className="text-amber-500/80 text-xs"
+                  className="text-accent text-xs"
                   title="Tiene interpretación fan"
                 >
                   ◆

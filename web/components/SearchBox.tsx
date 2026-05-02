@@ -1,9 +1,20 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 
 type Mode = "semantic" | "complete";
+
+const PLACEHOLDERS: Record<Mode, string> = {
+  semantic: "Escribe lo que sientes…",
+  complete: "Empieza una línea…",
+};
 
 export default function SearchBox({
   initialQuery = "",
@@ -17,13 +28,18 @@ export default function SearchBox({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [query, setQuery] = useState(initialQuery);
   const [isPending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sincronizar el state con la URL: si el usuario navega a / sin query
-  // (ej. click en "RobeLyrics" del header), reseteamos el campo.
+  // Sincroniza state con URL (reset al volver a /, o cambio de modo desde nav)
   useEffect(() => {
     setQuery(initialQuery);
     setMode(initialMode);
   }, [initialQuery, initialMode]);
+
+  // Focus al cambiar modo
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [mode]);
 
   function navigate(nextMode: Mode, nextQuery: string) {
     if (!nextQuery.trim()) return;
@@ -31,7 +47,7 @@ export default function SearchBox({
     sp.set("q", nextQuery.trim());
     sp.set("mode", nextMode);
     startTransition(() => {
-      router.push(`/?${sp.toString()}`);
+      router.push(`/?${sp.toString()}#search`);
     });
   }
 
@@ -42,50 +58,53 @@ export default function SearchBox({
 
   function onModeChange(nextMode: Mode) {
     setMode(nextMode);
-    // Si ya hay una query escrita, re-disparamos en el nuevo modo
     if (query.trim()) navigate(nextMode, query);
+    else {
+      // Cambia URL sin query para que el header refleje el modo activo
+      const sp = new URLSearchParams();
+      sp.set("mode", nextMode);
+      startTransition(() => {
+        router.replace(`/?${sp.toString()}#search`);
+      });
+    }
   }
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-3xl mx-auto">
-      <div className="flex gap-2 mb-4 justify-center">
+    <form onSubmit={onSubmit} className="w-full">
+      <div className="flex gap-2 mb-5 flex-wrap">
         <ModeButton
           active={mode === "semantic"}
           onClick={() => onModeChange("semantic")}
-          label="Encuentra el equivalente"
-          hint='"se acabó lo bonito" → "se acabaron las flores"'
+          label="Equivalente"
         />
         <ModeButton
           active={mode === "complete"}
           onClick={() => onModeChange("complete")}
-          label="Completa la frase"
-          hint='"abre la puerta" → "que soy el diablo..."'
+          label="Completar"
         />
       </div>
 
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           name="q"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={
-            mode === "semantic"
-              ? "Escribe una frase de la vida real…"
-              : "Empieza una línea para que la complete…"
-          }
+          placeholder={PLACEHOLDERS[mode]}
           autoFocus
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 text-lg text-zinc-100 focus:outline-none focus:border-zinc-600 placeholder-zinc-600"
+          className="w-full bg-transparent border-0 border-b border-divider focus:border-accent focus:outline-none px-0 py-4 md:py-5 pr-28 md:pr-36 font-serif italic text-xl md:text-[28px] text-ink placeholder:text-ink-faint transition-colors"
         />
         <button
           type="submit"
+          data-cursor="hover"
           disabled={!query.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-zinc-100 text-zinc-950 font-semibold rounded-md px-4 py-2 hover:bg-white transition disabled:opacity-40 flex items-center gap-2"
+          className="absolute right-0 top-1/2 -translate-y-1/2 border border-accent text-accent hover:bg-accent hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-accent font-mono text-[10px] tracking-[3px] uppercase px-3.5 py-2.5 md:px-4 md:py-3 transition-colors flex items-center gap-2"
         >
           {isPending && (
-            <span className="inline-block w-3 h-3 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin" />
+            <span className="inline-block w-3 h-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
           )}
-          {isPending ? "Buscando" : "Buscar"}
+          {isPending ? "buscando" : "buscar"}
         </button>
       </div>
     </form>
@@ -96,23 +115,21 @@ function ModeButton({
   active,
   onClick,
   label,
-  hint,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
-  hint: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm transition ${
+      data-cursor="hover"
+      className={`font-mono text-[10px] tracking-[2.5px] uppercase px-3 py-1.5 transition-colors ${
         active
-          ? "bg-zinc-100 text-zinc-950 font-semibold"
-          : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          ? "text-accent border-b border-accent"
+          : "text-ink-dim hover:text-ink border-b border-transparent"
       }`}
-      title={hint}
     >
       {label}
     </button>

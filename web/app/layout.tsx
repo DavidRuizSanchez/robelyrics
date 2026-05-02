@@ -1,21 +1,38 @@
 import type { Metadata } from "next";
-import { Merriweather } from "next/font/google";
+import { Caveat, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import Header from "@/components/Header";
+import InkCursor from "@/components/InkCursor";
 import YoutubeFloatingPlayer from "@/components/YoutubeFloatingPlayer";
 import { YoutubePlayerProvider } from "@/lib/youtube-player-context";
 import "./globals.css";
 
-const merriweather = Merriweather({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
   variable: "--font-serif",
   display: "swap",
 });
 
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-hand",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "RobeLyrics",
-  description: "Buscador semántico del universo Extremoduro / Robe Iniesta",
+  title: "Entre Interiores · RobeLyrics",
+  description:
+    "El universo de Robe Iniesta y Extremoduro, verso a verso. Buscador semántico personal.",
 };
 
 export default async function RootLayout({
@@ -23,19 +40,17 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Mostramos el header solo si está autenticado (la cookie existe).
   const isAuthed = Boolean((await cookies()).get("robelyrics_token")?.value);
+  const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
 
   return (
-    <html lang="es" className={`dark ${merriweather.variable}`} suppressHydrationWarning>
-      {/* suppressHydrationWarning: extensiones de navegador (ColorZilla, Grammarly,
-          Honey, etc.) inyectan atributos en <body> tras el render del servidor.
-          Sin esto, dev mode lanza un overlay de hydration en cada carga. */}
+    <html lang="es" className={`dark ${fontVars}`} suppressHydrationWarning>
       <body
-        className="bg-zinc-950 text-zinc-100 antialiased min-h-screen"
+        className="bg-bg-deep text-ink antialiased min-h-screen font-serif"
         suppressHydrationWarning
       >
         <YoutubePlayerProvider>
+          <InkCursor />
           {isAuthed && <Header />}
           {children}
           <YoutubeFloatingPlayer />

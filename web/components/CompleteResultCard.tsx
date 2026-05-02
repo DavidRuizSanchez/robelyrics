@@ -11,44 +11,44 @@ export default function CompleteResultCard({
   query: string;
 }) {
   return (
-    <article className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 hover:border-zinc-700 transition">
-      <div className="font-serif leading-relaxed">
-        {/* matched_line: lo que el usuario escribió, como pista */}
-        <div className="border-l-4 border-amber-500/70 bg-amber-500/[0.06] pl-4 py-1 mb-2 rounded-r">
-          <p className="text-lg md:text-xl text-zinc-300 italic">
-            <HighlightQuery text={hit.matched_line} query={query} />
-          </p>
-        </div>
-        {/* lo que viene después: lo importante */}
+    <article className="pb-8 border-b border-divider last:border-0">
+      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint m-0 mb-2">
+        tú escribiste →
+      </p>
+      <p className="font-serif italic text-ink-dim text-[18px] md:text-[22px] m-0 pl-4 border-l-2 border-accent mb-5">
+        <HighlightQuery text={hit.matched_line} query={query} />…
+      </p>
+
+      <div className="font-serif text-ink leading-[1.3] space-y-1">
         {hit.continuation_lines.map((line, i) => (
-          <p
-            key={i}
-            className="text-xl md:text-2xl text-zinc-100 pl-4"
-          >
+          <p key={i} className="text-[24px] md:text-[36px] m-0">
             {line}
           </p>
         ))}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-zinc-400">
+      <div className="mt-5 flex flex-wrap items-center gap-2.5 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-dim">
         <Link
           href={`/${hit.artist.slug}/${hit.album.slug}/${hit.song.slug}`}
-          className="text-zinc-200 font-semibold hover:underline"
+          data-cursor="hover"
+          className="text-ink hover:text-accent transition-colors"
         >
           {hit.song.title}
         </Link>
-        <span>·</span>
+        <span className="opacity-50">·</span>
         <Link
           href={`/${hit.artist.slug}/${hit.album.slug}`}
-          className="hover:underline"
+          data-cursor="hover"
+          className="hover:text-ink transition-colors"
         >
           {hit.album.title}
         </Link>
-        {hit.album.year && <span>({hit.album.year})</span>}
-        <span>·</span>
-        <Link href={`/${hit.artist.slug}`} className="hover:underline">
-          {hit.artist.name}
-        </Link>
+        {hit.album.year && (
+          <>
+            <span className="opacity-50">·</span>
+            <span>{hit.album.year}</span>
+          </>
+        )}
         <YoutubeLink
           title={hit.song.title}
           artist={hit.artist.name}
