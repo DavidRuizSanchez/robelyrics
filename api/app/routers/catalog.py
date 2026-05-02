@@ -43,6 +43,7 @@ class LineOut(BaseModel):
     line_index: int
     stanza_index: int
     text: str
+    start_seconds: int | None = None
 
 
 class SongDetailOut(BaseModel):
@@ -152,7 +153,15 @@ def song_detail(
             kind=album.kind,
             cover_url=album.cover_url,
         ),
-        lines=[LineOut(line_index=l.line_index, stanza_index=l.stanza_index, text=l.text) for l in lines],
+        lines=[
+            LineOut(
+                line_index=l.line_index,
+                stanza_index=l.stanza_index,
+                text=l.text,
+                start_seconds=l.start_seconds,
+            )
+            for l in lines
+        ],
         interpretation=interp.payload if interp else None,
         interpretation_confidence=interp.confidence if interp else None,
         youtube_id=song.youtube_id,

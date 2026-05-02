@@ -31,6 +31,7 @@ export type LyricLine = {
   line_index: number;
   stanza_index: number;
   text: string;
+  start_seconds: number | null;
 };
 
 export type KeyMetaphor = {
