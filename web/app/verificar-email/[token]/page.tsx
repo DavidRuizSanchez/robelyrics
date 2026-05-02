@@ -55,10 +55,14 @@ export default async function VerifyEmailPage({
             <p className="font-serif italic text-ink-dim text-base leading-relaxed">
               {state.message}
             </p>
+            <p className="font-serif italic text-ink-faint text-sm leading-relaxed">
+              Si has clicado un correo antiguo, puede que tu cuenta ya esté
+              activada. Prueba a entrar directamente con tu email y contraseña.
+            </p>
             <Link
               href="/login"
               data-cursor="hover"
-              className="inline-block w-full border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase py-3 transition-colors"
+              className="inline-block w-full border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase py-3 transition-colors"
             >
               ir al login
             </Link>
