@@ -64,7 +64,7 @@ export default function LyricLine({
   return (
     <p
       ref={ref}
-      className={`font-serif text-[19px] md:text-[22px] leading-relaxed m-0 transition-all duration-300 ease-out ${cls}`}
+      className={`font-serif text-[22px] md:text-[26px] leading-[1.55] m-0 transition-all duration-300 ease-out ${cls}`}
     >
       {text}
     </p>

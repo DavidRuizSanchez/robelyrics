@@ -109,6 +109,7 @@ def album_detail(
         title=album.title,
         year=album.year,
         kind=album.kind,
+        cover_url=album.cover_url,
         artist=ArtistOut(slug=artist.slug, name=artist.name, active_years=artist.active_years),
         tracks=[
             TrackOut(

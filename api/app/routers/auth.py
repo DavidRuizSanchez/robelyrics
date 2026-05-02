@@ -26,6 +26,7 @@ class MeOut(BaseModel):
     id: int
     email: str
     is_active: bool
+    is_admin: bool
 
 
 @router.post("/login", response_model=LoginOut)
@@ -38,4 +39,4 @@ def login(body: LoginIn, db: Session = Depends(get_db)) -> LoginOut:
 
 @router.get("/me", response_model=MeOut)
 def me(user: User = Depends(get_current_user)) -> MeOut:
-    return MeOut(id=user.id, email=user.email, is_active=user.is_active)
+    return MeOut(id=user.id, email=user.email, is_active=user.is_active, is_admin=user.is_admin)

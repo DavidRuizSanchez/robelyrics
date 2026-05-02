@@ -4,7 +4,9 @@ import { cookies } from "next/headers";
 import Header from "@/components/Header";
 import InkCursor from "@/components/InkCursor";
 import YoutubeFloatingPlayer from "@/components/YoutubeFloatingPlayer";
+import { apiFetch } from "@/lib/api";
 import { YoutubePlayerProvider } from "@/lib/youtube-player-context";
+import type { AuthMe } from "@/lib/types";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -41,6 +43,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const isAuthed = Boolean((await cookies()).get("robelyrics_token")?.value);
+  let isAdmin = false;
+  if (isAuthed) {
+    try {
+      const me = await apiFetch<AuthMe>("/auth/me");
+      isAdmin = me.is_admin;
+    } catch {
+      isAdmin = false;
+    }
+  }
   const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
 
   return (
@@ -51,7 +62,7 @@ export default async function RootLayout({
       >
         <YoutubePlayerProvider>
           <InkCursor />
-          {isAuthed && <Header />}
+          {isAuthed && <Header isAdmin={isAdmin} />}
           {children}
           <YoutubeFloatingPlayer />
         </YoutubePlayerProvider>

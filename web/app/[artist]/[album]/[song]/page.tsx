@@ -87,7 +87,7 @@ export default async function SongPage({
           </div>
         </header>
 
-        <div className="grid lg:grid-cols-[1fr_300px] gap-10 lg:gap-16">
+        <div className="grid lg:grid-cols-[1fr_360px] gap-10 lg:gap-14">
           {/* Letra */}
           <article>
             <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
@@ -122,24 +122,24 @@ export default async function SongPage({
 
           {/* Sidebar interpretación */}
           {detail.interpretation && (
-            <aside className="lg:sticky lg:top-24 self-start bg-paper border-l-2 border-accent/40 p-5 text-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
+            <aside className="lg:sticky lg:top-24 self-start bg-paper border-l-2 border-accent/40 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-mono text-[11px] tracking-[2.5px] uppercase text-accent">
                   Interpretación fan
                 </h2>
                 <ConfidenceBadge confidence={detail.interpretation_confidence} />
               </div>
 
               {detail.interpretation.themes.length > 0 && (
-                <div className="mb-4">
-                  <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
+                <div className="mb-6">
+                  <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-2.5">
                     Temas
                   </p>
                   <ul className="flex flex-wrap gap-1.5">
                     {detail.interpretation.themes.map((t, i) => (
                       <li
                         key={i}
-                        className="bg-paper-hi px-2 py-0.5 text-ink-dim text-xs font-serif italic"
+                        className="bg-paper-hi px-2.5 py-0.5 text-ink-dim text-[14px] font-serif italic"
                       >
                         {t.theme}
                       </li>
@@ -149,15 +149,15 @@ export default async function SongPage({
               )}
 
               {detail.interpretation.key_metaphors.length > 0 && (
-                <div className="mb-4">
-                  <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
+                <div className="mb-6">
+                  <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-2.5">
                     Metáforas
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {detail.interpretation.key_metaphors.map((m, i) => (
                       <li
                         key={i}
-                        className="font-serif italic text-[14px] leading-relaxed"
+                        className="font-serif italic text-[17px] leading-[1.55]"
                       >
                         <span className="text-ink">«{m.phrase}»</span>{" "}
                         <span className="text-ink-faint not-italic">→</span>{" "}
@@ -170,10 +170,10 @@ export default async function SongPage({
 
               {detail.interpretation.fan_consensus && (
                 <div>
-                  <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
+                  <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-2.5">
                     Consenso
                   </p>
-                  <p className="font-serif italic text-ink-dim text-[14px] leading-relaxed">
+                  <p className="font-serif italic text-ink-dim text-[17px] leading-[1.55]">
                     {detail.interpretation.fan_consensus}
                   </p>
                 </div>

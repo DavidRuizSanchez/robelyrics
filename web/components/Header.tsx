@@ -5,11 +5,12 @@ import { useState } from "react";
 import { LogoSunCloud } from "@/components/Logo";
 import { T } from "@/lib/theme";
 
-export default function Header() {
+export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
   const items = [
     { href: "/", label: "Inicio" },
     { href: "/discografia", label: "Discografía" },
+    ...(isAdmin ? [{ href: "/admin/sources", label: "Admin" }] : []),
   ];
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between px-5 md:px-14 py-4 md:py-6 border-b border-divider bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
