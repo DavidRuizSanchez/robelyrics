@@ -50,8 +50,14 @@ def similarity(a: str, b: str) -> float:
 
 
 # ─── descarga audio con yt-dlp ──────────────────────────────────────────── #
-def download_audio(video_id: str, dest: Path) -> bool:
-    """Descarga el audio del video como mp3. Devuelve True si OK."""
+def download_audio(video_id: str, dest: Path, quality: str = "5") -> bool:
+    """Descarga el audio del video como mp3. Devuelve True si OK.
+
+    `quality`: parámetro --audio-quality de yt-dlp (0=mejor, 9=peor). Para
+    canciones usar "5" (~96 kbps, alta fidelidad para alineamiento). Para
+    entrevistas largas (source-mode) usar "9" (~32 kbps) — la voz humana
+    transcribe perfectamente y el límite de Whisper es 25 MB por archivo.
+    """
     url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         subprocess.run(
@@ -59,7 +65,7 @@ def download_audio(video_id: str, dest: Path) -> bool:
                 "yt-dlp",
                 "-x",
                 "--audio-format", "mp3",
-                "--audio-quality", "5",  # ~96kbps, suficiente para Whisper
+                "--audio-quality", quality,
                 "-o", str(dest),
                 "--no-playlist",
                 "--quiet",
@@ -67,7 +73,7 @@ def download_audio(video_id: str, dest: Path) -> bool:
                 url,
             ],
             check=True,
-            timeout=120,
+            timeout=300,
             capture_output=True,
         )
         return dest.exists() and dest.stat().st_size > 0
@@ -75,8 +81,12 @@ def download_audio(video_id: str, dest: Path) -> bool:
         log(f"  yt-dlp falló: {e.stderr.decode()[:200] if e.stderr else e}", "warn")
         return False
     except subprocess.TimeoutExpired:
-        log("  yt-dlp timeout (>120s)", "warn")
+        log("  yt-dlp timeout (>300s)", "warn")
         return False
+
+
+# Whisper API: límite de tamaño por archivo
+WHISPER_MAX_BYTES = 25 * 1024 * 1024  # 25 MB
 
 
 # ─── Whisper transcripción ─────────────────────────────────────────────── #
@@ -156,9 +166,21 @@ def transcribe_to_source(
         return False
 
     audio_path = tmpdir / f"{vid}.mp3"
-    if not download_audio(vid, audio_path):
+    # En source-mode usamos calidad 9 (~32 kbps) para que entrevistas de
+    # hasta ~100 min quepan en el límite Whisper de 25 MB sin chunkear.
+    # La voz humana transcribe igual de bien a 32 kbps que a 96 kbps.
+    if not download_audio(vid, audio_path, quality="9"):
         return False
-    log(f"  audio: {audio_path.stat().st_size // 1024} KB")
+    size_bytes = audio_path.stat().st_size
+    log(f"  audio: {size_bytes // 1024} KB")
+
+    if size_bytes > WHISPER_MAX_BYTES:
+        # Entrevista demasiado larga incluso a 32 kbps (>100 min). De momento
+        # la saltamos; se podría implementar chunking con ffmpeg si crece la
+        # demanda.
+        log(f"  ⚠ archivo > 25 MB ({size_bytes // 1024} KB); saltado", "warn")
+        audio_path.unlink(missing_ok=True)
+        return False
 
     segments = transcribe_audio(client, audio_path)
     audio_path.unlink(missing_ok=True)
