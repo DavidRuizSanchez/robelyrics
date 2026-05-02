@@ -149,9 +149,7 @@ def register(
         )
     )
 
-    out = _issue_and_send_verification(db, user, settings, request)
-    db.commit()
-    return out
+    return _issue_and_send_verification(db, user, settings, request)
 
 
 @router.post("/verify-email/{token}", response_model=VerifyEmailOut)
@@ -201,7 +199,13 @@ def _issue_and_send_verification(
     settings,
     request: Request,
 ) -> RegisterOut:
-    """Crea un EmailVerification y envía el correo de bienvenida."""
+    """Crea un EmailVerification, persiste, y envía el correo de bienvenida.
+
+    El commit ocurre ANTES de send_email para garantizar que, si el correo
+    llega y el usuario clica, el token existe en la BD. Si commiteamos después
+    del envío y el handler revierte por cualquier excepción, el email viajaría
+    con un token huérfano.
+    """
     token = secrets.token_urlsafe(32)
     db.add(
         EmailVerification(
@@ -210,6 +214,7 @@ def _issue_and_send_verification(
             expires_at=datetime.now(timezone.utc) + _VERIFY_TTL,
         )
     )
+    db.commit()
 
     verify_url = f"{settings.site_url.rstrip('/')}/verificar-email/{token}"
     html, text = render_verify_email(verify_url)
