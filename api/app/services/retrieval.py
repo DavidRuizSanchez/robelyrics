@@ -13,10 +13,10 @@ from app.services.qdrant_client import get_qdrant
 LINES_COLLECTION = "lines_v1"
 CHUNKS_COLLECTION = "chunks_v1"
 INTERPRETATIONS_COLLECTION = "interpretations_v1"
+LYRICS_FULL_COLLECTION = "lyrics_full_v1"
 
 # Boost factor aplicado al score RRF de un hit cuando su song_id aparece
-# en las fuentes fan vectorialmente cercanas a la query. Promociona
-# canciones cuyo CONTEXTO FAN (no sus letras aisladas) casa con la query.
+# en las fuentes fan o en la letra completa vectorialmente cercanas a la query.
 INTERPRETATION_BOOST = 1.6
 
 
@@ -30,6 +30,7 @@ class Hit:
     score: float
     source: str  # "vector_lines" | "vector_chunks" | "bm25"
     payload: dict[str, Any] = field(default_factory=dict)
+    start_seconds: int | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -152,6 +153,36 @@ def bm25_search(
 # --------------------------------------------------------------------------- #
 # Reciprocal Rank Fusion
 # --------------------------------------------------------------------------- #
+def search_lyrics_full_for_song_ids(
+    query_vec: list[float], k: int = 10, score_threshold: float = 0.32
+) -> dict[int, float]:
+    """Busca la letra COMPLETA de cada canción contra la query.
+
+    Captura queries conceptuales de alto nivel cuando la canción habla del
+    tema en su conjunto pero ningún chunk individual lo refleja.
+    Devuelve {song_id: score}. Los hits boostean el RRF.
+    """
+    qdrant = get_qdrant()
+    try:
+        resp = qdrant.query_points(
+            collection_name=LYRICS_FULL_COLLECTION,
+            query=query_vec,
+            limit=k,
+            score_threshold=score_threshold,
+        )
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict[int, float] = {}
+    for h in resp.points:
+        for sid in (h.payload or {}).get("song_ids") or []:
+            try:
+                sid_int = int(sid)
+            except (TypeError, ValueError):
+                continue
+            out[sid_int] = max(out.get(sid_int, 0.0), float(h.score))
+    return out
+
+
 def search_interpretations_for_song_ids(
     query_vec: list[float], k: int = 10, score_threshold: float = 0.35
 ) -> dict[int, float]:

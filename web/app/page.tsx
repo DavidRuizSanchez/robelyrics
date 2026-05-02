@@ -1,17 +1,53 @@
-export default function Home() {
+import { Suspense } from "react";
+import SearchBox from "@/components/SearchBox";
+import SearchResults from "@/components/SearchResults";
+import LoadingResults from "@/components/LoadingResults";
+
+type Mode = "semantic" | "complete";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; mode?: string }>;
+}) {
+  const sp = await searchParams;
+  const query = (sp.q || "").trim();
+  const mode: Mode = sp.mode === "complete" ? "complete" : "semantic";
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-      <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight mb-6">
-        RobeLyrics
-      </h1>
-      <p className="text-zinc-400 max-w-xl text-lg leading-relaxed">
-        El buscador del universo Extremoduro y Robe.
-        <br />
-        Coming soon.
-      </p>
-      <p className="text-zinc-600 mt-12 text-sm">
-        Infraestructura levantada · próxima tanda: Knowledge base
-      </p>
+    <main className="min-h-screen px-6 py-12">
+      <header className="text-center mb-12">
+        <h1 className="font-serif text-5xl md:text-6xl font-bold tracking-tight">
+          RobeLyrics
+        </h1>
+        <p className="text-zinc-500 mt-2">
+          El universo Extremoduro / Robe Iniesta, en una caja de búsqueda.
+        </p>
+      </header>
+
+      <SearchBox initialQuery={query} initialMode={mode} />
+
+      {query && (
+        // El `key` fuerza a Suspense a remount con cada query/mode → loading state inmediato.
+        <Suspense
+          key={`${mode}:${query}`}
+          fallback={<LoadingResults query={query} />}
+        >
+          <SearchResults query={query} mode={mode} />
+        </Suspense>
+      )}
+
+      {!query && (
+        <section className="max-w-3xl mx-auto mt-12 text-center">
+          <p className="text-zinc-500 text-sm">
+            Prueba algo como{" "}
+            <span className="text-zinc-300 font-mono">«se acabó lo bonito»</span>{" "}
+            en modo equivalente, o{" "}
+            <span className="text-zinc-300 font-mono">«abre la puerta»</span>{" "}
+            en completar.
+          </p>
+        </section>
+      )}
     </main>
   );
 }

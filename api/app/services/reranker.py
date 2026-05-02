@@ -26,6 +26,7 @@ class RerankedHit:
     line_text: str
     song_id: int
     line_index: int | None
+    start_seconds: int | None
     context_before: list[str]
     context_after: list[str]
     fan_context: str | None
@@ -103,7 +104,12 @@ def fetch_song_context(
             for sid in (interp.source_ids or [])[:5]:
                 fan_sources.append({"source_id": sid})
         out[s.id] = {
-            "song": {"id": s.id, "title": s.title, "slug": s.slug},
+            "song": {
+                "id": s.id,
+                "title": s.title,
+                "slug": s.slug,
+                "youtube_id": s.youtube_id,
+            },
             "album": {"title": album.title, "slug": album.slug, "year": album.year},
             "artist": {"slug": artist.slug, "name": artist.name},
             "fan_context": fan_context,
@@ -116,8 +122,8 @@ def fetch_song_context(
 def fetch_line_neighbors(
     db: Session,
     requests_: list[tuple[int, int]],
-    n_before: int = 1,
-    n_after: int = 1,
+    n_before: int = 2,
+    n_after: int = 2,
 ) -> dict[tuple[int, int], tuple[list[str], list[str]]]:
     """Para una lista de (song_id, line_index), devuelve N líneas antes y después."""
     if not requests_:
@@ -226,7 +232,7 @@ def rerank(
         c = candidates[idx]
         if c.line_index is not None:
             selected_pairs.append((c.song_id, c.line_index))
-    neighbors = fetch_line_neighbors(db, selected_pairs, n_before=1, n_after=1)
+    neighbors = fetch_line_neighbors(db, selected_pairs, n_before=2, n_after=2)
 
     out: list[RerankedHit] = []
     for r in ranked_meta:
@@ -244,6 +250,7 @@ def rerank(
                 line_text=c.text,
                 song_id=c.song_id,
                 line_index=c.line_index,
+                start_seconds=c.start_seconds,
                 context_before=before,
                 context_after=after,
                 fan_context=ctx.get("fan_context"),
@@ -281,6 +288,7 @@ def _fallback_no_rerank(
                 line_text=c.text,
                 song_id=c.song_id,
                 line_index=c.line_index,
+                start_seconds=c.start_seconds,
                 context_before=before,
                 context_after=after,
                 fan_context=ctx.get("fan_context"),

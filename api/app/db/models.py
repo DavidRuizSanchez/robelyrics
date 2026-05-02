@@ -97,6 +97,8 @@ class Song(Base):
     duration_sec: Mapped[int | None] = mapped_column(Integer)
     genius_id: Mapped[int | None] = mapped_column(Integer)
     genius_url: Mapped[str | None] = mapped_column(String(512))
+    youtube_id: Mapped[str | None] = mapped_column(String(32))
+    youtube_match_quality: Mapped[str | None] = mapped_column(String(16))  # official|topic|search|manual
 
     album: Mapped[Album] = relationship(back_populates="songs")
     lines: Mapped[list["Line"]] = relationship(
@@ -137,6 +139,7 @@ class Line(Base):
     stanza_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     text_tsv: Mapped[str | None] = mapped_column(TSVECTOR)
+    start_seconds: Mapped[int | None] = mapped_column(Integer)  # timestamp dentro del audio (lrclib)
 
     song: Mapped[Song] = relationship(back_populates="lines")
 

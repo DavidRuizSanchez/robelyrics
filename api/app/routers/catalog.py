@@ -30,6 +30,7 @@ class TrackOut(BaseModel):
     title: str
     track_number: int | None
     has_interpretation: bool
+    youtube_id: str | None = None
 
 
 class AlbumDetailOut(AlbumOut):
@@ -52,6 +53,7 @@ class SongDetailOut(BaseModel):
     lines: list[LineOut]
     interpretation: dict | None
     interpretation_confidence: str | None
+    youtube_id: str | None = None
 
 
 @router.get("/artists", response_model=list[ArtistOut])
@@ -109,6 +111,7 @@ def album_detail(
                 title=s.title,
                 track_number=s.track_number,
                 has_interpretation=s.interpretation is not None,
+                youtube_id=s.youtube_id,
             )
             for s in songs
         ],
@@ -142,4 +145,5 @@ def song_detail(
         lines=[LineOut(line_index=l.line_index, stanza_index=l.stanza_index, text=l.text) for l in lines],
         interpretation=interp.payload if interp else None,
         interpretation_confidence=interp.confidence if interp else None,
+        youtube_id=song.youtube_id,
     )

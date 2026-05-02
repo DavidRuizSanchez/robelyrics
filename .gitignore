@@ -52,3 +52,6 @@ tmp/
 # (las letras se descargan a la BD, no a disco)
 data/raw_lyrics/
 data/cache/
+
+# ----- Assets del rediseño (no se commitean al repo) -----
+RobeLyrics.zip

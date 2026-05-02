@@ -80,7 +80,10 @@ services:
     container_name: robelyrics-web
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      # URL interna (red docker) usada por Server Components en SSR
+      API_INTERNAL_URL: http://api:8000
+      # URL pública usada en la UI (links absolutos, etc.)
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
       NODE_ENV: development
     ports:
       - "${WEB_PORT:-3000}:3000"

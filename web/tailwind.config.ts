@@ -8,7 +8,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ["Merriweather", "Georgia", "serif"],
+        serif: ["var(--font-serif)", "Merriweather", "Georgia", "serif"],
       },
     },
   },
