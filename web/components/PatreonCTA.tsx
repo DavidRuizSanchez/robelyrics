@@ -19,9 +19,11 @@ export default function PatreonCTA() {
       </h2>
 
       <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-2xl mx-auto mb-10">
-        <em>Entre Interiores</em> se sostiene a base de horas, embeddings y
-        madrugones. Si este cancionero te dice algo, hazte mecenas en Patreon
-        y ayuda a que siga creciendo, verso a verso.
+        Este es mi pequeño homenaje a Robe, siempre me sentiré en deuda
+        eterna con él por todo lo que me ha dado. <em>Entre Interiores</em>{" "}
+        se sostiene a base de embeddings e insomnio. Si este proyecto te
+        dice algo, aunque sea un poquito, hazte mecenas en Patreon y ayuda
+        a que siga creciendo, verso a verso, teniendo en cuenta tu voz.
       </p>
 
       <Link
