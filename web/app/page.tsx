@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AlbumCover from "@/components/AlbumCover";
+import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import { LogoSunCloud } from "@/components/Logo";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -60,7 +61,14 @@ export default async function PublicLandingPage() {
   );
 
   return (
-    <>
+    <div className="relative">
+      <HeaderImageBackdrop
+        src="/imagen-cabecera-tatuaje.png"
+        height="1000px"
+        opacity={0.15}
+        position="center top"
+      />
+      <div className="relative z-10">
       <PublicHeader />
       <main className="px-5 md:px-14 max-w-[1100px] mx-auto">
         {/* Hero */}
@@ -160,6 +168,7 @@ export default async function PublicLandingPage() {
         </section>
       </main>
       <PublicFooter />
-    </>
+      </div>
+    </div>
   );
 }

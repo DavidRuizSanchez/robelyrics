@@ -17,10 +17,10 @@ export const T = {
   inkDim: "#c4b8a0",
   // faint subido (de #6b614f ~2.4:1) para etiquetas secundarias legibles
   inkFaint: "#8d8270",
-  // accent subido (de #a83a3a ~1.7:1) manteniendo granate/vino, ahora ~4:1
-  accent: "#d04545",
-  // accent-bright para hovers (de #c84a48 ~2.8:1) ahora ~5.5:1
-  accentBright: "#ea5a5a",
+  // accent subido (de #a83a3a ~1.7:1) manteniendo granate/vino, ahora ~5:1 (AA)
+  accent: "#e85050",
+  // accent-bright para hovers, ahora ~6.5:1
+  accentBright: "#ff6b6b",
   divider: "rgba(237,228,211,0.08)",
   dividerStrong: "rgba(237,228,211,0.15)",
 } as const;

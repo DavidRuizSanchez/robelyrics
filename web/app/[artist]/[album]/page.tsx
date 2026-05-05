@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -50,7 +51,17 @@ export default async function AlbumPublicPage({
   if (!detail.seo_body) notFound();
 
   return (
-    <>
+    <div className="relative">
+      {detail.cover_url && (
+        <HeaderImageBackdrop
+          src={detail.cover_url}
+          height="900px"
+          opacity={0.18}
+          position="center top"
+          blur={20}
+        />
+      )}
+      <div className="relative z-10">
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
         <Link
@@ -74,7 +85,7 @@ export default async function AlbumPublicPage({
               {detail.year} · {detail.kind}
             </p>
             <h1 className="font-serif text-4xl md:text-[64px] text-ink leading-[0.95] tracking-[-1px] mt-2 mb-4">
-              {detail.title}
+              {detail.seo_h1 || detail.title}
             </h1>
           </div>
         </header>
@@ -123,6 +134,7 @@ export default async function AlbumPublicPage({
         />
       </main>
       <PublicFooter />
-    </>
+      </div>
+    </div>
   );
 }
