@@ -6,6 +6,7 @@ import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import Hero from "@/components/Hero";
 import LoadingResults from "@/components/LoadingResults";
 import MainMenu from "@/components/MainMenu";
+import PatreonCTA from "@/components/PatreonCTA";
 import SearchBox from "@/components/SearchBox";
 import SearchResults from "@/components/SearchResults";
 
@@ -40,6 +41,7 @@ export default async function Home({
       <div className="relative z-10">
         <Hero />
         <MainMenu />
+        <PatreonCTA />
         <DiscographySection variant="summary" />
         <Footer />
       </div>
