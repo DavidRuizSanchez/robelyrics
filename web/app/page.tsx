@@ -20,35 +20,43 @@ type SitemapEntry = {
 };
 
 export default async function PublicLandingPage() {
-  // Cargar Extremoduro (su detalle público) y la lista de URLs publicadas
+  // Cargar ambos artistas (Extremoduro y Robe) y la lista de URLs publicadas
   // para mostrar links reales a lo que ya está vivo. Si algo falla, fallback
   // suave a CTAs sin grid.
-  let extremoduro: PublicArtistDetail | null = null;
-  let published: SitemapEntry[] = [];
-  try {
-    extremoduro = await apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
+  const [extremoduro, robe, published] = await Promise.all([
+    apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
       authenticated: false,
-    });
-  } catch {
-    /* ignoramos */
-  }
-  try {
-    published = await apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
+    }).catch(() => null),
+    apiFetch<PublicArtistDetail>("/public/artists/robe", {
       authenticated: false,
-    });
-  } catch {
-    /* ignoramos */
-  }
+    }).catch(() => null),
+    apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
+      authenticated: false,
+    }).catch(() => [] as SitemapEntry[]),
+  ]);
 
-  // Slugs de discos con artículo SEO publicado
-  const publishedAlbumSlugs = new Set(
+  // Combinamos discos de ambos artistas etiquetando el artista para construir
+  // hrefs correctos (`/{artist}/{album}`). Filtramos por url_path completo
+  // contra el sitemap publicado, no por slug suelto, para evitar colisiones
+  // si dos discos comparten slug entre artistas.
+  const publishedAlbumPaths = new Set(
     published
       .filter((e) => e.entity_type === "album")
-      .map((e) => e.url_path.split("/")[2])
-      .filter(Boolean),
+      .map((e) => e.url_path),
   );
-  const albumsLive = (extremoduro?.albums || []).filter((a) =>
-    publishedAlbumSlugs.has(a.slug),
+
+  type AlbumWithArtist = PublicArtistDetail["albums"][number] & {
+    artistSlug: string;
+  };
+  const allAlbums: AlbumWithArtist[] = [
+    ...(extremoduro?.albums || []).map((a) => ({ ...a, artistSlug: "extremoduro" })),
+    ...(robe?.albums || []).map((a) => ({ ...a, artistSlug: "robe" })),
+  ];
+  // Cronológico ascendente (1989 → presente) para que la historia se lea bien.
+  allAlbums.sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+
+  const albumsLive = allAlbums.filter((a) =>
+    publishedAlbumPaths.has(`/${a.artistSlug}/${a.slug}`),
   );
 
   return (
@@ -82,11 +90,11 @@ export default async function PublicLandingPage() {
               explorar Extremoduro →
             </Link>
             <Link
-              href="/registro"
+              href="/robe"
               data-cursor="hover"
-              className="border border-divider text-ink-dim hover:border-accent hover:text-accent font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+              className="border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
             >
-              acceso fan completo
+              explorar Robe →
             </Link>
           </div>
         </section>
@@ -103,8 +111,8 @@ export default async function PublicLandingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {albumsLive.map((alb) => (
                 <Link
-                  key={alb.slug}
-                  href={`/extremoduro/${alb.slug}`}
+                  key={`${alb.artistSlug}/${alb.slug}`}
+                  href={`/${alb.artistSlug}/${alb.slug}`}
                   data-cursor="hover"
                   className="group block"
                 >
