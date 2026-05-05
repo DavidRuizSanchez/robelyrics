@@ -1,12 +1,31 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { PublicAlbumDetail } from "@/lib/types";
+import { resolveSlug } from "@/lib/slug-resolver";
+import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
+
+async function tryResolveAlbum(
+  artistSlug: string,
+  pedido: string,
+): Promise<string | null> {
+  try {
+    const artist = await apiFetch<PublicArtistDetail>(
+      `/public/artists/${artistSlug}`,
+      { authenticated: false },
+    );
+    return resolveSlug(
+      pedido,
+      artist.albums.map((a) => a.slug),
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function generateMetadata({
   params,
@@ -45,7 +64,11 @@ export default async function AlbumPublicPage({
       authenticated: false,
     });
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
+    if (e instanceof ApiError && e.status === 404) {
+      const matched = await tryResolveAlbum(artist, album);
+      if (matched) redirect(`/${artist}/${matched}`);
+      notFound();
+    }
     throw e;
   }
   if (!detail.seo_body) notFound();
@@ -56,9 +79,9 @@ export default async function AlbumPublicPage({
         <HeaderImageBackdrop
           src={detail.cover_url}
           height="900px"
-          opacity={0.18}
+          opacity={0.28}
           position="center top"
-          blur={20}
+          blur={4}
         />
       )}
       <div className="relative z-10">

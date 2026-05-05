@@ -1,11 +1,30 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { PublicSongDetail } from "@/lib/types";
+import { resolveSlug } from "@/lib/slug-resolver";
+import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
+
+async function tryResolveSong(
+  albumSlug: string,
+  pedido: string,
+): Promise<string | null> {
+  try {
+    const album = await apiFetch<PublicAlbumDetail>(
+      `/public/albums/${albumSlug}`,
+      { authenticated: false },
+    );
+    return resolveSlug(
+      pedido,
+      album.tracks.map((t) => t.slug),
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function generateMetadata({
   params,
@@ -47,7 +66,11 @@ export default async function SongPublicPage({
       authenticated: false,
     });
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
+    if (e instanceof ApiError && e.status === 404) {
+      const matched = await tryResolveSong(album, song);
+      if (matched) redirect(`/${artist}/${album}/${matched}`);
+      notFound();
+    }
     throw e;
   }
   if (!detail.seo_body) notFound();
@@ -82,7 +105,7 @@ export default async function SongPublicPage({
               </p>
             )}
             <h1 className="font-serif text-4xl md:text-[58px] text-ink leading-[0.97] tracking-[-1px] mt-2 mb-4">
-              {detail.title}
+              {detail.seo_h1 || detail.title}
             </h1>
             {detail.youtube_id && (
               <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-dim">
