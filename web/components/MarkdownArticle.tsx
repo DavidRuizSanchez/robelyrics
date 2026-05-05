@@ -28,7 +28,7 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
             </h3>
           ),
           p: ({ children }) => (
-            <p className="my-5 text-ink-dim leading-[1.75]">{children}</p>
+            <p className="my-5 text-ink leading-[1.75]">{children}</p>
           ),
           a: ({ href, children }) => (
             <a
@@ -40,10 +40,10 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
             </a>
           ),
           ul: ({ children }) => (
-            <ul className="my-5 ml-6 list-disc space-y-2 text-ink-dim">{children}</ul>
+            <ul className="my-5 ml-6 list-disc space-y-2 text-ink">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="my-5 ml-6 list-decimal space-y-2 text-ink-dim">{children}</ol>
+            <ol className="my-5 ml-6 list-decimal space-y-2 text-ink">{children}</ol>
           ),
           blockquote: ({ children }) => (
             <blockquote className="border-l-2 border-accent/60 pl-5 my-7 italic text-ink-dim">
