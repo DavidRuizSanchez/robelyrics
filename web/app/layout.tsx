@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import InkCursor from "@/components/InkCursor";
 import "./globals.css";
 
@@ -38,6 +39,10 @@ export default async function RootLayout({
 }) {
   const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
 
+  // GA4 se carga solo si hay ID definido en env. Vacío en local (dev) y
+  // hasta tener Measurement ID en producción.
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   return (
     <html lang="es" className={`dark ${fontVars}`} suppressHydrationWarning>
       <body
@@ -46,6 +51,7 @@ export default async function RootLayout({
       >
         <InkCursor />
         {children}
+        {gaId && <GoogleAnalytics gaId={gaId} />}
       </body>
     </html>
   );
