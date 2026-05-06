@@ -25,6 +25,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -208,6 +209,32 @@ class EmailVerification(Base):
     )
 
 
+class RevokedToken(Base):
+    """JWTs revocados (logout, force-logout). El claim `jti` del token se
+    busca aquí en cada request autenticado: si está, 401.
+
+    Una entrada por token revocado. `expires_at` permite limpiar entradas
+    cuyo TTL ya pasó (cron periódico opcional, no urgente con TTL ≤7d).
+    """
+
+    __tablename__ = "revoked_tokens"
+    __table_args__ = (
+        Index("ix_revoked_tokens_expires", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jti: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    revoked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class TermsAcceptance(Base):
     """Histórico de aceptaciones de términos por user. Una fila por (user, version)."""
 
@@ -284,6 +311,7 @@ class SeoContent(Base):
     body_md: Mapped[str] = mapped_column(Text, nullable=False)
     meta_title: Mapped[str | None] = mapped_column(String(256))
     meta_description: Mapped[str | None] = mapped_column(String(512))
+    h1: Mapped[str | None] = mapped_column(String(256))
     schema_jsonld: Mapped[dict | None] = mapped_column(JSONB)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -291,6 +319,49 @@ class SeoContent(Base):
     generated_by: Mapped[str] = mapped_column(String(32), nullable=False, default="gpt-4o")
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+
+class SeoTemplate(Base):
+    """Plantilla parametrizable para los campos SEO (title, description, h1) por
+    tipo de entidad y kind opcional.
+
+    Ejemplo:
+      entity_type='album', kind='studio', field='title',
+      template='{{title}} ({{year}}) — {{artist}} | Entre Interiores'
+
+    Resolución: si SeoContent.<field> es NULL, se aplica la plantilla más
+    específica que coincida (entity_type, kind exacto). Si no existe, fallback
+    a (entity_type, kind=NULL). Variables disponibles según entity_type.
+    """
+
+    __tablename__ = "seo_templates"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_type IN ('artist', 'album', 'song')",
+            name="ck_seo_templates_entity_type",
+        ),
+        CheckConstraint(
+            "field IN ('title', 'description', 'h1')",
+            name="ck_seo_templates_field",
+        ),
+        Index(
+            "uq_seo_templates_entity_kind_field",
+            "entity_type",
+            text("COALESCE(kind, '')"),
+            "field",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    kind: Mapped[str | None] = mapped_column(String(32))
+    field: Mapped[str] = mapped_column(String(16), nullable=False)
+    template: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class SongInterpretation(Base):

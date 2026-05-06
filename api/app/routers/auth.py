@@ -1,6 +1,7 @@
 """Auth endpoints: login (JWT) + me + register + verify-email."""
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -16,11 +17,14 @@ from app.services.auth import (
     create_access_token,
     get_current_user,
     hash_password,
+    revoke_token,
     verify_password,
 )
 from app.services.email import EmailError, render_verify_email, send_email
+from app.services.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+log = logging.getLogger("robelyrics.auth")
 
 # Validador de password mínimo: 8+ chars con al menos una letra y un dígito.
 _PASSWORD_OK = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
@@ -58,8 +62,10 @@ class RegisterIn(BaseModel):
 
 
 class RegisterOut(BaseModel):
-    user_id: int
-    email_sent: bool
+    # Respuesta deliberadamente uniforme: no revelamos si el user ya existía
+    # ni si el envío de email tuvo éxito. email_sent siempre True para impedir
+    # email enumeration. Si el envío real falla, queda en logs del operador.
+    email_sent: bool = True
 
 
 class VerifyEmailOut(BaseModel):
@@ -73,7 +79,12 @@ class VerifyEmailOut(BaseModel):
 # Endpoints
 # --------------------------------------------------------------------------- #
 @router.post("/login", response_model=LoginOut)
-def login(body: LoginIn, db: Session = Depends(get_db)) -> LoginOut:
+@limiter.limit("5/minute;20/hour")
+def login(
+    request: Request,
+    body: LoginIn,
+    db: Session = Depends(get_db),
+) -> LoginOut:
     user = (
         db.query(User)
         .filter(User.email == body.email, User.is_active.is_(True))
@@ -89,6 +100,21 @@ def login(body: LoginIn, db: Session = Depends(get_db)) -> LoginOut:
     return LoginOut(access_token=create_access_token(user.id))
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> None:
+    """Revoca el JWT del header Authorization. El frontend tras esto
+    debe borrar la cookie httpOnly. Idempotente: se puede llamar varias
+    veces sin error, sin token también responde 204."""
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+        revoke_token(db, token)
+    return None
+
+
 @router.get("/me", response_model=MeOut)
 def me(user: User = Depends(get_current_user)) -> MeOut:
     return MeOut(
@@ -101,9 +127,10 @@ def me(user: User = Depends(get_current_user)) -> MeOut:
 
 
 @router.post("/register", response_model=RegisterOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/hour")
 def register(
-    body: RegisterIn,
     request: Request,
+    body: RegisterIn,
     db: Session = Depends(get_db),
 ) -> RegisterOut:
     settings = get_settings()
@@ -122,13 +149,19 @@ def register(
             detail=f"versión de términos obsoleta · vigente: {settings.terms_version}",
         )
 
+    # Respuesta uniforme: no diferenciamos los 3 casos hacia el cliente
+    #   1) email nuevo                    → crear + enviar verificación
+    #   2) email existente sin verificar  → re-enviar verificación
+    #   3) email existente verificado     → no enviamos nada (lo reportamos en log)
+    # En los 3, devolvemos RegisterOut(email_sent=True) para no filtrar
+    # email enumeration por la respuesta.
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        # No revelamos existencia: respondemos como si todo OK pero sin reenvío.
-        # Si la cuenta no estaba verificada todavía, sí re-enviamos.
         if existing.email_verified_at is None and existing.is_active:
-            return _issue_and_send_verification(db, existing, settings, request)
-        return RegisterOut(user_id=existing.id, email_sent=False)
+            _issue_and_send_verification(db, existing, settings, request)
+        else:
+            log.info("register: email already verified, skipping send (user_id=%s)", existing.id)
+        return RegisterOut(email_sent=True)
 
     user = User(
         email=email,
@@ -149,7 +182,8 @@ def register(
         )
     )
 
-    return _issue_and_send_verification(db, user, settings, request)
+    _issue_and_send_verification(db, user, settings, request)
+    return RegisterOut(email_sent=True)
 
 
 @router.post("/verify-email/{token}", response_model=VerifyEmailOut)
@@ -216,13 +250,15 @@ def _issue_and_send_verification(
     user: User,
     settings,
     request: Request,
-) -> RegisterOut:
+) -> None:
     """Crea un EmailVerification, persiste, y envía el correo de bienvenida.
 
     El commit ocurre ANTES de send_email para garantizar que, si el correo
     llega y el usuario clica, el token existe en la BD. Si commiteamos después
     del envío y el handler revierte por cualquier excepción, el email viajaría
     con un token huérfano.
+
+    No devuelve nada: el flujo de respuesta uniforme se gestiona en register().
     """
     token = secrets.token_urlsafe(32)
     db.add(
@@ -236,17 +272,14 @@ def _issue_and_send_verification(
 
     verify_url = f"{settings.site_url.rstrip('/')}/verificar-email/{token}"
     html, text = render_verify_email(verify_url)
-    sent_id: str | None = None
     try:
-        sent_id = send_email(
+        send_email(
             to=user.email,
             subject="Confirma tu email · Entre Interiores",
             html=html,
             text=text,
         )
-    except EmailError:
-        # No revelamos al usuario el fallo de Resend (información sensible).
-        # El log queda en stderr para el operador.
-        sent_id = None
-
-    return RegisterOut(user_id=user.id, email_sent=sent_id is not None)
+    except EmailError as e:
+        # Log para el operador; la respuesta al usuario sigue siendo uniforme
+        # (email_sent=True) para no filtrar email enumeration.
+        log.warning("send verification email failed for user_id=%s: %s", user.id, e)
