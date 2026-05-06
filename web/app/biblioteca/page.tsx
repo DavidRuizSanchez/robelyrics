@@ -13,7 +13,7 @@ import SearchResults from "@/components/SearchResults";
 type Mode = "semantic" | "complete";
 
 const MODE_META: Record<Mode, { n: string; title: string }> = {
-  semantic: { n: "01", title: "Equivalente poético" },
+  semantic: { n: "01", title: "Como lo diría Robe" },
   complete: { n: "02", title: "Completa la frase" },
 };
 

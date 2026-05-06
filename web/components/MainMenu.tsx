@@ -3,7 +3,7 @@ import Link from "next/link";
 const ITEMS = [
   {
     n: "01",
-    title: "Equivalente poético",
+    title: "Como lo diría Robe",
     desc: "Cuéntame cómo te sientes y te doy la letra que lo dice.",
     example: '"se acabó lo bonito" → "se acabaron las flores de papel"',
     href: "/biblioteca?mode=semantic#search",
