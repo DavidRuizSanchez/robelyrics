@@ -36,7 +36,7 @@ export default function Hero() {
 
       <div className="relative z-10 mt-8 flex gap-3.5 flex-wrap">
         <Link
-          href="/?mode=semantic#search"
+          href="/biblioteca?mode=semantic#search"
           data-cursor="hover"
           className="bg-accent hover:bg-accent-bright text-white font-mono text-[11px] tracking-[3px] uppercase px-5 py-3.5 transition-colors"
         >

@@ -29,7 +29,7 @@ export default function CompleteResultCard({
 
       <div className="mt-5 flex flex-wrap items-center gap-2.5 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-dim">
         <Link
-          href={`/${hit.artist.slug}/${hit.album.slug}/${hit.song.slug}`}
+          href={`/biblioteca/${hit.artist.slug}/${hit.album.slug}/${hit.song.slug}`}
           data-cursor="hover"
           className="text-ink hover:text-accent transition-colors"
         >
@@ -37,7 +37,7 @@ export default function CompleteResultCard({
         </Link>
         <span className="opacity-50">·</span>
         <Link
-          href={`/${hit.artist.slug}/${hit.album.slug}`}
+          href={`/biblioteca/${hit.artist.slug}/${hit.album.slug}`}
           data-cursor="hover"
           className="hover:text-ink transition-colors"
         >

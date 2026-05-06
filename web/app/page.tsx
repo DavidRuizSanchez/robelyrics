@@ -1,97 +1,174 @@
-import { Suspense } from "react";
 import Link from "next/link";
-import DiscographySection from "@/components/DiscographySection";
-import Footer from "@/components/Footer";
+import AlbumCover from "@/components/AlbumCover";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
-import Hero from "@/components/Hero";
-import LoadingResults from "@/components/LoadingResults";
-import MainMenu from "@/components/MainMenu";
-import SearchBox from "@/components/SearchBox";
-import SearchResults from "@/components/SearchResults";
+import { LogoSunCloud } from "@/components/Logo";
+import PublicFooter from "@/components/PublicFooter";
+import PublicHeader from "@/components/PublicHeader";
+import { apiFetch } from "@/lib/api";
+import { T } from "@/lib/theme";
+import type { PublicArtistDetail } from "@/lib/types";
 
-type Mode = "semantic" | "complete";
-
-const MODE_META: Record<Mode, { n: string; title: string }> = {
-  semantic: { n: "01", title: "Equivalente poético" },
-  complete: { n: "02", title: "Completa la frase" },
+export const metadata = {
+  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
+  description:
+    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; mode?: string }>;
-}) {
-  const sp = await searchParams;
-  const query = (sp.q || "").trim();
-  const mode: Mode | null =
-    sp.mode === "semantic" || sp.mode === "complete" ? sp.mode : null;
+type SitemapEntry = {
+  url_path: string;
+  last_modified: string;
+  entity_type: string;
+};
 
-  // Modo Experience (form + resultados)
-  if (mode) {
-    return (
-      <Experience mode={mode} query={query} />
-    );
-  }
+export default async function PublicLandingPage() {
+  // Cargar ambos artistas (Extremoduro y Robe) y la lista de URLs publicadas
+  // para mostrar links reales a lo que ya está vivo. Si algo falla, fallback
+  // suave a CTAs sin grid.
+  const [extremoduro, robe, published] = await Promise.all([
+    apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
+      authenticated: false,
+    }).catch(() => null),
+    apiFetch<PublicArtistDetail>("/public/artists/robe", {
+      authenticated: false,
+    }).catch(() => null),
+    apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
+      authenticated: false,
+    }).catch(() => [] as SitemapEntry[]),
+  ]);
 
-  // Home
+  // Combinamos discos de ambos artistas etiquetando el artista para construir
+  // hrefs correctos (`/{artist}/{album}`). Filtramos por url_path completo
+  // contra el sitemap publicado, no por slug suelto, para evitar colisiones
+  // si dos discos comparten slug entre artistas.
+  const publishedAlbumPaths = new Set(
+    published
+      .filter((e) => e.entity_type === "album")
+      .map((e) => e.url_path),
+  );
+
+  type AlbumWithArtist = PublicArtistDetail["albums"][number] & {
+    artistSlug: string;
+  };
+  const allAlbums: AlbumWithArtist[] = [
+    ...(extremoduro?.albums || []).map((a) => ({ ...a, artistSlug: "extremoduro" })),
+    ...(robe?.albums || []).map((a) => ({ ...a, artistSlug: "robe" })),
+  ];
+  // Cronológico ascendente (1989 → presente) para que la historia se lea bien.
+  allAlbums.sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+
+  const albumsLive = allAlbums.filter((a) =>
+    publishedAlbumPaths.has(`/${a.artistSlug}/${a.slug}`),
+  );
+
   return (
     <div className="relative">
-      <HeaderImageBackdrop height="1100px" />
+      <HeaderImageBackdrop
+        src="/imagen-cabecera-tatuaje.png"
+        height="1000px"
+        opacity={0.15}
+        position="center top"
+      />
       <div className="relative z-10">
-        <Hero />
-        <MainMenu />
-        <DiscographySection variant="summary" />
-        <Footer />
+      <PublicHeader />
+      <main className="px-5 md:px-14 max-w-[1100px] mx-auto">
+        {/* Hero */}
+        <section className="py-16 md:py-24 text-center">
+          <div className="mb-10 flex justify-center">
+            <LogoSunCloud name="Entre Interiores" color={T.ink} scale={1.1} stack />
+          </div>
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-4">
+            un cancionero íntimo
+          </p>
+          <h1 className="font-serif text-4xl md:text-6xl text-ink leading-[1.05] tracking-[-1px] mb-6">
+            Robe Iniesta y Extremoduro,
+            <br />
+            <span className="italic text-ink-dim">verso a verso</span>
+          </h1>
+          <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
+            Disco a disco, canción a canción. Análisis, contexto y comunidad
+            fan en torno a la obra de Robe.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-8">
+            <Link
+              href="/extremoduro"
+              data-cursor="hover"
+              className="border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            >
+              explorar Extremoduro →
+            </Link>
+            <Link
+              href="/robe"
+              data-cursor="hover"
+              className="border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            >
+              explorar Robe →
+            </Link>
+          </div>
+        </section>
+
+        {/* Discos publicados (capa pública SEO) */}
+        {albumsLive.length > 0 && (
+          <section className="py-12 border-t border-divider">
+            <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
+              en lectura
+            </p>
+            <h2 className="font-serif text-3xl md:text-4xl text-ink mb-8 leading-[1.15]">
+              Discos con análisis disponible
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+              {albumsLive.map((alb) => (
+                <Link
+                  key={`${alb.artistSlug}/${alb.slug}`}
+                  href={`/${alb.artistSlug}/${alb.slug}`}
+                  data-cursor="hover"
+                  className="group block"
+                >
+                  <AlbumCover
+                    coverUrl={alb.cover_url}
+                    slug={alb.slug}
+                    title={alb.title}
+                    variant="md"
+                    className="!w-full !h-auto aspect-square"
+                  />
+                  <p className="mt-3 font-serif text-[17px] text-ink leading-[1.25] transition-colors group-hover:text-accent">
+                    {alb.title}
+                  </p>
+                  <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+                    {alb.year} · {alb.kind}
+                  </p>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-6 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+              El resto del catálogo se va publicando con análisis editorial conforme se completa.
+            </p>
+          </section>
+        )}
+
+        {/* CTA fan */}
+        <section className="py-16 border-t border-divider text-center">
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">
+            el cancionero íntimo
+          </p>
+          <h2 className="font-serif text-2xl md:text-3xl text-ink leading-[1.2] mb-4">
+            Letra completa, karaoke sincronizado y análisis fan
+          </h2>
+          <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
+            Regístrate gratis para acceder a la experiencia completa: 144 canciones con
+            sincronización letra-audio, interpretaciones de la comunidad y buscador semántico.
+          </p>
+          <Link
+            href="/registro"
+            data-cursor="hover"
+            className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+          >
+            crear cuenta gratis
+          </Link>
+        </section>
+      </main>
+      <PublicFooter />
       </div>
     </div>
-  );
-}
-
-function Experience({ mode, query }: { mode: Mode; query: string }) {
-  const meta = MODE_META[mode];
-  return (
-    <main
-      id="search"
-      className="px-5 md:px-14 py-8 md:py-20 max-w-[920px] mx-auto animate-fade-up"
-    >
-      <Link
-        href="/"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink transition-colors mb-7 inline-block"
-      >
-        ← volver
-      </Link>
-
-      <div className="flex items-center gap-3 mb-3.5">
-        <span className="block w-6 h-px bg-accent" />
-        <span className="font-mono text-[11px] tracking-[4px] uppercase text-accent">
-          {meta.n}
-        </span>
-      </div>
-      <h2 className="font-serif text-4xl md:text-[64px] font-normal text-ink m-0 leading-[1] tracking-[-1px]">
-        {meta.title}
-      </h2>
-
-      <div className="mt-9">
-        <SearchBox initialQuery={query} initialMode={mode} />
-      </div>
-
-      {query && (
-        <Suspense
-          key={`${mode}:${query}`}
-          fallback={<LoadingResults query={query} />}
-        >
-          <SearchResults query={query} mode={mode} />
-        </Suspense>
-      )}
-
-      {!query && (
-        <p className="mt-6 font-mono text-[10px] tracking-[1px] text-ink-faint">
-          {mode === "semantic"
-            ? 'p.ej. «se acabó lo bonito»'
-            : 'p.ej. «abre la puerta»'}
-        </p>
-      )}
-    </main>
   );
 }

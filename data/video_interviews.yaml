@@ -1,0 +1,37 @@
+# Listado de entrevistas en vídeo (YouTube) para transcribir con Whisper.
+# Cada URL → descarga audio con yt-dlp + transcripción Whisper segment-level
+# + insert como InterpretationSource (kind=youtube_transcript).
+#
+# Coste estimado: ~$0,18-$0,36 por entrevista (30-60 min × $0,006/min).
+
+interviews:
+  - url: https://www.youtube.com/watch?v=5FIP0XCtqQ4
+    title: "La Resistencia · entrevista a Robe Iniesta (15-11-2018)"
+    author: "David Broncano"
+  - url: https://www.youtube.com/watch?v=b5fELJ2JR_I
+    title: "Carne Cruda T12x56 · Robe Iniesta nos ensanchaba el alma"
+    author: "Javier Gallego"
+  - url: https://www.youtube.com/watch?v=ykXsuPmebg4
+    title: "Robe Iniesta en Fuego y Chinchetas (Cadena SER · El País)"
+    author: "Cadena SER"
+  - url: https://www.youtube.com/watch?v=AZgSfKu7H70
+    title: "Robe Iniesta en Mañana más con Ángel Carmona (Radio 3)"
+    author: "Ángel Carmona"
+  - url: https://www.youtube.com/watch?v=qZyT8BZD2nY
+    title: "Hablando con Robe · el poder de las letras"
+    author: "—"
+  - url: https://www.youtube.com/watch?v=bH7Fnp6JfAQ
+    title: "Pasamos un rato junto a un genio · entrevista a Robe Iniesta"
+    author: "—"
+  - url: https://www.youtube.com/watch?v=uiffnDEKlvY
+    title: "Trembol · Homenaje a Robe Iniesta (vida + Extremoduro + canciones)"
+    author: "Trembol"
+  - url: https://www.youtube.com/watch?v=Pz4BbTVXgN0
+    title: "La historia de Extremoduro y Robe Iniesta"
+    author: "—"
+  - url: https://www.youtube.com/watch?v=K0ZK1GXTfDc
+    title: "Análisis · Por Encima del Bien y del Mal (Demian Argento)"
+    author: "Demian Argento"
+  - url: https://www.youtube.com/watch?v=W4RVJh2pbJg
+    title: "Hablando de Rock #1 · Segundo Movimiento, Mierda de Filosofía"
+    author: "Hablando de Rock"

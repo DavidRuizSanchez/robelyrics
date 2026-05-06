@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Caveat, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
-import { cookies } from "next/headers";
-import Header from "@/components/Header";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import InkCursor from "@/components/InkCursor";
-import YoutubeFloatingPlayer from "@/components/YoutubeFloatingPlayer";
-import { YoutubePlayerProvider } from "@/lib/youtube-player-context";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -30,9 +27,9 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Entre Interiores · RobeLyrics",
+  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
   description:
-    "El universo de Robe Iniesta y Extremoduro, verso a verso. Buscador semántico personal.",
+    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
 export default async function RootLayout({
@@ -40,8 +37,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isAuthed = Boolean((await cookies()).get("robelyrics_token")?.value);
   const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
+
+  // GA4 se carga solo si hay ID definido en env. Vacío en local (dev) y
+  // hasta tener Measurement ID en producción.
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
     <html lang="es" className={`dark ${fontVars}`} suppressHydrationWarning>
@@ -49,12 +49,9 @@ export default async function RootLayout({
         className="bg-bg-deep text-ink antialiased min-h-screen font-serif"
         suppressHydrationWarning
       >
-        <YoutubePlayerProvider>
-          <InkCursor />
-          {isAuthed && <Header />}
-          {children}
-          <YoutubeFloatingPlayer />
-        </YoutubePlayerProvider>
+        <InkCursor />
+        {children}
+        {gaId && <GoogleAnalytics gaId={gaId} />}
       </body>
     </html>
   );

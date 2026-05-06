@@ -175,9 +175,57 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(default=False, nullable=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class EmailVerification(Base):
+    """Token de verificación de email enviado al registrarse o cambiar email."""
+
+    __tablename__ = "email_verifications"
+    __table_args__ = (
+        Index("ix_email_verifications_user", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TermsAcceptance(Base):
+    """Histórico de aceptaciones de términos por user. Una fila por (user, version)."""
+
+    __tablename__ = "terms_acceptances"
+    __table_args__ = (
+        UniqueConstraint("user_id", "version", name="uq_terms_acceptances_user_version"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -203,9 +251,46 @@ class InterpretationSource(Base):
     content_clean: Mapped[str | None] = mapped_column(Text)
     referenced_song_ids: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
     quality_score: Mapped[float | None] = mapped_column()
+    # Si es True, esta fuente NO se usa para destilar interpretaciones fan
+    # (rama privada con citation obligatoria). Solo el generador de contenido SEO
+    # de la capa pública la consume. Útil para prensa comercial (Mondo Sonoro,
+    # Efe Eme, Rockdelux, El País, etc.) cuyo tono mezcla redacción y cita y
+    # rompe la regla de citation pura del destilador.
+    for_seo_only: Mapped[bool] = mapped_column(default=False, nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class SeoContent(Base):
+    """Contenido SEO editorial generado para una entidad pública (artist/album/song).
+
+    `body_md` es el artículo en Markdown (~1500-3000 palabras dependiendo de la
+    entidad). `published=False` significa que la página pública correspondiente
+    devuelve 404 — permite generar masivamente con LLM y publicar solo lo
+    revisado.
+    """
+
+    __tablename__ = "seo_content"
+    __table_args__ = (
+        UniqueConstraint("entity_type", "entity_id", name="uq_seo_content_entity"),
+        Index("ix_seo_content_published", "published"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)  # artist|album|song
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    slug: Mapped[str] = mapped_column(String(256), nullable=False)
+    body_md: Mapped[str] = mapped_column(Text, nullable=False)
+    meta_title: Mapped[str | None] = mapped_column(String(256))
+    meta_description: Mapped[str | None] = mapped_column(String(512))
+    schema_jsonld: Mapped[dict | None] = mapped_column(JSONB)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    generated_by: Mapped[str] = mapped_column(String(32), nullable=False, default="gpt-4o")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published: Mapped[bool] = mapped_column(default=False, nullable=False)
 
 
 class SongInterpretation(Base):

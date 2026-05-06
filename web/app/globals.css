@@ -27,7 +27,7 @@
 
   /* Selección granate (token accent) */
   ::selection {
-    background: #a83a3a;
+    background: #e85050;
     color: #fff;
   }
 
@@ -47,10 +47,12 @@
     background: rgba(237, 228, 211, 0.2);
   }
 
-  /* En desktop ocultamos el cursor real y dejamos sólo el InkCursor */
+  /* En desktop ocultamos el cursor real solo cuando el InkCursor está activo
+     (la clase la añade el componente al montar). Si JS falla o aún no ha
+     hidratado, el cursor del sistema sigue visible. */
   @media (pointer: fine) {
-    body,
-    body * {
+    body.ink-cursor-active,
+    body.ink-cursor-active * {
       cursor: none !important;
     }
   }

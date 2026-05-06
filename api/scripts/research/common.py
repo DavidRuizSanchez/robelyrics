@@ -134,6 +134,7 @@ def upsert_source(
     content_clean: str | None = None,
     referenced_song_ids: list[int] | None = None,
     quality_score: float | None = None,
+    for_seo_only: bool = False,
 ) -> int:
     """Inserta una InterpretationSource o actualiza si (kind,url) ya existe.
     Devuelve el id."""
@@ -149,6 +150,7 @@ def upsert_source(
             content_clean=content_clean,
             referenced_song_ids=referenced_song_ids,
             quality_score=quality_score,
+            for_seo_only=for_seo_only,
             fetched_at=datetime.now(timezone.utc),
         )
         .on_conflict_do_update(
@@ -161,6 +163,7 @@ def upsert_source(
                 "content_clean": content_clean,
                 "referenced_song_ids": referenced_song_ids,
                 "quality_score": quality_score,
+                "for_seo_only": for_seo_only,
                 "fetched_at": datetime.now(timezone.utc),
             },
         )

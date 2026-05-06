@@ -1,96 +1,131 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SunMark } from "@/components/Logo";
+import AlbumCover from "@/components/AlbumCover";
+import MarkdownArticle from "@/components/MarkdownArticle";
+import PublicFooter from "@/components/PublicFooter";
+import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
-import {
-  DEFAULT_DISC_COLOR,
-  DISCOGRAPHY_COLORS,
-} from "@/lib/discography-display";
-import type { Album, Artist } from "@/lib/types";
+import type { PublicArtistDetail } from "@/lib/types";
 
-const VALID = new Set(["extremoduro", "robe"]);
+const VALID_SLUGS = new Set(["extremoduro", "robe"]);
 
-export default async function ArtistPage({
+export async function generateMetadata({
   params,
 }: {
   params: Promise<{ artist: string }>;
 }) {
   const { artist } = await params;
-  if (!VALID.has(artist)) notFound();
-
-  let albums: Album[] = [];
-  let artistInfo: Artist | undefined;
+  if (!VALID_SLUGS.has(artist)) return {};
   try {
-    const all = await apiFetch<Artist[]>("/artists");
-    artistInfo = all.find((a) => a.slug === artist);
-    albums = await apiFetch<Album[]>(`/artists/${artist}/albums`);
+    const detail = await apiFetch<PublicArtistDetail>(`/public/artists/${artist}`, {
+      authenticated: false,
+    });
+    if (!detail.seo_body) return {};
+    return {
+      title: detail.seo_meta_title || `${detail.name} · Entre Interiores`,
+      description:
+        detail.seo_meta_description ||
+        `Discografía completa, contexto y análisis fan de ${detail.name}.`,
+      openGraph: {
+        title: detail.seo_meta_title || detail.name,
+        description: detail.seo_meta_description || "",
+        type: "website",
+      },
+    };
+  } catch {
+    return {};
+  }
+}
+
+export default async function ArtistPublicPage({
+  params,
+}: {
+  params: Promise<{ artist: string }>;
+}) {
+  const { artist } = await params;
+  if (!VALID_SLUGS.has(artist)) notFound();
+
+  let detail: PublicArtistDetail;
+  try {
+    detail = await apiFetch<PublicArtistDetail>(`/public/artists/${artist}`, {
+      authenticated: false,
+    });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   }
 
+  // Si no hay seo_content publicado, página = 404 para crawlers
+  if (!detail.seo_body) notFound();
+
   return (
-    <main className="px-5 md:px-14 py-10 md:py-16 max-w-[1100px] mx-auto">
-      <Link
-        href="/"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-      >
-        ← inicio
-      </Link>
+    <>
+      <PublicHeader />
+      <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
+        <article>
+          <header className="mb-12">
+            <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
+              {detail.active_years || "—"}
+            </p>
+            <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
+              {detail.seo_h1 || detail.name}
+            </h1>
+          </header>
 
-      <div className="mt-6 flex items-center gap-3.5 mb-3">
-        <span className="block w-7 h-px bg-accent" />
-        <span className="font-mono text-[11px] tracking-[4px] uppercase text-accent">
-          artista
-        </span>
-      </div>
-      <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink m-0 leading-none tracking-[-1.5px]">
-        {artistInfo?.name || artist}
-      </h1>
-      {artistInfo?.active_years && (
-        <p className="font-mono text-[11px] tracking-[2px] text-ink-faint mt-2">
-          {artistInfo.active_years}
-        </p>
-      )}
+          <MarkdownArticle markdown={detail.seo_body} />
+        </article>
 
-      <ul className="mt-12">
-        {albums.map((alb) => {
-          const color = DISCOGRAPHY_COLORS[alb.slug] || DEFAULT_DISC_COLOR;
-          return (
-            <li key={alb.slug}>
+        <section className="mt-20">
+          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
+            Discografía
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+            {detail.albums.map((alb) => (
               <Link
+                key={alb.slug}
                 href={`/${artist}/${alb.slug}`}
                 data-cursor="hover"
-                className="group grid grid-cols-[44px_36px_1fr] md:grid-cols-[70px_52px_1fr_auto] gap-2.5 md:gap-6 items-center py-4 md:py-5 border-b border-divider transition-[padding] duration-200 hover:pl-2 md:hover:pl-4"
+                className="group block"
               >
-                <span className="font-mono text-[11px] md:text-[13px] text-ink-faint tracking-[1px]">
-                  {alb.year}
-                </span>
-                <span
-                  className="rounded flex items-center justify-center overflow-hidden w-8 h-8 md:w-11 md:h-11"
-                  style={{
-                    background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <SunMark
-                    size={20}
-                    color="rgba(255,235,200,0.85)"
-                    strokeWidth={1.4}
-                  />
-                </span>
-                <p className="font-serif text-[17px] md:text-[26px] text-ink m-0 leading-[1.2] transition-colors group-hover:text-accent">
+                <AlbumCover
+                  coverUrl={alb.cover_url}
+                  slug={alb.slug}
+                  title={alb.title}
+                  variant="md"
+                  className="!w-full !h-auto aspect-square"
+                />
+                <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
                   {alb.title}
                 </p>
-                <span className="hidden md:inline font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                  {alb.kind}
-                </span>
+                <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+                  {alb.year} · {alb.kind}
+                </p>
               </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </main>
+            ))}
+          </div>
+        </section>
+
+        {detail.seo_body && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "MusicGroup",
+                name: detail.name,
+                url: `/${artist}`,
+                album: detail.albums.map((a) => ({
+                  "@type": "MusicAlbum",
+                  name: a.title,
+                  datePublished: String(a.year),
+                  url: `/${artist}/${a.slug}`,
+                })),
+              }),
+            }}
+          />
+        )}
+      </main>
+      <PublicFooter />
+    </>
   );
 }

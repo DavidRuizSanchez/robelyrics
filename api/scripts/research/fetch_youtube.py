@@ -215,15 +215,72 @@ def parse_iso(dt: str | None) -> datetime | None:
         return None
 
 
+def _run_from_songs(http_client: httpx.Client, api_key: str) -> None:
+    """Modo `--from-songs`: itera por songs.youtube_id y descarga top-comments.
+
+    Cada comment se inserta con referenced_song_ids=[song_id] precargado, sin
+    necesidad de pasar por link_sources_to_songs después. Útil porque las
+    canciones tienen videoIds canónicos (Topic / oficiales) y los comments
+    suelen tratar de la canción específica del vídeo.
+    """
+    from app.db.models import Song
+    from scripts.research.common import get_session
+
+    with get_session() as db:
+        songs = (
+            db.query(Song)
+            .filter(Song.youtube_id.is_not(None))
+            .order_by(Song.id)
+            .all()
+        )
+        # Materializar a tuples para no depender de la sesión.
+        targets = [(s.id, s.title, s.youtube_id) for s in songs]
+
+    log(f"from-songs: {len(targets)} canciones con youtube_id")
+    total_comments = 0
+
+    for song_id, title, vid in targets:
+        video_url = f"https://www.youtube.com/watch?v={vid}"
+        with get_session() as db:
+            comments = fetch_top_comments(http_client, api_key, vid, n=10)
+            for c in comments:
+                upsert_source(
+                    db,
+                    kind="youtube_comment",
+                    url=f"{video_url}&lc={c['id']}",
+                    title=f"Comment on: {title}",
+                    author=c.get("author"),
+                    published_at=parse_iso(c.get("published_at")),
+                    content_raw=c["text"],
+                    content_clean=clean_text(c["text"]),
+                    quality_score=min(1.0, 0.4 + c["likes"] / 500),
+                    referenced_song_ids=[song_id],
+                )
+                total_comments += 1
+        polite_sleep(0.3)
+
+    log(f"comments from-songs: {total_comments}", "ok")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit-videos", type=int, default=None, help="Máx videos por canal (smoke test).")
     parser.add_argument("--skip-comments", action="store_true", help="No descargar comentarios.")
+    parser.add_argument(
+        "--from-songs",
+        action="store_true",
+        help="En lugar de iterar por canales, iterar por songs.youtube_id y bajar top-comments por canción.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
     if not settings.youtube_api_key:
         log("YOUTUBE_API_KEY no configurada — abortando", "err")
+        return
+
+    if args.from_songs:
+        with httpx.Client(timeout=20) as http_client:
+            _run_from_songs(http_client, settings.youtube_api_key)
         return
 
     sources = load_sources_yaml()

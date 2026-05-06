@@ -57,6 +57,16 @@ services:
       REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
       REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Entre Interiores}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      SITE_URL: ${SITE_URL:-http://localhost:3001}
+      TERMS_VERSION: ${TERMS_VERSION:-2026-05-02}
       API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
       PYTHONUNBUFFERED: "1"
     ports:
@@ -64,6 +74,9 @@ services:
     volumes:
       - ./api:/app
       - ./data:/app/data:ro
+      # web/public bind para que scripts del api (match_covers) puedan
+      # escribir portadas accesibles luego desde el contenedor web.
+      - ./web/public:/app/web-public
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,5 +1,13 @@
-// Middleware de auth: redirige a /login si no hay cookie de token.
-// Excluido el propio /login y los assets (_next, favicon).
+// Middleware de auth.
+//
+// Política Fase 2:
+//   - Capa pública (/, /extremoduro/*, /robe/*, /blog/*, /legal/*): libre, indexable.
+//   - Capa privada (/biblioteca/*): requiere token, redirige a /login si falta.
+//   - Login/logout siempre libres.
+//   - Assets (_next, favicon, album-covers, sitemap.xml, robots.txt, ads.txt): libres.
+//
+// El bloqueo "todo requiere auth salvo allowlist" del MVP queda atrás. Ahora
+// solo /biblioteca/* requiere auth explícitamente.
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -8,26 +16,23 @@ const TOKEN_COOKIE = "robelyrics_token";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Rutas públicas
-  if (
-    pathname === "/login" ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname === "/logout"
-  ) {
-    return NextResponse.next();
+  // /biblioteca/* requiere auth
+  if (pathname.startsWith("/biblioteca")) {
+    const token = req.cookies.get(TOKEN_COOKIE)?.value;
+    if (!token) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("from", pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
-  const token = req.cookies.get(TOKEN_COOKIE)?.value;
-  if (!token) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("from", pathname);
-    return NextResponse.redirect(url);
-  }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Excluimos los assets estáticos para no atravesar el middleware en cada uno.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|album-covers|sitemap.xml|robots.txt|ads.txt).*)",
+  ],
 };

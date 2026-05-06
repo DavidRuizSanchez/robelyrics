@@ -11,6 +11,7 @@ export type Album = {
   title: string;
   year: number;
   kind: string;
+  cover_url?: string | null;
 };
 
 export type Track = {
@@ -30,6 +31,7 @@ export type LyricLine = {
   line_index: number;
   stanza_index: number;
   text: string;
+  start_seconds: number | null;
 };
 
 export type KeyMetaphor = {
@@ -108,4 +110,58 @@ export type AuthMe = {
   id: number;
   email: string;
   is_active: boolean;
+  is_admin: boolean;
+};
+
+// ----- Pública (capa SEO sin auth) ----- //
+
+export type PublicArtistOut = {
+  slug: string;
+  name: string;
+  active_years: string | null;
+};
+
+export type PublicAlbumOut = {
+  slug: string;
+  title: string;
+  year: number;
+  kind: string;
+  cover_url: string | null;
+};
+
+export type PublicTrackOut = {
+  slug: string;
+  title: string;
+  track_number: number | null;
+  youtube_id: string | null;
+};
+
+export type PublicArtistDetail = PublicArtistOut & {
+  albums: PublicAlbumOut[];
+  seo_body: string | null;
+  seo_meta_title: string | null;
+  seo_meta_description: string | null;
+};
+
+export type PublicAlbumDetail = PublicAlbumOut & {
+  artist: PublicArtistOut;
+  tracks: PublicTrackOut[];
+  seo_body: string | null;
+  seo_meta_title: string | null;
+  seo_meta_description: string | null;
+};
+
+export type PublicSongDetail = {
+  slug: string;
+  title: string;
+  track_number: number | null;
+  artist: PublicArtistOut;
+  album: PublicAlbumOut;
+  snippet: string[];
+  snippet_attribution: string;
+  genius_url: string | null;
+  youtube_id: string | null;
+  seo_body: string | null;
+  seo_meta_title: string | null;
+  seo_meta_description: string | null;
 };

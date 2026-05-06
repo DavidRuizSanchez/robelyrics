@@ -30,10 +30,11 @@ def main() -> None:
                 email=settings.admin_email,
                 password_hash=pwd_hash,
                 is_active=True,
+                is_admin=True,
             )
             .on_conflict_do_update(
                 index_elements=["email"],
-                set_={"password_hash": pwd_hash, "is_active": True},
+                set_={"password_hash": pwd_hash, "is_active": True, "is_admin": True},
             )
             .returning(User.id)
         )
