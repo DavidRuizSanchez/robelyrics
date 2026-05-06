@@ -2,15 +2,35 @@
 	email davidruizsanchez@gmail.com
 }
 
-entreinteriores.com, www.entreinteriores.com {
+# Canónico: el apex (sin www) es el dominio canonical. Cualquier petición
+# al subdominio www se redirige permanentemente al apex equivalente,
+# preservando path y query. Esto evita que los crawlers indexen ambos
+# orígenes con contenido duplicado y consolida la autoridad SEO en uno.
+www.entreinteriores.com {
+	redir https://entreinteriores.com{uri} 301
+}
+
+entreinteriores.com {
 	encode gzip zstd
 
-	# Cabeceras de seguridad básicas
+	# Cabeceras de seguridad. El CSP va en modo Report-Only durante un
+	# período de pruebas (5-7 días) — recoge violaciones sin bloquear, así
+	# vemos qué necesitan Next.js / GA4 antes de pasar a enforcing.
+	#
+	# Notas:
+	#   - 'unsafe-inline' en script-src es deuda técnica (Next.js + GA4
+	#     emiten inline sin nonce server-side). Migrar a nonces post-launch.
+	#   - 'unsafe-inline' en style-src es prácticamente obligatorio con
+	#     bibliotecas CSS-in-JS modernas y Next.js.
+	#   - frame-ancestors 'self' cubre lo que hace X-Frame-Options.
+	#   - Si rompe algo en producción (consola del browser muestra
+	#     'Refused to load...'), añade el origen aquí o súbelo a un issue.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "SAMEORIGIN"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://www.google-analytics.com https://i.ytimg.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
 		-Server
 	}
 

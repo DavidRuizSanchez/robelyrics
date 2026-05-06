@@ -1,0 +1,51 @@
+name: security
+
+# Escanea las imágenes upstream que NO construimos nosotros — Aikido Free
+# limita a 2 imágenes y se las dedicamos a robelyrics-api / robelyrics-web.
+# Trivy es OSS, sin límite.
+#
+# Cadencia: en push a main + cron semanal (porque las imágenes se etiquetan
+# v.x.y y los CVE pueden aparecer sin que nosotros toquemos nada).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Cada lunes a las 07:00 UTC = 09:00 Madrid en horario de invierno
+    - cron: "0 7 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  security-events: write  # para subir resultados a GH Code Scanning
+
+jobs:
+  trivy-upstream-images:
+    name: Trivy · imágenes upstream
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - postgres:16-alpine
+          - qdrant/qdrant:v1.12.1
+          - caddy:2-alpine
+    steps:
+      - name: Run Trivy on ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-${{ strategy.job-index }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          # Si el escaneo encuentra algo no interrumpe el job — el SARIF
+          # va a Security tab. Si quieres bloquear merges con findings,
+          # activa exit-code: 1 después de Ola 2.4 (CI gates).
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ strategy.job-index }}.sarif
+          category: trivy-${{ matrix.image }}
