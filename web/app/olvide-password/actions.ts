@@ -4,6 +4,10 @@ import { apiFetch } from "@/lib/api";
 
 type ForgotResponse = { ok: boolean };
 
+export type ForgotResult =
+  | { ok: false; error: string }
+  | { ok: true; email: string };
+
 /**
  * Server action de "olvidé mi contraseña". Llama al backend
  * /auth/forgot-password (rate-limited 3/hour) y SIEMPRE devuelve la
@@ -11,9 +15,9 @@ type ForgotResponse = { ok: boolean };
  * uniformiza la respuesta. Esta capa propaga ese contrato sin
  * leakear errores que pudieran filtrar info.
  */
-export async function forgotPasswordAction(formData: FormData) {
+export async function forgotPasswordAction(formData: FormData): Promise<ForgotResult> {
   const email = String(formData.get("email") || "").trim();
-  if (!email) return { error: "Email obligatorio" };
+  if (!email) return { ok: false, error: "Email obligatorio" };
   try {
     await apiFetch<ForgotResponse>("/auth/forgot-password", {
       method: "POST",

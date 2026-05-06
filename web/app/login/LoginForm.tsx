@@ -17,12 +17,14 @@ import { loginAction } from "./actions";
  */
 export default function LoginForm({
   from,
-  error,
+  error: initialError,
 }: {
   from: string;
   error?: string;
 }) {
   const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(initialError ?? null);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -39,9 +41,26 @@ export default function LoginForm({
     );
   }
 
+  // Wrapper local del server action: el form `action={fn}` requiere que `fn`
+  // devuelva void/Promise<void> en Next 15. Aquí extraemos el `{error}` que
+  // devuelve loginAction y lo plasmamos en estado local.
+  async function onSubmit(formData: FormData) {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await loginAction(formData);
+      if (res && "error" in res && res.error) {
+        setError(res.error);
+      }
+      // Si éxito, el server action redirige y no volvemos aquí.
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <form
-      action={loginAction}
+      action={onSubmit}
       className="w-full max-w-sm space-y-6 border border-divider bg-paper/30 p-8"
     >
       <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent text-center">
@@ -90,10 +109,11 @@ export default function LoginForm({
 
       <button
         type="submit"
+        disabled={pending}
         data-cursor="hover"
-        className="w-full border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase py-3 transition-colors"
+        className="w-full border border-accent text-accent hover:bg-accent hover:text-white disabled:opacity-50 disabled:cursor-wait font-mono text-[11px] tracking-[3px] uppercase py-3 transition-colors"
       >
-        entrar
+        {pending ? "entrando…" : "entrar"}
       </button>
 
       <div className="space-y-1.5 text-center">

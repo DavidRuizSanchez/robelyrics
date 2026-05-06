@@ -49,7 +49,7 @@ export default function ForgotForm() {
     setError(null);
     try {
       const res = await forgotPasswordAction(formData);
-      if ("error" in res && res.error) {
+      if (!res.ok) {
         setError(res.error);
         return;
       }

@@ -28,7 +28,7 @@ export default function ResetForm({ token }: { token: string }) {
     setError(null);
     try {
       const res = await resetPasswordAction(formData);
-      if (res && "error" in res && res.error) {
+      if (res && !res.ok) {
         setError(res.error);
       }
       // Si éxito, el server action redirige a /biblioteca y no volvemos.

@@ -5,11 +5,13 @@ name: robelyrics
 #
 # Cambios respecto a docker-compose.yml (dev):
 #   1. Postgres/Qdrant/API/Web NO exponen puertos al host. Solo Caddy
-#      expone 80/443 al exterior. Comunicación interna via red docker
-#      `robelyrics`.
+#      expone 80/443 al exterior. Comunicación interna via red docker.
 #   2. Web/API leen NEXT_PUBLIC_API_URL apuntando a https://entreinteriores.com/api
 #   3. SITE_URL en https público (links de email correctos).
-#   4. Servicio nuevo `caddy` con TLS automático via Let's Encrypt.
+#   4. Caddy con TLS automático via Let's Encrypt.
+#   5. **Build de producción**: api y web usan Dockerfile.prod (multi-stage,
+#      sin bind mount del código, usuario no-root, uvicorn workers, next
+#      build + next start). Para deploys: `docker compose build api web`.
 
 services:
   postgres:
@@ -19,23 +21,42 @@ services:
     ports: !reset []
 
   api:
+    image: robelyrics-api:prod
+    build:
+      context: ./api
+      dockerfile: Dockerfile.prod
     ports: !reset []
+    volumes: !override
+      - ./data:/app/data:ro
+      - ./web/public:/app/web-public
     environment:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
-      # CORS estricto en prod: solo orígenes públicos del dominio.
       ALLOWED_ORIGINS: https://entreinteriores.com,https://www.entreinteriores.com
+    command: >-
+      uvicorn app.main:app
+      --host 0.0.0.0 --port 8000
+      --workers 2
+      --proxy-headers --forwarded-allow-ips=*
+      --log-level warning
 
   web:
+    image: robelyrics-web:prod
+    build:
+      context: ./web
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
     ports: !reset []
+    volumes: !override []
     environment:
       NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
       API_INTERNAL_URL: http://api:8000
-      # robots.ts y sitemap.ts caen a fallback localhost:3001 si esto falta
       SITE_URL: https://entreinteriores.com
-      # GA4: si la var falta, el layout root no monta el componente, así
-      # que el HTML sale sin tracking. Para activar: set en .env.
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      NODE_ENV: production
+    command: pnpm start
 
   caddy:
     image: caddy:2-alpine

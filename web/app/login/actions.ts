@@ -22,13 +22,15 @@ function sanitizeFrom(value: string): string {
   return value;
 }
 
-export async function loginAction(formData: FormData) {
+export type LoginResult = { ok: false; error: string };
+
+export async function loginAction(formData: FormData): Promise<LoginResult | void> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const from = sanitizeFrom(String(formData.get("from") || ""));
 
   if (!email || !password) {
-    return { error: "Email y contraseña son obligatorios" };
+    return { ok: false, error: "Email y contraseña son obligatorios" };
   }
 
   try {
@@ -38,8 +40,8 @@ export async function loginAction(formData: FormData) {
       authenticated: false,
     });
     await setAuthCookie(data.access_token);
-  } catch (err) {
-    return { error: "Credenciales inválidas" };
+  } catch {
+    return { ok: false, error: "Credenciales inválidas" };
   }
 
   // Redirige fuera del try/catch (NEXT_REDIRECT lanza un error que no debemos atrapar)
