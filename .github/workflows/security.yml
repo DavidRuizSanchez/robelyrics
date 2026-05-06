@@ -32,7 +32,9 @@ jobs:
           - caddy:2-alpine
     steps:
       - name: Run Trivy on ${{ matrix.image }}
-        uses: aquasecurity/trivy-action@0.28.0
+        # Pinned a SHA por seguridad de supply chain. Tag equivalente: v0.36.0.
+        # Para bumpear: gh api repos/aquasecurity/trivy-action/tags --jq '.[0]'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: ${{ matrix.image }}
           format: sarif

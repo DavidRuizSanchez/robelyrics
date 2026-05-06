@@ -5,6 +5,7 @@ import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 import type { PublicArtistDetail } from "@/lib/types";
 
 const VALID_SLUGS = new Set(["extremoduro", "robe"]);
@@ -109,7 +110,7 @@ export default async function ArtistPublicPage({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
+              __html: safeJsonLd({
                 "@context": "https://schema.org",
                 "@type": "MusicGroup",
                 name: detail.name,

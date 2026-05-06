@@ -17,8 +17,13 @@ from __future__ import annotations
 
 import argparse
 import re
-import xml.etree.ElementTree as ET
+# defusedxml es drop-in replacement de xml.etree.ElementTree con parser
+# protegido contra XXE / billion laughs / external entity expansion. Lo
+# usamos aquí porque parseamos feeds RSS/Atom de fuentes externas no
+# fiables (blogs y agregadores).
 from datetime import datetime
+
+import defusedxml.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urljoin, urlparse
