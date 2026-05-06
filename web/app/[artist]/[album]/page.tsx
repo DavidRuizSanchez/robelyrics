@@ -80,9 +80,9 @@ export default async function AlbumPublicPage({
         <HeaderImageBackdrop
           src={detail.cover_url}
           height="900px"
-          opacity={0.28}
+          opacity={0.5}
           position="center top"
-          blur={4}
+          blur={1}
         />
       )}
       <div className="relative z-10">

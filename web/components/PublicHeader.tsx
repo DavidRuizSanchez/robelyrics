@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { LogoSunCloud } from "@/components/Logo";
-import { T } from "@/lib/theme";
+import LogoBomba from "@/components/LogoBomba";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 
@@ -16,8 +15,16 @@ export default async function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between px-5 md:px-14 py-4 md:py-5 border-b border-divider bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
-      <Link href="/" data-cursor="hover" className="block">
-        <LogoSunCloud name="Entre Interiores" color={T.ink} scale={0.7} />
+      <Link
+        href="/"
+        data-cursor="hover"
+        className="flex items-center gap-3"
+        aria-label="Entre Interiores · inicio"
+      >
+        <LogoBomba size={40} />
+        <span className="font-serif text-lg md:text-xl text-ink leading-none tracking-tight">
+          Entre Interiores
+        </span>
       </Link>
 
       <nav className="hidden md:flex items-center gap-7 font-mono text-[10px] tracking-[2.5px] uppercase">

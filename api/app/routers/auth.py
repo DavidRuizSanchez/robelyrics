@@ -216,11 +216,19 @@ def register(
 
 @router.post("/verify-email/{token}", response_model=VerifyEmailOut)
 def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
-    """Idempotente:
-      - Token válido sin consumir y user no verificado → verifica + autologin.
-      - Token consumido pero user verificado → autologin igual (caso típico
-        cuando Outlook/Gmail Safe Links pre-fetchea el enlace).
-      - Token expirado o desconocido → error.
+    """Idempotente. Cualquier combinación que termine en "user verificado"
+    devuelve OK con autologin. Sólo damos error si el token nunca existió.
+
+    Casos:
+      - Token válido sin consumir + user no verificado → verifica + autologin.
+      - Token sin consumir + user YA verificado (otro token hizo el trabajo)
+        → consume este también para limpiar y autologin.
+      - Token consumido + user verificado → autologin (caso típico al
+        re-clicar el email tras verificar, o tras re-enviar verificación).
+      - Token caducado + user YA verificado → autologin (no hay nada que
+        hacer; user ya está verificado, no le frustramos).
+      - Token caducado + user NO verificado → 400 con mensaje claro.
+      - Token desconocido → 404.
     """
     row = (
         db.query(EmailVerification)
@@ -234,24 +242,34 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
     if not user:
         raise HTTPException(status_code=404, detail="usuario no encontrado")
 
+    # Si el user ya está verificado (por cualquier vía) consideramos la
+    # operación exitosa. Limpiamos consumed_at del token para no dejar
+    # tokens fantasmas activos.
+    if user.email_verified_at is not None:
+        if row.consumed_at is None:
+            row.consumed_at = datetime.now(timezone.utc)
+            db.commit()
+        return VerifyEmailOut(
+            ok=True,
+            user_id=user.id,
+            access_token=create_access_token(user.id),
+        )
+
+    # User no verificado a partir de aquí.
     if row.consumed_at is not None:
-        # Si el token ya se usó pero el user terminó verificado, devolvemos OK
-        # con autologin para que el usuario reintente sin frustración.
-        if user.email_verified_at is not None:
-            return VerifyEmailOut(
-                ok=True,
-                user_id=user.id,
-                access_token=create_access_token(user.id),
-            )
-        raise HTTPException(status_code=400, detail="token ya consumido")
+        # Edge case raro: token consumido pero user no verificado. Sólo puede
+        # pasar por bug histórico — devolvemos error para que pida nuevo email.
+        raise HTTPException(
+            status_code=400,
+            detail="token ya consumido · solicita un nuevo enlace de verificación",
+        )
 
     if row.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="token caducado · solicita uno nuevo")
 
     now = datetime.now(timezone.utc)
     row.consumed_at = now
-    if user.email_verified_at is None:
-        user.email_verified_at = now
+    user.email_verified_at = now
     db.commit()
 
     return VerifyEmailOut(
@@ -415,6 +433,12 @@ def _issue_and_send_verification(
 ) -> None:
     """Crea un EmailVerification, persiste, y envía el correo de bienvenida.
 
+    Antes de emitir, INVALIDA todos los tokens previos del user que sigan
+    pendientes (mismo patrón que forgot-password). Sin esto, cuando un user
+    se registra varias veces — o pide re-envío — los emails antiguos siguen
+    siendo válidos durante 24 h y al clicar el equivocado puede ver mensajes
+    confusos.
+
     El commit ocurre ANTES de send_email para garantizar que, si el correo
     llega y el usuario clica, el token existe en la BD. Si commiteamos después
     del envío y el handler revierte por cualquier excepción, el email viajaría
@@ -422,12 +446,24 @@ def _issue_and_send_verification(
 
     No devuelve nada: el flujo de respuesta uniforme se gestiona en register().
     """
+    now = datetime.now(timezone.utc)
+    # Invalida tokens previos no consumidos del mismo user.
+    (
+        db.query(EmailVerification)
+        .filter(
+            EmailVerification.user_id == user.id,
+            EmailVerification.consumed_at.is_(None),
+            EmailVerification.expires_at > now,
+        )
+        .update({EmailVerification.consumed_at: now}, synchronize_session=False)
+    )
+
     token = secrets.token_urlsafe(32)
     db.add(
         EmailVerification(
             user_id=user.id,
             token=token,
-            expires_at=datetime.now(timezone.utc) + _VERIFY_TTL,
+            expires_at=now + _VERIFY_TTL,
         )
     )
     db.commit()

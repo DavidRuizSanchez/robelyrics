@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LogoSunCloud } from "@/components/Logo";
-import { T } from "@/lib/theme";
+import LogoBomba from "@/components/LogoBomba";
 
 export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -14,12 +13,16 @@ export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
   ];
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between px-5 md:px-14 py-4 md:py-6 border-b border-divider bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
-      <Link href="/biblioteca" data-cursor="hover" className="block">
-        <LogoSunCloud
-          name="Entre Interiores"
-          color={T.ink}
-          scale={0.78}
-        />
+      <Link
+        href="/biblioteca"
+        data-cursor="hover"
+        className="flex items-center gap-3"
+        aria-label="Entre Interiores · inicio"
+      >
+        <LogoBomba size={44} />
+        <span className="font-serif text-lg md:text-xl text-ink leading-none tracking-tight">
+          Entre Interiores
+        </span>
       </Link>
 
       <nav className="hidden md:flex items-center gap-8 font-mono text-[11px] tracking-[2.5px] uppercase">
