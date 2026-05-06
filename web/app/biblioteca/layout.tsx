@@ -40,7 +40,27 @@ export default async function BibliotecaLayout({
 
 function BibliotecaFooter() {
   return (
-    <footer className="px-5 md:px-14 py-8 mt-16 border-t border-divider max-w-[1100px] mx-auto">
+    <footer className="px-5 md:px-14 py-10 mt-16 border-t border-divider max-w-[1100px] mx-auto space-y-5">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-center">
+        <Link
+          href="https://www.patreon.com/c/EntreInteriores"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-cursor="hover"
+          className="border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[10px] tracking-[3px] uppercase px-5 py-2.5 transition-colors"
+        >
+          apoyar en Patreon
+        </Link>
+        <Link
+          href="https://ko-fi.com/entreinteriores"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-cursor="hover"
+          className="border border-divider text-ink-dim hover:border-accent hover:text-accent font-mono text-[10px] tracking-[3px] uppercase px-5 py-2.5 transition-colors"
+        >
+          invitar a un café · Ko-fi
+        </Link>
+      </div>
       <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint text-center leading-relaxed">
         contenido fan derivado disponible bajo{" "}
         <Link
@@ -58,6 +78,14 @@ function BibliotecaFooter() {
           className="text-accent hover:underline"
         >
           atribuciones
+        </Link>{" "}
+        ·{" "}
+        <Link
+          href="/biblioteca/donar"
+          data-cursor="hover"
+          className="text-accent hover:underline"
+        >
+          donar
         </Link>
       </p>
     </footer>

@@ -1,29 +1,124 @@
-export const metadata = { title: "Atribuciones · Entre Interiores" };
+export const metadata = { title: "Atribuciones y créditos · Entre Interiores" };
 
 export default function Atribuciones() {
   return (
     <>
-      <h1>Atribuciones</h1>
-      <p><em>Listado completo en construcción (F.3).</em></p>
-      <h2>Letras</h2>
+      <h1>Atribuciones y créditos</h1>
+      <p>Última actualización: 6 de mayo de 2026.</p>
+
       <p>
-        Las letras citadas pertenecen a sus autores (Robe Iniesta y co-autores).
-        Cada snippet enlaza a Genius, donde se puede consultar la letra
-        completa.
+        Entre Interiores no existiría sin el trabajo de muchas personas y
+        proyectos. Esta página recoge las atribuciones que la convención
+        editorial general no permite incluir en cada artículo.
       </p>
-      <h2>Análisis fan (capa privada)</h2>
+
+      <h2>Letras de canciones</h2>
       <p>
-        Los análisis interpretativos sintetizan contenido aportado por la
-        comunidad: anotaciones de Genius (CC-BY-NC-SA), comentarios y
-        transcripts de YouTube, blogs y foros fan, y entrevistas históricas.
-        Cada análisis incluye atribución por fuente. El conjunto derivado se
-        publica bajo licencia CC-BY-NC-SA 3.0.
+        Las letras citadas pertenecen a sus autores y a las editoriales que
+        gestionan los derechos. Se citan parcialmente bajo derecho de cita
+        (LPI art. 32) con fines de análisis y comentario. La fuente
+        principal es{" "}
+        <a href="https://genius.com" target="_blank" rel="noreferrer">
+          Genius
+        </a>
+        ; en cada página de canción enlazamos al original para consultar la
+        letra completa.
       </p>
-      <h2>Portadas de discos</h2>
+
+      <h2>Análisis fan</h2>
       <p>
-        Obtenidas vía MusicBrainz Cover Art Archive, distribuidas con licencias
-        declaradas por sus subidores. En caso de derecho infringido, ver el
-        procedimiento de <a href="/legal/takedown">retirada</a>.
+        Los textos de análisis, contexto e interpretación que se muestran en
+        la zona privada del cancionero proceden de comunidades de fans y
+        creadores que han escrito sobre la obra de Robe a lo largo de los
+        años (foros, blogs, vídeos, papers académicos). Se redistribuyen
+        bajo licencia{" "}
+        <a
+          href="https://creativecommons.org/licenses/by-nc-sa/3.0/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Creative Commons BY-NC-SA 3.0
+        </a>
+        , con atribución explícita en cada cita y enlace a la fuente
+        original.
+      </p>
+      <p>
+        Para una lista detallada por canción, consulta cada página dentro
+        del área privada (
+        <a href="/biblioteca/atribuciones">Atribuciones</a> en /biblioteca).
+      </p>
+
+      <h2>Vídeos embebidos</h2>
+      <p>
+        Algunas páginas integran vídeos de YouTube vía iframe oficial. Cada
+        vídeo pertenece a su creador y se respetan sus términos de servicio.
+        Cuando es posible se utiliza el dominio{" "}
+        <code>youtube-nocookie.com</code>.
+      </p>
+
+      <h2>Tipografías</h2>
+      <ul>
+        <li>
+          <strong>Cormorant Garamond</strong> — Christian Thalmann (SIL OFL).
+          Cabeceras y cuerpo serif.
+        </li>
+        <li>
+          <strong>JetBrains Mono</strong> — JetBrains s.r.o. (SIL OFL).
+          Etiquetas, códigos y números.
+        </li>
+        <li>
+          <strong>Caveat</strong> — Pablo Impallari (SIL OFL). Detalles
+          ornamentales.
+        </li>
+      </ul>
+
+      <h2>Tecnologías y servicios</h2>
+      <ul>
+        <li>
+          <strong>Next.js</strong>, <strong>React</strong>,{" "}
+          <strong>Tailwind CSS</strong> — frontend.
+        </li>
+        <li>
+          <strong>FastAPI</strong>, <strong>SQLAlchemy</strong>,{" "}
+          <strong>PostgreSQL</strong>, <strong>Qdrant</strong> — backend y
+          búsqueda.
+        </li>
+        <li>
+          <strong>OpenAI</strong> (text-embedding-3-large + GPT-4o-mini) —
+          embeddings semánticos y reranking de resultados.
+        </li>
+        <li>
+          <strong>Caddy</strong> — reverse proxy con TLS automático.
+        </li>
+        <li>
+          <strong>Hetzner Cloud</strong> — infraestructura.
+        </li>
+        <li>
+          <strong>Cloudflare</strong> — DNS, CDN.
+        </li>
+      </ul>
+
+      <h2>Iconografía</h2>
+      <p>
+        Los símbolos &quot;Sol &amp; Nube&quot; y el delfín ornamental son
+        guiños al tatuaje de Robe Iniesta, redibujados como interpretación
+        editorial propia, sin pretensión de calcar marcas registradas.
+      </p>
+
+      <h2>Inspiración editorial</h2>
+      <p>
+        El proyecto se inspira en cancioneros literarios y revistas de
+        crítica musical impresa, con el objetivo de honrar la obra de Robe
+        desde el respeto y la contemplación, no desde la mercadotecnia.
+      </p>
+
+      <h2>Errores u omisiones</h2>
+      <p>
+        Si encuentras un error de atribución o eres autor de un contenido
+        citado y prefieres otra forma de aparecer (o no aparecer), escríbenos
+        a{" "}
+        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>{" "}
+        y lo corregimos lo antes posible.
       </p>
     </>
   );
