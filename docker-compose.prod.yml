@@ -31,6 +31,9 @@ services:
       API_INTERNAL_URL: http://api:8000
       # robots.ts y sitemap.ts caen a fallback localhost:3001 si esto falta
       SITE_URL: https://entreinteriores.com
+      # GA4: si la var falta, el layout root no monta el componente, así
+      # que el HTML sale sin tracking. Para activar: set en .env.
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
 
   caddy:
     image: caddy:2-alpine
