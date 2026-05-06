@@ -59,8 +59,8 @@ export default function Atribuciones() {
       <h2>Tipografías</h2>
       <ul>
         <li>
-          <strong>Cormorant Garamond</strong> — Christian Thalmann (SIL OFL).
-          Cabeceras y cuerpo serif.
+          <strong>Spectral</strong> — Production Type / Google Fonts (SIL
+          OFL). Cabeceras y cuerpo serif.
         </li>
         <li>
           <strong>JetBrains Mono</strong> — JetBrains s.r.o. (SIL OFL).

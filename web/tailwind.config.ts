@@ -25,7 +25,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ["var(--font-serif)", "Cormorant Garamond", "Georgia", "serif"],
+        serif: ["var(--font-serif)", "Spectral", "Georgia", "serif"],
         mono: ["var(--font-mono)", "JetBrains Mono", "Courier New", "monospace"],
         hand: ["var(--font-hand)", "Caveat", "cursive"],
       },
