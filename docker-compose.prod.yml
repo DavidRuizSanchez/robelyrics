@@ -1,0 +1,54 @@
+name: robelyrics
+
+# Override de producción.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Cambios respecto a docker-compose.yml (dev):
+#   1. Postgres/Qdrant/API/Web NO exponen puertos al host. Solo Caddy
+#      expone 80/443 al exterior. Comunicación interna via red docker
+#      `robelyrics`.
+#   2. Web/API leen NEXT_PUBLIC_API_URL apuntando a https://entreinteriores.com/api
+#   3. SITE_URL en https público (links de email correctos).
+#   4. Servicio nuevo `caddy` con TLS automático via Let's Encrypt.
+
+services:
+  postgres:
+    ports: !reset []
+
+  qdrant:
+    ports: !reset []
+
+  api:
+    ports: !reset []
+    environment:
+      SITE_URL: https://entreinteriores.com
+      NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
+
+  web:
+    ports: !reset []
+    environment:
+      NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
+      API_INTERNAL_URL: http://api:8000
+      # robots.ts y sitemap.ts caen a fallback localhost:3001 si esto falta
+      SITE_URL: https://entreinteriores.com
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: robelyrics-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - robelyrics
+    depends_on:
+      - api
+      - web
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,33 @@
+{
+	email davidruizsanchez@gmail.com
+}
+
+entreinteriores.com, www.entreinteriores.com {
+	encode gzip zstd
+
+	# Cabeceras de seguridad básicas
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Mientras el web container corre en dev mode (sin hash en el bundle CSS),
+	# forzamos no-cache en el CSS de Next para que los browsers no se queden
+	# pegados con la versión vieja. Cuando pasemos a `next build` (F.7), los
+	# bundles llevarán hash y se podrá cachear long-term.
+	@nextcss path /_next/static/css/*
+	header @nextcss Cache-Control "no-cache, no-store, must-revalidate"
+
+	# /api/* → FastAPI (strippeando el prefijo)
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Resto → Next.js
+	handle {
+		reverse_proxy web:3000
+	}
+}

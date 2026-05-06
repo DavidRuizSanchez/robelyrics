@@ -20,7 +20,7 @@ export async function generateMetadata({
     const detail = await apiFetch<PublicArtistDetail>(`/public/artists/${artist}`, {
       authenticated: false,
     });
-    if (!detail.seo_body) return { robots: { index: false, follow: false } };
+    if (!detail.seo_body) return {};
     return {
       title: detail.seo_meta_title || `${detail.name} · Entre Interiores`,
       description:
@@ -68,7 +68,7 @@ export default async function ArtistPublicPage({
               {detail.active_years || "—"}
             </p>
             <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
-              {detail.name}
+              {detail.seo_h1 || detail.name}
             </h1>
           </header>
 

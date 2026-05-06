@@ -37,7 +37,7 @@ export async function generateMetadata({
     const detail = await apiFetch<PublicAlbumDetail>(`/public/albums/${album}`, {
       authenticated: false,
     });
-    if (!detail.seo_body) return { robots: { index: false, follow: false } };
+    if (!detail.seo_body) return {};
     return {
       title: detail.seo_meta_title || `${detail.title} · ${detail.artist.name}`,
       description: detail.seo_meta_description || "",

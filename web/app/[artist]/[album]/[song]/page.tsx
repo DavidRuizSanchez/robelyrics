@@ -36,7 +36,7 @@ export async function generateMetadata({
     const detail = await apiFetch<PublicSongDetail>(`/public/songs/${song}`, {
       authenticated: false,
     });
-    if (!detail.seo_body) return { robots: { index: false, follow: false } };
+    if (!detail.seo_body) return {};
     return {
       title:
         detail.seo_meta_title ||
