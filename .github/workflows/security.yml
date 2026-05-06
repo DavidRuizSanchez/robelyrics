@@ -18,6 +18,7 @@ on:
 permissions:
   contents: read
   security-events: write  # para subir resultados a GH Code Scanning
+  actions: read           # codeql-action/upload-sarif lo necesita para telemetry
 
 jobs:
   trivy-upstream-images:
@@ -46,7 +47,8 @@ jobs:
           # activa exit-code: 1 después de Ola 2.4 (CI gates).
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        # Pinned a SHA por supply-chain hardening. Tag equivalente: v4.35.3.
+        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
         if: always()
         with:
           sarif_file: trivy-${{ strategy.job-index }}.sarif
