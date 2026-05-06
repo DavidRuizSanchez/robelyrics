@@ -1,5 +1,4 @@
-import { LogoSunCloud } from "@/components/Logo";
-import { T } from "@/lib/theme";
+import LogoBomba from "@/components/LogoBomba";
 import ResetForm from "./ResetForm";
 
 export const metadata = {
@@ -15,9 +14,12 @@ export default async function ResetPasswordPage({
   const { token } = await params;
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6">
-      <div className="mb-10">
-        <LogoSunCloud name="Entre Interiores" color={T.ink} scale={1.1} stack />
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+      <div className="mb-8 flex flex-col items-center gap-4">
+        <LogoBomba size={200} priority />
+        <p className="font-mono text-[10px] tracking-[4px] uppercase text-accent">
+          Entre Interiores
+        </p>
       </div>
       <ResetForm token={token} />
     </main>

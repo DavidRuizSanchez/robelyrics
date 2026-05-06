@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoBomba from "@/components/LogoBomba";
 import RotatingLine from "@/components/RotatingLine";
 import Watermark from "@/components/Watermark";
 
@@ -13,6 +14,12 @@ export default function Hero() {
         right="-15%"
         opacity={0.022}
       />
+
+      {/* Logo bomba: marca visual prominente del proyecto. Top-right discreto
+          para no robar espacio al titular pero presencia clara. */}
+      <div className="absolute top-8 md:top-14 right-5 md:right-14 z-10 hidden md:block">
+        <LogoBomba size={160} />
+      </div>
 
       <div className="flex items-center gap-3.5 mb-6 relative z-10">
         <span className="block w-7 h-px bg-accent" />

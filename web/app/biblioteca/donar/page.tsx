@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoBomba from "@/components/LogoBomba";
 
 export const metadata = {
   title: "Apoyar Entre Interiores · Donaciones",
@@ -8,11 +9,14 @@ export const metadata = {
 export default function DonarPage() {
   return (
     <main className="px-5 md:px-14 py-12 md:py-20 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3.5 mb-6">
-        <span className="block w-7 h-px bg-accent" />
-        <span className="font-mono text-[11px] tracking-[4px] uppercase text-accent">
-          una invitación
-        </span>
+      <div className="flex flex-col items-start gap-6 mb-8">
+        <LogoBomba size={140} />
+        <div className="flex items-center gap-3.5">
+          <span className="block w-7 h-px bg-accent" />
+          <span className="font-mono text-[11px] tracking-[4px] uppercase text-accent">
+            una invitación
+          </span>
+        </div>
       </div>
       <h1 className="font-serif text-4xl md:text-[64px] text-ink leading-[0.97] tracking-[-1px] mb-6">
         Apoya <em className="text-accent">Entre Interiores</em>
