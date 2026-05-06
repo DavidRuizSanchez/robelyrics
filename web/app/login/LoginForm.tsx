@@ -96,12 +96,23 @@ export default function LoginForm({
         entrar
       </button>
 
-      <p className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint text-center">
-        ¿aún no tienes cuenta?{" "}
-        <Link href="/registro" data-cursor="hover" className="text-accent hover:underline">
-          crear cuenta
-        </Link>
-      </p>
+      <div className="space-y-1.5 text-center">
+        <p className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+          <Link
+            href="/olvide-password"
+            data-cursor="hover"
+            className="text-ink-dim hover:text-accent hover:underline"
+          >
+            ¿olvidaste tu contraseña?
+          </Link>
+        </p>
+        <p className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+          ¿aún no tienes cuenta?{" "}
+          <Link href="/registro" data-cursor="hover" className="text-accent hover:underline">
+            crear cuenta
+          </Link>
+        </p>
+      </div>
     </form>
   );
 }

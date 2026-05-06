@@ -11,16 +11,22 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db.models import EmailVerification, TermsAcceptance, User
+from app.db.models import EmailVerification, PasswordReset, TermsAcceptance, User
 from app.db.session import get_db
 from app.services.auth import (
     create_access_token,
     get_current_user,
     hash_password,
+    revoke_all_user_tokens,
     revoke_token,
     verify_password,
 )
-from app.services.email import EmailError, render_verify_email, send_email
+from app.services.email import (
+    EmailError,
+    render_reset_password_email,
+    render_verify_email,
+    send_email,
+)
 from app.services.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -32,6 +38,9 @@ _PASSWORD_OK = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
 # es enviar el correo y que el usuario clique).
 _EMAIL_OK = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 _VERIFY_TTL = timedelta(hours=24)
+# TTL más corto para reset password: ataque típico requiere robo del email
+# en una ventana — 30 min minimiza la exposición y es suficiente UX.
+_RESET_TTL = timedelta(minutes=30)
 
 
 # --------------------------------------------------------------------------- #
@@ -72,6 +81,25 @@ class VerifyEmailOut(BaseModel):
     ok: bool
     user_id: int
     access_token: str | None = None  # auto-login tras verificar
+    token_type: str = "bearer"
+
+
+class ForgotPasswordIn(BaseModel):
+    email: str = Field(..., min_length=5, max_length=256)
+
+
+class ForgotPasswordOut(BaseModel):
+    # Respuesta uniforme: no revelamos si el email existe.
+    ok: bool = True
+
+
+class ResetPasswordIn(BaseModel):
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class ResetPasswordOut(BaseModel):
+    ok: bool
+    access_token: str  # auto-login tras reset (sesión nueva, las viejas mueren)
     token_type: str = "bearer"
 
 
@@ -229,6 +257,140 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> VerifyEmailOut:
     return VerifyEmailOut(
         ok=True,
         user_id=user.id,
+        access_token=create_access_token(user.id),
+    )
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordOut,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("3/hour")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordIn,
+    db: Session = Depends(get_db),
+) -> ForgotPasswordOut:
+    """Inicia el flujo de reset de contraseña.
+
+    Respuesta deliberadamente uniforme `{ok:true}` exista o no el email
+    para impedir email enumeration. Si el email existe y está activo:
+      1. Invalida los tokens de reset previos no consumidos del user.
+      2. Crea un nuevo token con TTL de 30 min.
+      3. Envía email con link a /reset-password/{token}.
+    Si NO existe (o está inactivo / no verificado): no hace nada pero
+    responde igual.
+    """
+    settings = get_settings()
+    email = body.email.lower().strip()
+    if not _EMAIL_OK.match(email):
+        # Validación estructural: NO revela existencia, sólo formato.
+        return ForgotPasswordOut(ok=True)
+
+    user = (
+        db.query(User)
+        .filter(User.email == email, User.is_active.is_(True))
+        .first()
+    )
+    if user and user.email_verified_at is not None:
+        # Invalidar tokens previos pendientes de este user (single-use ↔
+        # re-issue): cuando alguien pide otro reset, los antiguos ya no
+        # sirven. Reduce ventana de ataque si el primer email se filtró.
+        now = datetime.now(timezone.utc)
+        (
+            db.query(PasswordReset)
+            .filter(
+                PasswordReset.user_id == user.id,
+                PasswordReset.consumed_at.is_(None),
+                PasswordReset.expires_at > now,
+            )
+            .update({PasswordReset.consumed_at: now}, synchronize_session=False)
+        )
+        token = secrets.token_urlsafe(32)
+        db.add(
+            PasswordReset(
+                user_id=user.id,
+                token=token,
+                expires_at=now + _RESET_TTL,
+                request_ip=_client_ip(request),
+            )
+        )
+        db.commit()
+
+        reset_url = f"{settings.site_url.rstrip('/')}/reset-password/{token}"
+        html, text = render_reset_password_email(reset_url)
+        try:
+            send_email(
+                to=user.email,
+                subject="Restablece tu contraseña · Entre Interiores",
+                html=html,
+                text=text,
+            )
+        except EmailError as e:
+            log.warning("send reset email failed for user_id=%s: %s", user.id, e)
+    else:
+        log.info("forgot-password for unknown/unverified email=%s", email)
+
+    return ForgotPasswordOut(ok=True)
+
+
+@router.post(
+    "/reset-password/{token}",
+    response_model=ResetPasswordOut,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/hour")
+def reset_password(
+    request: Request,
+    token: str,
+    body: ResetPasswordIn,
+    db: Session = Depends(get_db),
+) -> ResetPasswordOut:
+    """Consume un token de reset y cambia la contraseña.
+
+    Tras éxito:
+      1. password_hash actualizado con bcrypt nuevo.
+      2. Token marcado como consumido (single-use).
+      3. tokens_invalid_before = now() → revoca TODAS las sesiones JWT
+         activas del user (force logout en otros dispositivos). Ataque
+         típico: el atacante ya tiene un JWT robado; al cambiar password
+         queremos cerrarle también ese.
+      4. Nuevo JWT emitido para auto-login en el dispositivo actual.
+    """
+    if not _PASSWORD_OK.match(body.password):
+        raise HTTPException(
+            status_code=400,
+            detail="contraseña insegura · mínimo 8 caracteres con letras y números",
+        )
+
+    row = (
+        db.query(PasswordReset)
+        .filter(PasswordReset.token == token)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="token no válido")
+    if row.consumed_at is not None:
+        raise HTTPException(status_code=400, detail="token ya consumido · solicita uno nuevo")
+    if row.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="token caducado · solicita uno nuevo")
+
+    user = db.query(User).filter(User.id == row.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=404, detail="usuario no encontrado")
+
+    now = datetime.now(timezone.utc)
+    user.password_hash = hash_password(body.password)
+    row.consumed_at = now
+    db.commit()
+
+    # Cierra todas las sesiones JWT activas del user (force logout). Tras
+    # esto, el commit anterior ya quedó persistido; este es lazy y O(1).
+    revoke_all_user_tokens(db, user.id)
+
+    return ResetPasswordOut(
+        ok=True,
         access_token=create_access_token(user.id),
     )
 
