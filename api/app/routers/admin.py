@@ -25,9 +25,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, InterpretationSource, SeoContent, Song, User
+from app.db.models import (
+    Album,
+    Artist,
+    InterpretationSource,
+    SeoContent,
+    SeoTemplate,
+    Song,
+    User,
+)
 from app.db.session import get_db
 from app.services.auth import get_current_admin
+from app.services.seo_templates import render_with_context, resolve_all
 from scripts.research.common import (
     clean_text,
     find_referenced_titles,
@@ -330,18 +339,66 @@ class SeoContentOut(BaseModel):
     body_md: str
     meta_title: str | None
     meta_description: str | None
+    h1: str | None
     schema_jsonld: dict | None
     generated_at: datetime
     generated_by: str
     reviewed_at: datetime | None
     published: bool
     public_url: str  # ruta canónica relativa
+    # Valores resueltos aplicando plantilla cuando el override es NULL.
+    # El frontend los usa como placeholder en el editor.
+    resolved_title: str
+    resolved_description: str
+    resolved_h1: str
 
 
 class SeoContentUpdateIn(BaseModel):
     body_md: str
     meta_title: str | None = None
     meta_description: str | None = None
+    h1: str | None = None
+
+
+class BulkIdsIn(BaseModel):
+    ids: list[int]
+
+
+class BulkResultOut(BaseModel):
+    updated: int
+    skipped: list[int]
+
+
+class SeoTemplateIn(BaseModel):
+    entity_type: Literal["artist", "album", "song"]
+    kind: str | None = None
+    field: Literal["title", "description", "h1"]
+    template: str
+    notes: str | None = None
+
+
+class SeoTemplateOut(BaseModel):
+    id: int
+    entity_type: str
+    kind: str | None
+    field: str
+    template: str
+    notes: str | None
+    updated_at: datetime
+
+
+class TemplatePreviewIn(BaseModel):
+    entity_type: Literal["artist", "album", "song"]
+    kind: str | None = None
+    field: Literal["title", "description", "h1"]
+    template: str
+    sample_entity_id: int | None = None  # si NULL, usa la primera entidad disponible
+
+
+class TemplatePreviewOut(BaseModel):
+    rendered: str
+    context: dict[str, str]
+    sample_entity_label: str
 
 
 def _entity_label_and_url(db: Session, entity_type: str, entity_id: int) -> tuple[str, str]:
@@ -414,6 +471,7 @@ def get_seo(
     if not row:
         raise HTTPException(status_code=404, detail="seo_content no encontrado")
     label, public_url = _entity_label_and_url(db, row.entity_type, row.entity_id)
+    resolved = resolve_all(db, row)
     return SeoContentOut(
         id=row.id,
         entity_type=row.entity_type,
@@ -423,13 +481,26 @@ def get_seo(
         body_md=row.body_md,
         meta_title=row.meta_title,
         meta_description=row.meta_description,
+        h1=row.h1,
         schema_jsonld=row.schema_jsonld,
         generated_at=row.generated_at,
         generated_by=row.generated_by,
         reviewed_at=row.reviewed_at,
         published=row.published,
         public_url=public_url,
+        resolved_title=resolved["title"],
+        resolved_description=resolved["description"],
+        resolved_h1=resolved["h1"],
     )
+
+
+def _normalize_optional(value: str | None) -> str | None:
+    """Convierte string vacío/whitespace a None para que el resolver caiga en
+    plantilla. Cualquier valor con contenido se conserva como override."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped if stripped else None
 
 
 @router.put("/seo/{seo_id}", response_model=SeoContentOut)
@@ -444,8 +515,9 @@ def update_seo(
     if not row:
         raise HTTPException(status_code=404, detail="seo_content no encontrado")
     row.body_md = body.body_md
-    row.meta_title = body.meta_title
-    row.meta_description = body.meta_description
+    row.meta_title = _normalize_optional(body.meta_title)
+    row.meta_description = _normalize_optional(body.meta_description)
+    row.h1 = _normalize_optional(body.h1)
     row.reviewed_at = datetime.now(timezone.utc)
     db.commit()
     return get_seo(seo_id, db=db)  # type: ignore[arg-type]
@@ -479,3 +551,247 @@ def unpublish_seo(
     row.published = False
     db.commit()
     return get_seo(seo_id, db=db)  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------- #
+# Bulk ops sobre seo_content
+# --------------------------------------------------------------------------- #
+def _load_seo_rows(db: Session, ids: list[int]) -> tuple[list[SeoContent], list[int]]:
+    if not ids:
+        return [], []
+    rows = db.query(SeoContent).filter(SeoContent.id.in_(ids)).all()
+    found = {r.id for r in rows}
+    skipped = [i for i in ids if i not in found]
+    return rows, skipped
+
+
+@router.post("/seo/bulk-publish", response_model=BulkResultOut)
+def bulk_publish_seo(
+    body: BulkIdsIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    rows, skipped = _load_seo_rows(db, body.ids)
+    now = datetime.now(timezone.utc)
+    for r in rows:
+        if r.reviewed_at is None:
+            r.reviewed_at = now
+        r.published = True
+    db.commit()
+    return BulkResultOut(updated=len(rows), skipped=skipped)
+
+
+@router.post("/seo/bulk-unpublish", response_model=BulkResultOut)
+def bulk_unpublish_seo(
+    body: BulkIdsIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    rows, skipped = _load_seo_rows(db, body.ids)
+    for r in rows:
+        r.published = False
+    db.commit()
+    return BulkResultOut(updated=len(rows), skipped=skipped)
+
+
+@router.post("/seo/bulk-mark-reviewed", response_model=BulkResultOut)
+def bulk_mark_reviewed_seo(
+    body: BulkIdsIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    rows, skipped = _load_seo_rows(db, body.ids)
+    now = datetime.now(timezone.utc)
+    for r in rows:
+        if r.reviewed_at is None:
+            r.reviewed_at = now
+    db.commit()
+    return BulkResultOut(updated=len(rows), skipped=skipped)
+
+
+@router.post("/seo/bulk-delete", response_model=BulkResultOut)
+def bulk_delete_seo(
+    body: BulkIdsIn,
+    confirm: bool = False,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="bulk-delete requiere ?confirm=true",
+        )
+    rows, skipped = _load_seo_rows(db, body.ids)
+    for r in rows:
+        db.delete(r)
+    db.commit()
+    return BulkResultOut(updated=len(rows), skipped=skipped)
+
+
+# --------------------------------------------------------------------------- #
+# CRUD de seo_templates
+# --------------------------------------------------------------------------- #
+def _template_to_out(t: SeoTemplate) -> SeoTemplateOut:
+    return SeoTemplateOut(
+        id=t.id,
+        entity_type=t.entity_type,
+        kind=t.kind,
+        field=t.field,
+        template=t.template,
+        notes=t.notes,
+        updated_at=t.updated_at,
+    )
+
+
+@router.get("/seo-templates", response_model=list[SeoTemplateOut])
+def list_seo_templates(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[SeoTemplateOut]:
+    rows = (
+        db.query(SeoTemplate)
+        .order_by(SeoTemplate.entity_type, SeoTemplate.kind.nulls_first(), SeoTemplate.field)
+        .all()
+    )
+    return [_template_to_out(r) for r in rows]
+
+
+@router.put("/seo-templates", response_model=SeoTemplateOut)
+def upsert_seo_template(
+    body: SeoTemplateIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoTemplateOut:
+    """Upsert por (entity_type, kind, field). kind NULL es válido."""
+    kind = body.kind if body.kind else None
+    q = db.query(SeoTemplate).filter(
+        SeoTemplate.entity_type == body.entity_type,
+        SeoTemplate.field == body.field,
+    )
+    q = q.filter(SeoTemplate.kind.is_(None)) if kind is None else q.filter(SeoTemplate.kind == kind)
+    row = q.first()
+    if row:
+        row.template = body.template
+        row.notes = body.notes
+        row.updated_at = datetime.now(timezone.utc)
+    else:
+        row = SeoTemplate(
+            entity_type=body.entity_type,
+            kind=kind,
+            field=body.field,
+            template=body.template,
+            notes=body.notes,
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _template_to_out(row)
+
+
+@router.delete("/seo-templates/{template_id}", response_model=BulkResultOut)
+def delete_seo_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    row = db.query(SeoTemplate).filter(SeoTemplate.id == template_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="template no encontrado")
+    db.delete(row)
+    db.commit()
+    return BulkResultOut(updated=1, skipped=[])
+
+
+@router.post("/seo-templates/preview", response_model=TemplatePreviewOut)
+def preview_seo_template(
+    body: TemplatePreviewIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> TemplatePreviewOut:
+    """Renderiza una plantilla candidata contra una entidad de muestra (sin
+    persistir nada). Útil para mostrar un preview en el panel de templates."""
+    if body.entity_type == "artist":
+        a = (
+            db.query(Artist).filter(Artist.id == body.sample_entity_id).first()
+            if body.sample_entity_id
+            else db.query(Artist).order_by(Artist.id).first()
+        )
+        if not a:
+            raise HTTPException(status_code=404, detail="sin artists para preview")
+        ctx = {"name": a.name, "slug": a.slug}
+        label = a.name
+    elif body.entity_type == "album":
+        q = db.query(Album)
+        if body.kind:
+            q = q.filter(Album.kind == body.kind)
+        al = (
+            q.filter(Album.id == body.sample_entity_id).first()
+            if body.sample_entity_id
+            else q.order_by(Album.id).first()
+        )
+        if not al:
+            raise HTTPException(status_code=404, detail="sin albums para preview")
+        ctx = {
+            "title": al.title,
+            "slug": al.slug,
+            "year": str(al.year),
+            "kind": al.kind,
+            "artist": al.artist.name,
+        }
+        label = f"{al.artist.name} · {al.title}"
+    else:  # song
+        s = (
+            db.query(Song).filter(Song.id == body.sample_entity_id).first()
+            if body.sample_entity_id
+            else db.query(Song).order_by(Song.id).first()
+        )
+        if not s:
+            raise HTTPException(status_code=404, detail="sin songs para preview")
+        al = s.album
+        ctx = {
+            "title": s.title,
+            "slug": s.slug,
+            "album": al.title,
+            "artist": al.artist.name,
+            "year": str(al.year),
+            "kind": al.kind,
+        }
+        label = f"{al.artist.name} · {al.title} · {s.title}"
+
+    rendered = render_with_context(body.template, ctx)
+    return TemplatePreviewOut(rendered=rendered, context=ctx, sample_entity_label=label)
+
+
+# --------------------------------------------------------------------------- #
+# Users (read-only por ahora)
+# --------------------------------------------------------------------------- #
+class UserListItem(BaseModel):
+    id: int
+    email: str
+    is_admin: bool
+    is_active: bool
+    email_verified: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/users", response_model=list[UserListItem])
+def list_users(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[UserListItem]:
+    """Lista de usuarios registrados, orden por created_at desc."""
+    rows = db.query(User).order_by(User.created_at.desc()).all()
+    return [
+        UserListItem(
+            id=u.id,
+            email=u.email,
+            is_admin=u.is_admin,
+            is_active=u.is_active,
+            email_verified=u.email_verified_at is not None,
+            created_at=u.created_at,
+        )
+        for u in rows
+    ]
