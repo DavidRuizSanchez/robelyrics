@@ -6,6 +6,11 @@ name: security
 #
 # Cadencia: en push a main + cron semanal (porque las imágenes se etiquetan
 # v.x.y y los CVE pueden aparecer sin que nosotros toquemos nada).
+#
+# El output de Trivy (formato table en stdout + SARIF como artifact) queda
+# en el log del workflow y descargable. NO se sube a GitHub Code Scanning
+# porque Code Scanning requiere GitHub Advanced Security, que no está
+# disponible gratis en repos privados de cuentas personales.
 
 on:
   push:
@@ -17,8 +22,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # para subir resultados a GH Code Scanning
-  actions: read           # codeql-action/upload-sarif lo necesita para telemetry
 
 jobs:
   trivy-upstream-images:
@@ -32,9 +35,18 @@ jobs:
           - qdrant/qdrant:v1.12.1
           - caddy:2-alpine
     steps:
-      - name: Run Trivy on ${{ matrix.image }}
+      - name: Run Trivy (table en log) on ${{ matrix.image }}
         # Pinned a SHA por seguridad de supply chain. Tag equivalente: v0.36.0.
         # Para bumpear: gh api repos/aquasecurity/trivy-action/tags --jq '.[0]'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'  # Reportar pero no romper el build (uso personal)
+
+      - name: Run Trivy (SARIF artifact) on ${{ matrix.image }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: ${{ matrix.image }}
@@ -42,14 +54,13 @@ jobs:
           output: trivy-${{ strategy.job-index }}.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          # Si el escaneo encuentra algo no interrumpe el job — el SARIF
-          # va a Security tab. Si quieres bloquear merges con findings,
-          # activa exit-code: 1 después de Ola 2.4 (CI gates).
+          exit-code: '0'
 
-      - name: Upload SARIF to GitHub Security
-        # Pinned a SHA por supply-chain hardening. Tag equivalente: v4.35.3.
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
+      - name: Upload SARIF artifact
+        # Pinned a SHA por supply-chain hardening. Tag equivalente: v7.0.1.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: always()
         with:
-          sarif_file: trivy-${{ strategy.job-index }}.sarif
-          category: trivy-${{ matrix.image }}
+          name: trivy-${{ strategy.job-index }}-sarif
+          path: trivy-${{ strategy.job-index }}.sarif
+          retention-days: 30
