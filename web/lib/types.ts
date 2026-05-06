@@ -141,6 +141,7 @@ export type PublicArtistDetail = PublicArtistOut & {
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
+  seo_h1: string | null;
 };
 
 export type PublicAlbumDetail = PublicAlbumOut & {
@@ -149,6 +150,7 @@ export type PublicAlbumDetail = PublicAlbumOut & {
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
+  seo_h1: string | null;
 };
 
 export type PublicSongDetail = {
@@ -157,6 +159,8 @@ export type PublicSongDetail = {
   track_number: number | null;
   artist: PublicArtistOut;
   album: PublicAlbumOut;
+  /** Cover propia de la canción si tiene single/clip con artwork distinto. */
+  cover_url: string | null;
   snippet: string[];
   snippet_attribution: string;
   genius_url: string | null;
@@ -164,4 +168,5 @@ export type PublicSongDetail = {
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
+  seo_h1: string | null;
 };

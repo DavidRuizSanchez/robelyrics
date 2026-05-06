@@ -20,8 +20,9 @@ from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, Line, Song
+from app.db.models import Album, Artist, Line, SeoContent, Song
 from app.db.session import get_db
+from app.services.seo_templates import resolve_all
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -61,6 +62,7 @@ class PublicArtistDetailOut(PublicArtistOut):
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
+    seo_h1: str | None = None
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
@@ -69,6 +71,7 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
+    seo_h1: str | None = None
 
 
 class PublicSongDetailOut(BaseModel):
@@ -77,6 +80,9 @@ class PublicSongDetailOut(BaseModel):
     track_number: int | None
     artist: PublicArtistOut
     album: PublicAlbumOut
+    # Cover propia de la canción (single/EP/clip con artwork distinto del álbum).
+    # Si NULL, el frontend cae a `album.cover_url`.
+    cover_url: str | None = None
     snippet: list[str]                # máx. MAX_SNIPPET_LINES
     snippet_attribution: str          # texto de cita
     genius_url: str | None
@@ -84,38 +90,38 @@ class PublicSongDetailOut(BaseModel):
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
+    seo_h1: str | None = None
 
 
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 def _try_get_seo(db: Session, entity_type: str, entity_id: int) -> dict | None:
-    """Lee `seo_content` si la tabla existe y hay fila publicada. Si la tabla
-    aún no se ha creado (Fase F.5), devuelve None silenciosamente.
-
-    Esto evita 500 antes de que se aplique la migración correspondiente.
-    """
-    from sqlalchemy import text
+    """Lee `seo_content` publicado y resuelve title/description/h1 aplicando
+    plantillas si no hay override. Devuelve None si no hay fila publicada (la
+    página pública responde 404)."""
     try:
-        row = db.execute(
-            text(
-                "SELECT body_md, meta_title, meta_description "
-                "FROM seo_content "
-                "WHERE entity_type = :et AND entity_id = :eid AND published = true "
-                "LIMIT 1"
-            ),
-            {"et": entity_type, "eid": entity_id},
-        ).first()
+        row = (
+            db.query(SeoContent)
+            .filter(
+                SeoContent.entity_type == entity_type,
+                SeoContent.entity_id == entity_id,
+                SeoContent.published.is_(True),
+            )
+            .first()
+        )
     except Exception:
-        # Tabla no existe todavía (pre-F.5). Silencioso.
+        # Tabla no existe todavía (pre-F.5) o esquema desfasado. Silencioso.
         db.rollback()
         return None
     if not row:
         return None
+    resolved = resolve_all(db, row)
     return {
-        "body_md": row[0],
-        "meta_title": row[1],
-        "meta_description": row[2],
+        "body_md": row.body_md,
+        "meta_title": resolved["title"] or None,
+        "meta_description": resolved["description"] or None,
+        "h1": resolved["h1"] or None,
     }
 
 
@@ -193,6 +199,7 @@ def public_artist_detail(
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
+        seo_h1=seo["h1"] if seo else None,
     )
 
 
@@ -235,6 +242,7 @@ def public_album_detail(
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
+        seo_h1=seo["h1"] if seo else None,
     )
 
 
@@ -263,6 +271,7 @@ def public_song_detail(
             slug=album.slug, title=album.title, year=album.year, kind=album.kind,
             cover_url=album.cover_url,
         ),
+        cover_url=song.cover_url,
         snippet=snippet,
         snippet_attribution=(
             f"Fragmento citado de «{song.title}» — © sus autores · "
@@ -273,6 +282,7 @@ def public_song_detail(
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
+        seo_h1=seo["h1"] if seo else None,
     )
 
 

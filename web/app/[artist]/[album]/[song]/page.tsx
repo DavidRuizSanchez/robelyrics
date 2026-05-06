@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -76,8 +77,22 @@ export default async function SongPublicPage({
   }
   if (!detail.seo_body) notFound();
 
+  // Backdrop: la canción puede tener su propia carátula (single, EP, clip).
+  // Si no, caemos a la del álbum. Algunas no tienen ninguna → sin backdrop.
+  const backdropSrc = detail.cover_url || detail.album.cover_url || null;
+
   return (
-    <>
+    <div className="relative">
+      {backdropSrc && (
+        <HeaderImageBackdrop
+          src={backdropSrc}
+          height="900px"
+          opacity={0.5}
+          position="center top"
+          blur={1}
+        />
+      )}
+      <div className="relative z-10">
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
         <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] uppercase text-ink-dim mb-6">
@@ -186,6 +201,7 @@ export default async function SongPublicPage({
         />
       </main>
       <PublicFooter />
-    </>
+      </div>
+    </div>
   );
 }

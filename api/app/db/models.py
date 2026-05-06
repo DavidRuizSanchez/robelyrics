@@ -100,6 +100,10 @@ class Song(Base):
     genius_url: Mapped[str | None] = mapped_column(String(512))
     youtube_id: Mapped[str | None] = mapped_column(String(32))
     youtube_match_quality: Mapped[str | None] = mapped_column(String(16))  # official|topic|search|manual
+    # Carátula propia para singles/EPs/clips con artwork distinto del álbum.
+    # Si NULL, el frontend cae a album.cover_url. Ejemplos: "Yacuzi" tiene
+    # arte de videoclip, "Jesucristo García" portada propia del 1989, etc.
+    cover_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     album: Mapped[Album] = relationship(back_populates="songs")
     lines: Mapped[list["Line"]] = relationship(
