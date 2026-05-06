@@ -5,6 +5,7 @@ import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
 
@@ -169,7 +170,7 @@ export default async function SongPublicPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: safeJsonLd({
               "@context": "https://schema.org",
               "@type": "MusicComposition",
               name: detail.title,
