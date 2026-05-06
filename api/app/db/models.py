@@ -180,6 +180,11 @@ class User(Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Timestamp para invalidar todos los JWT cuyo `iat` sea anterior. Lo
+    # actualizamos al hacer reset de contraseña → cierre de sesión global.
+    tokens_invalid_before: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -204,6 +209,34 @@ class EmailVerification(Base):
     consumed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class PasswordReset(Base):
+    """Token de password reset enviado al pulsar 'olvidé mi contraseña'.
+    TTL corto (30 min) y single-use por seguridad. Re-issue invalida los
+    tokens previos del mismo user (ver routers/auth.py)."""
+
+    __tablename__ = "password_resets"
+    __table_args__ = (
+        Index("ix_password_resets_user", "user_id"),
+        Index("ix_password_resets_expires", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    request_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

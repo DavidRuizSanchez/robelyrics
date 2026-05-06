@@ -86,7 +86,34 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found")
+    # Bulk revocation: si tras emitir el token el user reseteo password
+    # (o un admin forzó cierre), tokens_invalid_before > iat → 401.
+    if user.tokens_invalid_before is not None:
+        iat = data.get("iat")
+        if iat is not None and int(user.tokens_invalid_before.timestamp()) >= int(iat):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="session invalidated · please log in again",
+            )
     return user
+
+
+def revoke_all_user_tokens(db: Session, user_id: int) -> bool:
+    """Cierra todas las sesiones activas del user.
+
+    Mecanismo: actualiza users.tokens_invalid_before = now(). En el
+    siguiente request, get_current_user compara payload.iat contra ese
+    timestamp y rechaza si iat < tokens_invalid_before.
+
+    Ventaja vs añadir cada jti a revoked_tokens: O(1) para "revocar todo"
+    y O(1) para verificar (ya tenemos el user en el query principal).
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return False
+    user.tokens_invalid_before = datetime.now(timezone.utc)
+    db.commit()
+    return True
 
 
 def revoke_token(db: Session, token: str) -> bool:

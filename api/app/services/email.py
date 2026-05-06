@@ -137,3 +137,41 @@ def render_verify_email(verify_url: str) -> tuple[str, str]:
         "Si no solicitaste esto, ignora este mensaje."
     )
     return html, text
+
+
+def render_reset_password_email(reset_url: str) -> tuple[str, str]:
+    """Devuelve (html, text) para el email de reseteo de contraseña.
+    TTL más corto (30 min) y advertencia explícita ante ignorar."""
+    html = f"""\
+<!doctype html>
+<html lang="es">
+<body style="margin:0;padding:32px;background:#0d0b0a;color:#ede4d3;font-family:Georgia,serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px;border:1px solid rgba(237,228,211,0.08);background:rgba(237,228,211,0.02);">
+    <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#e85050;margin:0 0 12px;">
+      entre interiores
+    </p>
+    <h1 style="font-family:Georgia,serif;font-size:28px;color:#ede4d3;margin:0 0 16px;">
+      Restablecer contraseña
+    </h1>
+    <p style="font-style:italic;line-height:1.6;color:rgba(237,228,211,0.7);font-size:16px;margin:0 0 24px;">
+      Hemos recibido una petición para restablecer tu contraseña.
+      Pulsa el botón para elegir una nueva. El enlace caduca en 30&nbsp;minutos.
+    </p>
+    <p style="margin:32px 0;text-align:center;">
+      <a href="{reset_url}" style="display:inline-block;padding:14px 28px;border:1px solid #e85050;color:#e85050;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
+        elegir nueva contraseña
+      </a>
+    </p>
+    <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:1px;color:rgba(237,228,211,0.4);margin:24px 0 0;line-height:1.6;">
+      Si no solicitaste esto, ignora este email — tu contraseña sigue intacta.
+      Si recibes muchos avisos como éste sin haberlos pedido, contáctanos.
+    </p>
+  </div>
+</body>
+</html>"""
+    text = (
+        "Restablecer contraseña en Entre Interiores.\n\n"
+        f"Pulsa el siguiente enlace (caduca en 30 min):\n{reset_url}\n\n"
+        "Si no solicitaste esto, ignora este mensaje — tu contraseña sigue intacta."
+    )
+    return html, text
