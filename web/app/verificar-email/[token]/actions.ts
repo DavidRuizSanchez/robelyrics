@@ -11,8 +11,9 @@ type VerifyApi = {
   token_type: string;
 };
 
+// Sólo dos estados terminales: la verificación ya se ejecuta en el server
+// component y devuelve uno de los dos directamente. No hay "pending".
 export type VerifyState =
-  | { kind: "pending" }
   | { kind: "ok" }
   | { kind: "error"; message: string };
 
