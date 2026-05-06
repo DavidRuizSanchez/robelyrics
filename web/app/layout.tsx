@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Caveat, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+import { Caveat, JetBrains_Mono, Spectral } from "next/font/google";
 import ConsentManager from "@/components/ConsentManager";
 import InkCursor from "@/components/InkCursor";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
+const spectral = Spectral({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   style: ["normal", "italic"],
   variable: "--font-serif",
   display: "swap",
@@ -37,7 +37,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const fontVars = `${cormorant.variable} ${jetbrains.variable} ${caveat.variable}`;
+  const fontVars = `${spectral.variable} ${jetbrains.variable} ${caveat.variable}`;
 
   // GA4 se carga solo si hay ID definido en env Y el usuario ha dado
   // consentimiento explícito en el banner (RGPD/ePrivacy). Si no hay ID,
