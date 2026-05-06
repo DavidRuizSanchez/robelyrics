@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const PATREON_URL = "https://www.patreon.com/c/EntreInteriores";
+const KOFI_URL = "https://ko-fi.com/entreinteriores";
 
 export default function PatreonCTA() {
   return (
@@ -22,22 +23,33 @@ export default function PatreonCTA() {
         Este es mi pequeño homenaje a Robe, siempre me sentiré en deuda
         eterna con él por todo lo que me ha dado. <em>Entre Interiores</em>{" "}
         se sostiene a base de embeddings e insomnio. Si este proyecto te
-        dice algo, aunque sea un poquito, hazte mecenas en Patreon y ayuda
-        a que siga creciendo, verso a verso, teniendo en cuenta tu voz.
+        dice algo, aunque sea un poquito, ayuda a que siga creciendo,
+        verso a verso, teniendo en cuenta tu voz.
       </p>
 
-      <Link
-        href={PATREON_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-cursor="hover"
-        className="inline-block bg-accent hover:bg-accent-bright text-white font-mono text-[12px] tracking-[3px] uppercase px-9 py-4 transition-colors"
-      >
-        Hacerme mecenas en Patreon →
-      </Link>
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
+        <Link
+          href={PATREON_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-cursor="hover"
+          className="inline-block bg-accent hover:bg-accent-bright text-white font-mono text-[12px] tracking-[3px] uppercase px-9 py-4 transition-colors"
+        >
+          Hacerme mecenas en Patreon →
+        </Link>
+        <Link
+          href={KOFI_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-cursor="hover"
+          className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[12px] tracking-[3px] uppercase px-9 py-4 transition-colors"
+        >
+          Invitar a un café · Ko-fi →
+        </Link>
+      </div>
 
       <p className="mt-6 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-        patreon.com/c/EntreInteriores
+        patreon.com/c/EntreInteriores · ko-fi.com/entreinteriores
       </p>
     </section>
   );

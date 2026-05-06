@@ -1,11 +1,10 @@
 import Link from "next/link";
 import AlbumCover from "@/components/AlbumCover";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
-import { LogoSunCloud } from "@/components/Logo";
+import LogoBomba from "@/components/LogoBomba";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
-import { T } from "@/lib/theme";
 import type { PublicArtistDetail } from "@/lib/types";
 
 export const metadata = {
@@ -73,8 +72,11 @@ export default async function PublicLandingPage() {
       <main className="px-5 md:px-14 max-w-[1100px] mx-auto">
         {/* Hero */}
         <section className="py-16 md:py-24 text-center">
-          <div className="mb-10 flex justify-center">
-            <LogoSunCloud name="Entre Interiores" color={T.ink} scale={1.1} stack />
+          <div className="mb-8 flex flex-col items-center gap-4">
+            <LogoBomba size={240} priority />
+            <p className="font-mono text-[10px] tracking-[4px] uppercase text-accent">
+              Entre Interiores
+            </p>
           </div>
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-4">
             un cancionero íntimo
