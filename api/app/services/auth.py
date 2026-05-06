@@ -1,6 +1,7 @@
-"""Auth: hash de passwords (bcrypt) + JWT (python-jose)."""
+"""Auth: hash de passwords (bcrypt) + JWT (python-jose) + revocation lazy."""
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -11,7 +12,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db.models import User
+from app.db.models import RevokedToken, User
 from app.db.session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -43,6 +44,9 @@ def create_access_token(subject: str | int) -> str:
         "sub": str(subject),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=settings.jwt_ttl_min)).timestamp()),
+        # jti único: permite revocar este token concreto en /auth/logout
+        # sin tocar JWT_SECRET ni cerrar todas las sesiones.
+        "jti": secrets.token_hex(16),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
 
@@ -64,6 +68,17 @@ def get_current_user(
     data = decode_token(token)
     if not data or "sub" not in data:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+    # Revocation check: el jti debe NO estar en revoked_tokens. Tokens
+    # antiguos (pre-jti, emitidos antes de Ola 1.6) no llevan claim — los
+    # tratamos como válidos para no romper sesiones activas; expirarán
+    # naturalmente en ≤30 días.
+    jti = data.get("jti")
+    if jti:
+        revoked = (
+            db.query(RevokedToken.id).filter(RevokedToken.jti == jti).first()
+        )
+        if revoked:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="token revoked")
     try:
         user_id = int(data["sub"])
     except (TypeError, ValueError):
@@ -72,6 +87,37 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found")
     return user
+
+
+def revoke_token(db: Session, token: str) -> bool:
+    """Revoca un JWT añadiendo su jti a la tabla revoked_tokens. Idempotente.
+    Devuelve True si se ha revocado (o ya estaba revocado), False si el
+    token es inválido o no tiene jti."""
+    data = decode_token(token)
+    if not data:
+        return False
+    jti = data.get("jti")
+    if not jti:
+        return False
+    try:
+        user_id = int(data.get("sub", "0"))
+    except (TypeError, ValueError):
+        return False
+    exp = data.get("exp")
+    if not exp:
+        return False
+    # idempotente: si ya está, no insertamos otra fila
+    if db.query(RevokedToken.id).filter(RevokedToken.jti == jti).first():
+        return True
+    db.add(
+        RevokedToken(
+            jti=jti,
+            user_id=user_id,
+            expires_at=datetime.fromtimestamp(int(exp), tz=timezone.utc),
+        )
+    )
+    db.commit()
+    return True
 
 
 def get_current_admin(user: User = Depends(get_current_user)) -> User:

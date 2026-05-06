@@ -23,6 +23,8 @@ services:
     environment:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
+      # CORS estricto en prod: solo orígenes públicos del dominio.
+      ALLOWED_ORIGINS: https://entreinteriores.com,https://www.entreinteriores.com
 
   web:
     ports: !reset []

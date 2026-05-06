@@ -1,0 +1,54 @@
+# Dependabot config — alertas + version updates automáticos.
+# Complementa al SCA de Aikido: Dependabot abre PRs el mismo día que sale
+# el CVE; Aikido escanea cada 3 días pero correlaciona mejor.
+#
+# Actívalo en GitHub: Settings → Code security → Dependabot alerts ON +
+# Dependabot version updates ON.
+
+version: 2
+updates:
+  # API Python (uv)
+  - package-ecosystem: "pip"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "deps(api)"
+    # Agrupa updates menores/parche para no inundar de PRs
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Web Next.js
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "javascript"]
+    commit-message:
+      prefix: "deps(web)"
+    groups:
+      js-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions self-update
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "deps(ci)"

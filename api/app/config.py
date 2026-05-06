@@ -50,6 +50,13 @@ class Settings(BaseSettings):
 
     site_url: str = Field("http://localhost:3001", alias="SITE_URL")
 
+    # CORS — orígenes permitidos, separados por coma. En dev: localhost:3000/3001.
+    # En prod: https://entreinteriores.com,https://www.entreinteriores.com.
+    allowed_origins: str = Field(
+        "http://localhost:3001,http://localhost:3000,http://127.0.0.1:3001",
+        alias="ALLOWED_ORIGINS",
+    )
+
     # Términos: versión vigente. Al cambiar, los users tienen que re-aceptar.
     terms_version: str = Field("2026-05-02", alias="TERMS_VERSION")
 

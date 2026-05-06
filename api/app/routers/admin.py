@@ -13,7 +13,9 @@ Pipeline síncrono: el endpoint puede tardar 30-90s por canción afectada.
 """
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import subprocess
 from datetime import datetime, timezone
 from typing import Literal
@@ -21,8 +23,8 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -36,6 +38,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.services.auth import get_current_admin
+from app.services.rate_limit import limiter
 from app.services.seo_templates import render_with_context, resolve_all
 from scripts.research.common import (
     clean_text,
@@ -46,6 +49,51 @@ from scripts.research.common import (
 from scripts.research.fetch_blogs import HEADERS, extract_article_text
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+# --------------------------------------------------------------------------- #
+# SSRF guard
+# --------------------------------------------------------------------------- #
+def _validate_external_url(value: str) -> str:
+    """Acepta sólo http/https con host que NO resuelva a redes privadas
+    (RFC1918, loopback, link-local, ULA IPv6, multicast). Mitiga SSRF a los
+    servicios internos del compose (qdrant, postgres, api) cuando un admin
+    legítimo pega una URL maliciosa o un atacante se hace con la sesión.
+
+    Hay una race entre este validate y el fetch real (DNS rebinding) — es
+    suficiente para beta. Hardening real: resolver una sola vez aquí y
+    pasar la IP literal al cliente HTTP.
+    """
+    if not value:
+        raise ValueError("url vacía")
+    parsed = urlparse(value)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"scheme no permitido: {parsed.scheme!r} (sólo http/https)")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("url sin host")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        raise ValueError(f"host no resoluble: {host}") from e
+    for family, _, _, _, sockaddr in infos:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise ValueError(
+                f"host {host} resuelve a una IP privada/loopback ({ip_str}); SSRF bloqueado"
+            )
+    return value
 
 
 # --------------------------------------------------------------------------- #
@@ -60,6 +108,13 @@ class SourceCreateIn(BaseModel):
     content: str | None = None  # mode=text
     fetch_url: str | None = None  # mode=url (si difiere de url)
     youtube_url: str | None = None  # mode=youtube
+
+    @field_validator("url", "fetch_url", "youtube_url")
+    @classmethod
+    def _block_ssrf(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return v
+        return _validate_external_url(v)
 
 
 class SourceCreateOut(BaseModel):
@@ -167,7 +222,9 @@ def _fetch_youtube_transcript(yt_url: str) -> tuple[str, str]:
 # Endpoints
 # --------------------------------------------------------------------------- #
 @router.post("/sources", response_model=SourceCreateOut)
+@limiter.limit("10/hour")
 def create_source(
+    request: Request,
     body: SourceCreateIn,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
@@ -254,7 +311,10 @@ def process_source(
                 cwd="/app",
                 capture_output=True,
                 text=True,
-                timeout=600,
+                # Bajado de 600s a 120s. Los pipelines de research están
+                # diseñados para ser idempotentes; si algo tarda más de 2
+                # min suele ser sospechoso. Re-ejecutable manualmente.
+                timeout=120,
                 check=False,
             )
             tail_out = (r.stdout or "").splitlines()[-3:]
