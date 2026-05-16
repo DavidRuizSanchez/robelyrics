@@ -38,4 +38,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 USER nextjs
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# Invocamos next directamente en lugar de `pnpm start` para evitar corepack
+# en runtime: versiones recientes de corepack requieren node:sqlite (Node 22+)
+# y la base es node:20-alpine. El bundle ya está construido, no necesitamos pnpm.
+CMD ["node_modules/.bin/next", "start"]

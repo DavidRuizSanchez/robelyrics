@@ -56,7 +56,9 @@ services:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
       NODE_ENV: production
-    command: pnpm start
+    # Invocar next directamente evita corepack en runtime (que pide Node 22+
+    # en versiones recientes y rompe con node:20-alpine).
+    command: ["node_modules/.bin/next", "start"]
 
   caddy:
     image: caddy:2-alpine
