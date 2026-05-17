@@ -7,7 +7,7 @@ Dos modos de búsqueda:
 - **Equivalencia metafórica**: traduces una frase de la vida real a una línea del universo Robero (`"se acabó lo bonito"` → `"se acabó la primavera"`).
 - **Completar frase**: das el inicio de una línea y devuelve lo que sigue (`"abre, la puerta"` → `"que soy el diablo y vengo con perras"`).
 
-Stack: FastAPI + Next.js + Postgres + Qdrant. Embeddings OpenAI `text-embedding-3-large`, reranker GPT-4o-mini. Knowledge base de fan-content (Juancares, Reddit, foros, blogs) para que el reranker entienda metáforas no obvias.
+Stack: FastAPI + Next.js + Postgres + Qdrant. Embeddings OpenAI `text-embedding-3-large`, reranker GPT-4o-mini. Knowledge base de fan-content (Reddit, foros, blogs) para que el reranker entienda metáforas no obvias.
 
 > **Uso personal/privado.** Las letras están protegidas por derechos de autor; los ToS de Genius prohíben su redistribución pública. Este proyecto no se sirve a terceros.
 
@@ -52,8 +52,8 @@ open http://localhost:3000
 | Postgres   | 5435        | 5432/5433/5434 ya en uso por otros proyectos |
 | Qdrant HTTP| 6333        | dashboard en `/dashboard`              |
 | Qdrant gRPC| 6334        |                                        |
-| API        | 8001        | FastAPI con `--reload` (8000 lo usa seo-intelligence)  |
-| Web        | 3001        | Next.js dev server (3000 lo usa seo-intelligence)      |
+| API        | 8001        | FastAPI con `--reload`  |
+| Web        | 3001        | Next.js dev server      |
 
 ## Estructura
 
