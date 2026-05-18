@@ -106,13 +106,14 @@ export type CompleteOut = {
   results: CompleteHit[];
 };
 
-// /public/search — buscador público sin auth (solo metadata: títulos)
+// /public/search — buscador público sin auth (títulos + letras)
 export type PublicSearchHit = {
   kind: "artist" | "album" | "song";
   slug: string;
   title: string;
   subtitle: string | null;
   url_path: string;
+  lyric_match?: string | null;
 };
 
 export type PublicSearchOut = {

@@ -17,7 +17,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Response, Depends
 from pydantic import BaseModel
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -322,7 +322,8 @@ class PublicSearchHit(BaseModel):
     slug: str
     title: str
     subtitle: str | None = None  # ej. "Extremoduro · 1996" para una canción
-    url_path: str  # ruta canónica completa: "/artist", "/artist/album", "/artist/album/song"
+    url_path: str  # ruta canónica completa
+    lyric_match: str | None = None  # verso citado si el match fue en letra
 
 
 class PublicSearchOut(BaseModel):
@@ -430,7 +431,7 @@ def public_search(
             url_path=f"/{artist.slug}/{album.slug}",
         ))
 
-    # Canciones
+    # Canciones por título
     songs = (
         db.query(Song, Album, Artist)
         .join(Album, Song.album_id == Album.id)
@@ -440,11 +441,50 @@ def public_search(
         .limit(20)
         .all()
     )
+    seen_song_ids: set[int] = set()
     for song, album, artist in songs:
+        seen_song_ids.add(song.id)
         out.append(PublicSearchHit(
             kind="song", slug=song.slug, title=song.title,
             subtitle=f"{artist.name} · {album.title} ({album.year})",
             url_path=f"/{artist.slug}/{album.slug}/{song.slug}",
+        ))
+
+    # Canciones por letra (lines.text). Devolvemos el primer verso que matchea
+    # como `lyric_match` para que el usuario vea por qué aparece. Solo
+    # canciones con seo_content publicado (las que tienen página pública).
+    # Limitamos a 20 para no saturar.
+    lyric_rows = db.execute(text(
+        """
+        SELECT DISTINCT ON (s.id)
+            s.id, s.slug, s.title,
+            al.slug AS album_slug, al.title AS album_title, al.year,
+            ar.slug AS artist_slug, ar.name AS artist_name,
+            l.text AS line_text
+        FROM songs s
+        JOIN albums al ON al.id = s.album_id
+        JOIN artists ar ON ar.id = al.artist_id
+        JOIN lines l ON l.song_id = s.id
+        JOIN seo_content sc ON sc.entity_type = 'song' AND sc.entity_id = s.id
+            AND sc.published = TRUE
+        WHERE l.text ILIKE :pattern
+        ORDER BY s.id, l.line_index
+        LIMIT 20
+        """
+    ), {"pattern": pattern}).all()
+    for r in lyric_rows:
+        if r.id in seen_song_ids:
+            continue  # ya estaba por match de título
+        seen_song_ids.add(r.id)
+        # Cita corta del verso (máx 100 chars).
+        verse = (r.line_text or "").strip()
+        if len(verse) > 100:
+            verse = verse[:97].rstrip() + "…"
+        out.append(PublicSearchHit(
+            kind="song", slug=r.slug, title=r.title,
+            subtitle=f"{r.artist_name} · {r.album_title} ({r.year})",
+            url_path=f"/{r.artist_slug}/{r.album_slug}/{r.slug}",
+            lyric_match=verse,
         ))
 
     return PublicSearchOut(query=q, results=out)
@@ -729,6 +769,7 @@ from app.services.email import (  # noqa: E402
     render_newsletter_confirm_email,
     send_email,
 )
+from app.services.newsletter import dispatch_to_subscriber  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -831,6 +872,25 @@ def newsletter_confirm(
     row.status = "confirmed"
     row.confirmed_at = datetime.now(timezone.utc)
     db.commit()
+
+    # Disparo inmediato: si hay entradas publicadas pendientes para este
+    # subscriber, le mandamos el digest ahora — no tiene que esperar al cron.
+    # Cualquier fallo de envío se loguea pero no rompe la confirmación.
+    try:
+        sent = dispatch_to_subscriber(db, row)
+        db.commit()
+        if sent:
+            return NewsletterStatusOut(
+                status="confirmed",
+                message=(
+                    "¡Listo! Te acabamos de mandar el contenido más reciente "
+                    "al email. Te llegarán las próximas entradas en cuanto se "
+                    "publiquen."
+                ),
+            )
+    except Exception as e:
+        logger.warning("Confirm dispatch failed for %s: %s", row.email, e)
+
     return NewsletterStatusOut(
         status="confirmed",
         message="¡Listo! Te llegarán las nuevas entradas del diario.",

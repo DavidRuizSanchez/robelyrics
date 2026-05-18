@@ -855,3 +855,168 @@ def list_users(
         )
         for u in rows
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Posts del blog: revisión y publicación (Fase 3)
+# --------------------------------------------------------------------------- #
+from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+
+from app.db.models import Post as _Post  # noqa: E402
+
+
+class AdminPostListItem(BaseModel):
+    id: int
+    slug: str
+    kind: str
+    status: str
+    title: str
+    excerpt: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    created_at: datetime
+    published_at: datetime | None = None
+
+
+class AdminPostDetailOut(AdminPostListItem):
+    body_md: str
+    meta_title: str | None = None
+    meta_description: str | None = None
+    hero_image_url: str | None = None
+
+
+class AdminPostUpdateIn(BaseModel):
+    title: str | None = None
+    excerpt: str | None = None
+    body_md: str | None = None
+    meta_title: str | None = None
+    meta_description: str | None = None
+
+
+@router.get("/posts", response_model=list[AdminPostListItem])
+def admin_posts_list(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminPostListItem]:
+    q = db.query(_Post)
+    if status and status != "all":
+        q = q.filter(_Post.status == status)
+    q = q.order_by(_Post.created_at.desc())
+    rows = q.all()
+    return [
+        AdminPostListItem(
+            id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+            title=p.title, excerpt=p.excerpt,
+            source_url=p.source_url, source_name=p.source_name,
+            created_at=p.created_at, published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
+@router.get("/posts/{post_id}", response_model=AdminPostDetailOut)
+def admin_post_detail(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostDetailOut:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    return AdminPostDetailOut(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt, body_md=p.body_md,
+        meta_title=p.meta_title, meta_description=p.meta_description,
+        hero_image_url=p.hero_image_url,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.put("/posts/{post_id}", response_model=AdminPostDetailOut)
+def admin_post_update(
+    post_id: int,
+    body: AdminPostUpdateIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostDetailOut:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    if body.title is not None:
+        p.title = body.title
+    if body.excerpt is not None:
+        p.excerpt = body.excerpt
+    if body.body_md is not None:
+        p.body_md = body.body_md
+    if body.meta_title is not None:
+        p.meta_title = body.meta_title
+    if body.meta_description is not None:
+        p.meta_description = body.meta_description
+    db.commit()
+    return admin_post_detail(post_id, db, _admin)
+
+
+@router.post("/posts/{post_id}/publish", response_model=AdminPostListItem)
+def admin_post_publish(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    """Publica el post (status='published', published_at=now). El cron de
+    newsletter recogerá esta entrada en su próximo run y la enviará a los
+    suscriptores."""
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "published"
+    if p.published_at is None:
+        p.published_at = _dt.now(_tz.utc)
+    p.approved_by = _admin.id
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.post("/posts/{post_id}/reject", response_model=AdminPostListItem)
+def admin_post_reject(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "rejected"
+    p.approved_by = _admin.id
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.post("/posts/{post_id}/unpublish", response_model=AdminPostListItem)
+def admin_post_unpublish(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "approved"  # vuelve a aprobado pero no publicado
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )

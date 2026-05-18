@@ -1,32 +1,40 @@
-# Crontab para las efemérides del blog de Entre Interiores.
+# Crontab de Entre Interiores — operaciones recurrentes del blog y newsletter.
 #
-# Instalar en el host de producción:
-#   crontab -l > /tmp/current.cron
-#   cat /opt/robelyrics/infra/cron/anniversaries.crontab >> /tmp/current.cron
-#   crontab /tmp/current.cron
+# Instalar en el host de producción (entreinteriores):
+#   ssh robelyrics
+#   crontab -e
+#   (pegar contenido de este fichero)
 #
-# Alternativa con n8n: importa esta cadencia como triggers Cron en el flow
-# correspondiente y dispara `docker compose exec api python -m scripts...`.
+# Logs van a /var/log/robelyrics-cron.log (asegúrate de que el user que corre
+# cron tiene permisos sobre ese path; alternativa: /home/david/cron.log).
 #
-# Notas:
-# - PATH y SHELL se asumen del entorno por defecto; ajusta si el cron del
-#   host es minimalista.
-# - El script es idempotente: si la entrada del año ya existe, no la
-#   reescribe (puedes lanzarlo manualmente sin riesgo).
+# Idempotencia:
+# - publish_anniversary: si ya existe la entrada del año, no la duplica.
+# - scrape_news: solo inserta items con source_url no visto antes (dedup).
+# - send_newsletter: tracking per-subscriber (last_sent_at), no reenvía
+#   lo ya enviado a cada destinatario.
 
-# Cumpleaños de Robe (16 de mayo). Publica a las 09:00 UTC.
-0 9 16 5 * cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.publish_anniversary --type birth >> /var/log/robelyrics-cron.log 2>&1
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Aniversario del fallecimiento — DESACTIVADO por defecto (Robe Iniesta está
-# vivo en el momento de escribir este crontab). Cuando el script tenga
-# DEATH_DATE relleno y proceda activarlo, descomenta la línea siguiente.
-# 0 9 <DD> <MM> * cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
+APP_DIR=/opt/robelyrics
+DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+# Cumpleaños de Robe (16 de mayo) → publicar efeméride 09:00 UTC.
+0 9 16 5 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type birth --publish-now >> /var/log/robelyrics-cron.log 2>&1
+
+# Aniversario del fallecimiento — DESACTIVADO. Rellenar DEATH_DATE en
+# scripts/blog/publish_anniversary.py y descomentar con día y mes correctos:
+# 0 9 <DD> <MM> * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death --publish-now >> /var/log/robelyrics-cron.log 2>&1
 
 # Scraper semanal de noticias sobre Robe y Extremoduro. Lunes 09:00 UTC.
-# Solo inserta candidatos con status='pending_review'. Aprobación manual
-# obligatoria desde el panel admin antes de publicar.
-0 9 * * 1 cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
+# Inserta candidatos como `pending_review` y envía email al admin con la
+# lista para revisarlos en /biblioteca/admin/posts. Aprobación manual
+# obligatoria antes de publicar.
+0 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
 
-# Newsletter semanal. Lunes 10:00 UTC (1h después del scraper de noticias,
-# para dar margen al admin a revisar y publicar lo aprobado antes del envío).
-0 10 * * 1 cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1
+# Newsletter — dispatcher diario. Cada subscriber recibe los posts
+# publicados después de su `last_sent_at`. Idempotente: relanzar no duplica.
+# Cadencia diaria para que las entradas nuevas lleguen en máx. 24h tras
+# publicarse, no a la semana siguiente.
+0 10 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1

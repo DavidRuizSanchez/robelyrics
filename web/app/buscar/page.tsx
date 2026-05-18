@@ -156,6 +156,7 @@ export default async function BuscarPage({
                     >
                       <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
                         {KIND_LABEL[hit.kind] || hit.kind}
+                        {hit.lyric_match && " · cita en letra"}
                       </p>
                       <p className="font-serif text-xl md:text-2xl text-ink leading-tight group-hover:text-accent transition-colors">
                         {hit.title}
@@ -163,6 +164,11 @@ export default async function BuscarPage({
                       {hit.subtitle && (
                         <p className="mt-1 font-mono text-[11px] tracking-[1px] text-ink-dim">
                           {hit.subtitle}
+                        </p>
+                      )}
+                      {hit.lyric_match && (
+                        <p className="mt-2 font-serif italic text-base text-ink-dim leading-relaxed border-l-2 border-accent/40 pl-3 max-w-[640px]">
+                          «{hit.lyric_match}»
                         </p>
                       )}
                     </Link>
