@@ -21,6 +21,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -116,6 +117,15 @@ class Song(Base):
     )
     interpretation: Mapped["SongInterpretation | None"] = relationship(
         back_populates="song", uselist=False, cascade="all, delete-orphan"
+    )
+    themes: Mapped[list["Theme"]] = relationship(
+        secondary="song_themes", back_populates="songs"
+    )
+    places: Mapped[list["Place"]] = relationship(
+        secondary="song_places", back_populates="songs"
+    )
+    concepts: Mapped[list["Concept"]] = relationship(
+        secondary="song_concepts", back_populates="songs"
     )
 
 
@@ -436,3 +446,189 @@ class SongInterpretation(Base):
     )
 
     song: Mapped[Song] = relationship(back_populates="interpretation")
+
+
+# --- Fase 2: taxonomías SEO (temas, lugares, conceptos) ---------------------
+#
+# Estas tres taxonomías alimentan hubs públicos `/temas/{slug}`,
+# `/lugares/{slug}` y `/conceptos/{slug}` que recogen canciones por motivo
+# compartido. La relación N:M con Song permite enlazado horizontal entre
+# canciones de discos/épocas distintas que tocan el mismo tema.
+
+
+class Theme(Base):
+    __tablename__ = "themes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    songs: Mapped[list[Song]] = relationship(
+        secondary="song_themes", back_populates="themes"
+    )
+
+
+class SongTheme(Base):
+    __tablename__ = "song_themes"
+
+    song_id: Mapped[int] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"), primary_key=True
+    )
+    theme_id: Mapped[int] = mapped_column(
+        ForeignKey("themes.id", ondelete="CASCADE"), primary_key=True
+    )
+    weight: Mapped[float] = mapped_column(Numeric(4, 2), nullable=False, default=1.0)
+
+
+class Place(Base):
+    __tablename__ = "places"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str | None] = mapped_column(String(40))
+    description: Mapped[str | None] = mapped_column(Text)
+    geo_lat: Mapped[float | None] = mapped_column(Numeric(9, 6))
+    geo_lng: Mapped[float | None] = mapped_column(Numeric(9, 6))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    songs: Mapped[list[Song]] = relationship(
+        secondary="song_places", back_populates="places"
+    )
+
+
+class SongPlace(Base):
+    __tablename__ = "song_places"
+
+    song_id: Mapped[int] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"), primary_key=True
+    )
+    place_id: Mapped[int] = mapped_column(
+        ForeignKey("places.id", ondelete="CASCADE"), primary_key=True
+    )
+    context: Mapped[str | None] = mapped_column(Text)
+
+
+class Concept(Base):
+    __tablename__ = "concepts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    songs: Mapped[list[Song]] = relationship(
+        secondary="song_concepts", back_populates="concepts"
+    )
+
+
+class SongConcept(Base):
+    __tablename__ = "song_concepts"
+
+    song_id: Mapped[int] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"), primary_key=True
+    )
+    concept_id: Mapped[int] = mapped_column(
+        ForeignKey("concepts.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+# --- Fase 3: blog/noticias --------------------------------------------------
+
+
+class Post(Base):
+    """Entrada de blog/noticias en la web pública.
+
+    `kind`:
+      - 'editorial':   artículo manual del admin (long-form).
+      - 'news':        noticia raspada de fuente externa whitelisted.
+      - 'anniversary': publicación automática en aniversario de nacimiento o
+                       muerte de Robe.
+
+    `status`:
+      draft → pending_review → approved → published (también: rejected).
+    Solo las publicadas se muestran en /blog y entran al sitemap.
+    """
+
+    __tablename__ = "posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    excerpt: Mapped[str | None] = mapped_column(Text)
+    body_md: Mapped[str] = mapped_column(Text, nullable=False)
+    hero_image_url: Mapped[str | None] = mapped_column(String(500))
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    source_name: Mapped[str | None] = mapped_column(String(200))
+    meta_title: Mapped[str | None] = mapped_column(String(256))
+    meta_description: Mapped[str | None] = mapped_column(String(512))
+    anniversary_year: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    approved_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    # Marca de cuándo se incluyó este post en un envío de newsletter. NULL
+    # significa "aún sin enviar" y el cron lo recogerá en el próximo digest.
+    newsletter_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('editorial', 'news', 'anniversary')",
+            name="ck_posts_kind",
+        ),
+        CheckConstraint(
+            "status IN ('draft', 'pending_review', 'approved', 'published', 'rejected')",
+            name="ck_posts_status",
+        ),
+    )
+
+
+# --- Fase 3: newsletter -----------------------------------------------------
+
+
+class Subscriber(Base):
+    """Suscriptor de la newsletter de Entre Interiores.
+
+    Doble opt-in: una fila se crea en 'pending' tras el form de suscripción y
+    pasa a 'confirmed' solo después de visitar el link de confirmación que
+    envía el email. La fila se conserva tras unsubscribe (compliance RGPD y
+    para que reintentar suscribirse no requiera nueva doble confirmación).
+    """
+
+    __tablename__ = "subscribers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    confirm_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    unsubscribe_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    subscribed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str | None] = mapped_column(String(40))  # footer|blog|...
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'confirmed', 'unsubscribed', 'bounced')",
+            name="ck_subscribers_status",
+        ),
+    )

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
+import SeoListWithBulk from "./SeoListWithBulk";
 
 type SeoListItem = {
   id: number;
@@ -75,9 +76,18 @@ export default async function AdminSeoPage({
         <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
           panel admin
         </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
-          Contenido SEO
-        </h1>
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <h1 className="font-serif text-4xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
+            Contenido SEO
+          </h1>
+          <Link
+            href="/biblioteca/admin/seo/templates"
+            data-cursor="hover"
+            className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-accent border border-divider hover:border-accent px-3 py-1.5 transition-colors"
+          >
+            plantillas SEO →
+          </Link>
+        </div>
         <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
           Revisa, edita y publica los artículos generados por LLM. Solo los
           publicados son visibles en la capa pública SEO.
@@ -122,45 +132,7 @@ export default async function AdminSeoPage({
         ))}
       </div>
 
-      {items.length === 0 ? (
-        <p className="font-serif italic text-ink-faint">
-          No hay artículos con esos filtros.
-        </p>
-      ) : (
-        <ul className="divide-y divide-divider border-t border-divider">
-          {items.map((it) => (
-            <li key={it.id}>
-              <Link
-                href={`/biblioteca/admin/seo/${it.id}`}
-                data-cursor="hover"
-                className="grid grid-cols-[auto_1fr_auto_auto] gap-4 items-baseline py-3.5 hover:bg-paper/40 transition-colors px-2 -mx-2"
-              >
-                <span
-                  className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint w-14"
-                  title={it.entity_type}
-                >
-                  {it.entity_type}
-                </span>
-                <span className="font-serif text-ink truncate">
-                  {it.entity_label}
-                </span>
-                <span className="font-mono text-[10px] tracking-[1px] text-ink-faint">
-                  {it.chars} ch
-                </span>
-                <span className="font-mono text-[10px] tracking-[1.5px] uppercase">
-                  {it.published ? (
-                    <span className="text-accent">publicado</span>
-                  ) : it.reviewed_at ? (
-                    <span className="text-accent/60">revisado</span>
-                  ) : (
-                    <span className="text-ink-faint">sin revisar</span>
-                  )}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <SeoListWithBulk items={items} />
     </main>
   );
 }

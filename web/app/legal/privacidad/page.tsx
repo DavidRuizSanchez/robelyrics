@@ -9,7 +9,7 @@ export default function PoliticaPrivacidad() {
       <h2>Responsable del tratamiento</h2>
       <p>
         David Ruiz Sánchez, persona física residente en España. Contacto:{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>.
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>.
         En este sitio no existe Delegado de Protección de Datos (DPD)
         designado por no ser obligatorio en proyectos de esta naturaleza,
         pero el responsable atiende personalmente las consultas.
@@ -97,7 +97,7 @@ export default function PoliticaPrivacidad() {
         Como titular de los datos, puedes ejercer en cualquier momento los
         derechos de <strong>acceso, rectificación, supresión, oposición,
         limitación y portabilidad</strong> escribiendo a{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>{" "}
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>{" "}
         desde la dirección registrada en tu cuenta. La solicitud se atiende
         en un plazo máximo de un mes.
       </p>

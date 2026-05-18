@@ -63,7 +63,7 @@ RERANK_SCHEMA = {
 }
 
 
-SYSTEM_PROMPT = """Eres un experto en la obra de Extremoduro y Robe Iniesta. Tu tarea es elegir, de una lista de candidatos del catálogo, los versos que mejor se corresponden con la frase del usuario.
+SYSTEM_PROMPT = """Eres un experto en la obra de Extremoduro y Robe. Tu tarea es elegir, de una lista de candidatos del catálogo, los versos que mejor se corresponden con la frase del usuario.
 
 ## Encaje válido (acepta estos)
 

@@ -101,7 +101,7 @@ export default function Atribuciones() {
       <h2>Iconografía</h2>
       <p>
         Los símbolos &quot;Sol &amp; Nube&quot; y el delfín ornamental son
-        guiños al tatuaje de Robe Iniesta, redibujados como interpretación
+        guiños al tatuaje de Robe, redibujados como interpretación
         editorial propia, sin pretensión de calcar marcas registradas.
       </p>
 
@@ -117,7 +117,7 @@ export default function Atribuciones() {
         Si encuentras un error de atribución o eres autor de un contenido
         citado y prefieres otra forma de aparecer (o no aparecer), escríbenos
         a{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>{" "}
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>{" "}
         y lo corregimos lo antes posible.
       </p>
     </>

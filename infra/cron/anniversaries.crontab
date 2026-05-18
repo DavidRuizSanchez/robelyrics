@@ -1,0 +1,32 @@
+# Crontab para las efemérides del blog de Entre Interiores.
+#
+# Instalar en el host de producción:
+#   crontab -l > /tmp/current.cron
+#   cat /opt/robelyrics/infra/cron/anniversaries.crontab >> /tmp/current.cron
+#   crontab /tmp/current.cron
+#
+# Alternativa con n8n: importa esta cadencia como triggers Cron en el flow
+# correspondiente y dispara `docker compose exec api python -m scripts...`.
+#
+# Notas:
+# - PATH y SHELL se asumen del entorno por defecto; ajusta si el cron del
+#   host es minimalista.
+# - El script es idempotente: si la entrada del año ya existe, no la
+#   reescribe (puedes lanzarlo manualmente sin riesgo).
+
+# Cumpleaños de Robe (16 de mayo). Publica a las 09:00 UTC.
+0 9 16 5 * cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.publish_anniversary --type birth >> /var/log/robelyrics-cron.log 2>&1
+
+# Aniversario del fallecimiento — DESACTIVADO por defecto (Robe Iniesta está
+# vivo en el momento de escribir este crontab). Cuando el script tenga
+# DEATH_DATE relleno y proceda activarlo, descomenta la línea siguiente.
+# 0 9 <DD> <MM> * cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
+
+# Scraper semanal de noticias sobre Robe y Extremoduro. Lunes 09:00 UTC.
+# Solo inserta candidatos con status='pending_review'. Aprobación manual
+# obligatoria desde el panel admin antes de publicar.
+0 9 * * 1 cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
+
+# Newsletter semanal. Lunes 10:00 UTC (1h después del scraper de noticias,
+# para dar margen al admin a revisar y publicar lo aprobado antes del envío).
+0 10 * * 1 cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1

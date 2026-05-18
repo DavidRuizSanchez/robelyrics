@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
+import RelatedSongs from "@/components/RelatedSongs";
+import TaxonomyPills from "@/components/TaxonomyPills";
+import TrackNav from "@/components/TrackNav";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { resolveSlug } from "@/lib/slug-resolver";
@@ -70,12 +74,24 @@ export default async function SongPublicPage({
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       const matched = await tryResolveSong(album, song);
-      if (matched) redirect(`/${artist}/${album}/${matched}`);
+      if (matched) permanentRedirect(`/${artist}/${album}/${matched}`);
       notFound();
     }
     throw e;
   }
   if (!detail.seo_body) notFound();
+
+  // Pillamos el tracklist del álbum para los bloques prev/next + "más del
+  // álbum". Si falla (raro), simplemente no renderizamos esos bloques.
+  let albumDetail: PublicAlbumDetail | null = null;
+  try {
+    albumDetail = await apiFetch<PublicAlbumDetail>(
+      `/public/albums/${album}`,
+      { authenticated: false },
+    );
+  } catch {
+    albumDetail = null;
+  }
 
   // Backdrop: la canción puede tener su propia carátula (single, EP, clip).
   // Si no, caemos a la del álbum. Algunas no tienen ninguna → sin backdrop.
@@ -95,16 +111,19 @@ export default async function SongPublicPage({
       <div className="relative z-10">
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
-        <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] uppercase text-ink-dim mb-6">
-          <Link href={`/${artist}`} data-cursor="hover" className="hover:text-ink">
-            {detail.artist.name}
-          </Link>
-          <span className="opacity-50">·</span>
-          <Link href={`/${artist}/${album}`} data-cursor="hover" className="hover:text-ink">
-            {detail.album.title}
-          </Link>
-          <span className="text-ink-faint">({detail.album.year})</span>
-        </nav>
+        <Breadcrumbs
+          className="mb-6"
+          items={[
+            { label: "Entre Interiores", href: "/" },
+            { label: detail.artist.name, href: `/${artist}` },
+            {
+              label: detail.album.title,
+              href: `/${artist}/${album}`,
+              meta: `(${detail.album.year})`,
+            },
+            { label: detail.title, href: `/${artist}/${album}/${song}` },
+          ]}
+        />
 
         <header className="mb-10 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 md:gap-8 items-start">
           <AlbumCover
@@ -180,6 +199,30 @@ export default async function SongPublicPage({
               )}
             </p>
           </section>
+        )}
+
+        <TaxonomyPills
+          themes={detail.themes}
+          places={detail.places}
+          concepts={detail.concepts}
+        />
+
+        {albumDetail && (
+          <>
+            <TrackNav
+              artistSlug={artist}
+              albumSlug={album}
+              currentSlug={song}
+              tracks={albumDetail.tracks}
+            />
+            <RelatedSongs
+              artistSlug={artist}
+              albumSlug={album}
+              albumTitle={detail.album.title}
+              currentSlug={song}
+              tracks={albumDetail.tracks}
+            />
+          </>
         )}
 
         <script

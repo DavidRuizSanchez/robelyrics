@@ -42,6 +42,28 @@ export default async function PublicHeader() {
         >
           Robe
         </Link>
+        <Link
+          href="/discografia"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+        >
+          Discografía
+        </Link>
+        <Link
+          href="/blog"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+          title="De manera urgente — noticias y memoria"
+        >
+          De manera urgente
+        </Link>
+        <Link
+          href="/buscar"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+        >
+          Buscar
+        </Link>
         {me ? (
           <>
             <Link

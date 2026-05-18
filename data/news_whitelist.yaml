@@ -1,0 +1,39 @@
+# Whitelist de fuentes para el scraper semanal de noticias sobre Robe
+# Iniesta y Extremoduro.
+#
+# Reglas:
+#   - SOLO fuentes alineadas con la línea editorial del corpus (igual que las
+#     decisiones tomadas en sources.yaml). Prensa comercial vetada
+#     (Mondo Sonoro, Efe Eme, Rockdelux) NO entra aquí tampoco.
+#   - Cada item que detecte el scraper se inserta en `posts` con
+#     status='pending_review'. El admin DEBE aprobar manualmente antes de
+#     que llegue a publicarse — no hay auto-publish.
+#
+# Estructura:
+#   sources: lista de fuentes
+#     - name:    string visible en el post (aparece como source_name)
+#       url:     URL del feed (RSS/Atom) o de la página índice si kind=html
+#       kind:    'rss' (implementado) | 'html' (TODO)
+#       enabled: bool, default true. Desactiva sin borrar.
+#       selector: solo para kind='html' (CSS selector del contenedor de items)
+#   terms: palabras clave que el item debe contener (case-insensitive) en
+#     título o resumen para considerarse candidato.
+
+terms:
+  - robe iniesta
+  - extremoduro
+  - robe
+
+sources:
+  # Plantilla — sustituir por fuentes reales validadas contigo.
+  # Las RSS estándar de prensa especializada extremeña, blogs de fans
+  # canónicos, etc. encajan aquí.
+  - name: "Hoy Cáceres (música)"
+    url: "https://www.hoy.es/rss/2.0/?section=caceres/musica"
+    kind: rss
+    enabled: false  # validar primero el feed antes de activar
+
+  - name: "Efemérides Plasencia"
+    url: "https://www.plasencia.es/feed/"  # ejemplo, ajustar
+    kind: rss
+    enabled: false

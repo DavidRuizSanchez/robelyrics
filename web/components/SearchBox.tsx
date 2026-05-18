@@ -43,11 +43,11 @@ export default function SearchBox({
 
   function navigate(nextMode: Mode, nextQuery: string) {
     if (!nextQuery.trim()) return;
-    const sp = new URLSearchParams(params.toString());
+    const sp = new URLSearchParams(params?.toString());
     sp.set("q", nextQuery.trim());
     sp.set("mode", nextMode);
     startTransition(() => {
-      router.push(`/?${sp.toString()}#search`);
+      router.push(`/biblioteca?${sp.toString()}#search`);
     });
   }
 
@@ -64,7 +64,7 @@ export default function SearchBox({
       const sp = new URLSearchParams();
       sp.set("mode", nextMode);
       startTransition(() => {
-        router.replace(`/?${sp.toString()}#search`);
+        router.replace(`/biblioteca?${sp.toString()}#search`);
       });
     }
   }

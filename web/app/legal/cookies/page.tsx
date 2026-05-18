@@ -86,7 +86,7 @@ export default function PoliticaCookies() {
         Esta política se complementa con nuestra{" "}
         <a href="/legal/privacidad">Política de privacidad</a>. Para cualquier
         consulta, contacta en{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>.
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>.
       </p>
     </>
   );

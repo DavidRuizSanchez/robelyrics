@@ -1,0 +1,553 @@
+# Taxonomías canónicas para hubs SEO de Entre Interiores.
+#
+# `description` admite markdown — se renderiza como artículo en la página
+# detalle del hub. Pensado para servir de lead editorial + intro SEO.
+#
+# `song_matches` mapea taxonomía → lista de keywords. Cada keyword se busca
+# (case-insensitive) sobre slug y title de las canciones publicadas. Las
+# entries con < 2 canciones publicadas se ocultan automáticamente del listado
+# y devuelven 404 en su detalle (evitamos thin content).
+
+themes:
+  - slug: amor
+    name: Amor
+    description: |
+      Robe lleva el amor a sitios que normalmente no aparecen en las canciones
+      de amor: la confusión, el deseo bruto, la entrega que no pide permiso.
+      **Ama, ama, ama y ensancha el alma** es el manifiesto, pero el amor
+      asoma en todo el cancionero: en *Menamoro*, en *Y rozar contigo*, en
+      *Amor castúo*, en los corazones que se abren con violencia para que se
+      registre lo que hay dentro. Aquí no hay versos para postales: hay
+      personas que se quieren mucho y que no saben muy bien qué hacer con
+      eso.
+
+  - slug: desamor
+    name: Desamor
+    description: |
+      Las rupturas en Robe no son discretas. *Ruptura leve* miente desde el
+      título, *Destrozares* las nombra en plural como si fueran una
+      categoría meteorológica, *Hoy al mundo renuncio* y *Querré lo
+      prohibido* hablan desde la herida abierta. El cancionero entero está
+      atravesado por la idea de que querer también es perder, y de que
+      ninguna de las dos cosas se puede explicar bien.
+
+  - slug: sexo
+    name: Sexo y deseo
+    description: |
+      El sexo en Extremoduro nunca fue eufemismo: aparece sin maquillaje
+      en *Hoy te la meto hasta las orejas*, en *Su culo es miel*, en
+      *Golfa*, en *Polla dura no cree en Dios*, en *Por ser un
+      pervertido*. La provocación no es gratuita: es una declaración de
+      intenciones, una manera de no negociar con la decencia de nadie.
+      Más allá del verso explícito, hay una idea recurrente: el deseo
+      como única honestidad que queda.
+
+  - slug: autodestruccion
+    name: Autodestrucción
+    description: |
+      *Necesito Droga y Amor*, *Me Estoy Quitando*, *No Me Calientes que
+      Me Hundo*, *Tango suicida*, *Hoy al mundo renuncio*. Hay una corriente
+      profunda en el cancionero que asume el filo: el deseo de arruinarse
+      con conocimiento de causa, la elección consciente de la caída. No es
+      pose romántica de rockero; es una manera muy concreta de mirar el
+      mundo y de aceptarse en él.
+
+  - slug: drogas
+    name: Drogas
+    description: |
+      Las drogas atraviesan el cancionero como atravesaron una época y un
+      paisaje: *Necesito Droga y Amor*, *Pepe Botika*, *La Pedrá*, *Me
+      Estoy Quitando*. No se romantiza ni se condena: se cuenta con la
+      precisión de quien estuvo dentro. La Pedrá, como mito y como
+      sustancia, es probablemente el icono más reconocible de toda la
+      mitología extremeña del rock.
+
+  - slug: alcohol
+    name: Alcohol
+    description: |
+      La barra, la resaca, la noche que se alarga: *Bri bri bli bli*, *Su
+      culo es miel*, *Papel secante*, *Pepe Botika*. El alcohol en el
+      cancionero es compañía y enfermedad, espacio social y refugio
+      privado. Es también la voz a las cuatro de la mañana cuando ya no
+      hay nadie despierto.
+
+  - slug: libertad
+    name: Libertad
+    description: |
+      *Salir*, *Sin Dios Ni Amo*, *Contra todos*, *El Camino de las
+      Utopías*, *Iros todos a tomar por culo*. La libertad en Extremoduro
+      no es un concepto político abstracto: es un gesto cotidiano, la
+      negativa a deber nada a nadie. Aparece como puerta que se abre, como
+      portazo, como huida y como anuncio.
+
+  - slug: lucha
+    name: Lucha
+    description: |
+      *Lucha contigo (Hoy quiero ganar una batalla, sólo una pa' empezar)*
+      lo formula con una precisión brutal: la lucha empieza por dentro.
+      *Resolución*, *Guerrero*, *Contra todos*, *Decidí*. Hay un yo
+      combatiente que recorre el catálogo y que casi siempre está
+      peleándose primero consigo mismo y después con todo lo demás.
+
+  - slug: anticapitalismo
+    name: Anticapitalismo y sistema
+    description: |
+      *V Centenario*, *Estado Policial (Un madero, mil lapiceros)*,
+      *Autorretrato*, *Otra inútil canción para la paz*. La crítica al
+      sistema, al Estado, a las instituciones y a la maquinaria económica
+      atraviesa toda la obra. No es militancia panfletaria: es desconfianza
+      orgánica del que ha mirado el escaparate y ha decidido no comprar.
+
+  - slug: muerte
+    name: Muerte
+    description: |
+      *La canción más triste*, *Tango suicida*, *Hoy al mundo renuncio*,
+      *Mi espíritu imperecedero*, *Esto no está pasando*. La muerte aparece
+      a veces como amenaza, a veces como descanso y a veces como simple
+      hecho del que se habla con la voz baja. Robe la mira sin parpadear.
+
+  - slug: fugacidad
+    name: Fugacidad y tiempo
+    description: |
+      *Con un latido del reloj*, *Del tiempo perdido*, *Sucede*, *Locura
+      transitoria*, *Tercer movimiento: Un instante de luz*. El tiempo es
+      tema y obsesión: lo que se va, lo que se queda, lo que se acaba sin
+      avisar. La fugacidad como medida de todas las cosas importantes.
+
+  - slug: viaje
+    name: Viaje
+    description: |
+      *A la orilla del río*, *El hombre pájaro*, *Viajando por el
+      interior*, *Volando solo*, *La carrera*, *El Camino de las Utopías*.
+      El movimiento como necesidad: irse, atravesar, no quedarse quieto.
+      A veces el viaje es geográfico, pero más a menudo es hacia dentro.
+
+  - slug: infancia
+    name: Infancia y familia
+    description: |
+      *Mama*, *Nana cruel*, *Manué IV*, *Papel secante*. La infancia
+      asoma en momentos puntuales del cancionero, casi siempre como
+      memoria afilada: la madre, el padre, el niño que era uno antes de
+      aprender a tener miedo o de aprender a tenerlo a otra cosa.
+
+  - slug: amistad
+    name: Amistad y tribu
+    description: |
+      *¿Dónde están mis amigos?* es la pregunta que da título a un disco
+      entero. *Pepe Botika*, *Bri bri bli bli*, *Perro callejero*: la
+      tribu como refugio, como compañía y como problema. La amistad en
+      Extremoduro no es decorativa: es estructura.
+
+  - slug: soledad
+    name: Soledad
+    description: |
+      *Volando solo*, *Te juzgarán solo por tus errores (Yo no)*, *Cerca
+      del suelo*. Estar a solas como elección y como castigo. La soledad
+      del que ha llegado a un sitio donde ya no quiere que le acompañen
+      con tópicos.
+
+  - slug: ira
+    name: Ira
+    description: |
+      *Contra todos*, *Sin Dios Ni Amo*, *Decidí*, *No me dejéis
+      asíii*, *Romperás*, *Enemigo*, *Malos pensamientos*. La rabia
+      como combustible: a veces se canaliza en política, a veces en
+      ruptura, a veces simplemente en grito.
+
+  - slug: melancolia
+    name: Melancolía
+    description: |
+      *La canción más triste*, *Del tiempo perdido*, *Sucede*, *Esto no
+      está pasando*, *Dulce introducción al caos*, *Quemando tus
+      recuerdos*. Una melancolía adulta que no es lloriqueo: es la
+      consciencia tranquila de que las cosas pasaron y de que estuvo bien
+      que pasaran, aunque duela.
+
+  - slug: ironia
+    name: Ironía y humor negro
+    description: |
+      *Villancico del Rey de Extremadura (Vaya puta mierda de villancico,
+      colega)*, *Buitre no come alpiste*, *Ni príncipes ni princesas*. La
+      ironía como antídoto contra la solemnidad: un disco entero puede ir
+      en serio, pero los títulos avisan. Risa amarga y desprecio risueño
+      en partes iguales.
+
+  - slug: antimilitarismo
+    name: Antimilitarismo y paz
+    description: |
+      *Otra inútil canción para la paz*, *V Centenario*, *Guerrero* (en
+      otro sentido). Crítica explícita a la guerra, al ejército y a las
+      retóricas que justifican violencia. El título del antibélico más
+      conocido se desmonta a sí mismo: "otra inútil canción".
+
+  - slug: religion
+    name: Religión y dios
+    description: |
+      *Jesucristo García*, *Sin Dios Ni Amo*, *Polla dura no cree en
+      Dios*, *Prometeo*, *El Día de la Bestia*, *Tomás*, *Adiós abanico,
+      que llego el aire*, *Dulce introducción al caos*. La religión
+      aparece como blanco, como herencia que se sacude, y a veces como
+      pregunta honesta: ¿qué queda cuando ya no se cree en nada?
+
+  - slug: politica
+    name: Política e instituciones
+    description: |
+      *Estado Policial*, *V Centenario*, *Autorretrato*, *Mama* (lectura
+      política), *Manué IV*. El cancionero respira política sin hacer
+      panfleto: instituciones que no protegen, partidos que decepcionan,
+      poder que se reparte mal. La denuncia se hace cantando, no
+      mitineando.
+
+  - slug: marginalidad
+    name: Marginalidad y barrio
+    description: |
+      *Perro callejero*, *Golfa*, *Calle Esperanza S/N*, *Puta*, *Islero,
+      shirlero o ladrón*, *La vereda de la puerta de atrás*. La calle como
+      escenario y como gente: quienes están en los márgenes del relato
+      oficial y a quienes Robe da nombre y voz.
+
+  - slug: rebeldia
+    name: Rebeldía
+    description: |
+      *Iros todos a tomar por culo*, *Caballero andante (No me dejéis
+      asíii)*, *Decidí*, *Contra todos*, *Sin Dios Ni Amo*. La rebeldía
+      como gesto cotidiano y como disco completo: el no rotundo a quien
+      te quiere domesticar.
+
+  - slug: tiempo
+    name: Paso del tiempo
+    description: |
+      *Con un latido del reloj*, *Del tiempo perdido*, *Última
+      generación*, *Sucede*. La consciencia de que el reloj corre y de
+      que algunas cosas no van a volver. Tema recurrente, especialmente
+      en la obra de Robe en solitario.
+
+  - slug: locura
+    name: Locura
+    description: |
+      *Locura transitoria*, *Dulce introducción al caos*, *Segundo
+      movimiento: Mierda de filosofía*, *Posado en un nenúfar*,
+      *Extraterrestre*. La cordura como frontera porosa, el delirio como
+      forma de lucidez. Una manera muy concreta de mirar al mundo y de
+      sospechar que estamos todos un poco tocados.
+
+  - slug: arte
+    name: Arte y creación
+    description: |
+      *El poder del arte*, *Poema sobrecogido*, *Pequeño rocanrol
+      endémico*. La defensa explícita del arte como herramienta vital,
+      no como adorno. Pocas veces se canta sobre cantar sin sonar a
+      autocita: aquí funciona.
+
+  - slug: naturaleza
+    name: Naturaleza
+    description: |
+      *Posado en un nenúfar*, *El hombre pájaro*, *Sol de invierno*,
+      *Luce la oscuridad*, *A la orilla del río*, *Donde se rompen las
+      olas*. La naturaleza no como decorado sino como interlocutora: el
+      río, el sol, el aire, la orilla. Robe escribe desde dentro del
+      paisaje.
+
+  - slug: esperanza
+    name: Esperanza
+    description: |
+      *Calle Esperanza S/N*, *Salir*, *Tercer movimiento: Un instante de
+      luz*. La esperanza como anomalía, como destello breve, como calle
+      sin número que existe porque alguien la nombra. No abunda en el
+      cancionero, pero cuando aparece pesa.
+
+  - slug: nostalgia
+    name: Nostalgia y memoria
+    description: |
+      *Del tiempo perdido*, *Malos pensamientos*, *Quemando tus
+      recuerdos*. La memoria como territorio que se visita y a veces se
+      quema. Los recuerdos no como consuelo, sino como material de
+      trabajo emocional.
+
+places:
+  - slug: plasencia
+    name: Plasencia
+    kind: city
+    description: |
+      Plasencia es el origen geográfico de **Extremoduro**, la ciudad
+      cacereña donde se gestó todo. No aparece nombrada explícitamente en
+      muchas canciones, pero el grupo entero — incluido su rock áspero,
+      su sentido del humor, sus cabreos — viene de aquí. La ciudad rinde
+      ahora homenaje a Roberto Iniesta con el festival anual **Primeras
+      Flores Amarillas** cada 16 de mayo.
+    geo_lat: 40.0297
+    geo_lng: -6.0884
+
+  - slug: extremadura
+    name: Extremadura
+    kind: region
+    description: |
+      Extremadura no es solo la región: es el adjetivo que se le pone al
+      rock que hicieron Robe y los suyos. *Extremaydura*, *Villancico del
+      Rey de Extremadura*, *Amor castúo* (en dialecto extremeño): la
+      región está cosida al cancionero a fuego, no como folclorismo sino
+      como identidad asumida y orgullosa.
+    geo_lat: 39.4937
+    geo_lng: -6.0679
+
+  - slug: caceres
+    name: Cáceres
+    kind: city
+    description: |
+      Cáceres aparece nombrada explícitamente en varias letras como
+      provincia y como ciudad. Capital de la Alta Extremadura y enclave
+      cercano a Plasencia. Se cuela en *Pepe Botika* y en *Extremaydura*
+      como referencia identitaria.
+    geo_lat: 39.4753
+    geo_lng: -6.3724
+
+  - slug: badajoz
+    name: Badajoz
+    kind: city
+    description: |
+      Badajoz, la otra capital de Extremadura, asoma en *Extremaydura*
+      como mitad sur de la región. Frontera con Portugal, ciudad obrera y
+      raíz castúa del cancionero.
+    geo_lat: 38.8794
+    geo_lng: -6.9707
+
+  - slug: la-mancha
+    name: La Mancha
+    kind: region
+    description: |
+      La Mancha aparece nombrada en *Pepe Botika*. Llanura central
+      castellana, escenario clásico del trapicheo de carretera que
+      atraviesa la canción.
+    geo_lat: 39.5
+    geo_lng: -3.5
+
+  - slug: colombia
+    name: Colombia
+    kind: country
+    description: |
+      Colombia se cuela en *Menamoro* (Yo, minoría absoluta) como
+      referencia internacional. Casi todo el cancionero está enraizado
+      en España y especialmente en Extremadura, pero hay pequeñas
+      salidas a Latinoamérica.
+    geo_lat: 4.5709
+    geo_lng: -74.2973
+
+  - slug: el-piornal
+    name: El Piornal
+    kind: village
+    description: |
+      **El Piornal** es el pueblo más alto de Extremadura, en la sierra
+      del Valle del Jerte (Cáceres). Aparece literal en *Viajando por el
+      interior*, una de las últimas canciones de Robe:
+      *"Te llevaré al Piornal / para que veas el mal / con mis mejores
+      intenciones"*. El verso es uno de esos que se quedan: el pueblo
+      concreto como destino al que se invita a alguien, la promesa
+      cumplida solo en la letra.
+    geo_lat: 40.1419
+    geo_lng: -5.8625
+
+  - slug: valle-del-jerte
+    name: Valle del Jerte
+    kind: region
+    description: |
+      El **Valle del Jerte** es la comarca cacereña por excelencia: la
+      sierra de Tormantos, los cerezos en flor, El Piornal, Cabezuela,
+      Tornavacas, Navaconcejo. Aparece nombrado en *¡Qué borde era mi
+      valle!* (*"¡Vamos a robar cerezas! de las del valle del Jerte"*).
+      Es el paisaje físico que más recurrencia tiene en el imaginario
+      placentino del grupo.
+    geo_lat: 40.2300
+    geo_lng: -5.8000
+
+  - slug: monfrague
+    name: Monfragüe
+    kind: park
+    description: |
+      **Monfragüe** es el parque nacional cacereño junto al Tajo, refugio
+      de buitres negros y otras rapaces. Aparece en *Extremaydura* (Rock
+      Transgresivo, 1989): *"En Monfragüe buitres negros, en Monfragüe
+      buitres negros"*. La cita habla del paisaje extremeño antes de que
+      el grupo se hiciera famoso: el lugar concreto, los animales
+      concretos, los versos directos.
+    geo_lat: 39.8333
+    geo_lng: -6.0500
+
+
+concepts:
+  - slug: el-aguila
+    name: El águila
+    description: |
+      *Agila* (el disco), *Prometeo*, *El Día de la Bestia*. El águila
+      es el símbolo central de Extremoduro desde 1996: figura mítica que
+      mira desde lo alto, ave de presa, animal totémico. El disco que
+      lleva su nombre es probablemente el más reconocible del catálogo y
+      el que cimentó la iconografía del grupo.
+
+  - slug: las-flores-amarillas
+    name: Las flores amarillas
+    description: |
+      La imagen recurrente del amarillo en el imaginario de Robe y en su
+      Plasencia natal. Cada primavera la ciudad se llena de flores
+      amarillas — un fenómeno natural literal — y desde 2026 también de
+      música, con el festival anual **Primeras Flores Amarillas** en su
+      cumpleaños.
+
+  - slug: la-hoguera
+    name: La hoguera, el fuego, la mecha
+    description: |
+      *La hoguera*, *A fuego*, *Quemando tus recuerdos*. El fuego como
+      motivo: lo que arde, lo que se reúne alrededor de las brasas, lo
+      que se quema deliberadamente. Símbolo recurrente desde *Rock
+      Transgresivo* (1989) hasta la imagen del logo bomba con mecha
+      encendida que identifica este sitio.
+
+  - slug: los-animales
+    name: Los animales
+    description: |
+      *Somos unos animales* (disco entero), *Perro callejero*, *Buitre
+      no come alpiste*, *El hombre pájaro*, *Posado en un nenúfar*, *Tu
+      corazón*. Los animales aparecen constantemente: como espejo del
+      yo, como crítica social ("somos animales"), como naturalismo
+      literal. Es uno de los pilares iconográficos del cancionero.
+
+  - slug: el-delfin
+    name: El delfín
+    description: |
+      Figura recurrente vinculada al imaginario marino de Robe y a la
+      iconografía visual del proyecto. Aparece como motivo decorativo en
+      el rediseño *Entre Interiores* y reconectado con el universo
+      acuático de la obra en solitario de Robe.
+
+  - slug: el-sol-y-la-nube
+    name: El sol y la nube
+    description: |
+      *Sol de invierno*, *Luce la oscuridad*, *El cielo cambió de
+      forma*, *Adiós cielo azul, llegó la tormenta*. El cielo como
+      paisaje emocional: la nube que tapa el sol y el sol que insiste
+      pese a la nube. Motivo gráfico además del tatuaje de Robe.
+
+  - slug: el-barco
+    name: El barco y el pájaro
+    description: |
+      *El hombre pájaro*, *Donde se rompen las olas*, *Volando solo*. El
+      barco y el pájaro como vehículos del viaje: dos maneras de
+      atravesar lo que separa. Aparecen sobre todo en la obra en
+      solitario de Robe.
+
+  - slug: la-ballena
+    name: La ballena
+    description: |
+      Las ballenas en el imaginario visual de Robe y de la
+      identidad gráfica del proyecto. Aparecen como motivo en la nueva
+      iconografía de Entre Interiores junto al delfín.
+
+  - slug: el-corazon
+    name: El corazón
+    description: |
+      *Tu corazón*, *Bri bri bli bli (En el más sucio rincón de mi negro
+      corazón)*, *Ábreme el pecho y registra*. El corazón en Extremoduro
+      no es órgano sentimental: es víscera literal, sitio físico donde
+      se guarda lo bueno y lo sucio. La imagen de abrirse el pecho a
+      cuchilladas es recurrente y muy del grupo.
+
+  - slug: la-luna
+    name: La luna
+    description: |
+      *Buscando una luna*, *La canción más triste*. La luna como
+      objetivo de búsqueda y como compañía nocturna. Motivo recurrente
+      sobre todo en los discos centrales de Extremoduro.
+
+  - slug: el-camino
+    name: El camino y la carrera
+    description: |
+      *La carrera*, *El camino de las utopías*, *Viajando por el
+      interior*, *Volando solo*. El camino como metáfora persistente:
+      hacia las utopías, hacia uno mismo, hacia el siguiente sitio.
+      Robe es muy de poner versos en movimiento.
+
+  - slug: el-reloj
+    name: El reloj y el latido
+    description: |
+      *Con un latido del reloj*, *Última generación*, *Del tiempo
+      perdido*, *Tercer movimiento: Un instante de luz*. El reloj como
+      conciencia del tiempo y el latido como manera de medirlo desde
+      dentro del cuerpo, no desde fuera.
+
+  - slug: la-oscuridad
+    name: La oscuridad
+    description: |
+      *Luce la oscuridad*, *Cerca del suelo*, *Malos pensamientos*,
+      *Dulce introducción al caos*. La oscuridad como territorio
+      habitado, no como ausencia de luz. Robe la nombra a menudo con
+      cariño: es el sitio donde se ve mejor.
+
+# Mapeo conservador song↔taxonomía por keyword en title|slug.
+# Buscamos sobre slug normalizado (acentos quitados ya en BD via
+# unicode_norm) y sobre title.
+song_matches:
+  themes:
+    amor: ["amor", "menamoro", "rozar-contigo", "ama-ama-ama"]
+    desamor: ["destrozares", "ruptura", "querre-lo-prohibido", "hoy-al-mundo-renuncio", "si-te-vas"]
+    sexo: ["hoy-te-la-meto", "su-culo", "golfa", "pervertido", "polla-dura", "puta"]
+    autodestruccion: ["necesito-droga", "me-estoy-quitando", "no-me-calientes", "tango-suicida", "hoy-al-mundo-renuncio", "asco"]
+    drogas: ["droga", "pepe-botika", "pedra", "papel-secante"]
+    alcohol: ["bri-bri-bli", "papel-secante", "su-culo-es-miel"]
+    libertad: ["salir", "sin-dios-ni-amo", "contra-todos", "utopias", "iros-todos", "no-me-dejeis", "decidi"]
+    lucha: ["lucha-contigo", "guerrero", "contra-todos", "resolucion", "no-me-calientes", "a-fuego"]
+    anticapitalismo: ["v-centenario", "estado-policial", "autorretrato", "central-nuclear"]
+    muerte: ["tango-suicida", "hoy-al-mundo-renuncio", "cancion-mas-triste", "esto-no-esta-pasando", "imperecedero", "ultima-generacion"]
+    fugacidad: ["latido-del-reloj", "tiempo-perdido", "sucede", "locura-transitoria", "instante-de-luz", "ultima-generacion"]
+    viaje: ["orilla-del-rio", "hombre-pajaro", "viajando", "volando-solo", "la-carrera", "camino", "utopias"]
+    infancia: ["mama", "nana-cruel", "manue-iv", "papel-secante", "duende-del-parque"]
+    amistad: ["donde-estan-mis-amigos", "pepe-botika", "bri-bri-bli", "perro-callejero", "amigos"]
+    soledad: ["volando-solo", "te-juzgaran", "cerca-del-suelo", "yo-no"]
+    ira: ["contra-todos", "sin-dios-ni-amo", "decidi", "no-me-dejeis", "romperas", "enemigo", "malos-pensamientos", "iros-todos"]
+    melancolia: ["cancion-mas-triste", "tiempo-perdido", "sucede", "esto-no-esta-pasando", "dulce-introduccion", "quemando-tus-recuerdos", "adios-cielo"]
+    ironia: ["villancico", "buitre-no-come-alpiste", "hoy-te-la-meto", "ni-principes", "mierda-de-filosofia", "puta-humanidad"]
+    antimilitarismo: ["otra-inutil-cancion", "v-centenario", "estado-policial"]
+    religion: ["jesucristo", "sin-dios-ni-amo", "polla-dura", "prometeo", "dia-de-la-bestia", "tomas", "adios-abanico", "dulce-introduccion"]
+    politica: ["estado-policial", "v-centenario", "autorretrato", "manue-iv", "mama", "ni-principes", "central-nuclear"]
+    marginalidad: ["perro-callejero", "golfa", "calle-esperanza", "puta", "islero-shirlero", "vereda-de-la-puerta"]
+    rebeldia: ["iros-todos", "no-me-dejeis", "decidi", "contra-todos", "sin-dios-ni-amo", "caballero-andante"]
+    tiempo: ["latido-del-reloj", "tiempo-perdido", "ultima-generacion", "sucede", "instante-de-luz"]
+    locura: ["locura-transitoria", "dulce-introduccion", "mierda-de-filosofia", "nenufar", "extraterrestre"]
+    arte: ["poder-del-arte", "poema-sobrecogido", "rocanrol-endemico"]
+    naturaleza: ["nenufar", "hombre-pajaro", "sol-de-invierno", "luce-la-oscuridad", "orilla-del-rio", "donde-se-rompen-las-olas", "adios-cielo"]
+    esperanza: ["calle-esperanza", "salir", "instante-de-luz"]
+    nostalgia: ["tiempo-perdido", "malos-pensamientos", "quemando-tus-recuerdos", "destrozares"]
+
+  places:
+    plasencia: ["plasencia"]
+    extremadura: ["extremad", "extremay", "amor-castuo", "villancico-del-rey"]
+
+  concepts:
+    el-aguila: ["prometeo", "dia-de-la-bestia", "agila"]
+    las-flores-amarillas: ["adios-abanico", "luce-la-oscuridad"]
+    la-hoguera: ["hoguera", "a-fuego", "quemando-tus-recuerdos"]
+    los-animales: ["perro-callejero", "buitre-no-come-alpiste", "hombre-pajaro", "nenufar", "tu-corazon", "central-nuclear"]
+    el-delfin: ["donde-se-rompen-las-olas", "viajando-por-el-interior"]
+    el-sol-y-la-nube: ["sol-de-invierno", "luce-la-oscuridad", "cielo-cambio", "adios-cielo"]
+    el-barco: ["hombre-pajaro", "donde-se-rompen-las-olas", "volando-solo"]
+    la-ballena: ["donde-se-rompen-las-olas", "hombre-pajaro"]
+    el-corazon: ["tu-corazon", "bri-bri-bli", "abreme-el-pecho", "negro-corazon"]
+    la-luna: ["buscando-una-luna", "cancion-mas-triste"]
+    el-camino: ["la-carrera", "camino", "viajando", "volando-solo", "utopias"]
+    el-reloj: ["latido-del-reloj", "ultima-generacion", "tiempo-perdido", "instante-de-luz"]
+    la-oscuridad: ["luce-la-oscuridad", "cerca-del-suelo", "malos-pensamientos", "dulce-introduccion"]
+
+# Búsqueda con word boundary sobre `lyrics_clean`. Solo lugares geográficos
+# reales (para evitar falsos positivos con palabras comunes). Las taxonomías
+# aquí se SUMAN a los matches por slug/title definidos arriba en song_matches.
+song_matches_lyrics:
+  places:
+    plasencia: ["Plasencia"]
+    extremadura: ["Extremadura"]
+    caceres: ["Cáceres"]
+    badajoz: ["Badajoz"]
+    la-mancha: ["La Mancha"]
+    colombia: ["Colombia"]
+    el-piornal: ["Piornal"]
+    valle-del-jerte: ["Jerte", "Piornal", "Tornavacas", "Cabezuela", "Navaconcejo"]
+    monfrague: ["Monfragüe"]
+  concepts: {}
+  themes: {}

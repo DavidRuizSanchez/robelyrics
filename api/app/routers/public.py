@@ -20,7 +20,16 @@ from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, Line, SeoContent, Song
+from app.db.models import (
+    Album,
+    Artist,
+    Concept,
+    Line,
+    Place,
+    SeoContent,
+    Song,
+    Theme,
+)
 from app.db.session import get_db
 from app.services.seo_templates import resolve_all
 
@@ -74,6 +83,13 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     seo_h1: str | None = None
 
 
+class PublicTaxonomyPill(BaseModel):
+    """Item compacto de taxonomía para listar en chips dentro de la canción."""
+    kind: str  # 'theme' | 'place' | 'concept'
+    slug: str
+    name: str
+
+
 class PublicSongDetailOut(BaseModel):
     slug: str
     title: str
@@ -91,6 +107,9 @@ class PublicSongDetailOut(BaseModel):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    themes: list[PublicTaxonomyPill] = []
+    places: list[PublicTaxonomyPill] = []
+    concepts: list[PublicTaxonomyPill] = []
 
 
 # --------------------------------------------------------------------------- #
@@ -283,6 +302,18 @@ def public_song_detail(
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        themes=[
+            PublicTaxonomyPill(kind="theme", slug=t.slug, name=t.name)
+            for t in song.themes
+        ],
+        places=[
+            PublicTaxonomyPill(kind="place", slug=p.slug, name=p.name)
+            for p in song.places
+        ],
+        concepts=[
+            PublicTaxonomyPill(kind="concept", slug=c.slug, name=c.name)
+            for c in song.concepts
+        ],
     )
 
 
@@ -291,6 +322,7 @@ class PublicSearchHit(BaseModel):
     slug: str
     title: str
     subtitle: str | None = None  # ej. "Extremoduro · 1996" para una canción
+    url_path: str  # ruta canónica completa: "/artist", "/artist/album", "/artist/album/song"
 
 
 class PublicSearchOut(BaseModel):
@@ -379,6 +411,7 @@ def public_search(
         out.append(PublicSearchHit(
             kind="artist", slug=a.slug, title=a.name,
             subtitle=a.active_years,
+            url_path=f"/{a.slug}",
         ))
 
     # Álbumes
@@ -394,6 +427,7 @@ def public_search(
         out.append(PublicSearchHit(
             kind="album", slug=album.slug, title=album.title,
             subtitle=f"{artist.name} · {album.year}",
+            url_path=f"/{artist.slug}/{album.slug}",
         ))
 
     # Canciones
@@ -410,6 +444,413 @@ def public_search(
         out.append(PublicSearchHit(
             kind="song", slug=song.slug, title=song.title,
             subtitle=f"{artist.name} · {album.title} ({album.year})",
+            url_path=f"/{artist.slug}/{album.slug}/{song.slug}",
         ))
 
     return PublicSearchOut(query=q, results=out)
+
+
+# --------------------------------------------------------------------------- #
+# Taxonomías (Fase 2): themes / places / concepts
+# --------------------------------------------------------------------------- #
+class PublicTaxonomyListItem(BaseModel):
+    slug: str
+    name: str
+    description: str | None = None
+    song_count: int
+
+
+class PublicTaxonomySongRef(BaseModel):
+    title: str
+    url_path: str
+    artist_name: str
+    album_title: str
+    year: int | None = None
+
+
+class PublicTaxonomyDetailOut(BaseModel):
+    slug: str
+    name: str
+    description: str | None = None
+    kind: str  # 'theme' | 'place' | 'concept'
+    extra: dict | None = None  # places: {geo_lat, geo_lng}
+    songs: list[PublicTaxonomySongRef]
+
+
+def _is_live_version(slug: str, title: str) -> bool:
+    """True si la canción es una versión 'en directo'."""
+    s = slug.lower()
+    t = title.lower()
+    return s.endswith("-en-directo") or "(en directo)" in t or "[en directo]" in t
+
+
+def _base_slug(slug: str) -> str:
+    """Devuelve el slug sin el sufijo `-en-directo` para emparejar versiones."""
+    if slug.lower().endswith("-en-directo"):
+        return slug[: -len("-en-directo")]
+    return slug
+
+
+def _dedupe_studio_vs_live(songs):
+    """Si en la lista hay versión estudio + versión en directo de la misma
+    canción, mantenemos solo la de estudio. Si solo existe la versión en
+    directo, esa entra. Las canciones únicas no se ven afectadas.
+
+    `songs` es iterable de objetos Song (no de SongRefs). Devuelve lista.
+    """
+    songs = list(songs)
+    studio_bases: set[str] = {
+        s.slug for s in songs if not _is_live_version(s.slug, s.title)
+    }
+    out = []
+    for s in songs:
+        if _is_live_version(s.slug, s.title) and _base_slug(s.slug) in studio_bases:
+            continue
+        out.append(s)
+    return out
+
+
+def _published_songs(db: Session, songs) -> list:
+    """Filtra canciones cuyo seo_content esté publicado. Devuelve lista."""
+    out = []
+    for s in songs:
+        pub = db.query(SeoContent).filter(
+            SeoContent.entity_type == "song",
+            SeoContent.entity_id == s.id,
+            SeoContent.published.is_(True),
+        ).first()
+        if pub:
+            out.append(s)
+    return out
+
+
+# Umbral de canciones para exponer un hub. Themes/concepts requieren al menos
+# 2 (evita thin content para temas abstractos repetibles). Places admiten 1
+# porque un lugar geográfico nombrado en una sola canción ya tiene entidad y
+# es contenido SEO valioso (ej. El Piornal en *Viajando por el interior*).
+_MIN_SONGS_BY_KIND = {"theme": 2, "concept": 2, "place": 1}
+
+
+def _list_taxonomy(
+    db: Session, model, kind: str = "theme"
+) -> list[PublicTaxonomyListItem]:
+    """Lista todas las entradas con count de canciones publicadas (dedup
+    estudio vs directo). Aplica umbral mínimo según `kind`."""
+    rows = (
+        db.query(model)
+        .order_by(model.name)
+        .all()
+    )
+    threshold = _MIN_SONGS_BY_KIND.get(kind, 2)
+    result: list[PublicTaxonomyListItem] = []
+    for r in rows:
+        published = _published_songs(db, r.songs)
+        deduped = _dedupe_studio_vs_live(published)
+        count = len(deduped)
+        if count < threshold:
+            continue
+        result.append(PublicTaxonomyListItem(
+            slug=r.slug, name=r.name, description=r.description, song_count=count,
+        ))
+    return result
+
+
+def _detail_taxonomy(
+    db: Session, model, slug: str, kind: str
+) -> PublicTaxonomyDetailOut:
+    row = db.query(model).filter(model.slug == slug).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"{kind} not found")
+
+    published = _published_songs(db, row.songs)
+    deduped = _dedupe_studio_vs_live(published)
+
+    songs: list[PublicTaxonomySongRef] = []
+    for s in deduped:
+        al = s.album
+        ar = al.artist
+        songs.append(PublicTaxonomySongRef(
+            title=s.title,
+            url_path=f"/{ar.slug}/{al.slug}/{s.slug}",
+            artist_name=ar.name,
+            album_title=al.title,
+            year=al.year,
+        ))
+
+    threshold = _MIN_SONGS_BY_KIND.get(kind, 2)
+    if len(songs) < threshold:
+        # Coherente con _list_taxonomy.
+        raise HTTPException(status_code=404, detail=f"{kind} sin suficientes canciones publicadas")
+
+    extra = None
+    if kind == "place" and (row.geo_lat or row.geo_lng):
+        extra = {"geo_lat": float(row.geo_lat) if row.geo_lat else None,
+                 "geo_lng": float(row.geo_lng) if row.geo_lng else None,
+                 "kind": row.kind}
+
+    return PublicTaxonomyDetailOut(
+        slug=row.slug,
+        name=row.name,
+        description=row.description,
+        kind=kind,
+        extra=extra,
+        songs=songs,
+    )
+
+
+@router.get("/themes", response_model=list[PublicTaxonomyListItem])
+def public_themes_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Theme, kind="theme")
+
+
+@router.get("/themes/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_theme_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Theme, slug, "theme")
+
+
+@router.get("/places", response_model=list[PublicTaxonomyListItem])
+def public_places_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Place, kind="place")
+
+
+@router.get("/places/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_place_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Place, slug, "place")
+
+
+@router.get("/concepts", response_model=list[PublicTaxonomyListItem])
+def public_concepts_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Concept, kind="concept")
+
+
+@router.get("/concepts/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_concept_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Concept, slug, "concept")
+
+
+# --------------------------------------------------------------------------- #
+# Blog (Fase 3): /blog y /blog/{slug}
+# --------------------------------------------------------------------------- #
+from app.db.models import Post  # noqa: E402  (al final para evitar reorder churn)
+
+
+class PublicPostListItem(BaseModel):
+    slug: str
+    kind: str
+    title: str
+    excerpt: str | None = None
+    hero_image_url: str | None = None
+    published_at: datetime
+
+
+class PublicPostDetail(PublicPostListItem):
+    body_md: str
+    meta_title: str | None = None
+    meta_description: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    anniversary_year: int | None = None
+
+
+@router.get("/posts", response_model=list[PublicPostListItem])
+def public_posts_list(
+    response: Response,
+    db: Session = Depends(get_db),
+    limit: int = 30,
+) -> list[PublicPostListItem]:
+    _set_cache(response)
+    rows = (
+        db.query(Post)
+        .filter(Post.status == "published")
+        .order_by(Post.published_at.desc())
+        .limit(min(limit, 100))
+        .all()
+    )
+    return [
+        PublicPostListItem(
+            slug=p.slug,
+            kind=p.kind,
+            title=p.title,
+            excerpt=p.excerpt,
+            hero_image_url=p.hero_image_url,
+            published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
+@router.get("/posts/{slug}", response_model=PublicPostDetail)
+def public_post_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicPostDetail:
+    _set_cache(response)
+    p = (
+        db.query(Post)
+        .filter(Post.slug == slug, Post.status == "published")
+        .first()
+    )
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    return PublicPostDetail(
+        slug=p.slug,
+        kind=p.kind,
+        title=p.title,
+        excerpt=p.excerpt,
+        hero_image_url=p.hero_image_url,
+        published_at=p.published_at,
+        body_md=p.body_md,
+        meta_title=p.meta_title,
+        meta_description=p.meta_description,
+        source_url=p.source_url,
+        source_name=p.source_name,
+        anniversary_year=p.anniversary_year,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Newsletter (Fase 3): suscripción doble opt-in
+# --------------------------------------------------------------------------- #
+import logging  # noqa: E402
+import re  # noqa: E402
+import secrets  # noqa: E402
+from datetime import timezone  # noqa: E402
+
+from app.db.models import Subscriber  # noqa: E402
+from app.services.email import (  # noqa: E402
+    EmailError,
+    render_newsletter_confirm_email,
+    send_email,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _site_url() -> str:
+    import os
+    return os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
+
+
+class NewsletterSubscribeIn(BaseModel):
+    email: str
+    source: str | None = None
+
+
+class NewsletterSubscribeOut(BaseModel):
+    status: str  # 'pending_confirmation' | 'already_subscribed' | 'invalid_email'
+    message: str
+
+
+class NewsletterStatusOut(BaseModel):
+    status: str
+    message: str
+
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+@router.post("/newsletter/subscribe", response_model=NewsletterSubscribeOut)
+def newsletter_subscribe(
+    body: NewsletterSubscribeIn,
+    db: Session = Depends(get_db),
+) -> NewsletterSubscribeOut:
+    """Form de suscripción → crea pending + email de confirmación.
+
+    Idempotente: si el email ya está confirmed, devolvemos status
+    'already_subscribed' sin re-enviar. Si está pending o unsubscribed,
+    regeneramos el confirm_token y reenviamos confirmación.
+    """
+    email = (body.email or "").strip().lower()
+    if not email or not _EMAIL_RE.match(email) or len(email) > 256:
+        return NewsletterSubscribeOut(
+            status="invalid_email", message="Email no válido.",
+        )
+
+    row = db.query(Subscriber).filter(Subscriber.email == email).first()
+    confirm_token = secrets.token_urlsafe(32)
+
+    if row:
+        if row.status == "confirmed":
+            return NewsletterSubscribeOut(
+                status="already_subscribed",
+                message="Ya estás suscrito · gracias.",
+            )
+        # pending / unsubscribed / bounced → regeneramos token y reenviamos.
+        row.confirm_token = confirm_token
+        row.status = "pending"
+        row.subscribed_at = datetime.now(timezone.utc)
+        row.unsubscribed_at = None
+        row.source = body.source or row.source
+    else:
+        row = Subscriber(
+            email=email,
+            status="pending",
+            confirm_token=confirm_token,
+            unsubscribe_token=secrets.token_urlsafe(32),
+            source=body.source,
+        )
+        db.add(row)
+    db.commit()
+
+    confirm_url = f"{_site_url()}/newsletter/confirmar?token={confirm_token}"
+    html, text = render_newsletter_confirm_email(confirm_url)
+    try:
+        send_email(
+            to=email,
+            subject="Confirma tu suscripción · Entre Interiores",
+            html=html,
+            text=text,
+        )
+    except EmailError as e:
+        # No bloqueamos al usuario: la fila queda pending, podrá reintentar.
+        logger.warning("Newsletter subscribe email failed for %s: %s", email, e)
+
+    return NewsletterSubscribeOut(
+        status="pending_confirmation",
+        message="Te hemos enviado un email para confirmar.",
+    )
+
+
+@router.get("/newsletter/confirm", response_model=NewsletterStatusOut)
+def newsletter_confirm(
+    token: str,
+    db: Session = Depends(get_db),
+) -> NewsletterStatusOut:
+    row = db.query(Subscriber).filter(Subscriber.confirm_token == token).first()
+    if not row:
+        return NewsletterStatusOut(status="invalid_token", message="Enlace no válido o caducado.")
+    if row.status == "confirmed":
+        return NewsletterStatusOut(status="already_confirmed", message="Tu suscripción ya estaba activa.")
+    row.status = "confirmed"
+    row.confirmed_at = datetime.now(timezone.utc)
+    db.commit()
+    return NewsletterStatusOut(
+        status="confirmed",
+        message="¡Listo! Te llegarán las nuevas entradas del diario.",
+    )
+
+
+@router.get("/newsletter/unsubscribe", response_model=NewsletterStatusOut)
+def newsletter_unsubscribe(
+    token: str,
+    db: Session = Depends(get_db),
+) -> NewsletterStatusOut:
+    row = db.query(Subscriber).filter(Subscriber.unsubscribe_token == token).first()
+    if not row:
+        return NewsletterStatusOut(status="invalid_token", message="Enlace no válido.")
+    if row.status == "unsubscribed":
+        return NewsletterStatusOut(status="already_unsubscribed", message="Ya estabas dado de baja.")
+    row.status = "unsubscribed"
+    row.unsubscribed_at = datetime.now(timezone.utc)
+    db.commit()
+    return NewsletterStatusOut(
+        status="unsubscribed",
+        message="Te hemos dado de baja. Sin preguntas. Si te arrepientes, vuelve cuando quieras.",
+    )

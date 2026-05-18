@@ -38,11 +38,15 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
   });
 
   if (!res.ok) {
-    let detail: unknown;
+    // Leer body una sola vez como texto y intentar parsear como JSON.
+    // Antes hacía res.json() y caía a res.text() en el catch, pero el body
+    // de fetch solo se puede consumir una vez → "Body has already been read".
+    const text = await res.text();
+    let detail: unknown = text;
     try {
-      detail = await res.json();
+      detail = JSON.parse(text);
     } catch {
-      detail = await res.text();
+      // queda como text
     }
     throw new ApiError(res.status, detail);
   }

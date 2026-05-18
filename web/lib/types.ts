@@ -106,6 +106,20 @@ export type CompleteOut = {
   results: CompleteHit[];
 };
 
+// /public/search — buscador público sin auth (solo metadata: títulos)
+export type PublicSearchHit = {
+  kind: "artist" | "album" | "song";
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  url_path: string;
+};
+
+export type PublicSearchOut = {
+  query: string;
+  results: PublicSearchHit[];
+};
+
 export type AuthMe = {
   id: number;
   email: string;
@@ -153,6 +167,12 @@ export type PublicAlbumDetail = PublicAlbumOut & {
   seo_h1: string | null;
 };
 
+export type PublicTaxonomyPill = {
+  kind: "theme" | "place" | "concept";
+  slug: string;
+  name: string;
+};
+
 export type PublicSongDetail = {
   slug: string;
   title: string;
@@ -169,4 +189,51 @@ export type PublicSongDetail = {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
+  themes: PublicTaxonomyPill[];
+  places: PublicTaxonomyPill[];
+  concepts: PublicTaxonomyPill[];
+};
+
+// /public/themes, /public/places, /public/concepts
+export type PublicTaxonomyListItem = {
+  slug: string;
+  name: string;
+  description: string | null;
+  song_count: number;
+};
+
+export type PublicTaxonomySongRef = {
+  title: string;
+  url_path: string;
+  artist_name: string;
+  album_title: string;
+  year: number | null;
+};
+
+export type PublicTaxonomyDetail = {
+  slug: string;
+  name: string;
+  description: string | null;
+  kind: "theme" | "place" | "concept";
+  extra: { geo_lat?: number | null; geo_lng?: number | null; kind?: string | null } | null;
+  songs: PublicTaxonomySongRef[];
+};
+
+// /public/posts — blog público
+export type PublicPostListItem = {
+  slug: string;
+  kind: "editorial" | "news" | "anniversary";
+  title: string;
+  excerpt: string | null;
+  hero_image_url: string | null;
+  published_at: string;
+};
+
+export type PublicPostDetail = PublicPostListItem & {
+  body_md: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  source_url: string | null;
+  source_name: string | null;
+  anniversary_year: number | null;
 };

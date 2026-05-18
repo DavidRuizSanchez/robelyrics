@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -63,6 +64,13 @@ export default async function ArtistPublicPage({
     <>
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
+        <Breadcrumbs
+          className="mb-8"
+          items={[
+            { label: "Entre Interiores", href: "/" },
+            { label: detail.name, href: `/${artist}` },
+          ]}
+        />
         <article>
           <header className="mb-12">
             <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">

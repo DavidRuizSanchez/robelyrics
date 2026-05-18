@@ -17,13 +17,18 @@ type SeoOut = {
   body_md: string;
   meta_title: string | null;
   meta_description: string | null;
+  h1: string | null;
   reviewed_at: string | null;
   published: boolean;
   public_url: string;
+  resolved_title: string;
+  resolved_description: string;
+  resolved_h1: string;
 };
 
 export default function EditorForm({ initial }: { initial: SeoOut }) {
   const [body, setBody] = useState(initial.body_md);
+  const [h1, setH1] = useState(initial.h1 || "");
   const [metaTitle, setMetaTitle] = useState(initial.meta_title || "");
   const [metaDesc, setMetaDesc] = useState(initial.meta_description || "");
   const [feedback, setFeedback] = useState<SeoActionResult | null>(null);
@@ -31,11 +36,17 @@ export default function EditorForm({ initial }: { initial: SeoOut }) {
   const [reviewed, setReviewed] = useState(initial.reviewed_at !== null);
   const [isPending, startTransition] = useTransition();
 
-  function onSave() {
+  function buildFormData() {
     const fd = new FormData();
     fd.set("body_md", body);
+    fd.set("h1", h1);
     fd.set("meta_title", metaTitle);
     fd.set("meta_description", metaDesc);
+    return fd;
+  }
+
+  function onSave() {
+    const fd = buildFormData();
     startTransition(async () => {
       const r = await updateSeoAction(initial.id, fd);
       setFeedback(r);
@@ -47,10 +58,7 @@ export default function EditorForm({ initial }: { initial: SeoOut }) {
   }
 
   function onPublish() {
-    const fd = new FormData();
-    fd.set("body_md", body);
-    fd.set("meta_title", metaTitle);
-    fd.set("meta_description", metaDesc);
+    const fd = buildFormData();
     startTransition(async () => {
       const saved = await updateSeoAction(initial.id, fd);
       if (!saved.ok) {
@@ -81,17 +89,28 @@ export default function EditorForm({ initial }: { initial: SeoOut }) {
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
         <div className="space-y-5">
-          <Field
-            label={`meta_title (${titleLen}/60)`}
-            warn={titleLen > 60}
+          <SeoField
+            label="h1"
+            value={h1}
+            onChange={setH1}
+            placeholder={initial.resolved_h1}
+            charsHint={`${h1.length} chars`}
+          />
+          <SeoField
+            label="meta_title"
             value={metaTitle}
             onChange={setMetaTitle}
+            placeholder={initial.resolved_title}
+            charsHint={`${titleLen}/60`}
+            warn={titleLen > 60}
           />
-          <Field
-            label={`meta_description (${descLen}/160)`}
-            warn={descLen > 160}
+          <SeoField
+            label="meta_description"
             value={metaDesc}
             onChange={setMetaDesc}
+            placeholder={initial.resolved_description}
+            charsHint={`${descLen}/160`}
+            warn={descLen > 160}
             multiline
             rows={3}
           />
@@ -175,10 +194,12 @@ export default function EditorForm({ initial }: { initial: SeoOut }) {
   );
 }
 
-function Field({
+function SeoField({
   label,
   value,
   onChange,
+  placeholder,
+  charsHint,
   warn,
   multiline,
   rows = 1,
@@ -186,32 +207,61 @@ function Field({
   label: string;
   value: string;
   onChange: (v: string) => void;
+  placeholder: string;
+  charsHint?: string;
   warn?: boolean;
   multiline?: boolean;
   rows?: number;
 }) {
+  const isOverride = value.trim().length > 0;
   return (
     <div>
-      <label
-        className={`block font-mono text-[10px] tracking-[2px] uppercase mb-1.5 ${
-          warn ? "text-accent" : "text-ink-dim"
-        }`}
-      >
-        {label}
-      </label>
+      <div className="flex items-baseline justify-between mb-1.5 gap-3 flex-wrap">
+        <label
+          className={`font-mono text-[10px] tracking-[2px] uppercase ${
+            warn ? "text-accent" : "text-ink-dim"
+          }`}
+        >
+          {label} {charsHint ? `(${charsHint})` : ""}
+        </label>
+        <div className="flex items-center gap-3">
+          {isOverride ? (
+            <>
+              <span className="font-mono text-[9px] tracking-[2px] uppercase text-accent">
+                · override personalizado
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                data-cursor="hover"
+                className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent"
+                title="Vaciar para usar la plantilla"
+              >
+                ↺ restaurar plantilla
+              </button>
+            </>
+          ) : (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+              · usando plantilla
+            </span>
+          )}
+        </div>
+      </div>
       {multiline ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
-          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink resize-y"
+          placeholder={placeholder}
+          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink resize-y placeholder:italic placeholder:text-ink-faint/70"
         />
       ) : (
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink"
+          placeholder={placeholder}
+          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink placeholder:italic placeholder:text-ink-faint/70"
         />
       )}
     </div>

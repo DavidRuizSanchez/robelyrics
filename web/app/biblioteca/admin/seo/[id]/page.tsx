@@ -13,12 +13,16 @@ type SeoOut = {
   body_md: string;
   meta_title: string | null;
   meta_description: string | null;
+  h1: string | null;
   schema_jsonld: Record<string, unknown> | null;
   generated_at: string;
   generated_by: string;
   reviewed_at: string | null;
   published: boolean;
   public_url: string;
+  resolved_title: string;
+  resolved_description: string;
+  resolved_h1: string;
 };
 
 export const metadata = {

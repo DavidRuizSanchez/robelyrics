@@ -108,7 +108,7 @@ DISTILL_SCHEMA: dict[str, Any] = {
 }
 
 
-SYSTEM_PROMPT = """Eres un analista cultural especializado en la obra de Extremoduro y Robe Iniesta.
+SYSTEM_PROMPT = """Eres un analista cultural especializado en la obra de Extremoduro y Robe.
 Tu tarea es destilar el conocimiento de fans sobre una canción concreta.
 
 REGLAS ABSOLUTAS:

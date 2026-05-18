@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { Caveat, JetBrains_Mono, Spectral } from "next/font/google";
 import ConsentManager from "@/components/ConsentManager";
 import InkCursor from "@/components/InkCursor";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 import "./globals.css";
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
 
 const spectral = Spectral({
   subsets: ["latin"],
@@ -27,10 +31,16 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
+  title: "Entre Interiores · Cancionero de Robe y Extremoduro",
   description:
-    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
+    "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
+
+// Todo el site se sirve dinámico: las páginas dependen de cookies (sesión) y
+// de fetches al api en runtime. Marcarlo en el layout evita prerenderizar
+// `/_not-found` y `/_error` que dispararían fallos por componentes cliente
+// que se cargan globalmente (InkCursor, ConsentManager).
+export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
   children,
@@ -44,6 +54,55 @@ export default async function RootLayout({
   // ni se monta el manager, así dev no muestra banner inútil.
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
+  // Schema en @graph: el WebSite del proyecto referencia al Person canónico
+  // del autor (definido en davidruizsanchez.es/#person). No duplicamos sus
+  // datos, los enlazamos por @id — Google sigue la referencia y consolida
+  // señal de E-E-A-T.
+  const siteGraph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "Entre Interiores",
+        alternateName: "Cancionero de Robe y Extremoduro",
+        description:
+          "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
+        inLanguage: "es-ES",
+        creator: { "@id": "https://davidruizsanchez.es/#person" },
+        publisher: { "@id": "https://davidruizsanchez.es/#person" },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: `${SITE_URL}/buscar?q={search_term_string}`,
+          },
+          "query-input": "required name=search_term_string",
+        },
+      },
+      {
+        "@type": "Person",
+        "@id": "https://davidruizsanchez.es/#person",
+        name: "David Ruiz Sánchez",
+        givenName: "David",
+        familyName: "Ruiz Sánchez",
+        url: "https://davidruizsanchez.es",
+        jobTitle: "Partner & Head of SEO",
+        worksFor: {
+          "@type": "Organization",
+          name: "Convertix",
+          url: "https://convertix.net",
+        },
+        sameAs: [
+          "https://www.linkedin.com/in/davidruizsanchez/",
+          "https://github.com/DavidRuizSanchez",
+          "https://x.com/davidruiz_s",
+        ],
+      },
+    ],
+  };
+
   return (
     <html lang="es" className={`dark ${fontVars}`} suppressHydrationWarning>
       <body
@@ -53,6 +112,10 @@ export default async function RootLayout({
         <InkCursor />
         {children}
         {gaId && <ConsentManager gaId={gaId} />}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(siteGraph) }}
+        />
       </body>
     </html>
   );

@@ -14,13 +14,14 @@ export async function updateSeoAction(
   const body_md = String(formData.get("body_md") || "").trim();
   const meta_title = String(formData.get("meta_title") || "").trim() || null;
   const meta_description = String(formData.get("meta_description") || "").trim() || null;
+  const h1 = String(formData.get("h1") || "").trim() || null;
   if (body_md.length < 100) {
     return { ok: false, error: "El cuerpo es demasiado corto" };
   }
   try {
     await apiFetch(`/admin/seo/${id}`, {
       method: "PUT",
-      body: { body_md, meta_title, meta_description },
+      body: { body_md, meta_title, meta_description, h1 },
     });
   } catch (err) {
     return errorOf(err);

@@ -113,7 +113,7 @@ export default function TerminosUso() {
       <h2>Contacto</h2>
       <p>
         Para cualquier consulta sobre estos términos:{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>.
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>.
       </p>
     </>
   );

@@ -40,7 +40,7 @@ El proyecto almacena letras completas (~144 canciones, 6.553 líneas), 323 pieza
 
 ### 3.1 Letras
 - **Marco**: Ley de Propiedad Intelectual española (RDLeg 1/1996, "LPI"), arts. 10, 17–25.
-- **Titulares**: autores (Robe Iniesta + co-autores Iñaki Antón, etc.) → herederos tras el fallecimiento de Robe (18-10-2025). Plazo de protección: vida del autor + 70 años (art. 26 LPI).
+- **Titulares**: autores (Roberto Iniesta + co-autores Iñaki Antón, etc.) → herederos tras el fallecimiento de Robe (18-10-2025). Plazo de protección: vida del autor + 70 años (art. 26 LPI).
 - **Gestión colectiva**: SGAE para la composición; AIE para los derechos de los intérpretes; AGEDI para los productores fonográficos.
 - **Genius API ToS** ([genius.com/api-terms](https://genius.com/api-terms)): permite uso no comercial con atribución; **prohíbe redistribución bulk de letras completas**. Almacenarlas es admisible, servirlas masivamente al público no.
 - **Conclusión**: storage personal con auth = OK. Servir letras completas a terceros sin licencia = infracción.
@@ -112,8 +112,8 @@ El proyecto almacena letras completas (~144 canciones, 6.553 líneas), 323 pieza
 - [ ] Alternativa: licenciar con SGAE + AIE + AGEDI (carísimo y poco realista para proyecto personal).
 - [ ] Política de privacidad + términos de uso + cookies banner (RGPD/LSSI-CE).
 - [ ] Procedimiento DMCA / takedown (LSSI-CE art. 16): email `legal@<dominio>` que reciba reclamaciones, eliminar contenido afectado en <72h, registrar la reclamación.
-- [ ] Disclaimer prominente: *"Letras © sus autores · Sitio fan no oficial · No afiliado con Robe Iniesta, Extremoduro, ni sus discográficas"*.
-- [ ] **Logos y nombre**: el "Sol & Nube" + "Entre Interiores" están a salvo (no son marcas registradas que conflicten). Los nombres "Extremoduro" / "Robe Iniesta" en metadata son referencia descriptiva (uso nominativo lícito).
+- [ ] Disclaimer prominente: *"Letras © sus autores · Sitio fan no oficial · No afiliado con Roberto Iniesta, Extremoduro, ni sus discográficas"*.
+- [ ] **Logos y nombre**: el "Sol & Nube" + "Entre Interiores" están a salvo (no son marcas registradas que conflicten). Los nombres "Extremoduro" / "Roberto Iniesta" en metadata son referencia descriptiva (uso nominativo lícito).
 - [ ] Imagen de cabecera: cambiar a propia.
 - [ ] Revisar licencia individual de cada portada de disco en Cover Art Archive.
 - [ ] Whisper: documentar que los timestamps se generaron en uso personal pre-despliegue, o eliminar el pipeline.
