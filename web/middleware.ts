@@ -14,7 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const TOKEN_COOKIE = "robelyrics_token";
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
 
   // /biblioteca/* requiere auth
   if (pathname.startsWith("/biblioteca")) {
@@ -27,7 +27,18 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  // Las requests de prefetch RSC (?_rsc=... o cabecera RSC: 1) son payloads
+  // internos de Next.js App Router, no páginas navegables. Las bloqueamos
+  // en robots.txt y, además, marcamos noindex aquí para sacar del índice
+  // las que Google ya rastreó antes del fix.
+  const isRscRequest =
+    searchParams.has("_rsc") || req.headers.get("rsc") === "1";
+
+  const res = NextResponse.next();
+  if (isRscRequest) {
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return res;
 }
 
 export const config = {
