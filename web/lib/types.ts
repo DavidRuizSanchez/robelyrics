@@ -151,8 +151,19 @@ export type PublicTrackOut = {
   youtube_id: string | null;
 };
 
+export type PublicArtistMember = {
+  slug: string;
+  full_name: string;
+  stage_name: string | null;
+  role: string;
+  era: string | null;
+  is_founder: boolean;
+  image_url: string | null;
+};
+
 export type PublicArtistDetail = PublicArtistOut & {
   albums: PublicAlbumOut[];
+  members: PublicArtistMember[];
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;

@@ -66,8 +66,21 @@ class PublicTrackOut(BaseModel):
     youtube_id: str | None = None
 
 
+class PublicArtistMember(BaseModel):
+    """Miembro del grupo (resuelto via BandMembership) para mostrar en la
+    página de artist como sección "Miembros" e interconectar SEO."""
+    slug: str
+    full_name: str
+    stage_name: str | None = None
+    role: str
+    era: str | None = None
+    is_founder: bool = False
+    image_url: str | None = None
+
+
 class PublicArtistDetailOut(PublicArtistOut):
     albums: list[PublicAlbumOut]
+    members: list[PublicArtistMember] = []
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -203,6 +216,16 @@ def public_artist_detail(
         .order_by(Album.year, Album.id)
         .all()
     )
+    # Carga miembros del grupo via BandMembership. Lazy import para no
+    # complicar el bloque de imports del módulo.
+    from app.db.models import BandMembership as _BM, Person as _P
+    members_raw = (
+        db.query(_BM, _P)
+        .join(_P, _BM.person_id == _P.id)
+        .filter(_BM.artist_id == artist.id)
+        .order_by(_BM.position, _BM.era)
+        .all()
+    )
     seo = _try_get_seo(db, "artist", artist.id)
     return PublicArtistDetailOut(
         slug=artist.slug,
@@ -214,6 +237,18 @@ def public_artist_detail(
                 cover_url=a.cover_url,
             )
             for a in albums
+        ],
+        members=[
+            PublicArtistMember(
+                slug=p.slug,
+                full_name=p.full_name,
+                stage_name=p.stage_name,
+                role=m.role,
+                era=m.era,
+                is_founder=m.is_founder,
+                image_url=p.image_url,
+            )
+            for m, p in members_raw
         ],
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,

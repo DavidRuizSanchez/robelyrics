@@ -50,6 +50,14 @@ export default async function PublicHeader() {
           Discografía
         </Link>
         <Link
+          href="/personas"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+          title="Quiénes — miembros y voces amigas"
+        >
+          Quiénes
+        </Link>
+        <Link
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"

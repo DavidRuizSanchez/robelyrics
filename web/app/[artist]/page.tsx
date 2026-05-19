@@ -11,6 +11,7 @@ import {
   buildGraph,
   musicAlbumNode,
   musicGroupNode,
+  personNode,
 } from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
@@ -119,6 +120,51 @@ export default async function ArtistPublicPage({
           </div>
         </section>
 
+        {detail.members && detail.members.length > 0 && (
+          <section className="mt-20">
+            <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
+              Quiénes — miembros del grupo
+            </h2>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+              {detail.members.map((m) => (
+                <li key={`${m.slug}-${m.era ?? ""}`}>
+                  <Link
+                    href={`/personas/${m.slug}`}
+                    data-cursor="hover"
+                    className="group block"
+                  >
+                    <div className="aspect-square bg-divider/30 overflow-hidden">
+                      {m.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.image_url}
+                          alt={m.full_name}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
+                          sin foto
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
+                      {m.stage_name && m.stage_name !== m.full_name
+                        ? m.stage_name
+                        : m.full_name}
+                    </p>
+                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+                      {m.role}
+                      {m.era && ` · ${m.era}`}
+                      {m.is_founder && " · fundador"}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {detail.seo_body && (
           <script
             type="application/ld+json"
@@ -136,6 +182,11 @@ export default async function ArtistPublicPage({
                       year: a.year,
                       coverUrl: a.cover_url,
                     })),
+                    members: detail.members.map((m) => ({
+                      slug: m.slug,
+                      fullName: m.full_name,
+                      stageName: m.stage_name,
+                    })),
                   }),
                   ...detail.albums.map((a) =>
                     musicAlbumNode({
@@ -144,6 +195,17 @@ export default async function ArtistPublicPage({
                       title: a.title,
                       year: a.year,
                       coverUrl: a.cover_url,
+                    }),
+                  ),
+                  ...detail.members.map((m) =>
+                    personNode({
+                      slug: m.slug,
+                      fullName: m.full_name,
+                      stageName: m.stage_name,
+                      imageUrl: m.image_url,
+                      memberOf: [
+                        { artistSlug: artist, artistName: detail.name },
+                      ],
                     }),
                   ),
                 ]),

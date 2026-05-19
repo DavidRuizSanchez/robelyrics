@@ -41,6 +41,9 @@ export default function PublicFooter() {
           <Link href="/discografia" data-cursor="hover" className={linkCls}>
             Toda la discografía
           </Link>
+          <Link href="/personas" data-cursor="hover" className={linkCls}>
+            Quiénes (miembros)
+          </Link>
         </div>
 
         {/* Col 2 — Discos destacados */}
