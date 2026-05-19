@@ -42,7 +42,7 @@ export default function PublicFooter() {
             Toda la discografía
           </Link>
           <Link href="/personas" data-cursor="hover" className={linkCls}>
-            Quiénes (miembros)
+            Los colegas de Robe
           </Link>
         </div>
 

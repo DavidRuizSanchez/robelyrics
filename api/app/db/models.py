@@ -696,6 +696,18 @@ class Person(Base):
     image_attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
     image_source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Enriquecimiento desde Wikidata. Estructura común para los 3:
+    #   [{"name": str, "wikidata_id": str, "wikidata_url": str,
+    #     "wikipedia_url": str | None}]
+    other_bands: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    notable_works: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    occupations: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

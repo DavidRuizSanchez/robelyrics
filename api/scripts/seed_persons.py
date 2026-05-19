@@ -95,7 +95,15 @@ def _wikipedia_extract(client: httpx.Client, wikipedia_url: str) -> str | None:
 
 
 def _enrich_from_wikidata(client: httpx.Client, qid: str) -> dict[str, Any]:
-    """Trae birth_date / death_date / birth_place si están en la entity."""
+    """Trae fechas, lugar de nacimiento y referencias a bandas/obras/oficios.
+
+    Extrae:
+      - P569 (date of birth), P570 (date of death)
+      - P19 (place of birth)
+      - P463 (member of) → other_bands [Q-ID + name + url]
+      - P800 (notable work) → notable_works
+      - P106 (occupation) → occupations
+    """
     url = f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json"
     resp = client.get(url)
     resp.raise_for_status()
@@ -112,15 +120,78 @@ def _enrich_from_wikidata(client: httpx.Client, qid: str) -> dict[str, Any]:
             if precision < 11:
                 continue
             try:
-                # "+1962-05-16T00:00:00Z"
                 y, m, d = time_str.lstrip("+").split("T")[0].split("-")
                 return date(int(y), int(m), int(d))
             except (ValueError, IndexError):
                 continue
         return None
 
+    def _qids_from(prop: str) -> list[str]:
+        out_qids: list[str] = []
+        for c in claims.get(prop, []) or []:
+            snak = c.get("mainsnak", {}).get("datavalue", {}).get("value", {})
+            qid_ref = snak.get("id")
+            if isinstance(qid_ref, str) and qid_ref.startswith("Q"):
+                out_qids.append(qid_ref)
+        return out_qids
+
     out["birth_date"] = _date_from("P569")
     out["death_date"] = _date_from("P570")
+    out["member_of_qids"] = _qids_from("P463")
+    out["notable_work_qids"] = _qids_from("P800")
+    out["occupation_qids"] = _qids_from("P106")
+    return out
+
+
+def _resolve_entities(
+    client: httpx.Client, qids: list[str]
+) -> list[dict[str, str | None]]:
+    """Resuelve una lista de Q-IDs a {name, wikidata_id, wikidata_url,
+    wikipedia_url}. Una sola request via wbgetentities (batch), labels y
+    sitelinks en es. Filtra los que no tengan label.
+    """
+    if not qids:
+        return []
+    # Wikidata acepta hasta 50 ids por request
+    out: list[dict[str, str | None]] = []
+    for chunk_start in range(0, len(qids), 50):
+        chunk = qids[chunk_start : chunk_start + 50]
+        params = {
+            "action": "wbgetentities",
+            "format": "json",
+            "ids": "|".join(chunk),
+            "props": "labels|sitelinks",
+            "languages": "es|en",
+            "sitefilter": "eswiki",
+        }
+        try:
+            resp = client.get("https://www.wikidata.org/w/api.php", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+        except httpx.HTTPError:
+            continue
+        for qid in chunk:
+            ent = data.get("entities", {}).get(qid, {}) or {}
+            labels = ent.get("labels", {}) or {}
+            name = (
+                (labels.get("es") or {}).get("value")
+                or (labels.get("en") or {}).get("value")
+            )
+            if not name:
+                continue
+            sitelink = (ent.get("sitelinks", {}) or {}).get("eswiki") or {}
+            wp_title = sitelink.get("title")
+            wp_url = (
+                f"https://es.wikipedia.org/wiki/{wp_title.replace(' ', '_')}"
+                if wp_title
+                else None
+            )
+            out.append({
+                "name": name,
+                "wikidata_id": qid,
+                "wikidata_url": f"https://www.wikidata.org/wiki/{qid}",
+                "wikipedia_url": wp_url,
+            })
     return out
 
 
@@ -243,13 +314,54 @@ def main() -> None:
                         except httpx.HTTPError as e:
                             logger.warning("  wikidata lookup failed: %s", e)
 
-                    if person.wikidata_id and (not person.birth_date or not person.death_date):
+                    if person.wikidata_id:
                         try:
                             enriched = _enrich_from_wikidata(http, person.wikidata_id)
                             if not person.birth_date and enriched.get("birth_date"):
                                 person.birth_date = enriched["birth_date"]
                             if not person.death_date and enriched.get("death_date"):
                                 person.death_date = enriched["death_date"]
+
+                            # Bandas externas (Wikidata P463) — excluyendo
+                            # las que ya tenemos como memberships en nuestro
+                            # Artist corpus. Como Wikidata tiene varios Q-IDs
+                            # apuntando al mismo grupo (Extremoduro aparece
+                            # como Q263632, Q1238849, Q2311472 según el
+                            # claim/persona), filtramos también por nombre
+                            # normalizado contra los slugs del corpus.
+                            internal_qids = {"Q263632", "Q1238849", "Q2311472", "Q3500822"}
+                            internal_names = {"extremoduro", "robe"}
+                            member_qids = [
+                                q for q in enriched.get("member_of_qids", [])
+                                if q not in internal_qids
+                            ]
+                            if member_qids:
+                                bands = _resolve_entities(http, member_qids)
+                                # filtra por nombre normalizado
+                                bands = [
+                                    b for b in bands
+                                    if b["name"].strip().lower() not in internal_names
+                                ]
+                                person.other_bands = bands
+                                logger.info(
+                                    "  other_bands: %d (%s)",
+                                    len(bands),
+                                    ", ".join(b["name"] for b in bands[:5]),
+                                )
+
+                            works_qids = enriched.get("notable_work_qids", [])
+                            if works_qids:
+                                works = _resolve_entities(http, works_qids)
+                                person.notable_works = works
+                                logger.info(
+                                    "  notable_works: %d",
+                                    len(works),
+                                )
+
+                            occ_qids = enriched.get("occupation_qids", [])
+                            if occ_qids:
+                                occs = _resolve_entities(http, occ_qids)
+                                person.occupations = occs
                         except httpx.HTTPError as e:
                             logger.warning("  wikidata enrich failed: %s", e)
 

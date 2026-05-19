@@ -290,16 +290,10 @@ def main() -> None:
                 if existing is not None:
                     continue
 
-                slug = _slugify(item["title"])
-                base = slug
-                i = 2
-                while db.execute(
-                    select(Post).where(Post.slug == slug)
-                ).scalar_one_or_none():
-                    slug = f"{base}-{i}"
-                    i += 1
-
-                # Reescritura editorial
+                # Reescritura editorial — el LLM provee también slug y
+                # keywords para la búsqueda de imagen.
+                image_keywords: list[str] = []
+                llm_slug: str | None = None
                 if args.no_rewrite:
                     title = item["title"][:240]
                     excerpt = (item["summary"] or "")[:200]
@@ -317,7 +311,6 @@ def main() -> None:
                         source_name=name,
                         matched_term=term,
                     )
-                    # Si el LLM devolvió title vacío → falso positivo, skip
                     if not rewritten.get("title"):
                         logger.info(
                             "Falso positivo descartado por LLM: %r", item["title"]
@@ -328,16 +321,46 @@ def main() -> None:
                     body_md = rewritten["body_md"]
                     meta_title = rewritten["meta_title"][:60]
                     meta_description = rewritten["meta_description"][:155]
+                    llm_slug = rewritten.get("slug")
+                    raw_kws = rewritten.get("image_keywords") or []
+                    if isinstance(raw_kws, list):
+                        image_keywords = [
+                            str(k).strip()
+                            for k in raw_kws
+                            if isinstance(k, str) and k.strip()
+                        ][:5]
 
-                # Imagen Wikimedia
+                # Slug editorial corto (del LLM) > slug derivado del title
+                slug_base = _slugify(llm_slug) if llm_slug else _slugify(title)
+                if not slug_base:
+                    slug_base = _slugify(item["title"])
+                slug = slug_base
+                i = 2
+                while db.execute(
+                    select(Post).where(Post.slug == slug)
+                ).scalar_one_or_none():
+                    slug = f"{slug_base}-{i}"
+                    i += 1
+
+                # Imagen Wikimedia: probamos las keywords del LLM en orden.
+                # Si ninguna devuelve imagen válida, NO ponemos foto (mejor
+                # sin que con una random).
                 img = None
                 if not args.no_image:
-                    img = search_image(term)
-                if img is None and not args.no_image:
-                    img = search_image("Extremoduro")
+                    for kw in image_keywords:
+                        candidate = search_image(kw)
+                        if candidate is not None:
+                            img = candidate
+                            logger.info(
+                                "Imagen Wikimedia con keyword %r: %s",
+                                kw, img.source_page_url,
+                            )
+                            break
                 hero_url = img.thumb_url if img else None
                 if img:
                     body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
+                else:
+                    logger.info("Sin imagen relevante encontrada — post sin foto")
 
                 run.items_inserted += 1
 

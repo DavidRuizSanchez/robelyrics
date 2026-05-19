@@ -11,9 +11,9 @@ const SITE_URL =
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Personas · Entre Interiores",
+  title: "Los colegas de Robe · Entre Interiores",
   description:
-    "Las personas del universo Robe y Extremoduro: miembros históricos, colaboradores y voces amigas.",
+    "Los colegas de Robe: miembros históricos de Extremoduro, banda solista y voces amigas del universo.",
   alternates: { canonical: `${SITE_URL}/personas` },
 };
 
@@ -55,15 +55,14 @@ export default async function PersonasPage() {
 
         <header className="mb-14">
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-            las personas
+            los colegas
           </p>
           <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
-            Quiénes
+            Los colegas de Robe
           </h1>
           <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
-            Robe y los demás. Los miembros que pasaron por Extremoduro y la
-            banda solista, las voces amigas que el escenario y los discos
-            cruzaron con la suya.
+            Los miembros que pasaron por Extremoduro y la banda solista, las
+            voces amigas que el escenario y los discos cruzaron con la suya.
           </p>
         </header>
 

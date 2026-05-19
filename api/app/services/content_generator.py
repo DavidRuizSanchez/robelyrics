@@ -298,6 +298,12 @@ def rewrite_news_editorial(
 
     NO copia el texto original. Toma los hechos y los reescribe en el tono \
     del blog, citando la fuente al final.
+
+    Salida JSON añade dos campos respecto al estándar:
+      - slug: kebab-case corto (3-5 palabras) editorialmente útil
+      - image_keywords: 2-4 queries específicas para Wikimedia, ordenadas
+        de más específica a más genérica; el caller las prueba en orden
+        hasta encontrar una imagen relevante.
     """
     today = today or date.today()
     user = f"""\
@@ -324,7 +330,19 @@ Si el contenido fuente no parece relacionado de verdad con Robe / Extremoduro \
 / el universo de la banda (es un falso positivo del scraper), devuelve un \
 title vacío "" en el JSON para señalárnoslo.
 
-Devuelve el JSON con todos los campos requeridos.
+ADEMÁS de los campos estándar (title, excerpt, body_md, meta_title, \
+meta_description), devuelve también:
+  - "slug": kebab-case de 3-5 palabras editorialmente sólido (ej. \
+    "retrato-broncano-revuelta", "murales-plasencia-aniversario"). No copies \
+    el titular literal; piensa en lo que el lector escribiría como URL.
+  - "image_keywords": lista de 2-4 strings que sirvan como query a Wikimedia \
+    Commons buscando una imagen RELACIONADA con la noticia. Orden de más \
+    específico a más genérico. Ejemplos: ["David Broncano La Revuelta", \
+    "Plasencia Cáceres", "Robe Iniesta concierto"]. Evita términos demasiado \
+    abstractos. Si no se te ocurre nada relacionado, devuelve [] (sin foto \
+    es mejor que una random).
+
+Devuelve el JSON con TODOS los campos.
 """
     try:
         return _call(user, max_tokens=1500)

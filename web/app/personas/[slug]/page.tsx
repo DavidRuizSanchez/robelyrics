@@ -22,6 +22,13 @@ type Membership = {
   is_current: boolean;
 };
 
+type WikidataRef = {
+  name: string;
+  wikidata_id: string;
+  wikidata_url: string;
+  wikipedia_url: string | null;
+};
+
 type PersonDetail = {
   slug: string;
   full_name: string;
@@ -37,6 +44,9 @@ type PersonDetail = {
   image_license: string | null;
   image_source_url: string | null;
   memberships: Membership[];
+  other_bands: WikidataRef[];
+  notable_works: WikidataRef[];
+  occupations: WikidataRef[];
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
@@ -94,11 +104,6 @@ function formatDateEs(iso: string | null): string | null {
 }
 
 function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
-  // Si el backend ya generó un schema (al crear el seo_content), usar ese.
-  // Si no, componer uno mínimo desde los campos directos para que la página
-  // pueda interconectarse en el knowledge graph desde el día 1.
-  if (detail.schema_jsonld) return detail.schema_jsonld;
-
   const sameAs: string[] = [];
   if (detail.wikipedia_url) sameAs.push(detail.wikipedia_url);
   if (detail.wikidata_id)
@@ -121,14 +126,46 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
   }
   if (detail.image_url) schema.image = detail.image_url;
   if (sameAs.length > 0) schema.sameAs = sameAs;
-  if (detail.memberships.length > 0) {
-    schema.memberOf = detail.memberships.map((m) => ({
+
+  // memberOf combina: bandas del corpus (Extremoduro/Robe, con @id canónico
+  // local) + bandas externas de Wikidata (con @id = Wikidata URL para que
+  // Google sepa que son la misma entidad que la de su knowledge graph).
+  const memberOf: Record<string, unknown>[] = [];
+  for (const m of detail.memberships) {
+    memberOf.push({
       "@type": "MusicGroup",
       "@id": `${SITE_URL}/${m.artist_slug}#musicgroup`,
       name: m.artist_name,
       url: `${SITE_URL}/${m.artist_slug}`,
+    });
+  }
+  for (const b of detail.other_bands) {
+    memberOf.push({
+      "@type": "MusicGroup",
+      "@id": b.wikidata_url,
+      name: b.name,
+      sameAs: [b.wikidata_url, ...(b.wikipedia_url ? [b.wikipedia_url] : [])],
+    });
+  }
+  if (memberOf.length > 0) schema.memberOf = memberOf;
+
+  if (detail.notable_works.length > 0) {
+    schema.knowsAbout = detail.notable_works.map((w) => ({
+      "@type": "CreativeWork",
+      "@id": w.wikidata_url,
+      name: w.name,
+      sameAs: [w.wikidata_url, ...(w.wikipedia_url ? [w.wikipedia_url] : [])],
     }));
   }
+
+  if (detail.occupations.length > 0) {
+    schema.hasOccupation = detail.occupations.map((o) => ({
+      "@type": "Occupation",
+      name: o.name,
+      sameAs: [o.wikidata_url],
+    }));
+  }
+
   return schema;
 }
 
@@ -281,6 +318,71 @@ export default async function PersonPage({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {detail.other_bands.length > 0 && (
+                <div className="mt-8">
+                  <p className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-3">
+                    otros proyectos
+                  </p>
+                  <ul className="space-y-2">
+                    {detail.other_bands.map((b) => (
+                      <li key={b.wikidata_id} className="font-serif text-ink-dim">
+                        {b.wikipedia_url ? (
+                          <a
+                            href={b.wikipedia_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {b.name} ↗
+                          </a>
+                        ) : (
+                          <span>{b.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {detail.notable_works.length > 0 && (
+                <div className="mt-8">
+                  <p className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-3">
+                    obras destacadas
+                  </p>
+                  <ul className="space-y-2">
+                    {detail.notable_works.map((w) => (
+                      <li key={w.wikidata_id} className="font-serif text-ink-dim">
+                        {w.wikipedia_url ? (
+                          <a
+                            href={w.wikipedia_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {w.name} ↗
+                          </a>
+                        ) : (
+                          <span>{w.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {detail.occupations.length > 0 && (
+                <div className="mt-8">
+                  <p className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-3">
+                    oficios
+                  </p>
+                  <p className="font-serif text-ink-dim leading-relaxed">
+                    {detail.occupations.map((o) => o.name).join(" · ")}
+                  </p>
                 </div>
               )}
             </div>

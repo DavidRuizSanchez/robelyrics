@@ -737,6 +737,16 @@ class PublicPersonListItem(BaseModel):
     image_url: str | None = None
 
 
+class PublicWikidataRef(BaseModel):
+    """Referencia a una entidad Wikidata (banda, obra, ocupación). Permite
+    enlazar el knowledge graph con entidades externas sin sumarlas a
+    nuestro corpus de Artists."""
+    name: str
+    wikidata_id: str
+    wikidata_url: str
+    wikipedia_url: str | None = None
+
+
 class PublicPersonDetailOut(PublicPersonListItem):
     birth_place: str | None = None
     bio_short: str | None = None
@@ -746,6 +756,9 @@ class PublicPersonDetailOut(PublicPersonListItem):
     image_license: str | None = None
     image_source_url: str | None = None
     memberships: list[PublicPersonMembership] = []
+    other_bands: list[PublicWikidataRef] = []
+    notable_works: list[PublicWikidataRef] = []
+    occupations: list[PublicWikidataRef] = []
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -832,6 +845,15 @@ def public_person_detail(
         image_license=person.image_license,
         image_source_url=person.image_source_url,
         memberships=memberships,
+        other_bands=[
+            PublicWikidataRef(**b) for b in (person.other_bands or [])
+        ],
+        notable_works=[
+            PublicWikidataRef(**w) for w in (person.notable_works or [])
+        ],
+        occupations=[
+            PublicWikidataRef(**o) for o in (person.occupations or [])
+        ],
         seo_body=seo.body_md if seo else None,
         seo_meta_title=seo.meta_title if seo else None,
         seo_meta_description=seo.meta_description if seo else None,
