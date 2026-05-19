@@ -370,3 +370,103 @@ def render_newsletter_invite_email(confirm_url: str) -> tuple[str, str]:
         "Si no te apetece, no hagas nada — no recibirás más correos sobre esto."
     )
     return html, text
+
+
+def render_admin_review_email(
+    posts: list[dict],
+    admin_panel_url: str,
+) -> tuple[str, str]:
+    """Email al admin con la lista de posts pending_review y botones
+    aprobar/rechazar directos (one-click, JWT-firmados).
+
+    Cada item en `posts` debe tener: title, kind_label, excerpt (opcional),
+    source_name (opcional), source_url (opcional), approve_url, reject_url,
+    admin_url (vista detalle).
+    """
+    site_url = _site_url()
+
+    items_html = ""
+    items_text: list[str] = []
+    for p in posts:
+        excerpt_html = (
+            f'<p style="font-family:Georgia,serif;font-style:italic;font-size:13px;'
+            f'color:rgba(237,228,211,0.7);margin:8px 0 12px;line-height:1.5;">'
+            f'{p["excerpt"]}</p>'
+            if p.get("excerpt") else ""
+        )
+        source_html = ""
+        if p.get("source_name") and p.get("source_url"):
+            source_html = (
+                f'<p style="font-family:\'Courier New\',monospace;font-size:10px;'
+                f'color:rgba(237,228,211,0.5);margin:0 0 12px;">Fuente: '
+                f'<a href="{p["source_url"]}" style="color:#e85050;text-decoration:none;">'
+                f'{p["source_name"]} ↗</a></p>'
+            )
+        items_html += f"""\
+<div style="margin:0 0 24px;padding:18px 18px 16px;background:rgba(237,228,211,0.03);border-left:3px solid #a83a3a;">
+  <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);margin:0 0 6px;">
+    {p["kind_label"]}
+  </p>
+  <p style="font-family:Georgia,serif;font-size:18px;color:#ede4d3;margin:0 0 6px;line-height:1.3;font-weight:bold;">
+    {p["title"]}
+  </p>
+  {excerpt_html}
+  {source_html}
+  <p style="margin:14px 0 0;">
+    <a href="{p["approve_url"]}" style="display:inline-block;padding:10px 18px;margin-right:8px;background:#a83a3a;color:#fff;text-decoration:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
+      aprobar
+    </a>
+    <a href="{p["reject_url"]}" style="display:inline-block;padding:10px 18px;margin-right:8px;border:1px solid rgba(237,228,211,0.3);color:rgba(237,228,211,0.7);text-decoration:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
+      rechazar
+    </a>
+    <a href="{p["admin_url"]}" style="display:inline-block;padding:10px 18px;color:rgba(237,228,211,0.5);text-decoration:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
+      ver completo →
+    </a>
+  </p>
+</div>"""
+        items_text.append(
+            f"· [{p['kind_label']}] {p['title']}\n"
+            f"  aprobar: {p['approve_url']}\n"
+            f"  rechazar: {p['reject_url']}\n"
+            f"  ver: {p['admin_url']}\n"
+        )
+
+    n = len(posts)
+    headline = (
+        "Una entrada para revisar"
+        if n == 1
+        else f"{n} entradas para revisar"
+    )
+    html = f"""\
+<!doctype html>
+<html lang="es">
+<body style="margin:0;padding:32px;background:#0d0b0a;color:#ede4d3;font-family:Georgia,serif;">
+  {_email_logo_header()}
+  <div style="max-width:620px;margin:0 auto;padding:32px;border:1px solid rgba(237,228,211,0.08);background:rgba(237,228,211,0.02);">
+    <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#a83a3a;margin:0 0 12px;">
+      entre interiores · admin
+    </p>
+    <h1 style="font-family:Georgia,serif;font-size:26px;color:#ede4d3;margin:0 0 8px;line-height:1.2;">
+      {headline}
+    </h1>
+    <p style="font-family:Georgia,serif;font-style:italic;color:rgba(237,228,211,0.6);font-size:14px;margin:0 0 28px;line-height:1.6;">
+      Aprueba con un clic desde aquí, o entra al panel para ver y editar
+      antes de publicar. Nada se manda a los suscriptores hasta que apruebes.
+    </p>
+    {items_html}
+    <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
+      <a href="{admin_panel_url}" style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a83a3a;text-decoration:none;">
+        ver todos los pendientes →
+      </a>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    text = (
+        f"{headline} en Entre Interiores:\n\n"
+        + "\n".join(items_text)
+        + f"\n\nPanel admin: {admin_panel_url}\n"
+        f"Web: {site_url}\n"
+    )
+    return html, text

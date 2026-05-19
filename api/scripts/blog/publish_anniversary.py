@@ -28,7 +28,7 @@ from sqlalchemy import select
 from app.db.models import Post
 from app.db.session import SessionLocal
 from app.services.content_generator import generate_anniversary
-from app.services.publishing import schedule_or_publish
+from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -158,8 +158,9 @@ def main() -> None:
         db.add(post)
         db.commit()
         db.refresh(post)
-        # Anniversary publica siempre (excepción al cap), dispara newsletter
-        result = schedule_or_publish(db, post)
+        # Crea como pending_review. El email consolidado se envía desde
+        # ensure_weekly_minimum o desde el endpoint de notify-pending.
+        result = propose_for_review(db, post, notify=False)
         logger.info("Resultado publishing: %s", result)
 
 

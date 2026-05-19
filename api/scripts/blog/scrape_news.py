@@ -41,7 +41,7 @@ from sqlalchemy import select
 from app.db.models import NewsSourceRun, Post
 from app.db.session import SessionLocal
 from app.services.content_generator import rewrite_news_editorial
-from app.services.publishing import schedule_or_publish
+from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
 
 logger = logging.getLogger(__name__)
@@ -353,7 +353,7 @@ def main() -> None:
                 post = Post(
                     slug=slug,
                     kind="news",
-                    status="pending_review" if tier != "trusted" else "draft",
+                    status="pending_review",
                     title=title,
                     excerpt=excerpt,
                     body_md=body_md,
@@ -370,22 +370,14 @@ def main() -> None:
                 db.commit()
                 db.refresh(post)
 
-                if tier == "trusted":
-                    result = schedule_or_publish(db, post)
-                    if result["action"] == "published":
-                        summary["published"] += 1
-                        run.items_published += 1
-                        action_label = "published"
-                    else:
-                        summary["scheduled"] += 1
-                        run.items_scheduled += 1
-                        action_label = "scheduled"
-                else:
-                    summary["pending"] += 1
-                    action_label = "pending"
-
+                # Nada se publica automáticamente — todo pasa por mail al
+                # admin con botones aprobar/rechazar. El tier de la whitelist
+                # queda como información pero no decide nada.
+                run.items_inserted += 1
+                propose_for_review(db, post, notify=False)
+                summary["pending"] += 1
                 summary["headlines"].append({
-                    "action": action_label,
+                    "action": "pending",
                     "title": title,
                     "source": name,
                 })
@@ -399,7 +391,23 @@ def main() -> None:
         summary["published"], summary["scheduled"], summary["pending"], summary["errors"],
     )
     if not args.dry_run:
-        _notify_admin(summary)
+        # Un único mail al admin con TODOS los pendings (los recién creados
+        # y los que ya estuvieran sin revisar de runs anteriores). El
+        # `notify=False` del bucle evita N+1 mails.
+        if summary["pending"] > 0:
+            from app.db.session import SessionLocal as _S
+            from app.services.publishing import _notify_admin_review
+            with _S() as db2:
+                # Pasamos cualquier post pending como pretexto; el helper
+                # consulta él mismo TODOS los pending en DB.
+                latest_pending = (
+                    db2.query(Post)
+                    .filter(Post.status == "pending_review")
+                    .order_by(Post.created_at.desc())
+                    .first()
+                )
+                if latest_pending:
+                    _notify_admin_review(db2, latest_pending)
     else:
         for h in summary["headlines"]:
             print(f"  [{h['action']}] {h['title']} ({h['source']})")

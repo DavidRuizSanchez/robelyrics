@@ -59,6 +59,43 @@ def decode_token(token: str) -> dict[str, Any] | None:
         return None
 
 
+def create_admin_action_token(
+    post_id: int, action: str, *, ttl_hours: int = 168
+) -> str:
+    """JWT firmado para que el admin pueda aprobar/rechazar un post con un
+    click desde el email, sin estar logueado. TTL por defecto 7 días.
+
+    El claim `purpose='admin_action'` lo separa de los access tokens normales
+    para que no sean intercambiables.
+    """
+    if action not in {"approve", "reject"}:
+        raise ValueError("action debe ser 'approve' o 'reject'")
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "admin_action",
+        "post_id": post_id,
+        "action": action,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_admin_action_token(token: str) -> dict[str, Any] | None:
+    """Devuelve el payload solo si es un token válido de admin-action."""
+    data = decode_token(token)
+    if not data:
+        return None
+    if data.get("purpose") != "admin_action":
+        return None
+    if data.get("action") not in {"approve", "reject"}:
+        return None
+    if not isinstance(data.get("post_id"), int):
+        return None
+    return data
+
+
 def get_current_user(
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),

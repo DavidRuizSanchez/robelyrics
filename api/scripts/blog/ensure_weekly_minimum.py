@@ -59,7 +59,7 @@ def _trigger_spotlight(dry_run: bool) -> None:
     """Lanza un spotlight ad-hoc importando el módulo y reutilizando su main."""
     from scripts.blog.publish_song_spotlight import _pick_song, _spotlight_slug
     from app.services.content_generator import generate_song_spotlight
-    from app.services.publishing import schedule_or_publish
+    from app.services.publishing import propose_for_review
     from app.services.wikimedia import search_image
     from app.db.models import Album, Artist, Post as PostModel, SeoContent
 
@@ -118,14 +118,14 @@ def _trigger_spotlight(dry_run: bool) -> None:
         db.add(post)
         db.commit()
         db.refresh(post)
-        schedule_or_publish(db, post)
+        propose_for_review(db, post, notify=False)
         logger.info("Spotlight ad-hoc creado para llenar el cap semanal")
 
 
 def _trigger_evergreen(dry_run: bool) -> None:
     """Pieza evergreen sobre una taxonomía rotativa."""
     from app.services.content_generator import generate_evergreen_topic
-    from app.services.publishing import schedule_or_publish
+    from app.services.publishing import propose_for_review
 
     today = date.today()
     week = today.isocalendar().week
@@ -203,7 +203,7 @@ def _trigger_evergreen(dry_run: bool) -> None:
         db.add(post)
         db.commit()
         db.refresh(post)
-        schedule_or_publish(db, post)
+        propose_for_review(db, post, notify=False)
         logger.info("Evergreen creado para %s %r", kind_label, item.slug)
 
 
@@ -219,23 +219,45 @@ def main() -> None:
 
     with SessionLocal() as db:
         count = _published_last_7d(db)
-    logger.info("Publicados últimos 7d (sin aniversarios): %d / mínimo %d", count, MIN_PER_WEEK)
+    logger.info(
+        "Publicados últimos 7d (sin aniversarios): %d / mínimo %d",
+        count, MIN_PER_WEEK,
+    )
 
-    if count >= MIN_PER_WEEK:
-        logger.info("Cap respetado, nada que hacer")
-        return
+    # Generamos contenido nuevo solo si faltan posts publicados (no para
+    # mantener la cola de pending alta — el user decide qué publicar).
+    if count < MIN_PER_WEEK:
+        needed = MIN_PER_WEEK - count
+        logger.info("Faltan %d post(s) publicados — disparando fallback", needed)
+        with SessionLocal() as db:
+            had_recent = (
+                _had_spotlight_recently(db) if not args.force_evergreen else True
+            )
+        for _ in range(needed):
+            if not had_recent:
+                _trigger_spotlight(args.dry_run)
+                had_recent = True
+            else:
+                _trigger_evergreen(args.dry_run)
+    else:
+        logger.info("Mínimo semanal cubierto, no genero nuevos contenidos")
 
-    needed = MIN_PER_WEEK - count
-    logger.info("Faltan %d post(s) — disparando fallback", needed)
-    with SessionLocal() as db:
-        had_recent = _had_spotlight_recently(db) if not args.force_evergreen else True
-
-    for _ in range(needed):
-        if not had_recent:
-            _trigger_spotlight(args.dry_run)
-            had_recent = True
-        else:
-            _trigger_evergreen(args.dry_run)
+    # SIEMPRE: si hay pendings sin revisar, manda email consolidado al admin
+    # (1 email/día). Idempotente respecto al contenido del mail.
+    if not args.dry_run:
+        from app.services.publishing import _notify_admin_review
+        with SessionLocal() as db:
+            latest = (
+                db.query(Post)
+                .filter(Post.status == "pending_review")
+                .order_by(Post.created_at.desc())
+                .first()
+            )
+            if latest is not None:
+                _notify_admin_review(db, latest)
+                logger.info("Email consolidado enviado al admin")
+            else:
+                logger.info("Sin pendings, no envío email")
 
 
 if __name__ == "__main__":

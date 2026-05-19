@@ -1,16 +1,22 @@
-"""Servicio de publicación con cap móvil de 2 posts/semana.
+"""Servicio de publicación.
 
-Política:
-- Aniversarios (`kind` en {`anniversary`, `album-anniversary`}) se publican
-  **siempre** en el día correspondiente. Son excepción al cap porque tienen
-  fecha exacta que no se puede aplazar.
-- El resto de kinds (news, spotlight, evergreen, editorial) respetan un cap
-  móvil: como máximo 2 publicaciones en los últimos 7 días.
-- Cuando el cap está lleno, el post entra como `status='scheduled'` con
-  `scheduled_for` calculado al primer hueco libre. El cron
-  `flush_scheduled_due` los promueve a `published` cuando llega su momento.
+Política editorial: **nada se publica automáticamente**. Los scripts cron
+crean posts en estado `pending_review` y envían email al admin con botones
+de aprobar/rechazar (firmados con JWT) + enlace al panel admin. La
+publicación efectiva ocurre cuando el admin aprueba — desde el email o
+desde el panel.
 
-Tras publicar, dispara newsletter on-publish y revalidación de Next.js.
+API:
+- `propose_for_review(post, notify=True)` → setea pending_review y manda
+  mail con preview + acciones. Llamado por todos los scripts cron.
+- `auto_publish_post(post)` → marca published, dispara newsletter
+  on-publish, hace revalidate Next. Llamado por el endpoint admin (panel
+  o mail one-click).
+- `schedule_or_publish(post)` → DEPRECATED, alias de propose_for_review
+  por compatibilidad con scripts viejos.
+- `flush_scheduled_due(db)` → cron diario que promueve `scheduled` a
+  `published` (legacy del flujo anterior con cap móvil; mantenido por si
+  queda algún post encolado).
 """
 from __future__ import annotations
 
@@ -143,13 +149,112 @@ def _dispatch_newsletter(db: Session, post_id: int) -> None:
 # --------------------------------------------------------------------------- #
 # API pública
 # --------------------------------------------------------------------------- #
+def propose_for_review(
+    db: Session, post: Post, *, notify: bool = True
+) -> PublishResult:
+    """Pone el post en `pending_review` y manda email al admin (si notify).
+
+    Idempotente: si ya está en pending_review, no rompe — el mail también
+    se envía (al admin le sirve como recordatorio). Si está published o
+    rejected, no-op.
+    """
+    if post.status in {"published", "rejected"}:
+        logger.info(
+            "Post %s ya está en estado terminal (%s); no se propone",
+            post.id, post.status,
+        )
+        return {
+            "action": post.status,
+            "post_id": post.id,
+            "scheduled_for": None,
+        }
+    if post.status != "pending_review":
+        post.status = "pending_review"
+        db.commit()
+        db.refresh(post)
+
+    if notify:
+        _notify_admin_review(db, post)
+
+    return {"action": "pending_review", "post_id": post.id, "scheduled_for": None}
+
+
+def _notify_admin_review(db: Session, post: Post) -> None:
+    """Manda un email al admin con TODOS los posts pending_review (incluido
+    el que se acaba de crear), con botones aprobar/rechazar firmados.
+    Si falla, log warning pero no aborta (el post queda en pending_review
+    igualmente)."""
+    admin_email = os.environ.get("ADMIN_EMAIL")
+    if not admin_email:
+        logger.info("ADMIN_EMAIL no configurado, salto notify admin review")
+        return
+
+    site_url = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
+    admin_panel_url = f"{site_url}/biblioteca/admin/posts?status=pending_review"
+
+    from app.services.auth import create_admin_action_token
+    from app.services.email import (
+        EmailError,
+        render_admin_review_email,
+        send_email,
+    )
+
+    pendings = (
+        db.query(Post)
+        .filter(Post.status == "pending_review")
+        .order_by(Post.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    if not pendings:
+        return
+
+    kind_label = {
+        "editorial": "Editorial",
+        "news": "Noticia",
+        "anniversary": "Efeméride",
+        "album-anniversary": "Aniversario de disco",
+        "spotlight": "Spotlight",
+        "evergreen": "Evergreen",
+    }
+
+    items = []
+    for p in pendings:
+        approve_token = create_admin_action_token(p.id, "approve")
+        reject_token = create_admin_action_token(p.id, "reject")
+        items.append({
+            "title": p.title,
+            "kind_label": kind_label.get(p.kind, p.kind),
+            "excerpt": p.excerpt,
+            "source_name": p.source_name,
+            "source_url": p.source_url,
+            "approve_url": f"{site_url}/api/public/admin-action?token={approve_token}",
+            "reject_url": f"{site_url}/api/public/admin-action?token={reject_token}",
+            "admin_url": f"{site_url}/biblioteca/admin/posts/{p.id}"
+            if False  # endpoint de detalle por id pendiente — link a lista por ahora
+            else f"{site_url}/biblioteca/admin/posts?status=pending_review",
+        })
+
+    html, text = render_admin_review_email(items, admin_panel_url)
+    subject = (
+        f"📰 Una entrada para revisar — «{pendings[0].title}»"
+        if len(pendings) == 1
+        else f"📰 {len(pendings)} entradas para revisar en Entre Interiores"
+    )
+    try:
+        send_email(to=admin_email, subject=subject, html=html, text=text)
+        logger.info("Admin review email enviado (%d pendings)", len(pendings))
+    except EmailError as exc:
+        logger.warning("Admin review email failed: %s", exc)
+
+
 def auto_publish_post(db: Session, post: Post) -> PublishResult:
     """Marca el post como publicado, lanza newsletter y revalida Next.js.
 
     Llamado:
-      - Directamente desde schedule_or_publish cuando hay hueco.
-      - Desde flush_scheduled_due cuando un scheduled madura.
-      - Desde el endpoint admin manual de publish (igual flujo).
+      - Desde el endpoint admin (panel `/admin/posts/{id}/publish`).
+      - Desde `/public/admin-action?token=...` (one-click desde email).
+      - Desde flush_scheduled_due (legacy del flujo con cap).
     """
     if post.status != "published":
         post.status = "published"
@@ -166,36 +271,12 @@ def auto_publish_post(db: Session, post: Post) -> PublishResult:
 
 
 def schedule_or_publish(db: Session, post: Post) -> PublishResult:
-    """Decide si publicar inmediatamente o encolar según el cap móvil.
+    """DEPRECATED: alias de `propose_for_review`. Nada se publica automáticamente.
 
-    El post debe estar persistido (con id). Si el cap permite, lo publica al
-    instante. Si no, lo deja como `scheduled` con `scheduled_for` calculado.
+    Mantenido para compatibilidad con scripts/llamadores anteriores; nuevos
+    usos deben llamar directamente a `propose_for_review`.
     """
-    if post.kind in CAP_EXEMPT_KINDS:
-        return auto_publish_post(db, post)
-
-    now = _now()
-    seven_ago = now - timedelta(days=WINDOW_DAYS)
-    recent = (
-        db.query(Post)
-        .filter(Post.status == "published")
-        .filter(Post.published_at >= seven_ago)
-        .filter(~Post.kind.in_(CAP_EXEMPT_KINDS))
-        .count()
-    )
-    if recent < WEEKLY_CAP:
-        return auto_publish_post(db, post)
-
-    slot = _next_publish_slot(db)
-    post.status = "scheduled"
-    post.scheduled_for = slot
-    db.commit()
-    db.refresh(post)
-    logger.info(
-        "Post %s '%s' encolado para %s (cap %d/%d en últimos %d días)",
-        post.id, post.slug, slot.isoformat(), recent, WEEKLY_CAP, WINDOW_DAYS,
-    )
-    return {"action": "scheduled", "post_id": post.id, "scheduled_for": slot}
+    return propose_for_review(db, post)
 
 
 def flush_scheduled_due(db: Session) -> dict[str, int]:

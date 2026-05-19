@@ -1073,3 +1073,111 @@ def newsletter_unsubscribe(
         status="unsubscribed",
         message="Te hemos dado de baja. Sin preguntas. Si te arrepientes, vuelve cuando quieras.",
     )
+
+
+# --------------------------------------------------------------------------- #
+# Admin action via mail (one-click approve/reject)
+# --------------------------------------------------------------------------- #
+from fastapi.responses import HTMLResponse  # noqa: E402
+
+from app.services.auth import decode_admin_action_token  # noqa: E402
+
+
+def _render_admin_action_page(message: str, *, success: bool) -> str:
+    color = "#ede4d3" if success else "#e85050"
+    accent_border = "#a83a3a"
+    return f"""\
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>{'Acción completada' if success else 'No se pudo'} · Entre Interiores</title>
+<style>
+body {{ margin:0; padding:48px 24px; background:#0d0b0a; color:#ede4d3;
+       font-family:Georgia,serif; }}
+.box {{ max-width:560px; margin:0 auto; padding:32px;
+       border:1px solid rgba(237,228,211,0.1); background:rgba(237,228,211,0.02); }}
+.tag {{ font-family:'Courier New',monospace; font-size:10px; letter-spacing:3px;
+       text-transform:uppercase; color:{accent_border}; margin:0 0 16px; }}
+.msg {{ font-size:22px; color:{color}; line-height:1.4; margin:0 0 24px; }}
+a {{ display:inline-block; padding:12px 24px; border:1px solid {accent_border};
+     color:{accent_border}; text-decoration:none;
+     font-family:'Courier New',monospace; font-size:11px; letter-spacing:3px;
+     text-transform:uppercase; }}
+</style>
+</head>
+<body>
+<div class="box">
+<p class="tag">entre interiores · acción admin</p>
+<p class="msg">{message}</p>
+<a href="/biblioteca/admin/posts">Ir al panel</a>
+</div>
+</body>
+</html>"""
+
+
+@router.get("/admin-action", response_class=HTMLResponse)
+def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One-click desde el email de revisión. Token JWT firmado con
+    {post_id, action} y purpose='admin_action'. Idempotente: si el post
+    ya está en el estado destino, no rompe, solo informa."""
+    data = decode_admin_action_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page(
+                "Enlace inválido o caducado.", success=False
+            ),
+            status_code=400,
+        )
+    post = db.query(Post).filter(Post.id == data["post_id"]).first()
+    if post is None:
+        return HTMLResponse(
+            _render_admin_action_page("Post no encontrado.", success=False),
+            status_code=404,
+        )
+
+    if data["action"] == "approve":
+        if post.status == "published":
+            return HTMLResponse(
+                _render_admin_action_page(
+                    f"«{post.title}» ya estaba publicado.", success=True,
+                )
+            )
+        if post.status == "rejected":
+            return HTMLResponse(
+                _render_admin_action_page(
+                    f"«{post.title}» había sido rechazado. No lo publico.",
+                    success=False,
+                ),
+                status_code=409,
+            )
+        from app.services.publishing import auto_publish_post  # lazy
+        auto_publish_post(db, post)
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"✓ Publicado: «{post.title}»", success=True,
+            )
+        )
+
+    # action == "reject"
+    if post.status == "rejected":
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"«{post.title}» ya estaba rechazado.", success=True,
+            )
+        )
+    if post.status == "published":
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"«{post.title}» ya está publicado. Despublica desde el panel.",
+                success=False,
+            ),
+            status_code=409,
+        )
+    post.status = "rejected"
+    db.commit()
+    return HTMLResponse(
+        _render_admin_action_page(
+            f"✗ Rechazado: «{post.title}»", success=True,
+        )
+    )

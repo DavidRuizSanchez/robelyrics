@@ -28,7 +28,7 @@ from sqlalchemy import and_, extract, select
 from app.db.models import Album, Artist, Post, Song
 from app.db.session import SessionLocal
 from app.services.content_generator import generate_album_anniversary
-from app.services.publishing import schedule_or_publish
+from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -160,8 +160,8 @@ def main() -> None:
             db.commit()
             db.refresh(post)
 
-            result = schedule_or_publish(db, post)
-            logger.info("Resultado publishing para %s: %s", slug, result)
+            result = propose_for_review(db, post, notify=False)
+            logger.info("Resultado para %s: %s", slug, result)
 
 
 if __name__ == "__main__":
