@@ -1,18 +1,22 @@
-# Crontab de Entre Interiores — operaciones recurrentes del blog y newsletter.
+# Crontab de Entre Interiores — calendario editorial automático.
 #
-# Instalar en el host de producción (entreinteriores):
+# Instalar en el host de producción:
 #   ssh robelyrics
+#   crontab -l > /tmp/crontab.bak       (backup)
 #   crontab -e
 #   (pegar contenido de este fichero)
 #
-# Logs van a /var/log/robelyrics-cron.log (asegúrate de que el user que corre
-# cron tiene permisos sobre ese path; alternativa: /home/david/cron.log).
+# Logs: /var/log/robelyrics-cron.log
 #
-# Idempotencia:
-# - publish_anniversary: si ya existe la entrada del año, no la duplica.
-# - scrape_news: solo inserta items con source_url no visto antes (dedup).
-# - send_newsletter: tracking per-subscriber (last_sent_at), no reenvía
-#   lo ya enviado a cada destinatario.
+# Política de publicación:
+#   - 2 posts/semana como techo móvil (ventana de 7 días).
+#   - Aniversarios (kind anniversary, album-anniversary) son excepción:
+#     se publican el día exacto, no cuentan al cap.
+#   - El resto (news, spotlight, evergreen) respetan el cap. Si está
+#     lleno, entran como `scheduled` y `flush_scheduled_due` los promueve
+#     cuando llega su hueco.
+#
+# Idempotencia: todos los scripts son seguros de relanzar.
 
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -20,21 +24,53 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 APP_DIR=/opt/robelyrics
 DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
-# Cumpleaños de Robe (16 de mayo) → publicar efeméride 09:00 UTC.
-0 9 16 5 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type birth --publish-now >> /var/log/robelyrics-cron.log 2>&1
+# ============================================================================
+# Efemérides personales (excepción al cap, día exacto)
+# ============================================================================
 
-# Aniversario del fallecimiento — DESACTIVADO. Rellenar DEATH_DATE en
-# scripts/blog/publish_anniversary.py y descomentar con día y mes correctos:
-# 0 9 <DD> <MM> * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death --publish-now >> /var/log/robelyrics-cron.log 2>&1
+# Cumpleaños Robe — 16 de mayo, 09:00 UTC
+0 9 16 5 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type birth >> /var/log/robelyrics-cron.log 2>&1
 
-# Scraper semanal de noticias sobre Robe y Extremoduro. Lunes 09:00 UTC.
-# Inserta candidatos como `pending_review` y envía email al admin con la
-# lista para revisarlos en /biblioteca/admin/posts. Aprobación manual
-# obligatoria antes de publicar.
+# Aniversario muerte Robe — 10 de diciembre, 09:00 UTC
+0 9 10 12 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Aniversarios de discos (daily check, publica si hoy es la fecha exacta)
+# ============================================================================
+
+# Diariamente a las 08:00 UTC. Si hay aniversario hoy, publica con texto
+# generado por IA y atribución Wikimedia. Idempotente por slug.
+0 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_album_anniversary >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Contenido editorial regular (respeta cap 2/sem)
+# ============================================================================
+
+# Scraper de noticias — lunes 09:00 UTC. Reescribe editorialmente con IA,
+# imagen Wikimedia, auto-publica si tier=trusted (respeta cap), entra como
+# pending_review si tier=review.
 0 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
 
-# Newsletter — dispatcher diario. Cada subscriber recibe los posts
-# publicados después de su `last_sent_at`. Idempotente: relanzar no duplica.
-# Cadencia diaria para que las entradas nuevas lleguen en máx. 24h tras
-# publicarse, no a la semana siguiente.
-0 10 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1
+# Spotlight semanal de canción — martes 09:00 UTC. Rotación determinista
+# entre canciones con seo_content publicado, evita repetir en 365 días.
+0 9 * * 2 cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_song_spotlight >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Scheduler (cola de posts encolados por el cap)
+# ============================================================================
+
+# Promueve los `scheduled` cuyo scheduled_for ya pasó — diario 10:00 UTC.
+0 10 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.flush_scheduled_due >> /var/log/robelyrics-cron.log 2>&1
+
+# Garantiza el mínimo de 2 posts/semana. Si llevamos <2 en 7 días, lanza
+# spotlight ad-hoc o evergreen sobre taxonomía rotativa.
+0 11 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.ensure_weekly_minimum >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Newsletter (instantáneo al publicar + red de seguridad diaria)
+# ============================================================================
+
+# Cron diario como catch-up: posts publicados que no recibieron dispatch
+# instantáneo (por error de SMTP o restart) se envían a las 12:00 UTC.
+# El newsletter on-publish lo dispara `publishing.auto_publish_post`.
+0 12 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1

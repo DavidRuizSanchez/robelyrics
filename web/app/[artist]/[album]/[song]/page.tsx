@@ -11,6 +11,12 @@ import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  musicAlbumNode,
+  musicCompositionNode,
+  musicGroupNode,
+} from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
 
@@ -228,18 +234,27 @@ export default async function SongPublicPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@type": "MusicComposition",
-              name: detail.title,
-              composer: { "@type": "MusicGroup", name: detail.artist.name },
-              inAlbum: {
-                "@type": "MusicAlbum",
-                name: detail.album.title,
-                datePublished: String(detail.album.year),
-              },
-              url: `/${artist}/${album}/${song}`,
-            }),
+            __html: safeJsonLd(
+              buildGraph([
+                musicCompositionNode({
+                  slug: song,
+                  artistSlug: artist,
+                  albumSlug: album,
+                  albumTitle: detail.album.title,
+                  albumYear: detail.album.year,
+                  artistName: detail.artist.name,
+                  title: detail.title,
+                }),
+                // Nodos mínimos para que Google una entidades cross-page
+                musicAlbumNode({
+                  slug: album,
+                  artistSlug: artist,
+                  title: detail.album.title,
+                  year: detail.album.year,
+                }),
+                musicGroupNode({ slug: artist, name: detail.artist.name }),
+              ]),
+            ),
           }}
         />
       </main>

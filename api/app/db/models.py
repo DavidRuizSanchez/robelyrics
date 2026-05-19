@@ -12,11 +12,13 @@ FTS:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     ARRAY,
+    Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -67,6 +69,11 @@ class Album(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False, default="studio")
     track_count: Mapped[int | None] = mapped_column(Integer)
     cover_url: Mapped[str | None] = mapped_column(String(512))
+    # Fecha exacta de lanzamiento. NULL hasta que el script de bootstrap la
+    # rellena vía Wikidata/Wikipedia. Necesaria para aniversarios automáticos
+    # en el día exacto del lanzamiento.
+    release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    release_date_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     artist: Mapped[Artist] = relationship(back_populates="albums")
     songs: Mapped[list["Song"]] = relationship(
@@ -384,7 +391,7 @@ class SeoTemplate(Base):
     __tablename__ = "seo_templates"
     __table_args__ = (
         CheckConstraint(
-            "entity_type IN ('artist', 'album', 'song')",
+            "entity_type IN ('artist', 'album', 'song', 'person')",
             name="ck_seo_templates_entity_type",
         ),
         CheckConstraint(
@@ -549,13 +556,22 @@ class Post(Base):
     """Entrada de blog/noticias en la web pública.
 
     `kind`:
-      - 'editorial':   artículo manual del admin (long-form).
-      - 'news':        noticia raspada de fuente externa whitelisted.
-      - 'anniversary': publicación automática en aniversario de nacimiento o
-                       muerte de Robe.
+      - 'editorial':         artículo manual del admin (long-form).
+      - 'news':              noticia raspada de fuente externa whitelisted.
+      - 'anniversary':       efeméride Robe (nacimiento/muerte). Excepción al
+                             cap semanal: siempre se publica el día exacto.
+      - 'album-anniversary': aniversario de lanzamiento de un disco. Misma
+                             excepción al cap que `anniversary`.
+      - 'spotlight':         análisis editorial de una canción del catálogo,
+                             generado por rotación semanal.
+      - 'evergreen':         pieza sobre una taxonomía (tema/lugar/concepto),
+                             relleno cuando el resto no llega al mínimo.
 
     `status`:
-      draft → pending_review → approved → published (también: rejected).
+      draft → pending_review → approved → scheduled → published (o rejected).
+      `scheduled` significa "esperando hueco" cuando el cap de 2/sem ya está
+      ocupado; el cron `flush_scheduled_due` lo promueve a `published` cuando
+      llega su `scheduled_for`.
     Solo las publicadas se muestran en /blog y entran al sitemap.
     """
 
@@ -569,6 +585,12 @@ class Post(Base):
     excerpt: Mapped[str | None] = mapped_column(Text)
     body_md: Mapped[str] = mapped_column(Text, nullable=False)
     hero_image_url: Mapped[str | None] = mapped_column(String(500))
+    # Atribución y licencia de la imagen (Wikimedia Commons). Renderizadas en
+    # el footer del post para cumplir con la licencia (CC-BY/CC-BY-SA exigen
+    # author + licencia + enlace a la fuente).
+    hero_image_attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hero_image_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hero_image_source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(500))
     source_name: Mapped[str | None] = mapped_column(String(200))
     meta_title: Mapped[str | None] = mapped_column(String(256))
@@ -578,22 +600,34 @@ class Post(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Cuando status='scheduled', momento en que el scheduler lo publicará.
+    scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     approved_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    # Marca de cuándo se incluyó este post en un envío de newsletter. NULL
-    # significa "aún sin enviar" y el cron lo recogerá en el próximo digest.
+    # Marca de cuándo se incluyó este post en un envío de newsletter (legacy,
+    # mantenido por compatibilidad con el dispatcher diario). Para el flujo
+    # newsletter-on-publish (cap 2/sem) usamos `newsletter_dispatched_at`.
     newsletter_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Idempotencia del envío de email al publicar el post. NOT NULL → ya
+    # mandado, no se vuelve a enviar aunque rearranque el cron.
+    newsletter_dispatched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('editorial', 'news', 'anniversary')",
+            "kind IN ('editorial', 'news', 'anniversary', 'spotlight', "
+            "'evergreen', 'album-anniversary')",
             name="ck_posts_kind",
         ),
         CheckConstraint(
-            "status IN ('draft', 'pending_review', 'approved', 'published', 'rejected')",
+            "status IN ('draft', 'pending_review', 'approved', 'scheduled', "
+            "'published', 'rejected')",
             name="ck_posts_status",
         ),
     )
@@ -632,3 +666,102 @@ class Subscriber(Base):
             name="ck_subscribers_status",
         ),
     )
+
+
+# --- Fase 4: knowledge graph (personas + band memberships) ------------------
+
+
+class Person(Base):
+    """Persona del universo editorial (miembro de banda, colaborador, líder
+    de grupo amigo, etc.). Independiente de `Artist` porque una persona puede
+    pertenecer a varias bandas con roles distintos en eras distintas.
+
+    `wikidata_id` (Q-ID, ej. 'Q3500822') permite enriquecer datos y emitir
+    `sameAs` en JSON-LD para que Google una entidades cross-source.
+    """
+
+    __tablename__ = "persons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    full_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    stage_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    death_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    birth_place: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    bio_short: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wikipedia_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    wikidata_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    image_attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    image_source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    memberships: Mapped[list["BandMembership"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+
+
+class BandMembership(Base):
+    """Relación N:M Person↔Artist con `role` (vocalista, guitarrista, etc.) y
+    `era` (string libre tipo "1987-2014" o "Etapa Pedrá") para distinguir
+    pertenencias múltiples a una misma banda en momentos distintos.
+    """
+
+    __tablename__ = "band_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "person_id",
+            "artist_id",
+            "role",
+            "era",
+            name="uq_band_memberships_person_artist_role_era",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    person_id: Mapped[int] = mapped_column(
+        ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    artist_id: Mapped[int] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(64), nullable=False)
+    era: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_founder: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    person: Mapped[Person] = relationship(back_populates="memberships")
+    artist: Mapped[Artist] = relationship()
+
+
+# --- Observabilidad scraper -------------------------------------------------
+
+
+class NewsSourceRun(Base):
+    """Run del scraper de noticias. Una fila por fuente y por ejecución, para
+    poder diagnosticar fuentes que dejen de funcionar (parser cambia, RSS se
+    cae, etc.).
+    """
+
+    __tablename__ = "news_source_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    items_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    items_inserted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    items_scheduled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    items_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)

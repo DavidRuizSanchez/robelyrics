@@ -1,24 +1,24 @@
-"""Scraper semanal de noticias sobre Robe / Extremoduro.
+"""Scraper semanal de noticias sobre Robe / Extremoduro y universo cercano.
+
+Diferencias respecto a la versión MVP:
+  - Lee `data/news_whitelist.yaml` con la estructura nueva (terms_groups +
+    sources con tier).
+  - Soporta HTML scraping además de RSS (selector CSS por fuente).
+  - Reescribe cada noticia con voz editorial propia (content_generator.
+    rewrite_news_editorial) — no copia texto de la fuente.
+  - Busca imagen libre en Wikimedia para el hero.
+  - Auto-publica con `publishing.schedule_or_publish` si la fuente es
+    `tier: trusted`; en caso contrario inserta como `pending_review`.
+  - Registra cada run en `news_source_runs` para observabilidad.
 
 Workflow:
-  1. Recorre `sources/news_whitelist.yaml` (fuentes permitidas).
-  2. Para cada fuente, obtiene los items recientes (RSS o HTML).
-  3. Filtra por términos relevantes (configurable en el YAML).
-  4. Inserta en `posts` con status='pending_review' (deduplicado por
-     source_url). Los items previos no se reescriben.
-  5. Si NOTIFY_ADMIN_TOKEN está configurado, manda resumen a Telegram al
-     admin con la lista de candidatos a revisar.
+    cron lunes 09:00 UTC → 1) fetch fuentes 2) match terms 3) por candidato:
+    rewrite + wikimedia + publish/queue 4) notify admin con resumen.
 
-El admin revisa en panel admin y aprueba/rechaza manualmente. NUNCA publica
-de forma automática — la aprobación es obligatoria.
-
-Pensado para correr semanalmente vía cron:
-    0 9 * * 1 cd /opt/robelyrics && docker compose exec -T api python -m scripts.blog.scrape_news
-
-NOTA: este es el esqueleto base. La whitelist de fuentes y el parser por
-fuente se afinan en `sources/news_whitelist.yaml` y `_fetch_<source>` según
-qué portales se quieran cubrir. Los parsers de RSS están listos; para
-fuentes solo-HTML hay que añadir selectores CSS por fuente.
+Uso:
+    python -m scripts.blog.scrape_news
+    python -m scripts.blog.scrape_news --dry-run
+    python -m scripts.blog.scrape_news --source "Hoy (Extremadura) — Cultura"
 """
 from __future__ import annotations
 
@@ -35,253 +35,374 @@ from xml.etree import ElementTree as ET
 
 import httpx
 import yaml
+from bs4 import BeautifulSoup
 from sqlalchemy import select
 
-from app.db.models import Post
+from app.db.models import NewsSourceRun, Post
 from app.db.session import SessionLocal
+from app.services.content_generator import rewrite_news_editorial
+from app.services.publishing import schedule_or_publish
+from app.services.wikimedia import search_image
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 WHITELIST_PATH = Path("/app/data/news_whitelist.yaml")
 USER_AGENT = "Mozilla/5.0 RobeLyrics-NewsBot/1.0 (+https://entreinteriores.com/blog)"
 HTTP_TIMEOUT = 20.0
 
-# Palabras prohibidas en cualquier fuente — si alguna aparece, descartamos el
-# item (suelen ser etiquetas de prensa veta da en el corpus principal).
 HARD_REJECT_TERMS = {"clickbait"}
 
 
-def slugify(text: str, max_len: int = 100) -> str:
+# --------------------------------------------------------------------------- #
+# Utilidades
+# --------------------------------------------------------------------------- #
+def _slugify(text: str, max_len: int = 100) -> str:
     nfkd = unicodedata.normalize("NFKD", text)
     ascii_only = nfkd.encode("ascii", "ignore").decode("ascii")
     ascii_only = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_only).strip("-").lower()
     return ascii_only[:max_len]
 
 
+def _flatten_terms(terms_groups: dict) -> list[str]:
+    out: list[str] = []
+    for group, terms in (terms_groups or {}).items():
+        for term in terms or []:
+            t = term.strip().lower()
+            if t:
+                out.append(t)
+    return out
+
+
+def _match_term(blob_lower: str, terms: list[str]) -> str | None:
+    for t in HARD_REJECT_TERMS:
+        if t in blob_lower:
+            return None
+    for term in terms:
+        if term in blob_lower:
+            return term
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Fetchers
+# --------------------------------------------------------------------------- #
 def fetch_rss(url: str) -> Iterator[dict]:
-    """Parse RSS/Atom genérico. Devuelve {title, link, summary, published_at}."""
     try:
-        with httpx.Client(timeout=HTTP_TIMEOUT, headers={"User-Agent": USER_AGENT}) as c:
+        with httpx.Client(
+            timeout=HTTP_TIMEOUT, headers={"User-Agent": USER_AGENT}
+        ) as c:
             r = c.get(url)
             r.raise_for_status()
             root = ET.fromstring(r.text)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("fetch_rss failed for %s: %s", url, e)
         return
 
-    # Soporta RSS 2.0 (`channel/item`) y Atom (`entry`)
     ns_atom = "{http://www.w3.org/2005/Atom}"
-
     for item in root.iter("item"):
-        title = (item.findtext("title") or "").strip()
-        link = (item.findtext("link") or "").strip()
-        summary = (item.findtext("description") or "").strip()
-        pub = item.findtext("pubDate") or ""
-        yield {"title": title, "link": link, "summary": summary, "published_at_raw": pub}
-
+        yield {
+            "title": (item.findtext("title") or "").strip(),
+            "link": (item.findtext("link") or "").strip(),
+            "summary": (item.findtext("description") or "").strip(),
+        }
     for entry in root.iter(f"{ns_atom}entry"):
-        title = (entry.findtext(f"{ns_atom}title") or "").strip()
         link_el = entry.find(f"{ns_atom}link")
-        link = link_el.get("href") if link_el is not None else ""
-        summary = (entry.findtext(f"{ns_atom}summary") or "").strip()
-        pub = entry.findtext(f"{ns_atom}published") or ""
-        yield {"title": title, "link": link, "summary": summary, "published_at_raw": pub}
+        yield {
+            "title": (entry.findtext(f"{ns_atom}title") or "").strip(),
+            "link": link_el.get("href") if link_el is not None else "",
+            "summary": (entry.findtext(f"{ns_atom}summary") or "").strip(),
+        }
 
 
-def matches_terms(text: str, terms: list[str]) -> bool:
-    if not text:
-        return False
-    text_lower = text.lower()
-    if any(term in text_lower for term in HARD_REJECT_TERMS):
-        return False
-    return any(term in text_lower for term in terms)
-
-
-def _render_admin_email(candidates: list[dict], admin_url: str) -> tuple[str, str]:
-    """Email para el admin con la lista de candidatos a revisar."""
-    items_html = ""
-    items_text: list[str] = []
-    for c in candidates:
-        items_html += f"""\
-<li style="margin:0 0 12px;padding:12px 14px;background:rgba(237,228,211,0.03);border-left:3px solid #e85050;">
-  <p style="font-family:Georgia,serif;font-size:15px;color:#ede4d3;margin:0 0 4px;line-height:1.35;">
-    <strong>{c['title']}</strong>
-  </p>
-  <p style="font-family:'Courier New',monospace;font-size:11px;color:rgba(237,228,211,0.5);margin:0 0 4px;">
-    {c['source_name']} ·
-    <a href="{c['source_url']}" style="color:#e85050;text-decoration:none;">fuente original ↗</a>
-  </p>
-  {f'<p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:rgba(237,228,211,0.7);margin:6px 0 0;line-height:1.5;">{c["excerpt"]}</p>' if c.get("excerpt") else ""}
-</li>"""
-        items_text.append(f"· {c['title']}\n  {c['source_name']} — {c['source_url']}")
-
-    html = f"""\
-<!doctype html>
-<html lang="es"><body style="margin:0;padding:32px;background:#0d0b0a;color:#ede4d3;font-family:Georgia,serif;">
-  <div style="max-width:620px;margin:0 auto;padding:32px;border:1px solid rgba(237,228,211,0.08);background:rgba(237,228,211,0.02);">
-    <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#e85050;margin:0 0 8px;">
-      entre interiores · admin
-    </p>
-    <h1 style="font-family:Georgia,serif;font-size:24px;color:#ede4d3;margin:0 0 8px;">
-      {len(candidates)} candidato{'s' if len(candidates) != 1 else ''} de noticia para revisar
-    </h1>
-    <p style="font-style:italic;line-height:1.6;color:rgba(237,228,211,0.6);font-size:14px;margin:0 0 24px;">
-      El scraper semanal ha encontrado lo siguiente. Revísalo y publica/rechaza
-      desde el panel admin. Solo lo que apruebes se envía a los suscriptores.
-    </p>
-    <ul style="list-style:none;padding:0;margin:0 0 24px;">
-      {items_html}
-    </ul>
-    <p style="margin:24px 0 0;text-align:center;">
-      <a href="{admin_url}" style="display:inline-block;padding:14px 28px;border:1px solid #e85050;color:#e85050;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
-        revisar en el panel
-      </a>
-    </p>
-  </div>
-</body></html>"""
-    text = (
-        f"{len(candidates)} candidatos de noticia para revisar:\n\n"
-        + "\n\n".join(items_text)
-        + f"\n\nRevisar en el panel: {admin_url}\n"
-    )
-    return html, text
-
-
-def maybe_notify_admin(candidates: list[dict]) -> None:
-    """Notifica al admin con la lista de candidatos. Prefiere email
-    (ADMIN_EMAIL + SMTP/Resend configurado); cae a Telegram si está
-    configurado; si nada, solo log."""
-    if not candidates:
+def fetch_html(url: str, selector: str) -> Iterator[dict]:
+    """Scrapea una página índice. `selector` es un selector CSS que apunta a
+    cada item; dentro buscamos un `<a>` con título y href, y opcionalmente un
+    bloque de excerpt (primer `<p>` o atributo `data-summary`)."""
+    try:
+        with httpx.Client(
+            timeout=HTTP_TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True
+        ) as c:
+            r = c.get(url)
+            r.raise_for_status()
+            html = r.text
+    except Exception as e:  # noqa: BLE001
+        logger.warning("fetch_html failed for %s: %s", url, e)
         return
 
-    summary_lines = [f"📰 {len(candidates)} candidato(s) para revisar:"]
-    for c in candidates[:15]:
-        summary_lines.append(f"  · {c['title']} — {c['source_name']}")
-    summary = "\n".join(summary_lines)
+    soup = BeautifulSoup(html, "html.parser")
+    base = urlparse(url)
+    base_root = f"{base.scheme}://{base.netloc}"
+    for el in soup.select(selector):
+        a = el.find("a")
+        if a is None:
+            continue
+        title = (a.get_text() or "").strip()
+        href = a.get("href") or ""
+        if href.startswith("/"):
+            href = base_root + href
+        if not title or not href:
+            continue
+        summary_el = el.find("p")
+        summary = (summary_el.get_text() or "").strip() if summary_el else ""
+        yield {"title": title, "link": href, "summary": summary}
 
-    # 1) Email al admin (preferido).
+
+# --------------------------------------------------------------------------- #
+# Admin notify
+# --------------------------------------------------------------------------- #
+def _notify_admin(summary: dict) -> None:
+    """Resumen al admin: cuántos auto-publicados, cuántos en pending, errores."""
+    body_lines = [
+        f"Scraper run · {summary['ts']}",
+        "",
+        f"Auto-publicados (trusted): {summary['published']}",
+        f"Encolados (cap lleno):     {summary['scheduled']}",
+        f"Pending review:            {summary['pending']}",
+        f"Sin match:                 {summary['no_match']}",
+        f"Errores fuentes:           {summary['errors']}",
+        "",
+    ]
+    if summary["headlines"]:
+        body_lines.append("Headlines procesados:")
+        for h in summary["headlines"]:
+            body_lines.append(f"  · [{h['action']}] {h['title']} ({h['source']})")
+    text = "\n".join(body_lines)
+
     admin_email = os.getenv("ADMIN_EMAIL")
     if admin_email:
-        from app.services.email import send_email, EmailError
+        from app.services.email import EmailError, send_email
         site_url = os.getenv("SITE_URL", "https://entreinteriores.com").rstrip("/")
-        admin_url = f"{site_url}/biblioteca/admin/posts"
         try:
-            html, text = _render_admin_email(candidates, admin_url)
             send_email(
                 to=admin_email,
-                subject=f"📰 {len(candidates)} noticia(s) para revisar · Entre Interiores",
-                html=html,
+                subject=f"📰 Scraper run · {summary['published']} pub / {summary['scheduled']} en cola",
+                html=f"<pre style='font-family:monospace'>{text}\n\n"
+                f"<a href='{site_url}/biblioteca/admin/posts'>Panel admin</a></pre>",
                 text=text,
             )
-            logger.info("Admin email enviado a %s", admin_email)
             return
         except EmailError as e:
-            logger.warning("Admin email failed: %s — fallback a log/Telegram", e)
+            logger.warning("Admin email failed: %s", e)
 
-    # 2) Telegram fallback.
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_ADMIN_CHAT_ID")
-    if token and chat_id:
-        try:
-            with httpx.Client(timeout=10.0) as c:
-                c.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": summary},
-                )
-            return
-        except Exception as e:
-            logger.warning("Telegram notify failed: %s", e)
-
-    # 3) Solo log.
-    logger.info("Admin notification skipped (sin ADMIN_EMAIL ni TELEGRAM).\n%s", summary)
+    logger.info("Resumen admin:\n%s", text)
 
 
+# --------------------------------------------------------------------------- #
+# Main
+# --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dry-run", action="store_true", help="No inserta, solo lista.")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--source", help="Limita a una fuente concreta por nombre")
+    parser.add_argument(
+        "--no-rewrite",
+        action="store_true",
+        help="No llama al LLM para reescribir (rápido, sin tokens).",
+    )
+    parser.add_argument(
+        "--no-image",
+        action="store_true",
+        help="Salta búsqueda Wikimedia.",
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
     if not WHITELIST_PATH.exists():
-        logger.error("No existe %s. Crea la whitelist primero.", WHITELIST_PATH)
+        logger.error("Whitelist no encontrada en %s", WHITELIST_PATH)
         return
 
     with WHITELIST_PATH.open(encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
 
-    terms = [t.lower() for t in (cfg.get("terms") or [])]
+    # Compat retro: si todavía hay `terms` plana (legacy), la añadimos a un
+    # grupo `legacy`. La nueva estructura es `terms_groups`.
+    terms_groups = cfg.get("terms_groups")
+    if not terms_groups and "terms" in cfg:
+        terms_groups = {"legacy": cfg["terms"]}
+    terms = _flatten_terms(terms_groups or {})
+    if not terms:
+        logger.error("No hay términos definidos en la whitelist")
+        return
+    logger.info("Términos activos: %d (de %d grupos)", len(terms), len(terms_groups or {}))
+
     sources = cfg.get("sources") or []
+    if args.source:
+        sources = [s for s in sources if s.get("name") == args.source]
 
-    candidates: list[dict] = []
+    summary = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "published": 0,
+        "scheduled": 0,
+        "pending": 0,
+        "no_match": 0,
+        "errors": 0,
+        "headlines": [],
+    }
 
-    for src in sources:
-        if not src.get("enabled", True):
-            continue
-        kind = src.get("kind", "rss")
-        name = src["name"]
-        url = src["url"]
-        logger.info("Fetch %s (%s)", name, url)
+    with SessionLocal() as db:
+        for src in sources:
+            if not src.get("enabled", True):
+                continue
+            name = src["name"]
+            url = src["url"]
+            kind = src.get("kind", "rss")
+            tier = src.get("tier", "review")
 
-        if kind == "rss":
-            for item in fetch_rss(url):
+            logger.info("Fetch %s (%s, tier=%s)", name, url, tier)
+            run = NewsSourceRun(source_name=name)
+            db.add(run)
+            db.commit()
+            db.refresh(run)
+
+            items: list[dict] = []
+            try:
+                if kind == "rss":
+                    items = list(fetch_rss(url))
+                elif kind == "html":
+                    selector = src.get("selector")
+                    if not selector:
+                        raise ValueError("kind=html requiere `selector`")
+                    items = list(fetch_html(url, selector))
+                else:
+                    raise ValueError(f"kind '{kind}' desconocido")
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Source %s falló: %s", name, exc)
+                run.error = str(exc)[:1000]
+                run.finished_at = datetime.now(timezone.utc)
+                db.commit()
+                summary["errors"] += 1
+                continue
+
+            run.items_found = len(items)
+
+            for item in items:
                 if not item["title"] or not item["link"]:
                     continue
-                blob = f"{item['title']} {item['summary']}"
-                if not matches_terms(blob, terms):
+                blob = f"{item['title']} {item['summary']}".lower()
+                term = _match_term(blob, terms)
+                if not term:
                     continue
-                candidates.append({
-                    "source_name": name,
-                    "source_url": item["link"],
-                    "title": item["title"],
-                    "excerpt": item["summary"][:400] if item["summary"] else None,
+
+                # Dedup por source_url
+                existing = db.execute(
+                    select(Post).where(Post.source_url == item["link"])
+                ).scalar_one_or_none()
+                if existing is not None:
+                    continue
+
+                slug = _slugify(item["title"])
+                base = slug
+                i = 2
+                while db.execute(
+                    select(Post).where(Post.slug == slug)
+                ).scalar_one_or_none():
+                    slug = f"{base}-{i}"
+                    i += 1
+
+                # Reescritura editorial
+                if args.no_rewrite:
+                    title = item["title"][:240]
+                    excerpt = (item["summary"] or "")[:200]
+                    body_md = (
+                        f"{item['summary'] or ''}\n\n"
+                        f"*Vía [{name}]({item['link']}).*\n"
+                    )
+                    meta_title = title[:60]
+                    meta_description = excerpt[:155]
+                else:
+                    rewritten = rewrite_news_editorial(
+                        headline=item["title"],
+                        source_excerpt=item["summary"] or item["title"],
+                        source_url=item["link"],
+                        source_name=name,
+                        matched_term=term,
+                    )
+                    # Si el LLM devolvió title vacío → falso positivo, skip
+                    if not rewritten.get("title"):
+                        logger.info(
+                            "Falso positivo descartado por LLM: %r", item["title"]
+                        )
+                        continue
+                    title = rewritten["title"][:240]
+                    excerpt = rewritten["excerpt"][:200]
+                    body_md = rewritten["body_md"]
+                    meta_title = rewritten["meta_title"][:60]
+                    meta_description = rewritten["meta_description"][:155]
+
+                # Imagen Wikimedia
+                img = None
+                if not args.no_image:
+                    img = search_image(term)
+                if img is None and not args.no_image:
+                    img = search_image("Extremoduro")
+                hero_url = img.thumb_url if img else None
+                if img:
+                    body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
+
+                run.items_inserted += 1
+
+                action_label = "pending"
+                if args.dry_run:
+                    summary["headlines"].append({
+                        "action": "dry-run",
+                        "title": title,
+                        "source": name,
+                    })
+                    continue
+
+                post = Post(
+                    slug=slug,
+                    kind="news",
+                    status="pending_review" if tier != "trusted" else "draft",
+                    title=title,
+                    excerpt=excerpt,
+                    body_md=body_md,
+                    meta_title=meta_title,
+                    meta_description=meta_description,
+                    source_url=item["link"],
+                    source_name=name,
+                    hero_image_url=hero_url,
+                    hero_image_attribution=img.attribution_text if img else None,
+                    hero_image_license=img.license_short if img else None,
+                    hero_image_source_url=img.source_page_url if img else None,
+                )
+                db.add(post)
+                db.commit()
+                db.refresh(post)
+
+                if tier == "trusted":
+                    result = schedule_or_publish(db, post)
+                    if result["action"] == "published":
+                        summary["published"] += 1
+                        run.items_published += 1
+                        action_label = "published"
+                    else:
+                        summary["scheduled"] += 1
+                        run.items_scheduled += 1
+                        action_label = "scheduled"
+                else:
+                    summary["pending"] += 1
+                    action_label = "pending"
+
+                summary["headlines"].append({
+                    "action": action_label,
+                    "title": title,
+                    "source": name,
                 })
-        else:
-            logger.warning("Source kind '%s' no implementado todavía (%s).", kind, name)
 
-    logger.info("Total candidatos: %d", len(candidates))
-    if args.dry_run:
-        for c in candidates:
-            print(f"  - [{c['source_name']}] {c['title']}")
-        return
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
 
-    added = 0
-    with SessionLocal() as db:
-        for c in candidates:
-            existing = db.execute(
-                select(Post).where(Post.source_url == c["source_url"])
-            ).scalar_one_or_none()
-            if existing:
-                continue
-            slug = slugify(c["title"])
-            # Garantizar unicidad de slug (collisions raras)
-            base = slug
-            i = 2
-            while db.execute(select(Post).where(Post.slug == slug)).scalar_one_or_none():
-                slug = f"{base}-{i}"
-                i += 1
-            body = (
-                f"_Resumen automático de la fuente original — el editor revisará "
-                f"y reescribirá antes de publicar._\n\n"
-                f"{c.get('excerpt') or ''}\n\n"
-                f"Fuente original: {c['source_url']}"
-            )
-            post = Post(
-                slug=slug,
-                kind="news",
-                status="pending_review",
-                title=c["title"][:240],
-                excerpt=c.get("excerpt"),
-                body_md=body,
-                source_url=c["source_url"],
-                source_name=c["source_name"],
-            )
-            db.add(post)
-            added += 1
-        db.commit()
-
-    logger.info("Insertados como pending_review: %d", added)
-    maybe_notify_admin(candidates)
+    summary["no_match"] = 0  # se calcularía si quisiéramos detallarlo
+    logger.info(
+        "Run terminado: %d pub / %d enc / %d pending / %d errors",
+        summary["published"], summary["scheduled"], summary["pending"], summary["errors"],
+    )
+    if not args.dry_run:
+        _notify_admin(summary)
+    else:
+        for h in summary["headlines"]:
+            print(f"  [{h['action']}] {h['title']} ({h['source']})")
 
 
 if __name__ == "__main__":

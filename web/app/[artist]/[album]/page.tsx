@@ -9,6 +9,11 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  musicAlbumNode,
+  musicGroupNode,
+} from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
 
@@ -173,15 +178,19 @@ export default async function AlbumPublicPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@type": "MusicAlbum",
-              name: detail.title,
-              datePublished: String(detail.year),
-              byArtist: { "@type": "MusicGroup", name: detail.artist.name },
-              url: `/${artist}/${album}`,
-              image: detail.cover_url || undefined,
-            }),
+            __html: safeJsonLd(
+              buildGraph([
+                musicAlbumNode({
+                  slug: album,
+                  artistSlug: artist,
+                  title: detail.title,
+                  year: detail.year,
+                  coverUrl: detail.cover_url,
+                }),
+                // Nodo mínimo del artista para conectar @id
+                musicGroupNode({ slug: artist, name: detail.artist.name }),
+              ]),
+            ),
           }}
         />
       </main>

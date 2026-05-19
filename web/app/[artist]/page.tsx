@@ -7,6 +7,11 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  musicAlbumNode,
+  musicGroupNode,
+} from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
 const VALID_SLUGS = new Set(["extremoduro", "robe"]);
@@ -118,18 +123,31 @@ export default async function ArtistPublicPage({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: safeJsonLd({
-                "@context": "https://schema.org",
-                "@type": "MusicGroup",
-                name: detail.name,
-                url: `/${artist}`,
-                album: detail.albums.map((a) => ({
-                  "@type": "MusicAlbum",
-                  name: a.title,
-                  datePublished: String(a.year),
-                  url: `/${artist}/${a.slug}`,
-                })),
-              }),
+              __html: safeJsonLd(
+                buildGraph([
+                  musicGroupNode({
+                    slug: artist,
+                    name: detail.name,
+                    activeYears: detail.active_years,
+                    albums: detail.albums.map((a) => ({
+                      slug: a.slug,
+                      artistSlug: artist,
+                      title: a.title,
+                      year: a.year,
+                      coverUrl: a.cover_url,
+                    })),
+                  }),
+                  ...detail.albums.map((a) =>
+                    musicAlbumNode({
+                      slug: a.slug,
+                      artistSlug: artist,
+                      title: a.title,
+                      year: a.year,
+                      coverUrl: a.cover_url,
+                    }),
+                  ),
+                ]),
+              ),
             }}
           />
         )}

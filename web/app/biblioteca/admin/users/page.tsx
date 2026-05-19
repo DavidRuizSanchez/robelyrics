@@ -57,6 +57,13 @@ export default async function AdminUsersPage() {
               SEO content
             </Link>
             <span className="text-accent">usuarios</span>
+            <Link
+              href="/biblioteca/admin/subscribers"
+              data-cursor="hover"
+              className="text-ink-dim hover:text-accent"
+            >
+              suscriptores
+            </Link>
           </nav>
         </div>
         <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">

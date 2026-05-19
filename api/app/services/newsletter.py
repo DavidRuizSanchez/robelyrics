@@ -32,6 +32,9 @@ KIND_LABEL = {
     "editorial": "Editorial",
     "news": "Noticia",
     "anniversary": "Efeméride",
+    "album-anniversary": "Aniversario",
+    "spotlight": "Análisis",
+    "evergreen": "Editorial",
 }
 
 
@@ -99,6 +102,57 @@ def dispatch_to_subscriber(db: Session, sub: Subscriber) -> bool:
     sub.last_sent_at = datetime.now(timezone.utc)
     db.flush()
     return True
+
+
+def dispatch_for_post(db: Session, post_id: int) -> dict[str, int]:
+    """Envía email con un único post a todos los subscribers confirmed.
+
+    Idempotente: si `post.newsletter_dispatched_at` ya está rellenado, no-op.
+    Diseñado para el flujo newsletter-on-publish (cap 2/semana). El cron
+    diario `dispatch_to_all_confirmed` sigue funcionando como red de
+    seguridad para posts donde este dispatcher falló o no se llamó.
+    """
+    post = db.query(Post).filter(Post.id == post_id).one_or_none()
+    if post is None or post.status != "published":
+        return {"sent": 0, "skipped": 0, "reason": "not-published"}
+    if post.newsletter_dispatched_at is not None:
+        return {"sent": 0, "skipped": 0, "reason": "already-dispatched"}
+
+    subscribers = (
+        db.query(Subscriber).filter(Subscriber.status == "confirmed").all()
+    )
+    base_url = _site_url()
+    post_dict = _post_to_dict(post, base_url)
+    subject = f"Una entrada nueva · {post.title}"
+
+    sent = 0
+    failed = 0
+    now = datetime.now(timezone.utc)
+    for sub in subscribers:
+        unsubscribe_url = (
+            f"{base_url}/newsletter/baja?token={sub.unsubscribe_token}"
+        )
+        html, text = render_newsletter_digest_email(
+            [post_dict], unsubscribe_url, base_url
+        )
+        try:
+            send_email(to=sub.email, subject=subject, html=html, text=text)
+        except EmailError as e:
+            logger.warning(
+                "Newsletter dispatch_for_post failed for %s: %s", sub.email, e
+            )
+            failed += 1
+            continue
+        sub.last_sent_at = now
+        sent += 1
+
+    post.newsletter_dispatched_at = now
+    db.commit()
+    return {
+        "subscribers_total": len(subscribers),
+        "sent": sent,
+        "failed": failed,
+    }
 
 
 def dispatch_to_all_confirmed(db: Session) -> dict[str, int]:

@@ -1,0 +1,110 @@
+# Personas del universo Entre Interiores.
+#
+# Esto pobla `persons` + `band_memberships`. El seed (`scripts.seed_persons`)
+# completa datos faltantes desde Wikipedia/Wikidata: fechas, biografía corta,
+# Q-ID, y foto en Wikimedia Commons.
+#
+# Convenciones:
+#   - slug: kebab-case sin acentos
+#   - artist (en memberships): slug del Artist en DB (extremoduro|robe)
+#   - era: string libre ("1987-2014", "Banda solista 2017-2025")
+#   - Si no aparece `birth_date` el seed lo intenta sacar de Wikidata.
+#   - `wikipedia_url` ayuda al seed a encontrar el Q-ID si no se conoce.
+#
+# Para añadir grupos amigos como personas (Kutxi Romero, Fito Cabrales, etc.),
+# añade su entrada SIN memberships (sus bandas no están en nuestro Artist
+# corpus). El JSON-LD usará `sameAs` a Wikidata para enlazar.
+
+persons:
+  # =========================================================================
+  # Extremoduro / Robe — eje del proyecto
+  # =========================================================================
+
+  - slug: robe-iniesta
+    full_name: Robe Iniesta
+    stage_name: Robe
+    birth_date: 1962-05-16
+    death_date: 2025-12-10
+    birth_place: Plasencia, Cáceres
+    wikipedia_url: https://es.wikipedia.org/wiki/Robe_Iniesta
+    wikidata_id: Q3500822
+    memberships:
+      - artist: extremoduro
+        role: vocalista
+        era: 1987-2014
+        is_founder: true
+        position: 1
+      - artist: robe
+        role: vocalista
+        era: 2014-2025
+        is_founder: true
+        position: 1
+
+  - slug: inaki-uoho-anton
+    full_name: Iñaki Antón
+    stage_name: Uoho
+    wikipedia_url: https://es.wikipedia.org/wiki/I%C3%B1aki_Ant%C3%B3n
+    memberships:
+      - artist: extremoduro
+        role: guitarrista
+        era: 1996-2014
+        position: 2
+
+  - slug: salo
+    full_name: Salomón Hernández
+    stage_name: Salo
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: 1996-2007
+        position: 3
+
+  - slug: miguel-colino
+    full_name: Miguel Colino
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1996-2014
+        position: 4
+
+  - slug: jose-ignacio-cantera
+    full_name: José Ignacio Cantera
+    stage_name: Iñaki Cantera
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: 2008-2014
+        position: 5
+
+  # =========================================================================
+  # Grupos amigos — lideres principales (sin membership en nuestro corpus,
+  # se conectan via JSON-LD sameAs a Wikidata)
+  # =========================================================================
+
+  - slug: kutxi-romero
+    full_name: Kutxi Romero
+    bio_short: Cantante y líder de Marea, banda de rock navarro próxima a Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Kutxi_Romero
+    # memberships: ninguna — Marea no está en nuestro corpus de Artists
+
+  - slug: fito-cabrales
+    full_name: Adolfo Cabrales Mato
+    stage_name: Fito
+    bio_short: Cantante y líder de Platero y Tú, y posteriormente Fito & Fitipaldis.
+    wikipedia_url: https://es.wikipedia.org/wiki/Fito_Cabrales
+
+  - slug: manolo-kabezabolo
+    full_name: Manuel Galán
+    stage_name: Manolo Kabezabolo
+    bio_short: Cantante y autor satírico del rock español, colaborador histórico de Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Kabezabolo
+
+  - slug: rosendo-mercado
+    full_name: Rosendo Mercado Ruiz
+    stage_name: Rosendo
+    bio_short: Guitarrista y cantante, referente del rock urbano madrileño que ha colaborado en directo con Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Rosendo_Mercado
+
+  # TODO (consultar con el user): miembros actuales banda solista Robe,
+  # más miembros históricos de Extremoduro (Luis von Fanta, Mariano García,
+  # Iñaki Anguita, etc.), bandas tributo activas.

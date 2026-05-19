@@ -53,6 +53,9 @@ export default async function AdminSourcesPage() {
             <Link href="/biblioteca/admin/users" data-cursor="hover" className="text-ink-dim hover:text-accent">
               usuarios
             </Link>
+            <Link href="/biblioteca/admin/subscribers" data-cursor="hover" className="text-ink-dim hover:text-accent">
+              suscriptores
+            </Link>
           </nav>
         </div>
         <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">

@@ -357,6 +357,7 @@ def public_sitemap_entries(
                      WHEN sc.entity_type='artist' THEN '/' || sc.slug
                      WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
                      WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
+                     WHEN sc.entity_type='person' THEN '/personas/' || sc.slug
                    END AS url_path
             FROM seo_content sc
             LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
@@ -677,7 +678,130 @@ def public_concept_detail(slug: str, response: Response, db: Session = Depends(g
 # --------------------------------------------------------------------------- #
 # Blog (Fase 3): /blog y /blog/{slug}
 # --------------------------------------------------------------------------- #
-from app.db.models import Post  # noqa: E402  (al final para evitar reorder churn)
+from app.db.models import BandMembership, Person, Post  # noqa: E402
+
+
+# --------------------------------------------------------------------------- #
+# Personas (knowledge graph)
+# --------------------------------------------------------------------------- #
+class PublicPersonMembership(BaseModel):
+    artist_slug: str
+    artist_name: str
+    role: str
+    era: str | None = None
+    is_founder: bool = False
+    is_current: bool = False
+
+
+class PublicPersonListItem(BaseModel):
+    slug: str
+    full_name: str
+    stage_name: str | None = None
+    birth_date: str | None = None
+    death_date: str | None = None
+    image_url: str | None = None
+
+
+class PublicPersonDetailOut(PublicPersonListItem):
+    birth_place: str | None = None
+    bio_short: str | None = None
+    wikipedia_url: str | None = None
+    wikidata_id: str | None = None
+    image_attribution: str | None = None
+    image_license: str | None = None
+    image_source_url: str | None = None
+    memberships: list[PublicPersonMembership] = []
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    schema_jsonld: dict | None = None
+
+
+@router.get("/persons", response_model=list[PublicPersonListItem])
+def public_persons_list(
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicPersonListItem]:
+    _set_cache(response)
+    persons = (
+        db.query(Person)
+        .order_by(Person.full_name)
+        .all()
+    )
+    return [
+        PublicPersonListItem(
+            slug=p.slug,
+            full_name=p.full_name,
+            stage_name=p.stage_name,
+            birth_date=p.birth_date.isoformat() if p.birth_date else None,
+            death_date=p.death_date.isoformat() if p.death_date else None,
+            image_url=p.image_url,
+        )
+        for p in persons
+    ]
+
+
+@router.get("/persons/{slug}", response_model=PublicPersonDetailOut)
+def public_person_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicPersonDetailOut:
+    _set_cache(response)
+    person = db.query(Person).filter(Person.slug == slug).first()
+    if not person:
+        raise HTTPException(status_code=404, detail="person not found")
+
+    memberships_raw = (
+        db.query(BandMembership, Artist)
+        .join(Artist, BandMembership.artist_id == Artist.id)
+        .filter(BandMembership.person_id == person.id)
+        .order_by(BandMembership.position, BandMembership.era)
+        .all()
+    )
+    memberships = [
+        PublicPersonMembership(
+            artist_slug=a.slug,
+            artist_name=a.name,
+            role=m.role,
+            era=m.era,
+            is_founder=m.is_founder,
+            is_current=m.is_current,
+        )
+        for m, a in memberships_raw
+    ]
+
+    # SEO content si está publicado
+    seo = (
+        db.query(SeoContent)
+        .filter(
+            SeoContent.entity_type == "person",
+            SeoContent.entity_id == person.id,
+            SeoContent.published.is_(True),
+        )
+        .first()
+    )
+
+    return PublicPersonDetailOut(
+        slug=person.slug,
+        full_name=person.full_name,
+        stage_name=person.stage_name,
+        birth_date=person.birth_date.isoformat() if person.birth_date else None,
+        death_date=person.death_date.isoformat() if person.death_date else None,
+        birth_place=person.birth_place,
+        bio_short=person.bio_short,
+        wikipedia_url=person.wikipedia_url,
+        wikidata_id=person.wikidata_id,
+        image_url=person.image_url,
+        image_attribution=person.image_attribution,
+        image_license=person.image_license,
+        image_source_url=person.image_source_url,
+        memberships=memberships,
+        seo_body=seo.body_md if seo else None,
+        seo_meta_title=seo.meta_title if seo else None,
+        seo_meta_description=seo.meta_description if seo else None,
+        schema_jsonld=seo.schema_jsonld if seo else None,
+    )
 
 
 class PublicPostListItem(BaseModel):

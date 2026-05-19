@@ -14,6 +14,7 @@ Pipeline síncrono: el endpoint puede tardar 30-90s por canción afectada.
 from __future__ import annotations
 
 import ipaddress
+import os
 import re
 import socket
 import subprocess
@@ -25,6 +26,7 @@ import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -1020,3 +1022,149 @@ def admin_post_unpublish(
         source_url=p.source_url, source_name=p.source_name,
         created_at=p.created_at, published_at=p.published_at,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Subscribers (newsletter) — listado y acciones de mantenimiento
+# --------------------------------------------------------------------------- #
+from app.db.models import Subscriber as _Subscriber  # noqa: E402
+
+
+class AdminSubscriberListItem(BaseModel):
+    id: int
+    email: str
+    status: str
+    source: str | None = None
+    subscribed_at: datetime
+    confirmed_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
+    last_sent_at: datetime | None = None
+
+
+class AdminSubscriberStats(BaseModel):
+    pending: int
+    confirmed: int
+    unsubscribed: int
+    bounced: int
+    total: int
+
+
+@router.get("/subscribers/stats", response_model=AdminSubscriberStats)
+def admin_subscribers_stats(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberStats:
+    rows = (
+        db.query(_Subscriber.status, func.count(_Subscriber.id))
+        .group_by(_Subscriber.status)
+        .all()
+    )
+    counts = {status: int(n) for status, n in rows}
+    return AdminSubscriberStats(
+        pending=counts.get("pending", 0),
+        confirmed=counts.get("confirmed", 0),
+        unsubscribed=counts.get("unsubscribed", 0),
+        bounced=counts.get("bounced", 0),
+        total=sum(counts.values()),
+    )
+
+
+@router.get("/subscribers", response_model=list[AdminSubscriberListItem])
+def admin_subscribers_list(
+    status: str | None = None,
+    q: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminSubscriberListItem]:
+    query = db.query(_Subscriber)
+    if status and status != "all":
+        query = query.filter(_Subscriber.status == status)
+    if q:
+        query = query.filter(_Subscriber.email.ilike(f"%{q.strip()}%"))
+    query = query.order_by(_Subscriber.subscribed_at.desc()).offset(offset).limit(limit)
+    rows = query.all()
+    return [
+        AdminSubscriberListItem(
+            id=s.id,
+            email=s.email,
+            status=s.status,
+            source=s.source,
+            subscribed_at=s.subscribed_at,
+            confirmed_at=s.confirmed_at,
+            unsubscribed_at=s.unsubscribed_at,
+            last_sent_at=s.last_sent_at,
+        )
+        for s in rows
+    ]
+
+
+@router.post("/subscribers/{sub_id}/resend-confirmation", response_model=AdminSubscriberListItem)
+def admin_subscribers_resend(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberListItem:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    if s.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"solo pending puede reenviarse (actual: {s.status})",
+        )
+    from app.services.email import (
+        EmailError,
+        render_newsletter_confirm_email,
+        send_email,
+    )
+    site_url = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
+    confirm_url = f"{site_url}/newsletter/confirmar?token={s.confirm_token}"
+    html, text = render_newsletter_confirm_email(confirm_url)
+    try:
+        send_email(
+            to=s.email,
+            subject="Confirma tu suscripción · Entre Interiores",
+            html=html,
+            text=text,
+        )
+    except EmailError as exc:
+        raise HTTPException(status_code=502, detail=f"email failed: {exc}") from exc
+    return AdminSubscriberListItem(
+        id=s.id, email=s.email, status=s.status, source=s.source,
+        subscribed_at=s.subscribed_at, confirmed_at=s.confirmed_at,
+        unsubscribed_at=s.unsubscribed_at, last_sent_at=s.last_sent_at,
+    )
+
+
+@router.post("/subscribers/{sub_id}/mark-bounced", response_model=AdminSubscriberListItem)
+def admin_subscribers_mark_bounced(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberListItem:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    s.status = "bounced"
+    db.commit()
+    return AdminSubscriberListItem(
+        id=s.id, email=s.email, status=s.status, source=s.source,
+        subscribed_at=s.subscribed_at, confirmed_at=s.confirmed_at,
+        unsubscribed_at=s.unsubscribed_at, last_sent_at=s.last_sent_at,
+    )
+
+
+@router.delete("/subscribers/{sub_id}", response_model=BulkResultOut)
+def admin_subscribers_delete(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    db.delete(s)
+    db.commit()
+    return BulkResultOut(affected=1, errors=[])
