@@ -28,6 +28,9 @@ persons:
     birth_place: Plasencia, Cáceres
     wikipedia_url: https://es.wikipedia.org/wiki/Robe_Iniesta
     wikidata_id: Q3500822
+    # Imagen hardcoded — Wikidata Q3500822 NO tiene P18, así que el script
+    # no encontraba foto válida. Esta es libre (CC BY-SA), real, etiquetada.
+    image_filename: "Robe Iniesta en Valladolid en 2014.jpg"
     memberships:
       - artist: extremoduro
         role: vocalista

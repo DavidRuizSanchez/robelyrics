@@ -146,6 +146,7 @@ def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> boo
         meta_title=meta_title,
         meta_description=meta_description,
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()

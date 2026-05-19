@@ -181,6 +181,7 @@ def generate_for_person(client: OpenAI, db, person_slug: str, *, force: bool) ->
         meta_title=out.get("meta_title"),
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()

@@ -129,6 +129,7 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
         meta_title=out.get("meta_title"),
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()

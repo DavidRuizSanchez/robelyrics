@@ -154,6 +154,7 @@ def main() -> None:
             hero_image_attribution=img.attribution_text if img else None,
             hero_image_license=img.license_short if img else None,
             hero_image_source_url=img.source_page_url if img else None,
+            entities=payload.get("entities") or [],
         )
         db.add(post)
         db.commit()

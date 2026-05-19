@@ -367,6 +367,12 @@ class SeoContent(Base):
     meta_description: Mapped[str | None] = mapped_column(String(512))
     h1: Mapped[str | None] = mapped_column(String(256))
     schema_jsonld: Mapped[dict | None] = mapped_column(JSONB)
+    # Entidades mencionadas (personas, lugares, bandas, discos). El frontend
+    # las renderiza como schema.org `mentions` con @id local cuando hay match
+    # en el corpus, o @id Wikidata si no.
+    entities: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -617,6 +623,11 @@ class Post(Base):
     # mandado, no se vuelve a enviar aunque rearranque el cron.
     newsletter_dispatched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    # Entidades mencionadas (Person, MusicGroup, Place, etc.) para enriquecer
+    # schema.org `mentions`. Mismo formato que SeoContent.entities.
+    entities: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
 
     __table_args__ = (

@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ from sqlalchemy import select
 
 from app.db.models import Artist, BandMembership, Person
 from app.db.session import SessionLocal
-from app.services.wikimedia import search_image
+from app.services.wikimedia import get_file_info, search_image
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -65,6 +66,40 @@ def _wikidata_qid_from_wikipedia(client: httpx.Client, wikipedia_url: str) -> st
         qid = (page.get("pageprops") or {}).get("wikibase_item")
         if qid:
             return qid
+    return None
+
+
+def _wikipedia_page_image(
+    client: httpx.Client, wikipedia_url: str
+) -> str | None:
+    """Devuelve el filename Commons de la imagen principal (infobox) de la
+    página Wikipedia ES, o None. Usa `prop=pageimages|pageprops` con
+    `piprop=name` para sacar el filename sin redirecciones intermedias.
+    """
+    if "/wiki/" not in wikipedia_url:
+        return None
+    title = (
+        wikipedia_url.rsplit("/wiki/", 1)[-1].replace("_", " ").split("#", 1)[0]
+    )
+    try:
+        resp = client.get(
+            "https://es.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "format": "json",
+                "titles": title,
+                "prop": "pageimages",
+                "piprop": "name",
+            },
+        )
+        resp.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    pages = resp.json().get("query", {}).get("pages", {}) or {}
+    for _, page in pages.items():
+        name = page.get("pageimage")
+        if name:
+            return name
     return None
 
 
@@ -135,11 +170,22 @@ def _enrich_from_wikidata(client: httpx.Client, qid: str) -> dict[str, Any]:
                 out_qids.append(qid_ref)
         return out_qids
 
+    def _string_from(prop: str) -> str | None:
+        for c in claims.get(prop, []) or []:
+            snak = c.get("mainsnak", {}).get("datavalue", {}).get("value")
+            if isinstance(snak, str) and snak.strip():
+                return snak.strip()
+        return None
+
     out["birth_date"] = _date_from("P569")
     out["death_date"] = _date_from("P570")
     out["member_of_qids"] = _qids_from("P463")
     out["notable_work_qids"] = _qids_from("P800")
     out["occupation_qids"] = _qids_from("P106")
+    # P18 (image): nombre canónico del fichero Commons. Permite usar la foto
+    # "oficial" de la persona en Wikidata (la que se ve en Wikipedia infobox)
+    # en vez de buscar al voleo en Commons.
+    out["image_filename"] = _string_from("P18")
     return out
 
 
@@ -303,7 +349,10 @@ def main() -> None:
                 if entry.get("wikidata_id"):
                     person.wikidata_id = entry["wikidata_id"]
 
-                # Enriquecimiento opcional
+                # Enriquecimiento opcional. IMPORTANTE: reinicializar
+                # `enriched` por iteración para no heredar valores de la
+                # persona anterior si esta no tiene wikidata_id.
+                enriched: dict = {}
                 if not args.no_enrich:
                     if not person.wikidata_id and person.wikipedia_url:
                         try:
@@ -373,15 +422,90 @@ def main() -> None:
                         except httpx.HTTPError as e:
                             logger.warning("  wikipedia extract failed: %s", e)
 
-                    if not person.image_url:
-                        query = person.stage_name or person.full_name
-                        img = search_image(query)
+                    # Foto: 0) image_filename hardcoded en yaml (override).
+                    # 1) P18 de Wikidata (foto oficial Wikidata).
+                    # 2) Imagen principal del artículo Wikipedia (infobox).
+                    # 3) Fallback search Commons con filtro estricto.
+                    if not person.image_url and entry.get("image_filename"):
+                        img = get_file_info(entry["image_filename"])
                         if img:
                             person.image_url = img.thumb_url
                             person.image_attribution = img.attribution_text
                             person.image_license = img.license_short
                             person.image_source_url = img.source_page_url
-                            logger.info("  Imagen: %s", img.source_page_url)
+                            logger.info(
+                                "  Imagen (yaml hardcoded): %s",
+                                img.source_page_url,
+                            )
+                    if not person.image_url and enriched.get("image_filename"):
+                        img = get_file_info(enriched["image_filename"])
+                        if img:
+                            person.image_url = img.thumb_url
+                            person.image_attribution = img.attribution_text
+                            person.image_license = img.license_short
+                            person.image_source_url = img.source_page_url
+                            logger.info(
+                                "  Imagen (Wikidata P18): %s",
+                                img.source_page_url,
+                            )
+
+                    if not person.image_url and person.wikipedia_url:
+                        try:
+                            wp_filename = _wikipedia_page_image(http, person.wikipedia_url)
+                        except Exception:
+                            wp_filename = None
+                        if wp_filename:
+                            img = get_file_info(wp_filename)
+                            if img:
+                                person.image_url = img.thumb_url
+                                person.image_attribution = img.attribution_text
+                                person.image_license = img.license_short
+                                person.image_source_url = img.source_page_url
+                                logger.info(
+                                    "  Imagen (Wikipedia pageimage): %s",
+                                    img.source_page_url,
+                                )
+                    if not person.image_url:
+                        # Fallback: búsqueda Commons con filtro ESTRICTO de
+                        # nombre. Requiere que el filename contenga al menos
+                        # 2 tokens distintos del nombre completo (apellido +
+                        # nombre o nombre + stage). Si solo un token coincide
+                        # ("robe" en "Robe Lighthouse"), rechaza — mejor sin
+                        # foto que con foto que no es de la persona.
+                        queries: list[str] = []
+                        if person.full_name:
+                            queries.append(person.full_name)
+                        if person.stage_name and person.stage_name != person.full_name:
+                            queries.append(person.stage_name)
+                        all_tokens = set(
+                            t.lower()
+                            for t in re.findall(
+                                r"[A-Za-zÁÉÍÓÚáéíóúÑñ]{4,}",
+                                (person.full_name or "") + " " + (person.stage_name or ""),
+                            )
+                        )
+                        require_n = 2 if len(all_tokens) >= 2 else 1
+                        for q in queries:
+                            cand = search_image(q)
+                            if cand is None:
+                                continue
+                            fn_lower = cand.title.lower()
+                            matched = sum(1 for tok in all_tokens if tok in fn_lower)
+                            if matched >= require_n:
+                                person.image_url = cand.thumb_url
+                                person.image_attribution = cand.attribution_text
+                                person.image_license = cand.license_short
+                                person.image_source_url = cand.source_page_url
+                                logger.info(
+                                    "  Imagen (Commons search %r, %d tokens): %s",
+                                    q, matched, cand.source_page_url,
+                                )
+                                break
+                            else:
+                                logger.info(
+                                    "  Rechazada (%d/%d tokens en %r)",
+                                    matched, require_n, fn_lower,
+                                )
 
                 # Memberships
                 _reconcile_memberships(db, person, entry.get("memberships") or [])

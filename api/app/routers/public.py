@@ -45,6 +45,19 @@ MAX_SNIPPET_LINES = 4
 # --------------------------------------------------------------------------- #
 # Schemas
 # --------------------------------------------------------------------------- #
+class PublicResolvedEntity(BaseModel):
+    """Entidad mencionada (Person, MusicGroup, MusicAlbum, MusicComposition,
+    Place, etc.) ya resuelta contra el corpus local o Wikidata. Se sirve en
+    los detail endpoints para que el frontend pueda renderizar schema.org
+    `mentions` y bloques de enlazado contextual."""
+    type: str
+    name: str
+    canonical_id: str | None = None
+    url: str | None = None
+    same_as: list[str] = []
+    from_corpus: bool = False
+
+
 class PublicArtistOut(BaseModel):
     slug: str
     name: str
@@ -85,6 +98,10 @@ class PublicArtistDetailOut(PublicArtistOut):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    # Entidades mentioned en el seo_content (resueltas contra corpus o
+    # Wikidata) — para emitir schema.org mentions y enlaces internos
+    # contextuales en la UI.
+    entities: list["PublicResolvedEntity"] = []
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
@@ -94,6 +111,7 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    entities: list["PublicResolvedEntity"] = []
 
 
 class PublicTaxonomyPill(BaseModel):
@@ -123,6 +141,7 @@ class PublicSongDetailOut(BaseModel):
     themes: list[PublicTaxonomyPill] = []
     places: list[PublicTaxonomyPill] = []
     concepts: list[PublicTaxonomyPill] = []
+    entities: list["PublicResolvedEntity"] = []
 
 
 # --------------------------------------------------------------------------- #
@@ -154,6 +173,7 @@ def _try_get_seo(db: Session, entity_type: str, entity_id: int) -> dict | None:
         "meta_title": resolved["title"] or None,
         "meta_description": resolved["description"] or None,
         "h1": resolved["h1"] or None,
+        "entities": row.entities or [],
     }
 
 
@@ -227,6 +247,8 @@ def public_artist_detail(
         .all()
     )
     seo = _try_get_seo(db, "artist", artist.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicArtistDetailOut(
         slug=artist.slug,
         name=artist.name,
@@ -254,6 +276,7 @@ def public_artist_detail(
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -275,6 +298,8 @@ def public_album_detail(
     )
     artist = album.artist
     seo = _try_get_seo(db, "album", album.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicAlbumDetailOut(
         slug=album.slug,
         title=album.title,
@@ -297,6 +322,7 @@ def public_album_detail(
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -314,6 +340,8 @@ def public_song_detail(
     artist = album.artist
     snippet = _snippet_lines(db, song.id)
     seo = _try_get_seo(db, "song", song.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicSongDetailOut(
         slug=song.slug,
         title=song.title,
@@ -349,6 +377,7 @@ def public_song_detail(
             PublicTaxonomyPill(kind="concept", slug=c.slug, name=c.name)
             for c in song.concepts
         ],
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -763,6 +792,7 @@ class PublicPersonDetailOut(PublicPersonListItem):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     schema_jsonld: dict | None = None
+    entities: list["PublicResolvedEntity"] = []
 
 
 @router.get("/persons", response_model=list[PublicPersonListItem])
@@ -830,6 +860,9 @@ def public_person_detail(
         .first()
     )
 
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo.entities if seo else []) or [])
+
     return PublicPersonDetailOut(
         slug=person.slug,
         full_name=person.full_name,
@@ -858,6 +891,7 @@ def public_person_detail(
         seo_meta_title=seo.meta_title if seo else None,
         seo_meta_description=seo.meta_description if seo else None,
         schema_jsonld=seo.schema_jsonld if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -877,6 +911,7 @@ class PublicPostDetail(PublicPostListItem):
     source_url: str | None = None
     source_name: str | None = None
     anniversary_year: int | None = None
+    entities: list[PublicResolvedEntity] = []
 
 
 @router.get("/posts", response_model=list[PublicPostListItem])
@@ -920,6 +955,8 @@ def public_post_detail(
     )
     if not p:
         raise HTTPException(status_code=404, detail="post not found")
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved = resolve_entities(db, p.entities)
     return PublicPostDetail(
         slug=p.slug,
         kind=p.kind,
@@ -933,6 +970,7 @@ def public_post_detail(
         source_url=p.source_url,
         source_name=p.source_name,
         anniversary_year=p.anniversary_year,
+        entities=[PublicResolvedEntity(**e) for e in resolved],
     )
 
 

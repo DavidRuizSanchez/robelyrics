@@ -59,8 +59,39 @@ Devuelves SIEMPRE un objeto JSON con la estructura:
 {
   "body_md": "<artículo en markdown completo>",
   "meta_title": "<≤60 caracteres>",
-  "meta_description": "<≤160 caracteres>"
+  "meta_description": "<≤160 caracteres>",
+  "entities": [<lista — ver bloque ENTIDADES MENCIONADAS abajo>]
 }
+
+ENTIDADES MENCIONADAS — array `entities` obligatorio
+Identifica TODAS las entidades nombradas en el texto y añádelas. Sirve para
+construir schema.org `mentions` y enlazar el knowledge graph del sitio:
+
+- Personas (músicos, miembros, productores, autores, periodistas).
+- Bandas, grupos, proyectos musicales.
+- Discos (MusicAlbum), canciones (MusicComposition).
+- Lugares (ciudades, pueblos, regiones, salas, festivales).
+- Organizaciones, sellos discográficos, medios.
+- Programas (TVSeries, RadioSeries).
+
+Formato por entidad:
+  {
+    "type": "Person" | "MusicGroup" | "MusicAlbum" | "MusicComposition" |
+            "Place" | "TVSeries" | "RadioSeries" | "Organization" |
+            "CreativeWork",
+    "name": "<nombre canónico>",
+    "wikidata_id": "<Q-ID si lo conoces, sino null>",
+    "slug_hint": "<slug en kebab-case del corpus si crees que está,
+                    sino null. Ej.: 'extremoduro', 'robe', 'agila',
+                    'cipotecastico', 'robe-iniesta', 'inaki-uoho-anton',
+                    'plasencia'>"
+  }
+
+Si la entidad es Robe, Extremoduro, un disco del catálogo, una canción o
+un miembro conocido, rellena slug_hint para enlazar a la página local.
+NO incluyas entidades genéricas o muy abstractas ("rock", "música",
+"España", "España entera"). Solo entidades concretas y nombradas que un
+lector pueda buscar.
 """
 
 
@@ -95,6 +126,7 @@ def upsert_seo_content(
     meta_title: str | None,
     meta_description: str | None,
     schema_jsonld: dict | None,
+    entities: list | None = None,
     force: bool = False,
 ) -> int:
     """Inserta o actualiza la fila correspondiente. Si ya existe y --force,
@@ -117,6 +149,7 @@ def upsert_seo_content(
             )
             return existing.id
 
+    ents = entities or []
     stmt = (
         pg_insert(SeoContent)
         .values(
@@ -127,6 +160,7 @@ def upsert_seo_content(
             meta_title=meta_title,
             meta_description=meta_description,
             schema_jsonld=schema_jsonld,
+            entities=ents,
             generated_at=datetime.now(timezone.utc),
             generated_by=MODEL,
             reviewed_at=None,
@@ -140,6 +174,7 @@ def upsert_seo_content(
                 "meta_title": meta_title,
                 "meta_description": meta_description,
                 "schema_jsonld": schema_jsonld,
+                "entities": ents,
                 "generated_at": datetime.now(timezone.utc),
                 "generated_by": MODEL,
                 "reviewed_at": None,

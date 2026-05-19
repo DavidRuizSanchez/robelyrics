@@ -155,6 +155,7 @@ def main() -> None:
                 hero_image_attribution=attribution,
                 hero_image_license=license_short,
                 hero_image_source_url=source_url,
+                entities=payload.get("entities") or [],
             )
             db.add(post)
             db.commit()

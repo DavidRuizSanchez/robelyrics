@@ -114,6 +114,7 @@ def _trigger_spotlight(dry_run: bool) -> None:
             meta_title=payload["meta_title"],
             meta_description=payload["meta_description"],
             hero_image_url=hero_url,
+            entities=payload.get("entities") or [],
         )
         db.add(post)
         db.commit()
@@ -199,6 +200,7 @@ def _trigger_evergreen(dry_run: bool) -> None:
             body_md=payload["body_md"],
             meta_title=payload["meta_title"],
             meta_description=payload["meta_description"],
+            entities=payload.get("entities") or [],
         )
         db.add(post)
         db.commit()

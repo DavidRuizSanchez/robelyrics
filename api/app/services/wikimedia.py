@@ -73,6 +73,77 @@ class WikimediaImage:
         )
 
 
+def get_file_info(
+    filename: str, *, thumb_width: int = 1200, timeout: float = 10.0
+) -> WikimediaImage | None:
+    """Obtiene metadata + URL de un archivo Commons dado su nombre canónico
+    (sin prefijo "File:"). Validates licencia. Útil para resolver imágenes
+    apuntadas por P18 (Wikidata image) o similares.
+    """
+    if not filename or not filename.strip():
+        return None
+    title = filename.strip()
+    if title.startswith("File:"):
+        title = title[5:]
+
+    params = {
+        "action": "query",
+        "format": "json",
+        "formatversion": "2",
+        "titles": f"File:{title}",
+        "prop": "imageinfo",
+        "iiprop": "url|extmetadata|mime|size|user",
+        "iiurlwidth": str(thumb_width),
+    }
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    try:
+        with httpx.Client(timeout=timeout, headers=headers) as client:
+            resp = client.get(API_ENDPOINT, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Wikimedia file_info failed for %r: %s", filename, exc)
+        return None
+
+    pages = data.get("query", {}).get("pages") or []
+    if isinstance(pages, dict):
+        pages = list(pages.values())
+    for page in pages:
+        info_list = page.get("imageinfo") or []
+        if not info_list:
+            continue
+        info = info_list[0]
+        mime = info.get("mime")
+        if mime not in ALLOWED_MIMES:
+            return None
+        meta = info.get("extmetadata") or {}
+        license_value = (meta.get("License") or {}).get("value")
+        if not _license_allowed(license_value):
+            logger.info(
+                "Image %r descartada por license %r", filename, license_value,
+            )
+            return None
+        page_title = page.get("title", "")
+        author_raw = (meta.get("Artist") or {}).get("value") or (
+            (meta.get("Credit") or {}).get("value") or ""
+        )
+        return WikimediaImage(
+            title=page_title,
+            url=info.get("url", ""),
+            thumb_url=info.get("thumburl") or info.get("url", ""),
+            width=info.get("width") or 0,
+            height=info.get("height") or 0,
+            license_short=(meta.get("LicenseShortName") or {}).get("value")
+            or license_value or "",
+            license_url=(meta.get("LicenseUrl") or {}).get("value"),
+            author=_strip_html(author_raw),
+            source_page_url=(
+                f"https://commons.wikimedia.org/wiki/{page_title.replace(' ', '_')}"
+            ),
+        )
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Helpers de licencia y autor
 # --------------------------------------------------------------------------- #

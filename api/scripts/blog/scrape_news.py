@@ -290,10 +290,12 @@ def main() -> None:
                 if existing is not None:
                     continue
 
-                # Reescritura editorial — el LLM provee también slug y
-                # keywords para la búsqueda de imagen.
+                # Reescritura editorial — el LLM provee también slug,
+                # keywords para la búsqueda de imagen, y entities para
+                # enriquecer schema.org `mentions`.
                 image_keywords: list[str] = []
                 llm_slug: str | None = None
+                entities: list[dict] = []
                 if args.no_rewrite:
                     title = item["title"][:240]
                     excerpt = (item["summary"] or "")[:200]
@@ -329,6 +331,9 @@ def main() -> None:
                             for k in raw_kws
                             if isinstance(k, str) and k.strip()
                         ][:5]
+                    raw_ents = rewritten.get("entities") or []
+                    if isinstance(raw_ents, list):
+                        entities = [e for e in raw_ents if isinstance(e, dict) and e.get("name")]
 
                 # Slug editorial corto (del LLM) > slug derivado del title
                 slug_base = _slugify(llm_slug) if llm_slug else _slugify(title)
@@ -388,6 +393,7 @@ def main() -> None:
                     hero_image_attribution=img.attribution_text if img else None,
                     hero_image_license=img.license_short if img else None,
                     hero_image_source_url=img.source_page_url if img else None,
+                    entities=entities,
                 )
                 db.add(post)
                 db.commit()
