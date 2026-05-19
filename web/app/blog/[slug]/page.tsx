@@ -114,6 +114,18 @@ export default async function BlogPostPage({
             )}
           </header>
 
+          {post.hero_image_url && (
+            <figure className="mb-10 -mx-5 md:mx-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.hero_image_url}
+                alt={post.title}
+                className="w-full h-auto max-h-[60vh] object-cover"
+                loading="eager"
+              />
+            </figure>
+          )}
+
           <MarkdownArticle markdown={post.body_md} />
 
           {post.source_url && post.source_name && (
