@@ -69,6 +69,11 @@ services:
       TERMS_VERSION: ${TERMS_VERSION:-2026-05-02}
       API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
       PYTHONUNBUFFERED: "1"
+      # Newsletter on-publish y revalidate Next.js
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN:-}
+      WEB_INTERNAL_URL: ${WEB_INTERNAL_URL:-http://web:3000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -98,6 +103,8 @@ services:
       # URL pública usada en la UI (links absolutos, etc.)
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
       NODE_ENV: development
+      # Token compartido con api para invalidar caché tras publicar post
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN:-}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:

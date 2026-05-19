@@ -33,6 +33,10 @@ services:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
       ALLOWED_ORIGINS: https://entreinteriores.com,https://www.entreinteriores.com
+      # Newsletter on-publish y revalidate Next.js (también en base, se duplica
+      # aquí para que el override no las olvide al sobrescribir environment).
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN:-}
+      WEB_INTERNAL_URL: ${WEB_INTERNAL_URL:-http://web:3000}
     command: >-
       uvicorn app.main:app
       --host 0.0.0.0 --port 8000
@@ -56,6 +60,7 @@ services:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
       NODE_ENV: production
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN:-}
     # Invocar next directamente evita corepack en runtime (que pide Node 22+
     # en versiones recientes y rompe con node:20-alpine).
     command: ["node_modules/.bin/next", "start"]

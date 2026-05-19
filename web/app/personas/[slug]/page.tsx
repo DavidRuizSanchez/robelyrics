@@ -287,7 +287,7 @@ export default async function PersonPage({
           </header>
 
           {detail.seo_body && (
-            <MarkdownArticle body={detail.seo_body} />
+            <MarkdownArticle markdown={detail.seo_body} />
           )}
         </article>
 
