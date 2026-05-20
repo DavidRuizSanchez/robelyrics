@@ -60,8 +60,9 @@ en la música española.
 ~500 palabras: rasgos literarios distintivos, registros, influencias, lenguaje.
 
 ## Discografía comentada
-~600 palabras: repaso disco a disco con 1-2 frases por álbum. Para cada disco,
-enlaza `[Título](/{artist.slug}/<slug>)`.
+~600 palabras: repaso disco a disco con 1-2 frases por álbum. Menciona
+cada disco por su título en texto plano — el sistema linkifica los
+títulos automáticamente a sus páginas locales.
 
 ## Legado e influencia
 ~300 palabras: impacto en la escena rock española, artistas influidos.
@@ -69,8 +70,13 @@ enlaza `[Título](/{artist.slug}/<slug>)`.
 ## Hechos biográficos relevantes
 ~100 palabras: solo datos públicos y verificados; obviar lo no documentado.
 
+IMPORTANTE:
+- NO escribas markdown de link a mano ni uses placeholders entre
+  corchetes ([Título], <slug>, etc.).
+- NO INVENTES datos.
+
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars), `meta_description`
-(≤160 chars).
+(≤160 chars), `entities` (según system prompt).
 """
 
 
@@ -123,6 +129,7 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         meta_title=out.get("meta_title"),
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()
@@ -132,9 +139,13 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--artist-slug", required=True)
+    parser.add_argument("--artist-slug")
+    parser.add_argument("--all", action="store_true", help="genera todos los artistas")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+
+    if not args.all and not args.artist_slug:
+        parser.error("Indica --artist-slug X o --all")
 
     settings = get_settings()
     if not settings.openai_api_key:
@@ -143,7 +154,13 @@ def main() -> None:
     client = OpenAI(api_key=settings.openai_api_key)
 
     with get_session() as db:
-        generate_for_artist(client, db, args.artist_slug, force=args.force)
+        if args.all:
+            slugs = [s for (s,) in db.query(Artist.slug).order_by(Artist.id).all()]
+            log(f"=== {len(slugs)} artistas ===")
+            for slug in slugs:
+                generate_for_artist(client, db, slug, force=args.force)
+        else:
+            generate_for_artist(client, db, args.artist_slug, force=args.force)
 
 
 if __name__ == "__main__":

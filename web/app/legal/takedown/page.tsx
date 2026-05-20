@@ -19,7 +19,7 @@ export default function Takedown() {
       <h2>Qué información incluir</h2>
       <p>
         Envíanos un correo a{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>{" "}
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>{" "}
         con asunto &quot;<strong>TAKEDOWN</strong>&quot; e incluye:
       </p>
       <ol>

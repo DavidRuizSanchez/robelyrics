@@ -19,7 +19,7 @@ export default function YoutubeLink({
 }) {
   const { open } = useYoutubePlayer();
 
-  // Pastilla outline granate con fondo translúcido — visible pero coherente
+  // Pastilla outline granate con fondo translúcido · visible pero coherente
   // con la paleta. Hover invierte (relleno granate, texto papel).
   const sizeCls =
     size === "sm"

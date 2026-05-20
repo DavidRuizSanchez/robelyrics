@@ -1,6 +1,6 @@
 # RobeLyrics — Guía rápida para futuros agentes
 
-Buscador semántico personal del universo **Extremoduro** y **Robe Iniesta**. Stack: FastAPI + Postgres + Qdrant + Next.js 15. Uso privado con auth.
+Buscador semántico personal del universo **Extremoduro** y **Robe**. Stack: FastAPI + Postgres + Qdrant + Next.js 15. Uso privado con auth.
 
 ## Estética del frontend ("Entre Interiores")
 

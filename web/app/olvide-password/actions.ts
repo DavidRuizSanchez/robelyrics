@@ -11,7 +11,7 @@ export type ForgotResult =
 /**
  * Server action de "olvidé mi contraseña". Llama al backend
  * /auth/forgot-password (rate-limited 3/hour) y SIEMPRE devuelve la
- * misma forma `{ok: true}` exista o no el email — el backend ya
+ * misma forma `{ok: true}` exista o no el email · el backend ya
  * uniformiza la respuesta. Esta capa propaga ese contrato sin
  * leakear errores que pudieran filtrar info.
  */
@@ -26,7 +26,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<ForgotRe
     });
   } catch {
     // Errores del backend (red, validación, rate limit) caen aquí.
-    // No mostramos el detalle — respuesta uniforme positiva.
+    // No mostramos el detalle · respuesta uniforme positiva.
   }
   return { ok: true, email };
 }

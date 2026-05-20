@@ -50,7 +50,7 @@ export default function SemanticResultCard({
           {hit.why && (
             <p className="mt-4 font-serif italic text-ink-dim text-[15px] leading-[1.6] max-w-[600px]">
               <span className="font-mono not-italic text-[9px] tracking-[2px] uppercase text-accent mr-2">
-                encaja —
+                encaja ·
               </span>
               {hit.why}
             </p>

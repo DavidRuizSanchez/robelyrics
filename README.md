@@ -1,6 +1,6 @@
 # RobeLyrics
 
-Buscador semántico personal del universo Extremoduro / Robe Iniesta.
+Buscador semántico personal del universo Extremoduro / Robe.
 
 Dos modos de búsqueda:
 

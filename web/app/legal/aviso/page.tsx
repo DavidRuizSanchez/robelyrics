@@ -11,13 +11,13 @@ export default function AvisoLegal() {
         Este sitio web (<strong>entreinteriores.com</strong>) es propiedad de
         David Ruiz Sánchez, persona física residente en España. Para
         cualquier comunicación, contacto en{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>.
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>.
       </p>
 
       <h2>Naturaleza del proyecto</h2>
       <p>
         Entre Interiores es un proyecto fan, personal y sin ánimo comercial
-        directo, dedicado a la obra de <strong>Robe Iniesta</strong> y{" "}
+        directo, dedicado a la obra de <strong>Roberto Iniesta</strong> y{" "}
         <strong>Extremoduro</strong>. No tiene vinculación oficial alguna con
         los artistas, sus discográficas, editores o managers, ni pretende
         suplantarlos.
@@ -58,7 +58,7 @@ export default function AvisoLegal() {
       <p>
         Si eres titular de derechos sobre alguno de los contenidos
         referenciados y deseas que se retire o se modifique, escribe a{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>{" "}
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>{" "}
         con tu identificación, prueba de titularidad y URL afectada. El
         procedimiento detallado está en{" "}
         <a href="/legal/takedown">Takedown</a>.

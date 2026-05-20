@@ -17,10 +17,19 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Response, Depends
 from pydantic import BaseModel
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, Line, SeoContent, Song
+from app.db.models import (
+    Album,
+    Artist,
+    Concept,
+    Line,
+    Place,
+    SeoContent,
+    Song,
+    Theme,
+)
 from app.db.session import get_db
 from app.services.seo_templates import resolve_all
 
@@ -36,6 +45,19 @@ MAX_SNIPPET_LINES = 4
 # --------------------------------------------------------------------------- #
 # Schemas
 # --------------------------------------------------------------------------- #
+class PublicResolvedEntity(BaseModel):
+    """Entidad mencionada (Person, MusicGroup, MusicAlbum, MusicComposition,
+    Place, etc.) ya resuelta contra el corpus local o Wikidata. Se sirve en
+    los detail endpoints para que el frontend pueda renderizar schema.org
+    `mentions` y bloques de enlazado contextual."""
+    type: str
+    name: str
+    canonical_id: str | None = None
+    url: str | None = None
+    same_as: list[str] = []
+    from_corpus: bool = False
+
+
 class PublicArtistOut(BaseModel):
     slug: str
     name: str
@@ -57,12 +79,29 @@ class PublicTrackOut(BaseModel):
     youtube_id: str | None = None
 
 
+class PublicArtistMember(BaseModel):
+    """Miembro del grupo (resuelto via BandMembership) para mostrar en la
+    página de artist como sección "Miembros" e interconectar SEO."""
+    slug: str
+    full_name: str
+    stage_name: str | None = None
+    role: str
+    era: str | None = None
+    is_founder: bool = False
+    image_url: str | None = None
+
+
 class PublicArtistDetailOut(PublicArtistOut):
     albums: list[PublicAlbumOut]
+    members: list[PublicArtistMember] = []
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    # Entidades mentioned en el seo_content (resueltas contra corpus o
+    # Wikidata) — para emitir schema.org mentions y enlaces internos
+    # contextuales en la UI.
+    entities: list["PublicResolvedEntity"] = []
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
@@ -72,6 +111,14 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    entities: list["PublicResolvedEntity"] = []
+
+
+class PublicTaxonomyPill(BaseModel):
+    """Item compacto de taxonomía para listar en chips dentro de la canción."""
+    kind: str  # 'theme' | 'place' | 'concept'
+    slug: str
+    name: str
 
 
 class PublicSongDetailOut(BaseModel):
@@ -91,6 +138,10 @@ class PublicSongDetailOut(BaseModel):
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
+    themes: list[PublicTaxonomyPill] = []
+    places: list[PublicTaxonomyPill] = []
+    concepts: list[PublicTaxonomyPill] = []
+    entities: list["PublicResolvedEntity"] = []
 
 
 # --------------------------------------------------------------------------- #
@@ -122,6 +173,7 @@ def _try_get_seo(db: Session, entity_type: str, entity_id: int) -> dict | None:
         "meta_title": resolved["title"] or None,
         "meta_description": resolved["description"] or None,
         "h1": resolved["h1"] or None,
+        "entities": row.entities or [],
     }
 
 
@@ -184,7 +236,19 @@ def public_artist_detail(
         .order_by(Album.year, Album.id)
         .all()
     )
+    # Carga miembros del grupo via BandMembership. Lazy import para no
+    # complicar el bloque de imports del módulo.
+    from app.db.models import BandMembership as _BM, Person as _P
+    members_raw = (
+        db.query(_BM, _P)
+        .join(_P, _BM.person_id == _P.id)
+        .filter(_BM.artist_id == artist.id)
+        .order_by(_BM.position, _BM.era)
+        .all()
+    )
     seo = _try_get_seo(db, "artist", artist.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicArtistDetailOut(
         slug=artist.slug,
         name=artist.name,
@@ -196,10 +260,23 @@ def public_artist_detail(
             )
             for a in albums
         ],
+        members=[
+            PublicArtistMember(
+                slug=p.slug,
+                full_name=p.full_name,
+                stage_name=p.stage_name,
+                role=m.role,
+                era=m.era,
+                is_founder=m.is_founder,
+                image_url=p.image_url,
+            )
+            for m, p in members_raw
+        ],
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -221,6 +298,8 @@ def public_album_detail(
     )
     artist = album.artist
     seo = _try_get_seo(db, "album", album.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicAlbumDetailOut(
         slug=album.slug,
         title=album.title,
@@ -243,6 +322,7 @@ def public_album_detail(
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -260,6 +340,8 @@ def public_song_detail(
     artist = album.artist
     snippet = _snippet_lines(db, song.id)
     seo = _try_get_seo(db, "song", song.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicSongDetailOut(
         slug=song.slug,
         title=song.title,
@@ -283,6 +365,19 @@ def public_song_detail(
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
+        themes=[
+            PublicTaxonomyPill(kind="theme", slug=t.slug, name=t.name)
+            for t in song.themes
+        ],
+        places=[
+            PublicTaxonomyPill(kind="place", slug=p.slug, name=p.name)
+            for p in song.places
+        ],
+        concepts=[
+            PublicTaxonomyPill(kind="concept", slug=c.slug, name=c.name)
+            for c in song.concepts
+        ],
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 
@@ -291,6 +386,8 @@ class PublicSearchHit(BaseModel):
     slug: str
     title: str
     subtitle: str | None = None  # ej. "Extremoduro · 1996" para una canción
+    url_path: str  # ruta canónica completa
+    lyric_match: str | None = None  # verso citado si el match fue en letra
 
 
 class PublicSearchOut(BaseModel):
@@ -324,6 +421,7 @@ def public_sitemap_entries(
                      WHEN sc.entity_type='artist' THEN '/' || sc.slug
                      WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
                      WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
+                     WHEN sc.entity_type='person' THEN '/personas/' || sc.slug
                    END AS url_path
             FROM seo_content sc
             LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
@@ -379,6 +477,7 @@ def public_search(
         out.append(PublicSearchHit(
             kind="artist", slug=a.slug, title=a.name,
             subtitle=a.active_years,
+            url_path=f"/{a.slug}",
         ))
 
     # Álbumes
@@ -394,9 +493,10 @@ def public_search(
         out.append(PublicSearchHit(
             kind="album", slug=album.slug, title=album.title,
             subtitle=f"{artist.name} · {album.year}",
+            url_path=f"/{artist.slug}/{album.slug}",
         ))
 
-    # Canciones
+    # Canciones por título
     songs = (
         db.query(Song, Album, Artist)
         .join(Album, Song.album_id == Album.id)
@@ -406,10 +506,788 @@ def public_search(
         .limit(20)
         .all()
     )
+    seen_song_ids: set[int] = set()
     for song, album, artist in songs:
+        seen_song_ids.add(song.id)
         out.append(PublicSearchHit(
             kind="song", slug=song.slug, title=song.title,
             subtitle=f"{artist.name} · {album.title} ({album.year})",
+            url_path=f"/{artist.slug}/{album.slug}/{song.slug}",
+        ))
+
+    # Canciones por letra (lines.text). Devolvemos el primer verso que matchea
+    # como `lyric_match` para que el usuario vea por qué aparece. Solo
+    # canciones con seo_content publicado (las que tienen página pública).
+    # Limitamos a 20 para no saturar.
+    lyric_rows = db.execute(text(
+        """
+        SELECT DISTINCT ON (s.id)
+            s.id, s.slug, s.title,
+            al.slug AS album_slug, al.title AS album_title, al.year,
+            ar.slug AS artist_slug, ar.name AS artist_name,
+            l.text AS line_text
+        FROM songs s
+        JOIN albums al ON al.id = s.album_id
+        JOIN artists ar ON ar.id = al.artist_id
+        JOIN lines l ON l.song_id = s.id
+        JOIN seo_content sc ON sc.entity_type = 'song' AND sc.entity_id = s.id
+            AND sc.published = TRUE
+        WHERE l.text ILIKE :pattern
+        ORDER BY s.id, l.line_index
+        LIMIT 20
+        """
+    ), {"pattern": pattern}).all()
+    for r in lyric_rows:
+        if r.id in seen_song_ids:
+            continue  # ya estaba por match de título
+        seen_song_ids.add(r.id)
+        # Cita corta del verso (máx 100 chars).
+        verse = (r.line_text or "").strip()
+        if len(verse) > 100:
+            verse = verse[:97].rstrip() + "…"
+        out.append(PublicSearchHit(
+            kind="song", slug=r.slug, title=r.title,
+            subtitle=f"{r.artist_name} · {r.album_title} ({r.year})",
+            url_path=f"/{r.artist_slug}/{r.album_slug}/{r.slug}",
+            lyric_match=verse,
         ))
 
     return PublicSearchOut(query=q, results=out)
+
+
+# --------------------------------------------------------------------------- #
+# Taxonomías (Fase 2): themes / places / concepts
+# --------------------------------------------------------------------------- #
+class PublicTaxonomyListItem(BaseModel):
+    slug: str
+    name: str
+    description: str | None = None
+    song_count: int
+
+
+class PublicTaxonomySongRef(BaseModel):
+    title: str
+    url_path: str
+    artist_name: str
+    album_title: str
+    year: int | None = None
+
+
+class PublicTaxonomyDetailOut(BaseModel):
+    slug: str
+    name: str
+    description: str | None = None
+    kind: str  # 'theme' | 'place' | 'concept'
+    extra: dict | None = None  # places: {geo_lat, geo_lng}
+    songs: list[PublicTaxonomySongRef]
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    entities: list[PublicResolvedEntity] = []
+
+
+def _is_live_version(slug: str, title: str) -> bool:
+    """True si la canción es una versión 'en directo'."""
+    s = slug.lower()
+    t = title.lower()
+    return s.endswith("-en-directo") or "(en directo)" in t or "[en directo]" in t
+
+
+def _base_slug(slug: str) -> str:
+    """Devuelve el slug sin el sufijo `-en-directo` para emparejar versiones."""
+    if slug.lower().endswith("-en-directo"):
+        return slug[: -len("-en-directo")]
+    return slug
+
+
+def _dedupe_studio_vs_live(songs):
+    """Si en la lista hay versión estudio + versión en directo de la misma
+    canción, mantenemos solo la de estudio. Si solo existe la versión en
+    directo, esa entra. Las canciones únicas no se ven afectadas.
+
+    `songs` es iterable de objetos Song (no de SongRefs). Devuelve lista.
+    """
+    songs = list(songs)
+    studio_bases: set[str] = {
+        s.slug for s in songs if not _is_live_version(s.slug, s.title)
+    }
+    out = []
+    for s in songs:
+        if _is_live_version(s.slug, s.title) and _base_slug(s.slug) in studio_bases:
+            continue
+        out.append(s)
+    return out
+
+
+def _published_songs(db: Session, songs) -> list:
+    """Filtra canciones cuyo seo_content esté publicado. Devuelve lista."""
+    out = []
+    for s in songs:
+        pub = db.query(SeoContent).filter(
+            SeoContent.entity_type == "song",
+            SeoContent.entity_id == s.id,
+            SeoContent.published.is_(True),
+        ).first()
+        if pub:
+            out.append(s)
+    return out
+
+
+# Umbral de canciones para exponer un hub. Themes/concepts requieren al menos
+# 2 (evita thin content para temas abstractos repetibles). Places admiten 1
+# porque un lugar geográfico nombrado en una sola canción ya tiene entidad y
+# es contenido SEO valioso (ej. El Piornal en *Viajando por el interior*).
+_MIN_SONGS_BY_KIND = {"theme": 2, "concept": 2, "place": 1}
+
+
+def _list_taxonomy(
+    db: Session, model, kind: str = "theme"
+) -> list[PublicTaxonomyListItem]:
+    """Lista todas las entradas con count de canciones publicadas (dedup
+    estudio vs directo). Aplica umbral mínimo según `kind`."""
+    rows = (
+        db.query(model)
+        .order_by(model.name)
+        .all()
+    )
+    threshold = _MIN_SONGS_BY_KIND.get(kind, 2)
+    result: list[PublicTaxonomyListItem] = []
+    for r in rows:
+        published = _published_songs(db, r.songs)
+        deduped = _dedupe_studio_vs_live(published)
+        count = len(deduped)
+        if count < threshold:
+            continue
+        result.append(PublicTaxonomyListItem(
+            slug=r.slug, name=r.name, description=r.description, song_count=count,
+        ))
+    return result
+
+
+def _detail_taxonomy(
+    db: Session, model, slug: str, kind: str
+) -> PublicTaxonomyDetailOut:
+    row = db.query(model).filter(model.slug == slug).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"{kind} not found")
+
+    published = _published_songs(db, row.songs)
+    deduped = _dedupe_studio_vs_live(published)
+
+    songs: list[PublicTaxonomySongRef] = []
+    for s in deduped:
+        al = s.album
+        ar = al.artist
+        songs.append(PublicTaxonomySongRef(
+            title=s.title,
+            url_path=f"/{ar.slug}/{al.slug}/{s.slug}",
+            artist_name=ar.name,
+            album_title=al.title,
+            year=al.year,
+        ))
+
+    threshold = _MIN_SONGS_BY_KIND.get(kind, 2)
+    if len(songs) < threshold:
+        # Coherente con _list_taxonomy.
+        raise HTTPException(status_code=404, detail=f"{kind} sin suficientes canciones publicadas")
+
+    extra = None
+    if kind == "place" and (row.geo_lat or row.geo_lng):
+        extra = {"geo_lat": float(row.geo_lat) if row.geo_lat else None,
+                 "geo_lng": float(row.geo_lng) if row.geo_lng else None,
+                 "kind": row.kind}
+
+    # seo_content editorial de la taxonomía (entity_type == kind)
+    seo = _try_get_seo(db, kind, row.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
+
+    return PublicTaxonomyDetailOut(
+        slug=row.slug,
+        name=row.name,
+        description=row.description,
+        kind=kind,
+        extra=extra,
+        songs=songs,
+        seo_body=seo["body_md"] if seo else None,
+        seo_meta_title=seo["meta_title"] if seo else None,
+        seo_meta_description=seo["meta_description"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+    )
+
+
+@router.get("/themes", response_model=list[PublicTaxonomyListItem])
+def public_themes_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Theme, kind="theme")
+
+
+@router.get("/themes/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_theme_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Theme, slug, "theme")
+
+
+@router.get("/places", response_model=list[PublicTaxonomyListItem])
+def public_places_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Place, kind="place")
+
+
+@router.get("/places/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_place_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Place, slug, "place")
+
+
+@router.get("/concepts", response_model=list[PublicTaxonomyListItem])
+def public_concepts_list(response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _list_taxonomy(db, Concept, kind="concept")
+
+
+@router.get("/concepts/{slug}", response_model=PublicTaxonomyDetailOut)
+def public_concept_detail(slug: str, response: Response, db: Session = Depends(get_db)):
+    _set_cache(response)
+    return _detail_taxonomy(db, Concept, slug, "concept")
+
+
+# --------------------------------------------------------------------------- #
+# Blog (Fase 3): /blog y /blog/{slug}
+# --------------------------------------------------------------------------- #
+from app.db.models import BandMembership, Person, Post  # noqa: E402
+
+
+# --------------------------------------------------------------------------- #
+# Personas (knowledge graph)
+# --------------------------------------------------------------------------- #
+class PublicPersonMembership(BaseModel):
+    artist_slug: str
+    artist_name: str
+    role: str
+    era: str | None = None
+    is_founder: bool = False
+    is_current: bool = False
+
+
+class PublicPersonListItem(BaseModel):
+    slug: str
+    full_name: str
+    stage_name: str | None = None
+    birth_date: str | None = None
+    death_date: str | None = None
+    image_url: str | None = None
+
+
+class PublicWikidataRef(BaseModel):
+    """Referencia a una entidad Wikidata (banda, obra, ocupación). Permite
+    enlazar el knowledge graph con entidades externas sin sumarlas a
+    nuestro corpus de Artists."""
+    name: str
+    wikidata_id: str
+    wikidata_url: str
+    wikipedia_url: str | None = None
+
+
+class PublicPersonDetailOut(PublicPersonListItem):
+    birth_place: str | None = None
+    bio_short: str | None = None
+    wikipedia_url: str | None = None
+    wikidata_id: str | None = None
+    image_attribution: str | None = None
+    image_license: str | None = None
+    image_source_url: str | None = None
+    memberships: list[PublicPersonMembership] = []
+    other_bands: list[PublicWikidataRef] = []
+    notable_works: list[PublicWikidataRef] = []
+    occupations: list[PublicWikidataRef] = []
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    schema_jsonld: dict | None = None
+    entities: list["PublicResolvedEntity"] = []
+
+
+@router.get("/persons", response_model=list[PublicPersonListItem])
+def public_persons_list(
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicPersonListItem]:
+    _set_cache(response)
+    persons = (
+        db.query(Person)
+        .order_by(Person.full_name)
+        .all()
+    )
+    return [
+        PublicPersonListItem(
+            slug=p.slug,
+            full_name=p.full_name,
+            stage_name=p.stage_name,
+            birth_date=p.birth_date.isoformat() if p.birth_date else None,
+            death_date=p.death_date.isoformat() if p.death_date else None,
+            image_url=p.image_url,
+        )
+        for p in persons
+    ]
+
+
+@router.get("/persons/{slug}", response_model=PublicPersonDetailOut)
+def public_person_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicPersonDetailOut:
+    _set_cache(response)
+    person = db.query(Person).filter(Person.slug == slug).first()
+    if not person:
+        raise HTTPException(status_code=404, detail="person not found")
+
+    memberships_raw = (
+        db.query(BandMembership, Artist)
+        .join(Artist, BandMembership.artist_id == Artist.id)
+        .filter(BandMembership.person_id == person.id)
+        .order_by(BandMembership.position, BandMembership.era)
+        .all()
+    )
+    memberships = [
+        PublicPersonMembership(
+            artist_slug=a.slug,
+            artist_name=a.name,
+            role=m.role,
+            era=m.era,
+            is_founder=m.is_founder,
+            is_current=m.is_current,
+        )
+        for m, a in memberships_raw
+    ]
+
+    # SEO content si está publicado
+    seo = (
+        db.query(SeoContent)
+        .filter(
+            SeoContent.entity_type == "person",
+            SeoContent.entity_id == person.id,
+            SeoContent.published.is_(True),
+        )
+        .first()
+    )
+
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo.entities if seo else []) or [])
+
+    return PublicPersonDetailOut(
+        slug=person.slug,
+        full_name=person.full_name,
+        stage_name=person.stage_name,
+        birth_date=person.birth_date.isoformat() if person.birth_date else None,
+        death_date=person.death_date.isoformat() if person.death_date else None,
+        birth_place=person.birth_place,
+        bio_short=person.bio_short,
+        wikipedia_url=person.wikipedia_url,
+        wikidata_id=person.wikidata_id,
+        image_url=person.image_url,
+        image_attribution=person.image_attribution,
+        image_license=person.image_license,
+        image_source_url=person.image_source_url,
+        memberships=memberships,
+        other_bands=[
+            PublicWikidataRef(**b) for b in (person.other_bands or [])
+        ],
+        notable_works=[
+            PublicWikidataRef(**w) for w in (person.notable_works or [])
+        ],
+        occupations=[
+            PublicWikidataRef(**o) for o in (person.occupations or [])
+        ],
+        seo_body=seo.body_md if seo else None,
+        seo_meta_title=seo.meta_title if seo else None,
+        seo_meta_description=seo.meta_description if seo else None,
+        schema_jsonld=seo.schema_jsonld if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+    )
+
+
+class PublicPostListItem(BaseModel):
+    slug: str
+    kind: str
+    title: str
+    excerpt: str | None = None
+    hero_image_url: str | None = None
+    published_at: datetime
+
+
+class PublicPostDetail(PublicPostListItem):
+    body_md: str
+    meta_title: str | None = None
+    meta_description: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    anniversary_year: int | None = None
+    entities: list[PublicResolvedEntity] = []
+
+
+@router.get("/posts", response_model=list[PublicPostListItem])
+def public_posts_list(
+    response: Response,
+    db: Session = Depends(get_db),
+    limit: int = 30,
+) -> list[PublicPostListItem]:
+    _set_cache(response)
+    rows = (
+        db.query(Post)
+        .filter(Post.status == "published")
+        .order_by(Post.published_at.desc())
+        .limit(min(limit, 100))
+        .all()
+    )
+    return [
+        PublicPostListItem(
+            slug=p.slug,
+            kind=p.kind,
+            title=p.title,
+            excerpt=p.excerpt,
+            hero_image_url=p.hero_image_url,
+            published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
+@router.get("/posts/mentioning", response_model=list[PublicPostListItem])
+def public_posts_mentioning(
+    slug: str,
+    response: Response,
+    limit: int = 6,
+    db: Session = Depends(get_db),
+) -> list[PublicPostListItem]:
+    """Devuelve posts publicados que tengan en `entities` al menos una
+    referencia cuyo `slug_hint` coincida con el parámetro `slug`.
+    Sirve para mostrar bloques "Mencionado en" en páginas de
+    persona/artist/album/song.
+    """
+    _set_cache(response)
+    if not slug or len(slug) > 120:
+        return []
+    # Postgres JSONB: WHERE entities @> '[{"slug_hint": "X"}]'
+    rows = (
+        db.query(Post)
+        .filter(Post.status == "published")
+        .filter(Post.entities.contains([{"slug_hint": slug}]))
+        .order_by(Post.published_at.desc())
+        .limit(min(limit, 20))
+        .all()
+    )
+    return [
+        PublicPostListItem(
+            slug=p.slug,
+            kind=p.kind,
+            title=p.title,
+            excerpt=p.excerpt,
+            hero_image_url=p.hero_image_url,
+            published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
+@router.get("/posts/{slug}", response_model=PublicPostDetail)
+def public_post_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicPostDetail:
+    _set_cache(response)
+    p = (
+        db.query(Post)
+        .filter(Post.slug == slug, Post.status == "published")
+        .first()
+    )
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved = resolve_entities(db, p.entities)
+    return PublicPostDetail(
+        slug=p.slug,
+        kind=p.kind,
+        title=p.title,
+        excerpt=p.excerpt,
+        hero_image_url=p.hero_image_url,
+        published_at=p.published_at,
+        body_md=p.body_md,
+        meta_title=p.meta_title,
+        meta_description=p.meta_description,
+        source_url=p.source_url,
+        source_name=p.source_name,
+        anniversary_year=p.anniversary_year,
+        entities=[PublicResolvedEntity(**e) for e in resolved],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Newsletter (Fase 3): suscripción doble opt-in
+# --------------------------------------------------------------------------- #
+import logging  # noqa: E402
+import re  # noqa: E402
+import secrets  # noqa: E402
+from datetime import timezone  # noqa: E402
+
+from app.db.models import Subscriber  # noqa: E402
+from app.services.email import (  # noqa: E402
+    EmailError,
+    render_newsletter_confirm_email,
+    send_email,
+)
+from app.services.newsletter import dispatch_to_subscriber  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+
+def _site_url() -> str:
+    import os
+    return os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
+
+
+class NewsletterSubscribeIn(BaseModel):
+    email: str
+    source: str | None = None
+
+
+class NewsletterSubscribeOut(BaseModel):
+    status: str  # 'pending_confirmation' | 'already_subscribed' | 'invalid_email'
+    message: str
+
+
+class NewsletterStatusOut(BaseModel):
+    status: str
+    message: str
+
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+@router.post("/newsletter/subscribe", response_model=NewsletterSubscribeOut)
+def newsletter_subscribe(
+    body: NewsletterSubscribeIn,
+    db: Session = Depends(get_db),
+) -> NewsletterSubscribeOut:
+    """Form de suscripción → crea pending + email de confirmación.
+
+    Idempotente: si el email ya está confirmed, devolvemos status
+    'already_subscribed' sin re-enviar. Si está pending o unsubscribed,
+    regeneramos el confirm_token y reenviamos confirmación.
+    """
+    email = (body.email or "").strip().lower()
+    if not email or not _EMAIL_RE.match(email) or len(email) > 256:
+        return NewsletterSubscribeOut(
+            status="invalid_email", message="Email no válido.",
+        )
+
+    row = db.query(Subscriber).filter(Subscriber.email == email).first()
+    confirm_token = secrets.token_urlsafe(32)
+
+    if row:
+        if row.status == "confirmed":
+            return NewsletterSubscribeOut(
+                status="already_subscribed",
+                message="Ya estás suscrito · gracias.",
+            )
+        # pending / unsubscribed / bounced → regeneramos token y reenviamos.
+        row.confirm_token = confirm_token
+        row.status = "pending"
+        row.subscribed_at = datetime.now(timezone.utc)
+        row.unsubscribed_at = None
+        row.source = body.source or row.source
+    else:
+        row = Subscriber(
+            email=email,
+            status="pending",
+            confirm_token=confirm_token,
+            unsubscribe_token=secrets.token_urlsafe(32),
+            source=body.source,
+        )
+        db.add(row)
+    db.commit()
+
+    confirm_url = f"{_site_url()}/newsletter/confirmar?token={confirm_token}"
+    html, text = render_newsletter_confirm_email(confirm_url)
+    try:
+        send_email(
+            to=email,
+            subject="Confirma tu suscripción · Entre Interiores",
+            html=html,
+            text=text,
+        )
+    except EmailError as e:
+        # No bloqueamos al usuario: la fila queda pending, podrá reintentar.
+        logger.warning("Newsletter subscribe email failed for %s: %s", email, e)
+
+    return NewsletterSubscribeOut(
+        status="pending_confirmation",
+        message="Te hemos enviado un email para confirmar.",
+    )
+
+
+@router.get("/newsletter/confirm", response_model=NewsletterStatusOut)
+def newsletter_confirm(
+    token: str,
+    db: Session = Depends(get_db),
+) -> NewsletterStatusOut:
+    row = db.query(Subscriber).filter(Subscriber.confirm_token == token).first()
+    if not row:
+        return NewsletterStatusOut(status="invalid_token", message="Enlace no válido o caducado.")
+    if row.status == "confirmed":
+        return NewsletterStatusOut(status="already_confirmed", message="Tu suscripción ya estaba activa.")
+    row.status = "confirmed"
+    row.confirmed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Disparo inmediato: si hay entradas publicadas pendientes para este
+    # subscriber, le mandamos el digest ahora — no tiene que esperar al cron.
+    # Cualquier fallo de envío se loguea pero no rompe la confirmación.
+    try:
+        sent = dispatch_to_subscriber(db, row)
+        db.commit()
+        if sent:
+            return NewsletterStatusOut(
+                status="confirmed",
+                message=(
+                    "¡Listo! Te acabamos de mandar el contenido más reciente "
+                    "al email. Te llegarán las próximas entradas en cuanto se "
+                    "publiquen."
+                ),
+            )
+    except Exception as e:
+        logger.warning("Confirm dispatch failed for %s: %s", row.email, e)
+
+    return NewsletterStatusOut(
+        status="confirmed",
+        message="¡Listo! Te llegarán las nuevas entradas del diario.",
+    )
+
+
+@router.get("/newsletter/unsubscribe", response_model=NewsletterStatusOut)
+def newsletter_unsubscribe(
+    token: str,
+    db: Session = Depends(get_db),
+) -> NewsletterStatusOut:
+    row = db.query(Subscriber).filter(Subscriber.unsubscribe_token == token).first()
+    if not row:
+        return NewsletterStatusOut(status="invalid_token", message="Enlace no válido.")
+    if row.status == "unsubscribed":
+        return NewsletterStatusOut(status="already_unsubscribed", message="Ya estabas dado de baja.")
+    row.status = "unsubscribed"
+    row.unsubscribed_at = datetime.now(timezone.utc)
+    db.commit()
+    return NewsletterStatusOut(
+        status="unsubscribed",
+        message="Te hemos dado de baja. Sin preguntas. Si te arrepientes, vuelve cuando quieras.",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Admin action via mail (one-click approve/reject)
+# --------------------------------------------------------------------------- #
+from fastapi.responses import HTMLResponse  # noqa: E402
+
+from app.services.auth import decode_admin_action_token  # noqa: E402
+
+
+def _render_admin_action_page(message: str, *, success: bool) -> str:
+    color = "#ede4d3" if success else "#e85050"
+    accent_border = "#a83a3a"
+    return f"""\
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>{'Acción completada' if success else 'No se pudo'} · Entre Interiores</title>
+<style>
+body {{ margin:0; padding:48px 24px; background:#0d0b0a; color:#ede4d3;
+       font-family:Georgia,serif; }}
+.box {{ max-width:560px; margin:0 auto; padding:32px;
+       border:1px solid rgba(237,228,211,0.1); background:rgba(237,228,211,0.02); }}
+.tag {{ font-family:'Courier New',monospace; font-size:10px; letter-spacing:3px;
+       text-transform:uppercase; color:{accent_border}; margin:0 0 16px; }}
+.msg {{ font-size:22px; color:{color}; line-height:1.4; margin:0 0 24px; }}
+a {{ display:inline-block; padding:12px 24px; border:1px solid {accent_border};
+     color:{accent_border}; text-decoration:none;
+     font-family:'Courier New',monospace; font-size:11px; letter-spacing:3px;
+     text-transform:uppercase; }}
+</style>
+</head>
+<body>
+<div class="box">
+<p class="tag">entre interiores · acción admin</p>
+<p class="msg">{message}</p>
+<a href="/biblioteca/admin/posts">Ir al panel</a>
+</div>
+</body>
+</html>"""
+
+
+@router.get("/admin-action", response_class=HTMLResponse)
+def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One-click desde el email de revisión. Token JWT firmado con
+    {post_id, action} y purpose='admin_action'. Idempotente: si el post
+    ya está en el estado destino, no rompe, solo informa."""
+    data = decode_admin_action_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page(
+                "Enlace inválido o caducado.", success=False
+            ),
+            status_code=400,
+        )
+    post = db.query(Post).filter(Post.id == data["post_id"]).first()
+    if post is None:
+        return HTMLResponse(
+            _render_admin_action_page("Post no encontrado.", success=False),
+            status_code=404,
+        )
+
+    if data["action"] == "approve":
+        if post.status == "published":
+            return HTMLResponse(
+                _render_admin_action_page(
+                    f"«{post.title}» ya estaba publicado.", success=True,
+                )
+            )
+        if post.status == "rejected":
+            return HTMLResponse(
+                _render_admin_action_page(
+                    f"«{post.title}» había sido rechazado. No lo publico.",
+                    success=False,
+                ),
+                status_code=409,
+            )
+        from app.services.publishing import auto_publish_post  # lazy
+        auto_publish_post(db, post)
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"✓ Publicado: «{post.title}»", success=True,
+            )
+        )
+
+    # action == "reject"
+    if post.status == "rejected":
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"«{post.title}» ya estaba rechazado.", success=True,
+            )
+        )
+    if post.status == "published":
+        return HTMLResponse(
+            _render_admin_action_page(
+                f"«{post.title}» ya está publicado. Despublica desde el panel.",
+                success=False,
+            ),
+            status_code=409,
+        )
+    post.status = "rejected"
+    db.commit()
+    return HTMLResponse(
+        _render_admin_action_page(
+            f"✗ Rechazado: «{post.title}»", success=True,
+        )
+    )

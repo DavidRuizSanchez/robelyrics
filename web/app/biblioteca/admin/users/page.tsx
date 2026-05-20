@@ -56,7 +56,21 @@ export default async function AdminUsersPage() {
             >
               SEO content
             </Link>
+            <Link
+              href="/biblioteca/admin/calendario"
+              data-cursor="hover"
+              className="text-ink-dim hover:text-accent"
+            >
+              Calendario
+            </Link>
             <span className="text-accent">usuarios</span>
+            <Link
+              href="/biblioteca/admin/subscribers"
+              data-cursor="hover"
+              className="text-ink-dim hover:text-accent"
+            >
+              suscriptores
+            </Link>
           </nav>
         </div>
         <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">
@@ -96,7 +110,7 @@ export default async function AdminUsersPage() {
                     <span className="font-mono text-[13px]">{u.email}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Badge yes={u.is_admin} on="ADMIN" off="—" />
+                    <Badge yes={u.is_admin} on="ADMIN" off="·" />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Badge yes={u.is_active} on="OK" off="OFF" />

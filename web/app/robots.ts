@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.SITE_URL || "http://localhost:3001";
+const SITE_URL = process.env.SITE_URL || "https://entreinteriores.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/"],
-        disallow: ["/biblioteca/", "/login", "/logout", "/api/"],
+        disallow: ["/biblioteca/", "/login", "/logout", "/api/", "/*?_rsc="],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

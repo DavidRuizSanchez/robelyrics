@@ -1,12 +1,21 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
+import MoreFromArtist from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  mentionsArray,
+  musicAlbumNode,
+  musicGroupNode,
+} from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
 
@@ -67,12 +76,24 @@ export default async function AlbumPublicPage({
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       const matched = await tryResolveAlbum(artist, album);
-      if (matched) redirect(`/${artist}/${matched}`);
+      if (matched) permanentRedirect(`/${artist}/${matched}`);
       notFound();
     }
     throw e;
   }
   if (!detail.seo_body) notFound();
+
+  // Cargamos el artista para los álbumes hermanos (bloque "Más discos de…").
+  // Si falla, simplemente no renderizamos el bloque.
+  let artistDetail: PublicArtistDetail | null = null;
+  try {
+    artistDetail = await apiFetch<PublicArtistDetail>(
+      `/public/artists/${artist}`,
+      { authenticated: false },
+    );
+  } catch {
+    artistDetail = null;
+  }
 
   return (
     <div className="relative">
@@ -88,13 +109,18 @@ export default async function AlbumPublicPage({
       <div className="relative z-10">
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
-        <Link
-          href={`/${artist}`}
-          data-cursor="hover"
-          className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-        >
-          ← {detail.artist.name}
-        </Link>
+        <Breadcrumbs
+          className="mb-6"
+          items={[
+            { label: "Entre Interiores", href: "/" },
+            { label: detail.artist.name, href: `/${artist}` },
+            {
+              label: detail.title,
+              href: `/${artist}/${album}`,
+              meta: `(${detail.year})`,
+            },
+          ]}
+        />
 
         <header className="mt-6 mb-12 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 md:gap-10 items-start">
           <AlbumCover
@@ -142,20 +168,40 @@ export default async function AlbumPublicPage({
           </ol>
         </section>
 
+        {artistDetail && (
+          <MoreFromArtist
+            artistSlug={artist}
+            artistName={detail.artist.name}
+            albums={artistDetail.albums}
+            currentAlbumSlug={album}
+          />
+        )}
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@type": "MusicAlbum",
-              name: detail.title,
-              datePublished: String(detail.year),
-              byArtist: { "@type": "MusicGroup", name: detail.artist.name },
-              url: `/${artist}/${album}`,
-              image: detail.cover_url || undefined,
-            }),
+            __html: safeJsonLd(
+              buildGraph([
+                {
+                  ...musicAlbumNode({
+                    slug: album,
+                    artistSlug: artist,
+                    title: detail.title,
+                    year: detail.year,
+                    coverUrl: detail.cover_url,
+                  }),
+                  ...(mentionsArray(detail.entities).length > 0
+                    ? { mentions: mentionsArray(detail.entities) }
+                    : {}),
+                },
+                // Nodo mínimo del artista para conectar @id
+                musicGroupNode({ slug: artist, name: detail.artist.name }),
+              ]),
+            ),
           }}
         />
+
+        <MentionedInPosts slug={album} heading="Mencionado en el diario" />
       </main>
       <PublicFooter />
       </div>

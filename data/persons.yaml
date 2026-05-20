@@ -1,0 +1,271 @@
+# Personas del universo Entre Interiores.
+#
+# Esto pobla `persons` + `band_memberships`. El seed (`scripts.seed_persons`)
+# completa datos faltantes desde Wikipedia/Wikidata: fechas, biografía corta,
+# Q-ID, y foto en Wikimedia Commons.
+#
+# Convenciones:
+#   - slug: kebab-case sin acentos
+#   - artist (en memberships): slug del Artist en DB (extremoduro|robe)
+#   - era: string libre ("1987-2014", "Banda solista 2017-2025")
+#   - Si no aparece `birth_date` el seed lo intenta sacar de Wikidata.
+#   - `wikipedia_url` ayuda al seed a encontrar el Q-ID si no se conoce.
+#
+# Para añadir grupos amigos como personas (Kutxi Romero, Fito Cabrales, etc.),
+# añade su entrada SIN memberships (sus bandas no están en nuestro Artist
+# corpus). El JSON-LD usará `sameAs` a Wikidata para enlazar.
+
+persons:
+  # =========================================================================
+  # Extremoduro / Robe — eje del proyecto
+  # =========================================================================
+
+  - slug: robe-iniesta
+    full_name: Robe Iniesta
+    stage_name: Robe
+    birth_date: 1962-05-16
+    death_date: 2025-12-10
+    birth_place: Plasencia, Cáceres
+    wikipedia_url: https://es.wikipedia.org/wiki/Robe_Iniesta
+    wikidata_id: Q3500822
+    # Imagen hardcoded — Wikidata Q3500822 NO tiene P18, así que el script
+    # no encontraba foto válida. Esta es libre (CC BY-SA), real, etiquetada.
+    image_filename: "Robe Iniesta en Valladolid en 2014.jpg"
+    memberships:
+      - artist: extremoduro
+        role: vocalista
+        era: 1987-2014
+        is_founder: true
+        position: 1
+      - artist: robe
+        role: vocalista
+        era: 2014-2025
+        is_founder: true
+        position: 1
+
+  - slug: inaki-uoho-anton
+    full_name: Iñaki Antón
+    stage_name: Uoho
+    wikipedia_url: https://es.wikipedia.org/wiki/I%C3%B1aki_Ant%C3%B3n
+    memberships:
+      - artist: extremoduro
+        role: guitarrista
+        era: 1996-2014
+        position: 2
+
+  - slug: miguel-colino
+    full_name: Miguel Colino
+    wikipedia_url: https://es.wikipedia.org/wiki/Miguel_Colino
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        # era corregida: entró en 2001 (antes el yaml decía 1996).
+        era: 2001-2014
+        position: 4
+
+  - slug: jose-ignacio-cantera
+    full_name: José Ignacio Cantera
+    stage_name: Iñaki Cantera
+    wikipedia_url: https://es.wikipedia.org/wiki/Jos%C3%A9_Ignacio_Cantera
+    memberships:
+      - artist: extremoduro
+        role: batería
+        # era corregida: entró en 1997 (antes el yaml decía 2008).
+        era: 1997-2014
+        position: 5
+
+  # =========================================================================
+  # Extremoduro — miembros históricos (formaciones anteriores)
+  # Fuente: infobox + sección «Componentes» de Wikipedia ES (transcripción
+  # verbatim del campo `exmiembros`). Los nombres/apodos son fiables; los
+  # apellidos completos, instrumentos y años proceden de la sección
+  # «Componentes» y conviene una revisión final. Sin wikipedia_url propio:
+  # son músicos sin artículo individual, el seed no podrá enriquecerlos.
+  # =========================================================================
+
+  - slug: kaito
+    full_name: Kaíto
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: "1987"
+        position: 6
+
+  - slug: william-extremoduro
+    full_name: William
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: "1987"
+        position: 7
+
+  - slug: salo
+    full_name: Gonzalo Muñoz
+    stage_name: Salo
+    # Corregido: el yaml antiguo lo daba como «Salomón Hernández, batería
+    # 1996-2007», dato erróneo. El verdadero «Salo» de Extremoduro es
+    # Gonzalo Muñoz, bajista y luego guitarrista de la etapa inicial.
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1988-1990
+        position: 8
+      - artist: extremoduro
+        role: guitarrista
+        era: 1990-1993
+        position: 8
+
+  - slug: luis-von-fanta
+    full_name: Luis Iglesias
+    stage_name: von Fanta
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: 1988-1992
+        position: 9
+
+  - slug: carlos-el-sucio
+    full_name: Carlos Jiménez
+    stage_name: el Sucio
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1990-1993
+        position: 10
+
+  - slug: jorge-el-moja
+    full_name: Jorge Pérez
+    stage_name: el Moja
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: 1992-1994
+        position: 11
+
+  - slug: mon-sogas
+    full_name: Ramón Sogas
+    stage_name: Mon
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1993-1998
+        position: 12
+
+  - slug: miguel-ferreras
+    full_name: Miguel Ferreras
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1993-1994
+        position: 13
+
+  - slug: uge-ortiz
+    full_name: Eugenio Ortiz
+    stage_name: Uge
+    memberships:
+      - artist: extremoduro
+        role: guitarrista
+        era: 1993-1994
+        position: 14
+
+  - slug: inaki-milindris
+    full_name: Iñaki Setién
+    stage_name: Milindris
+    memberships:
+      - artist: extremoduro
+        role: guitarrista
+        era: 1994-1997
+        position: 15
+
+  - slug: capi-gil
+    full_name: Alberto Gil
+    stage_name: Capi
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: 1994-1997
+        position: 16
+
+  - slug: diego-garay
+    full_name: Diego Garay
+    memberships:
+      - artist: extremoduro
+        role: bajista
+        era: 1999-2001
+        position: 17
+
+  # =========================================================================
+  # Robe — banda del proyecto en solitario (a partir de 2013/2014)
+  # Fuente: cuerpo del artículo Wikipedia ES (cita verbatim de los nombres).
+  # Los instrumentos no se detallan en Wikipedia ES; se dejan como rol
+  # genérico «músico» para no afirmar algo no verificado.
+  # =========================================================================
+
+  - slug: alvaro-rodriguez-barroso
+    full_name: Álvaro Rodríguez Barroso
+    memberships:
+      - artist: robe
+        role: músico
+        era: 2013-2025
+        position: 2
+
+  - slug: carlitos-perez
+    full_name: Carlitos Pérez
+    memberships:
+      - artist: robe
+        role: músico
+        era: 2013-2025
+        position: 3
+
+  - slug: alber-fuentes
+    full_name: Alber Fuentes
+    memberships:
+      - artist: robe
+        role: músico
+        era: 2013-2025
+        position: 4
+
+  - slug: david-lerman
+    full_name: David Lerman
+    memberships:
+      - artist: robe
+        role: músico
+        era: 2013-2025
+        position: 5
+
+  - slug: lorenzo-gonzalez
+    full_name: Lorenzo González
+    memberships:
+      - artist: robe
+        role: músico
+        era: 2013-2025
+        position: 6
+
+  # =========================================================================
+  # Grupos amigos — lideres principales (sin membership en nuestro corpus,
+  # se conectan via JSON-LD sameAs a Wikidata)
+  # =========================================================================
+
+  - slug: kutxi-romero
+    full_name: Kutxi Romero
+    bio_short: Cantante y líder de Marea, banda de rock navarro próxima a Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Kutxi_Romero
+    # memberships: ninguna — Marea no está en nuestro corpus de Artists
+
+  - slug: fito-cabrales
+    full_name: Adolfo Cabrales Mato
+    stage_name: Fito
+    bio_short: Cantante y líder de Platero y Tú, y posteriormente Fito & Fitipaldis.
+    wikipedia_url: https://es.wikipedia.org/wiki/Fito_Cabrales
+
+  - slug: manolo-kabezabolo
+    full_name: Manuel Galán
+    stage_name: Manolo Kabezabolo
+    bio_short: Cantante y autor satírico del rock español, colaborador histórico de Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Kabezabolo
+
+  - slug: rosendo-mercado
+    full_name: Rosendo Mercado Ruiz
+    stage_name: Rosendo
+    bio_short: Guitarrista y cantante, referente del rock urbano madrileño que ha colaborado en directo con Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Rosendo_Mercado

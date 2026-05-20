@@ -32,8 +32,8 @@ MODEL = "gpt-4o"
 SYSTEM_PROMPT = """\
 Eres un redactor editorial musical especializado en rock español, con tono \
 cercano y riguroso. Escribes para un sitio fan no oficial de Extremoduro y \
-Robe Iniesta. Tu trabajo es producir artículos largos, ricos en contexto y \
-atractivos para SEO, sobre artistas, discos y canciones concretas.
+Robe. Tu trabajo es producir artículos ricos en contexto y atractivos para \
+SEO, sobre artistas, discos y canciones concretas.
 
 Reglas estrictas que NO puedes romper:
 1. NUNCA recites más de 4 líneas seguidas de letra original. Puedes mencionar \
@@ -45,7 +45,7 @@ Reglas estrictas que NO puedes romper:
    "yo creo" o "personalmente".
 4. NO inventes datos: si no sabes una fecha, una composición o un detalle \
    técnico, omítelo o señálalo como "no documentado".
-5. Tono editorial culto pero accesible — evita la jerga de fan club ("el rey \
+5. Tono editorial culto pero accesible. Evita la jerga de fan club ("el rey \
    de Extremadura", "la voz de la calle", "rey del rock transgresivo"). \
    Prefiere descripciones específicas.
 6. SEO: usa el título de la entidad y términos relacionados con naturalidad, \
@@ -55,12 +55,59 @@ Reglas estrictas que NO puedes romper:
    fuente externa (no tu conocimiento general), referénciala con el formato \
    [Fuente: Mondo Sonoro 2021] al final de la frase.
 
+MARCAS DE IA — PROHIBIDO ABSOLUTO (si rompes una, el texto se descarta):
+8. PROHIBIDO el carácter raya/em-dash "—" y el guion largo "–". No los uses \
+   NUNCA. Para incisos usa comas, paréntesis o puntos. Para guiones usa el \
+   guion corto normal "-" solo en palabras compuestas.
+9. PROHIBIDA la estructura tipo IA: nada de intro-desarrollo-conclusión \
+   explícita. Nada de encabezados genéricos ("Introducción", "Contexto", \
+   "Conclusión", "Resumen"). Los H2/H3 deben ser concretos y con sustantivos \
+   del tema, no abstracciones.
+10. PROHIBIDAS las frases meta sobre la propia escritura: "en este artículo", \
+   "como veremos", "es importante destacar", "cabe mencionar", "en resumen", \
+   "vale la pena", "en conclusión", "para terminar", "a continuación".
+11. PROHIBIDOS los adjetivos vacíos de relleno: "icónico", "legendario", \
+   "magistral", "imprescindible", "inolvidable", "espectacular", "único".
+12. Empieza por una imagen concreta, un dato o una escena, NO por una frase \
+   de definición genérica.
+
 Devuelves SIEMPRE un objeto JSON con la estructura:
 {
   "body_md": "<artículo en markdown completo>",
   "meta_title": "<≤60 caracteres>",
-  "meta_description": "<≤160 caracteres>"
+  "meta_description": "<≤160 caracteres>",
+  "entities": [<lista — ver bloque ENTIDADES MENCIONADAS abajo>]
 }
+
+ENTIDADES MENCIONADAS — array `entities` obligatorio
+Identifica TODAS las entidades nombradas en el texto y añádelas. Sirve para
+construir schema.org `mentions` y enlazar el knowledge graph del sitio:
+
+- Personas (músicos, miembros, productores, autores, periodistas).
+- Bandas, grupos, proyectos musicales.
+- Discos (MusicAlbum), canciones (MusicComposition).
+- Lugares (ciudades, pueblos, regiones, salas, festivales).
+- Organizaciones, sellos discográficos, medios.
+- Programas (TVSeries, RadioSeries).
+
+Formato por entidad:
+  {
+    "type": "Person" | "MusicGroup" | "MusicAlbum" | "MusicComposition" |
+            "Place" | "TVSeries" | "RadioSeries" | "Organization" |
+            "CreativeWork",
+    "name": "<nombre canónico>",
+    "wikidata_id": "<Q-ID si lo conoces, sino null>",
+    "slug_hint": "<slug en kebab-case del corpus si crees que está,
+                    sino null. Ej.: 'extremoduro', 'robe', 'agila',
+                    'cipotecastico', 'robe-iniesta', 'inaki-uoho-anton',
+                    'plasencia'>"
+  }
+
+Si la entidad es Robe, Extremoduro, un disco del catálogo, una canción o
+un miembro conocido, rellena slug_hint para enlazar a la página local.
+NO incluyas entidades genéricas o muy abstractas ("rock", "música",
+"España", "España entera"). Solo entidades concretas y nombradas que un
+lector pueda buscar.
 """
 
 
@@ -95,10 +142,17 @@ def upsert_seo_content(
     meta_title: str | None,
     meta_description: str | None,
     schema_jsonld: dict | None,
+    entities: list | None = None,
     force: bool = False,
 ) -> int:
     """Inserta o actualiza la fila correspondiente. Si ya existe y --force,
     sobrescribe body_md y reset reviewed_at + published. Si no force, falla."""
+    # Saneado anti marcas de IA (em-dash, etc.) — red de seguridad por si el
+    # LLM ignoró el SYSTEM_PROMPT.
+    from app.services.text_sanitizer import strip_ai_tells
+    body_md = strip_ai_tells(body_md) or body_md
+    meta_title = strip_ai_tells(meta_title)
+    meta_description = strip_ai_tells(meta_description)
     if not force:
         # Comprueba que no existe ya para evitar pisar revisión humana
         existing = (
@@ -117,6 +171,17 @@ def upsert_seo_content(
             )
             return existing.id
 
+    ents = entities or []
+    # Linkifica el body_md con las entidades resueltas: primera mención de
+    # cada una se convierte en `[name](url)` apuntando a la página local
+    # (si está en corpus) o a Wikidata. Idempotente y limitado a una
+    # sustitución por entity para evitar overlinking.
+    if ents and body_md:
+        from app.services.entity_resolver import linkify_body_md, resolve_entities
+        resolved = resolve_entities(db, ents)
+        if resolved:
+            body_md = linkify_body_md(body_md, resolved)
+
     stmt = (
         pg_insert(SeoContent)
         .values(
@@ -127,6 +192,7 @@ def upsert_seo_content(
             meta_title=meta_title,
             meta_description=meta_description,
             schema_jsonld=schema_jsonld,
+            entities=ents,
             generated_at=datetime.now(timezone.utc),
             generated_by=MODEL,
             reviewed_at=None,
@@ -140,6 +206,7 @@ def upsert_seo_content(
                 "meta_title": meta_title,
                 "meta_description": meta_description,
                 "schema_jsonld": schema_jsonld,
+                "entities": ents,
                 "generated_at": datetime.now(timezone.utc),
                 "generated_by": MODEL,
                 "reviewed_at": None,

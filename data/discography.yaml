@@ -18,17 +18,22 @@ artists:
         year: 1989
         kind: studio
         slug: rock-transgresivo
+        # release_date pendiente: el casete original de 1989 no tiene fecha
+        # exacta conocida. La reedición de estudio se publicó el 26/08/1994.
 
       - title: "Somos unos animales"
         year: 1991
         kind: ep
         slug: somos-unos-animales
         # verificar: a veces clasificado como EP/maxi, a veces como single
+        # release_date pendiente: solo se conoce "julio de 1991", sin día.
 
       - title: "Deltoya"
         year: 1992
         kind: studio
         slug: deltoya
+        # release_date pendiente: junio de 1992, día discrepante entre
+        # fuentes (iTunes 08/06, Amazon 15/06). Sin confirmación oficial.
 
       - title: "¿Dónde están mis amigos?"
         year: 1993
@@ -77,14 +82,16 @@ artists:
     active_years: "2014-presente"
     albums:
       - title: "Lo que aletea en nuestras cabezas"
-        year: 2014
+        year: 2015            # corregido: era 2014, publicado el 09/06/2015
         kind: studio
         slug: lo-que-aletea-en-nuestras-cabezas
+        release_date: 2015-06-09
 
       - title: "Destrozares, Canciones para el Final de los Tiempos"
-        year: 2018
+        year: 2016            # corregido: era 2018 (2018 es el directo)
         kind: studio
         slug: destrozares
+        release_date: 2016-11-18
 
       - title: "Mayéutica"
         year: 2021
@@ -92,11 +99,10 @@ artists:
         slug: mayeutica
 
       - title: "Se nos lleva el aire"
-        year: 2024
+        year: 2023            # corregido: era 2024, publicado el 15/12/2023
         kind: studio
         slug: se-nos-lleva-el-aire
-        # verificar: título y año exactos antes de fetch. Si Genius no
-        # lo indexa todavía, fallback a letras.com.
+        release_date: 2023-12-15
 
 # ============================================================
 # Notas de operación

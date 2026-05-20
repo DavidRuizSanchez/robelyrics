@@ -36,6 +36,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+# next.config.mjs es necesario en runtime para que `next start` lea
+# images.remotePatterns, headers(), etc. Sin esto, /_next/image rechaza
+# upload.wikimedia.org con 400.
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./next.config.mjs
 USER nextjs
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# Invocamos next directamente en lugar de `pnpm start` para evitar corepack
+# en runtime: versiones recientes de corepack requieren node:sqlite (Node 22+)
+# y la base es node:20-alpine. El bundle ya está construido, no necesitamos pnpm.
+CMD ["node_modules/.bin/next", "start"]

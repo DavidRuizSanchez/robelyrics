@@ -49,7 +49,7 @@ export default function LoginForm({
     setError(null);
     try {
       const res = await loginAction(formData);
-      if (res && "error" in res && res.error) {
+      if (res && !res.ok) {
         setError(res.error);
       }
       // Si éxito, el server action redirige y no volvemos aquí.

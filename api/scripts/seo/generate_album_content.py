@@ -68,8 +68,9 @@ documentadas. NO inventes datos técnicos.
 
 ## Recorrido por las canciones
 ~600 palabras: repaso por las canciones del tracklist con 1-2 frases por
-cada una. NO copies letras, describe el tema y el tono. Para cada canción
-mencionada, enlaza con `[Título](/{artist.slug}/{album.slug}/<slug>)`.
+cada una. NO copies letras, describe el tema y el tono. Menciona los
+títulos en texto plano — el sistema los linkifica automáticamente a sus
+páginas locales.
 
 ## Recepción crítica y comercial
 ~300 palabras: cómo lo recibió la prensa especializada (puedes citar Mondo
@@ -81,11 +82,18 @@ asociadas.
 posterior, recopilatorios, regresos en directo.
 
 ## Otros discos relacionados
-~50 palabras + 1-2 enlaces internos a `[/{artist.slug}](/{artist.slug})` y
-discos cercanos del mismo artista.
+~50 palabras mencionando 1-2 discos cercanos del mismo artista por su
+título (texto plano, el sistema los linkifica).
+
+IMPORTANTE:
+- NO escribas markdown de link a mano ni uses placeholders entre
+  corchetes ([Título], <slug>, etc.). Si no tienes el dato exacto,
+  omite la frase.
+- NO inventes datos.
 
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars con título disco +
-artista), `meta_description` (≤160 chars resumiendo el álbum).
+artista), `meta_description` (≤160 chars resumiendo el álbum),
+`entities` (según system prompt).
 """
 
 
@@ -129,6 +137,7 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
         meta_title=out.get("meta_title"),
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()
@@ -138,9 +147,13 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--album-slug", required=True, help="slug del álbum a generar")
+    parser.add_argument("--album-slug", help="slug del álbum a generar")
+    parser.add_argument("--all", action="store_true", help="genera todos los álbumes")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+
+    if not args.all and not args.album_slug:
+        parser.error("Indica --album-slug X o --all")
 
     settings = get_settings()
     if not settings.openai_api_key:
@@ -149,7 +162,14 @@ def main() -> None:
     client = OpenAI(api_key=settings.openai_api_key)
 
     with get_session() as db:
-        generate_for_album(client, db, args.album_slug, force=args.force)
+        if args.all:
+            from app.db.models import Album as _Album
+            slugs = [s for (s,) in db.query(_Album.slug).order_by(_Album.id).all()]
+            log(f"=== {len(slugs)} álbumes ===")
+            for slug in slugs:
+                generate_for_album(client, db, slug, force=args.force)
+        else:
+            generate_for_album(client, db, args.album_slug, force=args.force)
 
 
 if __name__ == "__main__":

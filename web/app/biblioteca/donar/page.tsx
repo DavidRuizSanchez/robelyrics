@@ -101,7 +101,7 @@ export default function DonarPage() {
         </ul>
         <p className="font-serif italic text-ink-dim leading-relaxed mt-4">
           Cuando los gastos están cubiertos, el resto se reinvierte en mejorar
-          el cancionero — más fuentes, mejor búsqueda, más canciones
+          el cancionero · más fuentes, mejor búsqueda, más canciones
           analizadas con cariño.
         </p>
       </section>

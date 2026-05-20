@@ -27,6 +27,11 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  // El noindex de las requests RSC (?_rsc= / cabecera RSC: 1) se gestiona en
+  // next.config.mjs vía headers(): el middleware no es fiable para esto
+  // porque Next.js sobreescribe las cabeceras del middleware en respuestas
+  // text/x-component.
+
   return NextResponse.next();
 }
 

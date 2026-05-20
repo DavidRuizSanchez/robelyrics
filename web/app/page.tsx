@@ -8,9 +8,9 @@ import { apiFetch } from "@/lib/api";
 import type { PublicArtistDetail } from "@/lib/types";
 
 export const metadata = {
-  title: "Entre Interiores · Cancionero de Robe Iniesta y Extremoduro",
+  title: "Entre Interiores · Cancionero de Robe y Extremoduro",
   description:
-    "Disco a disco, canción a canción: el universo de Robe Iniesta y Extremoduro contado por sus letras y por la comunidad de fans.",
+    "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
 type SitemapEntry = {
@@ -82,7 +82,7 @@ export default async function PublicLandingPage() {
             un cancionero íntimo
           </p>
           <h1 className="font-serif text-4xl md:text-6xl text-ink leading-[1.05] tracking-[-1px] mb-6">
-            Robe Iniesta y Extremoduro,
+            Robe y Extremoduro,
             <br />
             <span className="italic text-ink-dim">verso a verso</span>
           </h1>

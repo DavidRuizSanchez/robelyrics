@@ -14,6 +14,7 @@ Pipeline síncrono: el endpoint puede tardar 30-90s por canción afectada.
 from __future__ import annotations
 
 import ipaddress
+import os
 import re
 import socket
 import subprocess
@@ -25,6 +26,7 @@ import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -855,3 +857,504 @@ def list_users(
         )
         for u in rows
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Posts del blog: revisión y publicación (Fase 3)
+# --------------------------------------------------------------------------- #
+from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+
+from app.db.models import Post as _Post  # noqa: E402
+
+
+class AdminPostListItem(BaseModel):
+    id: int
+    slug: str
+    kind: str
+    status: str
+    title: str
+    excerpt: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    created_at: datetime
+    published_at: datetime | None = None
+
+
+class AdminPostDetailOut(AdminPostListItem):
+    body_md: str
+    meta_title: str | None = None
+    meta_description: str | None = None
+    hero_image_url: str | None = None
+
+
+class AdminPostUpdateIn(BaseModel):
+    title: str | None = None
+    excerpt: str | None = None
+    body_md: str | None = None
+    meta_title: str | None = None
+    meta_description: str | None = None
+
+
+@router.get("/posts", response_model=list[AdminPostListItem])
+def admin_posts_list(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminPostListItem]:
+    q = db.query(_Post)
+    if status and status != "all":
+        q = q.filter(_Post.status == status)
+    q = q.order_by(_Post.created_at.desc())
+    rows = q.all()
+    return [
+        AdminPostListItem(
+            id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+            title=p.title, excerpt=p.excerpt,
+            source_url=p.source_url, source_name=p.source_name,
+            created_at=p.created_at, published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
+@router.get("/posts/{post_id}", response_model=AdminPostDetailOut)
+def admin_post_detail(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostDetailOut:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    return AdminPostDetailOut(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt, body_md=p.body_md,
+        meta_title=p.meta_title, meta_description=p.meta_description,
+        hero_image_url=p.hero_image_url,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.put("/posts/{post_id}", response_model=AdminPostDetailOut)
+def admin_post_update(
+    post_id: int,
+    body: AdminPostUpdateIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostDetailOut:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    if body.title is not None:
+        p.title = body.title
+    if body.excerpt is not None:
+        p.excerpt = body.excerpt
+    if body.body_md is not None:
+        p.body_md = body.body_md
+    if body.meta_title is not None:
+        p.meta_title = body.meta_title
+    if body.meta_description is not None:
+        p.meta_description = body.meta_description
+    db.commit()
+    return admin_post_detail(post_id, db, _admin)
+
+
+@router.post("/posts/{post_id}/publish", response_model=AdminPostListItem)
+def admin_post_publish(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    """Publica el post (status='published', published_at=now). El cron de
+    newsletter recogerá esta entrada en su próximo run y la enviará a los
+    suscriptores."""
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "published"
+    if p.published_at is None:
+        p.published_at = _dt.now(_tz.utc)
+    p.approved_by = _admin.id
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.post("/posts/{post_id}/reject", response_model=AdminPostListItem)
+def admin_post_reject(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "rejected"
+    p.approved_by = _admin.id
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.post("/posts/{post_id}/unpublish", response_model=AdminPostListItem)
+def admin_post_unpublish(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "approved"  # vuelve a aprobado pero no publicado
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Subscribers (newsletter) — listado y acciones de mantenimiento
+# --------------------------------------------------------------------------- #
+from app.db.models import Subscriber as _Subscriber  # noqa: E402
+
+
+class AdminSubscriberListItem(BaseModel):
+    id: int
+    email: str
+    status: str
+    source: str | None = None
+    subscribed_at: datetime
+    confirmed_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
+    last_sent_at: datetime | None = None
+
+
+class AdminSubscriberStats(BaseModel):
+    pending: int
+    confirmed: int
+    unsubscribed: int
+    bounced: int
+    total: int
+
+
+@router.get("/subscribers/stats", response_model=AdminSubscriberStats)
+def admin_subscribers_stats(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberStats:
+    rows = (
+        db.query(_Subscriber.status, func.count(_Subscriber.id))
+        .group_by(_Subscriber.status)
+        .all()
+    )
+    counts = {status: int(n) for status, n in rows}
+    return AdminSubscriberStats(
+        pending=counts.get("pending", 0),
+        confirmed=counts.get("confirmed", 0),
+        unsubscribed=counts.get("unsubscribed", 0),
+        bounced=counts.get("bounced", 0),
+        total=sum(counts.values()),
+    )
+
+
+@router.get("/subscribers", response_model=list[AdminSubscriberListItem])
+def admin_subscribers_list(
+    status: str | None = None,
+    q: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminSubscriberListItem]:
+    query = db.query(_Subscriber)
+    if status and status != "all":
+        query = query.filter(_Subscriber.status == status)
+    if q:
+        query = query.filter(_Subscriber.email.ilike(f"%{q.strip()}%"))
+    query = query.order_by(_Subscriber.subscribed_at.desc()).offset(offset).limit(limit)
+    rows = query.all()
+    return [
+        AdminSubscriberListItem(
+            id=s.id,
+            email=s.email,
+            status=s.status,
+            source=s.source,
+            subscribed_at=s.subscribed_at,
+            confirmed_at=s.confirmed_at,
+            unsubscribed_at=s.unsubscribed_at,
+            last_sent_at=s.last_sent_at,
+        )
+        for s in rows
+    ]
+
+
+@router.post("/subscribers/{sub_id}/resend-confirmation", response_model=AdminSubscriberListItem)
+def admin_subscribers_resend(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberListItem:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    if s.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"solo pending puede reenviarse (actual: {s.status})",
+        )
+    from app.services.email import (
+        EmailError,
+        render_newsletter_confirm_email,
+        send_email,
+    )
+    site_url = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
+    confirm_url = f"{site_url}/newsletter/confirmar?token={s.confirm_token}"
+    html, text = render_newsletter_confirm_email(confirm_url)
+    try:
+        send_email(
+            to=s.email,
+            subject="Confirma tu suscripción · Entre Interiores",
+            html=html,
+            text=text,
+        )
+    except EmailError as exc:
+        raise HTTPException(status_code=502, detail=f"email failed: {exc}") from exc
+    return AdminSubscriberListItem(
+        id=s.id, email=s.email, status=s.status, source=s.source,
+        subscribed_at=s.subscribed_at, confirmed_at=s.confirmed_at,
+        unsubscribed_at=s.unsubscribed_at, last_sent_at=s.last_sent_at,
+    )
+
+
+@router.post("/subscribers/{sub_id}/mark-bounced", response_model=AdminSubscriberListItem)
+def admin_subscribers_mark_bounced(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminSubscriberListItem:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    s.status = "bounced"
+    db.commit()
+    return AdminSubscriberListItem(
+        id=s.id, email=s.email, status=s.status, source=s.source,
+        subscribed_at=s.subscribed_at, confirmed_at=s.confirmed_at,
+        unsubscribed_at=s.unsubscribed_at, last_sent_at=s.last_sent_at,
+    )
+
+
+@router.delete("/subscribers/{sub_id}", response_model=BulkResultOut)
+def admin_subscribers_delete(
+    sub_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkResultOut:
+    s = db.query(_Subscriber).filter(_Subscriber.id == sub_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="subscriber not found")
+    db.delete(s)
+    db.commit()
+    return BulkResultOut(affected=1, errors=[])
+
+
+# --------------------------------------------------------------------------- #
+# Banco de propuestas editoriales (content_proposals) + calendario
+# --------------------------------------------------------------------------- #
+from datetime import date as _date, timedelta as _timedelta  # noqa: E402
+
+from app.db.models import ContentProposal as _Proposal  # noqa: E402
+
+# Tope de publicaciones por semana natural (lunes-domingo).
+WEEKLY_PUBLISH_CAP = 2
+
+
+class AdminProposalItem(BaseModel):
+    id: int
+    kind: str
+    source_type: str | None = None
+    source_id: int | None = None
+    title: str
+    angle: str | None = None
+    status: str
+    scheduled_for: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    has_body: bool = False
+    keywords: list[dict] = []
+    keyword_volume: int = 0  # volumen agregado, para ordenar
+    created_at: datetime
+
+
+class AdminProposalStats(BaseModel):
+    proposed: int
+    scheduled: int
+    used: int
+    discarded: int
+
+
+class ScheduleProposalIn(BaseModel):
+    date: str  # YYYY-MM-DD
+
+
+def _week_bounds(d: _date) -> tuple[_date, _date]:
+    """Lunes y domingo de la semana natural que contiene `d`."""
+    monday = d - _timedelta(days=d.weekday())
+    return monday, monday + _timedelta(days=6)
+
+
+def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
+    kws = p.keywords or []
+    return AdminProposalItem(
+        id=p.id,
+        kind=p.kind,
+        source_type=p.source_type,
+        source_id=p.source_id,
+        title=p.title,
+        angle=p.angle,
+        status=p.status,
+        scheduled_for=p.scheduled_for.isoformat() if p.scheduled_for else None,
+        source_url=p.source_url,
+        source_name=p.source_name,
+        has_body=bool(p.body_md),
+        keywords=kws,
+        keyword_volume=sum(int(k.get("volume") or 0) for k in kws),
+        created_at=p.created_at,
+    )
+
+
+@router.get("/proposals/stats", response_model=AdminProposalStats)
+def admin_proposals_stats(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalStats:
+    rows = (
+        db.query(_Proposal.status, func.count(_Proposal.id))
+        .group_by(_Proposal.status)
+        .all()
+    )
+    c = {s: int(n) for s, n in rows}
+    return AdminProposalStats(
+        proposed=c.get("proposed", 0),
+        scheduled=c.get("scheduled", 0),
+        used=c.get("used", 0),
+        discarded=c.get("discarded", 0),
+    )
+
+
+@router.get("/proposals", response_model=list[AdminProposalItem])
+def admin_proposals_list(
+    status: str | None = None,
+    kind: str | None = None,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminProposalItem]:
+    q = db.query(_Proposal)
+    if status and status != "all":
+        q = q.filter(_Proposal.status == status)
+    if kind and kind != "all":
+        q = q.filter(_Proposal.kind == kind)
+    # Orden: primero actualidad (news, aniversarios), luego repositorio.
+    kind_order = {
+        "news": 0, "anniversary": 1, "album-anniversary": 2,
+        "spotlight": 3, "evergreen": 4,
+    }
+    rows = q.order_by(_Proposal.created_at.desc()).limit(min(limit, 1000)).all()
+    rows.sort(key=lambda p: (kind_order.get(p.kind, 9), p.created_at))
+    return [_proposal_to_item(p) for p in rows]
+
+
+@router.post("/proposals/{proposal_id}/schedule", response_model=AdminProposalItem)
+def admin_proposal_schedule(
+    proposal_id: int,
+    payload: ScheduleProposalIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status in ("used", "discarded"):
+        raise HTTPException(
+            status_code=409, detail=f"propuesta en estado {p.status}, no programable"
+        )
+    try:
+        target = _date.fromisoformat(payload.date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="fecha inválida (YYYY-MM-DD)")
+    if target < _date.today():
+        raise HTTPException(status_code=400, detail="la fecha ya pasó")
+
+    # Validación del cap: máximo WEEKLY_PUBLISH_CAP por semana natural.
+    monday, sunday = _week_bounds(target)
+    week_count = (
+        db.query(func.count(_Proposal.id))
+        .filter(_Proposal.status == "scheduled")
+        .filter(_Proposal.scheduled_for >= monday)
+        .filter(_Proposal.scheduled_for <= sunday)
+        .filter(_Proposal.id != p.id)
+        .scalar()
+    )
+    if week_count >= WEEKLY_PUBLISH_CAP:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"La semana del {monday.isoformat()} ya tiene "
+                f"{WEEKLY_PUBLISH_CAP} publicaciones programadas."
+            ),
+        )
+
+    p.status = "scheduled"
+    p.scheduled_for = target
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/unschedule", response_model=AdminProposalItem)
+def admin_proposal_unschedule(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status != "scheduled":
+        raise HTTPException(status_code=409, detail="la propuesta no está programada")
+    p.status = "proposed"
+    p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/discard", response_model=AdminProposalItem)
+def admin_proposal_discard(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status == "used":
+        raise HTTPException(status_code=409, detail="propuesta ya usada")
+    p.status = "discarded"
+    p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)

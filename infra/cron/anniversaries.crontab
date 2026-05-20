@@ -1,0 +1,70 @@
+# Crontab de Entre Interiores — calendario editorial automático.
+#
+# Instalar en el host de producción:
+#   ssh robelyrics
+#   crontab -l > /tmp/crontab.bak       (backup)
+#   crontab -e
+#   (pegar contenido de este fichero)
+#
+# Logs: /var/log/robelyrics-cron.log
+#
+# FLUJO EDITORIAL (banco de propuestas):
+#   1. scrape_news (lunes)        → noticias al banco como propuestas.
+#   2. generate_proposals (lunes) → efemérides próximas + evergreens al banco.
+#   3. notify_proposals (lunes)   → email al admin con todo el banco.
+#   4. El admin programa desde /biblioteca/admin/calendario (máx 2/semana).
+#   5. materialize_proposals (diario) → al llegar la fecha, genera el body,
+#      crea el Post, lo publica y dispara la newsletter.
+#
+# Las efemérides de Robe (cumpleaños/muerte) se publican directas en su
+# día exacto, sin pasar por el banco.
+#
+# Idempotencia: todos los scripts son seguros de relanzar.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+APP_DIR=/opt/robelyrics
+DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+# ============================================================================
+# Efemérides personales de Robe (publicación directa el día exacto)
+# ============================================================================
+
+# Cumpleaños Robe — 16 de mayo, 09:00 UTC
+0 9 16 5 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type birth >> /var/log/robelyrics-cron.log 2>&1
+
+# Aniversario muerte Robe — 10 de diciembre, 09:00 UTC
+0 9 10 12 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Alimentación del banco de propuestas (lunes)
+# ============================================================================
+
+# Scraper de noticias — lunes 09:00 UTC. Reescribe con IA e inserta cada
+# noticia en content_proposals (kind=news, body ya hecho).
+0 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
+
+# Generador de propuestas — lunes 09:20 UTC. Efemérides de discos próximas
+# y evergreens de taxonomías. Ligero, sin IA, idempotente.
+20 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.generate_proposals >> /var/log/robelyrics-cron.log 2>&1
+
+# Email semanal del banco — lunes 09:40 UTC. Manda al admin todas las
+# propuestas en estado `proposed`, agrupadas por actualidad/repositorio.
+40 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.notify_proposals >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Materialización (diario): propuestas programadas → posts publicados
+# ============================================================================
+
+# Cada día a las 08:00 UTC: las propuestas `scheduled` cuya fecha llegó se
+# convierten en Post publicado (genera body si falta, newsletter, revalidate).
+0 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.materialize_proposals >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Newsletter (red de seguridad diaria)
+# ============================================================================
+
+# Catch-up diario 12:00 UTC: posts publicados que no recibieron el dispatch
+# instantáneo (error SMTP o restart). El envío normal lo hace materialize.
+0 12 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1

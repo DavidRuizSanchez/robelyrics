@@ -56,3 +56,6 @@ data/cache/
 # ----- Assets del rediseño (no se commitean al repo) -----
 RobeLyrics.zip
 .claude/
+
+# ----- Auditorías SEO locales (crawls, GSC, Ahrefs) -----
+seo-audit/

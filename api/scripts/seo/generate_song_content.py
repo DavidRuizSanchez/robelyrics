@@ -88,13 +88,17 @@ instrumentación si la fuente la menciona. No inventes datos técnicos.
 referencias en críticas posteriores.
 
 ## Para seguir escuchando
-~50 palabras + lista de 2-3 canciones del MISMO DISCO con los enlaces
-internos sugeridos en formato:
-[Otra canción](/{artist.slug}/{album.slug}/<otra-slug>)
+~50 palabras + 2-3 canciones del MISMO DISCO mencionadas por su título
+en texto plano. El sistema linkifica automáticamente los títulos a sus
+páginas locales — NO escribas markdown de link a mano ni uses
+placeholders entre corchetes ni `<algo>`.
+
+NO INVENTES datos. Si no sabes algo concreto, omítelo.
+NO uses placeholders del tipo [título], <slug>, etc.
 
 Devuelve JSON con `body_md` (artículo completo en markdown), `meta_title`
-(≤60 chars, incluye nombre de canción + artista) y `meta_description`
-(≤160 chars, frase atractiva con la temática principal).
+(≤60 chars, con el nombre de la canción al inicio), `meta_description`
+(≤160 chars, ángulo concreto) y `entities` (según system prompt).
 """
 
 
@@ -146,6 +150,7 @@ def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> boo
         meta_title=meta_title,
         meta_description=meta_description,
         schema_jsonld=schema,
+        entities=out.get("entities") or [],
         force=force,
     )
     db.commit()
@@ -157,6 +162,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--song-slug", help="solo una canción concreta")
     parser.add_argument("--album-slug", help="todas las canciones de un álbum")
+    parser.add_argument("--all", action="store_true", help="todas las canciones del catálogo")
     parser.add_argument("--force", action="store_true", help="sobrescribe filas existentes")
     args = parser.parse_args()
 
@@ -176,8 +182,10 @@ def main() -> None:
                 log(f"álbum '{args.album_slug}' no encontrado", "err")
                 return
             slugs = [s.slug for s in album.songs]
+        elif args.all:
+            slugs = [s for (s,) in db.query(Song.slug).order_by(Song.id).all()]
         else:
-            log("debes pasar --song-slug o --album-slug", "err")
+            log("debes pasar --song-slug, --album-slug o --all", "err")
             return
 
     log(f"canciones a generar: {len(slugs)}")

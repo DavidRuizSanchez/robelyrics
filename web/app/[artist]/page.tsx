@@ -1,11 +1,21 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  mentionsArray,
+  musicAlbumNode,
+  musicGroupNode,
+  personNode,
+} from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
 const VALID_SLUGS = new Set(["extremoduro", "robe"]);
@@ -63,10 +73,17 @@ export default async function ArtistPublicPage({
     <>
       <PublicHeader />
       <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
+        <Breadcrumbs
+          className="mb-8"
+          items={[
+            { label: "Entre Interiores", href: "/" },
+            { label: detail.name, href: `/${artist}` },
+          ]}
+        />
         <article>
           <header className="mb-12">
             <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-              {detail.active_years || "—"}
+              {detail.active_years || "·"}
             </p>
             <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
               {detail.seo_h1 || detail.name}
@@ -106,25 +123,106 @@ export default async function ArtistPublicPage({
           </div>
         </section>
 
+        {detail.members && detail.members.length > 0 && (
+          <section className="mt-20">
+            <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
+              Quiénes · miembros del grupo
+            </h2>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
+              {detail.members.map((m) => (
+                <li key={`${m.slug}-${m.era ?? ""}`}>
+                  <Link
+                    href={`/personas/${m.slug}`}
+                    data-cursor="hover"
+                    className="group block"
+                  >
+                    <div className="aspect-square bg-divider/30 overflow-hidden relative">
+                      {m.image_url ? (
+                        <Image
+                          src={m.image_url}
+                          alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
+                          sin foto
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
+                      {m.stage_name && m.stage_name !== m.full_name
+                        ? m.stage_name
+                        : m.full_name}
+                    </p>
+                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+                      {m.role}
+                      {m.era && ` · ${m.era}`}
+                      {m.is_founder && " · fundador"}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {detail.seo_body && (
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: safeJsonLd({
-                "@context": "https://schema.org",
-                "@type": "MusicGroup",
-                name: detail.name,
-                url: `/${artist}`,
-                album: detail.albums.map((a) => ({
-                  "@type": "MusicAlbum",
-                  name: a.title,
-                  datePublished: String(a.year),
-                  url: `/${artist}/${a.slug}`,
-                })),
-              }),
+              __html: safeJsonLd(
+                buildGraph([
+                  {
+                    ...musicGroupNode({
+                      slug: artist,
+                      name: detail.name,
+                      activeYears: detail.active_years,
+                      albums: detail.albums.map((a) => ({
+                        slug: a.slug,
+                        artistSlug: artist,
+                        title: a.title,
+                        year: a.year,
+                        coverUrl: a.cover_url,
+                      })),
+                      members: detail.members.map((m) => ({
+                        slug: m.slug,
+                        fullName: m.full_name,
+                        stageName: m.stage_name,
+                      })),
+                    }),
+                    ...(mentionsArray(detail.entities).length > 0
+                      ? { mentions: mentionsArray(detail.entities) }
+                      : {}),
+                  },
+                  ...detail.albums.map((a) =>
+                    musicAlbumNode({
+                      slug: a.slug,
+                      artistSlug: artist,
+                      title: a.title,
+                      year: a.year,
+                      coverUrl: a.cover_url,
+                    }),
+                  ),
+                  ...detail.members.map((m) =>
+                    personNode({
+                      slug: m.slug,
+                      fullName: m.full_name,
+                      stageName: m.stage_name,
+                      imageUrl: m.image_url,
+                      memberOf: [
+                        { artistSlug: artist, artistName: detail.name },
+                      ],
+                    }),
+                  ),
+                ]),
+              ),
             }}
           />
         )}
+
+        <MentionedInPosts slug={artist} heading="Mencionado en el diario" />
       </main>
       <PublicFooter />
     </>

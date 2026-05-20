@@ -1,0 +1,113 @@
+# Whitelist de fuentes para el scraper de noticias del blog Entre Interiores.
+#
+# Las fuentes RSS de aquí se rastrean cada lunes; los items que matchean
+# `terms_groups` entran al banco de propuestas (content_proposals, kind=news).
+# El admin los programa desde /biblioteca/admin/calendario.
+#
+# Todas las URLs verificadas (responden 200 con items). Los generalistas
+# grandes filtran por términos del universo; los medios de música entran
+# más amplio porque su cobertura ya es del nicho.
+#
+# Prensa comercial vetada por la línea editorial del corpus (Mondo Sonoro,
+# Efe Eme, Rockdelux) NO se incluye.
+
+terms_groups:
+  core:
+    - robe iniesta
+    - extremoduro
+    - "robe"
+  members:
+    - uoho
+    - iñaki antón
+    - inaki anton
+    - salo
+    - miguel colino
+    - luis von fanta
+    - mariano garcía
+    - kolibrí
+  friends:
+    - marea
+    - kutxi romero
+    - platero y tú
+    - fito cabrales
+    - reincidentes
+    - manolo kabezabolo
+    - rosendo
+    - barricada
+    - soziedad alkoholika
+  tributes:
+    - tributo extremoduro
+    - tributo a extremoduro
+    - tributo robe
+    - homenaje extremoduro
+    - banda tributo extremoduro
+
+sources:
+  # --- Prensa extremeña local (cobertura natural Robe / Plasencia) ---
+  - name: "Hoy (Extremadura) — Cultura"
+    url: "https://www.hoy.es/rss/2.0/?section=culturas"
+    kind: rss
+    enabled: true
+    tier: review
+
+  - name: "El Periódico Extremadura"
+    url: "https://www.elperiodicoextremadura.com/rss/"
+    kind: rss
+    enabled: true
+    tier: review
+
+  # --- Generalistas con sección cultura/música (filtran por términos) ---
+  - name: "El País — Cultura"
+    url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada"
+    kind: rss
+    enabled: true
+    tier: review
+
+  - name: "20minutos — Música"
+    url: "https://www.20minutos.es/rss/musica/"
+    kind: rss
+    enabled: true
+    tier: review
+
+  - name: "20minutos — Cultura"
+    url: "https://www.20minutos.es/rss/cultura/"
+    kind: rss
+    enabled: true
+    tier: review
+
+  # --- Medios de música / rock (cobertura de nicho) ---
+  - name: "Muzikalia"
+    url: "https://muzikalia.com/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted
+
+  - name: "Binaural"
+    url: "https://www.binaural.es/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted
+
+  - name: "Mariskal Rock"
+    url: "https://www.mariskalrock.com/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted
+
+  - name: "Maneras de Vivir"
+    url: "https://www.manerasdevivir.com/rss"
+    kind: rss
+    enabled: true
+    tier: trusted
+
+  - name: "Dirty Rock Magazine"
+    url: "https://dirtyrock.info/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted
+
+  - name: "Science of Noise"
+    url: "https://scienceofnoise.net/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted

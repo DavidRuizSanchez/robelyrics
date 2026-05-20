@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useEffect, useState } from "react";
-import { GoogleAnalytics } from "@next/third-parties/google";
 
 const STORAGE_KEY = "entreinteriores-cookie-consent";
 type Decision = "accepted" | "rejected";
@@ -32,7 +32,7 @@ export default function ConsentManager({ gaId }: { gaId: string }) {
       setDecision(stored === "accepted" || stored === "rejected" ? stored : null);
     } catch {
       // Si localStorage no está disponible (modo privado raro), no
-      // mostramos banner ni cargamos GA4 — fallback conservador.
+      // mostramos banner ni cargamos GA4 · fallback conservador.
       setDecision("rejected");
     }
   }, []);
@@ -52,7 +52,22 @@ export default function ConsentManager({ gaId }: { gaId: string }) {
   // - "rejected"          → nada
   // - null (sin decisión) → banner
   if (decision === "loading") return null;
-  if (decision === "accepted") return <GoogleAnalytics gaId={gaId} />;
+  if (decision === "accepted") {
+    return (
+      <>
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gaId}', { anonymize_ip: true });`}
+        </Script>
+      </>
+    );
+  }
   if (decision === "rejected") return null;
 
   return (

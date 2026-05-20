@@ -21,7 +21,7 @@ export default function PoliticaCookies() {
           <strong>robelyrics_token</strong>: cookie HttpOnly + Secure +
           SameSite=Lax que contiene tu sesión JWT cuando inicias sesión. Se
           borra al hacer logout o al caducar (7 días). Sin esta cookie no
-          puedes acceder a la zona privada — base legal: necesidad técnica
+          puedes acceder a la zona privada · base legal: necesidad técnica
           (RGPD considerando 47).
         </li>
         <li>
@@ -86,7 +86,7 @@ export default function PoliticaCookies() {
         Esta política se complementa con nuestra{" "}
         <a href="/legal/privacidad">Política de privacidad</a>. Para cualquier
         consulta, contacta en{" "}
-        <a href="mailto:hola@entreinteriores.com">hola@entreinteriores.com</a>.
+        <a href="mailto:manue@entreinteriores.com">manue@entreinteriores.com</a>.
       </p>
     </>
   );
