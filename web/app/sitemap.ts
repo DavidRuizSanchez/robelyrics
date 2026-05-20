@@ -10,7 +10,7 @@ type PublicSitemapEntry = {
 };
 
 // Sitemap basado en seo_content.published. Solo se incluyen URLs cuyo
-// artículo SEO está publicado — el resto no existe para crawlers (devuelve
+// artículo SEO está publicado · el resto no existe para crawlers (devuelve
 // 404 desde la plantilla pública).
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

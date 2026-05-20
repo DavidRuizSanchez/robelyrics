@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
 };
 
 function fmt(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   return new Date(iso).toLocaleDateString("es-ES", {
     day: "numeric",
     month: "short",

@@ -103,7 +103,7 @@ export default async function AdminUsersPage() {
                     <span className="font-mono text-[13px]">{u.email}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Badge yes={u.is_admin} on="ADMIN" off="—" />
+                    <Badge yes={u.is_admin} on="ADMIN" off="·" />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Badge yes={u.is_active} on="OK" off="OFF" />

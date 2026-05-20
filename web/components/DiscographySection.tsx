@@ -32,7 +32,7 @@ export default async function DiscographySection({
       className="relative overflow-hidden border-t border-divider py-16 md:py-32"
     >
       <Watermark
-        text="1989—2024"
+        text="1989·2024"
         size="28vw"
         rotate={-90}
         bottom="40%"

@@ -56,7 +56,7 @@ export default async function RootLayout({
 
   // Schema en @graph: el WebSite del proyecto referencia al Person canónico
   // del autor (definido en davidruizsanchez.es/#person). No duplicamos sus
-  // datos, los enlazamos por @id — Google sigue la referencia y consolida
+  // datos, los enlazamos por @id · Google sigue la referencia y consolida
   // señal de E-E-A-T.
   const siteGraph = {
     "@context": "https://schema.org",

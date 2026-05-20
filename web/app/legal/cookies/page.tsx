@@ -21,7 +21,7 @@ export default function PoliticaCookies() {
           <strong>robelyrics_token</strong>: cookie HttpOnly + Secure +
           SameSite=Lax que contiene tu sesión JWT cuando inicias sesión. Se
           borra al hacer logout o al caducar (7 días). Sin esta cookie no
-          puedes acceder a la zona privada — base legal: necesidad técnica
+          puedes acceder a la zona privada · base legal: necesidad técnica
           (RGPD considerando 47).
         </li>
         <li>

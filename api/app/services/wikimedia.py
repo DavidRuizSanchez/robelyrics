@@ -64,11 +64,12 @@ class WikimediaImage:
 
     @property
     def attribution_text(self) -> str:
-        """Línea Markdown lista para pegar en el footer del post."""
+        """Línea Markdown lista para pegar en el footer del post.
+        Sin em-dash (marca de IA): separadores con punto medio."""
         author = self.author or "autor desconocido"
         license_part = self.license_short or "licencia libre"
         return (
-            f"*Foto: {author} — {license_part} — "
+            f"*Foto: {author} · {license_part} · "
             f"vía [Wikimedia Commons]({self.source_page_url})*"
         )
 

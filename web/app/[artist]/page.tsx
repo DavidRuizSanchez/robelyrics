@@ -83,7 +83,7 @@ export default async function ArtistPublicPage({
         <article>
           <header className="mb-12">
             <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-              {detail.active_years || "—"}
+              {detail.active_years || "·"}
             </p>
             <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
               {detail.seo_h1 || detail.name}
@@ -126,7 +126,7 @@ export default async function ArtistPublicPage({
         {detail.members && detail.members.length > 0 && (
           <section className="mt-20">
             <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
-              Quiénes — miembros del grupo
+              Quiénes · miembros del grupo
             </h2>
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {detail.members.map((m) => (

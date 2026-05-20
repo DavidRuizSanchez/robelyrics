@@ -91,7 +91,7 @@ export default async function SongPage({
           <div className="flex flex-col gap-5">
             {detail.track_number != null && (
               <p className="font-mono text-[11px] tracking-[2px] uppercase text-accent">
-                — {String(detail.track_number).padStart(2, "0")}
+                · {String(detail.track_number).padStart(2, "0")}
               </p>
             )}
             <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink m-0 leading-[0.95] tracking-[-1.5px]">

@@ -144,7 +144,7 @@ export default async function SongPublicPage({
           <div>
             {detail.track_number != null && (
               <p className="font-mono text-[11px] tracking-[3px] uppercase text-accent">
-                — {String(detail.track_number).padStart(2, "0")}
+                · {String(detail.track_number).padStart(2, "0")}
               </p>
             )}
             <h1 className="font-serif text-4xl md:text-[58px] text-ink leading-[0.97] tracking-[-1px] mt-2 mb-4">

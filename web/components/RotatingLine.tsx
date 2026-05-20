@@ -35,7 +35,7 @@ export default function RotatingLine({
         «{line.text}»
       </p>
       <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-2.5">
-        — {line.song} · {line.album} · {line.year}
+        · {line.song} · {line.album} · {line.year}
       </p>
     </div>
   );

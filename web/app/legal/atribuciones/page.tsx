@@ -59,15 +59,15 @@ export default function Atribuciones() {
       <h2>Tipografías</h2>
       <ul>
         <li>
-          <strong>Spectral</strong> — Production Type / Google Fonts (SIL
+          <strong>Spectral</strong> · Production Type / Google Fonts (SIL
           OFL). Cabeceras y cuerpo serif.
         </li>
         <li>
-          <strong>JetBrains Mono</strong> — JetBrains s.r.o. (SIL OFL).
+          <strong>JetBrains Mono</strong> · JetBrains s.r.o. (SIL OFL).
           Etiquetas, códigos y números.
         </li>
         <li>
-          <strong>Caveat</strong> — Pablo Impallari (SIL OFL). Detalles
+          <strong>Caveat</strong> · Pablo Impallari (SIL OFL). Detalles
           ornamentales.
         </li>
       </ul>
@@ -76,25 +76,25 @@ export default function Atribuciones() {
       <ul>
         <li>
           <strong>Next.js</strong>, <strong>React</strong>,{" "}
-          <strong>Tailwind CSS</strong> — frontend.
+          <strong>Tailwind CSS</strong> · frontend.
         </li>
         <li>
           <strong>FastAPI</strong>, <strong>SQLAlchemy</strong>,{" "}
-          <strong>PostgreSQL</strong>, <strong>Qdrant</strong> — backend y
+          <strong>PostgreSQL</strong>, <strong>Qdrant</strong> · backend y
           búsqueda.
         </li>
         <li>
-          <strong>OpenAI</strong> (text-embedding-3-large + GPT-4o-mini) —
+          <strong>OpenAI</strong> (text-embedding-3-large + GPT-4o-mini) ·
           embeddings semánticos y reranking de resultados.
         </li>
         <li>
-          <strong>Caddy</strong> — reverse proxy con TLS automático.
+          <strong>Caddy</strong> · reverse proxy con TLS automático.
         </li>
         <li>
-          <strong>Hetzner Cloud</strong> — infraestructura.
+          <strong>Hetzner Cloud</strong> · infraestructura.
         </li>
         <li>
-          <strong>Cloudflare</strong> — DNS, CDN.
+          <strong>Cloudflare</strong> · DNS, CDN.
         </li>
       </ul>
 

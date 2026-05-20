@@ -30,7 +30,7 @@ export default async function LugaresPage() {
       hubSlug="lugares"
       hubLabel="Geografía"
       hubTitle="Geografía"
-      hubLead="Los lugares reales que aparecen — nombrados con su nombre — en las canciones de Extremoduro y Robe. Ciudades, regiones, sitios físicos del mapa. Cuando una letra menciona un lugar concreto, está aquí. Los símbolos y figuras del cancionero viven en el bestiario."
+      hubLead="Los lugares reales que aparecen · nombrados con su nombre · en las canciones de Extremoduro y Robe. Ciudades, regiones, sitios físicos del mapa. Cuando una letra menciona un lugar concreto, está aquí. Los símbolos y figuras del cancionero viven en el bestiario."
       items={items}
     />
   );

@@ -1,5 +1,5 @@
 /**
- * Logo "Sol & Nube" — guiño al tatuaje de Robe sin copiar marcas.
+ * Logo "Sol & Nube" · guiño al tatuaje de Robe sin copiar marcas.
  * Sol primitivo de rayos irregulares + nube ondulada a mano.
  * El delfín queda como ornamento decorativo aparte.
  */

@@ -32,7 +32,7 @@ export default function ConsentManager({ gaId }: { gaId: string }) {
       setDecision(stored === "accepted" || stored === "rejected" ? stored : null);
     } catch {
       // Si localStorage no está disponible (modo privado raro), no
-      // mostramos banner ni cargamos GA4 — fallback conservador.
+      // mostramos banner ni cargamos GA4 · fallback conservador.
       setDecision("rejected");
     }
   }, []);

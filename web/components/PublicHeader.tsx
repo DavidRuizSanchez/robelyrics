@@ -53,7 +53,7 @@ export default async function PublicHeader() {
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"
-          title="De manera urgente — noticias y memoria"
+          title="De manera urgente · noticias y memoria"
         >
           De manera urgente
         </Link>

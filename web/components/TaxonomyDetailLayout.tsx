@@ -21,11 +21,14 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
   const isPlace = detail.kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
 
   const mentions = mentionsArray(detail.entities);
+  // El JSON-LD usa solo el meta description SEO (texto plano, sin markdown
+  // ni marcas de IA). El campo `description` de seed puede traer em-dash y
+  // sintaxis markdown, así que NO se usa aquí.
   const collection: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: detail.name,
-    description: detail.seo_meta_description ?? detail.description ?? undefined,
+    description: detail.seo_meta_description ?? undefined,
     url: `${SITE_URL}/${hubSlug}/${detail.slug}`,
     isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Entre Interiores" },
     mainEntity: {
@@ -45,7 +48,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
         "@context": "https://schema.org",
         "@type": "Place",
         name: detail.name,
-        description: detail.description ?? undefined,
+        description: detail.seo_meta_description ?? undefined,
         geo: {
           "@type": "GeoCoordinates",
           latitude: detail.extra!.geo_lat,

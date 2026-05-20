@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 // Listado de SeoContent con selección múltiple + acciones de bulk publish/unpublish.
-// Componente que faltaba del repo — reconstruido para destrabar build. Si en el
+// Componente que faltaba del repo · reconstruido para destrabar build. Si en el
 // futuro se necesita un flujo de bulk más rico (revisar masivamente, regenerar,
 // etc.), extender desde aquí.
 

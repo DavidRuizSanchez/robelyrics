@@ -37,7 +37,7 @@ export default function LogoBomba({
   size?: Size;
   variant?: Variant;
   className?: string;
-  /** Pasar `priority` para LCP (login, hero) — fuerza preload. */
+  /** Pasar `priority` para LCP (login, hero) · fuerza preload. */
   priority?: boolean;
 }) {
   const src = SIZE_TO_FILE(size, variant);

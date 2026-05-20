@@ -2,7 +2,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import type { PublicPostListItem } from "@/lib/types";
 
-// Bloque "Mencionado en" — enlaces internos contextuales hacia los posts
+// Bloque "Mencionado en" · enlaces internos contextuales hacia los posts
 // del blog que mencionan esta entidad (persona, artista, álbum, canción).
 // Sirve a SEO (linkado interno relevante) y a navegación lateral.
 

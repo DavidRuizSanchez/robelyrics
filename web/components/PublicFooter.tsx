@@ -29,7 +29,7 @@ export default function PublicFooter() {
   return (
     <footer className="px-5 md:px-14 py-14 mt-20 border-t border-divider">
       <div className="max-w-[1100px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-8">
-        {/* Col 1 — Artistas */}
+        {/* Col 1 · Artistas */}
         <div>
           <p className={colTitleCls}>Artistas</p>
           <Link href="/extremoduro" data-cursor="hover" className={linkCls}>
@@ -46,7 +46,7 @@ export default function PublicFooter() {
           </Link>
         </div>
 
-        {/* Col 2 — Discos destacados */}
+        {/* Col 2 · Discos destacados */}
         <div>
           <p className={colTitleCls}>Discos</p>
           {FEATURED_ALBUMS.map((a) => (
@@ -62,14 +62,14 @@ export default function PublicFooter() {
           ))}
         </div>
 
-        {/* Col 3 — Explora */}
+        {/* Col 3 · Explora */}
         <div>
           <p className={colTitleCls}>Explora</p>
           <Link
             href="/temas"
             data-cursor="hover"
             className={linkCls}
-            title="Lo que aletea — temas que recorren el cancionero"
+            title="Lo que aletea · temas que recorren el cancionero"
           >
             Lo que aletea
           </Link>
@@ -77,7 +77,7 @@ export default function PublicFooter() {
             href="/lugares"
             data-cursor="hover"
             className={linkCls}
-            title="Geografía emocional — lugares en las canciones"
+            title="Geografía emocional · lugares en las canciones"
           >
             Geografía
           </Link>
@@ -85,7 +85,7 @@ export default function PublicFooter() {
             href="/conceptos"
             data-cursor="hover"
             className={linkCls}
-            title="Bestiario — símbolos y figuras recurrentes"
+            title="Bestiario · símbolos y figuras recurrentes"
           >
             Bestiario
           </Link>
@@ -93,7 +93,7 @@ export default function PublicFooter() {
             href="/blog"
             data-cursor="hover"
             className={linkCls}
-            title="De manera urgente — noticias y memoria"
+            title="De manera urgente · noticias y memoria"
           >
             De manera urgente
           </Link>
@@ -102,7 +102,7 @@ export default function PublicFooter() {
           </Link>
         </div>
 
-        {/* Col 4 — Sitio + legales */}
+        {/* Col 4 · Sitio + legales */}
         <div>
           <p className={colTitleCls}>Sitio</p>
           <Link href="/legal/aviso" data-cursor="hover" className={linkCls}>
