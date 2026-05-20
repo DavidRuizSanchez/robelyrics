@@ -941,6 +941,43 @@ def public_posts_list(
     ]
 
 
+@router.get("/posts/mentioning", response_model=list[PublicPostListItem])
+def public_posts_mentioning(
+    slug: str,
+    response: Response,
+    limit: int = 6,
+    db: Session = Depends(get_db),
+) -> list[PublicPostListItem]:
+    """Devuelve posts publicados que tengan en `entities` al menos una
+    referencia cuyo `slug_hint` coincida con el parámetro `slug`.
+    Sirve para mostrar bloques "Mencionado en" en páginas de
+    persona/artist/album/song.
+    """
+    _set_cache(response)
+    if not slug or len(slug) > 120:
+        return []
+    # Postgres JSONB: WHERE entities @> '[{"slug_hint": "X"}]'
+    rows = (
+        db.query(Post)
+        .filter(Post.status == "published")
+        .filter(Post.entities.contains([{"slug_hint": slug}]))
+        .order_by(Post.published_at.desc())
+        .limit(min(limit, 20))
+        .all()
+    )
+    return [
+        PublicPostListItem(
+            slug=p.slug,
+            kind=p.kind,
+            title=p.title,
+            excerpt=p.excerpt,
+            hero_image_url=p.hero_image_url,
+            published_at=p.published_at,
+        )
+        for p in rows
+    ]
+
+
 @router.get("/posts/{slug}", response_model=PublicPostDetail)
 def public_post_detail(
     slug: str,

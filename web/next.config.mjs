@@ -1,6 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Servimos imágenes remotas (Wikimedia Commons) optimizadas a WebP/AVIF
+  // mediante /_next/image. Sólo whitelist de hosts confiables.
+  images: {
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "commons.wikimedia.org",
+        pathname: "/**",
+      },
+    ],
+    // Tiempo de cache en CDN — las imágenes de Commons no cambian
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 días
+  },
   // Hot-reload con bind mount en docker requiere polling
   webpack: (config, { dev }) => {
     if (dev) {

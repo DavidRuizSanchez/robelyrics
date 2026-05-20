@@ -4,6 +4,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import MoreFromArtist from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -11,6 +12,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
   buildGraph,
+  mentionsArray,
   musicAlbumNode,
   musicGroupNode,
 } from "@/lib/schema-graph";
@@ -180,19 +182,26 @@ export default async function AlbumPublicPage({
           dangerouslySetInnerHTML={{
             __html: safeJsonLd(
               buildGraph([
-                musicAlbumNode({
-                  slug: album,
-                  artistSlug: artist,
-                  title: detail.title,
-                  year: detail.year,
-                  coverUrl: detail.cover_url,
-                }),
+                {
+                  ...musicAlbumNode({
+                    slug: album,
+                    artistSlug: artist,
+                    title: detail.title,
+                    year: detail.year,
+                    coverUrl: detail.cover_url,
+                  }),
+                  ...(mentionsArray(detail.entities).length > 0
+                    ? { mentions: mentionsArray(detail.entities) }
+                    : {}),
+                },
                 // Nodo mínimo del artista para conectar @id
                 musicGroupNode({ slug: artist, name: detail.artist.name }),
               ]),
             ),
           }}
         />
+
+        <MentionedInPosts slug={album} heading="Mencionado en el diario" />
       </main>
       <PublicFooter />
       </div>

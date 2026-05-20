@@ -4,6 +4,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import RelatedSongs from "@/components/RelatedSongs";
@@ -13,6 +14,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
   buildGraph,
+  mentionsArray,
   musicAlbumNode,
   musicCompositionNode,
   musicGroupNode,
@@ -236,15 +238,20 @@ export default async function SongPublicPage({
           dangerouslySetInnerHTML={{
             __html: safeJsonLd(
               buildGraph([
-                musicCompositionNode({
-                  slug: song,
-                  artistSlug: artist,
-                  albumSlug: album,
-                  albumTitle: detail.album.title,
-                  albumYear: detail.album.year,
-                  artistName: detail.artist.name,
-                  title: detail.title,
-                }),
+                {
+                  ...musicCompositionNode({
+                    slug: song,
+                    artistSlug: artist,
+                    albumSlug: album,
+                    albumTitle: detail.album.title,
+                    albumYear: detail.album.year,
+                    artistName: detail.artist.name,
+                    title: detail.title,
+                  }),
+                  ...(mentionsArray(detail.entities).length > 0
+                    ? { mentions: mentionsArray(detail.entities) }
+                    : {}),
+                },
                 // Nodos mínimos para que Google una entidades cross-page
                 musicAlbumNode({
                   slug: album,
@@ -257,6 +264,8 @@ export default async function SongPublicPage({
             ),
           }}
         />
+
+        <MentionedInPosts slug={song} heading="Mencionado en el diario" />
       </main>
       <PublicFooter />
       </div>

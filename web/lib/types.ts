@@ -161,6 +161,15 @@ export type PublicArtistMember = {
   image_url: string | null;
 };
 
+export type PublicResolvedEntity = {
+  type: string;
+  name: string;
+  canonical_id: string | null;
+  url: string | null;
+  same_as: string[];
+  from_corpus: boolean;
+};
+
 export type PublicArtistDetail = PublicArtistOut & {
   albums: PublicAlbumOut[];
   members: PublicArtistMember[];
@@ -168,6 +177,7 @@ export type PublicArtistDetail = PublicArtistOut & {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
+  entities: PublicResolvedEntity[];
 };
 
 export type PublicAlbumDetail = PublicAlbumOut & {
@@ -177,6 +187,7 @@ export type PublicAlbumDetail = PublicAlbumOut & {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
+  entities: PublicResolvedEntity[];
 };
 
 export type PublicTaxonomyPill = {
@@ -204,6 +215,7 @@ export type PublicSongDetail = {
   themes: PublicTaxonomyPill[];
   places: PublicTaxonomyPill[];
   concepts: PublicTaxonomyPill[];
+  entities: PublicResolvedEntity[];
 };
 
 // /public/themes, /public/places, /public/concepts
@@ -248,4 +260,5 @@ export type PublicPostDetail = PublicPostListItem & {
   source_url: string | null;
   source_name: string | null;
   anniversary_year: number | null;
+  entities: PublicResolvedEntity[];
 };

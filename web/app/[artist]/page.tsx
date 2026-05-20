@@ -1,14 +1,17 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
   buildGraph,
+  mentionsArray,
   musicAlbumNode,
   musicGroupNode,
   personNode,
@@ -133,14 +136,14 @@ export default async function ArtistPublicPage({
                     data-cursor="hover"
                     className="group block"
                   >
-                    <div className="aspect-square bg-divider/30 overflow-hidden">
+                    <div className="aspect-square bg-divider/30 overflow-hidden relative">
                       {m.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={m.image_url}
-                          alt={m.full_name}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                          alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
@@ -171,23 +174,28 @@ export default async function ArtistPublicPage({
             dangerouslySetInnerHTML={{
               __html: safeJsonLd(
                 buildGraph([
-                  musicGroupNode({
-                    slug: artist,
-                    name: detail.name,
-                    activeYears: detail.active_years,
-                    albums: detail.albums.map((a) => ({
-                      slug: a.slug,
-                      artistSlug: artist,
-                      title: a.title,
-                      year: a.year,
-                      coverUrl: a.cover_url,
-                    })),
-                    members: detail.members.map((m) => ({
-                      slug: m.slug,
-                      fullName: m.full_name,
-                      stageName: m.stage_name,
-                    })),
-                  }),
+                  {
+                    ...musicGroupNode({
+                      slug: artist,
+                      name: detail.name,
+                      activeYears: detail.active_years,
+                      albums: detail.albums.map((a) => ({
+                        slug: a.slug,
+                        artistSlug: artist,
+                        title: a.title,
+                        year: a.year,
+                        coverUrl: a.cover_url,
+                      })),
+                      members: detail.members.map((m) => ({
+                        slug: m.slug,
+                        fullName: m.full_name,
+                        stageName: m.stage_name,
+                      })),
+                    }),
+                    ...(mentionsArray(detail.entities).length > 0
+                      ? { mentions: mentionsArray(detail.entities) }
+                      : {}),
+                  },
                   ...detail.albums.map((a) =>
                     musicAlbumNode({
                       slug: a.slug,
@@ -213,6 +221,8 @@ export default async function ArtistPublicPage({
             }}
           />
         )}
+
+        <MentionedInPosts slug={artist} heading="Mencionado en el diario" />
       </main>
       <PublicFooter />
     </>

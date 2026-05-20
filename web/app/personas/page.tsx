@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
@@ -85,14 +86,14 @@ export default async function PersonasPage() {
                     data-cursor="hover"
                     className="group block"
                   >
-                    <div className="aspect-[3/4] bg-divider/30 mb-4 overflow-hidden">
+                    <div className="aspect-[3/4] bg-divider/30 mb-4 overflow-hidden relative">
                       {p.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={p.image_url}
-                          alt={p.full_name}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                          alt={`Retrato de ${p.stage_name || p.full_name}${p.stage_name && p.stage_name !== p.full_name ? ` (${p.full_name})` : ""}`}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">

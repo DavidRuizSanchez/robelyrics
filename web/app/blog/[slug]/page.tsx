@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextImage from "next/image";
 import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
@@ -6,6 +7,7 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { mentionsArray } from "@/lib/schema-graph";
 import type { PublicPostDetail } from "@/lib/types";
 
 const SITE_URL =
@@ -72,7 +74,8 @@ export default async function BlogPostPage({
     throw e;
   }
 
-  const articleJsonLd = {
+  const mentions = mentionsArray(post.entities);
+  const articleJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
@@ -85,6 +88,9 @@ export default async function BlogPostPage({
     publisher: { "@id": "https://davidruizsanchez.es/#person" },
     mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}/blog/${post.slug}` },
   };
+  if (mentions.length > 0) {
+    articleJsonLd.mentions = mentions;
+  }
 
   return (
     <>
@@ -115,13 +121,15 @@ export default async function BlogPostPage({
           </header>
 
           {post.hero_image_url && (
-            <figure className="mb-10 -mx-5 md:mx-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+            <figure className="mb-10 -mx-5 md:mx-0 relative aspect-[16/9] max-h-[60vh] overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-restricted-imports */}
+              <NextImage
                 src={post.hero_image_url}
-                alt={post.title}
-                className="w-full h-auto max-h-[60vh] object-cover"
-                loading="eager"
+                alt={`Ilustración de portada: ${post.title}`}
+                fill
+                priority
+                sizes="(max-width: 1100px) 100vw, 1100px"
+                className="object-cover"
               />
             </figure>
           )}

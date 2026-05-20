@@ -164,6 +164,36 @@ export function personNode(person: PersonInput): Record<string, unknown> {
 }
 
 // --------------------------------------------------------------------------- //
+// Mentions: convierte el array de `entities` del backend en nodos schema.org
+// --------------------------------------------------------------------------- //
+export type ResolvedEntity = {
+  type: string;
+  name: string;
+  canonical_id: string | null;
+  url: string | null;
+  same_as: string[];
+  from_corpus: boolean;
+};
+
+export function mentionNode(e: ResolvedEntity): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    "@type": e.type || "Thing",
+    name: e.name,
+  };
+  if (e.canonical_id) node["@id"] = e.canonical_id;
+  if (e.url) node.url = e.url;
+  if (e.same_as && e.same_as.length > 0) node.sameAs = e.same_as;
+  return node;
+}
+
+export function mentionsArray(
+  entities: ResolvedEntity[] | undefined | null,
+): Record<string, unknown>[] {
+  if (!entities || entities.length === 0) return [];
+  return entities.map(mentionNode);
+}
+
+// --------------------------------------------------------------------------- //
 // Graph builder
 // --------------------------------------------------------------------------- //
 export function buildGraph(

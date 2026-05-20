@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -29,6 +31,15 @@ type WikidataRef = {
   wikipedia_url: string | null;
 };
 
+type ResolvedEntity = {
+  type: string;
+  name: string;
+  canonical_id: string | null;
+  url: string | null;
+  same_as: string[];
+  from_corpus: boolean;
+};
+
 type PersonDetail = {
   slug: string;
   full_name: string;
@@ -47,6 +58,7 @@ type PersonDetail = {
   other_bands: WikidataRef[];
   notable_works: WikidataRef[];
   occupations: WikidataRef[];
+  entities: ResolvedEntity[];
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
@@ -166,6 +178,27 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
     }));
   }
 
+  // Entidades mentioned en el seo_content (lugares, otros músicos,
+  // discos referidos en la biografía…). Person no soporta `mentions`
+  // directamente en schema.org, así que las envolvemos como `knowsAbout`
+  // (relacionado conceptualmente y aceptado por Google).
+  if (detail.entities && detail.entities.length > 0) {
+    const newMentions = detail.entities.map((e) => {
+      const node: Record<string, unknown> = {
+        "@type": e.type || "Thing",
+        name: e.name,
+      };
+      if (e.canonical_id) node["@id"] = e.canonical_id;
+      if (e.url) node.url = e.url;
+      if (e.same_as && e.same_as.length > 0) node.sameAs = e.same_as;
+      return node;
+    });
+    const prev = Array.isArray(schema.knowsAbout)
+      ? (schema.knowsAbout as Record<string, unknown>[])
+      : [];
+    schema.knowsAbout = [...prev, ...newMentions];
+  }
+
   return schema;
 }
 
@@ -208,12 +241,14 @@ export default async function PersonPage({
           <header className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-10 mb-12">
             {detail.image_url ? (
               <div>
-                <div className="aspect-[3/4] overflow-hidden bg-divider/30">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                <div className="aspect-[3/4] overflow-hidden bg-divider/30 relative">
+                  <Image
                     src={detail.image_url}
-                    alt={detail.full_name}
-                    className="w-full h-full object-cover"
+                    alt={`${detail.stage_name || detail.full_name}${detail.birth_place ? `, ${detail.birth_place}` : ""}${detail.birth_date ? ` — fotografía libre vía Wikimedia Commons` : ""}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 280px"
+                    priority
+                    className="object-cover"
                   />
                 </div>
                 {detail.image_attribution && (
@@ -392,6 +427,11 @@ export default async function PersonPage({
             <MarkdownArticle markdown={detail.seo_body} />
           )}
         </article>
+
+        <MentionedInPosts
+          slug={detail.slug}
+          heading="Mencionado en el diario"
+        />
 
         <script
           type="application/ld+json"
