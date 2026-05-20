@@ -38,10 +38,9 @@ import yaml
 from bs4 import BeautifulSoup
 from sqlalchemy import select
 
-from app.db.models import NewsSourceRun, Post
+from app.db.models import ContentProposal, NewsSourceRun
 from app.db.session import SessionLocal
 from app.services.content_generator import rewrite_news_editorial
-from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
 
 logger = logging.getLogger(__name__)
@@ -283,9 +282,11 @@ def main() -> None:
                 if not term:
                     continue
 
-                # Dedup por source_url
+                # Dedup por source_url contra el banco de propuestas
                 existing = db.execute(
-                    select(Post).where(Post.source_url == item["link"])
+                    select(ContentProposal).where(
+                        ContentProposal.source_url == item["link"]
+                    )
                 ).scalar_one_or_none()
                 if existing is not None:
                     continue
@@ -335,18 +336,6 @@ def main() -> None:
                     if isinstance(raw_ents, list):
                         entities = [e for e in raw_ents if isinstance(e, dict) and e.get("name")]
 
-                # Slug editorial corto (del LLM) > slug derivado del title
-                slug_base = _slugify(llm_slug) if llm_slug else _slugify(title)
-                if not slug_base:
-                    slug_base = _slugify(item["title"])
-                slug = slug_base
-                i = 2
-                while db.execute(
-                    select(Post).where(Post.slug == slug)
-                ).scalar_one_or_none():
-                    slug = f"{slug_base}-{i}"
-                    i += 1
-
                 # Imagen Wikimedia: probamos las keywords del LLM en orden.
                 # Si ninguna devuelve imagen válida, NO ponemos foto (mejor
                 # sin que con una random).
@@ -367,9 +356,6 @@ def main() -> None:
                 else:
                     logger.info("Sin imagen relevante encontrada — post sin foto")
 
-                run.items_inserted += 1
-
-                action_label = "pending"
                 if args.dry_run:
                     summary["headlines"].append({
                         "action": "dry-run",
@@ -378,13 +364,15 @@ def main() -> None:
                     })
                     continue
 
-                post = Post(
-                    slug=slug,
+                # Las noticias entran al BANCO de propuestas (content_proposals)
+                # con kind='news' y el body ya reescrito. El admin las programa
+                # desde la pestaña de calendario.
+                proposal = ContentProposal(
                     kind="news",
-                    status="pending_review",
                     title=title,
-                    excerpt=excerpt,
+                    angle=f"Noticia de actualidad · vía {name}",
                     body_md=body_md,
+                    excerpt=excerpt,
                     meta_title=meta_title,
                     meta_description=meta_description,
                     source_url=item["link"],
@@ -394,19 +382,14 @@ def main() -> None:
                     hero_image_license=img.license_short if img else None,
                     hero_image_source_url=img.source_page_url if img else None,
                     entities=entities,
+                    status="proposed",
                 )
-                db.add(post)
+                db.add(proposal)
                 db.commit()
-                db.refresh(post)
-
-                # Nada se publica automáticamente — todo pasa por mail al
-                # admin con botones aprobar/rechazar. El tier de la whitelist
-                # queda como información pero no decide nada.
                 run.items_inserted += 1
-                propose_for_review(db, post, notify=False)
                 summary["pending"] += 1
                 summary["headlines"].append({
-                    "action": "pending",
+                    "action": "proposed",
                     "title": title,
                     "source": name,
                 })
@@ -414,30 +397,15 @@ def main() -> None:
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
 
-    summary["no_match"] = 0  # se calcularía si quisiéramos detallarlo
+    summary["no_match"] = 0
     logger.info(
-        "Run terminado: %d pub / %d enc / %d pending / %d errors",
-        summary["published"], summary["scheduled"], summary["pending"], summary["errors"],
+        "Run terminado: %d noticias nuevas al banco de propuestas · %d errores",
+        summary["pending"], summary["errors"],
     )
-    if not args.dry_run:
-        # Un único mail al admin con TODOS los pendings (los recién creados
-        # y los que ya estuvieran sin revisar de runs anteriores). El
-        # `notify=False` del bucle evita N+1 mails.
-        if summary["pending"] > 0:
-            from app.db.session import SessionLocal as _S
-            from app.services.publishing import _notify_admin_review
-            with _S() as db2:
-                # Pasamos cualquier post pending como pretexto; el helper
-                # consulta él mismo TODOS los pending en DB.
-                latest_pending = (
-                    db2.query(Post)
-                    .filter(Post.status == "pending_review")
-                    .order_by(Post.created_at.desc())
-                    .first()
-                )
-                if latest_pending:
-                    _notify_admin_review(db2, latest_pending)
-    else:
+    # El email de propuestas lo manda el cron `notify_proposals` (semanal),
+    # consolidando noticias + efemérides + repositorio. El scraper solo
+    # alimenta el banco.
+    if args.dry_run:
         for h in summary["headlines"]:
             print(f"  [{h['action']}] {h['title']} ({h['source']})")
 

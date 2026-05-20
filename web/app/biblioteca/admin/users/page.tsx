@@ -56,6 +56,13 @@ export default async function AdminUsersPage() {
             >
               SEO content
             </Link>
+            <Link
+              href="/biblioteca/admin/calendario"
+              data-cursor="hover"
+              className="text-ink-dim hover:text-accent"
+            >
+              Calendario
+            </Link>
             <span className="text-accent">usuarios</span>
             <Link
               href="/biblioteca/admin/subscribers"

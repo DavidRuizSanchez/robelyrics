@@ -1168,3 +1168,188 @@ def admin_subscribers_delete(
     db.delete(s)
     db.commit()
     return BulkResultOut(affected=1, errors=[])
+
+
+# --------------------------------------------------------------------------- #
+# Banco de propuestas editoriales (content_proposals) + calendario
+# --------------------------------------------------------------------------- #
+from datetime import date as _date, timedelta as _timedelta  # noqa: E402
+
+from app.db.models import ContentProposal as _Proposal  # noqa: E402
+
+# Tope de publicaciones por semana natural (lunes-domingo).
+WEEKLY_PUBLISH_CAP = 2
+
+
+class AdminProposalItem(BaseModel):
+    id: int
+    kind: str
+    source_type: str | None = None
+    source_id: int | None = None
+    title: str
+    angle: str | None = None
+    status: str
+    scheduled_for: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    has_body: bool = False
+    created_at: datetime
+
+
+class AdminProposalStats(BaseModel):
+    proposed: int
+    scheduled: int
+    used: int
+    discarded: int
+
+
+class ScheduleProposalIn(BaseModel):
+    date: str  # YYYY-MM-DD
+
+
+def _week_bounds(d: _date) -> tuple[_date, _date]:
+    """Lunes y domingo de la semana natural que contiene `d`."""
+    monday = d - _timedelta(days=d.weekday())
+    return monday, monday + _timedelta(days=6)
+
+
+def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
+    return AdminProposalItem(
+        id=p.id,
+        kind=p.kind,
+        source_type=p.source_type,
+        source_id=p.source_id,
+        title=p.title,
+        angle=p.angle,
+        status=p.status,
+        scheduled_for=p.scheduled_for.isoformat() if p.scheduled_for else None,
+        source_url=p.source_url,
+        source_name=p.source_name,
+        has_body=bool(p.body_md),
+        created_at=p.created_at,
+    )
+
+
+@router.get("/proposals/stats", response_model=AdminProposalStats)
+def admin_proposals_stats(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalStats:
+    rows = (
+        db.query(_Proposal.status, func.count(_Proposal.id))
+        .group_by(_Proposal.status)
+        .all()
+    )
+    c = {s: int(n) for s, n in rows}
+    return AdminProposalStats(
+        proposed=c.get("proposed", 0),
+        scheduled=c.get("scheduled", 0),
+        used=c.get("used", 0),
+        discarded=c.get("discarded", 0),
+    )
+
+
+@router.get("/proposals", response_model=list[AdminProposalItem])
+def admin_proposals_list(
+    status: str | None = None,
+    kind: str | None = None,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminProposalItem]:
+    q = db.query(_Proposal)
+    if status and status != "all":
+        q = q.filter(_Proposal.status == status)
+    if kind and kind != "all":
+        q = q.filter(_Proposal.kind == kind)
+    # Orden: primero actualidad (news, aniversarios), luego repositorio.
+    kind_order = {
+        "news": 0, "anniversary": 1, "album-anniversary": 2,
+        "spotlight": 3, "evergreen": 4,
+    }
+    rows = q.order_by(_Proposal.created_at.desc()).limit(min(limit, 1000)).all()
+    rows.sort(key=lambda p: (kind_order.get(p.kind, 9), p.created_at))
+    return [_proposal_to_item(p) for p in rows]
+
+
+@router.post("/proposals/{proposal_id}/schedule", response_model=AdminProposalItem)
+def admin_proposal_schedule(
+    proposal_id: int,
+    payload: ScheduleProposalIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status in ("used", "discarded"):
+        raise HTTPException(
+            status_code=409, detail=f"propuesta en estado {p.status}, no programable"
+        )
+    try:
+        target = _date.fromisoformat(payload.date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="fecha inválida (YYYY-MM-DD)")
+    if target < _date.today():
+        raise HTTPException(status_code=400, detail="la fecha ya pasó")
+
+    # Validación del cap: máximo WEEKLY_PUBLISH_CAP por semana natural.
+    monday, sunday = _week_bounds(target)
+    week_count = (
+        db.query(func.count(_Proposal.id))
+        .filter(_Proposal.status == "scheduled")
+        .filter(_Proposal.scheduled_for >= monday)
+        .filter(_Proposal.scheduled_for <= sunday)
+        .filter(_Proposal.id != p.id)
+        .scalar()
+    )
+    if week_count >= WEEKLY_PUBLISH_CAP:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"La semana del {monday.isoformat()} ya tiene "
+                f"{WEEKLY_PUBLISH_CAP} publicaciones programadas."
+            ),
+        )
+
+    p.status = "scheduled"
+    p.scheduled_for = target
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/unschedule", response_model=AdminProposalItem)
+def admin_proposal_unschedule(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status != "scheduled":
+        raise HTTPException(status_code=409, detail="la propuesta no está programada")
+    p.status = "proposed"
+    p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/discard", response_model=AdminProposalItem)
+def admin_proposal_discard(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status == "used":
+        raise HTTPException(status_code=409, detail="propuesta ya usada")
+    p.status = "discarded"
+    p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)

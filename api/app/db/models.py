@@ -789,3 +789,66 @@ class NewsSourceRun(Base):
     items_scheduled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     items_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# --- Banco de propuestas editoriales ----------------------------------------
+
+
+class ContentProposal(Base):
+    """Idea editorial en el banco de propuestas.
+
+    El cron `generate_proposals` crea propuestas ligeras (sin body) de todo
+    el catálogo; el scraper crea propuestas `kind='news'` con body ya hecho.
+    El admin las programa (status='scheduled' + scheduled_for) desde la
+    pestaña /biblioteca/admin/calendario, máximo 2 por semana. Al llegar la
+    fecha, el materializador genera el body si falta y crea el `Post`.
+
+    `status`: proposed → scheduled → used (o discarded).
+    """
+
+    __tablename__ = "content_proposals"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('proposed', 'scheduled', 'used', 'discarded')",
+            name="ck_content_proposals_status",
+        ),
+        CheckConstraint(
+            "kind IN ('news', 'spotlight', 'evergreen', 'anniversary', "
+            "'album-anniversary')",
+            name="ck_content_proposals_kind",
+        ),
+        UniqueConstraint(
+            "kind", "source_type", "source_id",
+            name="uq_content_proposals_kind_source",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_type: Mapped[str | None] = mapped_column(String(16))  # song|theme|place|concept|album
+    source_id: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    angle: Mapped[str | None] = mapped_column(Text)
+    body_md: Mapped[str | None] = mapped_column(Text)
+    excerpt: Mapped[str | None] = mapped_column(Text)
+    meta_title: Mapped[str | None] = mapped_column(String(256))
+    meta_description: Mapped[str | None] = mapped_column(String(512))
+    hero_image_url: Mapped[str | None] = mapped_column(String(500))
+    hero_image_attribution: Mapped[str | None] = mapped_column(Text)
+    hero_image_license: Mapped[str | None] = mapped_column(String(64))
+    hero_image_source_url: Mapped[str | None] = mapped_column(String(500))
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    source_name: Mapped[str | None] = mapped_column(String(200))
+    entities: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="proposed"
+    )
+    scheduled_for: Mapped[date | None] = mapped_column(Date)
+    post_id: Mapped[int | None] = mapped_column(
+        ForeignKey("posts.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

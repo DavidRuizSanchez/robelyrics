@@ -39,6 +39,7 @@ export default function SubscriberListWithActions({
   async function act(
     id: number,
     action: "resend-confirmation" | "mark-bounced" | "delete",
+    email?: string,
   ) {
     setBusy(id);
     try {
@@ -48,6 +49,16 @@ export default function SubscriberListWithActions({
       if (!res.ok) {
         const text = await res.text();
         alert(`Error ${res.status}: ${text}`);
+        return;
+      }
+      if (action === "resend-confirmation") {
+        // Reenviar no cambia el estado del suscriptor (sigue pending hasta
+        // que confirme). Damos feedback explícito en vez de recargar.
+        alert(
+          `Email de confirmación reenviado a ${email}.\n\n` +
+            "El suscriptor seguirá en «pendiente» hasta que pulse el enlace " +
+            "de confirmación en su correo.",
+        );
         return;
       }
       window.location.reload();
@@ -96,7 +107,7 @@ export default function SubscriberListWithActions({
                   {canResend && (
                     <button
                       type="button"
-                      onClick={() => act(s.id, "resend-confirmation")}
+                      onClick={() => act(s.id, "resend-confirmation", s.email)}
                       disabled={busy === s.id}
                       data-cursor="hover"
                       className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
