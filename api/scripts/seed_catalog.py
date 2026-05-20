@@ -40,6 +40,15 @@ def main() -> None:
             log(f"artist {slug} → id={artist_id}", "ok")
 
             for alb in art.get("albums", []):
+                # release_date solo se escribe si el yaml lo declara: así un
+                # seed sin fecha NUNCA machaca con NULL una fecha ya existente.
+                update_set = {
+                    "title": alb["title"],
+                    "year": alb["year"],
+                    "kind": alb.get("kind", "studio"),
+                }
+                if alb.get("release_date"):
+                    update_set["release_date"] = alb["release_date"]
                 alb_stmt = (
                     pg_insert(Album)
                     .values(
@@ -48,14 +57,11 @@ def main() -> None:
                         slug=alb["slug"],
                         year=alb["year"],
                         kind=alb.get("kind", "studio"),
+                        release_date=alb.get("release_date"),
                     )
                     .on_conflict_do_update(
                         constraint="uq_albums_artist_slug",
-                        set_={
-                            "title": alb["title"],
-                            "year": alb["year"],
-                            "kind": alb.get("kind", "studio"),
-                        },
+                        set_=update_set,
                     )
                     .returning(Album.id)
                 )

@@ -54,6 +54,23 @@ FIXED_SEEDS = [
     "rock urbano español",
 ]
 
+# Semillas de keyword research por persona (slug → query). Los nombres
+# artísticos cortos ("Robe", "Fito", "Salo", "Rosendo", "Uoho") son
+# ambiguos: el research traía demanda de otros artistas (Fito Páez,
+# Fitipaldis...) y generaba propuestas fuera de foco. Aquí se desambiguan.
+# Las personas sin override caen a `full_name`, casi siempre inequívoco.
+PERSON_SEED_OVERRIDES = {
+    "robe-iniesta": "robe iniesta",
+    "inaki-uoho-anton": "iñaki uoho antón extremoduro",
+    "salo": "salo batería extremoduro",
+    "miguel-colino": "miguel colino extremoduro",
+    "jose-ignacio-cantera": "iñaki cantera extremoduro",
+    "kutxi-romero": "kutxi romero marea",
+    "fito-cabrales": "fito cabrales",
+    "manolo-kabezabolo": "manolo kabezabolo",
+    "rosendo-mercado": "rosendo mercado",
+}
+
 CLUSTER_SYSTEM = """\
 Eres estratega de contenidos SEO de un sitio editorial sobre Robe Iniesta
 y Extremoduro. Tu trabajo: a partir de una lista de keywords reales con su
@@ -117,7 +134,7 @@ def _collect_seeds(db) -> list[str]:
     for (title,) in db.query(Album.title).all():
         seeds.append(f"{title} extremoduro")
     for p in db.query(Person).all():
-        seeds.append(p.stage_name or p.full_name)
+        seeds.append(PERSON_SEED_OVERRIDES.get(p.slug) or p.full_name)
     # dedup conservando orden
     seen: set[str] = set()
     out: list[str] = []
