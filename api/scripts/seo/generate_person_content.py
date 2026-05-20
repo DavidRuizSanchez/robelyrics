@@ -50,11 +50,68 @@ def _person_summary(person: Person, memberships: list[BandMembership]) -> str:
     return ". ".join(parts) + "."
 
 
+def _build_low_data_prompt(
+    person: Person, memberships: list[BandMembership], primary_band: str | None
+) -> str:
+    """Prompt para figuras POCO DOCUMENTADAS (miembros históricos sin
+    biografía ni artículo de Wikipedia). Forzar 2000 palabras sobre alguien
+    de quien casi no hay datos lleva al LLM a inventar. Aquí se pide un
+    artículo más corto y centrado en CONTEXTO real (la etapa de la banda),
+    no en una biografía personal que no existe.
+    """
+    summary = _person_summary(person, memberships)
+    band = primary_band or "su banda"
+    return f"""\
+Escribe un artículo editorial de 700 a 1000 palabras sobre {person.full_name},
+que pasó por {band}.
+
+DATOS VERIFICADOS (lo ÚNICO que consta con certeza):
+{summary}
+
+ESTA PERSONA ESTÁ POCO DOCUMENTADA. No hay biografía pública suya. Por eso:
+- NO inventes fecha ni lugar de nacimiento, anécdotas, declaraciones, otros
+  grupos, vida personal ni nada que no esté en los datos verificados.
+- Si un dato no consta, NO lo escribas. No rellenes con conjeturas.
+- El valor del artículo no es una biografía (no la hay): es situar con rigor
+  a esta persona en la historia de {band} y dar contexto útil a quien la
+  busca. Mejor corto y veraz que largo y especulativo.
+
+ESTRUCTURA OBLIGATORIA (encabezados H2 concretos, con sustantivos del tema):
+
+## Quién fue {person.full_name} en {band}
+~150 palabras: su rol exacto y la etapa en que estuvo, qué lugar ocupa en la
+historia del grupo.
+
+## La formación de {band} en aquellos años
+~350 palabras: cómo era el grupo en ese periodo, los cambios de formación
+alrededor de su entrada y su salida, qué se sabe de la banda entonces.
+
+## Los discos y el sonido de la época
+~250 palabras: qué publicaba o preparaba {band} en esos años y cómo sonaba
+el grupo entonces. Menciona los títulos de discos en texto plano.
+
+## Lo documentado y lo que queda en penumbra
+~150 palabras: reconoce con honestidad qué se sabe y qué no de esta figura.
+
+IMPORTANTE:
+- NO uses placeholders entre corchetes en el texto final.
+- NO escribas links markdown a mano. El sistema linkifica solo.
+
+Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+entities (array según el system prompt).
+"""
+
+
 def _build_prompt(person: Person, memberships: list[BandMembership]) -> str:
     summary = _person_summary(person, memberships)
     band_list = ", ".join(m.artist.name for m in memberships) or "(sin memberships en el corpus)"
     bio = person.bio_short or "(sin biografía corta documentada)"
     primary_band = memberships[0].artist.name if memberships else None
+
+    # Figuras poco documentadas: sin biografía corta y sin artículo de
+    # Wikipedia. Forzarles 2000 palabras es pedir invención. Prompt aparte.
+    if not person.bio_short and not person.wikipedia_url:
+        return _build_low_data_prompt(person, memberships, primary_band)
 
     # Plantilla de secciones: sustituye los placeholders por el nombre real
     # de la banda principal ANTES de mandar al LLM. Si no hay banda
