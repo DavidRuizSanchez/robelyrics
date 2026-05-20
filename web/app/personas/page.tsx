@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import PersonAvatar from "@/components/PersonAvatar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
@@ -96,9 +97,14 @@ export default async function PersonasPage() {
                           className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
-                          sin foto
-                        </div>
+                        <PersonAvatar
+                          name={
+                            p.stage_name && p.stage_name !== p.full_name
+                              ? p.stage_name
+                              : p.full_name
+                          }
+                          slug={p.slug}
+                        />
                       )}
                     </div>
                     <h2 className="font-serif text-2xl text-ink group-hover:text-accent transition-colors leading-tight">

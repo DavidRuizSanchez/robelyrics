@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import PersonAvatar from "@/components/PersonAvatar";
 import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -268,8 +269,11 @@ export default async function PersonPage({
                 )}
               </div>
             ) : (
-              <div className="aspect-[3/4] bg-divider/30 flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
-                sin foto
+              <div className="aspect-[3/4] overflow-hidden relative">
+                <PersonAvatar
+                  name={detail.stage_name || detail.full_name}
+                  slug={detail.slug}
+                />
               </div>
             )}
 
