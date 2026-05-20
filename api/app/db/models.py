@@ -397,7 +397,8 @@ class SeoTemplate(Base):
     __tablename__ = "seo_templates"
     __table_args__ = (
         CheckConstraint(
-            "entity_type IN ('artist', 'album', 'song', 'person')",
+            "entity_type IN ('artist', 'album', 'song', 'person', "
+            "'theme', 'place', 'concept')",
             name="ck_seo_templates_entity_type",
         ),
         CheckConstraint(

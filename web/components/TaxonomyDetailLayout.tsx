@@ -1,9 +1,11 @@
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import MentionedInPosts from "@/components/MentionedInPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { mentionsArray } from "@/lib/schema-graph";
 import type { PublicTaxonomyDetail } from "@/lib/types";
 
 const SITE_URL =
@@ -18,11 +20,12 @@ type Props = {
 export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Props) {
   const isPlace = detail.kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
 
-  const collection = {
+  const mentions = mentionsArray(detail.entities);
+  const collection: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: detail.name,
-    description: detail.description ?? undefined,
+    description: detail.seo_meta_description ?? detail.description ?? undefined,
     url: `${SITE_URL}/${hubSlug}/${detail.slug}`,
     isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Entre Interiores" },
     mainEntity: {
@@ -31,10 +34,11 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
         "@type": "ListItem",
         position: i + 1,
         url: `${SITE_URL}${s.url_path}`,
-        name: `${s.title} — ${s.artist_name} · ${s.album_title}`,
+        name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
       })),
     },
   };
+  if (mentions.length > 0) collection.mentions = mentions;
 
   const placeJsonLd = isPlace
     ? {
@@ -73,10 +77,16 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
           </h1>
         </header>
 
-        {detail.description && (
-          <section className="mb-12 max-w-[700px]">
-            <MarkdownArticle markdown={detail.description} />
+        {detail.seo_body ? (
+          <section className="mb-12">
+            <MarkdownArticle markdown={detail.seo_body} />
           </section>
+        ) : (
+          detail.description && (
+            <section className="mb-12 max-w-[700px]">
+              <MarkdownArticle markdown={detail.description} />
+            </section>
+          )
         )}
 
         <section>
@@ -103,6 +113,8 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
             ))}
           </ul>
         </section>
+
+        <MentionedInPosts slug={detail.slug} heading="Mencionado en el diario" />
 
         <script
           type="application/ld+json"

@@ -139,9 +139,13 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--artist-slug", required=True)
+    parser.add_argument("--artist-slug")
+    parser.add_argument("--all", action="store_true", help="genera todos los artistas")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+
+    if not args.all and not args.artist_slug:
+        parser.error("Indica --artist-slug X o --all")
 
     settings = get_settings()
     if not settings.openai_api_key:
@@ -150,7 +154,13 @@ def main() -> None:
     client = OpenAI(api_key=settings.openai_api_key)
 
     with get_session() as db:
-        generate_for_artist(client, db, args.artist_slug, force=args.force)
+        if args.all:
+            slugs = [s for (s,) in db.query(Artist.slug).order_by(Artist.id).all()]
+            log(f"=== {len(slugs)} artistas ===")
+            for slug in slugs:
+                generate_for_artist(client, db, slug, force=args.force)
+        else:
+            generate_for_artist(client, db, args.artist_slug, force=args.force)
 
 
 if __name__ == "__main__":

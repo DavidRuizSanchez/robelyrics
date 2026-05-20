@@ -241,6 +241,10 @@ export type PublicTaxonomyDetail = {
   kind: "theme" | "place" | "concept";
   extra: { geo_lat?: number | null; geo_lng?: number | null; kind?: string | null } | null;
   songs: PublicTaxonomySongRef[];
+  seo_body: string | null;
+  seo_meta_title: string | null;
+  seo_meta_description: string | null;
+  entities: PublicResolvedEntity[];
 };
 
 // /public/posts — blog público

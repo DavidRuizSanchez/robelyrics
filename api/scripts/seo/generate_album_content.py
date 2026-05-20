@@ -147,9 +147,13 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--album-slug", required=True, help="slug del álbum a generar")
+    parser.add_argument("--album-slug", help="slug del álbum a generar")
+    parser.add_argument("--all", action="store_true", help="genera todos los álbumes")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+
+    if not args.all and not args.album_slug:
+        parser.error("Indica --album-slug X o --all")
 
     settings = get_settings()
     if not settings.openai_api_key:
@@ -158,7 +162,14 @@ def main() -> None:
     client = OpenAI(api_key=settings.openai_api_key)
 
     with get_session() as db:
-        generate_for_album(client, db, args.album_slug, force=args.force)
+        if args.all:
+            from app.db.models import Album as _Album
+            slugs = [s for (s,) in db.query(_Album.slug).order_by(_Album.id).all()]
+            log(f"=== {len(slugs)} álbumes ===")
+            for slug in slugs:
+                generate_for_album(client, db, slug, force=args.force)
+        else:
+            generate_for_album(client, db, args.album_slug, force=args.force)
 
 
 if __name__ == "__main__":

@@ -580,6 +580,10 @@ class PublicTaxonomyDetailOut(BaseModel):
     kind: str  # 'theme' | 'place' | 'concept'
     extra: dict | None = None  # places: {geo_lat, geo_lng}
     songs: list[PublicTaxonomySongRef]
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    entities: list[PublicResolvedEntity] = []
 
 
 def _is_live_version(slug: str, title: str) -> bool:
@@ -693,6 +697,11 @@ def _detail_taxonomy(
                  "geo_lng": float(row.geo_lng) if row.geo_lng else None,
                  "kind": row.kind}
 
+    # seo_content editorial de la taxonomía (entity_type == kind)
+    seo = _try_get_seo(db, kind, row.id)
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
+
     return PublicTaxonomyDetailOut(
         slug=row.slug,
         name=row.name,
@@ -700,6 +709,10 @@ def _detail_taxonomy(
         kind=kind,
         extra=extra,
         songs=songs,
+        seo_body=seo["body_md"] if seo else None,
+        seo_meta_title=seo["meta_title"] if seo else None,
+        seo_meta_description=seo["meta_description"] if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
     )
 
 

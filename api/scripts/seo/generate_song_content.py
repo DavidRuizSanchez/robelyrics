@@ -162,6 +162,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--song-slug", help="solo una canción concreta")
     parser.add_argument("--album-slug", help="todas las canciones de un álbum")
+    parser.add_argument("--all", action="store_true", help="todas las canciones del catálogo")
     parser.add_argument("--force", action="store_true", help="sobrescribe filas existentes")
     args = parser.parse_args()
 
@@ -181,8 +182,10 @@ def main() -> None:
                 log(f"álbum '{args.album_slug}' no encontrado", "err")
                 return
             slugs = [s.slug for s in album.songs]
+        elif args.all:
+            slugs = [s for (s,) in db.query(Song.slug).order_by(Song.id).all()]
         else:
-            log("debes pasar --song-slug o --album-slug", "err")
+            log("debes pasar --song-slug, --album-slug o --all", "err")
             return
 
     log(f"canciones a generar: {len(slugs)}")

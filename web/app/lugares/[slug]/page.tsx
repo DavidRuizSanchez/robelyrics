@@ -20,8 +20,11 @@ export async function generateMetadata({
       authenticated: false,
     });
     return {
-      title: `${d.name} · Canciones de Extremoduro y Robe · Entre Interiores`,
+      title:
+        d.seo_meta_title ||
+        `${d.name} · Canciones de Extremoduro y Robe · Entre Interiores`,
       description:
+        d.seo_meta_description ||
         d.description ||
         `Canciones de Extremoduro y Robe que mencionan o sitúan su escena en ${d.name}.`,
       alternates: { canonical: `${SITE_URL}/lugares/${d.slug}` },

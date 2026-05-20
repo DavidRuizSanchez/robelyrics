@@ -20,8 +20,11 @@ export async function generateMetadata({
       authenticated: false,
     });
     return {
-      title: `${d.name} · Símbolos en el cancionero · Entre Interiores`,
+      title:
+        d.seo_meta_title ||
+        `${d.name} · Símbolos en el cancionero · Entre Interiores`,
       description:
+        d.seo_meta_description ||
         d.description ||
         `Canciones de Extremoduro y Robe donde aparece el símbolo "${d.name}".`,
       alternates: { canonical: `${SITE_URL}/conceptos/${d.slug}` },

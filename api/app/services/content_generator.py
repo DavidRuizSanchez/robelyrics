@@ -68,6 +68,10 @@ VOZ Y TONO — neutral y macarra, no romántico
   no a un santo. Nada de hagiografía.
 
 PROHIBIDO ABSOLUTO
+- El carácter raya/em-dash "—" y el guion largo "–". NUNCA los uses. Para \
+  incisos usa comas, paréntesis o puntos. Guion corto "-" solo en palabras \
+  compuestas. El em-dash es la marca de IA número uno: si aparece, el texto \
+  se descarta.
 - Frases meta: "en este post", "vamos a hablar", "como veremos", "es \
   importante destacar", "cabe mencionar", "en resumen", "vale la pena", \
   "en conclusión", "para terminar", "a continuación".
@@ -183,6 +187,12 @@ def _call(user_prompt: str, *, max_tokens: int = 2000) -> dict[str, Any]:
     missing = required - set(data.keys())
     if missing:
         raise ValueError(f"Faltan campos en la salida: {missing}")
+
+    # Saneado anti marcas de IA (em-dash, etc.) sobre los campos de texto.
+    from app.services.text_sanitizer import strip_ai_tells
+    for field in ("title", "excerpt", "body_md", "meta_title", "meta_description"):
+        if isinstance(data.get(field), str):
+            data[field] = strip_ai_tells(data[field])
     return data
 
 
