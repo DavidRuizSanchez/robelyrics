@@ -22,7 +22,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, Person, Song
+from app.db.models import Album, Artist, Concept, Person, Place, Song, Theme
 
 SITE_URL_DEFAULT = "https://entreinteriores.com"
 
@@ -113,6 +113,35 @@ def _resolve_one(
             url = f"{site_url}/{song.album.artist.slug}/{song.album.slug}/{song.slug}"
             from_corpus = True
 
+    # Taxonomías locales: Place / Theme / Concept tienen pages en
+    # /lugares/{slug}, /temas/{slug}, /conceptos/{slug}.
+    if not from_corpus and e_type in {"Place", "TouristAttraction", "City", "AdministrativeArea"}:
+        place = None
+        if slug_hint:
+            place = db.query(Place).filter(Place.slug == slug_hint).first()
+        if place is None:
+            for pl in db.query(Place).all():
+                if _normalize(pl.name) == norm_name or pl.slug == norm_name.replace(" ", "-"):
+                    place = pl
+                    break
+        if place is not None:
+            canonical_id = f"{site_url}/lugares/{place.slug}#place"
+            url = f"{site_url}/lugares/{place.slug}"
+            from_corpus = True
+
+    if not from_corpus and e_type in {"Thing", "DefinedTerm"} and slug_hint:
+        # Conceptos genéricos del bestiario (libertad, lucha, etc.)
+        concept = db.query(Concept).filter(Concept.slug == slug_hint).first()
+        if concept is None:
+            for c in db.query(Concept).all():
+                if _normalize(c.name) == norm_name:
+                    concept = c
+                    break
+        if concept is not None:
+            canonical_id = f"{site_url}/conceptos/{concept.slug}#concept"
+            url = f"{site_url}/conceptos/{concept.slug}"
+            from_corpus = True
+
     # --- fallback: Wikidata como @id externo ---
     same_as: list[str] = []
     if wikidata_id and isinstance(wikidata_id, str) and wikidata_id.startswith("Q"):
@@ -153,3 +182,69 @@ def resolve_entities(
         seen.add(key)
         out.append(resolved)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Linkificación de body_md con entidades resueltas
+# --------------------------------------------------------------------------- #
+def linkify_body_md(
+    body_md: str, resolved_entities: list[dict[str, Any]] | None
+) -> str:
+    """Reemplaza la primera ocurrencia de cada entidad mencionada (con `url`
+    no nula) por un link markdown `[name](url)`.
+
+    Reglas:
+      - Una sola sustitución por entidad (evita keyword-stuffing).
+      - Match con word boundaries, case-insensitive, mantiene la
+        capitalización original del texto.
+      - No matchea si la palabra ya está dentro de un link `[...](...)` o
+        dentro de inline code `` `…` ``.
+      - Entidades más largas primero (matchea "Robe Iniesta" antes de
+        intentar "Robe", para no romper la primera).
+      - Salta entidades cuyo `url` apunta al mismo path que está ya en el
+        texto (evita auto-links de la propia página).
+
+    Idempotente: si se llama dos veces sobre el mismo body, no genera
+    dobles corchetes (el lookahead protege contra esto).
+    """
+    if not body_md or not resolved_entities:
+        return body_md
+
+    # Solo linkifica las que tengan url. Sortea por longitud de name desc
+    # para priorizar matches más específicos.
+    candidates = sorted(
+        [
+            e for e in resolved_entities
+            if e.get("url") and e.get("name")
+        ],
+        key=lambda e: len(e["name"]),
+        reverse=True,
+    )
+
+    seen_urls: set[str] = set()
+    for ent in candidates:
+        name = ent["name"]
+        url = ent["url"]
+        if url in seen_urls:
+            continue
+
+        escaped = re.escape(name)
+        # Lookbehind: no precedido por '[' (texto de link) ni '`' (code)
+        # Lookahead: no seguido por ']' antes del próximo '[' (dentro de link)
+        #   ni por '`' (cierre de code inline)
+        pattern = re.compile(
+            r"(?<![\[`/\w])"
+            + escaped
+            + r"(?![^\[\n]{0,200}?\])"
+            r"(?![\w`])",
+            re.IGNORECASE,
+        )
+
+        def _replace(match: "re.Match[str]") -> str:
+            return f"[{match.group(0)}]({url})"
+
+        new_body, n = pattern.subn(_replace, body_md, count=1)
+        if n > 0:
+            body_md = new_body
+            seen_urls.add(url)
+    return body_md

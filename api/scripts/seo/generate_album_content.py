@@ -68,8 +68,9 @@ documentadas. NO inventes datos técnicos.
 
 ## Recorrido por las canciones
 ~600 palabras: repaso por las canciones del tracklist con 1-2 frases por
-cada una. NO copies letras, describe el tema y el tono. Para cada canción
-mencionada, enlaza con `[Título](/{artist.slug}/{album.slug}/<slug>)`.
+cada una. NO copies letras, describe el tema y el tono. Menciona los
+títulos en texto plano — el sistema los linkifica automáticamente a sus
+páginas locales.
 
 ## Recepción crítica y comercial
 ~300 palabras: cómo lo recibió la prensa especializada (puedes citar Mondo
@@ -81,11 +82,18 @@ asociadas.
 posterior, recopilatorios, regresos en directo.
 
 ## Otros discos relacionados
-~50 palabras + 1-2 enlaces internos a `[/{artist.slug}](/{artist.slug})` y
-discos cercanos del mismo artista.
+~50 palabras mencionando 1-2 discos cercanos del mismo artista por su
+título (texto plano, el sistema los linkifica).
+
+IMPORTANTE:
+- NO escribas markdown de link a mano ni uses placeholders entre
+  corchetes ([Título], <slug>, etc.). Si no tienes el dato exacto,
+  omite la frase.
+- NO inventes datos.
 
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars con título disco +
-artista), `meta_description` (≤160 chars resumiendo el álbum).
+artista), `meta_description` (≤160 chars resumiendo el álbum),
+`entities` (según system prompt).
 """
 
 

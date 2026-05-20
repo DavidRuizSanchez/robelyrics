@@ -60,8 +60,9 @@ en la música española.
 ~500 palabras: rasgos literarios distintivos, registros, influencias, lenguaje.
 
 ## Discografía comentada
-~600 palabras: repaso disco a disco con 1-2 frases por álbum. Para cada disco,
-enlaza `[Título](/{artist.slug}/<slug>)`.
+~600 palabras: repaso disco a disco con 1-2 frases por álbum. Menciona
+cada disco por su título en texto plano — el sistema linkifica los
+títulos automáticamente a sus páginas locales.
 
 ## Legado e influencia
 ~300 palabras: impacto en la escena rock española, artistas influidos.
@@ -69,8 +70,13 @@ enlaza `[Título](/{artist.slug}/<slug>)`.
 ## Hechos biográficos relevantes
 ~100 palabras: solo datos públicos y verificados; obviar lo no documentado.
 
+IMPORTANTE:
+- NO escribas markdown de link a mano ni uses placeholders entre
+  corchetes ([Título], <slug>, etc.).
+- NO INVENTES datos.
+
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars), `meta_description`
-(≤160 chars).
+(≤160 chars), `entities` (según system prompt).
 """
 
 

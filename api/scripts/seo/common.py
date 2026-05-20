@@ -150,6 +150,16 @@ def upsert_seo_content(
             return existing.id
 
     ents = entities or []
+    # Linkifica el body_md con las entidades resueltas: primera mención de
+    # cada una se convierte en `[name](url)` apuntando a la página local
+    # (si está en corpus) o a Wikidata. Idempotente y limitado a una
+    # sustitución por entity para evitar overlinking.
+    if ents and body_md:
+        from app.services.entity_resolver import linkify_body_md, resolve_entities
+        resolved = resolve_entities(db, ents)
+        if resolved:
+            body_md = linkify_body_md(body_md, resolved)
+
     stmt = (
         pg_insert(SeoContent)
         .values(

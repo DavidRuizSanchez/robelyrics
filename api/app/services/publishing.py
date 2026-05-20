@@ -154,9 +154,12 @@ def propose_for_review(
 ) -> PublishResult:
     """Pone el post en `pending_review` y manda email al admin (si notify).
 
-    Idempotente: si ya está en pending_review, no rompe — el mail también
-    se envía (al admin le sirve como recordatorio). Si está published o
-    rejected, no-op.
+    También linkifica el `body_md` reemplazando la primera mención de cada
+    entidad detectada por un link a su página local (si existe en el
+    corpus) o a Wikidata. Esto se hace ANTES del primer commit para que
+    el admin vea el contenido ya enlazado en el panel y en el mail.
+
+    Idempotente: si ya está en pending_review, no rompe.
     """
     if post.status in {"published", "rejected"}:
         logger.info(
@@ -168,10 +171,21 @@ def propose_for_review(
             "post_id": post.id,
             "scheduled_for": None,
         }
+
+    # Linkificar body_md con entities resueltas (solo si tiene entities)
+    if post.entities and post.body_md:
+        from app.services.entity_resolver import linkify_body_md, resolve_entities
+        resolved = resolve_entities(db, post.entities)
+        if resolved:
+            new_body = linkify_body_md(post.body_md, resolved)
+            if new_body != post.body_md:
+                post.body_md = new_body
+                logger.info("Linkificadas %d entidades en post %s", len(resolved), post.id)
+
     if post.status != "pending_review":
         post.status = "pending_review"
-        db.commit()
-        db.refresh(post)
+    db.commit()
+    db.refresh(post)
 
     if notify:
         _notify_admin_review(db, post)

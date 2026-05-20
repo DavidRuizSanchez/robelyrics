@@ -52,10 +52,27 @@ def _person_summary(person: Person, memberships: list[BandMembership]) -> str:
 
 def _build_prompt(person: Person, memberships: list[BandMembership]) -> str:
     summary = _person_summary(person, memberships)
-    band_links = ", ".join(
-        f"[{m.artist.name}]({SITE_URL}/{m.artist.slug})" for m in memberships
-    ) or "(sin memberships en el corpus)"
+    band_list = ", ".join(m.artist.name for m in memberships) or "(sin memberships en el corpus)"
     bio = person.bio_short or "(sin biografía corta documentada)"
+    primary_band = memberships[0].artist.name if memberships else None
+
+    # Plantilla de secciones: sustituye los placeholders por el nombre real
+    # de la banda principal ANTES de mandar al LLM. Si no hay banda
+    # principal, omite esa sección y usa "Trayectoria" genérico.
+    if primary_band:
+        section_trayectoria = (
+            "### Primeros años\n"
+            f"### Etapa con {primary_band}\n"
+            "### Otras colaboraciones y proyectos\n"
+            "### Etapa actual o cierre (si fallecido, despedida)\n"
+        )
+    else:
+        section_trayectoria = (
+            "### Primeros años\n"
+            "### Trayectoria principal\n"
+            "### Otras colaboraciones y proyectos\n"
+            "### Etapa actual o cierre (si fallecido, despedida)\n"
+        )
 
     return f"""\
 Escribe un artículo SEO de 1800-2400 palabras sobre {person.full_name}.
@@ -66,8 +83,8 @@ DATOS VERIFICADOS:
 BIOGRAFÍA CORTA (puedes parafrasear pero no copiar):
 {bio}
 
-MEMBERSHIPS RELEVANTES EN NUESTRO SITIO:
-{band_links}
+BANDAS EN NUESTRO SITIO (no es texto fijo; úsalo como info):
+{band_list}
 
 ESTRUCTURA OBLIGATORIA (encabezados H2):
 
@@ -75,32 +92,33 @@ ESTRUCTURA OBLIGATORIA (encabezados H2):
 ~300 palabras: presentación, contexto, qué lugar ocupa en el rock español.
 
 ## Trayectoria
-~800 palabras con H3 por etapas significativas:
-### Primeros años
-### Etapa con [banda principal]
-### Otras colaboraciones / proyectos
-### Etapa actual o cierre (si fallecido, despedida)
-Para cada banda mencionada que esté en el sitio, enlaza al hub:
-{band_links}
+~800 palabras con H3 según las etapas significativas reales. Usa los
+encabezados H3 EXACTOS de abajo (sustitutos ya hechos, no cambies ni
+añadas corchetes):
+{section_trayectoria}
 
 ## Estilo y aportación
 ~400 palabras: qué hace distintivo a esta persona musicalmente, qué rol
 desempeña en grupo (compositor, líder de directo, etc.).
 
 ## Discos y canciones donde aparece
-~400 palabras: si pertenece a Extremoduro o Robe, repaso disco a disco con
-1 frase por disco enlazando a `{SITE_URL}/<artist-slug>/<album-slug>`.
+~400 palabras: repaso de los álbumes y canciones donde participa, una o
+dos frases por disco. Menciona los títulos en texto plano — el sistema
+los enlazará automáticamente a sus páginas locales.
 
-## Legado / impacto
+## Legado e impacto
 ~200 palabras: huella en la escena, artistas influidos.
 
-NO INVENTES DATOS. Si no conoces algo, omítelo o redondea ("a finales de los
-noventa"). Si no sabes producciones, omite la sección entera.
+IMPORTANTE:
+- NO uses placeholders entre corchetes en el texto final ("[banda
+  principal]", "[título]", "<algo>"). Si no tienes el dato, omite la
+  frase o redondea ("una de sus bandas más conocidas").
+- NO INVENTES datos. Si no conoces fecha, productor, etc., omítelo.
+- NO escribas links markdown a mano. El sistema linkifica los nombres
+  detectados como entidades automáticamente.
 
-Devuelve JSON con:
-  - body_md: artículo en markdown
-  - meta_title: ≤60 chars
-  - meta_description: ≤160 chars
+Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+entities (array según el system prompt).
 """
 
 
