@@ -1,34 +1,21 @@
 # Whitelist de fuentes para el scraper de noticias del blog Entre Interiores.
 #
-# Política editorial post-muerte de Robe (10/12/2025):
-#   - Cubrimos Robe, Extremoduro, miembros (Uoho y demás), grupos amigos,
-#     bandas tributo activas.
-#   - Prensa comercial generalista vetada (Mondo Sonoro, Efe Eme, Rockdelux)
-#     por línea editorial del corpus principal.
-#   - SOLO fuentes que el scraper puede consumir vía RSS o HTML estructurado.
+# Las fuentes RSS de aquí se rastrean cada lunes; los items que matchean
+# `terms_groups` entran al banco de propuestas (content_proposals, kind=news).
+# El admin los programa desde /biblioteca/admin/calendario.
 #
-# Estructura:
-#   terms_groups: agrupaciones de términos que disparan el match. Todos los
-#     grupos activos suman. Para desactivar uno, comenta o pon lista vacía.
-#   sources: lista de fuentes a rastrear
-#     - name:    string visible en `Post.source_name`
-#       url:     URL del feed RSS o de la página índice si kind=html
-#       kind:    'rss' o 'html'
-#       enabled: bool (default true)
-#       tier:    'trusted'  → auto-publica (respeta cap 2/sem)
-#                'review'   → entra como pending_review (revisión manual)
-#       selector: solo para kind=html (CSS selector de los items)
+# Todas las URLs verificadas (responden 200 con items). Los generalistas
+# grandes filtran por términos del universo; los medios de música entran
+# más amplio porque su cobertura ya es del nicho.
 #
-# Auto-publish vs review:
-#   - 'trusted' es para feeds RSS de medios que conocemos y donde la voz
-#     del medio no contamina la nuestra (la reescritura editorial es a tope).
-#   - 'review' deja al admin la decisión final.
+# Prensa comercial vetada por la línea editorial del corpus (Mondo Sonoro,
+# Efe Eme, Rockdelux) NO se incluye.
 
 terms_groups:
   core:
     - robe iniesta
     - extremoduro
-    - "robe"  # comodín — el matcher es case-insensitive y solo palabra parcial
+    - "robe"
   members:
     - uoho
     - iñaki antón
@@ -48,7 +35,7 @@ terms_groups:
     - rosendo
     - barricada
     - soziedad alkoholika
-  tributes: []  # poblar a medida que confirmemos tributos activos
+  tributes: []
 
 sources:
   # --- Prensa extremeña local (cobertura natural Robe / Plasencia) ---
@@ -58,29 +45,46 @@ sources:
     enabled: true
     tier: review
 
-  - name: "El Periódico Extremadura — Cultura"
-    url: "https://www.elperiodicoextremadura.com/rss/section/CULTURA/"
+  - name: "El Periódico Extremadura"
+    url: "https://www.elperiodicoextremadura.com/rss/"
     kind: rss
     enabled: true
     tier: review
 
-  # --- Webs oficiales / grupos amigos ---
-  # Web oficial Marea (Kutxi Romero). Si el feed no responde el scraper lo tolera.
-  - name: "Marea (oficial)"
-    url: "https://www.mareaweb.es/feed/"
+  # --- Generalistas con sección cultura/música (filtran por términos) ---
+  - name: "El País — Cultura"
+    url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada"
+    kind: rss
+    enabled: true
+    tier: review
+
+  - name: "20minutos — Música"
+    url: "https://www.20minutos.es/rss/musica/"
+    kind: rss
+    enabled: true
+    tier: review
+
+  - name: "20minutos — Cultura"
+    url: "https://www.20minutos.es/rss/cultura/"
+    kind: rss
+    enabled: true
+    tier: review
+
+  # --- Medios de música / rock (cobertura de nicho) ---
+  - name: "Muzikalia"
+    url: "https://muzikalia.com/feed/"
     kind: rss
     enabled: true
     tier: trusted
 
-  - name: "Reincidentes (oficial)"
-    url: "https://www.reincidentes.es/feed/"
+  - name: "Binaural"
+    url: "https://www.binaural.es/feed/"
     kind: rss
     enabled: true
     tier: trusted
 
-  # --- Plantilla para añadir más a mano ---
-  # - name: "Nueva fuente"
-  #   url: "https://..."
-  #   kind: rss
-  #   enabled: true
-  #   tier: review
+  - name: "Mariskal Rock"
+    url: "https://www.mariskalrock.com/feed/"
+    kind: rss
+    enabled: true
+    tier: trusted

@@ -470,3 +470,65 @@ Devuelve el JSON con todos los campos requeridos.
                 f"## {taxonomy_name}\n\nVuelve canción tras canción.\n"
             ),
         )
+
+
+def generate_seo_article(
+    *,
+    title: str,
+    angle: str | None,
+    keywords: list[dict[str, Any]] | None = None,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Artículo de blog SEO-driven: responde a una intención de búsqueda
+    real, optimizado (con naturalidad) para las `keywords` objetivo.
+
+    `keywords` es la lista [{keyword, volume, ...}] que el research adjuntó
+    a la propuesta. La de mayor volumen es la principal.
+    """
+    today = today or date.today()
+    kws = keywords or []
+    kws_sorted = sorted(kws, key=lambda k: -(k.get("volume") or 0))
+    primary = kws_sorted[0]["keyword"] if kws_sorted else title
+    kw_block = (
+        "\n".join(
+            f"- {k['keyword']} ({k.get('volume') or 0} búsquedas/mes)"
+            for k in kws_sorted[:12]
+        )
+        or "(sin keywords objetivo)"
+    )
+
+    user = f"""\
+Escribe un artículo de blog para Entre Interiores que responda a una
+búsqueda real de la gente sobre el universo de Robe Iniesta y Extremoduro.
+
+TÍTULO ORIENTATIVO: {title}
+ÁNGULO: {angle or "(libre)"}
+
+KEYWORDS OBJETIVO (lo que la gente teclea en Google, con su volumen):
+{kw_block}
+
+INSTRUCCIONES:
+- Responde de verdad a la intención de búsqueda de la keyword principal
+  («{primary}»). Si alguien busca eso, este artículo debe resolverlo.
+- Usa la keyword principal en el primer párrafo y en algún H2, con
+  naturalidad. Las secundarias, repártelas sin forzar. NADA de
+  keyword-stuffing.
+- 500-900 palabras. 2-4 secciones con H2 concretos.
+- Si el tema es sensible (fallecimiento, familia), trátalo con respeto y
+  solo con información pública y asumida. Sin morbo.
+- Menciona canciones, discos, personas y lugares por su nombre en texto
+  plano: el sistema los enlaza solo.
+
+Devuelve el JSON con todos los campos requeridos. El `title` final puede
+mejorar el orientativo, pero debe seguir siendo reconocible para quien
+busca «{primary}».
+"""
+    try:
+        return _call(user, max_tokens=2200)
+    except (OpenAIError, ValueError) as exc:
+        logger.warning("generate_seo_article fallback: %s", exc)
+        return _fallback(
+            title=title,
+            excerpt=angle or f"Sobre {primary}.",
+            body_md=f"## {title}\n\n{angle or ''}\n",
+        )

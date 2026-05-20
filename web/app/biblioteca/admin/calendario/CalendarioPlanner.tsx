@@ -204,6 +204,31 @@ function ProposalBank({
                       {p.angle}
                     </p>
                   )}
+                  {p.keywords && p.keywords.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
+                        keywords · {p.keyword_volume.toLocaleString("es-ES")}{" "}
+                        búsquedas/mes
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.keywords
+                          .slice()
+                          .sort((a, b) => b.volume - a.volume)
+                          .slice(0, 8)
+                          .map((k) => (
+                            <span
+                              key={k.keyword}
+                              className="font-mono text-[10px] text-ink-dim border border-divider px-1.5 py-0.5"
+                            >
+                              {k.keyword}{" "}
+                              <span className="text-accent">
+                                {k.volume.toLocaleString("es-ES")}
+                              </span>
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                   {p.source_url && (
                     <a
                       href={p.source_url}

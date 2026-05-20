@@ -43,6 +43,25 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             f'color:rgba(237,228,211,0.65);margin:4px 0 0;line-height:1.5;">{p.angle}</p>'
             if p.angle else ""
         )
+        kw_html = ""
+        kws = sorted(
+            p.keywords or [], key=lambda k: -(k.get("volume") or 0)
+        )[:6]
+        if kws:
+            total = sum(int(k.get("volume") or 0) for k in (p.keywords or []))
+            chips = " ".join(
+                f'<span style="font-family:\'Courier New\',monospace;font-size:10px;'
+                f'color:rgba(237,228,211,0.6);border:1px solid rgba(237,228,211,0.15);'
+                f'padding:1px 5px;">{k.get("keyword")} '
+                f'<b style="color:#a83a3a;">{k.get("volume") or 0}</b></span>'
+                for k in kws
+            )
+            kw_html = (
+                f'<p style="font-family:\'Courier New\',monospace;font-size:9px;'
+                f'color:rgba(237,228,211,0.4);margin:8px 0 4px;">'
+                f'KEYWORDS · {total} búsquedas/mes</p><p style="margin:0;line-height:1.9;">'
+                f'{chips}</p>'
+            )
         return (
             f'<li style="margin:0 0 14px;padding:12px 14px;'
             f'background:rgba(237,228,211,0.03);border-left:3px solid #a83a3a;">'
@@ -50,7 +69,7 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             f'letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);'
             f'margin:0 0 4px;">{KIND_LABEL.get(p.kind, p.kind)}</p>'
             f'<p style="font-family:Georgia,serif;font-size:16px;color:#ede4d3;'
-            f'margin:0;font-weight:bold;">{p.title}</p>{angle}</li>'
+            f'margin:0;font-weight:bold;">{p.title}</p>{angle}{kw_html}</li>'
         )
 
     def _section(titulo: str, items: list) -> str:

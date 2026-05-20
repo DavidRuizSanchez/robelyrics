@@ -4,6 +4,13 @@ import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import CalendarioPlanner from "./CalendarioPlanner";
 
+export type ProposalKeyword = {
+  keyword: string;
+  volume: number;
+  cpc: number | null;
+  competition: number | null;
+};
+
 export type ProposalItem = {
   id: number;
   kind: string;
@@ -16,6 +23,8 @@ export type ProposalItem = {
   source_url: string | null;
   source_name: string | null;
   has_body: boolean;
+  keywords: ProposalKeyword[];
+  keyword_volume: number;
   created_at: string;
 };
 

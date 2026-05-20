@@ -74,6 +74,9 @@ services:
       WEB_INTERNAL_URL: ${WEB_INTERNAL_URL:-http://web:3000}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      # DataForSEO — keyword research para las propuestas SEO-driven
+      DATAFORSEO_LOGIN: ${DATAFORSEO_LOGIN:-}
+      DATAFORSEO_PASSWORD: ${DATAFORSEO_PASSWORD:-}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:

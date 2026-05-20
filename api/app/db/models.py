@@ -842,6 +842,11 @@ class ContentProposal(Base):
     entities: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
+    # Keywords objetivo con volumen de búsqueda (DataForSEO). Estructura:
+    # [{"keyword": str, "volume": int, "cpc": float|None, "competition": float|None}]
+    keywords: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="proposed"
     )

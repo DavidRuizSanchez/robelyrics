@@ -43,6 +43,7 @@ from app.services.content_generator import (
     generate_album_anniversary,
     generate_anniversary,
     generate_evergreen_topic,
+    generate_seo_article,
     generate_song_spotlight,
 )
 from app.services.publishing import auto_publish_post
@@ -127,21 +128,30 @@ def _generate_body(db, p: ContentProposal) -> dict | None:
             kind, person_name=ROBE, years_since=max(years, 1), today=today
         )
 
-    if p.kind == "evergreen" and p.source_type and p.source_id:
-        model = {"theme": Theme, "place": Place, "concept": Concept}.get(p.source_type)
-        if not model:
-            return None
-        tax = db.get(model, p.source_id)
-        if not tax:
-            return None
-        song_titles = [s.title for s in tax.songs]
-        return generate_evergreen_topic(
-            taxonomy_kind=p.source_type,
-            taxonomy_name=tax.name,
-            taxonomy_description=tax.description,
-            song_titles=song_titles,
-            today=today,
+    if p.kind == "evergreen":
+        # Propuesta SEO-driven (la fuente es keyword research, no taxonomía).
+        if p.source_type == "seo":
+            return generate_seo_article(
+                title=p.title,
+                angle=p.angle,
+                keywords=p.keywords or [],
+                today=today,
+            )
+        # Evergreen legacy de taxonomía (theme/place/concept).
+        model = {"theme": Theme, "place": Place, "concept": Concept}.get(
+            p.source_type or ""
         )
+        if model and p.source_id:
+            tax = db.get(model, p.source_id)
+            if tax:
+                return generate_evergreen_topic(
+                    taxonomy_kind=p.source_type,
+                    taxonomy_name=tax.name,
+                    taxonomy_description=tax.description,
+                    song_titles=[s.title for s in tax.songs],
+                    today=today,
+                )
+        return None
 
     return None
 

@@ -1193,6 +1193,8 @@ class AdminProposalItem(BaseModel):
     source_url: str | None = None
     source_name: str | None = None
     has_body: bool = False
+    keywords: list[dict] = []
+    keyword_volume: int = 0  # volumen agregado, para ordenar
     created_at: datetime
 
 
@@ -1214,6 +1216,7 @@ def _week_bounds(d: _date) -> tuple[_date, _date]:
 
 
 def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
+    kws = p.keywords or []
     return AdminProposalItem(
         id=p.id,
         kind=p.kind,
@@ -1226,6 +1229,8 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         source_url=p.source_url,
         source_name=p.source_name,
         has_body=bool(p.body_md),
+        keywords=kws,
+        keyword_volume=sum(int(k.get("volume") or 0) for k in kws),
         created_at=p.created_at,
     )
 
