@@ -20,6 +20,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -857,3 +858,104 @@ class ContentProposal(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# --- Noticias agregadas + cola de Instagram ----------------------------------
+
+
+class NewsItem(Base):
+    """Noticia agregada del universo Robe / Extremoduro.
+
+    El agregador (`scripts/news/aggregate.py`) descarga las fuentes de
+    `data/news_sources.yaml` y guarda aquí titular + enlace + extracto breve
+    + atribución (nunca el cuerpo del artículo). Es el almacén ÚNICO del que
+    beben los dos consumidores:
+
+      - blog:      filtra `policy` que incluya 'blog' → reescribe → propuestas.
+      - instagram: usa todas → selecciona temas → publica enlazando al medio.
+
+    `policy` se denormaliza de la fuente para poder filtrar sin joins.
+    Las noticias con más de 7 días se purgan en cada ciclo del agregador.
+    """
+
+    __tablename__ = "news_items"
+    __table_args__ = (
+        CheckConstraint(
+            "policy IN ('blog+ig', 'ig-only')",
+            name="ck_news_items_policy",
+        ),
+        Index("ix_news_items_fetched_at", "fetched_at"),
+        Index("ix_news_items_published_at", "published_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    url: Mapped[str] = mapped_column(String(700), nullable=False, unique=True)
+    source_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    # Medio real cuando el feed es un agregador (el <source> de Google News).
+    source_medium: Mapped[str | None] = mapped_column(String(200))
+    summary: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(String(40))
+    policy: Mapped[str] = mapped_column(String(16), nullable=False)
+    relevance_score: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    # True cuando el consumidor del blog ya generó una propuesta a partir de ella.
+    consumed_blog: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+
+class InstagramQueueItem(Base):
+    """Post encolado para publicar en Instagram (@entreinterioresrobe).
+
+    Cada fila es un tema del día (noticia agregada, artículo del blog o
+    efeméride) ya preparado con su caption e imagen. El cron diario encola
+    `POSTS_PER_DAY` items; el admin puede encolar/quitar a mano desde
+    /biblioteca/admin/instagram. El cron de publicación coge el siguiente
+    `pending` y lo sube vía la Graph API de Meta.
+
+    `status`: pending → prepared → published (o failed / discarded).
+    """
+
+    __tablename__ = "instagram_queue"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'prepared', 'published', 'failed', "
+            "'discarded')",
+            name="ck_instagram_queue_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    news_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("news_items.id", ondelete="SET NULL")
+    )
+    blog_post_id: Mapped[int | None] = mapped_column(
+        ForeignKey("posts.id", ondelete="SET NULL")
+    )
+    day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    slot: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Snapshot del tema (sobrevive aunque se borre la noticia / el post).
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(40))
+    summary: Mapped[str | None] = mapped_column(Text)
+    source_name: Mapped[str | None] = mapped_column(String(200))
+    source_url: Mapped[str | None] = mapped_column(String(700))
+    caption: Mapped[str | None] = mapped_column(Text)
+    image_url: Mapped[str | None] = mapped_column(String(700))
+    image_path: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending"
+    )
+    ig_media_id: Mapped[str | None] = mapped_column(String(64))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

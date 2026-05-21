@@ -1,0 +1,355 @@
+# Fuentes de noticias unificadas — universo Robe Iniesta / Extremoduro.
+#
+# Este fichero sustituye a `news_whitelist.yaml` y a `entrenoticias/sources.py`:
+# es la lista ÚNICA que alimenta el agregador (`scripts/news/aggregate.py`).
+# El agregador descarga todas las fuentes habilitadas a la tabla `news_items`.
+#
+# Cada fuente lleva un campo `policy` que decide qué consumidor la usa:
+#
+#   blog+ig  →  el blog de entreinteriores.com PUEDE reescribir y publicar
+#               contenido a partir de ella. Fuentes "limpias", curadas a mano.
+#   ig-only  →  solo el pipeline de Instagram (que únicamente enlaza y atribuye
+#               al medio original, uso tipo Google News). Incluye agregadores
+#               y prensa comercial vetada por la línea editorial del blog
+#               (Mondo Sonoro, Efe Eme) y Reddit.
+#
+# El veto del corpus (Mondo Sonoro / Efe Eme / Rockdelux para el blog, Reddit
+# fuera del corpus) se respeta vía `policy`: esas fuentes nunca son `blog+ig`.
+#
+# Campos:
+#   key      identificador estable (no cambiar; se guarda en news_items)
+#   name     nombre legible del feed
+#   kind     rss | gnews | html
+#   url      URL del feed             (rss / html)
+#   query    búsqueda de Google News  (gnews — el agregador construye la URL)
+#   selector selector CSS del item    (html)
+#   policy   blog+ig | ig-only
+#   tier     trusted | review         (lo usa el consumidor del blog)
+#   weight   peso de relevancia 0-1   (lo usa el selector de temas de Instagram)
+#   enabled  true | false
+
+# --------------------------------------------------------------------------- #
+# Términos del universo — los usa el consumidor del blog para matchear noticias
+# --------------------------------------------------------------------------- #
+terms_groups:
+  core:
+    - robe iniesta
+    - extremoduro
+    - "robe"
+  members:
+    - uoho
+    - iñaki antón
+    - inaki anton
+    - salo
+    - miguel colino
+    - luis von fanta
+    - mariano garcía
+    - kolibrí
+  friends:
+    - marea
+    - kutxi romero
+    - platero y tú
+    - fito cabrales
+    - reincidentes
+    - manolo kabezabolo
+    - rosendo
+    - barricada
+    - soziedad alkoholika
+  tributes:
+    - tributo extremoduro
+    - tributo a extremoduro
+    - tributo robe
+    - homenaje extremoduro
+    - banda tributo extremoduro
+
+# --------------------------------------------------------------------------- #
+# Configuración de relevancia — la usa el agregador y el selector de temas IG
+# --------------------------------------------------------------------------- #
+relevance:
+  # Filtro mínimo: una noticia se guarda solo si menciona alguno de estos.
+  must_mention:
+    - extremoduro
+    - robe iniesta
+    - iniesta ojea
+    - uoho
+    - iñaki antón
+  # Puntuación temática por palabra clave presente en titular + extracto.
+  keywords:
+    extremoduro: 5
+    robe iniesta: 5
+    robe: 3
+    iniesta: 2
+    uoho: 3
+    iñaki antón: 3
+    fito: 2
+    plasencia: 2
+    rock transgresivo: 3
+    la ley innata: 3
+    agila: 3
+    deltoya: 3
+    material defectuoso: 3
+    mayéutica: 3
+    bajo el hielo el fuego: 3
+    gira: 2
+    concierto: 2
+    disco: 2
+    álbum: 2
+    extremadura: 1
+    rock: 1
+  # Bandas del entorno — para clasificar la categoría "Grupos amigos".
+  friend_bands:
+    - fito
+    - platero y tú
+    - platero
+    - marea
+    - barricada
+    - porretas
+    - boikot
+    - los suaves
+    - reincidentes
+    - rosendo
+    - lichis
+    - la cabra mecánica
+    - gritando en silencio
+
+# --------------------------------------------------------------------------- #
+# Fuentes
+# --------------------------------------------------------------------------- #
+sources:
+
+  # ===== blog+ig — prensa curada, apta para el blog =========================
+
+  # --- Prensa extremeña local (cobertura natural Robe / Plasencia) ---
+  - key: hoy_cultura
+    name: "Hoy (Extremadura) — Cultura"
+    kind: rss
+    url: "https://www.hoy.es/rss/2.0/?section=culturas"
+    policy: blog+ig
+    tier: review
+    weight: 0.8
+    enabled: true
+
+  - key: periodico_extremadura
+    name: "El Periódico Extremadura"
+    kind: rss
+    url: "https://www.elperiodicoextremadura.com/rss/"
+    policy: blog+ig
+    tier: review
+    weight: 0.6
+    enabled: true
+
+  # --- Generalistas con sección cultura/música (filtran por términos) ---
+  - key: elpais_cultura
+    name: "El País — Cultura"
+    kind: rss
+    url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada"
+    policy: blog+ig
+    tier: review
+    weight: 0.5
+    enabled: true
+
+  - key: 20min_musica
+    name: "20minutos — Música"
+    kind: rss
+    url: "https://www.20minutos.es/rss/musica/"
+    policy: blog+ig
+    tier: review
+    weight: 0.6
+    enabled: true
+
+  - key: 20min_cultura
+    name: "20minutos — Cultura"
+    kind: rss
+    url: "https://www.20minutos.es/rss/cultura/"
+    policy: blog+ig
+    tier: review
+    weight: 0.5
+    enabled: true
+
+  # --- Medios de música / rock (cobertura de nicho) ---
+  - key: muzikalia
+    name: "Muzikalia"
+    kind: rss
+    url: "https://muzikalia.com/feed/"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.7
+    enabled: true
+
+  - key: binaural
+    name: "Binaural"
+    kind: rss
+    url: "https://www.binaural.es/feed/"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.6
+    enabled: true
+
+  - key: mariskal_rock
+    name: "Mariskal Rock"
+    kind: rss
+    url: "https://www.mariskalrock.com/feed/"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.7
+    enabled: true
+
+  - key: maneras_de_vivir
+    name: "Maneras de Vivir"
+    kind: rss
+    url: "https://www.manerasdevivir.com/rss"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.7
+    enabled: true
+
+  - key: dirty_rock
+    name: "Dirty Rock Magazine"
+    kind: rss
+    url: "https://dirtyrock.info/feed/"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.7
+    enabled: true
+
+  - key: science_of_noise
+    name: "Science of Noise"
+    kind: rss
+    url: "https://scienceofnoise.net/feed/"
+    policy: blog+ig
+    tier: trusted
+    weight: 0.7
+    enabled: true
+
+  # ===== ig-only — agregadores, prensa vetada para el blog y comunidad ======
+
+  # --- Búsquedas temáticas en Google News (enlazan al medio original) ---
+  - key: gn_extremoduro
+    name: "Google News · Extremoduro"
+    kind: gnews
+    query: "Extremoduro"
+    policy: ig-only
+    weight: 1.0
+    enabled: true
+
+  - key: gn_robe
+    name: "Google News · Robe Iniesta"
+    kind: gnews
+    query: '"Robe Iniesta"'
+    policy: ig-only
+    weight: 1.0
+    enabled: true
+
+  - key: gn_robe_musica
+    name: "Google News · Robe (música)"
+    kind: gnews
+    query: "Robe Iniesta concierto OR disco OR gira"
+    policy: ig-only
+    weight: 0.9
+    enabled: true
+
+  - key: gn_uoho
+    name: "Google News · Iñaki Uoho Antón"
+    kind: gnews
+    query: '"Iñaki Antón" Uoho'
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  - key: gn_extremoduro_actualidad
+    name: "Google News · Extremoduro actualidad"
+    kind: gnews
+    query: "Extremoduro Robe Iniesta noticias"
+    policy: ig-only
+    weight: 0.8
+    enabled: true
+
+  - key: gn_hoy
+    name: "Google News · Hoy.es Extremadura"
+    kind: gnews
+    query: 'Extremoduro OR "Robe Iniesta" site:hoy.es'
+    policy: ig-only
+    weight: 0.8
+    enabled: true
+
+  - key: gn_plasencia
+    name: "Google News · Plasencia / Extremadura"
+    kind: gnews
+    query: "Robe Iniesta Plasencia OR Extremadura"
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  - key: gn_periodico_ext
+    name: "Google News · El Periódico Extremadura"
+    kind: gnews
+    query: 'Extremoduro "El Periódico Extremadura"'
+    policy: ig-only
+    weight: 0.6
+    enabled: true
+
+  - key: gn_colaboraciones
+    name: "Google News · Colaboraciones y grupos amigos"
+    kind: gnews
+    query: "Robe Iniesta colaboración OR Extremoduro versión OR tributo"
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  - key: gn_cultura
+    name: "Google News · Cultura y entrevistas"
+    kind: gnews
+    query: "Robe Iniesta entrevista OR libro OR documental"
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  # --- Prensa musical comercial (vetada para el blog, válida para enlazar) ---
+  - key: mondosonoro
+    name: "Mondo Sonoro"
+    kind: rss
+    url: "https://www.mondosonoro.com/feed/"
+    policy: ig-only
+    weight: 0.9
+    enabled: true
+
+  - key: efeeme
+    name: "Efe Eme"
+    kind: rss
+    url: "https://www.efeeme.com/feed/"
+    policy: ig-only
+    weight: 0.9
+    enabled: true
+
+  - key: jenesaispop
+    name: "Jenesaispop"
+    kind: rss
+    url: "https://jenesaispop.com/feed/"
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  - key: rockzone
+    name: "RockZone"
+    kind: rss
+    url: "https://www.rockzone.es/feed/"
+    policy: ig-only
+    weight: 0.7
+    enabled: true
+
+  - key: indiehoy
+    name: "Indie Hoy"
+    kind: rss
+    url: "https://indiehoy.com/feed/"
+    policy: ig-only
+    weight: 0.5
+    enabled: true
+
+  # --- Comunidad (feed RSS público de Reddit; solo titular + enlace) ---
+  - key: reddit_extremoduro
+    name: "Reddit · r/Extremoduro"
+    kind: rss
+    url: "https://www.reddit.com/r/Extremoduro/.rss"
+    policy: ig-only
+    weight: 0.5
+    enabled: true
