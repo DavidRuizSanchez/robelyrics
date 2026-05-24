@@ -53,6 +53,9 @@ export default async function AdminSourcesPage() {
             <Link href="/biblioteca/admin/calendario" data-cursor="hover" className="text-ink-dim hover:text-accent">
               Calendario
             </Link>
+            <Link href="/biblioteca/admin/instagram" data-cursor="hover" className="text-ink-dim hover:text-accent">
+              Instagram
+            </Link>
             <Link href="/biblioteca/admin/users" data-cursor="hover" className="text-ink-dim hover:text-accent">
               usuarios
             </Link>

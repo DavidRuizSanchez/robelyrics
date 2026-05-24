@@ -1358,3 +1358,300 @@ def admin_proposal_discard(
     db.commit()
     db.refresh(p)
     return _proposal_to_item(p)
+
+
+# --------------------------------------------------------------------------- #
+# Instagram (@entreinterioresrobe) — cola de publicación
+# --------------------------------------------------------------------------- #
+import base64 as _b64  # noqa: E402
+import os as _os  # noqa: E402
+from datetime import date as _d  # noqa: E402
+
+from app.db.models import (  # noqa: E402
+    InstagramQueueItem as _IGItem,
+    NewsItem as _News,
+)
+from app.services.instagram import (  # noqa: E402
+    graph_api as _ig_graph,
+    publisher as _ig_publisher,
+)
+
+
+class AdminIGItem(BaseModel):
+    id: int
+    day: str
+    slot: int
+    status: str
+    title: str
+    category: str | None = None
+    summary: str | None = None
+    source_name: str | None = None
+    source_url: str | None = None
+    image_url: str | None = None
+    ig_media_id: str | None = None
+    error: str | None = None
+    is_blog: bool = False
+    is_prepared: bool = False
+    has_caption: bool = False
+    created_at: datetime
+    published_at: datetime | None = None
+
+
+class AdminIGItemDetail(AdminIGItem):
+    caption: str | None = None
+    # Imagen preparada, codificada en base64 para previsualizarla en el
+    # panel sin tener que exponer el fichero local del contenedor.
+    image_b64: str | None = None
+
+
+class AdminIGNewsCandidate(BaseModel):
+    id: int
+    title: str
+    category: str | None = None
+    source_medium: str | None = None
+    source_name: str
+    url: str
+    policy: str
+    relevance_score: float
+    published_at: datetime | None
+    fetched_at: datetime
+
+
+class AdminIGEnqueueIn(BaseModel):
+    news_item_id: int | None = None
+    blog_post_id: int | None = None
+
+
+class AdminIGPublishIn(BaseModel):
+    dry_run: bool = False
+
+
+class AdminIGAccount(BaseModel):
+    ok: bool
+    message: str
+    username: str | None = None
+
+
+def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
+    return AdminIGItem(
+        id=it.id,
+        day=it.day.isoformat() if it.day else "",
+        slot=it.slot,
+        status=it.status,
+        title=it.title,
+        category=it.category,
+        summary=it.summary,
+        source_name=it.source_name,
+        source_url=it.source_url,
+        image_url=it.image_url,
+        ig_media_id=it.ig_media_id,
+        error=it.error,
+        is_blog=it.blog_post_id is not None,
+        is_prepared=bool(it.image_path),
+        has_caption=bool(it.caption),
+        created_at=it.created_at,
+        published_at=it.published_at,
+    )
+
+
+@router.get("/instagram/queue", response_model=list[AdminIGItem])
+def admin_ig_queue_list(
+    status: str | None = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminIGItem]:
+    q = db.query(_IGItem)
+    if status and status != "all":
+        q = q.filter(_IGItem.status == status)
+    rows = (
+        q.order_by(_IGItem.day.desc(), _IGItem.slot, _IGItem.created_at.desc())
+        .limit(min(limit, 500))
+        .all()
+    )
+    return [_ig_item_to_model(it) for it in rows]
+
+
+@router.get("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)
+def admin_ig_queue_detail(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItemDetail:
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    base = _ig_item_to_model(it)
+    image_b64 = None
+    if it.image_path and _os.path.exists(it.image_path):
+        with open(it.image_path, "rb") as f:
+            image_b64 = _b64.b64encode(f.read()).decode("ascii")
+    return AdminIGItemDetail(**base.model_dump(), caption=it.caption, image_b64=image_b64)
+
+
+@router.get("/instagram/news", response_model=list[AdminIGNewsCandidate])
+def admin_ig_news_candidates(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminIGNewsCandidate]:
+    """Noticias recientes aptas para encolar a mano en Instagram."""
+    rows = (
+        db.query(_News)
+        .order_by(_News.relevance_score.desc(), _News.fetched_at.desc())
+        .limit(min(limit, 200))
+        .all()
+    )
+    return [
+        AdminIGNewsCandidate(
+            id=n.id,
+            title=n.title,
+            category=n.category,
+            source_medium=n.source_medium,
+            source_name=n.source_name,
+            url=n.url,
+            policy=n.policy,
+            relevance_score=n.relevance_score or 0.0,
+            published_at=n.published_at,
+            fetched_at=n.fetched_at,
+        )
+        for n in rows
+    ]
+
+
+@router.post("/instagram/enqueue", response_model=AdminIGItem)
+def admin_ig_enqueue(
+    payload: AdminIGEnqueueIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItem:
+    """Encola un item manualmente (noticia o artículo del blog)."""
+    if payload.news_item_id is None and payload.blog_post_id is None:
+        raise HTTPException(status_code=400, detail="indica news_item_id o blog_post_id")
+
+    today = _d.today()
+    if payload.news_item_id is not None:
+        news = db.get(_News, payload.news_item_id)
+        if news is None:
+            raise HTTPException(status_code=404, detail="noticia no encontrada")
+        existing = (
+            db.query(_IGItem)
+            .filter(_IGItem.news_item_id == news.id)
+            .first()
+        )
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="esa noticia ya está en cola")
+        max_slot = (
+            db.query(func.coalesce(func.max(_IGItem.slot), 0))
+            .filter(_IGItem.day == today, _IGItem.slot >= 1)
+            .scalar()
+        )
+        it = _IGItem(
+            news_item_id=news.id,
+            day=today,
+            slot=int(max_slot) + 1,
+            title=news.title[:300],
+            category=news.category or "Actualidad",
+            summary=news.summary,
+            source_name=news.source_medium or news.source_name,
+            source_url=news.url,
+            status="pending",
+        )
+    else:
+        from app.db.models import Post as _Post
+        post = db.get(_Post, payload.blog_post_id)
+        if post is None:
+            raise HTTPException(status_code=404, detail="post no encontrado")
+        existing = (
+            db.query(_IGItem)
+            .filter(_IGItem.blog_post_id == post.id)
+            .first()
+        )
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="ese artículo ya está en cola")
+        from app.services.instagram import config as _ig_config
+        it = _IGItem(
+            blog_post_id=post.id,
+            day=today,
+            slot=0,  # blog tiene prioridad
+            title=post.title[:300],
+            category="Blog",
+            summary=post.excerpt,
+            source_name="Entre Interiores · Blog",
+            source_url=f"{_ig_config.SITE_URL}/blog/{post.slug}",
+            status="pending",
+        )
+
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return _ig_item_to_model(it)
+
+
+@router.post("/instagram/queue/{item_id}/prepare", response_model=AdminIGItem)
+def admin_ig_prepare(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItem:
+    """Genera (o regenera) imagen + caption para un item."""
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if it.status == "published":
+        raise HTTPException(status_code=409, detail="ya está publicado")
+    try:
+        _ig_publisher.prepare(db, it)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"prepare falló: {exc}") from exc
+    return _ig_item_to_model(it)
+
+
+@router.post("/instagram/queue/{item_id}/publish", response_model=AdminIGItem)
+def admin_ig_publish(
+    item_id: int,
+    payload: AdminIGPublishIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItem:
+    """Publica un item (o lo deja preparado si dry_run)."""
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if it.status == "published":
+        raise HTTPException(status_code=409, detail="ya está publicado")
+    _ig_publisher.publish(db, it, dry_run=payload.dry_run)
+    return _ig_item_to_model(it)
+
+
+@router.post("/instagram/queue/{item_id}/discard", response_model=AdminIGItem)
+def admin_ig_discard(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItem:
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if it.status == "published":
+        raise HTTPException(status_code=409, detail="ya está publicado")
+    it.status = "discarded"
+    db.commit()
+    db.refresh(it)
+    return _ig_item_to_model(it)
+
+
+@router.get("/instagram/account", response_model=AdminIGAccount)
+def admin_ig_account(
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGAccount:
+    """Verifica el token y devuelve el usuario IG conectado."""
+    ok, msg = _ig_graph.token_is_valid()
+    username = None
+    if ok:
+        try:
+            info = _ig_graph.account_info()
+            username = info.get("username")
+        except Exception:  # noqa: BLE001
+            pass
+    return AdminIGAccount(ok=ok, message=msg, username=username)
