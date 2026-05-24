@@ -1,4 +1,8 @@
-# Crontab de Entre Interiores — calendario editorial automático.
+# Crontab de producción de Entre Interiores.
+#
+# Cubre dos sistemas:
+#   1. Calendario editorial automático del blog.
+#   2. Publicación diaria en Instagram (@entreinterioresrobe).
 #
 # Instalar en el host de producción:
 #   ssh robelyrics
@@ -8,17 +12,22 @@
 #
 # Logs: /var/log/robelyrics-cron.log
 #
-# FLUJO EDITORIAL (banco de propuestas):
-#   1. scrape_news (lunes)        → noticias al banco como propuestas.
-#   2. generate_proposals (lunes) → efemérides próximas + evergreens al banco.
-#   3. notify_proposals (lunes)   → email al admin con todo el banco.
-#   4. El admin programa desde /biblioteca/admin/calendario (máx 2/semana).
-#   5. materialize_proposals (diario) → al llegar la fecha, genera el body,
+# FLUJO EDITORIAL (banco de propuestas del blog):
+#   1. aggregate (diario)         → noticias de las 27 fuentes a news_items.
+#   2. scrape_news (lunes)        → propuestas de blog desde news_items.
+#   3. generate_proposals (lunes) → efemérides próximas + evergreens.
+#   4. notify_proposals (lunes)   → email al admin con todo el banco.
+#   5. El admin programa desde /biblioteca/admin/calendario (máx 2/semana).
+#   6. materialize_proposals (diario) → al llegar la fecha, genera el body,
 #      crea el Post, lo publica y dispara la newsletter.
 #
-# Las efemérides de Robe (cumpleaños/muerte) se publican directas en su
-# día exacto, sin pasar por el banco.
+# FLUJO INSTAGRAM (@entreinterioresrobe):
+#   1. aggregate (diario)         → comparte el almacén news_items.
+#   2. ig prepare_daily (diario)  → selecciona temas, prepara imagen+caption.
+#   3. ig publish_next (×2/día)   → publica el siguiente post pendiente.
+#   Posts del blog se difunden automáticamente al publicarse.
 #
+# Las efemérides personales de Robe se publican directas en el día exacto.
 # Idempotencia: todos los scripts son seguros de relanzar.
 
 SHELL=/bin/bash
@@ -26,6 +35,26 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 APP_DIR=/opt/robelyrics
 DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+# ============================================================================
+# Agregador unificado de noticias (alimenta blog + Instagram)
+# ============================================================================
+
+# Descarga las 27 fuentes RSS / Google News / Reddit y escribe a news_items.
+# Filtra a <=7 días, deduplica por URL, purga las viejas. Diario 07:30 UTC.
+30 7 * * * cd $APP_DIR && $DC exec -T api python -m scripts.news.aggregate >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Pipeline de Instagram
+# ============================================================================
+
+# Selecciona los temas del día y prepara imagen + caption. Diario 08:30 UTC,
+# después del agregador. También difunde los artículos nuevos del blog.
+30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
+
+# Publica el siguiente post pendiente. Dos pasadas al día.
+30 12 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+30 20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)
@@ -38,11 +67,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 0 9 10 12 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
-# Alimentación del banco de propuestas (lunes)
+# Alimentación del banco de propuestas del blog (lunes)
 # ============================================================================
 
-# Scraper de noticias — lunes 09:00 UTC. Reescribe con IA e inserta cada
-# noticia en content_proposals (kind=news, body ya hecho).
+# Consumidor del blog — lunes 09:00 UTC. Lee de news_items (las que tienen
+# policy 'blog+ig'), reescribe con IA y crea propuestas (kind=news).
 0 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.blog.scrape_news >> /var/log/robelyrics-cron.log 2>&1
 
 # Generador de propuestas — lunes 09:20 UTC. Efemérides de discos próximas

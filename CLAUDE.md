@@ -36,9 +36,17 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.research.update_interpretations_payload
 # docker compose exec api python -m scripts.match_youtube
 # docker compose exec api python -m scripts.match_lrclib
+# docker compose exec api python -m scripts.news.aggregate           (27 fuentes → news_items)
+# docker compose exec api python -m scripts.instagram.prepare_daily  (selecciona temas y prepara IG)
+# docker compose exec api python -m scripts.instagram.publish_next   (publica el siguiente post)
 ```
 
 Puertos: postgres `5435`, qdrant `6333/6334`, api `8001`, web `3001`.
+
+El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
+gestiona desde `/biblioteca/admin/instagram`. Cron en
+`infra/cron/production.crontab`. Guía de migración (jubilación del proyecto
+local `entrenoticias/`) en `infra/MIGRATION_ENTRENOTICIAS.md`.
 
 ## Decisiones que NO hay que reabrir
 
