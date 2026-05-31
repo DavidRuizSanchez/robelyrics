@@ -41,7 +41,8 @@ CATEGORY_HASHTAGS = {
 }
 
 # Llamadas a la acción hacia el buscador semántico de entreinteriores.com.
-CTAS = [
+# Tono FESTIVO: para temas neutros o celebratorios.
+PLAYFUL_CTAS = [
     "🔎 ¿Hay un verso de Robe para lo que estás viviendo? Lo hay. "
     "Métete en el buscador de entreinteriores.com, escribe lo que sientes "
     "y descubre qué canción de Extremoduro lo cuenta mejor que nadie.",
@@ -58,6 +59,16 @@ CTAS = [
     "entreinteriores.com sí. Entra, escribe, y flipa con lo que encuentra.",
 ]
 
+# Tono SOBRIO: para temas luctuosos o conmemorativos (muerte, homenajes,
+# reconocimientos póstumos). Sin ganchos comerciales ni efusividad.
+SOBER_CTAS = [
+    "En entreinteriores.com puedes recorrer su obra entera: las letras, "
+    "las historias y el universo de Robe y Extremoduro.",
+
+    "Toda su obra sigue viva en entreinteriores.com: las letras, las "
+    "historias y el universo de Robe y Extremoduro.",
+]
+
 
 def _es_post_de_blog(topic: dict) -> bool:
     """True si el tema procede de nuestro propio blog (entreinteriores.com)."""
@@ -67,7 +78,11 @@ def _es_post_de_blog(topic: dict) -> bool:
 def build(db: Session, topic: dict) -> str:
     """Construye el caption final del post."""
     category = topic.get("category", "Actualidad")
+    tone = topic.get("tone") or "neutral"
     emoji = CATEGORY_EMOJI.get(category, "📰")
+    # En tono sobrio nunca el emoji de fuego: desentona en un homenaje.
+    if tone == "sober" and emoji == "🔥":
+        emoji = "🎵"
     title = (topic.get("title") or "").strip()
     es_blog = _es_post_de_blog(topic)
 
@@ -80,8 +95,12 @@ def build(db: Session, topic: dict) -> str:
 
     lines = [f"{emoji} {category.upper()}", "", body]
 
-    # Verso de Robe/Extremoduro afín al tema (buscador semántico in-process).
-    verse = robe_quote.find_verse(db, f"{title}. {body}")
+    # Verso de Robe/Extremoduro afín al tema. Se reutiliza el ya calculado en
+    # `publisher.prepare` (para que coincida con el de la imagen); si no, se
+    # busca aquí (buscador semántico in-process).
+    verse = topic.get("verse")
+    if verse is None:
+        verse = robe_quote.find_verse(db, f"{title}. {body}")
     if verse:
         attribution = verse["artist"]
         if verse["song"]:
@@ -102,9 +121,10 @@ def build(db: Session, topic: dict) -> str:
         lines.append("📝 El artículo completo, en nuestro blog:")
         lines.append(f"🔗 {topic['url']}")
 
-    # Gancho hacia el buscador (rotación determinista por título).
-    idx = int(hashlib.md5(title.encode()).hexdigest(), 16) % len(CTAS)
-    lines += ["", CTAS[idx], ""]
+    # Gancho hacia el buscador, según el tono (rotación determinista por título).
+    ctas = SOBER_CTAS if tone == "sober" else PLAYFUL_CTAS
+    idx = int(hashlib.md5(title.encode()).hexdigest(), 16) % len(ctas)
+    lines += ["", ctas[idx], ""]
 
     hashtags = BASE_HASHTAGS + CATEGORY_HASHTAGS.get(category, [])
     seen: list[str] = []

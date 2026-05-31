@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import InstagramQueueItem, Post
 from app.services.instagram import (
+    album_cover,
     captions,
     cloudinary_upload,
     config,
@@ -23,6 +24,8 @@ from app.services.instagram import (
     graph_api,
     imaging,
     photo_finder,
+    robe_quote,
+    tone,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,15 +58,34 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     topic = _topic_from_item(db, item)
     is_blog = topic.get("category") == "Blog"
 
+    # El tono (sobrio vs neutral) gobierna CTA, emoji y prompt editorial.
+    topic["tone"] = tone.classify(
+        topic.get("title", ""), topic.get("summary", "")
+    )
+
     # Las noticias se reescriben con voz editorial propia (sin citar al medio);
-    # los posts del blog ya traen su propio texto y no se reescriben.
+    # los posts del blog ya traen su propio texto y su imagen destacada.
     if not is_blog:
         editorial.enrich(topic)
-        # Foto real con licencia libre (Wikimedia Commons), buscada en vivo.
-        foto = photo_finder.find(topic)
-        if foto:
-            topic["image_hint"] = foto["url"]
-            topic["image_credit"] = foto["credit"]
+        # Fuente de imagen por prioridad:
+        #   1) Portada del disco si el tema trata sobre uno de la discografía.
+        #   2) Foto CC del protagonista real (Wikimedia/Openverse) por entidad.
+        #   3) (en imaging) arte IA temático como último recurso.
+        cover = album_cover.find(db, topic)
+        if cover:
+            topic["image_hint"] = cover["url"]
+            topic["image_kind"] = "cover"
+        else:
+            foto = photo_finder.find(topic)
+            if foto:
+                topic["image_hint"] = foto["url"]
+                topic["image_credit"] = foto["credit"]
+                topic["image_kind"] = "photo"
+
+    # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
+    _t = topic.get("headline") or topic.get("title") or ""
+    _b = topic.get("caption_body") or topic.get("summary") or ""
+    topic["verse"] = robe_quote.find_verse(db, f"{_t}. {_b}") or {}
 
     image_path, used_hero = imaging.generate(topic, slot=item.slot or 1)
     # Solo se acredita la foto si finalmente se usó una imagen real con

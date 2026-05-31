@@ -24,7 +24,7 @@
 # FLUJO INSTAGRAM (@entreinterioresrobe):
 #   1. aggregate (diario)         → comparte el almacén news_items.
 #   2. ig prepare_daily (diario)  → selecciona temas, prepara imagen+caption.
-#   3. ig publish_next (×2/día)   → publica el siguiente post pendiente.
+#   3. ig publish_next (cada 2h)  → cuentagotas: 4h con atasco, 6h en régimen.
 #   Posts del blog se difunden automáticamente al publicarse.
 #
 # Las efemérides personales de Robe se publican directas en el día exacto.
@@ -52,9 +52,10 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # después del agregador. También difunde los artículos nuevos del blog.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
-# Publica el siguiente post pendiente. Dos pasadas al día.
-30 12 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
-30 20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+# Publica el siguiente post pendiente (cadencia cuentagotas). Se dispara cada
+# 2h; el propio script respeta el intervalo mínimo (4h con atasco, 6h en
+# régimen normal) y no publica antes de tiempo. Idempotente y barato.
+0 */2 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)

@@ -36,14 +36,18 @@ _SYSTEM = (
 
 
 def enrich(topic: dict) -> None:
-    """Añade topic['caption_body'] y topic['headline'] reescritos (in-place)."""
+    """Añade topic['caption_body'], ['headline'] e ['image_query'] (in-place)."""
     if topic.get("caption_body") and topic.get("headline"):
         return
     title = (topic.get("title") or "").strip()
     summary = (topic.get("summary") or "").strip()
-    body, headline = _generate(title, summary, topic.get("category", ""))
+    body, headline, image_query = _generate(
+        title, summary, topic.get("category", ""), topic.get("tone", "neutral")
+    )
     topic["caption_body"] = body or _fallback_body(title, summary)
     topic["headline"] = headline or title
+    # Término para buscar una foto CC del protagonista (persona/lugar/grupo).
+    topic["image_query"] = image_query or ""
 
 
 def _fallback_body(title: str, summary: str) -> str:
@@ -52,20 +56,44 @@ def _fallback_body(title: str, summary: str) -> str:
     return title
 
 
-def _generate(title: str, summary: str, category: str) -> tuple[str | None, str | None]:
-    """Llama a OpenAI. Devuelve (comentario, titular) o (None, None)."""
+def _generate(
+    title: str, summary: str, category: str, tone: str = "neutral"
+) -> tuple[str | None, str | None, str | None]:
+    """Llama a OpenAI. Devuelve (comentario, titular, image_query)."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        return None, None
+        return None, None, None
+    # En temas luctuosos/conmemorativos, el comentario y el titular deben ser
+    # sobrios: ni efusividad, ni ganchos, ni titular "llamativo".
+    if tone == "sober":
+        nota_tono = (
+            "TONO: este tema es luctuoso o conmemorativo (muerte, homenaje, "
+            "reconocimiento póstumo). Trátalo con respeto y sobriedad, sin "
+            "sensacionalismo, sin signos de exclamación y sin frivolidad."
+        )
+        nota_titular = (
+            '  "titular": una frase corta y sobria (máximo 9 palabras), '
+            "con mayúscula inicial y sin punto final."
+        )
+    else:
+        nota_tono = ""
+        nota_titular = (
+            '  "titular": una frase corta y llamativa (máximo 9 palabras) para '
+            "una tarjeta visual, con mayúscula inicial y sin punto final."
+        )
     user = (
         f"Categoría: {category}\n"
         f"Titular de la noticia: {title}\n"
-        f"Extracto disponible: {summary or '(sin extracto)'}\n\n"
-        "Devuelve SOLO un objeto JSON con dos claves:\n"
+        f"Extracto disponible: {summary or '(sin extracto)'}\n"
+        f"{nota_tono}\n\n"
+        "Devuelve SOLO un objeto JSON con tres claves:\n"
         '  "comentario": de 2 a 4 frases comentando la noticia como Entre '
         "Interiores, sin mencionar ningún medio y sin inventar datos.\n"
-        '  "titular": una frase corta y llamativa (máximo 9 palabras) para '
-        "una tarjeta visual, con mayúscula inicial y sin punto final."
+        f"{nota_titular}\n"
+        '  "image_query": término breve (2-4 palabras, preferiblemente nombres '
+        "propios) para buscar una FOTO del protagonista de la noticia: una "
+        "persona (p.ej. 'Leiva'), un lugar (p.ej. 'Plasencia'), un grupo o "
+        "Robe/Extremoduro. Si no hay un sujeto fotografiable claro, cadena vacía."
     )
     try:
         client = OpenAI(api_key=api_key)
@@ -82,7 +110,8 @@ def _generate(title: str, summary: str, category: str) -> tuple[str | None, str 
         return (
             (data.get("comentario") or "").strip(),
             (data.get("titular") or "").strip(),
+            (data.get("image_query") or "").strip(),
         )
     except (OpenAIError, ValueError, json.JSONDecodeError) as exc:
         logger.warning("[editorial] OpenAI falló (%s); se usa el texto original.", exc)
-        return None, None
+        return None, None, None

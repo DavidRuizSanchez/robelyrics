@@ -23,3 +23,16 @@ SITE_URL = os.getenv("SITE_URL", "https://entreinteriores.com").rstrip("/")
 POSTS_PER_DAY = int(os.getenv("IG_POSTS_PER_DAY", "2"))
 IMG_SIZE = (1080, 1080)               # formato cuadrado de Instagram
 IMAGES_DIR = "/tmp/robelyrics_instagram"  # ficheros intermedios (efímeros)
+
+# --- Frescura: la actualidad solo cubre la última semana ---
+# Una noticia con artículo de más de N días no entra como tema (evita refritos
+# de hechos viejos que un medio reedita con fecha reciente).
+FRESHNESS_DAYS = int(os.getenv("IG_FRESHNESS_DAYS", "7"))
+
+# --- Cadencia de publicación (cuentagotas) ---
+# Mientras hay atasco (cola > BACKLOG_THRESHOLD) se publica cada
+# BACKLOG_INTERVAL_H horas para drenarlo; en régimen normal, cada
+# STEADY_INTERVAL_H horas. El cron dispara cada 2h y este guard decide.
+BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "4"))
+BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "4"))
+STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "6"))

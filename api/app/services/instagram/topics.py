@@ -15,7 +15,7 @@ from sqlalchemy import select as sql_select
 from sqlalchemy.orm import Session
 
 from app.db.models import InstagramQueueItem, NewsItem
-from app.services.instagram import efemerides
+from app.services.instagram import config, efemerides
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +29,35 @@ _NO_COMENTABLE = re.compile(
     re.IGNORECASE,
 )
 
+# La muerte de Robe (diciembre 2025) es un HECHO CONSOLIDADO, no actualidad.
+# Los medios reeditan obituarios con fecha reciente y se colarían como noticia
+# fresca. El anuncio de su muerte nunca debe entrar como tema (sí los homenajes
+# o reconocimientos posteriores, que son actualidad real y los trata `tone`).
+_MUERTE_CONSOLIDADA = re.compile(
+    r"\b(muere|muri[oó]|ha\s+muerto|fallec\w+|fallecimiento|nos\s+dej[oó]|"
+    r"adi[oó]s\s+a\s+robe|obituario|a\s+los\s+\d{2}\s+a[ñn]os)\b",
+    re.IGNORECASE,
+)
+
 
 def _es_comentable(news: NewsItem) -> bool:
     """True si la noticia es un hecho real comentable (no encuesta/ranking/quiz)."""
     return _NO_COMENTABLE.search(f"{news.title} {news.summary or ''}") is None
+
+
+def _es_muerte_consolidada(news: NewsItem) -> bool:
+    """True si la noticia es (un refrito de) el anuncio de la muerte de Robe."""
+    return _MUERTE_CONSOLIDADA.search(f"{news.title} {news.summary or ''}") is not None
+
+
+def _demasiado_vieja(news: NewsItem) -> bool:
+    """True si el artículo supera la ventana de frescura (última semana)."""
+    stamp = news.published_at or news.fetched_at
+    if stamp is None:
+        return False
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - stamp).days > config.FRESHNESS_DAYS
 
 
 def _freshness(news: NewsItem) -> float:
@@ -87,6 +112,10 @@ def select(db: Session, count: int = 3) -> list[dict]:
 
     def _admisible(n: NewsItem) -> bool:
         if n.url in ya_en_cola or n.url in urls_usadas:
+            return False
+        if _demasiado_vieja(n):
+            return False
+        if _es_muerte_consolidada(n):
             return False
         if (n.relevance_score or 0) + _freshness(n) < 3:
             return False
