@@ -1645,13 +1645,11 @@ def admin_ig_discard(
 def admin_ig_account(
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGAccount:
-    """Verifica el token y devuelve el usuario IG conectado."""
-    ok, msg = _ig_graph.token_is_valid()
-    username = None
-    if ok:
-        try:
-            info = _ig_graph.account_info()
-            username = info.get("username")
-        except Exception:  # noqa: BLE001
-            pass
+    """Verifica token + que la cuenta IG sea realmente alcanzable.
+
+    No basta con que el token tenga scope: si el enlace IG↔Página se rompe,
+    `token_is_valid()` sigue dando verde pero no se puede publicar. Aquí se
+    hace una lectura real de la cuenta y se refleja el estado de verdad.
+    """
+    ok, msg, username = _ig_graph.connection_is_healthy()
     return AdminIGAccount(ok=ok, message=msg, username=username)

@@ -56,6 +56,38 @@ def token_is_valid() -> tuple[bool, str]:
     return True, "OK"
 
 
+def account_is_reachable() -> tuple[bool, str, str | None]:
+    """Lectura REAL del IG configurado: confirma que el token lo alcanza.
+
+    `token_is_valid()` solo mira que el token no haya caducado y tenga el
+    scope. NO detecta el enlace IG↔Página roto (error 100/subcode 33), que es
+    lo que tuvo el sistema caído en silencio durante días. Aquí se hace un GET
+    real de la cuenta y se exige respuesta con `username`.
+    """
+    if not config.INSTAGRAM_ACCOUNT_ID:
+        return False, "Falta INSTAGRAM_ACCOUNT_ID", None
+    try:
+        info = account_info()
+    except Exception as exc:  # noqa: BLE001
+        return False, f"No se pudo leer la cuenta IG: {exc}", None
+    if "error" in info:
+        msg = info["error"].get("message", "Cuenta IG inalcanzable")
+        return False, f"Cuenta IG inalcanzable: {msg}", None
+    return True, "OK", info.get("username")
+
+
+def connection_is_healthy() -> tuple[bool, str, str | None]:
+    """Health check completo: token válido Y cuenta IG realmente alcanzable.
+
+    Devuelve (ok, mensaje, username). Úsalo en vez de `token_is_valid()` para
+    no dar verde cuando la cuenta no es accesible.
+    """
+    ok, msg = token_is_valid()
+    if not ok:
+        return False, msg, None
+    return account_is_reachable()
+
+
 def create_container(image_url: str, caption: str) -> str | None:
     """Paso 1: crea el media container. Devuelve container_id o None."""
     with httpx.Client(timeout=40.0) as client:

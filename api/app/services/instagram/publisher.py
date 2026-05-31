@@ -113,13 +113,13 @@ def publish(
         logger.info("[DRY-RUN] item %s listo (no se publica).", item.id)
         return item
 
-    # Verificar el token antes de gastar cuota de la API.
-    ok, msg = graph_api.token_is_valid()
+    # Verificar token Y que la cuenta sea alcanzable (no solo el scope).
+    ok, msg, _ = graph_api.connection_is_healthy()
     if not ok:
         item.status = "failed"
         item.error = msg
         db.commit()
-        logger.error("[IG] token no válido para publicar: %s", msg)
+        logger.error("[IG] conexión no saludable para publicar: %s", msg)
         return item
 
     # Subir la imagen a Cloudinary (la Graph API exige una URL pública).
