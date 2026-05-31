@@ -22,7 +22,7 @@ def _foto(query: str) -> dict:
 
 
 print("Buscando fotos por entidad…")
-leiva = _foto("Leiva músico cantante")
+leiva = _foto("Leiva")
 plasencia = _foto("Plasencia")
 
 cards = [

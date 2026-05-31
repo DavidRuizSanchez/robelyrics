@@ -21,10 +21,13 @@ import re
 
 import httpx
 
+from app.services import wikimedia
+
 logger = logging.getLogger(__name__)
 
 _WM_API = "https://commons.wikimedia.org/w/api.php"
 _OV_API = "https://api.openverse.org/v1/images/"
+_WD_API = "https://www.wikidata.org/w/api.php"
 _UA = (
     "EntreInteriores/1.0 (https://entreinteriores.com; "
     "reparto cultural Robe/Extremoduro)"
@@ -32,6 +35,14 @@ _UA = (
 
 # Prefijos de licencia que permiten reúso con atribución.
 _LICENCIAS_OK = ("cc-by", "cc0", "cc-zero", "pd", "public domain")
+
+# Pistas de descripción para desambiguar entidades del dominio (música/cultura)
+# frente a homónimos (municipios, apellidos…) al buscar en Wikidata.
+_DOMINIO_HINTS = (
+    "sing", "music", "músic", "musico", "cantante", "banda", "band", "grupo",
+    "guitar", "bater", "rock", "composit", "artist", "dj", "rapero", "rapper",
+    "poeta", "escritor", "writer", "actor", "actriz", "director",
+)
 
 
 def _texto_plano(valor: str) -> str:
@@ -118,6 +129,57 @@ def _openverse(query: str, limit: int = 20) -> list[dict]:
     return out
 
 
+def _p18_filename(qid: str) -> str | None:
+    """Nombre del fichero de la imagen (propiedad P18) de una entidad Wikidata."""
+    try:
+        with httpx.Client(timeout=20.0, headers={"User-Agent": _UA}) as client:
+            resp = client.get(_WD_API, params={
+                "action": "wbgetclaims", "entity": qid,
+                "property": "P18", "format": "json",
+            })
+            resp.raise_for_status()
+            claims = resp.json().get("claims", {}).get("P18", [])
+        return claims[0]["mainsnak"]["datavalue"]["value"] if claims else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _wikidata_photo(query: str) -> dict | None:
+    """Foto canónica de la ENTIDAD vía Wikidata (P18) → Commons.
+
+    Es la fuente más precisa: cada protagonista (persona, lugar, grupo) recibe
+    SU foto, no una genérica. Desambigua homónimos priorizando entidades cuya
+    descripción encaja con el dominio (música/cultura).
+    """
+    try:
+        with httpx.Client(timeout=20.0, headers={"User-Agent": _UA}) as client:
+            resp = client.get(_WD_API, params={
+                "action": "wbsearchentities", "search": query,
+                "language": "es", "uselang": "es", "format": "json",
+                "limit": 7, "type": "item",
+            })
+            resp.raise_for_status()
+            cands = resp.json().get("search", [])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[foto] Wikidata falló para %r (%s)", query, exc)
+        return None
+    cands.sort(key=lambda c: 0 if any(
+        h in (c.get("description") or "").lower() for h in _DOMINIO_HINTS
+    ) else 1)
+    for c in cands:
+        filename = _p18_filename(c["id"])
+        if not filename:
+            continue
+        wimg = wikimedia.get_file_info(filename)
+        if wimg and wimg.thumb_url:
+            credit = (f"{wimg.author or 'Autor desconocido'} · "
+                      f"Wikimedia Commons ({wimg.license_short or 'CC'})")
+            logger.info("[foto] Wikidata %s «%s» -> %s",
+                        c["id"], c.get("label"), credit)
+            return {"url": wimg.thumb_url, "credit": credit}
+    return None
+
+
 def _queries(topic: dict) -> list[str]:
     """Consultas de la más específica (entidad) a la genérica."""
     qs = []
@@ -133,10 +195,17 @@ def _queries(topic: dict) -> list[str]:
 def find(topic: dict) -> dict | None:
     """Devuelve {'url','credit'} de una foto CC del protagonista, o None.
 
-    Para cada consulta combina Wikimedia + Openverse y elige entre las primeras
-    (más relevantes) de forma determinista por tema: estable para el mismo tema,
-    variada entre temas distintos.
+    Orden de fuentes:
+      1. Wikidata P18 por la entidad de `image_query` (la foto canónica del
+         protagonista; máxima precisión y variedad).
+      2. Wikimedia + Openverse por texto (respaldo).
     """
+    iq = (topic.get("image_query") or "").strip()
+    if iq:
+        wd = _wikidata_photo(iq)
+        if wd:
+            return wd
+
     for query in _queries(topic):
         candidatos = (_wikimedia(query) + _openverse(query))[:8]
         if candidatos:

@@ -90,10 +90,11 @@ def _generate(
         '  "comentario": de 2 a 4 frases comentando la noticia como Entre '
         "Interiores, sin mencionar ningún medio y sin inventar datos.\n"
         f"{nota_titular}\n"
-        '  "image_query": término breve (2-4 palabras, preferiblemente nombres '
-        "propios) para buscar una FOTO del protagonista de la noticia: una "
-        "persona (p.ej. 'Leiva'), un lugar (p.ej. 'Plasencia'), un grupo o "
-        "Robe/Extremoduro. Si no hay un sujeto fotografiable claro, cadena vacía."
+        '  "image_query": el NOMBRE PROPIO del protagonista de la noticia para '
+        "buscar su foto, completo para evitar homónimos pero SIN añadir "
+        "palabras de rol ni lugar (p.ej. 'Fito Cabrales' y no 'Fito'; 'Leiva'; "
+        "'Niña Pastori'; 'Plasencia'; 'Robe Iniesta'). Si no hay sujeto "
+        "fotografiable claro, cadena vacía."
     )
     try:
         client = OpenAI(api_key=api_key)
