@@ -94,6 +94,8 @@ class PublicArtistMember(BaseModel):
 class PublicArtistDetailOut(PublicArtistOut):
     albums: list[PublicAlbumOut]
     members: list[PublicArtistMember] = []
+    image_url: str | None = None
+    image_attribution: str | None = None
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -256,6 +258,8 @@ def public_artist_detail(
         slug=artist.slug,
         name=artist.name,
         active_years=artist.active_years,
+        image_url=artist.image_url,
+        image_attribution=artist.image_attribution,
         albums=[
             PublicAlbumOut(
                 slug=a.slug, title=a.title, year=a.year, kind=a.kind,
@@ -589,6 +593,8 @@ class PublicTaxonomyDetailOut(BaseModel):
     kind: str  # 'theme' | 'place' | 'concept'
     extra: dict | None = None  # places: {geo_lat, geo_lng}
     songs: list[PublicTaxonomySongRef]
+    image_url: str | None = None
+    image_attribution: str | None = None
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -718,6 +724,8 @@ def _detail_taxonomy(
         kind=kind,
         extra=extra,
         songs=songs,
+        image_url=row.image_url,
+        image_attribution=row.image_attribution,
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,

@@ -16,6 +16,12 @@ const nextConfig = {
         hostname: "commons.wikimedia.org",
         pathname: "/**",
       },
+      {
+        // Arte IA de entidades abstractas (conceptos/temas) alojado en Cloudinary.
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
     ],
     // Tiempo de cache en CDN — las imágenes de Commons no cambian
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 días

@@ -47,6 +47,11 @@ class Artist(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)  # extremoduro | robe
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     active_years: Mapped[str | None] = mapped_column(String(32))  # ej. "1989-2014"
+    # Imagen ilustrativa (foto CC real para concretas; arte IA para abstractas).
+    image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_attribution: Mapped[str | None] = mapped_column(Text)
+    image_license: Mapped[str | None] = mapped_column(String(64))
+    image_source_url: Mapped[str | None] = mapped_column(String(1024))
 
     albums: Mapped[list["Album"]] = relationship(
         back_populates="artist", cascade="all, delete-orphan"
@@ -490,6 +495,11 @@ class Theme(Base):
     songs: Mapped[list[Song]] = relationship(
         secondary="song_themes", back_populates="themes"
     )
+    # Imagen ilustrativa (arte IA con la estética del proyecto para abstractos).
+    image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_attribution: Mapped[str | None] = mapped_column(Text)
+    image_license: Mapped[str | None] = mapped_column(String(64))
+    image_source_url: Mapped[str | None] = mapped_column(String(1024))
 
 
 class SongTheme(Base):
@@ -521,6 +531,11 @@ class Place(Base):
     songs: Mapped[list[Song]] = relationship(
         secondary="song_places", back_populates="places"
     )
+    # Imagen ilustrativa (foto CC real del lugar vía Wikidata/Wikimedia).
+    image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_attribution: Mapped[str | None] = mapped_column(Text)
+    image_license: Mapped[str | None] = mapped_column(String(64))
+    image_source_url: Mapped[str | None] = mapped_column(String(1024))
 
 
 class SongPlace(Base):
@@ -549,6 +564,11 @@ class Concept(Base):
     songs: Mapped[list[Song]] = relationship(
         secondary="song_concepts", back_populates="concepts"
     )
+    # Imagen ilustrativa (arte IA con la estética del proyecto para abstractos).
+    image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_attribution: Mapped[str | None] = mapped_column(Text)
+    image_license: Mapped[str | None] = mapped_column(String(64))
+    image_source_url: Mapped[str | None] = mapped_column(String(1024))
 
 
 class SongConcept(Base):

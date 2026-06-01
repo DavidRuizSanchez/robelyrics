@@ -25,12 +25,12 @@ def _ensure() -> None:
         _configured = True
 
 
-def upload(image_path: str) -> str:
+def upload(image_path: str, folder: str = "entreinteriores-ig") -> str:
     """Sube una imagen y devuelve su URL pública (secure_url)."""
     _ensure()
     result = cloudinary.uploader.upload(
         image_path,
-        folder="entreinteriores-ig",
+        folder=folder,
         resource_type="image",
     )
     return result["secure_url"]
