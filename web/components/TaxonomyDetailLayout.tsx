@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
@@ -79,6 +80,30 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
             {detail.name}
           </h1>
         </header>
+
+        {detail.image_url && (
+          <figure className="mb-12">
+            <div className="relative w-full aspect-[16/9] overflow-hidden rounded-sm border border-divider">
+              <Image
+                src={detail.image_url}
+                alt={
+                  detail.kind === "place"
+                    ? `Fotografía de ${detail.name}`
+                    : `Ilustración del ${detail.kind === "theme" ? "tema" : "símbolo"} «${detail.name}» en el universo de Robe y Extremoduro`
+                }
+                fill
+                sizes="(max-width: 1100px) 100vw, 1100px"
+                className="object-cover"
+                priority
+              />
+            </div>
+            {detail.image_attribution && (
+              <figcaption className="mt-2 font-mono text-[10px] tracking-[1px] text-ink-faint">
+                {detail.image_attribution}
+              </figcaption>
+            )}
+          </figure>
+        )}
 
         {detail.seo_body ? (
           <section className="mb-12">

@@ -90,6 +90,26 @@ export default async function ArtistPublicPage({
             </h1>
           </header>
 
+          {detail.image_url && (
+            <figure className="mb-12">
+              <div className="relative w-full aspect-[16/9] overflow-hidden rounded-sm border border-divider">
+                <Image
+                  src={detail.image_url}
+                  alt={`Fotografía de ${detail.name}`}
+                  fill
+                  sizes="(max-width: 1100px) 100vw, 1100px"
+                  className="object-cover"
+                  priority
+                />
+              </div>
+              {detail.image_attribution && (
+                <figcaption className="mt-2 font-mono text-[10px] tracking-[1px] text-ink-faint">
+                  {detail.image_attribution}
+                </figcaption>
+              )}
+            </figure>
+          )}
+
           <MarkdownArticle markdown={detail.seo_body} />
         </article>
 

@@ -173,6 +173,8 @@ export type PublicResolvedEntity = {
 export type PublicArtistDetail = PublicArtistOut & {
   albums: PublicAlbumOut[];
   members: PublicArtistMember[];
+  image_url: string | null;
+  image_attribution: string | null;
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
@@ -244,6 +246,8 @@ export type PublicTaxonomyDetail = {
   kind: "theme" | "place" | "concept";
   extra: { geo_lat?: number | null; geo_lng?: number | null; kind?: string | null } | null;
   songs: PublicTaxonomySongRef[];
+  image_url: string | null;
+  image_attribution: string | null;
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
