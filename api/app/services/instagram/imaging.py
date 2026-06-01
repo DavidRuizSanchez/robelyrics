@@ -247,12 +247,19 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
     draw = ImageDraw.Draw(img)
     text_w = SIZE[0] - 2 * MARGIN
 
-    # --- Kicker de categoría (arriba): mono uppercase con punto granate ---
+    # --- Kicker de categoría (arriba izq.): mono uppercase con punto granate ---
     kicker_font = _mono(25, bold=True)
     ky = MARGIN
     draw.ellipse([MARGIN, ky + 6, MARGIN + 13, ky + 19], fill=COL_GRANATE)
     _draw_tracked(draw, (MARGIN + 26, ky), category.upper(), kicker_font,
                   COL_PAPER, tracking=5)
+
+    # --- Contador memorial (arriba dcha.): "DÍA N SIN ROBE" en granate ---
+    mem_font = _mono(23, bold=True)
+    mem_text = f"DÍA {config.dias_sin_robe()} SIN ROBE"
+    mem_w = _tracked_width(draw, mem_text, mem_font, 4)
+    _draw_tracked(draw, (SIZE[0] - MARGIN - mem_w, ky + 1), mem_text,
+                  mem_font, COL_GRANATE, tracking=4)
 
     # --- Anclado desde abajo: marca → crédito → verso → titular ---
     y = SIZE[1] - MARGIN

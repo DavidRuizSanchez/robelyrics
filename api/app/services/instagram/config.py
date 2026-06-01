@@ -5,6 +5,15 @@ docker-compose.yml). Si faltan, el pipeline degrada con elegancia: prepara
 los posts pero no los publica.
 """
 import os
+from datetime import date
+
+# Robe Iniesta falleció el 10 de diciembre de 2025. Caption e imagen abren con
+# el contador memorial "Día X sin Robe".
+ROBE_DEATH = date(2025, 12, 10)
+
+
+def dias_sin_robe() -> int:
+    return max(0, (date.today() - ROBE_DEATH).days)
 
 # --- Meta / Instagram Graph API ---
 META_APP_ID = os.getenv("META_APP_ID", "")
