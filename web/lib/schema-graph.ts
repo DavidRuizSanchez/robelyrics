@@ -133,6 +133,40 @@ export function musicCompositionNode(
   };
 }
 
+export type VideoInput = {
+  artistSlug: string;
+  albumSlug: string;
+  songSlug: string;
+  songTitle: string;
+  artistName: string;
+  youtubeId: string;
+  videoTitle?: string | null;
+  uploadDate?: string | null; // ISO-8601
+  durationSec?: number | null;
+};
+
+// VideoObject para la página de canción cuando hay vídeo de YouTube embebido.
+// Enlaza con la MusicComposition por @id (knowledge graph unificado).
+export function videoObjectNode(v: VideoInput): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    "@type": "VideoObject",
+    name: v.videoTitle || `${v.songTitle} · ${v.artistName}`,
+    description: `Vídeo de «${v.songTitle}» de ${v.artistName} en Entre Interiores.`,
+    thumbnailUrl: [
+      `https://i.ytimg.com/vi/${v.youtubeId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,
+    ],
+    contentUrl: `https://www.youtube.com/watch?v=${v.youtubeId}`,
+    embedUrl: `https://www.youtube.com/embed/${v.youtubeId}`,
+    associatedMedia: {
+      "@id": canonical.musicComposition(v.artistSlug, v.albumSlug, v.songSlug),
+    },
+  };
+  if (v.uploadDate) node.uploadDate = v.uploadDate;
+  if (v.durationSec) node.duration = `PT${v.durationSec}S`;
+  return node;
+}
+
 export function personNode(person: PersonInput): Record<string, unknown> {
   const node: Record<string, unknown> = {
     "@type": "Person",

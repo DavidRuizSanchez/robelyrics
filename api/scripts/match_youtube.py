@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import re
 import unicodedata
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -39,6 +40,22 @@ from app.db.models import Song
 from scripts.research.common import get_session, log, polite_sleep
 
 YT_API = "https://www.googleapis.com/youtube/v3"
+
+_ISO_DUR = re.compile(
+    r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?"
+)
+
+
+def parse_iso8601_duration(s: str | None) -> int | None:
+    """'PT3M45S' -> 225 segundos. None si no parsea."""
+    if not s:
+        return None
+    m = _ISO_DUR.fullmatch(s)
+    if not m:
+        return None
+    h, mi, se = (int(x) if x else 0 for x in m.groups())
+    total = h * 3600 + mi * 60 + se
+    return total or None
 
 # Canales conocidos (resueltos manualmente por handle, ahorra una llamada)
 TOPIC_HANDLES = [
@@ -148,9 +165,83 @@ def search_for_song(
     return items[0]["id"]["videoId"]
 
 
+def fetch_video_details(
+    client: httpx.Client, api_key: str, video_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    """videos.list (1 unit por lote de hasta 50). Devuelve {video_id: {title,
+    published_at (datetime tz), duration_sec}}."""
+    out: dict[str, dict[str, Any]] = {}
+    for i in range(0, len(video_ids), 50):
+        batch = video_ids[i : i + 50]
+        r = client.get(
+            f"{YT_API}/videos",
+            params={
+                "part": "snippet,contentDetails",
+                "id": ",".join(batch),
+                "key": api_key,
+            },
+        )
+        if r.status_code != 200:
+            log(f"  videos.list HTTP {r.status_code}: {r.text[:160]}", "warn")
+            continue
+        for it in r.json().get("items", []):
+            vid = it["id"]
+            sn = it.get("snippet", {})
+            cd = it.get("contentDetails", {})
+            published = None
+            if sn.get("publishedAt"):
+                try:
+                    published = datetime.fromisoformat(
+                        sn["publishedAt"].replace("Z", "+00:00")
+                    ).astimezone(timezone.utc)
+                except ValueError:
+                    published = None
+            out[vid] = {
+                "title": (sn.get("title") or "")[:300] or None,
+                "published_at": published,
+                "duration_sec": parse_iso8601_duration(cd.get("duration")),
+            }
+    return out
+
+
+def enrich_video_metadata(client: httpx.Client, api_key: str, force: bool) -> int:
+    """Rellena título/fecha/duración del vídeo para las canciones con youtube_id."""
+    with get_session() as db:
+        q = db.query(Song).filter(Song.youtube_id.is_not(None))
+        if not force:
+            q = q.filter(Song.youtube_title.is_(None))
+        pending = [(s.id, s.youtube_id) for s in q.all()]
+    if not pending:
+        log("enrich: nada que enriquecer")
+        return 0
+    log(f"enrich: {len(pending)} vídeos a detallar (videos.list)")
+    details = fetch_video_details(client, api_key, [v for _, v in pending])
+    n = 0
+    with get_session() as db:
+        for song_id, vid in pending:
+            d = details.get(vid)
+            if not d:
+                continue
+            db.execute(
+                update(Song).where(Song.id == song_id).values(
+                    youtube_title=d["title"],
+                    youtube_published_at=d["published_at"],
+                    youtube_duration_sec=d["duration_sec"],
+                )
+            )
+            n += 1
+    log(f"enrich: {n} canciones con metadatos de vídeo", "ok")
+    return n
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Reescribe los youtube_id ya rellenos")
+    parser.add_argument(
+        "--enrich-only",
+        action="store_true",
+        help="Solo enriquece metadatos de vídeo (no empareja).",
+    )
     parser.add_argument(
         "--no-search-fallback",
         action="store_true",
@@ -170,6 +261,9 @@ def main() -> None:
     n_unmatched = 0
 
     with httpx.Client(timeout=20) as http:
+        if args.enrich_only:
+            enrich_video_metadata(http, settings.youtube_api_key, args.force)
+            return
         # 1. Resolver canales oficiales y descargar uploads
         title_to_video: dict[str, tuple[str, str]] = {}  # normalized_title -> (video_id, quality)
 
@@ -238,6 +332,10 @@ def main() -> None:
                 else:
                     n_unmatched += 1
                 polite_sleep(0.2)
+
+        # Enriquecer metadatos de vídeo (título, fecha, duración) para el
+        # VideoObject de schema.org.
+        enrich_video_metadata(http, settings.youtube_api_key, args.force)
 
     log(
         f"topic: {n_topic} · search: {n_search} · skip(ya tenían): {n_skip} · sin match: {n_unmatched}",

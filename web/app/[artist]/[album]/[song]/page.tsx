@@ -18,6 +18,7 @@ import {
   musicAlbumNode,
   musicCompositionNode,
   musicGroupNode,
+  videoObjectNode,
 } from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
@@ -260,6 +261,22 @@ export default async function SongPublicPage({
                   year: detail.album.year,
                 }),
                 musicGroupNode({ slug: artist, name: detail.artist.name }),
+                // VideoObject si la canción tiene vídeo de YouTube embebido.
+                ...(detail.youtube_id
+                  ? [
+                      videoObjectNode({
+                        artistSlug: artist,
+                        albumSlug: album,
+                        songSlug: song,
+                        songTitle: detail.title,
+                        artistName: detail.artist.name,
+                        youtubeId: detail.youtube_id,
+                        videoTitle: detail.youtube_title,
+                        uploadDate: detail.youtube_published_at,
+                        durationSec: detail.youtube_duration_sec,
+                      }),
+                    ]
+                  : []),
               ]),
             ),
           }}

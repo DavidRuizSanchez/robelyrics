@@ -109,6 +109,11 @@ class Song(Base):
     genius_url: Mapped[str | None] = mapped_column(String(512))
     youtube_id: Mapped[str | None] = mapped_column(String(32))
     youtube_match_quality: Mapped[str | None] = mapped_column(String(16))  # official|topic|search|manual
+    # Metadatos del vídeo (para el VideoObject de schema.org). Los rellena
+    # `match_youtube --enrich` vía YouTube Data API (videos.list).
+    youtube_title: Mapped[str | None] = mapped_column(String(300))
+    youtube_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    youtube_duration_sec: Mapped[int | None] = mapped_column(Integer)
     # Carátula propia para singles/EPs/clips con artwork distinto del álbum.
     # Si NULL, el frontend cae a album.cover_url. Ejemplos: "Yacuzi" tiene
     # arte de videoclip, "Jesucristo García" portada propia del 1989, etc.

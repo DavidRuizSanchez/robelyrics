@@ -134,6 +134,9 @@ class PublicSongDetailOut(BaseModel):
     snippet_attribution: str          # texto de cita
     genius_url: str | None
     youtube_id: str | None = None
+    youtube_title: str | None = None
+    youtube_published_at: str | None = None   # ISO-8601 (uploadDate)
+    youtube_duration_sec: int | None = None
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -361,6 +364,12 @@ def public_song_detail(
         ),
         genius_url=song.genius_url,
         youtube_id=song.youtube_id,
+        youtube_title=song.youtube_title,
+        youtube_published_at=(
+            song.youtube_published_at.isoformat()
+            if song.youtube_published_at else None
+        ),
+        youtube_duration_sec=song.youtube_duration_sec,
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,

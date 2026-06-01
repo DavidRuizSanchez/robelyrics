@@ -208,6 +208,9 @@ export type PublicSongDetail = {
   snippet_attribution: string;
   genius_url: string | null;
   youtube_id: string | null;
+  youtube_title: string | null;
+  youtube_published_at: string | null;
+  youtube_duration_sec: number | null;
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
