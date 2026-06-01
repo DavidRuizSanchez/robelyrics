@@ -12,10 +12,19 @@ Filosofía editorial:
 from __future__ import annotations
 
 import hashlib
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 from app.services.instagram import robe_quote
+
+# Robe Iniesta falleció el 10 de diciembre de 2025. Cada post abre con un
+# contador memorial "Día X sin Robe".
+_ROBE_DEATH = date(2025, 12, 10)
+
+
+def _dias_sin_robe() -> int:
+    return max(0, (date.today() - _ROBE_DEATH).days)
 
 CATEGORY_EMOJI = {
     "Conciertos": "🎤", "Música": "🎸", "Colaboraciones": "🤝",
@@ -93,7 +102,9 @@ def build(db: Session, topic: dict) -> str:
         summary = (topic.get("summary") or "").strip()
         body = f"{title}\n\n{summary}".strip() if summary else title
 
-    lines = [f"{emoji} {category.upper()}", "", body]
+    # Apertura memorial fija en todos los posts.
+    lines = [f"🕯️ Día {_dias_sin_robe()} sin Robe", "",
+             f"{emoji} {category.upper()}", "", body]
 
     # Verso de Robe/Extremoduro afín al tema. Se reutiliza el ya calculado en
     # `publisher.prepare` (para que coincida con el de la imagen); si no, se

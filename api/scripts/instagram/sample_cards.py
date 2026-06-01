@@ -52,6 +52,22 @@ cards = [
     },
 ]
 
+# Tarjeta de disco con imagen ADICIONAL (vía album_cover + BD).
+from app.db.session import SessionLocal
+from app.services.instagram import album_cover
+with SessionLocal() as db:
+    disco = album_cover.find(db, {"title": "Material defectuoso cumple 15 años"})
+if disco:
+    cards.append({
+        "category": "Efemérides", "tone": "neutral",
+        "headline": "«Material defectuoso» cumple 15 años",
+        "image_hint": disco["url"], "image_credit": "",
+        "image_kind": disco.get("kind", "cover"),
+        "verse": {"line": "Cuando te de lo mismo, serás Extremoduro",
+                  "artist": "Extremoduro", "song": "La Hoguera", "year": 1997},
+    })
+    print("disco img:", disco["url"])
+
 for i, c in enumerate(cards):
     path, real = imaging.generate(c, slot=i)
     print(f"card {i} ({c['image_kind']}): foto={real} -> {path}")
