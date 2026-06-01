@@ -1008,6 +1008,52 @@ def public_posts_mentioning(
     ]
 
 
+_related_posts_cache: dict | None = None
+
+
+def _load_related_posts() -> dict:
+    """Carga (cacheado) el mapa de posts relevantes por página (lo escribe
+    scripts/seo/related_posts.py). {} si no existe."""
+    global _related_posts_cache
+    if _related_posts_cache is None:
+        import json
+        try:
+            with open("/app/data/related_posts.json", encoding="utf-8") as f:
+                _related_posts_cache = json.load(f)
+        except Exception:  # noqa: BLE001
+            _related_posts_cache = {}
+    return _related_posts_cache
+
+
+@router.get("/posts/related", response_model=list[PublicPostListItem])
+def public_posts_related(
+    entity_type: str,
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicPostListItem]:
+    """Posts del blog más relevantes (precalculados, híbrido entidades +
+    semántica) para una página SEO. Módulo "En el diario", máximo 3."""
+    _set_cache(response)
+    post_slugs = _load_related_posts().get(f"{entity_type}:{slug}", [])
+    if not post_slugs:
+        return []
+    rows = (
+        db.query(Post)
+        .filter(Post.status == "published", Post.slug.in_(post_slugs))
+        .all()
+    )
+    by_slug = {p.slug: p for p in rows}
+    ordered = [by_slug[s] for s in post_slugs if s in by_slug]
+    return [
+        PublicPostListItem(
+            slug=p.slug, kind=p.kind, title=p.title, excerpt=p.excerpt,
+            hero_image_url=p.hero_image_url, published_at=p.published_at,
+        )
+        for p in ordered
+    ]
+
+
 @router.get("/posts/{slug}", response_model=PublicPostDetail)
 def public_post_detail(
     slug: str,

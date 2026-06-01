@@ -4,7 +4,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
-import MentionedInPosts from "@/components/MentionedInPosts";
+import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import RelatedSongs from "@/components/RelatedSongs";
@@ -282,7 +282,7 @@ export default async function SongPublicPage({
           }}
         />
 
-        <MentionedInPosts slug={song} heading="Mencionado en el diario" />
+        <RelatedPosts entityType="song" slug={song} />
       </main>
       <PublicFooter />
       </div>

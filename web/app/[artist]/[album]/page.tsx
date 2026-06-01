@@ -4,7 +4,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
-import MentionedInPosts from "@/components/MentionedInPosts";
+import RelatedPosts from "@/components/RelatedPosts";
 import MoreFromArtist from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -201,7 +201,7 @@ export default async function AlbumPublicPage({
           }}
         />
 
-        <MentionedInPosts slug={album} heading="Mencionado en el diario" />
+        <RelatedPosts entityType="album" slug={album} />
       </main>
       <PublicFooter />
       </div>

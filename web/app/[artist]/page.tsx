@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
-import MentionedInPosts from "@/components/MentionedInPosts";
+import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -242,7 +242,7 @@ export default async function ArtistPublicPage({
           />
         )}
 
-        <MentionedInPosts slug={artist} heading="Mencionado en el diario" />
+        <RelatedPosts entityType="artist" slug={artist} />
       </main>
       <PublicFooter />
     </>

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
-import MentionedInPosts from "@/components/MentionedInPosts";
+import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { safeJsonLd } from "@/lib/safe-json-ld";
@@ -142,7 +142,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
           </ul>
         </section>
 
-        <MentionedInPosts slug={detail.slug} heading="Mencionado en el diario" />
+        <RelatedPosts entityType={detail.kind} slug={detail.slug} />
 
         <script
           type="application/ld+json"

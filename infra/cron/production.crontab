@@ -109,3 +109,13 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # (relink_existing). El snapshot se copia a data/ (read-only en el contenedor)
 # entre ambos pasos. Todo el bloque redirige a un único log.
 0 6 * * 0 cd $APP_DIR && ( $DC exec -T api python -m scripts.seo.link_stats && docker cp robelyrics-api:/tmp/internal_link_stats.json $APP_DIR/data/internal_link_stats.json && $DC exec -T api python -m scripts.seo.relink_existing --revalidate ) >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Posts relevantes por página SEO ("En el diario") — semanal
+# ============================================================================
+
+# Domingo 05:00 UTC: recalcula los hasta 3 posts del blog más relevantes por
+# página (híbrido entidades + semántica en posts_v1) y los escribe en
+# data/related_posts.json. Reinicia el api para refrescar su caché en memoria
+# (blip de 2-3s). Antes del rebalanceo de link equity (06:00).
+0 5 * * 0 cd $APP_DIR && ( $DC exec -T api python -m scripts.seo.related_posts && docker cp robelyrics-api:/tmp/related_posts.json $APP_DIR/data/related_posts.json && $DC restart api ) >> /var/log/robelyrics-cron.log 2>&1

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PersonAvatar from "@/components/PersonAvatar";
-import MentionedInPosts from "@/components/MentionedInPosts";
+import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -432,10 +432,7 @@ export default async function PersonPage({
           )}
         </article>
 
-        <MentionedInPosts
-          slug={detail.slug}
-          heading="Mencionado en el diario"
-        />
+        <RelatedPosts entityType="person" slug={detail.slug} />
 
         <script
           type="application/ld+json"
