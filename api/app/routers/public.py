@@ -435,6 +435,7 @@ def public_sitemap_entries(
                      WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
                      WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
                      WHEN sc.entity_type='person' THEN '/personas/' || sc.slug
+                     WHEN sc.entity_type='band'   THEN '/grupos/' || sc.slug
                    END AS url_path
             FROM seo_content sc
             LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
@@ -917,6 +918,118 @@ def public_person_detail(
         occupations=[
             PublicWikidataRef(**o) for o in (person.occupations or [])
         ],
+        seo_body=seo.body_md if seo else None,
+        seo_meta_title=seo.meta_title if seo else None,
+        seo_meta_description=seo.meta_description if seo else None,
+        schema_jsonld=seo.schema_jsonld if seo else None,
+        entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Grupos / sellos (sección /grupos) — espejo de Personas para el universo afín
+# --------------------------------------------------------------------------- #
+class PublicBandListItem(BaseModel):
+    slug: str
+    name: str
+    kind: str = "band"
+    founded_year: int | None = None
+    dissolved_year: int | None = None
+    image_url: str | None = None
+
+
+class PublicBandDetailOut(PublicBandListItem):
+    bio_short: str | None = None
+    related_note: str | None = None
+    wikipedia_url: str | None = None
+    wikidata_id: str | None = None
+    image_attribution: str | None = None
+    image_license: str | None = None
+    image_source_url: str | None = None
+    members: list[str] = []
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    schema_jsonld: dict | None = None
+    entities: list["PublicResolvedEntity"] = []
+
+
+def _band_members(raw) -> list[str]:
+    """Normaliza el JSONB `members` (puede ser lista de strings o de dicts)
+    a una lista de nombres legibles."""
+    out: list[str] = []
+    for m in raw or []:
+        if isinstance(m, str):
+            out.append(m)
+        elif isinstance(m, dict):
+            name = m.get("name") or m.get("nombre")
+            if name:
+                role = m.get("role") or m.get("rol")
+                out.append(f"{name} · {role}" if role else name)
+    return out
+
+
+@router.get("/bands", response_model=list[PublicBandListItem])
+def public_bands_list(
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicBandListItem]:
+    _set_cache(response)
+    from app.db.models import Band  # lazy
+    bands = db.query(Band).order_by(Band.name).all()
+    return [
+        PublicBandListItem(
+            slug=b.slug,
+            name=b.name,
+            kind=b.kind or "band",
+            founded_year=b.founded_year,
+            dissolved_year=b.dissolved_year,
+            image_url=b.image_url,
+        )
+        for b in bands
+    ]
+
+
+@router.get("/bands/{slug}", response_model=PublicBandDetailOut)
+def public_band_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicBandDetailOut:
+    _set_cache(response)
+    from app.db.models import Band  # lazy
+    band = db.query(Band).filter(Band.slug == slug).first()
+    if not band:
+        raise HTTPException(status_code=404, detail="band not found")
+
+    seo = (
+        db.query(SeoContent)
+        .filter(
+            SeoContent.entity_type == "band",
+            SeoContent.entity_id == band.id,
+            SeoContent.published.is_(True),
+        )
+        .first()
+    )
+
+    from app.services.entity_resolver import resolve_entities  # lazy
+    resolved_ents = resolve_entities(db, (seo.entities if seo else []) or [])
+
+    return PublicBandDetailOut(
+        slug=band.slug,
+        name=band.name,
+        kind=band.kind or "band",
+        founded_year=band.founded_year,
+        dissolved_year=band.dissolved_year,
+        bio_short=band.bio_short,
+        related_note=band.related_note,
+        wikipedia_url=band.wikipedia_url,
+        wikidata_id=band.wikidata_id,
+        image_url=band.image_url,
+        image_attribution=band.image_attribution,
+        image_license=band.image_license,
+        image_source_url=band.image_source_url,
+        members=_band_members(band.members),
         seo_body=seo.body_md if seo else None,
         seo_meta_title=seo.meta_title if seo else None,
         seo_meta_description=seo.meta_description if seo else None,

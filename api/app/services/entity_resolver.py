@@ -286,7 +286,7 @@ _AUTOLINK_MIN_LEN = 5
 # cosas: desempatar colisiones de nombre (se queda el de más peso) y ponderar
 # la relevancia del destino (contenido > taxonomía incidental).
 _TYPE_WEIGHT = {
-    "album": 7, "song": 6, "artist": 5, "person": 4,
+    "album": 7, "song": 6, "artist": 5, "person": 4, "band": 4,
     "place": 3, "theme": 2, "concept": 1,
 }
 
@@ -306,6 +306,22 @@ def _safe_link_first(body_md: str, name: str, url: str) -> tuple[str, int]:
     return _mention_re(name).subn(
         lambda m: f"[{m.group(0)}]({url})", body_md, count=1
     )
+
+
+_TITLE_SUFFIX_RE = re.compile(r"\s*[(\[].*$")
+
+
+def _clean_title(title: str | None) -> str | None:
+    """Quita el sufijo entre paréntesis/corchetes de los títulos del corpus.
+
+    Las canciones se guardan como «Título (Álbum)» o «Título [En Directo]»;
+    para que el autolinker las reconozca al citarse por su nombre limpio
+    («Jesucristo García»), añadimos ese alias al índice.
+    """
+    if not title:
+        return None
+    cleaned = _TITLE_SUFFIX_RE.sub("", title).strip()
+    return cleaned or None
 
 
 def build_corpus_index(
@@ -334,10 +350,16 @@ def build_corpus_index(
         add(a.name, f"{base}/{a.slug}", "artist")
     for al in db.query(Album).all():
         if al.artist:
-            add(al.title, f"{base}/{al.artist.slug}/{al.slug}", "album")
+            url = f"{base}/{al.artist.slug}/{al.slug}"
+            add(al.title, url, "album")
+            add(_clean_title(al.title), url, "album")
     for s in db.query(Song).all():
         if s.album and s.album.artist:
-            add(s.title, f"{base}/{s.album.artist.slug}/{s.album.slug}/{s.slug}", "song")
+            url = f"{base}/{s.album.artist.slug}/{s.album.slug}/{s.slug}"
+            add(s.title, url, "song")
+            # Alias sin el sufijo de álbum/directo: «Jesucristo García
+            # (Rock Transgresivo)» también enlaza al citarse «Jesucristo García».
+            add(_clean_title(s.title), url, "song")
     for p in db.query(Person).all():
         add(p.full_name, f"{base}/personas/{p.slug}", "person")
         if p.stage_name and p.stage_name != p.full_name:
@@ -348,6 +370,14 @@ def build_corpus_index(
         add(th.name, f"{base}/temas/{th.slug}", "theme")
     for c in db.query(Concept).all():
         add(c.name, f"{base}/conceptos/{c.slug}", "concept")
+    # Grupos/sellos afines (sección /grupos). Import perezoso para no acoplar
+    # el resolver a un modelo que llegó después.
+    try:
+        from app.db.models import Band  # noqa: PLC0415
+        for b in db.query(Band).all():
+            add(b.name, f"{base}/grupos/{b.slug}", "band")
+    except Exception:  # noqa: BLE001
+        pass
     return list(by_norm.values())
 
 

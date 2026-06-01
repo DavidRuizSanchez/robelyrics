@@ -23,7 +23,7 @@ from pathlib import Path
 from qdrant_client.http.models import Distance, PointStruct, VectorParams
 
 from app.db.models import (
-    Album, Artist, Concept, Person, Place, Post, SeoContent, Song, Theme,
+    Album, Artist, Band, Concept, Person, Place, Post, SeoContent, Song, Theme,
 )
 from app.db.session import SessionLocal
 from app.services.embeddings import EMBED_DIM, get_embedder
@@ -41,7 +41,7 @@ W_SEMANTIC = 0.6          # peso de la similitud semántica (coseno 0..1)
 
 _MODELS = {
     "artist": Artist, "album": Album, "song": Song, "person": Person,
-    "theme": Theme, "place": Place, "concept": Concept,
+    "theme": Theme, "place": Place, "concept": Concept, "band": Band,
 }
 
 

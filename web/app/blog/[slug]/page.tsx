@@ -3,6 +3,7 @@ import NextImage from "next/image";
 import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import PatreonCTA from "@/components/PatreonCTA";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -157,6 +158,7 @@ export default async function BlogPostPage({
           dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
         />
       </main>
+      <PatreonCTA />
       <PublicFooter />
     </>
   );

@@ -51,6 +51,14 @@ export default async function PublicHeader() {
           Discografía
         </Link>
         <Link
+          href="/grupos"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+          title="Grupos afines a Extremoduro"
+        >
+          Grupos
+        </Link>
+        <Link
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"
@@ -64,6 +72,14 @@ export default async function PublicHeader() {
           className="text-ink-dim hover:text-ink transition-colors"
         >
           Buscar
+        </Link>
+        <Link
+          href="/blog#suscribete"
+          data-cursor="hover"
+          className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-3 py-1.5 transition-colors"
+          title="Suscríbete al diario"
+        >
+          Suscríbete
         </Link>
         <InstagramLink size={18} className="text-ink-dim hover:text-accent transition-colors" />
         {me ? (
@@ -124,8 +140,10 @@ export default async function PublicHeader() {
           <Link href="/extremoduro" className="text-ink-dim hover:text-ink transition-colors">Extremoduro</Link>
           <Link href="/robe" className="text-ink-dim hover:text-ink transition-colors">Robe</Link>
           <Link href="/discografia" className="text-ink-dim hover:text-ink transition-colors">Discografía</Link>
+          <Link href="/grupos" className="text-ink-dim hover:text-ink transition-colors" title="Grupos afines a Extremoduro">Grupos</Link>
           <Link href="/blog" className="text-ink-dim hover:text-ink transition-colors" title="De manera urgente · noticias y memoria">De manera urgente</Link>
           <Link href="/buscar" className="text-ink-dim hover:text-ink transition-colors">Buscar</Link>
+          <Link href="/blog#suscribete" className="text-accent hover:text-ink transition-colors">Suscríbete al diario</Link>
           {me ? (
             <>
               <Link href="/biblioteca" className="text-ink-dim hover:text-ink transition-colors">Biblioteca</Link>

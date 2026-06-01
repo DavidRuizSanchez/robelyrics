@@ -25,7 +25,7 @@ from urllib.parse import quote
 import httpx
 from sqlalchemy import update
 
-from app.db.models import Artist, Concept, Person, Place, Theme
+from app.db.models import Artist, Band, Concept, Person, Place, Theme
 from app.db.session import SessionLocal
 from app.services import wikimedia
 from app.services.instagram import cloudinary_upload, photo_finder
@@ -33,11 +33,11 @@ from app.services.instagram import cloudinary_upload, photo_finder
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-_CONCRETE = {"artist": Artist, "place": Place}
+_CONCRETE = {"artist": Artist, "place": Place, "band": Band}
 _ABSTRACT = {"theme": Theme, "concept": Concept}
 # Todos los modelos con campo image_url (para el re-alojado a Cloudinary).
 _ALL_MODELS = {"artist": Artist, "place": Place, "person": Person,
-               "theme": Theme, "concept": Concept}
+               "theme": Theme, "concept": Concept, "band": Band}
 
 
 def _rehost_to_cloudinary(url: str) -> str | None:

@@ -45,6 +45,9 @@ export default function PublicFooter() {
           <Link href="/personas" data-cursor="hover" className={linkCls}>
             Los colegas de Robe
           </Link>
+          <Link href="/grupos" data-cursor="hover" className={linkCls}>
+            Grupos afines
+          </Link>
         </div>
 
         {/* Col 2 · Discos destacados */}
@@ -137,7 +140,7 @@ export default function PublicFooter() {
         </div>
       </div>
 
-      <div className="max-w-[1100px] mx-auto mt-12 pt-8 border-t border-divider/60 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 md:gap-12 items-start">
+      <div id="suscribete" className="scroll-mt-24 max-w-[1100px] mx-auto mt-12 pt-8 border-t border-divider/60 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 md:gap-12 items-start">
         <div>
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
             de manera urgente · newsletter
