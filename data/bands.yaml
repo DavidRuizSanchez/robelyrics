@@ -1,0 +1,48 @@
+# Grupos / sellos afines al universo Robe-Extremoduro (sección /grupos).
+#
+# Pobla la tabla `bands`. El seed (`scripts.seed_bands`) completa desde
+# Wikipedia/Wikidata: Q-ID, bio corta e imagen (P18). El contenido editorial
+# de cada página lo genera `scripts.seo.generate_band_content` (con la regla de
+# "nunca inventar"; modo low-data honesto si hay poca información).
+#
+# kind: band | label
+# related_note: vínculo real con Robe/Extremoduro (nota interna de contexto).
+
+bands:
+  - slug: fito-y-fitipaldis
+    name: Fito & Fitipaldis
+    kind: band
+    wikidata_id: Q3183879
+    wikipedia_url: https://es.wikipedia.org/wiki/Fito_%26_Fitipaldis
+    related_note: >
+      Banda de Fito Cabrales. Extremoduro y Fito compartieron escenario y
+      cartel; aparece en el círculo de rock estatal afín a Robe.
+
+  - slug: marea
+    name: Marea
+    kind: band
+    wikidata_id: Q1298620
+    wikipedia_url: https://es.wikipedia.org/wiki/Marea_(banda)
+    related_note: >
+      Banda de Kutxi Romero, del círculo de rock estatal cercano a Extremoduro.
+
+  - slug: platero-y-tu
+    name: Platero y Tú
+    kind: band
+    wikidata_id: Q1215911
+    wikipedia_url: https://es.wikipedia.org/wiki/Platero_y_T%C3%BA
+    related_note: >
+      Banda en la que tocó Fito Cabrales en los 90, hermanada con el rock de
+      Extremoduro de la época.
+
+  - slug: the-flying-rebollos
+    name: The Flying Rebollos
+    kind: band
+    related_note: >
+      Grupo mencionado en el entorno de Robe / Extremoduro.
+
+  - slug: el-dromedario-records
+    name: El Dromedario Records
+    kind: label
+    related_note: >
+      Sello discográfico ligado a la obra en solitario de Robe Iniesta.

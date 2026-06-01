@@ -582,6 +582,36 @@ class SongConcept(Base):
     )
 
 
+class Band(Base):
+    """Grupo / sello afín al universo Robe-Extremoduro (bandas amigas como
+    Fito & Fitipaldis, Marea, Platero y Tú, The Flying Rebollos, o el sello
+    El Dromedario Records). Espejo de `Person` pero para grupos: NO está en el
+    corpus de canciones (eso es solo Extremoduro/Robe), es ampliación del
+    knowledge graph. Su seo_content lleva entity_type='band'.
+    """
+
+    __tablename__ = "bands"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="band")  # band|label
+    founded_year: Mapped[int | None] = mapped_column(Integer)
+    dissolved_year: Mapped[int | None] = mapped_column(Integer)
+    bio_short: Mapped[str | None] = mapped_column(Text)
+    wikipedia_url: Mapped[str | None] = mapped_column(String(500))
+    wikidata_id: Mapped[str | None] = mapped_column(String(20), index=True)
+    image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_attribution: Mapped[str | None] = mapped_column(Text)
+    image_license: Mapped[str | None] = mapped_column(String(64))
+    image_source_url: Mapped[str | None] = mapped_column(String(1024))
+    members: Mapped[list | None] = mapped_column(JSONB)          # [{name, role}]
+    related_note: Mapped[str | None] = mapped_column(Text)       # vínculo con Robe/Extremoduro
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Fase 3: blog/noticias --------------------------------------------------
 
 
