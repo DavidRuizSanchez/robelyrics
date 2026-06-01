@@ -177,9 +177,14 @@ def upsert_seo_content(
     # corpus (las más relevantes) a su página local. No enlaza la propia
     # página de este seo_content.
     if body_md:
-        from app.services.entity_resolver import autolink_corpus, build_corpus_index
+        from app.services.entity_resolver import (
+            autolink_corpus,
+            build_corpus_index,
+            load_link_stats,
+        )
         body_md = autolink_corpus(
-            body_md, build_corpus_index(db), max_links=4, exclude_slug=slug
+            body_md, build_corpus_index(db), max_links=4,
+            exclude_slug=slug, link_stats=load_link_stats(),
         )
 
     stmt = (

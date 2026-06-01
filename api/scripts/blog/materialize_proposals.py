@@ -216,6 +216,7 @@ def main() -> None:
             from app.services.entity_resolver import (
                 autolink_corpus,
                 build_corpus_index,
+                load_link_stats,
             )
             from app.services.text_sanitizer import (
                 normalize_headings,
@@ -223,7 +224,10 @@ def main() -> None:
             )
             body_md = strip_ai_tells(body_md) or body_md
             body_md = normalize_headings(body_md) or body_md
-            body_md = autolink_corpus(body_md, build_corpus_index(db), max_links=4)
+            body_md = autolink_corpus(
+                body_md, build_corpus_index(db), max_links=4,
+                link_stats=load_link_stats(),
+            )
 
             # 2. Crear el Post
             slug = _unique_slug(db, _slugify(title))

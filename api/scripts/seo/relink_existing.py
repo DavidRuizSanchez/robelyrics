@@ -17,7 +17,11 @@ import re
 
 from app.db.models import Post, SeoContent
 from app.db.session import SessionLocal
-from app.services.entity_resolver import autolink_corpus, build_corpus_index
+from app.services.entity_resolver import (
+    autolink_corpus,
+    build_corpus_index,
+    load_link_stats,
+)
 from app.services.text_sanitizer import normalize_headings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -27,12 +31,14 @@ logger = logging.getLogger(__name__)
 _LINK = re.compile(r"(?<!\!)\[([^\]]+)\]\([^)]+\)")
 
 
-def _clean(md: str | None, index, *, exclude_slug: str | None = None) -> str | None:
+def _clean(md, index, stats, *, exclude_slug=None):
     if not md:
         return md
     out = _LINK.sub(r"\1", md)                       # quita enlaces previos
     out = normalize_headings(out) or out             # H1→H2→H3
-    out = autolink_corpus(out, index, max_links=4, exclude_slug=exclude_slug)
+    out = autolink_corpus(
+        out, index, max_links=4, exclude_slug=exclude_slug, link_stats=stats
+    )
     return out
 
 
@@ -45,12 +51,14 @@ def main() -> None:
 
     with SessionLocal() as db:
         index = build_corpus_index(db)
-        logger.info("Índice de corpus: %d entidades enlazables", len(index))
+        stats = load_link_stats()
+        logger.info("Índice de corpus: %d entidades · stats de enlaces: %d",
+                    len(index), len(stats))
 
         posts = db.query(Post).filter(Post.body_md.isnot(None)).all()
         changed_posts: list[str] = []
         for p in posts:
-            new = _clean(p.body_md, index)
+            new = _clean(p.body_md, index, stats)
             if new != p.body_md:
                 changed_posts.append(p.slug)
                 if not args.dry_run:
@@ -59,7 +67,7 @@ def main() -> None:
         secs = db.query(SeoContent).filter(SeoContent.body_md.isnot(None)).all()
         changed_secs = 0
         for s in secs:
-            new = _clean(s.body_md, index, exclude_slug=s.slug)
+            new = _clean(s.body_md, index, stats, exclude_slug=s.slug)
             if new != s.body_md:
                 changed_secs += 1
                 if not args.dry_run:

@@ -16,8 +16,10 @@ Tras resolver, el frontend recibe:
 """
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -25,6 +27,29 @@ from sqlalchemy.orm import Session
 from app.db.models import Album, Artist, Concept, Person, Place, Song, Theme
 
 SITE_URL_DEFAULT = "https://entreinteriores.com"
+
+# Snapshot de link juice interno (lo escribe scripts/seo/link_stats.py). El
+# autolinker lo usa para potenciar las páginas más débiles. {path: inbound}.
+_LINK_STATS_PATH = Path("/app/data/internal_link_stats.json")
+_link_stats_cache: dict[str, int] | None = None
+
+
+def load_link_stats() -> dict[str, int]:
+    """Carga (cacheado) el snapshot de enlaces internos. {} si no existe."""
+    global _link_stats_cache
+    if _link_stats_cache is None:
+        try:
+            _link_stats_cache = json.loads(_LINK_STATS_PATH.read_text())
+        except Exception:  # noqa: BLE001 — ausente o ilegible
+            _link_stats_cache = {}
+    return _link_stats_cache
+
+
+def _url_path(url: str) -> str:
+    base = SITE_URL_DEFAULT.rstrip("/")
+    if url.startswith(base):
+        url = url[len(base):]
+    return "/" + url.strip("/")
 
 
 def _normalize(s: str) -> str:
@@ -333,6 +358,8 @@ def autolink_corpus(
     max_links: int = 4,
     exclude_url: str | None = None,
     exclude_slug: str | None = None,
+    link_stats: dict[str, int] | None = None,
+    weak_k: float = 60.0,
 ) -> str:
     """Enlaza hasta `max_links` menciones a entidades del corpus, eligiendo las
     más relevantes.
@@ -382,6 +409,11 @@ def autolink_corpus(
             + _TYPE_WEIGHT.get(ent["type"], 0) * 10
             + len(ent["norm"]) * 0.5
         )
+        # Boost a las páginas DÉBILES: a igualdad de relevancia, enlaza antes
+        # a las que reciben menos enlaces internos (reparte link juice).
+        if link_stats is not None:
+            inbound = link_stats.get(_url_path(url), 0)
+            score += weak_k / (1 + inbound)
         cand.append({**ent, "score": score})
 
     if not cand:
