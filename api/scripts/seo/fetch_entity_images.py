@@ -25,7 +25,7 @@ from urllib.parse import quote
 import httpx
 from sqlalchemy import update
 
-from app.db.models import Artist, Concept, Place, Theme
+from app.db.models import Artist, Concept, Person, Place, Theme
 from app.db.session import SessionLocal
 from app.services import wikimedia
 from app.services.instagram import cloudinary_upload, photo_finder
@@ -35,6 +35,55 @@ logger = logging.getLogger(__name__)
 
 _CONCRETE = {"artist": Artist, "place": Place}
 _ABSTRACT = {"theme": Theme, "concept": Concept}
+# Todos los modelos con campo image_url (para el re-alojado a Cloudinary).
+_ALL_MODELS = {"artist": Artist, "place": Place, "person": Person,
+               "theme": Theme, "concept": Concept}
+
+
+def _rehost_to_cloudinary(url: str) -> str | None:
+    """Descarga una imagen externa y la re-aloja en Cloudinary. Devuelve la
+    URL nueva, o None si falla. Evita martillear Wikimedia (429) desde el
+    optimizador de Next: el sitio sirve siempre desde Cloudinary."""
+    if not url or "res.cloudinary.com" in url:
+        return None
+    try:
+        with httpx.Client(timeout=60.0, follow_redirects=True,
+                          headers={"User-Agent": wikimedia.USER_AGENT}) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+            data = resp.content
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("  descarga falló (%s): %s", url[:60], exc)
+        return None
+    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+    try:
+        tmp.write(data)
+        tmp.close()
+        return cloudinary_upload.upload(tmp.name, folder="entreinteriores-art")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("  Cloudinary falló: %s", exc)
+        return None
+    finally:
+        os.unlink(tmp.name)
+
+
+def _rehost(db, types: list[str]) -> None:
+    """Re-aloja a Cloudinary las imágenes externas (Wikimedia) de las entidades
+    indicadas, conservando la atribución."""
+    from sqlalchemy import update
+    for t in types:
+        model = _ALL_MODELS.get(t)
+        if model is None:
+            continue
+        rows = [e for e in db.query(model).order_by(model.slug).all()
+                if e.image_url and "res.cloudinary.com" not in e.image_url]
+        logger.info("[rehost %s] %d imágenes externas a re-alojar", t, len(rows))
+        for e in rows:
+            new = _rehost_to_cloudinary(e.image_url)
+            if new:
+                db.execute(update(model).where(model.id == e.id).values(image_url=new))
+                logger.info("  ✓ %s «%s» -> Cloudinary", t, getattr(e, "name", e.slug))
+        db.commit()
 
 
 def _concrete_image(name: str) -> dict | None:
@@ -118,11 +167,16 @@ def main() -> None:
                     help="Desplaza la semilla del arte IA (para regenerar distinto).")
     ap.add_argument("--texture", action="store_true",
                     help="Arte abstracto puro (sin figura): evita el texto de Flux.")
+    ap.add_argument("--rehost", action="store_true",
+                    help="Re-aloja a Cloudinary las imágenes externas (Wikimedia).")
     args = ap.parse_args()
     types = [t.strip() for t in args.types.split(",") if t.strip()]
     only_slugs = {s.strip() for s in args.slugs.split(",") if s.strip()}
 
     with SessionLocal() as db:
+        if args.rehost:
+            _rehost(db, types)
+            return
         for t in types:
             model = _CONCRETE.get(t) or _ABSTRACT.get(t)
             if model is None:

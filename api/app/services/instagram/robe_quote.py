@@ -32,21 +32,37 @@ def _clean_song_title(title: str) -> str:
     return title.strip()
 
 
-def find_verse(db: Session, text: str) -> dict | None:
+def _norm_line(s: str) -> str:
+    return re.sub(r"\s+", " ", (s or "")).strip().lower()
+
+
+def find_verse(
+    db: Session, text: str, exclude_lines: set[str] | None = None
+) -> dict | None:
     """Devuelve el verso más afín a `text` o None.
+
+    `exclude_lines` (normalizadas) son versos usados recientemente: se saltan
+    para no repetir el mismo verso en posts consecutivos.
 
     Resultado: {"line", "song", "artist", "year"}.
     """
+    exclude = {_norm_line(x) for x in (exclude_lines or set())}
     try:
         query_vec = get_embedder().embed_one(text[:480])
-        hits = vector_search(LINES_COLLECTION, query_vec, k=3)
+        hits = vector_search(LINES_COLLECTION, query_vec, k=10)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[robe_quote] búsqueda semántica falló: %s", exc)
         return None
 
     if not hits:
         return None
-    top = hits[0]
+    # Primer hit con texto cuyo verso no se haya usado hace poco; si todos
+    # están excluidos, cae al mejor (top).
+    top = next(
+        (h for h in hits if (h.text or "").strip()
+         and _norm_line(h.text) not in exclude),
+        hits[0],
+    )
     line = (top.text or "").strip()
     if not line:
         return None

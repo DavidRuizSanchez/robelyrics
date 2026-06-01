@@ -140,10 +140,20 @@ def _fit_headline(draw, text, max_width, max_height, max_lines):
 # Fondos
 # --------------------------------------------------------------------------- #
 def _cover(img: Image.Image) -> Image.Image:
-    """Recorta a cuadrado (cover) y escala a SIZE."""
+    """Recorta a cuadrado (cover) y escala a SIZE.
+
+    En verticales (retratos), el recorte se sesga hacia ARRIBA en vez de
+    centrarse: las caras suelen estar en el tercio superior y un recorte
+    centrado las decapita. Se conserva el 12% superior y se recorta el resto
+    por abajo.
+    """
     w, h = img.size
     s = min(w, h)
-    left, top = (w - s) // 2, (h - s) // 2
+    left = (w - s) // 2
+    if h > w:
+        top = int((h - s) * 0.12)  # sesgo arriba: mantiene la cabeza
+    else:
+        top = (h - s) // 2
     return img.crop((left, top, left + s, top + s)).resize(SIZE, Image.LANCZOS)
 
 

@@ -129,7 +129,9 @@ export function musicCompositionNode(
     name: song.title,
     url: urls.song(song.artistSlug, song.albumSlug, song.slug),
     composer: { "@id": canonical.musicGroup(song.artistSlug) },
-    inAlbum: { "@id": canonical.musicAlbum(song.artistSlug, song.albumSlug) },
+    // isPartOf (de CreativeWork) en vez de inAlbum (que es de MusicRecording,
+    // no de MusicComposition, y daba warning de validación).
+    isPartOf: { "@id": canonical.musicAlbum(song.artistSlug, song.albumSlug) },
   };
 }
 
@@ -158,7 +160,9 @@ export function videoObjectNode(v: VideoInput): Record<string, unknown> {
     ],
     contentUrl: `https://www.youtube.com/watch?v=${v.youtubeId}`,
     embedUrl: `https://www.youtube.com/embed/${v.youtubeId}`,
-    associatedMedia: {
+    // El vídeo trata sobre la composición (about acepta Thing; associatedMedia
+    // exigía un MediaObject y daba error de validación).
+    about: {
       "@id": canonical.musicComposition(v.artistSlug, v.albumSlug, v.songSlug),
     },
   };

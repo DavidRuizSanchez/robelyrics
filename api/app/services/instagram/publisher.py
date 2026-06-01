@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -83,9 +84,23 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                 topic["image_kind"] = "photo"
 
     # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
+    # Se excluyen los versos usados en los últimos posts para no repetirlos.
     _t = topic.get("headline") or topic.get("title") or ""
     _b = topic.get("caption_body") or topic.get("summary") or ""
-    topic["verse"] = robe_quote.find_verse(db, f"{_t}. {_b}") or {}
+    recent_caps = db.execute(
+        select(InstagramQueueItem.caption)
+        .where(InstagramQueueItem.caption.is_not(None), InstagramQueueItem.id != item.id)
+        .order_by(InstagramQueueItem.id.desc())
+        .limit(6)
+    ).scalars().all()
+    recent_verses = {
+        m.group(1)
+        for c in recent_caps
+        if (m := re.search(r"«([^»]+)»", c or ""))
+    }
+    topic["verse"] = robe_quote.find_verse(
+        db, f"{_t}. {_b}", exclude_lines=recent_verses
+    ) or {}
 
     image_path, used_hero = imaging.generate(topic, slot=item.slot or 1)
     # Solo se acredita la foto si finalmente se usó una imagen real con
