@@ -172,15 +172,16 @@ def propose_for_review(
             "scheduled_for": None,
         }
 
-    # Linkificar body_md con entities resueltas (solo si tiene entities)
-    if post.entities and post.body_md:
-        from app.services.entity_resolver import linkify_body_md, resolve_entities
-        resolved = resolve_entities(db, post.entities)
-        if resolved:
-            new_body = linkify_body_md(post.body_md, resolved)
-            if new_body != post.body_md:
-                post.body_md = new_body
-                logger.info("Linkificadas %d entidades en post %s", len(resolved), post.id)
+    # Normalizar jerarquía de headings (H1→H2…) y enlazado interno automático
+    # a todo el corpus (máx. 4 enlaces, los más relevantes).
+    if post.body_md:
+        from app.services.entity_resolver import autolink_corpus, build_corpus_index
+        from app.services.text_sanitizer import normalize_headings
+        new_body = normalize_headings(post.body_md) or post.body_md
+        new_body = autolink_corpus(new_body, build_corpus_index(db), max_links=4)
+        if new_body != post.body_md:
+            post.body_md = new_body
+            logger.info("Post %s: headings normalizados + autolink corpus", post.id)
 
     if post.status != "pending_review":
         post.status = "pending_review"

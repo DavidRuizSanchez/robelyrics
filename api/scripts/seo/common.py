@@ -149,8 +149,9 @@ def upsert_seo_content(
     sobrescribe body_md y reset reviewed_at + published. Si no force, falla."""
     # Saneado anti marcas de IA (em-dash, etc.) — red de seguridad por si el
     # LLM ignoró el SYSTEM_PROMPT.
-    from app.services.text_sanitizer import strip_ai_tells
+    from app.services.text_sanitizer import normalize_headings, strip_ai_tells
     body_md = strip_ai_tells(body_md) or body_md
+    body_md = normalize_headings(body_md) or body_md
     meta_title = strip_ai_tells(meta_title)
     meta_description = strip_ai_tells(meta_description)
     if not force:
@@ -172,15 +173,14 @@ def upsert_seo_content(
             return existing.id
 
     ents = entities or []
-    # Linkifica el body_md con las entidades resueltas: primera mención de
-    # cada una se convierte en `[name](url)` apuntando a la página local
-    # (si está en corpus) o a Wikidata. Idempotente y limitado a una
-    # sustitución por entity para evitar overlinking.
-    if ents and body_md:
-        from app.services.entity_resolver import linkify_body_md, resolve_entities
-        resolved = resolve_entities(db, ents)
-        if resolved:
-            body_md = linkify_body_md(body_md, resolved)
+    # Enlazado interno automático: enlaza hasta 4 menciones a entidades del
+    # corpus (las más relevantes) a su página local. No enlaza la propia
+    # página de este seo_content.
+    if body_md:
+        from app.services.entity_resolver import autolink_corpus, build_corpus_index
+        body_md = autolink_corpus(
+            body_md, build_corpus_index(db), max_links=4, exclude_slug=slug
+        )
 
     stmt = (
         pg_insert(SeoContent)

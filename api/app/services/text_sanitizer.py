@@ -58,3 +58,58 @@ def strip_ai_tells(text: str | None) -> str | None:
     # 6) limpiar comas duplicadas que hayan podido surgir
     out = re.sub(r",\s*,", ",", out)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Normalización de jerarquía de headings
+# --------------------------------------------------------------------------- #
+_RE_ATX = re.compile(r"^(#{1,6})(\s+\S)")
+
+
+def normalize_headings(body_md: str | None) -> str | None:
+    """Ajusta los niveles de heading del cuerpo para que el más alto sea H2.
+
+    El título de la página se renderiza como H1, así que el cuerpo NO debe
+    empezar en H1 ni saltarse el H2 (p.ej. body todo en `###` → H1, H3...).
+    Esta función desplaza todos los headings de forma uniforme para que el
+    nivel más alto presente pase a ser H2, preservando el anidamiento
+    relativo. Respeta los bloques de código fenced (``` ... ```).
+    """
+    if not body_md:
+        return body_md
+    lines = body_md.split("\n")
+
+    # 1) Detectar el nivel mínimo de heading fuera de bloques de código.
+    in_code = False
+    levels: list[int] = []
+    for ln in lines:
+        if ln.lstrip().startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        m = _RE_ATX.match(ln)
+        if m:
+            levels.append(len(m.group(1)))
+    if not levels:
+        return body_md
+
+    shift = 2 - min(levels)  # queremos que el más alto sea H2
+    if shift == 0:
+        return body_md
+
+    # 2) Aplicar el desplazamiento (clamp 1..6).
+    in_code = False
+    out: list[str] = []
+    for ln in lines:
+        if ln.lstrip().startswith("```"):
+            in_code = not in_code
+            out.append(ln)
+            continue
+        if not in_code:
+            m = _RE_ATX.match(ln)
+            if m:
+                new_level = max(1, min(6, len(m.group(1)) + shift))
+                ln = "#" * new_level + ln[len(m.group(1)):]
+        out.append(ln)
+    return "\n".join(out)

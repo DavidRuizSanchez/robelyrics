@@ -1,5 +1,6 @@
 import Link from "next/link";
 import NewsletterForm from "@/components/NewsletterForm";
+import InstagramLink from "@/components/InstagramLink";
 
 // Discos destacados elegidos por relevancia editorial (los más icónicos del
 // catálogo). Cada link aquí riega ~180 inlinks gratis a su destino, así que
@@ -151,8 +152,14 @@ export default function PublicFooter() {
         </div>
       </div>
 
-      <div className="max-w-[1100px] mx-auto mt-8 pt-6 border-t border-divider/60 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-        © 2026 Entre Interiores · Sitio fan no oficial · Letras © sus autores
+      <div className="max-w-[1100px] mx-auto mt-8 pt-6 border-t border-divider/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+          © 2026 Entre Interiores · Sitio fan no oficial · Letras © sus autores
+        </p>
+        <InstagramLink
+          showHandle
+          className="text-ink-dim hover:text-accent transition-colors"
+        />
       </div>
     </footer>
   );

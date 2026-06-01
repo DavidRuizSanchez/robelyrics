@@ -211,17 +211,19 @@ def main() -> None:
                     hero_src = img.source_page_url
                     body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
 
-            # Linkificado interno contextual + saneado anti marcas IA
+            # Saneado anti marcas IA + jerarquía de headings + enlazado interno
+            # automático a todo el corpus (máx. 4 enlaces más relevantes).
             from app.services.entity_resolver import (
-                linkify_body_md,
-                resolve_entities,
+                autolink_corpus,
+                build_corpus_index,
             )
-            from app.services.text_sanitizer import strip_ai_tells
+            from app.services.text_sanitizer import (
+                normalize_headings,
+                strip_ai_tells,
+            )
             body_md = strip_ai_tells(body_md) or body_md
-            if entities:
-                resolved = resolve_entities(db, entities)
-                if resolved:
-                    body_md = linkify_body_md(body_md, resolved)
+            body_md = normalize_headings(body_md) or body_md
+            body_md = autolink_corpus(body_md, build_corpus_index(db), max_links=4)
 
             # 2. Crear el Post
             slug = _unique_slug(db, _slugify(title))

@@ -72,6 +72,7 @@ export default async function RootLayout({
         inLanguage: "es-ES",
         creator: { "@id": "https://davidruizsanchez.es/#person" },
         publisher: { "@id": "https://davidruizsanchez.es/#person" },
+        sameAs: ["https://www.instagram.com/entreinterioresrobe/"],
         potentialAction: {
           "@type": "SearchAction",
           target: {

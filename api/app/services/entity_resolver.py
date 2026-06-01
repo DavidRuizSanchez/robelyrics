@@ -248,3 +248,148 @@ def linkify_body_md(
             body_md = new_body
             seen_urls.add(url)
     return body_md
+
+
+# --------------------------------------------------------------------------- #
+# Autolinker de corpus: enlazado interno automático contra TODO el catálogo
+# (álbumes, canciones, personas, artistas, taxonomías), no solo las entidades
+# que marcó el LLM. Conservador y con límite de enlaces por pieza.
+# --------------------------------------------------------------------------- #
+# Single-word con menos de N letras: demasiado genérico para autoenlazar.
+_AUTOLINK_MIN_LEN = 5
+# Afinidad de tipo: cuán "enlazable de valor" es el destino. Sirve para dos
+# cosas: desempatar colisiones de nombre (se queda el de más peso) y ponderar
+# la relevancia del destino (contenido > taxonomía incidental).
+_TYPE_WEIGHT = {
+    "album": 7, "song": 6, "artist": 5, "person": 4,
+    "place": 3, "theme": 2, "concept": 1,
+}
+
+# Fronteras de palabra que tratan el subrayado de Markdown (_cursiva_) como
+# límite, no como letra: `\w` incluye '_', así que un título en cursiva
+# (`_Agila_`) no se matcheaba. `[^\W_]` = alfanumérico SIN guion bajo.
+_LB = r"(?<![\[`/]|[^\W_])"                       # antes: no link/code/letra
+_LA = r"(?![^\[\n]{0,200}?\])(?![^\W_]|`)"        # no dentro de link + después
+
+
+def _mention_re(name: str) -> "re.Pattern[str]":
+    return re.compile(_LB + re.escape(name) + _LA, re.IGNORECASE)
+
+
+def _safe_link_first(body_md: str, name: str, url: str) -> tuple[str, int]:
+    """Enlaza la PRIMERA ocurrencia de `name` (fuera de links/code existentes)."""
+    return _mention_re(name).subn(
+        lambda m: f"[{m.group(0)}]({url})", body_md, count=1
+    )
+
+
+def build_corpus_index(
+    db: Session, *, site_url: str | None = None
+) -> list[dict[str, Any]]:
+    """Índice de entidades enlazables del corpus: [{name, norm, url, type}]."""
+    base = (site_url or SITE_URL_DEFAULT).rstrip("/")
+    # Dedup por nombre normalizado: si dos entidades comparten nombre (p.ej.
+    # el artista «Robe Iniesta» y la persona homónima), se queda la de más
+    # peso de tipo para no enlazar el mismo texto a dos páginas distintas.
+    by_norm: dict[str, dict[str, Any]] = {}
+
+    def add(name: str | None, url: str, type_: str) -> None:
+        if not name:
+            return
+        norm = _normalize(name)
+        # Single-word demasiado corto → fuera (evita falsos positivos).
+        if " " not in norm and len(norm) < _AUTOLINK_MIN_LEN:
+            return
+        cur = by_norm.get(norm)
+        if cur and _TYPE_WEIGHT.get(cur["type"], 0) >= _TYPE_WEIGHT.get(type_, 0):
+            return
+        by_norm[norm] = {"name": name.strip(), "norm": norm, "url": url, "type": type_}
+
+    for a in db.query(Artist).all():
+        add(a.name, f"{base}/{a.slug}", "artist")
+    for al in db.query(Album).all():
+        if al.artist:
+            add(al.title, f"{base}/{al.artist.slug}/{al.slug}", "album")
+    for s in db.query(Song).all():
+        if s.album and s.album.artist:
+            add(s.title, f"{base}/{s.album.artist.slug}/{s.album.slug}/{s.slug}", "song")
+    for p in db.query(Person).all():
+        add(p.full_name, f"{base}/personas/{p.slug}", "person")
+        if p.stage_name and p.stage_name != p.full_name:
+            add(p.stage_name, f"{base}/personas/{p.slug}", "person")
+    for pl in db.query(Place).all():
+        add(pl.name, f"{base}/lugares/{pl.slug}", "place")
+    for th in db.query(Theme).all():
+        add(th.name, f"{base}/temas/{th.slug}", "theme")
+    for c in db.query(Concept).all():
+        add(c.name, f"{base}/conceptos/{c.slug}", "concept")
+    return list(by_norm.values())
+
+
+def autolink_corpus(
+    body_md: str,
+    index: list[dict[str, Any]],
+    *,
+    max_links: int = 4,
+    exclude_url: str | None = None,
+    exclude_slug: str | None = None,
+) -> str:
+    """Enlaza hasta `max_links` menciones a entidades del corpus, eligiendo las
+    más relevantes.
+
+    Selección (cuando hay más candidatos que `max_links`):
+      1. Relevancia anchor↔destino: el anchor más específico gana (coincidencia
+         exacta del título + nº de palabras + longitud).
+      2. Desempate origen↔destino: cuán central es la entidad en el texto
+         (frecuencia de mención) y el peso del tipo de destino.
+    Conservador: primera ocurrencia por entidad, respeta links/código ya
+    presentes, no enlaza la propia página (`exclude_url`).
+    """
+    if not body_md or not index:
+        return body_md
+
+    # Enlaces ya presentes: no duplicamos destino y contamos los que apuntan al
+    # corpus contra el tope (idempotente: re-ejecutar no acumula enlaces).
+    existing_urls = set(re.findall(r"\]\((\S+?)\)", body_md))
+    index_urls = {e["url"] for e in index}
+    budget = max_links - len(existing_urls & index_urls)
+    if budget <= 0:
+        return body_md
+
+    # 1) Candidatos realmente mencionados (y enlazables) en el cuerpo.
+    cand: list[dict[str, Any]] = []
+    seen_urls: set[str] = set(existing_urls)
+    for ent in index:
+        url = ent["url"]
+        if url == exclude_url or url in seen_urls:
+            continue
+        # No auto-enlazar la propia página (su seo_content).
+        if exclude_slug and url.rstrip("/").endswith("/" + exclude_slug):
+            continue
+        hits = _mention_re(ent["name"]).findall(body_md)
+        if not hits:
+            continue
+        seen_urls.add(url)
+        # Relevancia: todas las menciones son coincidencia EXACTA del nombre
+        # (relevancia anchor↔destino uniforme y máxima), así que la selección
+        # la decide la relevancia origen↔destino:
+        #   - frecuencia: cuán central es la entidad en el texto (peso alto),
+        #   - afinidad de tipo: contenido (disco/canción/artista) > taxonomía
+        #     incidental (un lugar nombrado de pasada),
+        #   - longitud: especificidad del anchor como último desempate.
+        score = (
+            len(hits) * 30
+            + _TYPE_WEIGHT.get(ent["type"], 0) * 10
+            + len(ent["norm"]) * 0.5
+        )
+        cand.append({**ent, "score": score})
+
+    if not cand:
+        return body_md
+
+    cand.sort(key=lambda c: c["score"], reverse=True)
+
+    # 3) Enlazar los mejores hasta agotar el presupuesto (1ª ocurrencia c/u).
+    for c in cand[:budget]:
+        body_md, _ = _safe_link_first(body_md, c["name"], c["url"])
+    return body_md
