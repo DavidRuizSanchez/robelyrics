@@ -518,7 +518,14 @@ def main() -> None:
                                     "  Imagen (Wikipedia pageimage): %s",
                                     img.source_page_url,
                                 )
-                    if not person.image_url:
+                    # IMPORTANTE: la búsqueda Commons por NOMBRE solo se permite
+                    # si la persona tiene wikidata_id (figura verificable). Para
+                    # miembros oscuros sin QID, el nombre común (Carlos Jiménez,
+                    # Gonzalo Muñoz, Jorge Pérez) casa con homónimos famosos
+                    # (un jugador de baloncesto, un político, un coche de
+                    # rallies…). Mejor SIN foto (avatar de iniciales) que una
+                    # foto de otra persona. (regresión detectada 2026-06-02).
+                    if not person.image_url and person.wikidata_id:
                         # Fallback: búsqueda Commons con filtro ESTRICTO de
                         # nombre. Requiere que el filename contenga al menos
                         # 2 tokens distintos del nombre completo (apellido +
