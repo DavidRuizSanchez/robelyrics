@@ -201,15 +201,16 @@ def main() -> None:
                 meta_title = payload.get("meta_title")
                 meta_description = payload.get("meta_description")
                 entities = payload.get("entities") or []
-                # imagen Wikimedia
                 hero_url = hero_attr = hero_lic = hero_src = None
-                img = search_image(p.title) or search_image(ROBE)
-                if img:
-                    hero_url = img.thumb_url
-                    hero_attr = img.attribution_text
-                    hero_lic = img.license_short
-                    hero_src = img.source_page_url
-                    body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
+
+            # Hero RELEVANTE: imagen de la entidad protagonista del post (su
+            # foto curada). Overridea cualquier imagen previa de la propuesta
+            # para garantizar que SIEMPRE es del sujeto del que se habla.
+            from app.services.hero_image import pick_hero_image
+            _img = pick_hero_image(db, entities)
+            if _img:
+                hero_url, hero_attr = _img["url"], _img["attribution"]
+                hero_lic, hero_src = _img["license"], _img["source"]
 
             # Saneado anti marcas IA + jerarquía de headings + enlazado interno
             # automático a todo el corpus (máx. 4 enlaces más relevantes).

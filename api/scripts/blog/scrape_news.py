@@ -254,24 +254,18 @@ def main() -> None:
                         if isinstance(e, dict) and e.get("name")
                     ]
 
-            # Imagen Wikimedia: probamos las keywords del LLM en orden. Si
-            # ninguna devuelve imagen válida, el post va sin foto.
-            img = None
-            if not args.no_image:
-                for kw in image_keywords:
-                    candidate = search_image(kw)
-                    if candidate is not None:
-                        img = candidate
-                        logger.info(
-                            "Imagen Wikimedia con keyword %r: %s",
-                            kw, img.source_page_url,
-                        )
-                        break
-            hero_url = img.thumb_url if img else None
+            # Imagen RELEVANTE por construcción: la foto curada de la entidad
+            # protagonista del post (Robe, un disco, una persona…), NO una
+            # búsqueda libre en Commons por keyword (que devolvía cualquier
+            # cosa). Si ninguna entidad del post tiene imagen, va sin foto:
+            # mejor sin foto que una irrelevante. La atribución se muestra en el
+            # figcaption (campo hero_image_attribution), no en el cuerpo.
+            from app.services.hero_image import pick_hero_image
+            img = pick_hero_image(db, entities) if not args.no_image else None
             if img:
-                body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
+                logger.info("Imagen de entidad protagonista: %s", img["url"])
             else:
-                logger.info("Sin imagen relevante — post sin foto")
+                logger.info("Sin imagen de entidad — post sin foto")
 
             if args.dry_run:
                 summary["headlines"].append({
@@ -294,10 +288,10 @@ def main() -> None:
                 meta_description=meta_description,
                 source_url=news.url,
                 source_name=source_label,
-                hero_image_url=hero_url,
-                hero_image_attribution=img.attribution_text if img else None,
-                hero_image_license=img.license_short if img else None,
-                hero_image_source_url=img.source_page_url if img else None,
+                hero_image_url=img["url"] if img else None,
+                hero_image_attribution=img["attribution"] if img else None,
+                hero_image_license=img["license"] if img else None,
+                hero_image_source_url=img["source"] if img else None,
                 entities=entities,
                 status="proposed",
             )

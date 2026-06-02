@@ -126,12 +126,17 @@ export default async function BlogPostPage({
               {/* eslint-disable-next-line @next/next/no-restricted-imports */}
               <NextImage
                 src={post.hero_image_url}
-                alt={`Ilustración de portada: ${post.title}`}
+                alt={`Imagen relacionada: ${post.title}`}
                 fill
                 priority
                 sizes="(max-width: 1100px) 100vw, 1100px"
                 className="object-cover"
               />
+              {post.hero_image_attribution && (
+                <figcaption className="absolute bottom-0 right-0 bg-bg/75 backdrop-blur-sm px-2 py-1 font-mono text-[9px] tracking-[1px] text-ink-faint">
+                  {post.hero_image_attribution.replace(/^\*|\*$/g, "")}
+                </figcaption>
+              )}
             </figure>
           )}
 

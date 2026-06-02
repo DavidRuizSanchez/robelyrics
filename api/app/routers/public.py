@@ -1054,6 +1054,7 @@ class PublicPostDetail(PublicPostListItem):
     source_url: str | None = None
     source_name: str | None = None
     anniversary_year: int | None = None
+    hero_image_attribution: str | None = None
     entities: list[PublicResolvedEntity] = []
 
 
@@ -1196,6 +1197,7 @@ def public_post_detail(
         source_url=p.source_url,
         source_name=p.source_name,
         anniversary_year=p.anniversary_year,
+        hero_image_attribution=p.hero_image_attribution,
         entities=[PublicResolvedEntity(**e) for e in resolved],
     )
 

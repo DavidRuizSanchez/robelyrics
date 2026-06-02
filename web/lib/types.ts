@@ -271,5 +271,6 @@ export type PublicPostDetail = PublicPostListItem & {
   source_url: string | null;
   source_name: string | null;
   anniversary_year: number | null;
+  hero_image_attribution: string | null;
   entities: PublicResolvedEntity[];
 };
