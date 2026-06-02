@@ -119,6 +119,7 @@ def _wikipedia_extract(client: httpx.Client, wikipedia_url: str) -> str | None:
             "exintro": "1",
             "explaintext": "1",
             "exchars": "500",
+            "redirects": "1",
         },
     )
     resp.raise_for_status()
@@ -148,6 +149,7 @@ def _wikipedia_fulltext(
                 "titles": title,
                 "prop": "extracts",
                 "explaintext": "1",
+                "redirects": "1",
             },
         )
         resp.raise_for_status()
