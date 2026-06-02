@@ -36,7 +36,22 @@ vuelva a ser accesible (o se cambie de fuente de letras).
 Se crearon y luego **se borraron** las filas de álbum vacías (habrían dejado
 enlaces a 404 en `/discografia`). `discography.yaml` queda sin estas entradas.
 
-## Cómo completar cuando Genius sea accesible
+## Resolución (2026-06-02)
+Genius sigue bloqueado por Cloudflare. Se añadió un **ingest de respaldo**
+(`scripts/ingest_lrclib.py`): tracklist de **MusicBrainz** + letras de
+**LRCLIB**, sin scraping ni evasión.
+
+- **Pedrá**: es un **single de 1995 (1 pista, la canción «Pedrá»)** — no un
+  álbum. Ingestado vía LRCLIB (211 líneas), con YouTube + LRC sincronizado,
+  contenido SEO de álbum y canción generados y **publicado**. ⚠️ MusicBrainz
+  tiene además una release homónima recopilatoria mal etiquetada (25 pistas de
+  varios discos); por eso el script filtra por **año exacto** (`--year 1995`).
+- **Por la boca vive el pez (2004)**: no aparece en MusicBrainz y es un directo
+  doble de versiones de temas de estudio ya publicados (anti-canibalización).
+  **No se añade**; se retiró del catálogo. Pendiente de curación manual del
+  tracklist o de que Genius vuelva.
+
+## (Histórico) Cómo completar cuando Genius sea accesible
 1. Reañadir a `data/discography.yaml`:
    - Extremoduro → `Pedrá` (1995, kind: studio, slug: `pedra`)
    - Extremoduro → `Por la boca vive el pez` (2004, kind: live, slug: `por-la-boca-vive-el-pez`)

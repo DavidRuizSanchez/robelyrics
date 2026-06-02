@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import PersonAvatar from "@/components/PersonAvatar";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
@@ -166,9 +167,14 @@ export default async function ArtistPublicPage({
                           className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-mono text-[10px] uppercase tracking-[2px] text-ink-faint">
-                          sin foto
-                        </div>
+                        <PersonAvatar
+                          name={
+                            m.stage_name && m.stage_name !== m.full_name
+                              ? m.stage_name
+                              : m.full_name
+                          }
+                          slug={m.slug}
+                        />
                       )}
                     </div>
                     <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">

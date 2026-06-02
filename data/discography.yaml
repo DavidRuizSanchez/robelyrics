@@ -40,6 +40,11 @@ artists:
         kind: studio
         slug: donde-estan-mis-amigos
 
+      - title: "Pedrá"
+        year: 1995
+        kind: studio
+        slug: pedra
+
       - title: "Agila"
         year: 1996
         kind: studio
