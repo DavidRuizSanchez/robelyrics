@@ -269,3 +269,40 @@ persons:
     stage_name: Rosendo
     bio_short: Guitarrista y cantante, referente del rock urbano madrileño que ha colaborado en directo con Extremoduro.
     wikipedia_url: https://es.wikipedia.org/wiki/Rosendo_Mercado
+
+  # Entidades detectadas y aprobadas 2026-06-02 (universo Robe/Extremoduro).
+  - slug: manolo-chinato
+    full_name: Manuel Chinato
+    stage_name: Manolo Chinato
+    wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Chinato
+
+  - slug: enrique-el-drogas
+    full_name: Enrique Villarreal
+    stage_name: El Drogas
+    wikipedia_url: https://es.wikipedia.org/wiki/Enrique_Villarreal
+
+  - slug: albert-pla
+    full_name: Albert Pla
+    wikipedia_url: https://es.wikipedia.org/wiki/Albert_Pla
+
+  - slug: fermin-muguruza
+    full_name: Fermín Muguruza
+    wikipedia_url: https://es.wikipedia.org/wiki/Fermin_Muguruza
+
+  - slug: woody-amores
+    full_name: Woody Amores
+    memberships:
+      - artist: robe
+        role: guitarra y producción
+
+  - slug: mikel-irazoki
+    full_name: Mikel Irazoki
+    memberships:
+      - artist: robe
+        role: músico
+
+  - slug: aitor-arino
+    full_name: Aitor Ariño
+    memberships:
+      - artist: robe
+        role: músico

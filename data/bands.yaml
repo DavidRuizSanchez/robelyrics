@@ -78,3 +78,34 @@ bands:
     related_note: >
       Rock duro de José Carlos Molina, parte de la tradición del rock urbano
       que enlaza con el universo de Extremoduro.
+
+  - slug: extrechinato-y-tu
+    name: Extrechinato y tú
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/Extrechinato_y_t%C3%BA
+    related_note: >
+      Proyecto del año 2000 alrededor del poeta Manolo Chinato, con Robe
+      Iniesta, Fito Cabrales, Iñaki Antón y músicos del entorno de Extremoduro.
+      Pieza clave para entender el universo de Robe.
+
+  - slug: los-enemigos
+    name: Los Enemigos
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/Los_Enemigos_(grupo)
+    related_note: >
+      Banda madrileña de Josele Santiago, del rock estatal afín a Extremoduro.
+
+  - slug: inconscientes
+    name: Inconscientes
+    kind: band
+    related_note: >
+      Banda anterior de Iñaki "Uoho" Antón en Bilbao, antes de Platero y Tú y
+      Extremoduro.
+
+  - slug: dro
+    name: DRO
+    kind: label
+    wikipedia_url: https://es.wikipedia.org/wiki/Discos_Radiactivos_Organizados
+    related_note: >
+      Sello discográfico histórico (Discos Radiactivos Organizados) de la
+      movida y el rock estatal.

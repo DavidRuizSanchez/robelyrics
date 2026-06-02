@@ -99,7 +99,9 @@ def main() -> None:
                                             ", ".join(m["name"] for m in members[:6]))
                     except Exception as exc:  # noqa: BLE001
                         logger.warning("  wikidata members falló (%s): %s", slug, exc)
-                if not band.image_url:
+                # Foto por NOMBRE solo si hay wikidata_id (entidad verificable);
+                # si no, nombres comunes casan con homónimos. Mejor sin foto.
+                if not band.image_url and band.wikidata_id:
                     foto = photo_finder._wikidata_photo(band.name)
                     if foto:
                         band.image_url = foto["url"]
