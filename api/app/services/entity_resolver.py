@@ -361,9 +361,16 @@ def build_corpus_index(
             # (Rock Transgresivo)» también enlaza al citarse «Jesucristo García».
             add(_clean_title(s.title), url, "song")
     for p in db.query(Person).all():
-        add(p.full_name, f"{base}/personas/{p.slug}", "person")
+        purl = f"{base}/personas/{p.slug}"
+        add(p.full_name, purl, "person")
         if p.stage_name and p.stage_name != p.full_name:
-            add(p.stage_name, f"{base}/personas/{p.slug}", "person")
+            add(p.stage_name, purl, "person")
+            # Alias «apodo + primer apellido»: el texto suele escribir «Fito
+            # Cabrales» aunque la ficha sea nombre «Adolfo Cabrales Mato» +
+            # apodo «Fito». El primer apellido es el 2º token del nombre.
+            toks = (p.full_name or "").split()
+            if len(toks) >= 2:
+                add(f"{p.stage_name} {toks[1]}", purl, "person")
     for pl in db.query(Place).all():
         add(pl.name, f"{base}/lugares/{pl.slug}", "place")
     for th in db.query(Theme).all():

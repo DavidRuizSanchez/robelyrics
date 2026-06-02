@@ -67,9 +67,17 @@ ESTRUCTURA (encabezados H2 concretos, con sustantivos del tema):
 ## Quién es {band.name}
 ~150 palabras: qué es, qué lugar ocupa en la escena del rock estatal.
 
-## Su relación con Extremoduro y Robe
+## Componentes
+~120 palabras: nombra a los integrantes que CONSTEN con seguridad y su
+instrumento/rol, en texto plano (el sistema enlaza solo). Si la formación no
+está documentada, dilo con honestidad y nombra solo a quien conste (al menos
+el líder). NO inventes nombres.
+
+## Relación con Extremoduro y Robe
 ~300 palabras: el vínculo documentado con el universo de Robe (escenarios
-compartidos, círculo, época). No inventes colaboraciones que no consten.
+compartidos, gente en común, círculo, época). Nombra en texto plano a las
+personas del entorno (Robe, Fito, Rosendo, Kutxi…) para que se enlacen. No
+inventes colaboraciones que no consten.
 
 ## Lo documentado y lo que queda en penumbra
 ~150 palabras: reconoce con honestidad qué se sabe y qué no.
@@ -105,22 +113,31 @@ DATOS VERIFICADOS:
 BIOGRAFÍA CORTA (puedes parafrasear pero no copiar):
 {bio}
 
-ESTRUCTURA OBLIGATORIA (encabezados H2):
+ESTRUCTURA OBLIGATORIA (encabezados H2, EN ESTE ORDEN):
 
 ## Quién es {band.name}
-~300 palabras: presentación, origen, qué lugar ocupa en el rock español.
+~250 palabras: presentación, origen, qué lugar ocupa en el rock español.
+
+## Componentes
+~300 palabras: la formación del grupo. Nombra a sus integrantes con su
+instrumento/rol (voz, guitarra, bajo, batería…) en texto plano, sin links
+markdown (el sistema enlaza solo a quien tenga ficha). Distingue, si procede,
+formación clásica y cambios de alineación. NO inventes nombres ni roles: si no
+tienes certeza de un integrante, no lo incluyas; mejor nombrar solo a quienes
+constan con seguridad (al menos el líder/vocalista).
 
 ## Trayectoria y discografía
-~600 palabras con H3 según las etapas reales. Menciona los títulos de discos
+~500 palabras con H3 según las etapas reales. Menciona los títulos de discos
 en texto plano (sin links markdown). NO inventes discos ni fechas.
 
 ## Estilo y sonido
-~350 palabras: qué hace distintivo a {band.name} musicalmente.
+~300 palabras: qué hace distintivo a {band.name} musicalmente.
 
-## Su lugar junto a Extremoduro y Robe
+## Relación con Extremoduro y Robe
 ~400 palabras: el vínculo real con el universo de Robe (escena compartida,
-círculo, escenarios). Menciona "Extremoduro" y "Robe" en texto plano cuando
-aplique. No inventes colaboraciones que no consten.
+gente en común, escenarios, carretera). Nombra en texto plano a las personas
+del entorno que compartan (p.ej. Robe, Fito, Rosendo, Kutxi…) para que se
+enlacen a sus fichas. No inventes colaboraciones que no consten.
 
 IMPORTANTE:
 - NO uses placeholders entre corchetes en el texto final.
