@@ -104,16 +104,27 @@ def _concrete_image(name: str) -> dict | None:
 
 
 def _ai_art_url(
-    name: str, description: str, seed: int, texture: bool = False
+    name: str, description: str, seed: int, texture: bool = False,
+    ai_prompt: str | None = None,
 ) -> str | None:
     """Genera arte IA temático y lo sube a Cloudinary. Devuelve la URL.
 
     `texture=True` pide textura abstracta pura (sin escena ni sujeto
     figurativo): es lo que menos texto basura provoca en Flux, para los
     conceptos en los que el modo figurativo se empeña en meter letras.
+
+    `ai_prompt` permite controlar el sujeto a mano (p.ej. «un dromedario» o
+    «una banda de rock tocando en directo»): se le añade la paleta del
+    proyecto y los guardas anti-texto.
     """
     desc = (description or "").strip().replace("\n", " ")[:140]
-    if texture:
+    if ai_prompt:
+        prompt = (
+            f"{ai_prompt}. deep crimson and charcoal black palette, expressive "
+            "painterly digital art, cinematic moody lighting, film grain texture, "
+            "no typography, no lettering, no words, no watermark, no caption"
+        )
+    elif texture:
         prompt = (
             f"pure abstract expressionist texture evoking the idea of {name}, "
             "crimson red and charcoal black, palette knife strokes, dripping "
@@ -169,6 +180,10 @@ def main() -> None:
                     help="Arte abstracto puro (sin figura): evita el texto de Flux.")
     ap.add_argument("--rehost", action="store_true",
                     help="Re-aloja a Cloudinary las imágenes externas (Wikimedia).")
+    ap.add_argument("--ai-art", action="store_true",
+                    help="Fuerza arte IA para los --slugs dados (cualquier tipo).")
+    ap.add_argument("--ai-prompt", default="",
+                    help="Sujeto del arte IA (con --ai-art), p.ej. «un dromedario».")
     args = ap.parse_args()
     types = [t.strip() for t in args.types.split(",") if t.strip()]
     only_slugs = {s.strip() for s in args.slugs.split(",") if s.strip()}
@@ -176,6 +191,30 @@ def main() -> None:
     with SessionLocal() as db:
         if args.rehost:
             _rehost(db, types)
+            return
+        if args.ai_art:
+            if not only_slugs:
+                logger.warning("--ai-art requiere --slugs")
+                return
+            for t in types:
+                model = _ALL_MODELS.get(t)
+                if model is None:
+                    continue
+                for e in db.query(model).filter(model.slug.in_(only_slugs)).all():
+                    seed = (int(hashlib.md5(e.slug.encode()).hexdigest(), 16)
+                            + args.seed_salt) % 1_000_000
+                    url = _ai_art_url(e.name, "", seed,
+                                      ai_prompt=args.ai_prompt or e.name)
+                    if not url:
+                        continue
+                    db.execute(update(model).where(model.id == e.id).values(
+                        image_url=url,
+                        image_attribution="Arte generado por IA · Entre Interiores",
+                        image_license="propio",
+                        image_source_url=None,
+                    ))
+                    logger.info("  ✓ ai-art %s «%s» → %s", t, e.name, url)
+                db.commit()
             return
         for t in types:
             model = _CONCRETE.get(t) or _ABSTRACT.get(t)

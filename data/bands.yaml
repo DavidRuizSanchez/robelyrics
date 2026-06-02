@@ -46,3 +46,35 @@ bands:
     kind: label
     related_note: >
       Sello discográfico ligado a la obra en solitario de Robe Iniesta.
+
+  - slug: leno
+    name: Leño
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/Le%C3%B1o_(grupo)
+    related_note: >
+      Banda de Rosendo Mercado, pilar del rock urbano español de los 70-80.
+      Extremoduro bebe de esa tradición; Rosendo está en el círculo cercano.
+
+  - slug: reincidentes
+    name: Reincidentes
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/Reincidentes
+    related_note: >
+      Punk-rock de Sevilla del mismo circuito de directos y festivales que
+      Extremoduro en los 90.
+
+  - slug: la-fuga
+    name: La Fuga
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/La_Fuga
+    related_note: >
+      Rock de Reinosa (Cantabria), del circuito de rock estatal cercano a
+      Extremoduro.
+
+  - slug: nu
+    name: Ñu
+    kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/%C3%91u_(grupo)
+    related_note: >
+      Rock duro de José Carlos Molina, parte de la tradición del rock urbano
+      que enlaza con el universo de Extremoduro.
