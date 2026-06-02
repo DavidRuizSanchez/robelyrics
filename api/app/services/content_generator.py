@@ -334,6 +334,36 @@ Devuelve el JSON con TODOS los campos.
         )
 
 
+def revoice_post(*, title: str, body_md: str, today: date | None = None) -> dict[str, Any]:
+    """Reescribe un post EXISTENTE en la voz del sitio (fan, 1ª persona) SIN
+    cambiar los hechos. Para posts sin fuente externa (evergreen, efeméride,
+    editorial) que solo necesitan el cambio de voz, no más información.
+    """
+    today = today or date.today()
+    user = f"""\
+Reescribe el siguiente post en TU voz (fan en primera persona, la del sitio).
+
+NORMA ESTRICTA: mismos HECHOS y misma información. NO añadas datos, nombres,
+fechas ni anécdotas que no estén ya en el texto. NO inventes nada. NO quites
+información relevante. Solo cambias el registro y la calidad de la prosa para
+que suene a quien ama esto, con hondura. Mantén la estructura en H2 concretos
+y conserva el enlace final a la fuente si lo hubiera.
+
+TÍTULO ACTUAL: {title}
+TEXTO ACTUAL:
+\"\"\"
+{body_md[:8000]}
+\"\"\"
+
+Devuelve el JSON con todos los campos requeridos.
+"""
+    try:
+        return _call(user, max_tokens=2600)
+    except (OpenAIError, ValueError) as exc:
+        logger.warning("revoice_post fallback: %s", exc)
+        return _fallback(title=title[:80], excerpt="", body_md=body_md)
+
+
 def generate_evergreen_topic(
     *,
     taxonomy_kind: str,
