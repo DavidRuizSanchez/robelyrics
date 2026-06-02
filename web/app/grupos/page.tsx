@@ -5,6 +5,14 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
+import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  itemListNode,
+  webPageNode,
+} from "@/lib/schema-graph";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -112,6 +120,33 @@ export default async function GruposPage() {
             })}
           </ul>
         )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                webPageNode({
+                  path: "/grupos",
+                  name: "Grupos afines a Extremoduro",
+                  type: "CollectionPage",
+                  mainEntityId: canonical.itemList("/grupos"),
+                }),
+                itemListNode(
+                  "/grupos",
+                  items.map((b) => ({
+                    name: b.name,
+                    url: `/grupos/${b.slug}`,
+                    id: canonical.band(b.slug, b.kind === "label"),
+                  })),
+                ),
+                breadcrumbListNode("/grupos", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "Grupos", item: "/grupos" },
+                ]),
+              ]),
+            ),
+          }}
+        />
       </main>
       <PublicFooter />
     </>

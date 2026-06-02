@@ -11,11 +11,14 @@ import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  breadcrumbListNode,
   buildGraph,
+  canonical,
   mentionsArray,
   musicAlbumNode,
   musicGroupNode,
   personNode,
+  webPageNode,
 } from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
@@ -242,6 +245,17 @@ export default async function ArtistPublicPage({
                       ],
                     }),
                   ),
+                  webPageNode({
+                    path: `/${artist}`,
+                    name: detail.seo_h1 || detail.name,
+                    type: "CollectionPage",
+                    description: detail.seo_meta_description,
+                    mainEntityId: canonical.musicGroup(artist),
+                  }),
+                  breadcrumbListNode(`/${artist}`, [
+                    { name: "Entre Interiores", item: "/" },
+                    { name: detail.name, item: `/${artist}` },
+                  ]),
                 ]),
               ),
             }}

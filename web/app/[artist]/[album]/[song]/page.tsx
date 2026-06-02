@@ -13,12 +13,15 @@ import TrackNav from "@/components/TrackNav";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  breadcrumbListNode,
   buildGraph,
+  canonical,
   mentionsArray,
   musicAlbumNode,
   musicCompositionNode,
   musicGroupNode,
   videoObjectNode,
+  webPageNode,
 } from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
@@ -277,6 +280,19 @@ export default async function SongPublicPage({
                       }),
                     ]
                   : []),
+                webPageNode({
+                  path: `/${artist}/${album}/${song}`,
+                  name: detail.title,
+                  type: "ItemPage",
+                  description: detail.seo_meta_description,
+                  mainEntityId: canonical.musicComposition(artist, album, song),
+                }),
+                breadcrumbListNode(`/${artist}/${album}/${song}`, [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: detail.artist.name, item: `/${artist}` },
+                  { name: detail.album.title, item: `/${artist}/${album}` },
+                  { name: detail.title, item: `/${artist}/${album}/${song}` },
+                ]),
               ]),
             ),
           }}

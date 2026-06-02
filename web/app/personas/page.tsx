@@ -6,6 +6,14 @@ import PersonAvatar from "@/components/PersonAvatar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
+import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  itemListNode,
+  webPageNode,
+} from "@/lib/schema-graph";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -128,6 +136,33 @@ export default async function PersonasPage() {
             })}
           </ul>
         )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                webPageNode({
+                  path: "/personas",
+                  name: "Los colegas de Robe",
+                  type: "CollectionPage",
+                  mainEntityId: canonical.itemList("/personas"),
+                }),
+                itemListNode(
+                  "/personas",
+                  items.map((p) => ({
+                    name: p.stage_name || p.full_name,
+                    url: `/personas/${p.slug}`,
+                    id: canonical.person(p.slug),
+                  })),
+                ),
+                breadcrumbListNode("/personas", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "Personas", item: "/personas" },
+                ]),
+              ]),
+            ),
+          }}
+        />
       </main>
       <PublicFooter />
     </>

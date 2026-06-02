@@ -8,6 +8,13 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  asNode,
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  webPageNode,
+} from "@/lib/schema-graph";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -139,7 +146,22 @@ export default async function GrupoPage({
     ? `${detail.founded_year}${detail.dissolved_year ? `–${detail.dissolved_year}` : ""}`
     : null;
   const kindLabel = detail.kind === "label" ? "sello discográfico" : "grupo";
-  const jsonLd = buildJsonLd(detail);
+  const path = `/grupos/${detail.slug}`;
+  const jsonLd = buildGraph([
+    asNode(buildJsonLd(detail)),
+    webPageNode({
+      path,
+      name: detail.name,
+      type: "ProfilePage",
+      description: detail.seo_meta_description,
+      mainEntityId: canonical.band(detail.slug, detail.kind === "label"),
+    }),
+    breadcrumbListNode(path, [
+      { name: "Entre Interiores", item: "/" },
+      { name: "Grupos", item: "/grupos" },
+      { name: detail.name, item: path },
+    ]),
+  ]);
 
   return (
     <>

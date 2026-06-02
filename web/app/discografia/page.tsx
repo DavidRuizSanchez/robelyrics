@@ -6,6 +6,7 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { asNode, breadcrumbListNode, buildGraph } from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
 const SITE_URL =
@@ -122,7 +123,17 @@ export default async function DiscografiaPage() {
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                asNode(jsonLd),
+                breadcrumbListNode("/discografia", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "Discografía", item: "/discografia" },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PublicFooter />

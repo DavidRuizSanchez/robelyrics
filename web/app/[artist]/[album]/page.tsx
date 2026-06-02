@@ -11,10 +11,13 @@ import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  breadcrumbListNode,
   buildGraph,
+  canonical,
   mentionsArray,
   musicAlbumNode,
   musicGroupNode,
+  webPageNode,
 } from "@/lib/schema-graph";
 import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
@@ -189,6 +192,10 @@ export default async function AlbumPublicPage({
                     title: detail.title,
                     year: detail.year,
                     coverUrl: detail.cover_url,
+                    tracks: detail.tracks.map((t) => ({
+                      slug: t.slug,
+                      title: t.title,
+                    })),
                   }),
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }
@@ -196,6 +203,18 @@ export default async function AlbumPublicPage({
                 },
                 // Nodo mínimo del artista para conectar @id
                 musicGroupNode({ slug: artist, name: detail.artist.name }),
+                webPageNode({
+                  path: `/${artist}/${album}`,
+                  name: detail.title,
+                  type: "ItemPage",
+                  description: detail.seo_meta_description,
+                  mainEntityId: canonical.musicAlbum(artist, album),
+                }),
+                breadcrumbListNode(`/${artist}/${album}`, [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: detail.artist.name, item: `/${artist}` },
+                  { name: detail.title, item: `/${artist}/${album}` },
+                ]),
               ]),
             ),
           }}

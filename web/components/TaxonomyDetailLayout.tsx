@@ -6,7 +6,15 @@ import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { safeJsonLd } from "@/lib/safe-json-ld";
-import { mentionsArray } from "@/lib/schema-graph";
+import {
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  itemListNode,
+  mentionsArray,
+  webPageNode,
+} from "@/lib/schema-graph";
+import type { TaxonomyKind } from "@/lib/schema-graph";
 import type { PublicTaxonomyDetail } from "@/lib/types";
 
 const SITE_URL =
@@ -19,44 +27,55 @@ type Props = {
 };
 
 export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Props) {
-  const isPlace = detail.kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
-
+  const kind = detail.kind as TaxonomyKind;
+  const isPlace = kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
+  const path = `/${hubSlug}/${detail.slug}`;
   const mentions = mentionsArray(detail.entities);
-  // El JSON-LD usa solo el meta description SEO (texto plano, sin markdown
-  // ni marcas de IA). El campo `description` de seed puede traer em-dash y
-  // sintaxis markdown, así que NO se usa aquí.
-  const collection: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: detail.name,
-    description: detail.seo_meta_description ?? undefined,
-    url: `${SITE_URL}/${hubSlug}/${detail.slug}`,
-    isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Entre Interiores" },
-    mainEntity: {
-      "@type": "ItemList",
-      itemListElement: detail.songs.map((s, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        url: `${SITE_URL}${s.url_path}`,
-        name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
-      })),
-    },
-  };
-  if (mentions.length > 0) collection.mentions = mentions;
 
-  const placeJsonLd = isPlace
-    ? {
-        "@context": "https://schema.org",
-        "@type": "Place",
-        name: detail.name,
-        description: detail.seo_meta_description ?? undefined,
-        geo: {
-          "@type": "GeoCoordinates",
-          latitude: detail.extra!.geo_lat,
-          longitude: detail.extra!.geo_lng,
-        },
-      }
-    : null;
+  // Nodo de la taxonomía: Place (con geo) para lugares; DefinedTerm para temas
+  // y conceptos. El JSON-LD usa solo el meta description SEO (texto plano).
+  const taxNode: Record<string, unknown> = {
+    "@type": isPlace ? "Place" : "DefinedTerm",
+    "@id": canonical.taxonomy(kind, detail.slug),
+    name: detail.name,
+    url: `${SITE_URL}${path}`,
+  };
+  if (detail.seo_meta_description) taxNode.description = detail.seo_meta_description;
+  if (detail.image_url) taxNode.image = detail.image_url;
+  if (isPlace) {
+    taxNode.geo = {
+      "@type": "GeoCoordinates",
+      latitude: detail.extra!.geo_lat,
+      longitude: detail.extra!.geo_lng,
+    };
+  }
+
+  const collectionPage = webPageNode({
+    path,
+    name: detail.name,
+    type: "CollectionPage",
+    description: detail.seo_meta_description,
+    mainEntityId: canonical.itemList(path),
+  });
+  if (mentions.length > 0) collectionPage.mentions = mentions;
+
+  const graph = buildGraph([
+    taxNode,
+    itemListNode(
+      path,
+      detail.songs.map((s) => ({
+        name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
+        url: s.url_path,
+        id: `${SITE_URL}${s.url_path}#musiccomposition`,
+      })),
+    ),
+    collectionPage,
+    breadcrumbListNode(path, [
+      { name: "Entre Interiores", item: "/" },
+      { name: hubLabel, item: `/${hubSlug}` },
+      { name: detail.name, item: path },
+    ]),
+  ]);
 
   return (
     <>
@@ -146,14 +165,8 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(collection) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(graph) }}
         />
-        {placeJsonLd && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: safeJsonLd(placeJsonLd) }}
-          />
-        )}
       </main>
       <PublicFooter />
     </>

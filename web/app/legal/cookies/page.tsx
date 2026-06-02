@@ -1,8 +1,11 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = { title: "Política de cookies · Entre Interiores" };
 
 export default function PoliticaCookies() {
   return (
     <>
+      <LegalSchema path="/legal/cookies" name="Política de cookies" />
       <h1>Política de cookies</h1>
       <p>Última actualización: 6 de mayo de 2026.</p>
 

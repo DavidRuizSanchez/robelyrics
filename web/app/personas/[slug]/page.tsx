@@ -10,6 +10,13 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  asNode,
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  webPageNode,
+} from "@/lib/schema-graph";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -225,7 +232,22 @@ export default async function PersonPage({
     ? `${yearBirth}${yearDeath ? `–${yearDeath}` : ""}`
     : null;
 
-  const jsonLd = buildJsonLd(detail);
+  const path = `/personas/${detail.slug}`;
+  const jsonLd = buildGraph([
+    asNode(buildJsonLd(detail)),
+    webPageNode({
+      path,
+      name: detail.stage_name || detail.full_name,
+      type: "ProfilePage",
+      description: detail.seo_meta_description,
+      mainEntityId: canonical.person(detail.slug),
+    }),
+    breadcrumbListNode(path, [
+      { name: "Entre Interiores", item: "/" },
+      { name: "Personas", item: "/personas" },
+      { name: detail.stage_name || detail.full_name, item: path },
+    ]),
+  ]);
 
   return (
     <>

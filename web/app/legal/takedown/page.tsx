@@ -1,3 +1,5 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = {
   title: "Solicitud de retirada de contenido · Entre Interiores",
 };
@@ -5,6 +7,10 @@ export const metadata = {
 export default function Takedown() {
   return (
     <>
+      <LegalSchema
+        path="/legal/takedown"
+        name="Solicitud de retirada de contenido"
+      />
       <h1>Solicitud de retirada de contenido</h1>
       <p>Última actualización: 6 de mayo de 2026.</p>
 

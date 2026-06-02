@@ -1,7 +1,4 @@
 import Link from "next/link";
-import { safeJsonLd } from "@/lib/safe-json-ld";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
 
 export type Crumb = {
   label: string;
@@ -9,6 +6,9 @@ export type Crumb = {
   meta?: string;
 };
 
+// El JSON-LD BreadcrumbList ya NO se emite aquí: va dentro del @graph de cada
+// página (web/lib/schema-graph.ts → breadcrumbListNode). Este componente es
+// solo el <nav> visual. Así hay un único <script> JSON-LD por página.
 export default function Breadcrumbs({
   items,
   className = "",
@@ -17,17 +17,6 @@ export default function Breadcrumbs({
   className?: string;
 }) {
   if (items.length === 0) return null;
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((c, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: c.label,
-      item: c.href.startsWith("http") ? c.href : `${SITE_URL}${c.href}`,
-    })),
-  };
 
   return (
     <>
@@ -67,10 +56,6 @@ export default function Breadcrumbs({
           })}
         </ol>
       </nav>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
-      />
     </>
   );
 }

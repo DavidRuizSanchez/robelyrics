@@ -1,8 +1,11 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = { title: "Atribuciones y créditos · Entre Interiores" };
 
 export default function Atribuciones() {
   return (
     <>
+      <LegalSchema path="/legal/atribuciones" name="Atribuciones y créditos" />
       <h1>Atribuciones y créditos</h1>
       <p>Última actualización: 6 de mayo de 2026.</p>
 

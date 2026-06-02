@@ -3,10 +3,8 @@ import { Caveat, JetBrains_Mono, Spectral } from "next/font/google";
 import ConsentManager from "@/components/ConsentManager";
 import InkCursor from "@/components/InkCursor";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { buildGraph, siteGraphNodes } from "@/lib/schema-graph";
 import "./globals.css";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
 
 const spectral = Spectral({
   subsets: ["latin"],
@@ -54,55 +52,10 @@ export default async function RootLayout({
   // ni se monta el manager, así dev no muestra banner inútil.
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
-  // Schema en @graph: el WebSite del proyecto referencia al Person canónico
-  // del autor (definido en davidruizsanchez.es/#person). No duplicamos sus
-  // datos, los enlazamos por @id · Google sigue la referencia y consolida
-  // señal de E-E-A-T.
-  const siteGraph = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        "@id": `${SITE_URL}/#website`,
-        url: SITE_URL,
-        name: "Entre Interiores",
-        alternateName: "Cancionero de Robe y Extremoduro",
-        description:
-          "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
-        inLanguage: "es-ES",
-        creator: { "@id": "https://davidruizsanchez.es/#person" },
-        publisher: { "@id": "https://davidruizsanchez.es/#person" },
-        sameAs: ["https://www.instagram.com/entreinterioresrobe/"],
-        potentialAction: {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: `${SITE_URL}/buscar?q={search_term_string}`,
-          },
-          "query-input": "required name=search_term_string",
-        },
-      },
-      {
-        "@type": "Person",
-        "@id": "https://davidruizsanchez.es/#person",
-        name: "David Ruiz Sánchez",
-        givenName: "David",
-        familyName: "Ruiz Sánchez",
-        url: "https://davidruizsanchez.es",
-        jobTitle: "Partner & Head of SEO",
-        worksFor: {
-          "@type": "Organization",
-          name: "Convertix",
-          url: "https://convertix.net",
-        },
-        sameAs: [
-          "https://www.linkedin.com/in/davidruizsanchez/",
-          "https://github.com/DavidRuizSanchez",
-          "https://x.com/davidruiz_s",
-        ],
-      },
-    ],
-  };
+  // Grafo global del sitio (una sola vez): WebSite + Organization (publisher)
+  // + Person autor (referenciado por @id, no duplicado). Las páginas emiten su
+  // propio @graph y referencian estos nodos por @id. Ver web/lib/schema-graph.ts.
+  const siteGraph = buildGraph(siteGraphNodes());
 
   return (
     <html lang="es" className={`dark ${fontVars}`} suppressHydrationWarning>

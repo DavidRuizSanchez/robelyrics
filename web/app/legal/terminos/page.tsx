@@ -1,8 +1,11 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = { title: "Términos de uso · Entre Interiores" };
 
 export default function TerminosUso() {
   return (
     <>
+      <LegalSchema path="/legal/terminos" name="Términos de uso" />
       <h1>Términos de uso</h1>
       <p>Última actualización: 6 de mayo de 2026 · Versión: 2026-05-02.</p>
 

@@ -3,6 +3,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { asNode, breadcrumbListNode, buildGraph } from "@/lib/schema-graph";
 import type { PublicTaxonomyListItem } from "@/lib/types";
 
 const SITE_URL =
@@ -95,7 +96,17 @@ export default function TaxonomyListLayout({
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                asNode(jsonLd),
+                breadcrumbListNode(`/${hubSlug}`, [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: hubLabel, item: `/${hubSlug}` },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PublicFooter />

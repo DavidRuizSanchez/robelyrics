@@ -1,8 +1,11 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = { title: "Política de privacidad · Entre Interiores" };
 
 export default function PoliticaPrivacidad() {
   return (
     <>
+      <LegalSchema path="/legal/privacidad" name="Política de privacidad" />
       <h1>Política de privacidad</h1>
       <p>Última actualización: 6 de mayo de 2026.</p>
 

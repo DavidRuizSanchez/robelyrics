@@ -3,6 +3,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { asNode, breadcrumbListNode, buildGraph } from "@/lib/schema-graph";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -142,7 +143,17 @@ export default function SobrePage() {
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(aboutJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                asNode(aboutJsonLd),
+                breadcrumbListNode("/sobre", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "Quién ha hecho esto", item: "/sobre" },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PublicFooter />

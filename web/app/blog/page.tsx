@@ -6,6 +6,7 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { asNode, breadcrumbListNode, buildGraph } from "@/lib/schema-graph";
 import type { PublicPostListItem } from "@/lib/types";
 
 const SITE_URL =
@@ -123,7 +124,17 @@ export default async function BlogPage() {
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                asNode(jsonLd),
+                breadcrumbListNode("/blog", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "De manera urgente", item: "/blog" },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PublicFooter />

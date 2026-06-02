@@ -8,7 +8,13 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
-import { mentionsArray } from "@/lib/schema-graph";
+import {
+  breadcrumbListNode,
+  buildGraph,
+  canonical,
+  mentionsArray,
+  webPageNode,
+} from "@/lib/schema-graph";
 import type { PublicPostDetail } from "@/lib/types";
 
 const SITE_URL =
@@ -76,21 +82,26 @@ export default async function BlogPostPage({
   }
 
   const mentions = mentionsArray(post.entities);
+  // BlogPosting para editorial; NewsArticle para noticias/efemérides.
   const articleJsonLd: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
+    "@type": post.kind === "editorial" ? "BlogPosting" : "NewsArticle",
+    "@id": canonical.article(post.slug),
     headline: post.title,
     description: post.excerpt ?? undefined,
     datePublished: post.published_at,
     image: post.hero_image_url ?? undefined,
     url: `${SITE_URL}/blog/${post.slug}`,
-    isPartOf: { "@type": "Blog", url: `${SITE_URL}/blog`, name: "Diario · Entre Interiores" },
+    inLanguage: "es-ES",
+    isPartOf: { "@id": canonical.blog },
     author: { "@id": "https://davidruizsanchez.es/#person" },
-    publisher: { "@id": "https://davidruizsanchez.es/#person" },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}/blog/${post.slug}` },
+    publisher: { "@id": canonical.organization },
+    mainEntityOfPage: { "@id": canonical.webPage(`/blog/${post.slug}`) },
   };
   if (mentions.length > 0) {
     articleJsonLd.mentions = mentions;
+  }
+  if (post.source_url) {
+    articleJsonLd.isBasedOn = post.source_url;
   }
 
   return (
@@ -160,7 +171,24 @@ export default async function BlogPostPage({
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                articleJsonLd,
+                webPageNode({
+                  path: `/blog/${post.slug}`,
+                  name: post.title,
+                  mainEntityId: canonical.article(post.slug),
+                  datePublished: post.published_at,
+                }),
+                breadcrumbListNode(`/blog/${post.slug}`, [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "De manera urgente", item: "/blog" },
+                  { name: post.title, item: `/blog/${post.slug}` },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PatreonCTA />

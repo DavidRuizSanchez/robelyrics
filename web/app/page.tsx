@@ -5,6 +5,13 @@ import LogoBomba from "@/components/LogoBomba";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
+import { safeJsonLd } from "@/lib/safe-json-ld";
+import {
+  buildGraph,
+  canonical,
+  itemListNode,
+  webPageNode,
+} from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
 export const metadata = {
@@ -168,6 +175,31 @@ export default async function PublicLandingPage() {
             crear cuenta gratis
           </Link>
         </section>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                webPageNode({
+                  path: "/",
+                  name: "Entre Interiores · Cancionero de Robe y Extremoduro",
+                  type: "CollectionPage",
+                  mainEntityId: canonical.itemList("/"),
+                  breadcrumb: false,
+                }),
+                itemListNode(
+                  "/",
+                  albumsLive.map((alb) => ({
+                    name: alb.title,
+                    url: `/${alb.artistSlug}/${alb.slug}`,
+                    id: canonical.musicAlbum(alb.artistSlug, alb.slug),
+                  })),
+                ),
+              ]),
+            ),
+          }}
+        />
       </main>
       <PublicFooter />
       </div>

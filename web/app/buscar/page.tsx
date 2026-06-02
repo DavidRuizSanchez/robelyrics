@@ -5,6 +5,7 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { asNode, breadcrumbListNode, buildGraph } from "@/lib/schema-graph";
 import type { PublicSearchOut } from "@/lib/types";
 
 const SITE_URL =
@@ -181,7 +182,17 @@ export default async function BuscarPage({
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(
+              buildGraph([
+                asNode(jsonLd),
+                breadcrumbListNode("/buscar", [
+                  { name: "Entre Interiores", item: "/" },
+                  { name: "Buscar", item: "/buscar" },
+                ]),
+              ]),
+            ),
+          }}
         />
       </main>
       <PublicFooter />

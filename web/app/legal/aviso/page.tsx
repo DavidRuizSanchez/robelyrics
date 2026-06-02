@@ -1,8 +1,11 @@
+import LegalSchema from "@/components/LegalSchema";
+
 export const metadata = { title: "Aviso legal · Entre Interiores" };
 
 export default function AvisoLegal() {
   return (
     <>
+      <LegalSchema path="/legal/aviso" name="Aviso legal" />
       <h1>Aviso legal</h1>
       <p>Última actualización: 6 de mayo de 2026.</p>
 
