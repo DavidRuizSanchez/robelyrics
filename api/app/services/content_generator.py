@@ -287,8 +287,14 @@ URL fuente: {source_url}
 LO MÁS IMPORTANTE: no te dejes fuera los HECHOS CLAVE del evento. Recoge los \
 nombres propios relevantes (quién dijo o hizo qué, dedicatorias, canciones \
 interpretadas, premios, personas destacadas) y dales el peso que merecen \
-según su importancia real, no según el orden de la fuente. Si una figura \
-mayor aparece, no la entierres por debajo de una menor.
+según su importancia real, no según el orden de la fuente. Si en la fuente \
+aparece una FIGURA MAYOR de la música (Serrat, Sabina, Amaral, Leiva y \
+similares), NO la omitas: merece su hueco aunque la fuente la cite de pasada.
+
+NO INVENTES NADA que no esté en las fuentes: ni apellidos, ni la banda a la \
+que pertenece alguien, ni lugares, ni fechas. Si la fuente dice solo "Fito", \
+escribe "Fito", no le pongas un apellido. Si no sabes el dato con certeza por \
+las fuentes, omítelo. Es preferible un nombre escueto a un dato inventado.
 
 Quiero entre 400 y 700 palabras CON FONDO (mejor pocas ideas hondas que un \
 resumen plano). Profundiza: por qué importa esto, cómo conecta con la obra y \
