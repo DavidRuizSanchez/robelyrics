@@ -20,6 +20,7 @@ import yaml
 from app.db.models import Band
 from app.db.session import SessionLocal
 from app.services.instagram import photo_finder
+from app.services.wikimedia import get_file_info
 from scripts.seed_persons import (
     _enrich_from_wikidata,
     _resolve_entities,
@@ -84,29 +85,30 @@ def main() -> None:
                     full = _wikipedia_fulltext(http, band.wikipedia_url)
                     if full:
                         band.bio_long = full
-                # Miembros reales desde Wikidata P527 (has part), si el yaml no
-                # los trae a mano. Resuelve los Q-ID a nombres.
-                if band.wikidata_id and not band.members:
+                # Wikidata desde el QID: miembros (P527) + foto oficial (P18).
+                # Usamos la P18 del QID, NO búsqueda por nombre: "Ñu" casa con
+                # el ñu animal, "Leño" con un tronco, etc.
+                if band.wikidata_id:
                     try:
                         enr = _enrich_from_wikidata(http, band.wikidata_id)
-                        part_qids = enr.get("has_part_qids", [])[:12]
-                        if part_qids:
-                            people = _resolve_entities(http, part_qids)
-                            members = [{"name": p["name"]} for p in people if p.get("name")]
-                            if members:
-                                band.members = members
-                                logger.info("  members(P527): %s",
-                                            ", ".join(m["name"] for m in members[:6]))
+                        if not band.members:
+                            part_qids = enr.get("has_part_qids", [])[:12]
+                            if part_qids:
+                                people = _resolve_entities(http, part_qids)
+                                members = [{"name": p["name"]} for p in people if p.get("name")]
+                                if members:
+                                    band.members = members
+                                    logger.info("  members(P527): %s",
+                                                ", ".join(m["name"] for m in members[:6]))
+                        if not band.image_url and enr.get("image_filename"):
+                            img = get_file_info(enr["image_filename"])
+                            if img:
+                                band.image_url = img.thumb_url
+                                band.image_attribution = img.attribution_text
+                                band.image_license = img.license_short
+                                band.image_source_url = img.source_page_url
                     except Exception as exc:  # noqa: BLE001
-                        logger.warning("  wikidata members falló (%s): %s", slug, exc)
-                # Foto por NOMBRE solo si hay wikidata_id (entidad verificable);
-                # si no, nombres comunes casan con homónimos. Mejor sin foto.
-                if not band.image_url and band.wikidata_id:
-                    foto = photo_finder._wikidata_photo(band.name)
-                    if foto:
-                        band.image_url = foto["url"]
-                        band.image_attribution = foto["credit"]
-                        band.image_license = "CC"
+                        logger.warning("  wikidata enrich falló (%s): %s", slug, exc)
             db.commit()
             logger.info("✓ %-22s wd=%s · bio=%s · img=%s", slug,
                         band.wikidata_id or "-", bool(band.bio_short), bool(band.image_url))

@@ -50,7 +50,7 @@ bands:
   - slug: leno
     name: Leño
     kind: band
-    wikipedia_url: https://es.wikipedia.org/wiki/Le%C3%B1o_(grupo)
+    wikipedia_url: https://es.wikipedia.org/wiki/Le%C3%B1o
     related_note: >
       Banda de Rosendo Mercado, pilar del rock urbano español de los 70-80.
       Extremoduro bebe de esa tradición; Rosendo está en el círculo cercano.
@@ -66,7 +66,7 @@ bands:
   - slug: la-fuga
     name: La Fuga
     kind: band
-    wikipedia_url: https://es.wikipedia.org/wiki/La_Fuga
+    wikipedia_url: https://es.wikipedia.org/wiki/La_Fuga_(banda)
     related_note: >
       Rock de Reinosa (Cantabria), del circuito de rock estatal cercano a
       Extremoduro.
@@ -74,7 +74,7 @@ bands:
   - slug: nu
     name: Ñu
     kind: band
-    wikipedia_url: https://es.wikipedia.org/wiki/%C3%91u_(grupo)
+    wikipedia_url: https://es.wikipedia.org/wiki/%C3%91u_(banda)
     related_note: >
       Rock duro de José Carlos Molina, parte de la tradición del rock urbano
       que enlaza con el universo de Extremoduro.
@@ -91,13 +91,14 @@ bands:
   - slug: los-enemigos
     name: Los Enemigos
     kind: band
-    wikipedia_url: https://es.wikipedia.org/wiki/Los_Enemigos_(grupo)
+    wikipedia_url: https://es.wikipedia.org/wiki/Los_Enemigos
     related_note: >
       Banda madrileña de Josele Santiago, del rock estatal afín a Extremoduro.
 
   - slug: inconscientes
     name: Inconscientes
     kind: band
+    wikipedia_url: https://es.wikipedia.org/wiki/Inconscientes_(banda)
     related_note: >
       Banda anterior de Iñaki "Uoho" Antón en Bilbao, antes de Platero y Tú y
       Extremoduro.
