@@ -25,7 +25,9 @@ from app.db.models import Album, Artist, Song
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
+    fetch_distilled_for_song,
     fetch_sources_for_song,
+    format_distilled_block,
     format_sources_block,
     upsert_seo_content,
 )
@@ -37,6 +39,7 @@ def build_user_prompt(
     artist: Artist,
     sources: list[dict],
     siblings: list[Song],
+    distilled: dict | None = None,
 ) -> str:
     sib_text = "\n".join(
         f"- {s.track_number or '?'}. {s.title}" for s in siblings if s.id != song.id
@@ -65,6 +68,8 @@ OTRAS CANCIONES DEL MISMO DISCO (para internal linking sugerido):
 FUENTES EXTERNAS:
 {format_sources_block(sources)}
 
+{format_distilled_block(distilled)}
+
 ESTRUCTURA OBLIGATORIA del artículo (encabezados H2):
 
 ## La canción de un vistazo
@@ -76,8 +81,12 @@ qué la diferencia de otras del mismo disco.
 Si no sabes algo concreto, dilo en general sin inventar.
 
 ## Tema y lectura interpretativa
-~400 palabras: de qué trata la letra, tono, registros literarios. Puedes citar
-versos sueltos entre comillas (máximo 4 líneas seguidas), nunca bloques.
+~400 palabras (la sección más importante, ve hondo): de qué trata la letra,
+tono, registros literarios, qué le pasa a quien la escucha. Si hay CONSENSO FAN
+DESTILADO arriba, apóyate en él como base de la interpretación (intégralo con
+tu voz, no lo copies). Aquí es donde más vale tu mirada de fan: por qué esta
+canción importa. Puedes citar versos sueltos entre comillas (máximo 4 líneas
+seguidas), nunca bloques.
 
 ## Forma musical
 ~200 palabras: tempo aproximado, estructura (estrofas, estribillos, puentes),
@@ -110,10 +119,12 @@ def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> boo
     album = song.album
     artist = album.artist
     sources = fetch_sources_for_song(db, song.id)
+    distilled = fetch_distilled_for_song(db, song.id)
     siblings = [s for s in album.songs]
 
-    log(f"generando: {artist.name} · {album.title} · {song.title} ({len(sources)} fuentes)")
-    prompt = build_user_prompt(song, album, artist, sources, siblings)
+    log(f"generando: {artist.name} · {album.title} · {song.title} "
+        f"({len(sources)} fuentes, destilado={'sí' if distilled else 'no'})")
+    prompt = build_user_prompt(song, album, artist, sources, siblings, distilled)
     try:
         out = call_llm(client, prompt)
     except Exception as e:  # noqa: BLE001

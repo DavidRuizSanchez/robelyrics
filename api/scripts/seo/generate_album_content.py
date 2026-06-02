@@ -25,13 +25,15 @@ from app.db.models import Album
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
+    fetch_distilled_for_album,
     fetch_sources_for_album,
+    format_distilled_block,
     format_sources_block,
     upsert_seo_content,
 )
 
 
-def build_user_prompt(album: Album, sources: list[dict]) -> str:
+def build_user_prompt(album: Album, sources: list[dict], distilled: list[dict] | None = None) -> str:
     artist = album.artist
     tracks = sorted(album.songs, key=lambda s: (s.track_number or 999, s.id))
     track_text = "\n".join(
@@ -51,6 +53,8 @@ DATOS:
 
 FUENTES EXTERNAS:
 {format_sources_block(sources)}
+
+{format_distilled_block(distilled)}
 
 ESTRUCTURA OBLIGATORIA (encabezados H2):
 
@@ -103,9 +107,11 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
         log(f"álbum '{album_slug}' no encontrado", "err")
         return False
     sources = fetch_sources_for_album(db, album.id)
-    log(f"generando álbum: {album.artist.name} · {album.title} ({len(sources)} fuentes)")
+    distilled = fetch_distilled_for_album(db, album.id)
+    log(f"generando álbum: {album.artist.name} · {album.title} "
+        f"({len(sources)} fuentes, {len(distilled)} destilados)")
 
-    prompt = build_user_prompt(album, sources)
+    prompt = build_user_prompt(album, sources, distilled)
     try:
         out = call_llm(client, prompt)
     except Exception as e:  # noqa: BLE001

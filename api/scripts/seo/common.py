@@ -27,88 +27,11 @@ from app.db.models import (
     Song,
 )
 from scripts.research.common import log
+from app.services.voice import build_system_prompt
 
 MODEL = "gpt-4o"
-SYSTEM_PROMPT = """\
-Eres un redactor editorial musical especializado en rock español, con tono \
-cercano y riguroso. Escribes para un sitio fan no oficial de Extremoduro y \
-Robe. Tu trabajo es producir artículos ricos en contexto y atractivos para \
-SEO, sobre artistas, discos y canciones concretas.
-
-Reglas estrictas que NO puedes romper:
-1. NUNCA recites más de 4 líneas seguidas de letra original. Puedes mencionar \
-   versos sueltos como cita corta entre comillas, pero el grueso del análisis \
-   debe ser tuyo, no transcripción.
-2. NUNCA copies frases textuales de las fuentes que se te aporten. Para todo \
-   tipo de afirmación, parafrasea con tus propias palabras.
-3. Escribe en tercera persona, no incluyas opiniones personales del tipo \
-   "yo creo" o "personalmente".
-4. NO inventes datos: si no sabes una fecha, una composición o un detalle \
-   técnico, omítelo o señálalo como "no documentado".
-5. Tono editorial culto pero accesible. Evita la jerga de fan club ("el rey \
-   de Extremadura", "la voz de la calle", "rey del rock transgresivo"). \
-   Prefiere descripciones específicas.
-6. SEO: usa el título de la entidad y términos relacionados con naturalidad, \
-   sin keyword-stuffing. Estructura el artículo con encabezados H2 y H3 en \
-   markdown.
-7. Cita explícita en markdown: cuando uses información concreta de una \
-   fuente externa (no tu conocimiento general), referénciala con el formato \
-   [Fuente: Mondo Sonoro 2021] al final de la frase.
-
-MARCAS DE IA — PROHIBIDO ABSOLUTO (si rompes una, el texto se descarta):
-8. PROHIBIDO el carácter raya/em-dash "—" y el guion largo "–". No los uses \
-   NUNCA. Para incisos usa comas, paréntesis o puntos. Para guiones usa el \
-   guion corto normal "-" solo en palabras compuestas.
-9. PROHIBIDA la estructura tipo IA: nada de intro-desarrollo-conclusión \
-   explícita. Nada de encabezados genéricos ("Introducción", "Contexto", \
-   "Conclusión", "Resumen"). Los H2/H3 deben ser concretos y con sustantivos \
-   del tema, no abstracciones.
-10. PROHIBIDAS las frases meta sobre la propia escritura: "en este artículo", \
-   "como veremos", "es importante destacar", "cabe mencionar", "en resumen", \
-   "vale la pena", "en conclusión", "para terminar", "a continuación".
-11. PROHIBIDOS los adjetivos vacíos de relleno: "icónico", "legendario", \
-   "magistral", "imprescindible", "inolvidable", "espectacular", "único".
-12. Empieza por una imagen concreta, un dato o una escena, NO por una frase \
-   de definición genérica.
-
-Devuelves SIEMPRE un objeto JSON con la estructura:
-{
-  "body_md": "<artículo en markdown completo>",
-  "meta_title": "<≤60 caracteres>",
-  "meta_description": "<≤160 caracteres>",
-  "entities": [<lista — ver bloque ENTIDADES MENCIONADAS abajo>]
-}
-
-ENTIDADES MENCIONADAS — array `entities` obligatorio
-Identifica TODAS las entidades nombradas en el texto y añádelas. Sirve para
-construir schema.org `mentions` y enlazar el knowledge graph del sitio:
-
-- Personas (músicos, miembros, productores, autores, periodistas).
-- Bandas, grupos, proyectos musicales.
-- Discos (MusicAlbum), canciones (MusicComposition).
-- Lugares (ciudades, pueblos, regiones, salas, festivales).
-- Organizaciones, sellos discográficos, medios.
-- Programas (TVSeries, RadioSeries).
-
-Formato por entidad:
-  {
-    "type": "Person" | "MusicGroup" | "MusicAlbum" | "MusicComposition" |
-            "Place" | "TVSeries" | "RadioSeries" | "Organization" |
-            "CreativeWork",
-    "name": "<nombre canónico>",
-    "wikidata_id": "<Q-ID si lo conoces, sino null>",
-    "slug_hint": "<slug en kebab-case del corpus si crees que está,
-                    sino null. Ej.: 'extremoduro', 'robe', 'agila',
-                    'cipotecastico', 'robe-iniesta', 'inaki-uoho-anton',
-                    'plasencia'>"
-  }
-
-Si la entidad es Robe, Extremoduro, un disco del catálogo, una canción o
-un miembro conocido, rellena slug_hint para enlazar a la página local.
-NO incluyas entidades genéricas o muy abstractas ("rock", "música",
-"España", "España entera"). Solo entidades concretas y nombradas que un
-lector pueda buscar.
-"""
+# Voz única del sitio (1ª persona admiradora). Ver app/services/voice.py.
+SYSTEM_PROMPT = build_system_prompt(family="seo")
 
 
 def call_llm(client: OpenAI, user_prompt: str) -> dict[str, Any]:
@@ -120,7 +43,7 @@ def call_llm(client: OpenAI, user_prompt: str) -> dict[str, Any]:
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        temperature=0.5,
+        temperature=0.65,  # algo más de expresividad para que asome la voz de fan
         max_tokens=4000,
     )
     content = resp.choices[0].message.content
@@ -341,3 +264,98 @@ def format_sources_block(sources: list[dict[str, Any]]) -> str:
         head = f"FUENTE {i} [{s['kind']}{author}]: {s['title']}"
         blocks.append(f"{head}\n{s['content']}")
     return "\n\n---\n\n".join(blocks)
+
+
+# --------------------------------------------------------------------------- #
+# Conocimiento fan DESTILADO (SongInterpretation.payload). Mismo criterio de
+# confianza que reranker.fetch_song_context (high/medium). Esto es lo que da
+# PROFUNDIDAD y alma al contenido: el consenso de lo que los fans entienden de
+# cada canción, ya destilado y con citación. Antes solo lo usaba la búsqueda
+# privada; ahora también la generación de contenido público.
+# --------------------------------------------------------------------------- #
+def fetch_distilled_for_song(db: Session, song_id: int) -> dict[str, Any] | None:
+    from app.db.models import SongInterpretation
+    interp = (
+        db.query(SongInterpretation)
+        .filter(SongInterpretation.song_id == song_id)
+        .first()
+    )
+    if not interp or interp.confidence not in ("high", "medium"):
+        return None
+    p = interp.payload or {}
+    if not (p.get("fan_consensus") or p.get("themes") or p.get("key_metaphors")):
+        return None
+    return {
+        "themes": p.get("themes") or [],
+        "key_metaphors": p.get("key_metaphors") or [],
+        "fan_consensus": p.get("fan_consensus") or "",
+        "confidence": interp.confidence,
+    }
+
+
+def fetch_distilled_for_album(db: Session, album_id: int, *, limit: int = 14) -> list[dict[str, Any]]:
+    rows = db.execute(
+        select(Song.id, Song.title).where(Song.album_id == album_id).order_by(Song.track_number)
+    ).all()
+    out: list[dict[str, Any]] = []
+    for sid, title in rows:
+        d = fetch_distilled_for_song(db, sid)
+        if d:
+            out.append({"song": title, **d})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def fetch_distilled_for_artist(db: Session, artist_id: int, *, limit: int = 14) -> list[dict[str, Any]]:
+    rows = db.execute(
+        select(Song.id, Song.title)
+        .join(Album, Song.album_id == Album.id)
+        .where(Album.artist_id == artist_id)
+    ).all()
+    out: list[dict[str, Any]] = []
+    for sid, title in rows:
+        d = fetch_distilled_for_song(db, sid)
+        if d and d.get("fan_consensus"):
+            out.append({"song": title, **d})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def format_distilled_block(distilled: dict[str, Any] | list[dict[str, Any]] | None) -> str:
+    """Bloque para el prompt con el consenso fan destilado.
+
+    Acepta un dict (canción) o una lista de dicts (álbum/artista). Etiquetado
+    para que el LLM lo use como FUNDAMENTO interpretativo, no como texto a
+    recitar.
+    """
+    if not distilled:
+        return ""
+    items = [distilled] if isinstance(distilled, dict) else distilled
+    if not items:
+        return ""
+    header = (
+        "CONSENSO FAN DESTILADO (lo que la comunidad de fans entiende de estas "
+        "canciones, ya destilado y consensuado). Úsalo como FUNDAMENTO de tu "
+        "lectura interpretativa, intégralo y parafraséalo con tu voz; NO lo "
+        "copies textual ni lo recites como si fuera la letra:"
+    )
+    blocks: list[str] = []
+    for d in items:
+        lines: list[str] = []
+        if d.get("song"):
+            lines.append(f"· {d['song']}")
+        if d.get("themes"):
+            lines.append("  Temas: " + ", ".join(str(t) for t in d["themes"][:6]))
+        for m in (d.get("key_metaphors") or [])[:4]:
+            if isinstance(m, dict) and m.get("phrase"):
+                meaning = m.get("meaning") or ""
+                lines.append(f"  Metáfora: «{m['phrase']}» -> {meaning}")
+        if d.get("fan_consensus"):
+            lines.append("  " + d["fan_consensus"])
+        if lines:
+            blocks.append("\n".join(lines))
+    if not blocks:
+        return ""
+    return header + "\n" + "\n\n".join(blocks)

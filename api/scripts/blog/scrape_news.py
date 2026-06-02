@@ -35,6 +35,7 @@ from sqlalchemy import select
 
 from app.db.models import ContentProposal, NewsItem
 from app.db.session import SessionLocal
+from app.services.article_extract import fetch_article_text
 from app.services.content_generator import rewrite_news_editorial
 from app.services.wikimedia import search_image
 
@@ -75,6 +76,27 @@ def _match_term(blob_lower: str, terms: list[str]) -> str | None:
         if term in blob_lower:
             return term
     return None
+
+
+_STOP = {
+    "de", "la", "el", "en", "y", "a", "los", "las", "del", "un", "una", "por",
+    "con", "su", "sus", "para", "que", "se", "al", "lo", "como", "más", "este",
+}
+
+
+def _title_tokens(title: str) -> set[str]:
+    s = unicodedata.normalize("NFKD", (title or "").lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    toks = re.findall(r"[a-z0-9]{3,}", s)
+    return {t for t in toks if t not in _STOP}
+
+
+def _title_overlap(a: str, b: str) -> float:
+    """Jaccard de tokens significativos entre dos titulares (0..1)."""
+    ta, tb = _title_tokens(a), _title_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
 
 
 # --------------------------------------------------------------------------- #
@@ -177,7 +199,10 @@ def main() -> None:
         ).scalars().all()
         logger.info("Noticias pendientes para el blog: %d", len(pending))
 
+        used_in_run: set[int] = set()
         for news in pending:
+            if news.id in used_in_run:
+                continue  # ya consumida como fuente secundaria de otro post
             summary["reviewed"] += 1
             source_label = news.source_medium or news.source_name
 
@@ -206,6 +231,7 @@ def main() -> None:
             # entities para enriquecer schema.org `mentions`.
             image_keywords: list[str] = []
             entities: list[dict] = []
+            related: list[NewsItem] = []
             if args.no_rewrite:
                 title = news.title[:240]
                 excerpt = (news.summary or "")[:200]
@@ -216,10 +242,34 @@ def main() -> None:
                 meta_title = title[:60]
                 meta_description = excerpt[:155]
             else:
+                # B1: cuerpo COMPLETO de la fuente principal (efímero, solo
+                # como contexto para el LLM; no se persiste el original).
+                primary = fetch_article_text(news.url) or news.summary or news.title
+                # B3: otras noticias pendientes del MISMO evento (mismo término
+                # + titular solapado) para cruzar fuentes en un solo post más
+                # completo. Se marcarán consumidas para no duplicar.
+                related = [
+                    n for n in pending
+                    if n.id != news.id and n.id not in used_in_run
+                    and not n.consumed_blog
+                    and _match_term(f"{n.title} {n.summary or ''}".lower(), terms) == term
+                    and _title_overlap(news.title, n.title) >= 0.4
+                ][:3]
+                parts = [f"FUENTE PRINCIPAL ({source_label}):\n{primary}"]
+                for r in related:
+                    rbody = fetch_article_text(r.url) or r.summary or ""
+                    if rbody:
+                        parts.append(
+                            "OTRA FUENTE DEL MISMO EVENTO "
+                            f"({r.source_medium or r.source_name}):\n{rbody}"
+                        )
+                combined_excerpt = "\n\n====\n\n".join(parts)
+                if related:
+                    logger.info("  cruzando %d fuentes del mismo evento", len(parts))
                 try:
                     rewritten = rewrite_news_editorial(
                         headline=news.title,
-                        source_excerpt=news.summary or news.title,
+                        source_excerpt=combined_excerpt,
                         source_url=news.url,
                         source_name=source_label,
                         matched_term=term,
@@ -297,6 +347,9 @@ def main() -> None:
             )
             db.add(proposal)
             news.consumed_blog = True
+            for r in related:  # fuentes secundarias del mismo evento
+                r.consumed_blog = True
+                used_in_run.add(r.id)
             db.commit()
             summary["proposed"] += 1
             summary["headlines"].append({

@@ -22,13 +22,16 @@ from app.db.models import Album, Artist
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
+    fetch_distilled_for_artist,
     fetch_sources_for_artist,
+    format_distilled_block,
     format_sources_block,
     upsert_seo_content,
 )
 
 
-def build_user_prompt(artist: Artist, albums: list[Album], sources: list[dict]) -> str:
+def build_user_prompt(artist: Artist, albums: list[Album], sources: list[dict],
+                      distilled: list[dict] | None = None) -> str:
     disco_text = "\n".join(
         f"- {a.year}. {a.title} ({a.kind})" for a in sorted(albums, key=lambda x: x.year)
     )
@@ -42,6 +45,8 @@ DISCOGRAFÍA OFICIAL EN BD:
 
 FUENTES EXTERNAS PRIORITARIAS:
 {format_sources_block(sources)}
+
+{format_distilled_block(distilled)}
 
 ESTRUCTURA OBLIGATORIA (encabezados H2):
 
@@ -87,9 +92,11 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         return False
     albums = list(artist.albums)
     sources = fetch_sources_for_artist(db, artist.id)
-    log(f"generando artista: {artist.name} ({len(albums)} discos · {len(sources)} fuentes top)")
+    distilled = fetch_distilled_for_artist(db, artist.id)
+    log(f"generando artista: {artist.name} ({len(albums)} discos · {len(sources)} fuentes top "
+        f"· {len(distilled)} destilados)")
 
-    prompt = build_user_prompt(artist, albums, sources)
+    prompt = build_user_prompt(artist, albums, sources, distilled)
     try:
         out = call_llm(client, prompt)
     except Exception as e:  # noqa: BLE001
