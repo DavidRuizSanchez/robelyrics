@@ -599,6 +599,7 @@ class Band(Base):
     founded_year: Mapped[int | None] = mapped_column(Integer)
     dissolved_year: Mapped[int | None] = mapped_column(Integer)
     bio_short: Mapped[str | None] = mapped_column(Text)
+    bio_long: Mapped[str | None] = mapped_column(Text)          # artículo Wikipedia completo (contexto generación)
     wikipedia_url: Mapped[str | None] = mapped_column(String(500))
     wikidata_id: Mapped[str | None] = mapped_column(String(20), index=True)
     image_url: Mapped[str | None] = mapped_column(String(1024))
@@ -758,6 +759,10 @@ class Person(Base):
     death_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     birth_place: Mapped[str | None] = mapped_column(String(200), nullable=True)
     bio_short: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bio_long: Mapped[str | None] = mapped_column(Text, nullable=True)  # artículo Wikipedia completo (contexto generación)
+    instruments: Mapped[list] = mapped_column(  # Wikidata P1303 [{name, wikidata_id, ...}]
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     wikipedia_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     wikidata_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)

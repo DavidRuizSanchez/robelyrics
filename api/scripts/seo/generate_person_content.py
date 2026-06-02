@@ -23,10 +23,40 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models import Album, Artist, BandMembership, Person
 from scripts.research.common import get_session, log
-from scripts.seo.common import call_llm, upsert_seo_content
+from scripts.seo.common import (
+    call_llm,
+    fetch_sources_for_entity,
+    format_sources_block,
+    upsert_seo_content,
+)
 
 
 SITE_URL = "https://entreinteriores.com"
+
+
+def _wikidata_refs_block(person: Person) -> str:
+    """Datos estructurados de Wikidata (hoy ignorados por el generador). Son la
+    munición concreta contra la vaguedad: bandas, obras, instrumentos, oficios."""
+    lines: list[str] = []
+    if person.other_bands:
+        lines.append("Otras bandas/proyectos (Wikidata): "
+                     + ", ".join(b["name"] for b in person.other_bands))
+    if person.notable_works:
+        lines.append("Obras destacadas: "
+                     + ", ".join(w["name"] for w in person.notable_works))
+    if getattr(person, "instruments", None):
+        lines.append("Instrumentos: "
+                     + ", ".join(i["name"] for i in person.instruments))
+    if person.occupations:
+        lines.append("Oficios: " + ", ".join(o["name"] for o in person.occupations))
+    return "\n".join(lines) or "(sin datos estructurados de Wikidata)"
+
+
+def _names_for_search(person: Person) -> list[str]:
+    out = [person.full_name]
+    if person.stage_name and person.stage_name != person.full_name:
+        out.append(person.stage_name)
+    return out
 
 
 def _person_summary(person: Person, memberships: list[BandMembership]) -> str:
@@ -102,15 +132,26 @@ entities (array según el system prompt).
 """
 
 
-def _build_prompt(person: Person, memberships: list[BandMembership]) -> str:
+def _build_prompt(
+    person: Person, memberships: list[BandMembership], sources: list[dict] | None = None
+) -> str:
     summary = _person_summary(person, memberships)
     band_list = ", ".join(m.artist.name for m in memberships) or "(sin memberships en el corpus)"
-    bio = person.bio_short or "(sin biografía corta documentada)"
+    # bio_long = artículo completo de Wikipedia (datos concretos). Es la clave
+    # contra la vaguedad. Cae a bio_short si no hay.
+    bio = (person.bio_long or person.bio_short or "(sin biografía documentada)")[:9000]
+    refs = _wikidata_refs_block(person)
+    fan_block = format_sources_block(sources or [])
     primary_band = memberships[0].artist.name if memberships else None
+    kw = person.full_name
+    if person.stage_name and person.stage_name != person.full_name:
+        kw += f" / {person.stage_name}"
+    if primary_band:
+        kw += f" ({primary_band})"
 
-    # Figuras poco documentadas: sin biografía corta y sin artículo de
-    # Wikipedia. Forzarles 2000 palabras es pedir invención. Prompt aparte.
-    if not person.bio_short and not person.wikipedia_url:
+    # Figuras poco documentadas: sin biografía (ni corta ni larga) y sin
+    # artículo de Wikipedia. Forzarles 2000 palabras es pedir invención.
+    if not person.bio_short and not person.bio_long and not person.wikipedia_url:
         return _build_low_data_prompt(person, memberships, primary_band)
 
     # Plantilla de secciones: sustituye los placeholders por el nombre real
@@ -137,11 +178,24 @@ Escribe un artículo SEO de 1800-2400 palabras sobre {person.full_name}.
 DATOS VERIFICADOS:
 {summary}
 
-BIOGRAFÍA CORTA (puedes parafrasear pero no copiar):
+FICHA DE WIKIPEDIA (tu fuente principal de datos CONCRETOS; parafrasea, no
+copies; extrae de aquí nombres de bandas, discos, años, productores, hechos):
 {bio}
 
-BANDAS EN NUESTRO SITIO (no es texto fijo; úsalo como info):
+DATOS ESTRUCTURADOS (Wikidata) — nómbralos explícitamente, no los resumas como
+"varias bandas":
+{refs}
+
+QUÉ DICEN LAS FUENTES (fan-content / prensa que mencionan a esta persona; úsalo
+para matices y hechos como rupturas o anécdotas, contrasta, no copies literal):
+{fan_block}
+
+BANDAS EN NUESTRO SITIO (se enlazan a su página local; menciónalas por nombre):
 {band_list}
+
+KW OBJETIVO: «{kw}». Colócala al INICIO del meta_title, en la meta_description y
+en el primer párrafo, con naturalidad. KWs secundarias: los nombres concretos de
+sus bandas, discos e instrumentos.
 
 ESTRUCTURA OBLIGATORIA (encabezados H2):
 
@@ -159,12 +213,15 @@ añadas corchetes):
 desempeña en grupo (compositor, líder de directo, etc.).
 
 ## Discos y canciones donde aparece
-~400 palabras: repaso de los álbumes y canciones donde participa, una o
-dos frases por disco. Menciona los títulos en texto plano — el sistema
-los enlazará automáticamente a sus páginas locales.
+~400 palabras: repaso de los álbumes y canciones donde participa, con TÍTULO +
+AÑO + su rol concreto (compositor, guitarra solista, productor…). Si la ficha
+de Wikipedia da la discografía, úsala. Nada de "varios discos": nómbralos.
+Menciona los títulos en texto plano — el sistema los enlaza a su página local.
 
 ## Legado e impacto
-~200 palabras: huella en la escena, artistas influidos.
+~200 palabras: huella concreta (artistas o discos influidos, hechos como su
+papel en rupturas o cambios de formación si constan en las fuentes). Sin
+generalidades tipo "referente para nuevas generaciones" sin nombrar a nadie.
 
 IMPORTANTE:
 - NO uses placeholders entre corchetes en el texto final ("[banda
@@ -233,8 +290,11 @@ def generate_for_person(client: OpenAI, db, person_slug: str, *, force: bool) ->
     for m in memberships:
         _ = m.artist  # noqa
 
-    log(f"generando persona: {person.full_name} ({len(memberships)} memberships)")
-    prompt = _build_prompt(person, memberships)
+    sources = fetch_sources_for_entity(db, _names_for_search(person))
+    log(f"generando persona: {person.full_name} "
+        f"({len(memberships)} memberships, bio_long={'sí' if person.bio_long else 'no'}, "
+        f"{len(sources)} fuentes)")
+    prompt = _build_prompt(person, memberships, sources)
     try:
         out = call_llm(client, prompt)
     except Exception as e:  # noqa: BLE001

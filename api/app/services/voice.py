@@ -100,6 +100,23 @@ INNEGOCIABLE. Si rompes una de estas, el texto se descarta:
 # --------------------------------------------------------------------------- #
 # Entidades (knowledge graph). Idéntico en ambas familias.
 # --------------------------------------------------------------------------- #
+_RULES_NO_VAGUE = """\
+ESPECIFICIDAD OBLIGATORIA (esto separa una fuente de referencia de un relleno):
+- PROHIBIDO lo genérico sin concretar. Nada de "varias bandas locales", "varios
+  discos", "numerosos proyectos", "algunas de las bandas más importantes",
+  "artistas de diversos géneros", "nuevas generaciones de músicos", "solos
+  memorables", "otros discos de la banda". Si vas a afirmar algo, NÓMBRALO:
+  qué banda, qué disco, qué año, qué persona, qué canción.
+- Si NO tienes el dato concreto en el contexto que se te da (Wikipedia, datos
+  Wikidata, fuentes), NO hagas la afirmación: omítela. Mejor decir menos y
+  exacto que mucho y vago. No rellenes con humo.
+- Discografía y colaboraciones: siempre con título + año + rol cuando consten.
+  Entradas/salidas de banda, rupturas, cambios de formación: cuéntalos con
+  nombres y fechas si están en las fuentes. Esos hechos concretos son los que
+  aportan valor real.
+
+"""
+
 _RULES_ENTITIES = """\
 ENTIDADES MENCIONADAS — array `entities` obligatorio en el JSON.
 Identifica TODAS las entidades nombradas (sirve para el knowledge graph y para
@@ -173,6 +190,7 @@ def build_system_prompt(*, family: str, persona: str = "primera_admirador") -> s
         persona_block,
         _VOICE_HOW,
         _RULES_HARD,
+        _RULES_NO_VAGUE,
         _SAFETY,
         _RULES_SEO,
         _RULES_ENTITIES,

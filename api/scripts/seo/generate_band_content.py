@@ -26,7 +26,12 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models import Band
 from scripts.research.common import get_session, log
-from scripts.seo.common import call_llm, upsert_seo_content
+from scripts.seo.common import (
+    call_llm,
+    fetch_sources_for_entity,
+    format_sources_block,
+    upsert_seo_content,
+)
 
 
 SITE_URL = "https://entreinteriores.com"
@@ -92,13 +97,19 @@ entities (array según el system prompt).
 """
 
 
-def _build_prompt(band: Band) -> str:
+def _build_prompt(band: Band, sources: list[dict] | None = None) -> str:
     summary = _band_summary(band)
-    bio = band.bio_short or "(sin biografía corta documentada)"
+    bio = (band.bio_long or band.bio_short or "(sin biografía documentada)")[:9000]
+    members_hint = ""
+    if band.members:
+        names = [m.get("name") if isinstance(m, dict) else str(m) for m in band.members]
+        members_hint = "MIEMBROS CONOCIDOS (Wikidata/curado, nómbralos): " + ", ".join(
+            n for n in names if n)
+    fan_block = format_sources_block(sources or [])
 
     # Grupos poco documentados (sin bio y sin Wikipedia): prompt aparte para
     # no forzar invención.
-    if not band.bio_short and not band.wikipedia_url:
+    if not band.bio_short and not band.bio_long and not band.wikipedia_url:
         return _build_low_data_prompt(band)
 
     kind_es = "sello discográfico" if band.kind == "label" else "grupo de rock"
@@ -110,8 +121,18 @@ Robe Iniesta.
 DATOS VERIFICADOS:
 {summary}
 
-BIOGRAFÍA CORTA (puedes parafrasear pero no copiar):
+FICHA DE WIKIPEDIA (tu fuente principal de datos CONCRETOS; parafrasea, extrae
+miembros, discos, años, hechos; no copies literal):
 {bio}
+
+{members_hint}
+
+QUÉ DICEN LAS FUENTES (fan-content / prensa que mencionan al grupo; matices y
+hechos, contrasta, no copies literal):
+{fan_block}
+
+KW OBJETIVO: «{band.name}». Al inicio del meta_title, en la meta_description y
+en el primer párrafo. KWs secundarias: sus discos, sus integrantes, Extremoduro.
 
 ESTRUCTURA OBLIGATORIA (encabezados H2, EN ESTE ORDEN):
 
@@ -192,8 +213,10 @@ def generate_for_band(client: OpenAI, db, band_slug: str, *, force: bool) -> boo
         log(f"grupo '{band_slug}' no encontrado", "err")
         return False
 
-    log(f"generando grupo: {band.name} (kind={band.kind})")
-    prompt = _build_prompt(band)
+    sources = fetch_sources_for_entity(db, [band.name])
+    log(f"generando grupo: {band.name} (kind={band.kind}, "
+        f"bio_long={'sí' if band.bio_long else 'no'}, {len(sources)} fuentes)")
+    prompt = _build_prompt(band, sources)
     try:
         out = call_llm(client, prompt)
     except Exception as e:  # noqa: BLE001

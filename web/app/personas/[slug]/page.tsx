@@ -30,6 +30,7 @@ type WikidataRef = {
   wikidata_id: string;
   wikidata_url: string;
   wikipedia_url: string | null;
+  internal_url: string | null;
 };
 
 type ResolvedEntity = {
@@ -153,10 +154,13 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
     });
   }
   for (const b of detail.other_bands) {
+    // @id interno si tenemos página propia (interconecta el grafo del sitio);
+    // sameAs siempre a Wikidata/Wikipedia.
     memberOf.push({
       "@type": "MusicGroup",
-      "@id": b.wikidata_url,
+      "@id": b.internal_url ? `${SITE_URL}${b.internal_url}#musicgroup` : b.wikidata_url,
       name: b.name,
+      ...(b.internal_url ? { url: `${SITE_URL}${b.internal_url}` } : {}),
       sameAs: [b.wikidata_url, ...(b.wikipedia_url ? [b.wikipedia_url] : [])],
     });
   }
@@ -165,8 +169,9 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
   if (detail.notable_works.length > 0) {
     schema.knowsAbout = detail.notable_works.map((w) => ({
       "@type": "CreativeWork",
-      "@id": w.wikidata_url,
+      "@id": w.internal_url ? `${SITE_URL}${w.internal_url}` : w.wikidata_url,
       name: w.name,
+      ...(w.internal_url ? { url: `${SITE_URL}${w.internal_url}` } : {}),
       sameAs: [w.wikidata_url, ...(w.wikipedia_url ? [w.wikipedia_url] : [])],
     }));
   }
@@ -368,7 +373,15 @@ export default async function PersonPage({
                   <ul className="space-y-2">
                     {detail.other_bands.map((b) => (
                       <li key={b.wikidata_id} className="font-serif text-ink-dim">
-                        {b.wikipedia_url ? (
+                        {b.internal_url ? (
+                          <Link
+                            href={b.internal_url}
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {b.name}
+                          </Link>
+                        ) : b.wikipedia_url ? (
                           <a
                             href={b.wikipedia_url}
                             target="_blank"
@@ -395,7 +408,15 @@ export default async function PersonPage({
                   <ul className="space-y-2">
                     {detail.notable_works.map((w) => (
                       <li key={w.wikidata_id} className="font-serif text-ink-dim">
-                        {w.wikipedia_url ? (
+                        {w.internal_url ? (
+                          <Link
+                            href={w.internal_url}
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {w.name}
+                          </Link>
+                        ) : w.wikipedia_url ? (
                           <a
                             href={w.wikipedia_url}
                             target="_blank"

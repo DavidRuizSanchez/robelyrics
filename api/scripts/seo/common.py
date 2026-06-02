@@ -254,6 +254,46 @@ def fetch_sources_for_artist(db: Session, artist_id: int) -> list[dict[str, Any]
     ]
 
 
+def fetch_sources_for_entity(
+    db: Session, names: list[str], *, limit: int = 12
+) -> list[dict[str, Any]]:
+    """Fan-content/prensa que MENCIONA a una persona/grupo por su nombre.
+
+    Hasta ahora las fuentes solo se ligaban a canciones (referenced_song_ids);
+    esto permite traer lo que foros/prensa dicen de una PERSONA o GRUPO (p.ej.
+    el papel de Uoho en la ruptura). Busca por ILIKE en content_clean (con el
+    índice trigram si existe), priorizando prensa (for_seo_only)."""
+    from sqlalchemy import or_
+    clean = [
+        n.strip() for n in names
+        if n and (len(n.strip()) >= 6 or " " in n.strip())  # evita tokens cortos ambiguos
+    ]
+    if not clean:
+        return []
+    conds = [InterpretationSource.content_clean.ilike(f"%{n}%") for n in clean]
+    rows = (
+        db.execute(
+            select(InterpretationSource)
+            .where(InterpretationSource.kind != "genius_annotation")
+            .where(or_(*conds))
+            .order_by(InterpretationSource.for_seo_only.desc(), InterpretationSource.id)
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "kind": r.kind,
+            "title": r.title or "",
+            "author": r.author or "",
+            "for_seo_only": r.for_seo_only,
+            "content": (r.content_clean or "")[:2500],
+        }
+        for r in rows
+    ]
+
+
 def format_sources_block(sources: list[dict[str, Any]]) -> str:
     """Bloque legible para el prompt con las fuentes consultadas."""
     if not sources:

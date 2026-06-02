@@ -20,7 +20,13 @@ import yaml
 from app.db.models import Band
 from app.db.session import SessionLocal
 from app.services.instagram import photo_finder
-from scripts.seed_persons import _wikidata_qid_from_wikipedia, _wikipedia_extract
+from scripts.seed_persons import (
+    _enrich_from_wikidata,
+    _resolve_entities,
+    _wikidata_qid_from_wikipedia,
+    _wikipedia_extract,
+    _wikipedia_fulltext,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -73,6 +79,26 @@ def main() -> None:
                         band.bio_short = _wikipedia_extract(http, band.wikipedia_url)
                     except Exception as exc:  # noqa: BLE001
                         logger.warning("  wiki extract falló (%s): %s", slug, exc)
+                # bio_long: artículo completo (datos concretos para no divagar).
+                if band.wikipedia_url:
+                    full = _wikipedia_fulltext(http, band.wikipedia_url)
+                    if full:
+                        band.bio_long = full
+                # Miembros reales desde Wikidata P527 (has part), si el yaml no
+                # los trae a mano. Resuelve los Q-ID a nombres.
+                if band.wikidata_id and not band.members:
+                    try:
+                        enr = _enrich_from_wikidata(http, band.wikidata_id)
+                        part_qids = enr.get("has_part_qids", [])[:12]
+                        if part_qids:
+                            people = _resolve_entities(http, part_qids)
+                            members = [{"name": p["name"]} for p in people if p.get("name")]
+                            if members:
+                                band.members = members
+                                logger.info("  members(P527): %s",
+                                            ", ".join(m["name"] for m in members[:6]))
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("  wikidata members falló (%s): %s", slug, exc)
                 if not band.image_url:
                     foto = photo_finder._wikidata_photo(band.name)
                     if foto:

@@ -800,11 +800,61 @@ class PublicPersonListItem(BaseModel):
 class PublicWikidataRef(BaseModel):
     """Referencia a una entidad Wikidata (banda, obra, ocupación). Permite
     enlazar el knowledge graph con entidades externas sin sumarlas a
-    nuestro corpus de Artists."""
+    nuestro corpus de Artists.
+
+    `internal_url`: si tenemos página propia de esa entidad (Artist/Band/Person),
+    la ruta interna; el frontend enlaza ahí en vez de a Wikipedia."""
     name: str
     wikidata_id: str
     wikidata_url: str
     wikipedia_url: str | None = None
+    internal_url: str | None = None
+
+
+def _internal_url_for(db: Session, wikidata_id: str | None, name: str | None) -> str | None:
+    """Ruta interna si existe página propia para esa entidad (por wikidata_id o
+    nombre). Permite enlazar dentro del sitio en vez de a Wikipedia."""
+    from app.db.models import Band as _B
+    norm = (name or "").strip().lower()
+    # 1) Artist del corpus (Extremoduro/Robe)
+    arts = db.query(Artist).all()
+    for a in arts:
+        if norm and a.name.strip().lower() == norm:
+            return f"/{a.slug}"
+    # 2) Band (por wikidata_id o nombre)
+    bq = db.query(_B)
+    band = None
+    if wikidata_id:
+        band = bq.filter(_B.wikidata_id == wikidata_id).first()
+    if not band and norm:
+        band = next((b for b in bq.all() if b.name.strip().lower() == norm), None)
+    if band:
+        return f"/grupos/{band.slug}"
+    # 3) Person (por wikidata_id o nombre/stage_name)
+    pq = db.query(Person)
+    per = None
+    if wikidata_id:
+        per = pq.filter(Person.wikidata_id == wikidata_id).first()
+    if not per and norm:
+        per = next(
+            (p for p in pq.all()
+             if p.full_name.strip().lower() == norm
+             or (p.stage_name or "").strip().lower() == norm),
+            None,
+        )
+    if per:
+        return f"/personas/{per.slug}"
+    return None
+
+
+def _ref_with_internal(db: Session, ref: dict) -> PublicWikidataRef:
+    return PublicWikidataRef(
+        name=ref.get("name"),
+        wikidata_id=ref.get("wikidata_id"),
+        wikidata_url=ref.get("wikidata_url"),
+        wikipedia_url=ref.get("wikipedia_url"),
+        internal_url=_internal_url_for(db, ref.get("wikidata_id"), ref.get("name")),
+    )
 
 
 class PublicPersonDetailOut(PublicPersonListItem):
@@ -910,10 +960,10 @@ def public_person_detail(
         image_source_url=person.image_source_url,
         memberships=memberships,
         other_bands=[
-            PublicWikidataRef(**b) for b in (person.other_bands or [])
+            _ref_with_internal(db, b) for b in (person.other_bands or [])
         ],
         notable_works=[
-            PublicWikidataRef(**w) for w in (person.notable_works or [])
+            _ref_with_internal(db, w) for w in (person.notable_works or [])
         ],
         occupations=[
             PublicWikidataRef(**o) for o in (person.occupations or [])

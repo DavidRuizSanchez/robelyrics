@@ -21,6 +21,7 @@ import re
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import httpx
 import yaml
@@ -107,7 +108,7 @@ def _wikipedia_extract(client: httpx.Client, wikipedia_url: str) -> str | None:
     """Devuelve el primer párrafo de la página ES (1-2 frases)."""
     if "/wiki/" not in wikipedia_url:
         return None
-    title = wikipedia_url.rsplit("/wiki/", 1)[-1].replace("_", " ").split("#", 1)[0]
+    title = unquote(wikipedia_url.rsplit("/wiki/", 1)[-1]).replace("_", " ").split("#", 1)[0]
     resp = client.get(
         "https://es.wikipedia.org/w/api.php",
         params={
@@ -126,6 +127,37 @@ def _wikipedia_extract(client: httpx.Client, wikipedia_url: str) -> str | None:
         extract = page.get("extract") or ""
         if extract:
             return extract.strip()
+    return None
+
+
+def _wikipedia_fulltext(
+    client: httpx.Client, wikipedia_url: str, max_chars: int = 12000
+) -> str | None:
+    """Devuelve el ARTÍCULO COMPLETO de Wikipedia ES en texto plano (sin
+    `exintro`), para dar al generador datos concretos (discografía, fechas,
+    colaboraciones, rupturas) en vez de solo el lead. Truncado a max_chars."""
+    if "/wiki/" not in wikipedia_url:
+        return None
+    title = unquote(wikipedia_url.rsplit("/wiki/", 1)[-1]).replace("_", " ").split("#", 1)[0]
+    try:
+        resp = client.get(
+            "https://es.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "format": "json",
+                "titles": title,
+                "prop": "extracts",
+                "explaintext": "1",
+            },
+        )
+        resp.raise_for_status()
+    except Exception:  # noqa: BLE001
+        return None
+    pages = resp.json().get("query", {}).get("pages", {}) or {}
+    for _, page in pages.items():
+        extract = (page.get("extract") or "").strip()
+        if extract:
+            return extract[:max_chars]
     return None
 
 
@@ -179,9 +211,11 @@ def _enrich_from_wikidata(client: httpx.Client, qid: str) -> dict[str, Any]:
 
     out["birth_date"] = _date_from("P569")
     out["death_date"] = _date_from("P570")
-    out["member_of_qids"] = _qids_from("P463")
+    out["member_of_qids"] = _qids_from("P463")      # persona → bandas a las que pertenece
     out["notable_work_qids"] = _qids_from("P800")
     out["occupation_qids"] = _qids_from("P106")
+    out["instrument_qids"] = _qids_from("P1303")    # instrumentos que toca
+    out["has_part_qids"] = _qids_from("P527")        # banda → sus miembros (P527 has part)
     # P18 (image): nombre canónico del fichero Commons. Permite usar la foto
     # "oficial" de la persona en Wikidata (la que se ve en Wikipedia infobox)
     # en vez de buscar al voleo en Commons.
@@ -411,6 +445,15 @@ def main() -> None:
                             if occ_qids:
                                 occs = _resolve_entities(http, occ_qids)
                                 person.occupations = occs
+
+                            instr_qids = enriched.get("instrument_qids", [])
+                            if instr_qids:
+                                instrs = _resolve_entities(http, instr_qids)
+                                person.instruments = instrs
+                                logger.info(
+                                    "  instruments: %s",
+                                    ", ".join(i["name"] for i in instrs[:6]),
+                                )
                         except httpx.HTTPError as e:
                             logger.warning("  wikidata enrich failed: %s", e)
 
@@ -421,6 +464,14 @@ def main() -> None:
                                 person.bio_short = extract[:500]
                         except httpx.HTTPError as e:
                             logger.warning("  wikipedia extract failed: %s", e)
+
+                    # bio_long: artículo COMPLETO de Wikipedia (datos concretos
+                    # para generar sin vaguedades). Se refresca siempre (idempotente).
+                    if person.wikipedia_url:
+                        full = _wikipedia_fulltext(http, person.wikipedia_url)
+                        if full:
+                            person.bio_long = full
+                            logger.info("  bio_long: %d chars", len(full))
 
                     # Foto: 0) image_filename hardcoded en yaml (override).
                     # 1) P18 de Wikidata (foto oficial Wikidata).
