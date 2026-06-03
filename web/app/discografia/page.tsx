@@ -15,16 +15,42 @@ const ARTIST_SLUGS = ["extremoduro", "robe"] as const;
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "Discografía completa · Extremoduro y Robe · Entre Interiores",
-  description:
-    "Toda la discografía de Extremoduro y Robe en orden cronológico: cada disco enlaza a su análisis, contexto y letras comentadas.",
-  alternates: { canonical: `${SITE_URL}/discografia` },
-};
+const NAME: Record<string, string> = { extremoduro: "Extremoduro", robe: "Robe" };
 
-export default async function DiscografiaPage() {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<{ artist?: string }>;
+}): Promise<Metadata> {
+  const { artist } = (await searchParams) || {};
+  const f = artist && NAME[artist] ? artist : null;
+  if (f) {
+    return {
+      title: `Discografía de ${NAME[f]} · Entre Interiores`,
+      description: `Toda la discografía de ${NAME[f]} en orden cronológico: cada disco enlaza a su análisis, contexto y letras comentadas.`,
+      // Canónica a la discografía completa para no duplicar contenido.
+      alternates: { canonical: `${SITE_URL}/discografia` },
+    };
+  }
+  return {
+    title: "Discografía completa · Extremoduro y Robe · Entre Interiores",
+    description:
+      "Toda la discografía de Extremoduro y Robe en orden cronológico: cada disco enlaza a su análisis, contexto y letras comentadas.",
+    alternates: { canonical: `${SITE_URL}/discografia` },
+  };
+}
+
+export default async function DiscografiaPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ artist?: string }>;
+}) {
+  const { artist } = (await searchParams) || {};
+  const filter = artist && NAME[artist] ? artist : null;
+  const slugs = filter ? [filter] : [...ARTIST_SLUGS];
+
   const artists = await Promise.all(
-    ARTIST_SLUGS.map((slug) =>
+    slugs.map((slug) =>
       apiFetch<PublicArtistDetail>(`/public/artists/${slug}`, {
         authenticated: false,
       }),
