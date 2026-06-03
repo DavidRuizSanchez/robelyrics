@@ -17,7 +17,7 @@ import type { PublicArtistDetail } from "@/lib/types";
 export const metadata = {
   title: "Canciones de Extremoduro y Robe, verso a verso · Entre Interiores",
   description:
-    "Las canciones de Extremoduro y Robe, disco a disco y verso a verso: lo que de verdad dicen sus letras, contado por quien lleva media vida con ellas y por la comunidad de fans.",
+    "Las canciones de Extremoduro y Robe, disco a disco y verso a verso: lo que de verdad dicen sus letras, contado por alguien que lleva toda la vida con ellas y por la comunidad de fans.",
 };
 
 type SitemapEntry = {
@@ -97,7 +97,7 @@ export default async function PublicLandingPage() {
           </h1>
           <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
             Disco a disco, verso a verso. Lo que de verdad dicen estas canciones,
-            contado por quien lleva media vida con ellas dentro.
+            contado por alguien que lleva toda la vida con ellas dentro.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-8">
