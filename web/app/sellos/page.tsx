@@ -67,8 +67,8 @@ export default async function SellosPage() {
             Sellos discográficos
           </h1>
           <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
-            Las discográficas que editaron y distribuyeron a Extremoduro y Robe.
-            ¿Buscas los{" "}
+            La trastienda del negocio: las discográficas que editaron y aguantaron
+            a Extremoduro y Robe, de El Dromedario a Warner. ¿Buscas los{" "}
             <Link
               href="/grupos"
               data-cursor="hover"

@@ -26,6 +26,12 @@ export default function PublicFooter() {
           <Link href="/discografia" data-cursor="hover" className={linkCls}>
             Toda la discografía
           </Link>
+          <Link href="/sellos" data-cursor="hover" className={linkCls} title="Las discográficas del universo">
+            Sellos discográficos
+          </Link>
+          <Link href="/libros" data-cursor="hover" className={linkCls} title="Lo que se ha escrito sobre ellos">
+            Libros
+          </Link>
         </div>
 
         {/* Col 2 · Sitio + apoyar */}
@@ -65,7 +71,7 @@ export default function PublicFooter() {
         </div>
 
         {/* Col 3 · Newsletter (en desktop como columna; en móvil baja entera) */}
-        <div className="col-span-2 md:col-span-1" id="suscribete">
+        <div className="col-span-2 md:col-span-1" id="newsletter">
           <p className={colTitleCls}>De manera urgente</p>
           <p className="font-serif italic text-ink-dim text-[14px] leading-relaxed mb-4">
             Déjame el correo y te aviso cuando caiga algo nuevo en el diario.

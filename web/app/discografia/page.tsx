@@ -96,9 +96,8 @@ export default async function DiscografiaPage({
             Discografía
           </h1>
           <p className="mt-6 max-w-[640px] font-serif text-lg md:text-xl text-ink-dim leading-relaxed">
-            Toda la obra de Extremoduro y Robe, en orden cronológico.
-            Cada disco abre a su contexto editorial, fragmentos citados de
-            letras y enlaces a las canciones.
+            Toda la obra de Extremoduro y Robe en orden, del primer guitarrazo
+            al último. Cada disco abre a su historia, sus versos y sus canciones.
           </p>
         </header>
 

@@ -13,8 +13,6 @@ function artistItems(slug: "extremoduro" | "robe") {
     { href: `/discografia?artist=${slug}`, label: "Discografía" },
     { href: "/grupos", label: "Grupos amigos" },
     { href: "/personas", label: "Colegas" },
-    { href: "/sellos", label: "Sellos discográficos" },
-    { href: "/libros", label: "Libros" },
   ];
 }
 
@@ -100,7 +98,6 @@ export default async function PublicHeader() {
         <InstagramLink size={18} className="text-ink-dim hover:text-accent transition-colors" />
         {me ? (
           <>
-            <Link href="/biblioteca" data-cursor="hover" className={linkCls}>Biblioteca</Link>
             {me.is_admin && <Link href="/biblioteca/admin/sources" data-cursor="hover" className={linkCls}>Admin</Link>}
             <form action="/logout" method="post" className="inline">
               <button type="submit" data-cursor="hover" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button>
@@ -133,7 +130,6 @@ export default async function PublicHeader() {
           <Link href="/biblioteca/donar" className={linkCls}>Apoyar el proyecto</Link>
           {me ? (
             <>
-              <Link href="/biblioteca" className={linkCls}>Biblioteca</Link>
               {me.is_admin && <Link href="/biblioteca/admin/sources" className={linkCls}>Admin</Link>}
               <form action="/logout" method="post"><button type="submit" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button></form>
             </>
