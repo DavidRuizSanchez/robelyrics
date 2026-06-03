@@ -18,10 +18,11 @@ const linkCls = "text-ink-dim hover:text-ink transition-colors";
 function ArtistDropdown({ slug, label }: { slug: "extremoduro" | "robe"; label: string }) {
   return (
     <div className="relative group/art">
-      <Link href={`/${slug}`} data-cursor="hover" className={`${linkCls} inline-flex items-center gap-1`}>
+      {/* Trigger solo despliega; el enlace al artista es "Historia". */}
+      <span data-cursor="hover" className={`${linkCls} inline-flex items-center gap-1 cursor-default select-none`}>
         {label}
         <span aria-hidden className="text-[8px] opacity-70 group-hover/art:rotate-180 transition-transform">▼</span>
-      </Link>
+      </span>
       <div className="invisible opacity-0 group-hover/art:visible group-hover/art:opacity-100 transition-opacity absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50">
         <div className="bg-bg border border-divider rounded-sm py-2 min-w-[210px] flex flex-col shadow-lg">
           {artistItems(slug).map((it) => (
