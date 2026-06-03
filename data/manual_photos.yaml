@@ -1,65 +1,40 @@
 # Fotos/logos manuales (URLs externas) re-alojadas a Cloudinary por
-# scripts/seo/apply_manual_photos.py. Imágenes REALES (nunca IA). El user aceptó
-# (2026-06-03) usar fuentes no-libres para que todo tenga imagen.
-# kind: person (default) | album | band.  attribution opcional.
+# scripts/seo/apply_manual_photos.py. SOLO imágenes verificadas a ojo:
+# individuales, de la persona/banda correcta, SIN marca de agua, no duplicadas.
+# REALES (nunca IA). Lo que no cumple → avatar limpio (no se lista aquí).
+# kind: person (default) | album | band.
 
 photos:
-  # === Banda solista de Robe ===
+  # === Personas (retrato individual limpio, verificado) ===
   - slug: alvaro-rodriguez-barroso
     url: "https://lagranbellezaproducciones.com/wp-content/uploads/2019/10/alvaro-rodriguez-barroso-artista-la-gran-belleza.jpg"
     attribution: "La Gran Belleza Producciones"
   - slug: lorenzo-gonzalez
     url: "https://static.eldiario.es/clip/ee23208e-c867-4896-b27c-c719ec83e581_16-9-discover-aspect-ratio_default_0.jpg"
     attribution: "eldiario.es"
-  - slug: alber-fuentes
-    url: "https://radioedu.educarex.es/picotaradio/wp-content/uploads/sites/272/2024/02/PHOTO-2024-02-21-19-30-31-1024x461.jpg"
-    attribution: "Picota Radio"
   - slug: woody-amores
     url: "https://xn--guitarraespaola-9qb.net/wp-content/uploads/2021/09/27500256_1742183679159345_8487985572212521363_o.jpeg"
     attribution: "M. Rubialls Photography"
   - slug: david-lerman
     url: "https://www.canalextremadura.es/sites/default/files/Media/Images/2021-09/lerman.jpg"
     attribution: "Canal Extremadura"
-  - slug: carlitos-perez
-    url: "https://www.asociacioncadenadesonrisas.es/wp-content/uploads/2017/11/2.jpg"
-    attribution: "Asociación Cadena de Sonrisas"
-  # === Extremoduro (histórico / entorno) ===
-  - slug: salo
-    url: "https://mariskalrock.com/wp-content/uploads/2021/07/Extremoduro-Robe-Salo-Luis-Von-Fanta-carlos-el-sucio.jpg"
-    attribution: "Archivo / MariskalRock (foto de grupo, etapa inicial)"
-  - slug: luis-von-fanta
-    url: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhC1qlGmCn_IL4IjSCl4iOnhw9qDfh2l5aj6PMUod4eyLu2xvIVJtIPGDIOHIPyEv5w7VLMhAyyp3b8m2_tMmGrqlFLUvIWyp97Jdb6ecG1TYtq7I8rW3VSIbyQBoPcAPqRGh0930w_U1Fx/s1600/1992-extremoduro-inicios-salo-charly-robe-luis.jpg"
-    attribution: "Archivo Extremoduro 1992 (foto de grupo)"
-  - slug: mon-sogas
-    url: "https://www.rock4u.es/wp-content/uploads/2024/11/Mon-Sogas.jpg"
-    attribution: "rock4u.es"
-  - slug: alen-ayerdi
-    url: "https://mariskalrock.com/wp-content/uploads/2017/12/Alen-Ayerdi.jpg"
-    attribution: "MariskalRock"
-  - slug: raul-guerrero
-    url: "https://www.simiroalasnubes.giveevig.com/wp-content/uploads/2020/09/1996-robe-raul-guerrero-uoho_650.jpg"
-    attribution: "giveevig (Robe, Raúl Guerrero y Uoho, 1996)"
-  - slug: jose-ignacio-cantera
-    url: "https://upload.wikimedia.org/wikipedia/commons/3/37/Extremoduro_-_Entre_interiores%28_Chile_06-12-2014%29_%281%29.11.png"
-    attribution: "@marzaLwm · CC BY 3.0 (Wikimedia Commons) — plano de banda"
-  - slug: miguel-colino
-    url: "https://upload.wikimedia.org/wikipedia/commons/3/37/Extremoduro_-_Entre_interiores%28_Chile_06-12-2014%29_%281%29.11.png"
-    attribution: "@marzaLwm · CC BY 3.0 (Wikimedia Commons) — plano de banda"
-  # === Entorno / amigos ===
-  - slug: jon-calvo
-    url: "https://www.giveevig.com/wp-content/uploads/2018/07/inconscientes-extremusika2018-giveevig-robbie-ramone.jpg"
-    attribution: "giveevig (Inconscientes, Extremusika 2018)"
-  - slug: selu
-    url: "https://mariskalrock.com/wp-content/uploads/2020/07/reincidentes-facebook.jpg"
-    attribution: "MariskalRock (Reincidentes)"
-  - slug: jaime-moreno
-    url: "https://www.ciudadanorock.com/wp-content/uploads/TheElectricAlley1-1050x600.jpg"
-    attribution: "Ciudadano Rock (The Electric Alley)"
+
   # === Portada de single ===
   - slug: pedra
     kind: album
     url: "https://coverartarchive.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30/front"
     attribution: "Ramone «Capitán Kaverníkola» (DRO, 1995)"
+
+  # === Fotos de banda (promo limpia, verificada) ===
+  - slug: rebrote
+    kind: band
+    url: "https://metalbizarre.com/wp-content/uploads/2025/10/rebrote_2025_900.jpeg"
+    attribution: "Promo Rebrote 2025"
+  - slug: tabletom
+    kind: band
+    url: "https://fanmusicfest.com/sites/default/files/Pedro-Jose-Ramirez-fundadores-Tabletom_1122197931_66601347_1585x1024_0.jpg"
+    attribution: "FanMusicFest (fundadores de Tabletom)"
+
   # === Logos de sellos discográficos (kind: band) ===
   - slug: avispa
     kind: band
