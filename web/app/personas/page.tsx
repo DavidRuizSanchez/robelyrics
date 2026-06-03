@@ -21,9 +21,9 @@ const SITE_URL =
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Los colegas de Robe · Entre Interiores",
+  title: "Integrantes de Extremoduro y los colegas de Robe · Entre Interiores",
   description:
-    "Los colegas de Robe: miembros históricos de Extremoduro, banda solista y voces amigas del universo.",
+    "Los integrantes de Extremoduro a lo largo de su historia, la banda solista de Robe y las voces amigas del universo: quién es quién y qué tocó cada uno.",
   alternates: { canonical: `${SITE_URL}/personas` },
 };
 

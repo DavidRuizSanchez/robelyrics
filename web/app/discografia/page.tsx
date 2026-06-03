@@ -33,9 +33,9 @@ export async function generateMetadata({
     };
   }
   return {
-    title: "Discografía completa · Extremoduro y Robe · Entre Interiores",
+    title: "Discografía de Extremoduro y Robe · completa y comentada · Entre Interiores",
     description:
-      "Toda la discografía de Extremoduro y Robe en orden cronológico: cada disco enlaza a su análisis, contexto y letras comentadas.",
+      "La discografía de Extremoduro y Robe al completo, en orden cronológico: cada disco enlaza a su análisis, su contexto y sus letras comentadas.",
     alternates: { canonical: `${SITE_URL}/discografia` },
   };
 }

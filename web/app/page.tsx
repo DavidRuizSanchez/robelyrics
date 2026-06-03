@@ -15,9 +15,9 @@ import {
 import type { PublicArtistDetail } from "@/lib/types";
 
 export const metadata = {
-  title: "Entre Interiores · Cancionero de Robe y Extremoduro",
+  title: "Canciones de Extremoduro y Robe, verso a verso · Entre Interiores",
   description:
-    "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
+    "Las canciones de Extremoduro y Robe, disco a disco y verso a verso: lo que de verdad dicen sus letras, contado por quien lleva media vida con ellas y por la comunidad de fans.",
 };
 
 type SitemapEntry = {

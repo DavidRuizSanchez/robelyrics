@@ -20,9 +20,9 @@ const SITE_URL =
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Grupos afines a Extremoduro · Entre Interiores",
+  title: "Grupos parecidos a Extremoduro · bandas afines del rock estatal · Entre Interiores",
   description:
-    "Los grupos del mismo barro que Extremoduro y Robe: el rock estatal que compartió escenario, cartel y carretera con ellos.",
+    "Los grupos parecidos a Extremoduro y del mismo barro: el rock estatal que compartió escenario, cartel y carretera con Extremoduro y Robe.",
   alternates: { canonical: `${SITE_URL}/grupos` },
 };
 
