@@ -1465,6 +1465,94 @@ def public_band_detail(
     )
 
 
+# --- Libros (/libros) -------------------------------------------------------
+
+
+class PublicBookListItem(BaseModel):
+    slug: str
+    title: str
+    subtitle: str | None = None
+    authors: list[str] = []
+    year: int | None = None
+    kind: str = "biografia"
+    availability: str = "new"
+    cover_url: str | None = None
+    summary: str | None = None
+
+
+class PublicBookDetailOut(PublicBookListItem):
+    publisher: str | None = None
+    isbn: str | None = None
+    pages: int | None = None
+    language: str = "es"
+    cover_attribution: str | None = None
+    body_md: str | None = None
+    buy_links: list[dict] = []
+    about: list[str] = []
+    meta_title: str | None = None
+    meta_description: str | None = None
+
+
+@router.get("/books", response_model=list[PublicBookListItem])
+def public_books_list(
+    response: Response,
+    db: Session = Depends(get_db),
+) -> list[PublicBookListItem]:
+    _set_cache(response)
+    from app.db.models import Book  # lazy
+
+    books = db.query(Book).order_by(Book.sort_order, Book.year).all()
+    return [
+        PublicBookListItem(
+            slug=b.slug,
+            title=b.title,
+            subtitle=b.subtitle,
+            authors=list(b.authors or []),
+            year=b.year,
+            kind=b.kind or "biografia",
+            availability=b.availability or "new",
+            cover_url=b.cover_url,
+            summary=b.summary,
+        )
+        for b in books
+    ]
+
+
+@router.get("/books/{slug}", response_model=PublicBookDetailOut)
+def public_book_detail(
+    slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicBookDetailOut:
+    _set_cache(response)
+    from app.db.models import Book  # lazy
+
+    book = db.query(Book).filter(Book.slug == slug).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="book not found")
+    return PublicBookDetailOut(
+        slug=book.slug,
+        title=book.title,
+        subtitle=book.subtitle,
+        authors=list(book.authors or []),
+        year=book.year,
+        kind=book.kind or "biografia",
+        availability=book.availability or "new",
+        cover_url=book.cover_url,
+        summary=book.summary,
+        publisher=book.publisher,
+        isbn=book.isbn,
+        pages=book.pages,
+        language=book.language or "es",
+        cover_attribution=book.cover_attribution,
+        body_md=book.body_md,
+        buy_links=list(book.buy_links or []),
+        about=list(book.about or []),
+        meta_title=book.meta_title,
+        meta_description=book.meta_description,
+    )
+
+
 class PublicPostListItem(BaseModel):
     slug: str
     kind: str

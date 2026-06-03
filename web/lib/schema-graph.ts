@@ -71,6 +71,7 @@ export const canonical = {
   breadcrumb: (path: string) => `${SITE_URL}${path}#breadcrumb`,
   itemList: (path: string) => `${SITE_URL}${path}#itemlist`,
   primaryImage: (path: string) => `${SITE_URL}${path}#primaryimage`,
+  book: (slug: string) => `${SITE_URL}/libros/${slug}#book`,
 };
 
 export const urls = {
@@ -470,6 +471,49 @@ export function itemListNode(
       return li;
     }),
   };
+}
+
+// Libro (sección /libros). `about` referencia por @id las entidades del
+// universo que cubre (Extremoduro, Robe) para tejer el knowledge graph. SIN
+// `offers` todavía: los enlaces de compra/afiliado llegarán más adelante.
+export type BookInput = {
+  slug: string;
+  title: string;
+  subtitle?: string | null;
+  authors?: string[];
+  year?: number | null;
+  publisher?: string | null;
+  isbn?: string | null;
+  pages?: number | null;
+  language?: string;
+  coverUrl?: string | null;
+  summary?: string | null;
+  aboutIds?: string[]; // canonical IDs (musicGroup) de lo que trata
+};
+
+export function bookNode(book: BookInput): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    "@type": "Book",
+    "@id": canonical.book(book.slug),
+    name: book.subtitle ? `${book.title}. ${book.subtitle}` : book.title,
+    url: `${SITE_URL}/libros/${book.slug}`,
+    inLanguage: book.language || SITE_LANG,
+  };
+  if (book.authors && book.authors.length > 0) {
+    node.author = book.authors.map((a) => ({ "@type": "Person", name: a }));
+  }
+  if (book.year) node.datePublished = String(book.year);
+  if (book.publisher) {
+    node.publisher = { "@type": "Organization", name: book.publisher };
+  }
+  if (book.isbn) node.isbn = book.isbn;
+  if (book.pages) node.numberOfPages = book.pages;
+  if (book.coverUrl) node.image = book.coverUrl;
+  if (book.summary) node.abstract = book.summary;
+  if (book.aboutIds && book.aboutIds.length > 0) {
+    node.about = book.aboutIds.map((id) => ({ "@id": id }));
+  }
+  return node;
 }
 
 export type ImageInput = {

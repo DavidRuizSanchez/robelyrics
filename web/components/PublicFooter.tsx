@@ -48,6 +48,12 @@ export default function PublicFooter() {
           <Link href="/grupos" data-cursor="hover" className={linkCls}>
             Grupos afines
           </Link>
+          <Link href="/sellos" data-cursor="hover" className={linkCls}>
+            Sellos discográficos
+          </Link>
+          <Link href="/libros" data-cursor="hover" className={linkCls}>
+            Libros
+          </Link>
         </div>
 
         {/* Col 2 · Discos destacados */}

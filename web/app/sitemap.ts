@@ -27,6 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/personas`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/grupos`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/sellos`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/libros`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/sobre`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
     { url: `${SITE_URL}/buscar`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/legal/aviso`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
@@ -39,11 +40,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Detalles de taxonomías y posts publicados.
   try {
-    const [themes, places, concepts, posts] = await Promise.all([
+    const [themes, places, concepts, posts, books] = await Promise.all([
       apiFetch<{ slug: string; song_count: number }[]>("/public/themes", { authenticated: false }),
       apiFetch<{ slug: string; song_count: number }[]>("/public/places", { authenticated: false }),
       apiFetch<{ slug: string; song_count: number }[]>("/public/concepts", { authenticated: false }),
       apiFetch<{ slug: string; published_at: string }[]>("/public/posts", { authenticated: false }),
+      apiFetch<{ slug: string }[]>("/public/books", { authenticated: false }),
     ]);
     for (const t of themes) {
       urls.push({ url: `${SITE_URL}/temas/${t.slug}`, lastModified: now, changeFrequency: "weekly", priority: 0.7 });
@@ -61,6 +63,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "monthly",
         priority: 0.65,
       });
+    }
+    for (const book of books) {
+      urls.push({ url: `${SITE_URL}/libros/${book.slug}`, lastModified: now, changeFrequency: "monthly", priority: 0.7 });
     }
   } catch {
     // Si los endpoints fallan, seguimos con las URLs estáticas + sitemap-entries.

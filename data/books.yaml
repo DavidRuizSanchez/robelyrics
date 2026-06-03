@@ -1,0 +1,195 @@
+# Libros del universo Extremoduro/Robe — sección /libros.
+# Metadatos bibliográficos VERIFICADOS + fichas curadas a mano (nunca
+# inventadas ni generadas por LLM). Sembrado por scripts/seed_books.py
+# (idempotente por slug). `buy_links` se rellenará al activar afiliados;
+# de momento queda vacío y la web NO renderiza botones de compra ni disclaimer.
+#
+# Campos: slug, title, subtitle, authors[], year, publisher, isbn, pages,
+#   language, kind (biografia|ensayo|novela|monografico|poesia),
+#   availability (new|secondhand|out_of_print), cover_url, cover_attribution,
+#   summary, body_md, about[] (slugs de artista para tejer el @graph),
+#   meta_title, meta_description, sort_order.
+
+books:
+  - slug: de-profundis
+    title: "Extremoduro. De Profundis"
+    subtitle: "La historia autorizada"
+    authors: ["Javier Menéndez Flores"]
+    year: 2013
+    publisher: "Grijalbo (2013) · Libros Cúpula (ed. ampliada, 2022)"
+    pages: 595
+    language: es
+    kind: biografia
+    availability: new
+    about: ["extremoduro", "robe"]
+    sort_order: 10
+    summary: >-
+      La biografía autorizada de Extremoduro: la historia del grupo contada con
+      el testimonio directo de Robe e Iñaki «Uoho» Antón.
+    meta_title: "Extremoduro. De Profundis (Javier Menéndez Flores) · Entre Interiores"
+    meta_description: >-
+      Ficha de «Extremoduro. De Profundis», la biografía autorizada de
+      Extremoduro por Javier Menéndez Flores. Qué cuenta, por qué importa y dónde
+      situarla en la bibliografía del grupo.
+    body_md: |
+      ## Qué encontrarás
+      *De Profundis* es la biografía **autorizada** de [Extremoduro](/extremoduro):
+      Javier Menéndez Flores reconstruye la historia del grupo desde el Plasencia
+      de los ochenta hasta la madurez sinfónica, con el testimonio directo de
+      [Robe](/robe) e Iñaki «Uoho» Antón. Repasa la autofinanciación a base de
+      boletos en el bar Simetría, la maqueta *Rock transgresivo*, el baile de
+      formaciones de los primeros años y el salto por Avispa, DRO y Warner, disco
+      a disco.
+
+      ## Por qué importa
+      Es la fuente de referencia para cualquier fan: al estar autorizada, recoge
+      la voz de los protagonistas y fija fechas, anécdotas y zonas de sombra que
+      las historias de oídas dan por sentadas. Se publicó por primera vez en 2013
+      (Grijalbo), se amplió en 2022 (Libros Cúpula) y tiene edición de bolsillo en
+      2025.
+
+      ## El autor
+      Javier Menéndez Flores es periodista y biógrafo musical, autor de semblanzas
+      de figuras del rock y la canción en castellano.
+
+  - slug: el-viaje-intimo-de-la-locura
+    title: "El viaje íntimo de la locura"
+    subtitle: null
+    authors: ["Roberto Iniesta"]
+    year: 2009
+    publisher: "Autoedición (Roberto Iniesta)"
+    language: es
+    kind: novela
+    availability: secondhand
+    cover_attribution: "Ilustración de portada: Diego LaTorre"
+    about: ["robe"]
+    sort_order: 20
+    summary: >-
+      La única novela de Robe: una fábula lírica, digresiva y simbólica donde el
+      letrista de Extremoduro se revela como prosista.
+    meta_title: "El viaje íntimo de la locura, la novela de Robe (2009) · Entre Interiores"
+    meta_description: >-
+      Ficha de «El viaje íntimo de la locura», la única novela de Roberto Iniesta
+      (Robe). Estilo, símbolos compartidos con sus letras y datos de edición.
+    body_md: |
+      ## Qué encontrarás
+      La única incursión de [Robe](/robe) en la narrativa larga. *El viaje íntimo
+      de la locura* es una fábula de prosa poética —digresiva, metafórica y con
+      humor negro— donde el Sol, la Luna, el viento, el río y los árboles son
+      personajes con voluntad propia. La locura no aparece como patología, sino
+      como puerta hacia otro conocimiento: el mismo *leitmotiv* que recorre sus
+      letras.
+
+      ## Por qué importa
+      Demuestra que el poeta de [Extremoduro](/extremoduro) también es prosista:
+      aforismo, paradoja, surrealismo lógico y ritmo musical en cada página. Los
+      símbolos de la novela —sol, luna, viento, árbol, río— son los mismos que
+      cruzan el cancionero, así que se lee como una llave para entrar en su
+      universo.
+
+      ## La edición
+      Robe la autoeditó en 2009, tras unos tres años escribiéndola (y matriculado
+      en la UNED para pulir la gramática). La ilustración de portada es de Diego
+      LaTorre. Hoy está agotada en su tienda oficial y circula de segunda mano.
+
+  - slug: talento-innato
+    title: "Extremoduro. Talento innato"
+    subtitle: "Biografía no autorizada"
+    authors: ["Jesús Casañas López"]
+    year: 2023
+    publisher: "Alianza Editorial"
+    language: es
+    kind: biografia
+    availability: new
+    about: ["extremoduro", "robe"]
+    sort_order: 30
+    summary: >-
+      Biografía no autorizada de Extremoduro: un recorrido cronológico, disco a
+      disco, por toda la trayectoria del grupo.
+    meta_title: "Extremoduro. Talento innato (Jesús Casañas) · Entre Interiores"
+    meta_description: >-
+      Ficha de «Extremoduro. Talento innato», la biografía no autorizada de Jesús
+      Casañas. Recorrido cronológico por la discografía y la trayectoria del grupo.
+    body_md: |
+      ## Qué encontrarás
+      *Talento innato* es una biografía **no autorizada** de
+      [Extremoduro](/extremoduro) que ordena la trayectoria del grupo de forma
+      cronológica, álbum por álbum, desde los inicios hasta la etapa en solitario
+      de [Robe](/robe). Recopila el contexto de cada disco, las giras y el relato
+      externo de la banda.
+
+      ## Por qué importa
+      Al no ser autorizada, aporta la mirada del aficionado documentalista:
+      complementa a *De Profundis* con el punto de vista de quien reconstruye la
+      historia desde fuera. Publicada por Alianza Editorial en 2023 y actualizada
+      en ediciones posteriores.
+
+      ## El autor
+      Jesús Casañas López es divulgador y autor especializado en la trayectoria de
+      Extremoduro.
+
+  - slug: poesia-basica
+    title: "Poesía básica"
+    subtitle: "Extrechinato y Tú ensancha el alma"
+    authors: ["Javier M. Alcaraz"]
+    year: 2023
+    publisher: "Efe Eme"
+    language: es
+    kind: ensayo
+    availability: new
+    about: ["robe", "extremoduro"]
+    sort_order: 40
+    summary: >-
+      La historia del disco «Poesía básica» y del universo Extrechinato: Manolo
+      Chinato, Robe, Fito y Uoho ensanchando el alma.
+    meta_title: "Poesía básica. Extrechinato y Tú ensancha el alma (Javier M. Alcaraz) · Entre Interiores"
+    meta_description: >-
+      Ficha del libro «Poesía básica», sobre Extrechinato y Tú: cómo Robe, Fito y
+      Uoho musicalizaron los versos del poeta Manolo Chinato.
+    body_md: |
+      ## Qué encontrarás
+      *Poesía básica* reconstruye la gestación de **Extrechinato y Tú**, el
+      proyecto que musicalizó los versos del poeta Manolo Chinato con
+      [Robe](/robe), Fito Cabrales e Iñaki «Uoho» Antón. Javier M. Alcaraz narra
+      cómo una idea de 1996 acabó convertida en disco de oro en 2001.
+
+      ## Por qué importa
+      Ilumina una de las ramas más entrañables del árbol genealógico de
+      [Extremoduro](/extremoduro): la conexión con Chinato, figura clave en la
+      sensibilidad poética de Robe. Editado por Efe Eme en 2023, con varias
+      reediciones posteriores.
+
+      ## El autor
+      Javier M. Alcaraz es periodista musical y autor de la editorial Efe Eme.
+
+  - slug: cuaderno-efe-eme-extremoduro
+    title: "Extremoduro"
+    subtitle: "Cuadernos Efe Eme nº 32"
+    authors: ["VV. AA."]
+    year: 2022
+    publisher: "Efe Eme"
+    language: es
+    kind: monografico
+    availability: new
+    about: ["extremoduro", "robe"]
+    sort_order: 50
+    summary: >-
+      Monográfico de la colección Cuadernos Efe Eme dedicado por entero a
+      Extremoduro. Pieza de coleccionista, últimas unidades.
+    meta_title: "Cuaderno Efe Eme nº 32: Extremoduro (monográfico) · Entre Interiores"
+    meta_description: >-
+      Ficha del Cuaderno Efe Eme nº 32, monográfico dedicado a Extremoduro:
+      artículos, análisis y memoria del grupo en formato de coleccionista.
+    body_md: |
+      ## Qué encontrarás
+      Un cuaderno monográfico que la revista *Efe Eme* dedicó por entero a
+      [Extremoduro](/extremoduro): artículos, análisis y memoria del grupo
+      reunidos en un volumen publicado en el verano de 2022.
+
+      ## Por qué importa
+      Es una pieza para fans: recopila firmas y enfoques periodísticos sobre la
+      banda en formato revista-libro. Quedan pocas unidades en circulación.
+
+      ## La colección
+      *Cuadernos Efe Eme* es la línea de monográficos de la revista musical Efe
+      Eme, dedicada a artistas y discos de referencia de la música en español.

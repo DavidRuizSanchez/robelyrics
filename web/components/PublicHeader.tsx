@@ -67,6 +67,14 @@ export default async function PublicHeader() {
           Sellos
         </Link>
         <Link
+          href="/libros"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+          title="Libros sobre Extremoduro y Robe"
+        >
+          Libros
+        </Link>
+        <Link
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"

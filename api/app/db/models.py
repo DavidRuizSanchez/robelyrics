@@ -670,6 +670,47 @@ class RelatedVideoEntity(Base):
     video: Mapped[RelatedVideo] = relationship(back_populates="entities")
 
 
+class Book(Base):
+    """Libro del universo Extremoduro/Robe (sección /libros): biografías
+    (De Profundis, Talento innato), ensayos (Poesía básica), monográficos
+    (Cuaderno Efe Eme) y la única novela de Robe (El viaje íntimo de la
+    locura). NO está en el corpus de canciones: es ampliación del knowledge
+    graph + futura vía de afiliación. Metadatos bibliográficos VERIFICABLES,
+    sembrados desde data/books.yaml (curados a mano, nunca inventados ni
+    generados por LLM). `buy_links` queda preparado para los enlaces de
+    compra/afiliado, que de momento NO se renderizan.
+    """
+
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    subtitle: Mapped[str | None] = mapped_column(String(300))
+    authors: Mapped[list | None] = mapped_column(JSONB)          # ["Javier Menéndez Flores"]
+    year: Mapped[int | None] = mapped_column(Integer)
+    publisher: Mapped[str | None] = mapped_column(String(200))
+    isbn: Mapped[str | None] = mapped_column(String(20))
+    pages: Mapped[int | None] = mapped_column(Integer)
+    language: Mapped[str] = mapped_column(String(8), nullable=False, default="es")
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="biografia")
+    # biografia|ensayo|novela|monografico|poesia
+    availability: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
+    # new|secondhand|out_of_print
+    cover_url: Mapped[str | None] = mapped_column(String(1024))
+    cover_attribution: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)            # sinopsis corta (listado + meta)
+    body_md: Mapped[str | None] = mapped_column(Text)            # ficha larga (markdown, H2)
+    buy_links: Mapped[list | None] = mapped_column(JSONB)        # [{store,url,label}] — afiliados (futuro)
+    about: Mapped[list | None] = mapped_column(JSONB)            # ["extremoduro","robe"] → @graph
+    meta_title: Mapped[str | None] = mapped_column(String(300))
+    meta_description: Mapped[str | None] = mapped_column(String(400))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Fase 3: blog/noticias --------------------------------------------------
 
 
