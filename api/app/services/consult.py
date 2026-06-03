@@ -284,13 +284,17 @@ def _build_user_prompt(question: str, facts: list[str], passages: list[Passage])
         parts += [f"- {f}" for f in facts]
         parts.append("")
     if passages:
-        parts.append("PASAJES (apóyate SOLO en esto; lo marcado como CONTEXTO no eres tú):")
+        parts.append(
+            "PASAJES (tu materia prima: de aquí sacas tus ideas y tu tono. "
+            "CONCEPTÚALO con tus palabras, NO copies los versos ni los encadenes; "
+            "lo marcado como CONTEXTO no eres tú):"
+        )
         for i, p in enumerate(passages, 1):
             etiqueta = {
-                "robe_quote": "cita tuya",
+                "robe_quote": "algo que dijiste",
                 "robe_interview": "entrevista tuya",
                 "robe_prose": "texto tuyo",
-                "letra": "verso de una canción tuya",
+                "letra": "verso tuyo (para tu tono e ideas, NO para copiarlo)",
                 "about_robe": "CONTEXTO de terceros (no eres tú)",
             }.get(p.tipo, p.tipo)
             parts.append(f"[{i}] ({etiqueta} · {p.titulo}) {p.fragmento}")

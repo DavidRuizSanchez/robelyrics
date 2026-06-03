@@ -1,23 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 
-type Citation = { tipo: string; titulo: string; ref: string | null };
 type Turn = {
   question: string;
   answer: string;
-  citations: Citation[];
   grounded: boolean;
-};
-
-const TIPO_LABEL: Record<string, string> = {
-  robe_quote: "cita suya",
-  robe_interview: "entrevista",
-  robe_prose: "texto suyo",
-  letra: "canción",
-  dato: "dato",
-  about_robe: "contexto",
 };
 
 export default function ConsultorioChat({
@@ -50,7 +38,6 @@ export default function ConsultorioChat({
           {
             question: text,
             answer: data.answer,
-            citations: data.citations || [],
             grounded: !!data.grounded,
           },
           ...t,
@@ -138,34 +125,6 @@ export default function ConsultorioChat({
             <div className="font-serif text-ink text-xl leading-relaxed whitespace-pre-line">
               {t.answer}
             </div>
-            {t.citations.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-                <span className="text-accent">de dónde lo saco:</span>
-                {t.citations.map((c, j) => (
-                  <span key={j}>
-                    {c.ref && c.ref.startsWith("/") ? (
-                      <Link href={c.ref} data-cursor="hover" className="hover:text-accent">
-                        {TIPO_LABEL[c.tipo] || c.tipo}: {c.titulo}
-                      </Link>
-                    ) : c.ref && c.ref.startsWith("http") ? (
-                      <a
-                        href={c.ref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-cursor="hover"
-                        className="hover:text-accent"
-                      >
-                        {TIPO_LABEL[c.tipo] || c.tipo}: {c.titulo} ↗
-                      </a>
-                    ) : (
-                      <span>
-                        {TIPO_LABEL[c.tipo] || c.tipo}: {c.titulo}
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
             {!t.grounded && (
               <p className="mt-4 font-mono text-[10px] tracking-[1px] text-ink-faint italic">
                 (de esto Robe no dejó dicho nada concreto: te responde a su manera,

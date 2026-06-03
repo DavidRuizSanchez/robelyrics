@@ -43,9 +43,7 @@ export default async function ConsultorioPage() {
           Pregúntale al viento
         </h1>
         <p className="font-serif italic text-ink-dim text-lg mt-6 leading-relaxed">
-          Lánzale una pregunta y te responde con su voz, armada solo con sus
-          palabras: lo que dijo en entrevistas, lo que escribió en sus letras y
-          en su novela. De un disco o de la vida, lo que quieras.
+          Pregunta al oráculo del Extremodurismo.
         </p>
       </header>
 
