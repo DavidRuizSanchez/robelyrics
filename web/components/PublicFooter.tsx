@@ -46,6 +46,9 @@ export default function PublicFooter() {
           <Link href="/sobre" data-cursor="hover" className={linkCls}>
             Quién ha montado esto
           </Link>
+          <a href="mailto:hola@entreinteriores.com" data-cursor="hover" className={linkCls}>
+            Escríbeme
+          </a>
           <Link
             href="/biblioteca/donar"
             data-cursor="hover"
