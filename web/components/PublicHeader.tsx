@@ -171,6 +171,8 @@ export default async function PublicHeader() {
           <Link href="/discografia" className="text-ink-dim hover:text-ink transition-colors">Discografía</Link>
           <Link href="/grupos" className="text-ink-dim hover:text-ink transition-colors" title="Grupos afines a Extremoduro">Grupos</Link>
           <Link href="/sellos" className="text-ink-dim hover:text-ink transition-colors" title="Sellos discográficos del universo Extremoduro">Sellos</Link>
+          <Link href="/libros" className="text-ink-dim hover:text-ink transition-colors" title="Libros sobre Extremoduro y Robe">Libros</Link>
+          <Link href="/biblioteca/consultorio" className="text-accent hover:text-ink transition-colors" title="Pregúntame lo que quieras, que pa' eso sigo en el aire">Pregúntale al viento</Link>
           <Link href="/blog" className="text-ink-dim hover:text-ink transition-colors" title="De manera urgente · noticias y memoria">De manera urgente</Link>
           <Link href="/buscar" className="text-ink-dim hover:text-ink transition-colors">Buscar</Link>
           <Link href="/blog#suscribete" className="text-accent hover:text-ink transition-colors">Suscríbete al diario</Link>
