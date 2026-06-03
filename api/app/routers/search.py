@@ -25,6 +25,7 @@ from app.services.retrieval import (
     rrf_fuse,
     search_interpretations_for_song_ids,
     search_lyrics_full_for_song_ids,
+    search_robe_voice,
     vector_search,
 )
 
@@ -56,9 +57,17 @@ class SemanticHit(BaseModel):
     why: str
 
 
+class RobeSays(BaseModel):
+    fragmento: str
+    titulo: str
+    tipo: str
+    url: str | None = None
+
+
 class SemanticOut(BaseModel):
     query: str
     results: list[SemanticHit]
+    robe_says: list[RobeSays] = []
 
 
 @router.post("/semantic", response_model=SemanticOut)
@@ -131,8 +140,20 @@ def semantic(
 
     reranked = rerank(body.query, fused, db, top_k=body.k)
 
+    # Lo que dijo Robe del tema (corpus nuevo: entrevistas/citas/prosa).
+    robe_says = [
+        RobeSays(
+            fragmento=p["fragmento"],
+            titulo=p["titulo"],
+            tipo=p["tipo"],
+            url=p.get("url"),
+        )
+        for p in search_robe_voice(query_vec, k=3)
+    ]
+
     return SemanticOut(
         query=body.query,
+        robe_says=robe_says,
         results=[
             SemanticHit(
                 line_text=r.line_text,

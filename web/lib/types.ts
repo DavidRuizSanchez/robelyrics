@@ -86,9 +86,17 @@ export type SemanticHit = {
   why: string;
 };
 
+export type RobeSays = {
+  fragmento: string;
+  titulo: string;
+  tipo: string;
+  url: string | null;
+};
+
 export type SemanticOut = {
   query: string;
   results: SemanticHit[];
+  robe_says?: RobeSays[];
 };
 
 // /search/complete

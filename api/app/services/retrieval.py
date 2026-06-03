@@ -14,6 +14,47 @@ LINES_COLLECTION = "lines_v1"
 CHUNKS_COLLECTION = "chunks_v1"
 INTERPRETATIONS_COLLECTION = "interpretations_v1"
 LYRICS_FULL_COLLECTION = "lyrics_full_v1"
+ROBE_VOICE_COLLECTION = "robe_voice_v1"
+
+
+def search_robe_voice(
+    query_vec: list[float], k: int = 4, score_threshold: float = 0.34
+) -> list[dict[str, Any]]:
+    """Busca en robe_voice_v1 lo que dijo Robe (entrevistas, citas, su prosa)
+    relacionado con la query. Solo material de su propia voz (author_is_robe).
+    Enriquece el buscador semántico: junto al verso, lo que Robe dijo del tema.
+    """
+    qdrant = get_qdrant()
+    flt = Filter(must=[FieldCondition(key="author_is_robe", match=MatchValue(value=True))])
+    try:
+        resp = qdrant.query_points(
+            collection_name=ROBE_VOICE_COLLECTION,
+            query=query_vec,
+            limit=k,
+            query_filter=flt,
+            score_threshold=score_threshold,
+        )
+    except Exception:  # noqa: BLE001
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for r in resp.points:
+        p = r.payload or {}
+        frag = (p.get("fragmento") or "").strip()
+        titulo = p.get("titulo") or ""
+        if not frag or titulo in seen:  # 1 pasaje por fuente
+            continue
+        seen.add(titulo)
+        out.append(
+            {
+                "fragmento": frag[:400],
+                "titulo": titulo or "Robe",
+                "tipo": p.get("tipo") or "entrevista",
+                "url": p.get("url"),
+                "score": float(r.score),
+            }
+        )
+    return out
 
 # Boost factor aplicado al score RRF de un hit cuando su song_id aparece
 # en las fuentes fan o en la letra completa vectorialmente cercanas a la query.

@@ -58,6 +58,39 @@ export default async function SearchResults({
           <CompleteResultCard key={i} hit={hit} query={query} />
         ))
       )}
+
+      {mode === "semantic" &&
+        ((result as SemanticOut).robe_says?.length ?? 0) > 0 && (
+          <div className="mt-6 pt-8 border-t border-divider">
+            <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
+              y esto dijo Robe
+            </p>
+            <div className="space-y-6">
+              {(result as SemanticOut).robe_says!.map((r, i) => (
+                <figure key={i} className="border-l-2 border-accent/40 pl-5">
+                  <blockquote className="font-serif italic text-ink text-lg md:text-xl leading-relaxed m-0">
+                    “{r.fragmento}”
+                  </blockquote>
+                  <figcaption className="mt-2 font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
+                    {r.url ? (
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-cursor="hover"
+                        className="hover:text-accent"
+                      >
+                        {r.titulo} ↗
+                      </a>
+                    ) : (
+                      r.titulo
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
     </section>
   );
 }
