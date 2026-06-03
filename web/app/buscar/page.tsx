@@ -98,8 +98,8 @@ export default async function BuscarPage({
             Buscar
           </h1>
           <p className="mt-4 font-serif text-lg text-ink-dim">
-            Busca por título de canción, disco o artista en el catálogo de
-            Extremoduro y Robe.
+            Escribe un título de canción, un disco o un nombre y te lo saco del
+            catálogo de Extremoduro y Robe.
           </p>
         </header>
 
