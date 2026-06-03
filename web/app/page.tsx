@@ -94,8 +94,8 @@ export default async function PublicLandingPage() {
             <span className="italic text-ink-dim">verso a verso</span>
           </h1>
           <p className="font-serif italic text-ink-dim text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
-            Disco a disco, canción a canción. Análisis, contexto y comunidad
-            fan en torno a la obra de Robe.
+            Disco a disco, verso a verso. Lo que de verdad dicen estas canciones,
+            contado por quien lleva media vida con ellas dentro.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-8">
@@ -120,10 +120,10 @@ export default async function PublicLandingPage() {
         {albumsLive.length > 0 && (
           <section className="py-12 border-t border-divider">
             <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-              en lectura
+              ya escrito
             </p>
             <h2 className="font-serif text-3xl md:text-4xl text-ink mb-8 leading-[1.15]">
-              Discos con análisis disponible
+              Discos con su análisis a tumba abierta
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {albumsLive.map((alb) => (
@@ -150,7 +150,7 @@ export default async function PublicLandingPage() {
               ))}
             </div>
             <p className="mt-6 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
-              El resto del catálogo se va publicando con análisis editorial conforme se completa.
+              El resto del catálogo va cayendo conforme le metemos mano. Sin prisa, pero sin pausa.
             </p>
           </section>
         )}
@@ -199,14 +199,15 @@ export default async function PublicLandingPage() {
         {/* CTA fan */}
         <section className="py-16 border-t border-divider text-center">
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">
-            el cancionero íntimo
+            lo bueno, dentro
           </p>
           <h2 className="font-serif text-2xl md:text-3xl text-ink leading-[1.2] mb-4">
-            Letra completa, karaoke sincronizado y análisis fan
+            La letra entera, el karaoke a tiempo y lo que saca la peña de cada canción
           </h2>
           <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
-            Regístrate gratis para acceder a la experiencia completa: 144 canciones con
-            sincronización letra-audio, interpretaciones de la comunidad y buscador semántico.
+            Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra
+            pegada al audio, lo que la gente saca de cada una y el buscador que te
+            encuentra el verso por lo que sientes.
           </p>
           <Link
             href="/registro"
