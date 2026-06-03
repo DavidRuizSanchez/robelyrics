@@ -6,6 +6,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
+import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -18,6 +19,7 @@ import {
   musicAlbumNode,
   musicGroupNode,
   personNode,
+  relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
@@ -256,11 +258,23 @@ export default async function ArtistPublicPage({
                     { name: "Entre Interiores", item: "/" },
                     { name: detail.name, item: `/${artist}` },
                   ]),
+                  ...(detail.related_videos || []).map((v) =>
+                    relatedVideoObjectNode({
+                      youtubeId: v.youtube_id,
+                      title: v.title,
+                      kind: v.kind,
+                      uploadDate: v.upload_date,
+                      aboutId: canonical.musicGroup(artist),
+                      aboutName: detail.name,
+                    }),
+                  ),
                 ]),
               ),
             }}
           />
         )}
+
+        <RelatedVideos videos={detail.related_videos} />
 
         <RelatedPosts entityType="artist" slug={artist} />
       </main>

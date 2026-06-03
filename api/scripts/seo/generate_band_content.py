@@ -83,7 +83,57 @@ def _bond_heading(band: Band) -> tuple[str, str]:
     )
 
 
+def _build_low_data_label_prompt(band: Band) -> str:
+    """Low-data para SELLOS (kind='label'). Un sello no tiene 'componentes' ni
+    'líder': tiene línea editorial y catálogo de artistas. Estructura propia."""
+    summary = _band_summary(band)
+    bond_heading, bond_instr = _bond_heading(band)
+    return f"""\
+Escribe un artículo editorial de 600 a 900 palabras sobre {band.name},
+SELLO DISCOGRÁFICO, en relación con el universo de Extremoduro y Robe Iniesta.
+
+DATOS VERIFICADOS (lo ÚNICO que consta con certeza):
+{summary}
+
+ESTE SELLO ESTÁ POCO DOCUMENTADO. No hay una historia pública sólida. Por eso:
+- NO inventes fechas de fundación, fundadores, artistas, discos ni declaraciones.
+- Si un dato no consta, NO lo escribas. No rellenes con conjeturas.
+- El valor no es una historia completa (no la hay): es situar con rigor a
+  {band.name} como sello en el contexto del rock afín a Extremoduro. Mejor corto
+  y veraz que largo y especulativo.
+
+ESTRUCTURA (encabezados H2 concretos, con sustantivos del tema):
+
+## Qué es {band.name}
+~150 palabras: qué sello es, cuándo se funda si consta, su línea editorial y qué
+lugar ocupa en la industria del rock estatal.
+
+## Catálogo y artistas
+~120 palabras: qué artistas o discos publica o publicó, nómbralos en texto plano
+SOLO si constan con seguridad (el sistema enlaza solo). Si el catálogo no está
+documentado, dilo con honestidad. NUNCA hables de "componentes" ni "integrantes":
+un sello edita a artistas, no los tiene de plantilla. NO inventes nombres.
+
+{bond_heading}
+~300 palabras: {bond_instr}
+
+## Lo documentado y lo que queda en penumbra
+~150 palabras: reconoce con honestidad qué se sabe y qué no.
+
+IMPORTANTE:
+- NO uses placeholders entre corchetes en el texto final.
+- NO escribas links markdown a mano. El sistema linkifica solo.
+- Menciona "Extremoduro" y "Robe" en texto plano cuando aplique (se enlazan solos).
+
+Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+entities (array según el system prompt).
+"""
+
+
 def _build_low_data_prompt(band: Band) -> str:
+    # Los sellos tienen estructura propia (catálogo/artistas, no componentes).
+    if band.kind == "label":
+        return _build_low_data_label_prompt(band)
     summary = _band_summary(band)
     bond_heading, bond_instr = _bond_heading(band)
     return f"""\
@@ -127,6 +177,69 @@ entities (array según el system prompt).
 """
 
 
+def _build_label_prompt(band: Band, sources: list[dict] | None = None) -> str:
+    """Prompt rico para SELLOS (kind='label'). Estructura propia de sello
+    (línea editorial + catálogo/artistas), nunca la de grupo ('componentes')."""
+    summary = _band_summary(band)
+    bio = (band.bio_long or band.bio_short or "(sin biografía documentada)")[:9000]
+    artists_hint = ""
+    if band.members:
+        names = [m.get("name") if isinstance(m, dict) else str(m) for m in band.members]
+        artists_hint = "ARTISTAS/DISCOS CONOCIDOS (Wikidata/curado, nómbralos): " + ", ".join(
+            n for n in names if n)
+    fan_block = format_sources_block(sources or [])
+    bond_heading, bond_instr = _bond_heading(band)
+    return f"""\
+Escribe un artículo SEO de 1400-2000 palabras sobre {band.name}, SELLO
+DISCOGRÁFICO del entorno del rock español, en relación con el universo de
+Extremoduro y Robe Iniesta.
+
+DATOS VERIFICADOS:
+{summary}
+
+FICHA DE WIKIPEDIA (tu fuente principal de datos CONCRETOS; parafrasea, extrae
+fundación, fundadores, artistas, discos, años, hechos; no copies literal):
+{bio}
+
+{artists_hint}
+
+QUÉ DICEN LAS FUENTES (fan-content / prensa que mencionan al sello; matices y
+hechos, contrasta, no copies literal):
+{fan_block}
+
+KW OBJETIVO: «{band.name}». Al inicio del meta_title, en la meta_description y
+en el primer párrafo. KWs secundarias: sus artistas, sus discos, Extremoduro.
+
+ESTRUCTURA OBLIGATORIA (encabezados H2, EN ESTE ORDEN):
+
+## Qué es {band.name}
+~250 palabras: qué sello es, cuándo y por quién se funda si consta, su línea
+editorial y qué lugar ocupa en la industria del rock estatal.
+
+## Catálogo y artistas
+~350 palabras: qué artistas y discos publica o publicó. Nómbralos en texto plano
+(sin links markdown; el sistema enlaza solo a quien tenga ficha). NUNCA hables de
+"componentes" ni "integrantes": un sello edita a artistas, no los tiene de
+plantilla. NO inventes nombres ni fichajes: si no tienes certeza, no lo incluyas.
+
+## Historia y trayectoria
+~450 palabras con H3 según las etapas reales (fundación, crecimiento, hitos,
+cierre o continuidad). Menciona los discos publicados en texto plano. NO inventes
+fechas ni lanzamientos.
+
+{bond_heading}
+~400 palabras: {bond_instr}
+
+IMPORTANTE:
+- NO uses placeholders entre corchetes en el texto final.
+- NO INVENTES datos. Si no conoces una fecha, un artista o un disco, omítelo.
+- NO escribas links markdown a mano. El sistema linkifica las entidades.
+
+Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+entities (array según el system prompt).
+"""
+
+
 def _build_prompt(band: Band, sources: list[dict] | None = None) -> str:
     summary = _band_summary(band)
     bio = (band.bio_long or band.bio_short or "(sin biografía documentada)")[:9000]
@@ -138,9 +251,13 @@ def _build_prompt(band: Band, sources: list[dict] | None = None) -> str:
     fan_block = format_sources_block(sources or [])
 
     # Grupos poco documentados (sin bio y sin Wikipedia): prompt aparte para
-    # no forzar invención.
+    # no forzar invención. (El low-data ya ramifica internamente por kind.)
     if not band.bio_short and not band.bio_long and not band.wikipedia_url:
         return _build_low_data_prompt(band)
+
+    # SELLOS (kind='label'): estructura propia de sello, no de grupo.
+    if band.kind == "label":
+        return _build_label_prompt(band, sources)
 
     kind_es = "sello discográfico" if band.kind == "label" else "grupo de rock"
     bond_heading, bond_instr = _bond_heading(band)

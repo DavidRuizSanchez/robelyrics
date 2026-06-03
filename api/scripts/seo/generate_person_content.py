@@ -34,6 +34,14 @@ from scripts.seo.common import (
 
 SITE_URL = "https://entreinteriores.com"
 
+# REFERENCIAS CULTURALES: personas CITADAS en las letras de Robe/Extremoduro
+# (toreros, músicos ajenos al universo, iconos), NO músicos de la banda ni de su
+# círculo. Su ficha NO debe usar la estructura de músico ("entrada en la banda",
+# "química con Robe"), que es absurda para un torero o un músico extranjero. Para
+# ellas se usa una estructura propia centrada en CÓMO las cita Robe.
+# Añade aquí futuras referencias culturales que aparezcan en las letras.
+REFERENCE_SLUGS = {"manolete", "camaron", "frank-zappa", "freddie-mercury"}
+
 
 def _display_name(person: Person) -> str:
     """Nombre con el que nos referimos a la persona en el texto."""
@@ -106,6 +114,78 @@ def _person_summary(person: Person, memberships: list[BandMembership]) -> str:
     return ". ".join(parts) + "."
 
 
+def _build_reference_prompt(person: Person, sources: list[dict] | None = None) -> str:
+    """Prompt para REFERENCIAS CULTURALES (personas citadas en las letras, NO
+    músicos del universo). El protagonista del texto es la CONEXIÓN con Robe, no
+    una biografía completa: quién es la figura (breve y veraz), cómo y dónde la
+    cita Robe/Extremoduro, y por qué resuena en su universo.
+    """
+    name = _display_name(person)
+    summary = _person_summary(person, [])
+    bio = (person.bio_long or person.bio_short or "(sin biografía documentada)")[:6000]
+    refs = _wikidata_refs_block(person)
+    fan_block = format_sources_block(sources or [])
+    kw = person.full_name
+    if person.stage_name and person.stage_name != person.full_name:
+        kw += f" / {person.stage_name}"
+
+    return f"""\
+Escribe un artículo editorial de 700 a 1000 palabras sobre {name} como REFERENCIA
+CULTURAL citada en la obra de Robe Iniesta y Extremoduro. {name} NO es músico de
+Extremoduro ni de su banda: es una figura a la que Robe alude en sus letras. El
+PROTAGONISTA del texto es la CONEXIÓN con Robe/Extremoduro, no una biografía
+completa de {name}.
+
+DATOS VERIFICADOS:
+{summary}
+
+{_tense_guidance(person)}
+
+FICHA DE WIKIPEDIA (fuente de datos CONCRETOS sobre {name}; parafrasea, no copies;
+úsala para situar quién es en su campo —flamenco, rock, toreo…—):
+{bio}
+
+DATOS ESTRUCTURADOS (Wikidata) — nómbralos explícitamente, no los resumas:
+{refs}
+
+QUÉ DICEN LAS FUENTES (libros, entrevistas, prensa, fan-content; aquí está la
+munición sobre CÓMO y DÓNDE cita Robe a {name} —canción, verso, contexto—;
+úsalo, contrasta, no copies literal):
+{fan_block}
+
+KW OBJETIVO: «{kw}». Colócala al INICIO del meta_title, en la meta_description y
+en el primer párrafo, con naturalidad. KWs secundarias: Robe, Extremoduro y las
+canciones donde aparece la figura.
+
+ESTRUCTURA OBLIGATORIA (encabezados H2 concretos, EN ESTE ORDEN):
+
+## Quién fue/es {name}
+~150 palabras: quién es en su campo (flamenco, rock, toreo…), breve y veraz.
+Tiempo verbal según el ESTADO indicado arriba (si consta fallecido, en pasado;
+si no, en presente). Solo lo que conste; nada de relleno biográfico.
+
+## {name} en la obra de Robe
+~400 palabras: CÓMO y DÓNDE lo cita Robe/Extremoduro. ¿En qué canción aparece?
+¿En qué verso o contexto? ¿Qué significa esa mención? Apóyate en las fuentes de
+arriba. Si el detalle (canción concreta, verso) NO consta en los datos o las
+fuentes, DILO con honestidad; NO inventes en qué tema aparece ni qué dice el
+verso. Mejor reconocer la penumbra que fabricar una cita.
+
+## Por qué resuena en el universo Extremoduro
+~250 palabras: la afinidad estética y vital. Qué representa esa figura para Robe
+(autenticidad, tragedia, libertad, oficio…), por qué encaja en su imaginario.
+Conjetura razonada SÍ, pero sin atribuir a Robe declaraciones que no consten.
+
+IMPORTANTE:
+- NO uses placeholders entre corchetes en el texto final.
+- NO INVENTES datos: ni canciones, ni versos, ni declaraciones de Robe.
+- NO escribas links markdown a mano. El sistema linkifica los nombres detectados.
+
+Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+entities (array según el system prompt).
+"""
+
+
 def _build_low_data_prompt(
     person: Person, memberships: list[BandMembership], primary_band: str | None
 ) -> str:
@@ -165,6 +245,12 @@ entities (array según el system prompt).
 def _build_prompt(
     person: Person, memberships: list[BandMembership], sources: list[dict] | None = None
 ) -> str:
+    # REFERENCIAS CULTURALES: rama propia ANTES de la decisión low-data/rico. Una
+    # figura citada en las letras (torero, músico ajeno) no tiene "entrada en la
+    # banda" ni "química con Robe"; su ficha gira en torno a CÓMO la cita Robe.
+    if person.slug in REFERENCE_SLUGS:
+        return _build_reference_prompt(person, sources)
+
     summary = _person_summary(person, memberships)
     band_list = ", ".join(m.artist.name for m in memberships) or "(sin memberships en el corpus)"
     # bio_long = artículo completo de Wikipedia (datos concretos). Es la clave

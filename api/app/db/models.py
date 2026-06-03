@@ -614,6 +614,62 @@ class Band(Base):
     )
 
 
+class RelatedVideo(Base):
+    """Vídeo de YouTube relacionado (colaboración, entrevista, vídeo oficial)
+    anclado a una o más entidades del universo Robe vía RelatedVideoEntity.
+
+    NO es el vídeo canónico de una canción (eso es Song.youtube_id): aquí
+    caben entrevistas, colaboraciones de Robe con otros artistas, vídeos
+    oficiales de terceros que le involucran, etc. Sembrado desde
+    data/related_videos.yaml (idempotente por youtube_id).
+    """
+
+    __tablename__ = "related_videos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    youtube_id: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # collaboration|interview|official|live
+    upload_date: Mapped[date | None] = mapped_column(Date)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    entities: Mapped[list[RelatedVideoEntity]] = relationship(
+        back_populates="video", cascade="all, delete-orphan"
+    )
+
+
+class RelatedVideoEntity(Base):
+    """Ancla un RelatedVideo a una entidad por (entity_type, entity_slug). Sin
+    FK a las tablas de entidad para poder anclar a cualquier tipo (person,
+    artist, band, song) sin acoplar el esquema."""
+
+    __tablename__ = "related_video_entities"
+    __table_args__ = (
+        UniqueConstraint(
+            "video_id",
+            "entity_type",
+            "entity_slug",
+            name="uq_related_video_entity",
+        ),
+        Index(
+            "ix_related_video_entities_type_slug",
+            "entity_type",
+            "entity_slug",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("related_videos.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)  # person|artist|band|song
+    entity_slug: Mapped[str] = mapped_column(String(160), nullable=False)
+
+    video: Mapped[RelatedVideo] = relationship(back_populates="entities")
+
+
 # --- Fase 3: blog/noticias --------------------------------------------------
 
 

@@ -91,6 +91,15 @@ class PublicArtistMember(BaseModel):
     image_url: str | None = None
 
 
+class PublicRelatedVideo(BaseModel):
+    """Vídeo relacionado (colaboración, entrevista, oficial) anclado a una
+    entidad. Distinto del vídeo canónico de canción (Song.youtube_id)."""
+    youtube_id: str
+    title: str
+    kind: str  # collaboration | interview | official | live
+    upload_date: str | None = None  # ISO-8601
+
+
 class PublicArtistDetailOut(PublicArtistOut):
     albums: list[PublicAlbumOut]
     members: list[PublicArtistMember] = []
@@ -104,6 +113,7 @@ class PublicArtistDetailOut(PublicArtistOut):
     # Wikidata) — para emitir schema.org mentions y enlaces internos
     # contextuales en la UI.
     entities: list["PublicResolvedEntity"] = []
+    related_videos: list[PublicRelatedVideo] = []
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
@@ -529,6 +539,7 @@ def public_artist_detail(
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+        related_videos=_related_videos_for(db, "artist", artist.slug),
     )
 
 
@@ -1104,6 +1115,37 @@ from app.db.models import BandMembership, Person, Post  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Personas (knowledge graph)
 # --------------------------------------------------------------------------- #
+def _related_videos_for(
+    db: Session, entity_type: str, slug: str
+) -> list[PublicRelatedVideo]:
+    """Vídeos relacionados anclados a (entity_type, slug). Defensivo: si la
+    tabla aún no existe (pre-migración) o falla la consulta, devuelve []."""
+    try:
+        from app.db.models import RelatedVideo, RelatedVideoEntity  # lazy
+        rows = (
+            db.query(RelatedVideo)
+            .join(RelatedVideoEntity, RelatedVideoEntity.video_id == RelatedVideo.id)
+            .filter(
+                RelatedVideoEntity.entity_type == entity_type,
+                RelatedVideoEntity.entity_slug == slug,
+            )
+            .order_by(RelatedVideo.upload_date.desc().nullslast(), RelatedVideo.id)
+            .all()
+        )
+    except Exception:
+        db.rollback()
+        return []
+    return [
+        PublicRelatedVideo(
+            youtube_id=v.youtube_id,
+            title=v.title,
+            kind=v.kind,
+            upload_date=v.upload_date.isoformat() if v.upload_date else None,
+        )
+        for v in rows
+    ]
+
+
 class PublicPersonMembership(BaseModel):
     artist_slug: str
     artist_name: str
@@ -1200,6 +1242,7 @@ class PublicPersonDetailOut(PublicPersonListItem):
     seo_meta_description: str | None = None
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
+    related_videos: list[PublicRelatedVideo] = []
 
 
 @router.get("/persons", response_model=list[PublicPersonListItem])
@@ -1304,6 +1347,7 @@ def public_person_detail(
         seo_meta_description=seo.meta_description if seo else None,
         schema_jsonld=seo.schema_jsonld if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+        related_videos=_related_videos_for(db, "person", person.slug),
     )
 
 
@@ -1333,6 +1377,7 @@ class PublicBandDetailOut(PublicBandListItem):
     seo_meta_description: str | None = None
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
+    related_videos: list[PublicRelatedVideo] = []
 
 
 def _band_members(raw) -> list[str]:
@@ -1416,6 +1461,7 @@ def public_band_detail(
         seo_meta_description=seo.meta_description if seo else None,
         schema_jsonld=seo.schema_jsonld if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+        related_videos=_related_videos_for(db, "band", band.slug),
     )
 
 

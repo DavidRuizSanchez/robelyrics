@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
+import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -13,8 +14,10 @@ import {
   breadcrumbListNode,
   buildGraph,
   canonical,
+  relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
+import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -46,6 +49,7 @@ type BandDetail = {
   image_source_url: string | null;
   members: string[];
   entities: ResolvedEntity[];
+  related_videos: PublicRelatedVideo[];
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
@@ -166,6 +170,16 @@ export default async function SelloPage({
       { name: "Sellos", item: "/sellos" },
       { name: detail.name, item: path },
     ]),
+    ...detail.related_videos.map((v) =>
+      relatedVideoObjectNode({
+        youtubeId: v.youtube_id,
+        title: v.title,
+        kind: v.kind,
+        uploadDate: v.upload_date,
+        aboutId: canonical.band(detail.slug, true),
+        aboutName: detail.name,
+      }),
+    ),
   ]);
 
   return (
@@ -266,6 +280,8 @@ export default async function SelloPage({
 
           {detail.seo_body && <MarkdownArticle markdown={detail.seo_body} />}
         </article>
+
+        <RelatedVideos videos={detail.related_videos} />
 
         <RelatedPosts entityType="band" slug={detail.slug} />
 

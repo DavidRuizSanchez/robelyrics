@@ -1,0 +1,38 @@
+# Vídeos relacionados del universo Robe / Extremoduro.
+#
+# NO confundir con el vídeo canónico de cada canción (eso vive en
+# Song.youtube_id, vía scripts.match_youtube). Aquí caben colaboraciones,
+# entrevistas y vídeos oficiales que involucran a Robe o a su entorno, anclados
+# a una o más entidades por slug.
+#
+# Cada entrada:
+#   youtube_id:  ID de YouTube (11 chars).
+#   title:       título legible (mostrado en la card).
+#   kind:        collaboration | interview | official | live
+#   upload_date: fecha de subida (YYYY-MM-DD), opcional.
+#   links:       slugs de entidades a las que se ancla el vídeo. Listas:
+#                persons / artists / bands / songs.
+#
+# Idempotente por youtube_id: ver scripts.seed_related_videos.
+
+videos:
+  - youtube_id: wFUU00eY1Rc
+    title: "Leiva — Caída Libre (Video Oficial) ft. Robe"
+    kind: collaboration
+    upload_date: 2025-02-28
+    links:
+      persons: [leiva, robe-iniesta]
+
+  - youtube_id: 5FIP0XCtqQ4
+    title: "La Resistencia — Entrevista a Robe Iniesta (2018)"
+    kind: interview
+    upload_date: 2018-11-15
+    links:
+      persons: [robe-iniesta]
+      artists: [robe]
+
+  - youtube_id: ktnRNgiJWG4
+    title: "Memoria de Pez con Robe Iniesta — Todo tuyo (Videoclip Oficial)"
+    kind: collaboration
+    links:
+      persons: [robe-iniesta, jon-calvo]

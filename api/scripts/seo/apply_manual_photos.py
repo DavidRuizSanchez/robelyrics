@@ -21,9 +21,16 @@ import os
 import yaml
 from sqlalchemy import select
 
-from app.db.models import Album, Person
+from app.db.models import Album, Band, Person
 from scripts.research.common import get_session, log
 from scripts.seo.fetch_entity_images import _rehost_to_cloudinary
+
+# kind -> (modelo, campo de imagen)
+_KIND_MAP = {
+    "person": (Person, "image_url"),
+    "album": (Album, "cover_url"),
+    "band": (Band, "image_url"),
+}
 
 
 def _yaml_path() -> str | None:
@@ -59,8 +66,7 @@ def main() -> None:
                 continue
             if args.slug and slug != args.slug:
                 continue
-            model = Person if kind == "person" else Album
-            field = "image_url" if kind == "person" else "cover_url"
+            model, field = _KIND_MAP.get(kind, _KIND_MAP["person"])
             row = db.execute(select(model).where(model.slug == slug)).scalar_one_or_none()
             if not row:
                 log(f"  {kind} '{slug}' no encontrado", "warn")

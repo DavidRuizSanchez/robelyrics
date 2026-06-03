@@ -229,6 +229,39 @@ export function videoObjectNode(v: VideoInput): Record<string, unknown> {
   return node;
 }
 
+export type RelatedVideoInput = {
+  youtubeId: string;
+  title: string;
+  kind?: string | null;
+  uploadDate?: string | null; // ISO-8601
+  // @id de la entidad de la página (Person/MusicGroup/Organization) — el
+  // VideoObject la referencia vía `about` para tejer el knowledge graph.
+  aboutId: string;
+  aboutName: string;
+};
+
+// VideoObject para vídeos RELACIONADOS (colaboraciones, entrevistas, oficiales)
+// anclados a una entidad (persona/grupo/sello). Distinto del vídeo canónico de
+// canción (videoObjectNode). `about` apunta por @id a la entidad de la página.
+export function relatedVideoObjectNode(
+  v: RelatedVideoInput,
+): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    "@type": "VideoObject",
+    name: v.title,
+    description: `${v.title} — vídeo relacionado con ${v.aboutName} en Entre Interiores.`,
+    thumbnailUrl: [
+      `https://i.ytimg.com/vi/${v.youtubeId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,
+    ],
+    contentUrl: `https://www.youtube.com/watch?v=${v.youtubeId}`,
+    embedUrl: `https://www.youtube.com/embed/${v.youtubeId}`,
+    about: { "@id": v.aboutId },
+  };
+  if (v.uploadDate) node.uploadDate = v.uploadDate;
+  return node;
+}
+
 export function personNode(person: PersonInput): Record<string, unknown> {
   const node: Record<string, unknown> = {
     "@type": "Person",

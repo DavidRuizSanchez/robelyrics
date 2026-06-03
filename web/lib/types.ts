@@ -178,6 +178,13 @@ export type PublicResolvedEntity = {
   from_corpus: boolean;
 };
 
+export type PublicRelatedVideo = {
+  youtube_id: string;
+  title: string;
+  kind: string; // collaboration | interview | official | live
+  upload_date: string | null;
+};
+
 export type PublicArtistDetail = PublicArtistOut & {
   albums: PublicAlbumOut[];
   members: PublicArtistMember[];
@@ -188,6 +195,7 @@ export type PublicArtistDetail = PublicArtistOut & {
   seo_meta_description: string | null;
   seo_h1: string | null;
   entities: PublicResolvedEntity[];
+  related_videos: PublicRelatedVideo[];
 };
 
 export type PublicAlbumDetail = PublicAlbumOut & {

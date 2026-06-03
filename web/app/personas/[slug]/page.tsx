@@ -7,6 +7,7 @@ import MarkdownArticle from "@/components/MarkdownArticle";
 import PersonAvatar from "@/components/PersonAvatar";
 import PersonDataTable from "@/components/PersonDataTable";
 import RelatedPosts from "@/components/RelatedPosts";
+import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -16,8 +17,10 @@ import {
   breadcrumbListNode,
   buildGraph,
   canonical,
+  relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
+import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
@@ -70,6 +73,7 @@ type PersonDetail = {
   notable_works: WikidataRef[];
   occupations: WikidataRef[];
   entities: ResolvedEntity[];
+  related_videos: PublicRelatedVideo[];
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
@@ -235,11 +239,12 @@ export default async function PersonPage({
     : null;
 
   const path = `/personas/${detail.slug}`;
+  const personName = detail.stage_name || detail.full_name;
   const jsonLd = buildGraph([
     asNode(buildJsonLd(detail)),
     webPageNode({
       path,
-      name: detail.stage_name || detail.full_name,
+      name: personName,
       type: "ProfilePage",
       description: detail.seo_meta_description,
       mainEntityId: canonical.person(detail.slug),
@@ -247,8 +252,18 @@ export default async function PersonPage({
     breadcrumbListNode(path, [
       { name: "Entre Interiores", item: "/" },
       { name: "Personas", item: "/personas" },
-      { name: detail.stage_name || detail.full_name, item: path },
+      { name: personName, item: path },
     ]),
+    ...detail.related_videos.map((v) =>
+      relatedVideoObjectNode({
+        youtubeId: v.youtube_id,
+        title: v.title,
+        kind: v.kind,
+        uploadDate: v.upload_date,
+        aboutId: canonical.person(detail.slug),
+        aboutName: personName,
+      }),
+    ),
   ]);
 
   return (
@@ -478,6 +493,8 @@ export default async function PersonPage({
             <MarkdownArticle markdown={detail.seo_body} />
           )}
         </article>
+
+        <RelatedVideos videos={detail.related_videos} />
 
         <RelatedPosts entityType="person" slug={detail.slug} />
 
