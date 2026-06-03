@@ -1,0 +1,81 @@
+# Inventario de entrevistas/material para el corpus de voz de "Pregúntale al
+# viento". Cada entrada se transcribe (vídeo: subtítulos→Whisper) o se ingiere
+# (texto) como InterpretationSource y luego se vectoriza en robe_voice_v1.
+#
+# Campos:
+#   url, title, author, date
+#   medium: video | text   (video → scripts.transcribe_with_whisper --source-mode)
+#   author_is_robe: true  → HABLA Robe (kind=robe_interview, núcleo del corpus)
+#                   false → homenaje/análisis de TERCEROS (kind=about_robe,
+#                           solo contexto, jamás citado como palabras de Robe)
+#
+# SOLO URLs verificadas. Ampliable: añadir más entrevistas reales y re-correr.
+
+interviews:
+  # ── Vídeo · habla Robe ───────────────────────────────────────────────────
+  - url: https://www.youtube.com/watch?v=5FIP0XCtqQ4
+    title: "La Resistencia · entrevista a Robe Iniesta (15-11-2018)"
+    author: "David Broncano"
+    medium: video
+    date: 2018-11-15
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=b5fELJ2JR_I
+    title: "Carne Cruda T12x56 · Robe Iniesta nos ensanchaba el alma"
+    author: "Javier Gallego"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=ykXsuPmebg4
+    title: "Robe Iniesta en Fuego y Chinchetas (Cadena SER · El País)"
+    author: "Cadena SER"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=AZgSfKu7H70
+    title: "Robe Iniesta en Mañana más con Ángel Carmona (Radio 3)"
+    author: "Ángel Carmona"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=qZyT8BZD2nY
+    title: "Hablando con Robe · el poder de las letras"
+    author: "—"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=bH7Fnp6JfAQ
+    title: "Pasamos un rato junto a un genio · entrevista a Robe Iniesta"
+    author: "—"
+    medium: video
+    author_is_robe: true
+
+  # ── Texto · habla Robe (medium=text: ingesta aparte, no por Whisper) ───────
+  - url: https://rocksesion.com/2024/05/21/entrevista-a-robe-me-hace-mas-ilusion-lo-que-hizo-el-museo-del-prado-con-el-poder-del-arte-que-llegar-a-ser-disco-de-oro/
+    title: "Entrevista a Robe: «Me hace más ilusión lo del Museo del Prado que el Disco de Oro» (RockSesión)"
+    author: "RockSesión"
+    medium: text
+    date: 2024-05-21
+    author_is_robe: true
+  - url: https://www.lagacetadesalamanca.es/salamanca/robe-iniesta-ultima-entrevista-gaceta-salamanca-siempre-20251210084210-nt.html
+    title: "Robe Iniesta en su última entrevista a LA GACETA: «A Salamanca siempre hay que ir»"
+    author: "La Gaceta de Salamanca"
+    medium: text
+    author_is_robe: true
+
+  # ── Vídeo · terceros (homenaje/análisis) = contexto, NO voz de Robe ────────
+  - url: https://www.youtube.com/watch?v=uiffnDEKlvY
+    title: "Trembol · Homenaje a Robe Iniesta (vida + Extremoduro)"
+    author: "Trembol"
+    medium: video
+    author_is_robe: false
+  - url: https://www.youtube.com/watch?v=Pz4BbTVXgN0
+    title: "La historia de Extremoduro y Robe Iniesta"
+    author: "—"
+    medium: video
+    author_is_robe: false
+  - url: https://www.youtube.com/watch?v=K0ZK1GXTfDc
+    title: "Análisis · Por Encima del Bien y del Mal (Demian Argento)"
+    author: "Demian Argento"
+    medium: video
+    author_is_robe: false
+  - url: https://www.youtube.com/watch?v=W4RVJh2pbJg
+    title: "Hablando de Rock #1 · Segundo Movimiento, Mierda de Filosofía"
+    author: "Hablando de Rock"
+    medium: video
+    author_is_robe: false

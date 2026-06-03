@@ -75,6 +75,14 @@ export default async function PublicHeader() {
           Libros
         </Link>
         <Link
+          href="/biblioteca/consultorio"
+          data-cursor="hover"
+          className="text-accent hover:text-ink transition-colors"
+          title="Pregúntame lo que quieras, que pa' eso sigo en el aire"
+        >
+          Pregúntale al viento
+        </Link>
+        <Link
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"

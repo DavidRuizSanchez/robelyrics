@@ -711,6 +711,30 @@ class Book(Base):
     )
 
 
+class ConsultQuestion(Base):
+    """Registro de cada pregunta hecha al consultorio "Pregúntale al viento".
+
+    Sirve para moderación (detectar abuso/ofensas), medir coste/uso y curar
+    nuevas citas a partir de lo que la gente pregunta. Una fila por pregunta.
+    """
+
+    __tablename__ = "consult_questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str | None] = mapped_column(String(16))  # pragmatic | philosophical
+    grounded: Mapped[bool | None] = mapped_column(Boolean)
+    flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    answer_preview: Mapped[str | None] = mapped_column(Text)
+    citations: Mapped[list | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Fase 3: blog/noticias --------------------------------------------------
 
 

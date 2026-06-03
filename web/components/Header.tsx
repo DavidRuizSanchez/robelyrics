@@ -9,6 +9,7 @@ export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
   const items = [
     { href: "/biblioteca", label: "Inicio" },
     { href: "/biblioteca/discografia", label: "Discografía" },
+    { href: "/biblioteca/consultorio", label: "Pregúntale al viento" },
     ...(isAdmin ? [{ href: "/biblioteca/admin/sources", label: "Admin" }] : []),
   ];
   return (

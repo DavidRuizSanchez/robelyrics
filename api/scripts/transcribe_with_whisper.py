@@ -148,16 +148,33 @@ def extract_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _captions_text(video_id: str) -> str | None:
+    """Intenta bajar los subtítulos (gratis) con youtube-transcript-api.
+    Devuelve el texto o None si no hay subtítulos disponibles."""
+    try:
+        from scripts.research.fetch_youtube import fetch_transcript
+    except Exception as e:  # noqa: BLE001
+        log(f"  (sin youtube-transcript-api: {e})", "warn")
+        return None
+    text = fetch_transcript(video_id)
+    if text and len(text) >= 200:
+        return text
+    return None
+
+
 def transcribe_to_source(
     client: OpenAI,
     url: str,
     title: str | None,
     author: str | None,
     tmpdir: Path,
+    author_is_robe: bool = True,
 ) -> bool:
-    """Descarga + transcribe + upserts como InterpretationSource. Devuelve True si OK."""
-    from datetime import datetime, timezone
+    """Descarga + transcribe + upserts como InterpretationSource. Devuelve True si OK.
 
+    Estrategia: SUBTÍTULOS PRIMERO (youtube-transcript-api, gratis); si el vídeo
+    no tiene subtítulos, cae a Whisper (audio + API, con coste). `author_is_robe`
+    decide el kind: "robe_interview" (habla Robe) vs "about_robe" (terceros)."""
     from scripts.research.common import clean_text, upsert_source
 
     vid = extract_video_id(url)
@@ -165,45 +182,45 @@ def transcribe_to_source(
         log(f"  URL no parseable: {url}", "warn")
         return False
 
-    audio_path = tmpdir / f"{vid}.mp3"
-    # En source-mode usamos calidad 9 (~32 kbps) para que entrevistas de
-    # hasta ~100 min quepan en el límite Whisper de 25 MB sin chunkear.
-    # La voz humana transcribe igual de bien a 32 kbps que a 96 kbps.
-    if not download_audio(vid, audio_path, quality="9"):
-        return False
-    size_bytes = audio_path.stat().st_size
-    log(f"  audio: {size_bytes // 1024} KB")
+    kind = "robe_interview" if author_is_robe else "about_robe"
 
-    if size_bytes > WHISPER_MAX_BYTES:
-        # Entrevista demasiado larga incluso a 32 kbps (>100 min). De momento
-        # la saltamos; se podría implementar chunking con ffmpeg si crece la
-        # demanda.
-        log(f"  ⚠ archivo > 25 MB ({size_bytes // 1024} KB); saltado", "warn")
+    # 1) Subtítulos (gratis)
+    full_text = _captions_text(vid)
+    if full_text:
+        log(f"  subtítulos: {len(full_text)} chars (sin coste Whisper)")
+    else:
+        # 2) Fallback Whisper (audio a 32 kbps para caber en 25 MB)
+        audio_path = tmpdir / f"{vid}.mp3"
+        if not download_audio(vid, audio_path, quality="9"):
+            return False
+        size_bytes = audio_path.stat().st_size
+        log(f"  audio: {size_bytes // 1024} KB")
+        if size_bytes > WHISPER_MAX_BYTES:
+            log(f"  ⚠ archivo > 25 MB ({size_bytes // 1024} KB); saltado", "warn")
+            audio_path.unlink(missing_ok=True)
+            return False
+        segments = transcribe_audio(client, audio_path)
         audio_path.unlink(missing_ok=True)
-        return False
+        if not segments:
+            return False
+        log(f"  whisper: {len(segments)} segmentos")
+        full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
 
-    segments = transcribe_audio(client, audio_path)
-    audio_path.unlink(missing_ok=True)
-    if not segments:
-        return False
-    log(f"  whisper: {len(segments)} segmentos")
-
-    full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
-    if len(full_text) < 200:
-        log(f"  transcripción demasiado corta ({len(full_text)} chars)", "warn")
+    if not full_text or len(full_text) < 200:
+        log(f"  transcripción demasiado corta ({len(full_text or '')} chars)", "warn")
         return False
 
     with get_session() as db:
         upsert_source(
             db,
-            kind="youtube_transcript",
+            kind=kind,
             url=url,
             title=title,
             author=author,
             published_at=None,
             content_raw=full_text,
             content_clean=clean_text(full_text),
-            quality_score=0.7,
+            quality_score=0.8 if author_is_robe else 0.5,
             for_seo_only=False,  # entrevistas son material rico para destilador
         )
     return True
@@ -226,7 +243,11 @@ def _run_source_mode(
         log(f"sin --interview-url ni YAML válido en {yaml_path}", "err")
         return
 
-    log(f"source-mode: {len(interviews)} entrevistas a procesar")
+    # Las entrevistas de TEXTO (medium=text) no se transcriben aquí (no son
+    # YouTube); se ingieren por separado. Este modo solo procesa vídeo.
+    interviews = [e for e in interviews if (e.get("medium") or "video") != "text"]
+
+    log(f"source-mode: {len(interviews)} entrevistas de vídeo a procesar")
     n_ok = 0
     n_fail = 0
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -235,7 +256,8 @@ def _run_source_mode(
             log(f"[{i}/{len(interviews)}] {e.get('title') or e['url']}")
             try:
                 if transcribe_to_source(
-                    client, e["url"], e.get("title"), e.get("author"), tmp
+                    client, e["url"], e.get("title"), e.get("author"), tmp,
+                    author_is_robe=e.get("author_is_robe", True),
                 ):
                     n_ok += 1
                     log("  ✓ insertado/actualizado", "ok")
@@ -273,10 +295,15 @@ def main() -> None:
 
     if args.source_mode:
         from scripts.research.common import DATA_DIR
+        # Preferimos el inventario amplio robe_interviews.yaml; si no existe,
+        # caemos al antiguo video_interviews.yaml.
+        yaml_path = DATA_DIR / "robe_interviews.yaml"
+        if not yaml_path.exists():
+            yaml_path = DATA_DIR / "video_interviews.yaml"
         _run_source_mode(
             client,
             interview_url=args.interview_url,
-            yaml_path=DATA_DIR / "video_interviews.yaml",
+            yaml_path=yaml_path,
         )
         return
 

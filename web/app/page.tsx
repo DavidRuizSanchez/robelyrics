@@ -155,6 +155,47 @@ export default async function PublicLandingPage() {
           </section>
         )}
 
+        {/* Pregúntale al viento (gancho de captación) */}
+        <section className="py-16 border-t border-divider text-center">
+          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">
+            nuevo · el viento responde
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl text-ink leading-[1.1] mb-4 tracking-[-1px]">
+            Pregúntale al viento
+          </h2>
+          <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-7">
+            Hazle una pregunta a Robe y te responde con su voz, hecha solo con sus
+            palabras: entrevistas, letras y su novela. De un disco o de la vida.
+            Un homenaje, no un truco.
+          </p>
+          <ul className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto mb-8">
+            {[
+              "¿Qué es para ti la libertad?",
+              "¿En qué año salió Agila?",
+              "¿Qué piensas de la fama?",
+              "¿De qué va «So payaso»?",
+            ].map((q) => (
+              <li
+                key={q}
+                className="font-serif italic text-ink-dim border border-divider rounded-full px-4 py-1.5 text-[15px]"
+              >
+                {q}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/biblioteca/consultorio"
+            data-cursor="hover"
+            className="inline-block border border-accent bg-accent text-white hover:bg-accent-bright font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+            title="Regístrate gratis para preguntarle"
+          >
+            pregúntale al viento →
+          </Link>
+          <p className="mt-3 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+            regístrate gratis para preguntar
+          </p>
+        </section>
+
         {/* CTA fan */}
         <section className="py-16 border-t border-divider text-center">
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">

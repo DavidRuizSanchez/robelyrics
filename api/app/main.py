@@ -13,6 +13,7 @@ from app.db.session import SessionLocal
 from app.routers import admin as admin_router
 from app.routers import auth as auth_router
 from app.routers import catalog as catalog_router
+from app.routers import consult as consult_router
 from app.routers import public as public_router
 from app.routers import search as search_router
 from app.routers import sources as sources_router
@@ -42,6 +43,7 @@ app.include_router(search_router.router)
 app.include_router(admin_router.router)
 app.include_router(public_router.router)
 app.include_router(sources_router.router)
+app.include_router(consult_router.router)
 
 
 @app.get("/health", tags=["health"])
