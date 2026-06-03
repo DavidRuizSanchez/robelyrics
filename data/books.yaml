@@ -1,8 +1,12 @@
 # Libros del universo Extremoduro/Robe — sección /libros.
-# Metadatos bibliográficos VERIFICADOS + fichas curadas a mano (nunca
-# inventadas ni generadas por LLM). Sembrado por scripts/seed_books.py
-# (idempotente por slug). `buy_links` se rellenará al activar afiliados;
-# de momento queda vacío y la web NO renderiza botones de compra ni disclaimer.
+# Metadatos bibliográficos VERIFICADOS (ISBN/editorial/año vía Alianza, Efe Eme,
+# OpenLibrary y fichas de librería; portadas = cubierta oficial del producto por
+# ISBN) + fichas curadas a mano (nunca inventadas ni generadas por LLM).
+# Sembrado por scripts/seed_books.py (idempotente por slug), que ADEMÁS aplica:
+#   - anti em-dash (strip_ai_tells) a todo texto,
+#   - normalización de headings de body_md,
+#   - guard de H1: el título no puede ser un término del core (extremoduro/robe).
+# `buy_links` se rellenará al activar afiliados; la web aún NO renderiza compra.
 #
 # Campos: slug, title, subtitle, authors[], year, publisher, isbn, pages,
 #   language, kind (biografia|ensayo|novela|monografico|poesia),
@@ -16,17 +20,19 @@ books:
     subtitle: "La historia autorizada"
     authors: ["Javier Menéndez Flores"]
     year: 2013
-    publisher: "Grijalbo (2013) · Libros Cúpula (ed. ampliada, 2022)"
+    publisher: "Libros Cúpula"
+    isbn: "9788448030841"
     pages: 595
     language: es
     kind: biografia
     availability: new
+    cover_url: "https://m.media-amazon.com/images/P/8448030842.jpg"
     about: ["extremoduro", "robe"]
     sort_order: 10
     summary: >-
       La biografía autorizada de Extremoduro: la historia del grupo contada con
       el testimonio directo de Robe e Iñaki «Uoho» Antón.
-    meta_title: "Extremoduro. De Profundis (Javier Menéndez Flores) · Entre Interiores"
+    meta_title: "Extremoduro. De Profundis, la biografía autorizada · Entre Interiores"
     meta_description: >-
       Ficha de «Extremoduro. De Profundis», la biografía autorizada de
       Extremoduro por Javier Menéndez Flores. Qué cuenta, por qué importa y dónde
@@ -45,8 +51,8 @@ books:
       Es la fuente de referencia para cualquier fan: al estar autorizada, recoge
       la voz de los protagonistas y fija fechas, anécdotas y zonas de sombra que
       las historias de oídas dan por sentadas. Se publicó por primera vez en 2013
-      (Grijalbo), se amplió en 2022 (Libros Cúpula) y tiene edición de bolsillo en
-      2025.
+      (Grijalbo), se amplió en 2022 (Libros Cúpula, la edición de 595 páginas) y
+      tiene edición de bolsillo en 2025.
 
       ## El autor
       Javier Menéndez Flores es periodista y biógrafo musical, autor de semblanzas
@@ -58,9 +64,11 @@ books:
     authors: ["Roberto Iniesta"]
     year: 2009
     publisher: "Autoedición (Roberto Iniesta)"
+    isbn: "9788461330010"
     language: es
     kind: novela
     availability: secondhand
+    cover_url: "https://m.media-amazon.com/images/P/8461330013.jpg"
     cover_attribution: "Ilustración de portada: Diego LaTorre"
     about: ["robe"]
     sort_order: 20
@@ -74,8 +82,8 @@ books:
     body_md: |
       ## Qué encontrarás
       La única incursión de [Robe](/robe) en la narrativa larga. *El viaje íntimo
-      de la locura* es una fábula de prosa poética —digresiva, metafórica y con
-      humor negro— donde el Sol, la Luna, el viento, el río y los árboles son
+      de la locura* es una fábula de prosa poética (digresiva, metafórica y con
+      humor negro) donde el Sol, la Luna, el viento, el río y los árboles son
       personajes con voluntad propia. La locura no aparece como patología, sino
       como puerta hacia otro conocimiento: el mismo *leitmotiv* que recorre sus
       letras.
@@ -83,7 +91,7 @@ books:
       ## Por qué importa
       Demuestra que el poeta de [Extremoduro](/extremoduro) también es prosista:
       aforismo, paradoja, surrealismo lógico y ritmo musical en cada página. Los
-      símbolos de la novela —sol, luna, viento, árbol, río— son los mismos que
+      símbolos de la novela (sol, luna, viento, árbol, río) son los mismos que
       cruzan el cancionero, así que se lee como una llave para entrar en su
       universo.
 
@@ -98,31 +106,34 @@ books:
     authors: ["Jesús Casañas López"]
     year: 2023
     publisher: "Alianza Editorial"
+    isbn: "9788411481922"
     language: es
     kind: biografia
     availability: new
+    cover_url: "https://m.media-amazon.com/images/P/8411481921.jpg"
     about: ["extremoduro", "robe"]
     sort_order: 30
     summary: >-
       Biografía no autorizada de Extremoduro: un recorrido cronológico, disco a
       disco, por toda la trayectoria del grupo.
-    meta_title: "Extremoduro. Talento innato (Jesús Casañas) · Entre Interiores"
+    meta_title: "Extremoduro. Talento innato, biografía no autorizada · Entre Interiores"
     meta_description: >-
       Ficha de «Extremoduro. Talento innato», la biografía no autorizada de Jesús
-      Casañas. Recorrido cronológico por la discografía y la trayectoria del grupo.
+      Casañas (Alianza Editorial). Recorrido cronológico por la discografía del grupo.
     body_md: |
       ## Qué encontrarás
       *Talento innato* es una biografía **no autorizada** de
       [Extremoduro](/extremoduro) que ordena la trayectoria del grupo de forma
       cronológica, álbum por álbum, desde los inicios hasta la etapa en solitario
-      de [Robe](/robe). Recopila el contexto de cada disco, las giras y el relato
-      externo de la banda.
+      de [Robe](/robe). A medio camino entre el relato periodístico y la biografía
+      oral, recopila el contexto de cada disco, las giras y el relato externo de
+      la banda.
 
       ## Por qué importa
       Al no ser autorizada, aporta la mirada del aficionado documentalista:
       complementa a *De Profundis* con el punto de vista de quien reconstruye la
-      historia desde fuera. Publicada por Alianza Editorial en 2023 y actualizada
-      en ediciones posteriores.
+      historia desde fuera. Publicada por Alianza Editorial en 2023 (colección
+      Libros Singulares) y actualizada hasta 2025 en su segunda edición.
 
       ## El autor
       Jesús Casañas López es divulgador y autor especializado en la trayectoria de
@@ -134,18 +145,20 @@ books:
     authors: ["Javier M. Alcaraz"]
     year: 2023
     publisher: "Efe Eme"
+    isbn: "9788495749505"
     language: es
     kind: ensayo
     availability: new
+    cover_url: "https://m.media-amazon.com/images/P/8495749505.jpg"
     about: ["robe", "extremoduro"]
     sort_order: 40
     summary: >-
       La historia del disco «Poesía básica» y del universo Extrechinato: Manolo
       Chinato, Robe, Fito y Uoho ensanchando el alma.
-    meta_title: "Poesía básica. Extrechinato y Tú ensancha el alma (Javier M. Alcaraz) · Entre Interiores"
+    meta_title: "Poesía básica. Extrechinato y Tú ensancha el alma · Entre Interiores"
     meta_description: >-
-      Ficha del libro «Poesía básica», sobre Extrechinato y Tú: cómo Robe, Fito y
-      Uoho musicalizaron los versos del poeta Manolo Chinato.
+      Ficha del libro «Poesía básica» (Javier M. Alcaraz, Efe Eme): cómo Robe,
+      Fito y Uoho musicalizaron los versos del poeta Manolo Chinato.
     body_md: |
       ## Qué encontrarás
       *Poesía básica* reconstruye la gestación de **Extrechinato y Tú**, el
@@ -163,8 +176,8 @@ books:
       Javier M. Alcaraz es periodista musical y autor de la editorial Efe Eme.
 
   - slug: cuaderno-efe-eme-extremoduro
-    title: "Extremoduro"
-    subtitle: "Cuadernos Efe Eme nº 32"
+    title: "Extremoduro (Cuadernos Efe Eme nº 32)"
+    subtitle: null
     authors: ["VV. AA."]
     year: 2022
     publisher: "Efe Eme"
@@ -176,7 +189,7 @@ books:
     summary: >-
       Monográfico de la colección Cuadernos Efe Eme dedicado por entero a
       Extremoduro. Pieza de coleccionista, últimas unidades.
-    meta_title: "Cuaderno Efe Eme nº 32: Extremoduro (monográfico) · Entre Interiores"
+    meta_title: "Cuadernos Efe Eme nº 32: Extremoduro (monográfico) · Entre Interiores"
     meta_description: >-
       Ficha del Cuaderno Efe Eme nº 32, monográfico dedicado a Extremoduro:
       artículos, análisis y memoria del grupo en formato de coleccionista.
@@ -188,7 +201,8 @@ books:
 
       ## Por qué importa
       Es una pieza para fans: recopila firmas y enfoques periodísticos sobre la
-      banda en formato revista-libro. Quedan pocas unidades en circulación.
+      banda en formato revista-libro. Al tratarse de un número de revista lleva
+      depósito legal en lugar de ISBN, y quedan pocas unidades en circulación.
 
       ## La colección
       *Cuadernos Efe Eme* es la línea de monográficos de la revista musical Efe

@@ -176,14 +176,17 @@ export default async function LibroPage({
               <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
                 libro{detail.year ? ` · ${detail.year}` : ""}
               </p>
+              {/* H1 con el NOMBRE COMPLETO del libro (título + subtítulo dentro
+                  del propio h1): relevancia SEO y cero canibalización con
+                  /extremoduro o /robe. */}
               <h1 className="font-serif text-4xl md:text-[56px] text-ink leading-[0.98] tracking-[-1.5px] m-0">
                 {detail.title}
+                {detail.subtitle && (
+                  <span className="block font-serif italic text-ink-dim text-2xl md:text-3xl mt-3 leading-snug tracking-normal">
+                    {detail.subtitle}
+                  </span>
+                )}
               </h1>
-              {detail.subtitle && (
-                <p className="font-serif italic text-ink-dim text-2xl mt-3 leading-snug">
-                  {detail.subtitle}
-                </p>
-              )}
               {detail.authors.length > 0 && (
                 <p className="font-mono text-[11px] tracking-[2px] uppercase text-ink-faint mt-5">
                   {detail.authors.join(" · ")}

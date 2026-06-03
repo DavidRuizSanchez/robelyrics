@@ -76,8 +76,8 @@ export default async function LibrosPage() {
             Libros
           </h1>
           <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
-            Todo lo que se ha escrito sobre el universo Extremoduro y Robe —y lo
-            que escribió el propio Robe—. Biografías, ensayos y la única novela
+            Todo lo que se ha escrito sobre el universo Extremoduro y Robe, y lo
+            que escribió el propio Robe. Biografías, ensayos y la única novela
             del poeta de Plasencia.
           </p>
         </header>
