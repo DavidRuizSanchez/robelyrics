@@ -7,6 +7,8 @@ type Props = {
   albumTitle: string;
   currentSlug: string;
   tracks: PublicTrackOut[];
+  // Prefijo de ruta: "" para la web pública, "/biblioteca" para la zona privada.
+  basePath?: string;
 };
 
 // Bloque "Otras canciones de este álbum" en la página de canción. Cada track
@@ -18,6 +20,7 @@ export default function AlbumSiblingSongs({
   albumTitle,
   currentSlug,
   tracks,
+  basePath = "",
 }: Props) {
   const siblings = tracks.filter((t) => t.slug !== currentSlug);
   if (siblings.length === 0) return null;
@@ -31,7 +34,7 @@ export default function AlbumSiblingSongs({
         {siblings.map((t, i) => (
           <li key={t.slug}>
             <Link
-              href={`/${artistSlug}/${albumSlug}/${t.slug}`}
+              href={`${basePath}/${artistSlug}/${albumSlug}/${t.slug}`}
               data-cursor="hover"
               className="group flex items-baseline gap-4 py-2 px-4 -mx-4 hover:bg-paper transition-colors"
             >

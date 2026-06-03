@@ -1,4 +1,3 @@
-import Link from "next/link";
 import LogoBomba from "@/components/LogoBomba";
 import RotatingLine from "@/components/RotatingLine";
 import Watermark from "@/components/Watermark";
@@ -40,23 +39,6 @@ export default function Hero() {
         Estás dentro. Este es el punto de encuentro para todos los fanáticos de
         Robe y Extremoduro.
       </p>
-
-      <div className="relative z-10 mt-8 flex gap-3.5 flex-wrap">
-        <Link
-          href="/biblioteca?mode=semantic#search"
-          data-cursor="hover"
-          className="bg-accent hover:bg-accent-bright text-white font-mono text-[11px] tracking-[3px] uppercase px-5 py-3.5 transition-colors"
-        >
-          empezar a buscar
-        </Link>
-        <Link
-          href="#disco-anchor"
-          data-cursor="hover"
-          className="border border-divider hover:border-divider-strong text-ink-dim hover:text-ink font-mono text-[11px] tracking-[3px] uppercase px-5 py-3.5 transition-colors"
-        >
-          ver discografía
-        </Link>
-      </div>
 
       <div className="relative z-10 mt-14 md:mt-20 pt-8 border-t border-divider min-h-[110px]">
         <span className="block font-mono text-[9px] tracking-[3px] uppercase text-ink-faint mb-3.5">

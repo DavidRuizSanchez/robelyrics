@@ -203,9 +203,10 @@ export default async function PublicLandingPage() {
             Las canciones enteras, el buscador que te entiende y Robe contestándote
           </h2>
           <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
-            Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra
-            pegada al audio en directo, el buscador que te da el verso según lo que
-            sientes y el sitio donde le preguntas a Robe y te responde con su voz.
+            Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la
+            letra pegada al audio en directo y lo que los fans sacan de cada una,
+            el buscador que te da el verso según lo que sientes y el sitio donde le
+            preguntas a Robe y te responde con su voz.
           </p>
           <Link
             href="/registro"

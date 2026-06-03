@@ -25,7 +25,7 @@ const ITEMS = [
   {
     n: "04",
     title: "Discos y canciones",
-    desc: "Navega el catálogo entero. Cada disco, cada letra, cada año.",
+    desc: "El catálogo entero: cada disco, cada letra y lo que los fans sacan de cada canción.",
     example: "15 discos · 144 canciones",
     href: "/biblioteca/discografia",
   },

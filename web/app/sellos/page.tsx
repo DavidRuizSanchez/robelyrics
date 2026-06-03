@@ -97,14 +97,14 @@ export default async function SellosPage() {
                     data-cursor="hover"
                     className="group block"
                   >
-                    <div className="aspect-[3/4] bg-divider/30 mb-4 overflow-hidden relative flex items-center justify-center">
+                    <div className="aspect-[4/3] bg-paper rounded-sm mb-4 overflow-hidden relative flex items-center justify-center p-6">
                       {b.image_url ? (
                         <Image
                           src={b.image_url}
                           alt={`${b.name}, sello discográfico de Extremoduro y Robe`}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                          className="object-contain group-hover:scale-[1.03] transition-transform duration-500"
                         />
                       ) : (
                         <span className="font-serif text-ink-faint text-5xl select-none">

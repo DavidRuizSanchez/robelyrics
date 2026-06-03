@@ -115,7 +115,7 @@ export default async function BlogPage() {
               },
               {
                 t: "Las canciones enteras",
-                d: "Las 144, con la letra pegada al audio en directo para cantarlas sin perderte.",
+                d: "Las 144, con la letra pegada al audio en directo y lo que los fans sacan de cada una.",
               },
             ].map((f) => (
               <div key={f.t} className="border-t border-divider pt-4">

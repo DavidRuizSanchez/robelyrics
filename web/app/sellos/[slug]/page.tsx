@@ -199,14 +199,14 @@ export default async function SelloPage({
           <header className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-10 mb-12">
             {detail.image_url ? (
               <div>
-                <div className="aspect-[3/4] overflow-hidden bg-divider/30 relative">
+                <div className="aspect-[4/3] overflow-hidden bg-paper rounded-sm relative flex items-center justify-center p-6">
                   <Image
                     src={detail.image_url}
                     alt={`${detail.name}, ${kindLabel} de Extremoduro y Robe`}
                     fill
                     sizes="(max-width: 768px) 100vw, 280px"
                     priority
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </div>
                 {detail.image_attribution && (

@@ -9,8 +9,6 @@ export const ROTATING_LINES = [
   { text: "Buscando una luna que alumbre los cielos", song: "Buscando una luna", album: "Iros todos a tomar por culo", year: 1996 },
   { text: "Y soñé que era un pez naranja", song: "So payaso", album: "Iros todos a tomar por culo", year: 1996 },
   { text: "Abre la puerta, que soy el diablo", song: "El día de la bestia", album: "Agila", year: 1996 },
-  { text: "Se acabó la primavera", song: "Papel secante", album: "Canciones prohibidas", year: 1998 },
-  { text: "Me estoy quitando", song: "Me estoy quitando", album: "Iros todos a tomar por culo", year: 1996 },
   { text: "No hay suelo debajo de mis botas", song: "Ininteligible", album: "Se nos lleva el aire", year: 2024 },
 ] as const;
 

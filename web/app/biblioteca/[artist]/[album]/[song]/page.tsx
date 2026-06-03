@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import KaraokePlayer from "@/components/KaraokePlayer";
 import LyricLine from "@/components/LyricLine";
 import SourcePills, { type SourceLite } from "@/components/SourcePills";
 import { KaraokeProvider } from "@/lib/karaoke-context";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { SongDetail } from "@/lib/types";
+import type { PublicAlbumDetail, SongDetail } from "@/lib/types";
 
 type SourceListOut = { total: number; items: SourceLite[] };
 
@@ -52,6 +53,17 @@ export default async function SongPage({
         /* sin fuentes resueltas: el sidebar simplemente no muestra pills */
       }
     }
+  }
+
+  // Otras canciones del álbum (navegación + inlinks). Endpoint público.
+  let albumTracks: PublicAlbumDetail["tracks"] = [];
+  try {
+    const ad = await apiFetch<PublicAlbumDetail>(`/public/albums/${album}`, {
+      authenticated: false,
+    });
+    albumTracks = ad.tracks;
+  } catch {
+    albumTracks = [];
   }
 
   return (
@@ -258,6 +270,15 @@ export default async function SongPage({
             </aside>
           )}
         </div>
+
+        <AlbumSiblingSongs
+          artistSlug={artist}
+          albumSlug={album}
+          albumTitle={detail.album.title}
+          currentSlug={song}
+          tracks={albumTracks}
+          basePath="/biblioteca"
+        />
       </main>
     </KaraokeProvider>
   );
