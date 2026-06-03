@@ -47,6 +47,7 @@ class LineOut(BaseModel):
 
 
 class SongDetailOut(BaseModel):
+    id: int
     slug: str
     title: str
     track_number: int | None
@@ -143,6 +144,7 @@ def song_detail(
     )
     interp = song.interpretation
     return SongDetailOut(
+        id=song.id,
         slug=song.slug,
         title=song.title,
         track_number=song.track_number,

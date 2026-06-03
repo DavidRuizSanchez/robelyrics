@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import AddToPlaylist from "@/components/AddToPlaylist";
 import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import TrackNav from "@/components/TrackNav";
 import KaraokePlayer from "@/components/KaraokePlayer";
@@ -110,6 +111,10 @@ export default async function SongPage({
             <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink m-0 leading-[0.95] tracking-[-1.5px]">
               {detail.title}
             </h1>
+
+            <div className="mt-3">
+              <AddToPlaylist songId={detail.id} />
+            </div>
 
             {detail.youtube_id ? (
               <KaraokePlayer videoId={detail.youtube_id} />

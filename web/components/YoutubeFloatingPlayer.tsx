@@ -132,6 +132,24 @@ export default function YoutubeFloatingPlayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.videoId, current?.seconds, ready]);
 
+  // Al cerrar (current -> null) destruimos el player: el contenedor se desmonta
+  // y, sin esto, el ref apuntaría a un iframe muerto al reabrir.
+  useEffect(() => {
+    if (!current && playerRef.current) {
+      stopPolling();
+      try {
+        playerRef.current.destroy();
+      } catch {
+        // ignore
+      }
+      playerRef.current = null;
+      loadedIdRef.current = null;
+      setReady(false);
+      setElapsed(0);
+      setDuration(0);
+    }
+  }, [current]);
+
   useEffect(() => () => stopPolling(), []);
 
   if (!current) return null;

@@ -60,6 +60,7 @@ export type Interpretation = {
 };
 
 export type SongDetail = {
+  id: number;
   slug: string;
   title: string;
   track_number: number | null;

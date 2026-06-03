@@ -69,6 +69,7 @@ export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
         <Link href="/blog" data-cursor="hover" className={linkCls}>De manera urgente</Link>
         <Link href="/biblioteca/consultorio" data-cursor="hover" className="text-accent hover:text-ink transition-colors">Pregúntale al viento</Link>
         <Link href="/biblioteca?mode=semantic#search" data-cursor="hover" className="text-accent hover:text-ink transition-colors">Como lo diría Robe</Link>
+        <Link href="/biblioteca/listas" data-cursor="hover" className={linkCls}>Listas</Link>
         <Link href="/biblioteca/donar" data-cursor="hover" className={linkCls}>Apoyar</Link>
         {isAdmin && <Link href="/biblioteca/admin/sources" data-cursor="hover" className={linkCls}>Admin</Link>}
         <form action="/logout" method="post" className="inline">
@@ -93,6 +94,7 @@ export default function Header({ isAdmin = false }: { isAdmin?: boolean }) {
           <Link href="/blog" className={linkCls}>De manera urgente</Link>
           <Link href="/biblioteca/consultorio" className="text-accent hover:text-ink transition-colors">Pregúntale al viento</Link>
           <Link href="/biblioteca?mode=semantic#search" className="text-accent hover:text-ink transition-colors">Como lo diría Robe</Link>
+          <Link href="/biblioteca/listas" className={linkCls}>Listas</Link>
           <Link href="/biblioteca/donar" className={linkCls}>Apoyar el proyecto</Link>
           {isAdmin && <Link href="/biblioteca/admin/sources" className={linkCls}>Admin</Link>}
           <form action="/logout" method="post"><button type="submit" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button></form>
