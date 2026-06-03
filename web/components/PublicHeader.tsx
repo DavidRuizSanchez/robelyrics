@@ -11,8 +11,6 @@ function artistItems(slug: "extremoduro" | "robe") {
   return [
     { href: `/${slug}`, label: "Historia" },
     { href: `/discografia?artist=${slug}`, label: "Discografía" },
-    { href: "/grupos", label: "Grupos amigos" },
-    { href: "/personas", label: "Colegas" },
   ];
 }
 

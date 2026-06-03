@@ -26,6 +26,12 @@ export default function PublicFooter() {
           <Link href="/discografia" data-cursor="hover" className={linkCls}>
             Toda la discografía
           </Link>
+          <Link href="/grupos" data-cursor="hover" className={linkCls} title="El rock estatal del mismo barro">
+            Grupos amigos
+          </Link>
+          <Link href="/personas" data-cursor="hover" className={linkCls} title="Los músicos y colegas de Robe">
+            Colegas
+          </Link>
           <Link href="/sellos" data-cursor="hover" className={linkCls} title="Las discográficas del universo">
             Sellos discográficos
           </Link>
