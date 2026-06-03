@@ -42,8 +42,11 @@ bands:
     name: The Flying Rebollos
     kind: band
     relation_type: family
+    wikipedia_url: https://es.wikipedia.org/wiki/The_Flying_Rebollos
     related_note: >
-      Grupo mencionado en el entorno de Robe / Extremoduro.
+      Banda de Portugalete (1990) de rock and roll de bar. De aquí salió Miguel
+      Colino, bajista de Extremoduro desde 2001; fueron contemporáneos y colegas
+      de Platero y Tú.
 
   - slug: el-dromedario-records
     name: El Dromedario Records
@@ -141,6 +144,7 @@ bands:
     name: Rebrote
     kind: band
     relation_type: family
+    wikipedia_url: https://es.wikipedia.org/wiki/Rebrote
     related_note: >
       Banda formada por Iñaki "Uoho" Antón tras la disolución de Extremoduro,
       con José Ignacio Cantera (batería) y Miguel Colino (bajo); Uoho no canta,
@@ -173,6 +177,7 @@ bands:
     name: Tabletom
     kind: band
     relation_type: friend
+    wikipedia_url: https://es.wikipedia.org/wiki/Tabletom
     related_note: >
       Banda malagueña de fusión liderada por Rockberto. Extremoduro versionó su
       tema "Me estoy quitando" (homenaje a Camarón) en "Agila" (1996), lo que dio
