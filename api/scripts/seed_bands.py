@@ -68,6 +68,12 @@ def main() -> None:
                 band.founded_year = entry["founded_year"]
             if entry.get("members"):
                 band.members = entry["members"]
+            # Bio curada a mano (para grupos sin Wikipedia): material REAL que
+            # da de comer al generador en vez de paja. Tiene prioridad.
+            if entry.get("bio_long"):
+                band.bio_long = " ".join(entry["bio_long"].split())
+            if entry.get("bio_short"):
+                band.bio_short = " ".join(entry["bio_short"].split())
 
             if not args.no_enrich:
                 if not band.wikidata_id and band.wikipedia_url:

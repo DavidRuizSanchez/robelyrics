@@ -30,7 +30,7 @@ export default async function PublicLandingPage() {
   // Cargar ambos artistas (Extremoduro y Robe) y la lista de URLs publicadas
   // para mostrar links reales a lo que ya está vivo. Si algo falla, fallback
   // suave a CTAs sin grid.
-  const [extremoduro, robe, published] = await Promise.all([
+  const [extremoduro, robe, published, me] = await Promise.all([
     apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
       authenticated: false,
     }).catch(() => null),
@@ -40,7 +40,9 @@ export default async function PublicLandingPage() {
     apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
       authenticated: false,
     }).catch(() => [] as SitemapEntry[]),
+    apiFetch<{ id: number }>("/auth/me").catch(() => null),
   ]);
+  const loggedIn = !!me;
 
   // Combinamos discos de ambos artistas etiquetando el artista para construir
   // hrefs correctos (`/{artist}/{album}`). Filtramos por url_path completo
@@ -189,9 +191,11 @@ export default async function PublicLandingPage() {
           >
             pregúntale al viento →
           </Link>
-          <p className="mt-3 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
-            regístrate gratis para preguntar
-          </p>
+          {!loggedIn && (
+            <p className="mt-3 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+              regístrate gratis para preguntar
+            </p>
+          )}
         </section>
 
         {/* CTA fan */}
@@ -203,17 +207,16 @@ export default async function PublicLandingPage() {
             Las canciones enteras, el buscador que te entiende y Robe contestándote
           </h2>
           <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
-            Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la
-            letra pegada al audio en directo y lo que los fans sacan de cada una,
-            el buscador que te da el verso según lo que sientes y el sitio donde le
-            preguntas a Robe y te responde con su voz.
+            {loggedIn
+              ? "Ya estás dentro y es todo tuyo: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."
+              : "Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."}
           </p>
           <Link
-            href="/registro"
+            href={loggedIn ? "/biblioteca" : "/registro"}
             data-cursor="hover"
             className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
           >
-            crear cuenta gratis
+            {loggedIn ? "entrar a tu biblioteca" : "crear cuenta gratis"}
           </Link>
         </section>
 
