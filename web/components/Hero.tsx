@@ -31,7 +31,7 @@ export default function Hero() {
       <h1 className="relative z-10 font-serif text-5xl md:text-[92px] font-normal leading-[1.02] tracking-tight md:tracking-[-2.5px] m-0 text-ink">
         El universo de{" "}
         <em className="text-accent not-italic md:italic">Robe</em>
-        <br />e <em className="text-accent not-italic md:italic">Extremoduro</em>,
+        <br />y <em className="text-accent not-italic md:italic">Extremoduro</em>,
         <br />
         verso a verso.
       </h1>
