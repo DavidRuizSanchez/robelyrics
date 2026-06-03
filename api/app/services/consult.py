@@ -26,6 +26,7 @@ from app.db.models import Album, Artist, Book, Person, Song
 from app.services.embeddings import get_embedder
 from app.services.qdrant_client import get_qdrant
 from app.services.robe_quotes import tone_quotes
+from app.services.robe_style import speech_style
 from app.services.text_sanitizer import strip_ai_tells
 from app.services.voice import build_system_prompt
 
@@ -329,7 +330,10 @@ def answer_as_robe(
     client: OpenAI, question: str, facts: list[str], passages: list[Passage], tags: list[str]
 ) -> dict:
     system = build_system_prompt(
-        family="consultorio", persona="robe_primera", tone_quotes=tone_quotes(tags, k=4)
+        family="consultorio",
+        persona="robe_primera",
+        tone_quotes=tone_quotes(tags, k=4),
+        style_guide=speech_style(),
     )
     user = _build_user_prompt(question, facts, passages)
     try:

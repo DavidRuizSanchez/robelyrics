@@ -277,6 +277,7 @@ def build_system_prompt(
     persona: str = "primera_admirador",
     subject: str | None = None,
     tone_quotes: list[str] | None = None,
+    style_guide: str | None = None,
 ) -> str:
     """Ensambla el system prompt de la voz del sitio.
 
@@ -289,6 +290,12 @@ def build_system_prompt(
     # fundamento. Ensamblado propio (sin intro de fan, sin SEO ni entities).
     if family == "consultorio":
         parts = [_PERSONA.get(persona, _PERSONA["robe_primera"])]
+        if style_guide:
+            parts.append(
+                "CÓMO HABLAS (manual de tu propia voz, sacado de tus entrevistas "
+                "reales; CLÁVALO, es lo que te diferencia de un robot educado):\n"
+                + style_guide.strip()
+            )
         if tone_quotes:
             parts.append(_tone_quotes_block(tone_quotes))
         parts += [
