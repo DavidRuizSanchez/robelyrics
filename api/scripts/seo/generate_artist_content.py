@@ -19,6 +19,7 @@ from openai import OpenAI
 
 from app.config import get_settings
 from app.db.models import Album, Artist
+from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
@@ -26,6 +27,7 @@ from scripts.seo.common import (
     fetch_sources_for_artist,
     format_distilled_block,
     format_sources_block,
+    tone_quotes_for,
     upsert_seo_content,
 )
 
@@ -48,32 +50,29 @@ FUENTES EXTERNAS PRIORITARIAS:
 
 {format_distilled_block(distilled)}
 
-ESTRUCTURA OBLIGATORIA (encabezados H2):
+ESTRUCTURA OBLIGATORIA (encabezados H2, en este orden):
 
-## Quién es {artist.name}
-~300 palabras: presentación general, formación si es banda, qué lugar ocupa
-en la música española.
+## Orígenes, calle y la forja de una identidad
+~450 palabras: de dónde sale, formación si es banda, el barrio y la calle que
+forjan la identidad, qué representa y qué lugar ocupa en la música española.
 
-## Trayectoria
-~1200 palabras divididos en H3 por etapas:
-### Inicios y primeros años
-### Consolidación y discos clave
-### Etapa de madurez / solitario / cambios de formación
-### Cierre / etapa final / fallecimiento (si aplica)
+## El proceso compositivo: letra y música del mismo útero
+~550 palabras: cómo compone, la relación entre letra y música, su método, qué
+le mueve a escribir. Solo lo que conste en las fuentes; no inventes método.
 
-## Estilo, temáticas y lenguaje
-~500 palabras: rasgos literarios distintivos, registros, influencias, lenguaje.
+## Discografía comentada: del desgarro analógico a la madurez sinfónica
+~900 palabras: repaso disco a disco con 1-2 frases por álbum, trazando el arco
+del desgarro de los inicios a la madurez sinfónica. Menciona cada disco por su
+título en texto plano — el sistema linkifica los títulos automáticamente a sus
+páginas locales.
 
-## Discografía comentada
-~600 palabras: repaso disco a disco con 1-2 frases por álbum. Menciona
-cada disco por su título en texto plano — el sistema linkifica los
-títulos automáticamente a sus páginas locales.
+## Filosofía, censura y soberanía
+~600 palabras: su mirada del mundo, episodios de censura o pulso con el poder
+si constan, su soberanía como artista y persona, rasgos literarios y lenguaje.
 
-## Legado e influencia
-~300 palabras: impacto en la escena rock española, artistas influidos.
-
-## Hechos biográficos relevantes
-~100 palabras: solo datos públicos y verificados; obviar lo no documentado.
+## Legado, homenajes y la herencia que queda
+~500 palabras: impacto en la escena rock española, artistas influidos,
+homenajes documentados y la herencia que deja. Solo datos públicos y verificados.
 
 IMPORTANTE:
 - NO escribas markdown de link a mano ni uses placeholders entre
@@ -97,8 +96,15 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         f"· {len(distilled)} destilados)")
 
     prompt = build_user_prompt(artist, albums, sources, distilled)
+    # Voz: megafan punki en 1ª persona. Robe/Extremoduro ES el protagonista,
+    # así que sin subject. Ver app/services/voice.py.
+    system_prompt = build_system_prompt(
+        family="seo",
+        persona="primera_admirador",
+        tone_quotes=tone_quotes_for(seed=artist.slug),
+    )
     try:
-        out = call_llm(client, prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False
@@ -137,6 +143,7 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
         entities=out.get("entities") or [],
+        sources=sources,
         force=force,
     )
     db.commit()

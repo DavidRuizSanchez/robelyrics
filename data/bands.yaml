@@ -12,6 +12,7 @@ bands:
   - slug: fito-y-fitipaldis
     name: Fito & Fitipaldis
     kind: band
+    relation_type: family
     wikidata_id: Q3183879
     wikipedia_url: https://es.wikipedia.org/wiki/Fito_%26_Fitipaldis
     related_note: >
@@ -21,6 +22,7 @@ bands:
   - slug: marea
     name: Marea
     kind: band
+    relation_type: friend
     wikidata_id: Q1298620
     wikipedia_url: https://es.wikipedia.org/wiki/Marea_(banda)
     related_note: >
@@ -29,6 +31,7 @@ bands:
   - slug: platero-y-tu
     name: Platero y Tú
     kind: band
+    relation_type: family
     wikidata_id: Q1215911
     wikipedia_url: https://es.wikipedia.org/wiki/Platero_y_T%C3%BA
     related_note: >
@@ -38,6 +41,7 @@ bands:
   - slug: the-flying-rebollos
     name: The Flying Rebollos
     kind: band
+    relation_type: family
     related_note: >
       Grupo mencionado en el entorno de Robe / Extremoduro.
 
@@ -50,6 +54,7 @@ bands:
   - slug: leno
     name: Leño
     kind: band
+    relation_type: friend
     wikipedia_url: https://es.wikipedia.org/wiki/Le%C3%B1o
     related_note: >
       Banda de Rosendo Mercado, pilar del rock urbano español de los 70-80.
@@ -58,6 +63,7 @@ bands:
   - slug: reincidentes
     name: Reincidentes
     kind: band
+    relation_type: friend
     wikipedia_url: https://es.wikipedia.org/wiki/Reincidentes
     related_note: >
       Punk-rock de Sevilla del mismo circuito de directos y festivales que
@@ -66,6 +72,7 @@ bands:
   - slug: la-fuga
     name: La Fuga
     kind: band
+    relation_type: friend
     wikipedia_url: https://es.wikipedia.org/wiki/La_Fuga_(banda)
     related_note: >
       Rock de Reinosa (Cantabria), del circuito de rock estatal cercano a
@@ -74,6 +81,7 @@ bands:
   - slug: nu
     name: Ñu
     kind: band
+    relation_type: friend
     wikipedia_url: https://es.wikipedia.org/wiki/%C3%91u_(banda)
     related_note: >
       Rock duro de José Carlos Molina, parte de la tradición del rock urbano
@@ -82,6 +90,7 @@ bands:
   - slug: extrechinato-y-tu
     name: Extrechinato y tú
     kind: band
+    relation_type: family
     wikipedia_url: https://es.wikipedia.org/wiki/Extrechinato_y_t%C3%BA
     related_note: >
       Proyecto del año 2000 alrededor del poeta Manolo Chinato, con Robe
@@ -91,6 +100,7 @@ bands:
   - slug: los-enemigos
     name: Los Enemigos
     kind: band
+    relation_type: friend
     wikipedia_url: https://es.wikipedia.org/wiki/Los_Enemigos
     related_note: >
       Banda madrileña de Josele Santiago, del rock estatal afín a Extremoduro.
@@ -98,10 +108,13 @@ bands:
   - slug: inconscientes
     name: Inconscientes
     kind: band
+    relation_type: family
     wikipedia_url: https://es.wikipedia.org/wiki/Inconscientes_(banda)
     related_note: >
-      Banda anterior de Iñaki "Uoho" Antón en Bilbao, antes de Platero y Tú y
-      Extremoduro.
+      Banda de rock and roll formada hacia 2006 (antes "La inconsciencia de
+      Uoho") por Iñaki "Uoho" Antón con José Ignacio Cantera y Miguel Colino, de
+      Extremoduro, más Jon Calvo (Memoria de Pez). Robe la cofinanció y promocionó
+      a través de su sello Muxik.es, sin tocar en ella.
 
   - slug: dro
     name: DRO
@@ -110,3 +123,136 @@ bands:
     related_note: >
       Sello discográfico histórico (Discos Radiactivos Organizados) de la
       movida y el rock estatal.
+
+  - slug: los-ninos-de-los-ojos-rojos
+    name: Los Niños de los Ojos Rojos
+    kind: band
+    relation_type: friend
+    wikipedia_url: https://es.wikipedia.org/wiki/Los_Ni%C3%B1os_de_los_Ojos_Rojos
+    related_note: >
+      Banda de folk-fusión de Cáceres (1999). El entorno de la banda en solitario
+      de Robe la cita como proyecto paralelo de uno de sus músicos (posiblemente
+      el violinista Carlitos Pérez), aunque la propia banda no lo recoge entre sus
+      miembros estables: vínculo de escena extremeña, sin colaboración confirmada
+      con Extremoduro. VERIFICADO 2026-06-02 (Wikipedia + web oficial); conexión
+      con Robe citada solo por fuentes fan, NO confirmada por fuente primaria.
+
+  - slug: rebrote
+    name: Rebrote
+    kind: band
+    relation_type: family
+    related_note: >
+      Banda formada por Iñaki "Uoho" Antón tras la disolución de Extremoduro,
+      con José Ignacio Cantera (batería) y Miguel Colino (bajo); Uoho no canta,
+      la voz es de Jaime Moreno. Presentada en octubre de 2025, publicó su disco
+      homónimo el 30 de enero de 2026. Tras la muerte de Robe le dedicaron el
+      tema "Cuando no estás tú…".
+
+  - slug: los-dogos
+    name: Los Dogos
+    kind: band
+    relation_type: family
+    related_note: >
+      Grupo de rock placentino fundado en 1966. De Los Dogos venían el bajista
+      Gonzalo "Salo" Muñoz y el batería Luis Iglesias "von Fanta", que formaron
+      parte de la primera Extremoduro (los tres primeros discos). Raíz directa
+      de la banda en sus inicios.
+
+  - slug: barricada
+    name: Barricada
+    kind: band
+    relation_type: friend
+    wikipedia_url: https://es.wikipedia.org/wiki/Barricada_(banda)
+    related_note: >
+      Banda de rock urbano de Pamplona (El Drogas, Piedrafita). Extremoduro los
+      teloneó en sus inicios y Piedrafita reconoció el mérito de Robe. Vínculo
+      de escena y reconocimiento documentado; no hay colaboración en estudio
+      confirmada.
+
+  - slug: tabletom
+    name: Tabletom
+    kind: band
+    relation_type: friend
+    related_note: >
+      Banda malagueña de fusión liderada por Rockberto. Extremoduro versionó su
+      tema "Me estoy quitando" (homenaje a Camarón) en "Agila" (1996), lo que dio
+      a Tabletom su mayor éxito en derechos de autor.
+
+  - slug: bulo
+    name: Bulo
+    kind: band
+    relation_type: family
+    related_note: >
+      Proyecto formado por músicos de la banda en solitario de Robe: Lorenzo
+      González (voz), Woody Amores (guitarra), Alber Fuentes (batería) y David
+      Lerman (bajo). Vínculo a través de los integrantes de la banda de Robe.
+
+  - slug: qkino
+    name: Qkino
+    kind: band
+    relation_type: family
+    related_note: >
+      Banda liderada por Lorenzo González y Woody Amores, ambos integrantes de
+      la banda en solitario de Robe. Vínculo a través de sus músicos.
+
+  - slug: sinverguenza
+    name: Sinvergüenza
+    kind: band
+    relation_type: family
+    related_note: >
+      Banda que montó Ramón "Mon" Sogas (bajista de Extremoduro en la "era del
+      caos", 1993-1998) tras dejar el grupo. Robe colaboró cantando en un tema
+      ("Levantando polvareda"). Vínculo documentado a través de Mon y la
+      colaboración de Robe.
+
+  - slug: los-suaves
+    name: Los Suaves
+    kind: band
+    relation_type: friend
+    wikipedia_url: https://es.wikipedia.org/wiki/Los_Suaves
+    related_note: >
+      Banda de hard rock de Ourense liderada por Yosi Domínguez. Afinidad de
+      escena con Extremoduro y homenajes mutuos del rock estatal. Colaboración
+      en estudio con Extremoduro/Robe NO documentada: vínculo de escena, no de
+      grabación.
+
+  - slug: avispa
+    name: Avispa
+    kind: label
+    wikipedia_url: https://es.wikipedia.org/wiki/Avispa_Music
+    related_note: >
+      Primer sello discográfico de Extremoduro, que editó su debut "Tú en tu
+      casa, nosotros en la hoguera" (1989). El contrato era leonino; en 1998
+      Robe e Iñaki recompraron el disco.
+
+  - slug: pasion
+    name: Pasión
+    kind: label
+    related_note: >
+      Sello discográfico que editó "Somos unos animales" (1991), el segundo
+      disco de Extremoduro, entre Avispa y la etapa de DRO.
+
+  - slug: warner
+    name: Warner
+    kind: label
+    wikipedia_url: https://es.wikipedia.org/wiki/Warner_Music_Spain
+    related_note: >
+      Sello discográfico de Extremoduro desde "La ley innata" (2008). Warner
+      Music Spain integró también al histórico sello DRO, que editó a la banda
+      en los 90.
+
+  - slug: muxikes
+    name: Muxik.es
+    kind: label
+    related_note: >
+      Sello fundado en 2006 por Robe e Iñaki "Uoho" Antón (juego entre "música"
+      y Muxika, Vizcaya, donde está el estudio de Uoho). Vía de edición de
+      Inconscientes y otros proyectos del entorno.
+
+  - slug: la-gran-belleza-records
+    name: La Gran Belleza Records
+    kind: label
+    related_note: >
+      Sello que dirige Álvaro Rodríguez Barroso, teclista y productor de los
+      discos en solitario de Robe ("Mayéutica" 2021, "Se nos lleva el aire"
+      2023). Vínculo a través del productor de Robe.

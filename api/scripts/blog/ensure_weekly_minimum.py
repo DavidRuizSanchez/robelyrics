@@ -58,6 +58,7 @@ def _had_spotlight_recently(db, *, days: int = 5) -> bool:
 def _trigger_spotlight(dry_run: bool) -> None:
     """Lanza un spotlight ad-hoc importando el módulo y reutilizando su main."""
     from scripts.blog.publish_song_spotlight import _pick_song, _spotlight_slug
+    from scripts.blog.context_builder import song_context
     from app.services.content_generator import generate_song_spotlight
     from app.services.publishing import propose_for_review
     from app.services.wikimedia import search_image
@@ -85,11 +86,16 @@ def _trigger_spotlight(dry_run: bool) -> None:
                 SeoContent.entity_id == song.id,
             )
         ).scalar_one_or_none()
+        try:
+            ctx = song_context(db, song.id)
+        except Exception:
+            ctx = ""
         payload = generate_song_spotlight(
             song_title=song.title,
             album_title=album.title,
             artist_name=artist.name,
             seo_excerpt=(seo.body_md if seo else None),
+            context=ctx,
             today=today,
         )
         body_md = payload["body_md"]
@@ -127,6 +133,8 @@ def _trigger_evergreen(dry_run: bool) -> None:
     """Pieza evergreen sobre una taxonomía rotativa."""
     from app.services.content_generator import generate_evergreen_topic
     from app.services.publishing import propose_for_review
+    from scripts.blog.context_builder import taxonomy_context
+    from app.db.models import SeoContent
 
     today = date.today()
     week = today.isocalendar().week
@@ -135,11 +143,11 @@ def _trigger_evergreen(dry_run: bool) -> None:
         # Rotación entre tipos por semana: 0→theme, 1→place, 2→concept
         kind_idx = week % 3
         model_map = [
-            ("tema", Theme, SongTheme, SongTheme.theme_id),
-            ("lugar", Place, SongPlace, SongPlace.place_id),
-            ("concepto", Concept, SongConcept, SongConcept.concept_id),
+            ("tema", "theme", Theme, SongTheme, SongTheme.theme_id),
+            ("lugar", "place", Place, SongPlace, SongPlace.place_id),
+            ("concepto", "concept", Concept, SongConcept, SongConcept.concept_id),
         ]
-        kind_label, Model, Join, fk = model_map[kind_idx]
+        kind_label, entity_type, Model, Join, fk = model_map[kind_idx]
 
         # Toma una taxonomía determinista por week
         rows = db.execute(select(Model).order_by(Model.id)).scalars().all()
@@ -179,11 +187,28 @@ def _trigger_evergreen(dry_run: bool) -> None:
             logger.info("Evergreen %s ya existe — skip", slug)
             return
 
+        try:
+            song_ids = [
+                sid for (sid,) in db.execute(
+                    select(Song.id).join(Join, Song.id == Join.song_id).where(fk == item.id)
+                ).all()
+            ]
+            seo_tax = db.execute(
+                select(SeoContent).where(
+                    SeoContent.entity_type == entity_type,
+                    SeoContent.entity_id == item.id,
+                )
+            ).scalar_one_or_none()
+            ctx = taxonomy_context(db, song_ids, seo_tax.body_md if seo_tax else None)
+        except Exception:
+            ctx = ""
+
         payload = generate_evergreen_topic(
             taxonomy_kind=kind_label,
             taxonomy_name=item.name,
             taxonomy_description=item.description,
             song_titles=song_titles,
+            context=ctx,
             today=today,
         )
 

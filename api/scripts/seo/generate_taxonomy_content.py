@@ -22,8 +22,9 @@ from openai import OpenAI
 
 from app.config import get_settings
 from app.db.models import Concept, Place, SeoContent, Song, Theme
+from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
-from scripts.seo.common import call_llm, upsert_seo_content
+from scripts.seo.common import call_llm, tone_quotes_for, upsert_seo_content
 
 SITE_URL = "https://entreinteriores.com"
 
@@ -66,15 +67,69 @@ def _song_context(db, songs: list[Song]) -> str:
     return "\n".join(lines) if lines else "(sin canciones asociadas)"
 
 
+def _headings_for_kind(kind: str, name: str) -> str:
+    """Plantilla de H2 por tipología. Cada kind cuenta una historia distinta."""
+    if kind == "theme":
+        return f"""\
+## La evolución poética de «{name}»
+## Canciones donde el tema se hace herida
+## Por qué nos sigue quemando por dentro"""
+    if kind == "concept":
+        return f"""\
+## El símbolo de «{name}» en la obra de Robe
+## Canciones clave donde el motivo se hace herida
+## El viaje interpretativo: por qué conecta"""
+    # place
+    return f"""\
+## Historia real de «{name}»
+## El hito que lo conecta con la banda
+## Referencias en canciones y crónicas"""
+
+
+def _build_system_prompt(kind: str, row):
+    """System prompt (voz) por tipología. Ver app/services/voice.py.
+    - theme   → 2ª persona cómplice, sin citas de tono, sin subject.
+    - concept → 1ª persona megafan con citas de tono, sin subject.
+    - place   → 3ª persona cálida, el lugar es el subject (tiene historia propia).
+    """
+    if kind == "theme":
+        return build_system_prompt(family="seo", persona="segunda_complice")
+    if kind == "concept":
+        return build_system_prompt(
+            family="seo",
+            persona="primera_admirador",
+            tone_quotes=tone_quotes_for(seed=row.slug),
+        )
+    # place
+    return build_system_prompt(
+        family="seo", persona="tercera_calida", subject=row.name
+    )
+
+
 def _build_prompt(kind: str, row, songs: list[Song]) -> str:
     label = KIND_LABEL[kind]
     length_desc, _ = _length_spec(len(songs))
     descr = (row.description or "").strip() or "(sin descripción previa)"
     song_block = _song_context(None, songs)
+    headings = _headings_for_kind(kind, row.name)
 
     geo_hint = ""
     if kind == "place" and (getattr(row, "geo_lat", None) or getattr(row, "geo_lng", None)):
         geo_hint = "Es un lugar geográfico real; sitúalo con precisión.\n"
+
+    place_note = ""
+    if kind == "place":
+        place_note = (
+            "- Respeta que el lugar tiene historia propia al margen de Robe; "
+            "no inventes hitos ni conexiones que no consten en las fuentes.\n"
+        )
+
+    compare_note = ""
+    if kind in ("theme", "concept"):
+        compare_note = (
+            "- Compara ≥3 canciones cuando las haya, mostrando cómo el "
+            f"{label} muta de una a otra.\n"
+        )
 
     return f"""\
 Escribe un artículo editorial SEO sobre el {label} «{row.name}» tal como
@@ -92,16 +147,16 @@ hay una o dos canciones, sé conciso y honesto, no rellenes de paja.
 ENFOQUE:
 - Explica qué es «{row.name}» y, sobre todo, QUÉ SIGNIFICA dentro de las
   letras de Robe y Extremoduro: cómo lo trata, qué evoca, por qué reaparece.
-- Menciona las canciones por su título en texto plano (el sistema las
-  enlaza automáticamente a sus páginas). Igual con discos, artistas,
-  lugares o personas que cites.
+- Menciona los títulos de canción en texto plano (el sistema los enlaza
+  solo). Igual con discos, artistas, lugares o personas que cites.
 - Si es un lugar, conecta lo geográfico/real con lo simbólico en las letras.
+{compare_note}{place_note}
+ESTRUCTURA OBLIGATORIA (encabezados H2, en este orden; SIN H1, lo pone la
+plantilla):
 
-ESTRUCTURA:
-- SIN H1 (lo pone la plantilla).
-- 2-3 encabezados H2 concretos, con sustantivos del tema. Nada de
-  "Introducción" ni "Conclusión".
-- Cierra con una frase seca, sin moraleja.
+{headings}
+
+Cierra con una frase seca, sin moraleja.
 
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars, con «{row.name}» al
 inicio), `meta_description` (≤155 chars) y `entities` (según system prompt).
@@ -148,8 +203,9 @@ def generate_for_taxonomy(
     log(f"generando {kind}: {row.name} ({len(songs)} canciones)")
 
     prompt = _build_prompt(kind, row, songs)
+    system_prompt = _build_system_prompt(kind, row)
     try:
-        out = call_llm(client, prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False

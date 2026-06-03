@@ -108,7 +108,15 @@ export type CompleteOut = {
 
 // /public/search — buscador público sin auth (títulos + letras)
 export type PublicSearchHit = {
-  kind: "artist" | "album" | "song";
+  kind:
+    | "artist"
+    | "album"
+    | "song"
+    | "person"
+    | "band"
+    | "theme"
+    | "place"
+    | "concept";
   slug: string;
   title: string;
   subtitle: string | null;
@@ -198,6 +206,20 @@ export type PublicTaxonomyPill = {
   name: string;
 };
 
+export type PublicLineupMember = {
+  slug: string;
+  name: string;
+  role: string;
+};
+
+export type PublicRelatedSong = {
+  title: string;
+  url_path: string;
+  album_title: string;
+  year: number;
+  shared: number;
+};
+
 export type PublicSongDetail = {
   slug: string;
   title: string;
@@ -221,6 +243,8 @@ export type PublicSongDetail = {
   places: PublicTaxonomyPill[];
   concepts: PublicTaxonomyPill[];
   entities: PublicResolvedEntity[];
+  lineup: PublicLineupMember[];
+  related_songs: PublicRelatedSong[];
 };
 
 // /public/themes, /public/places, /public/concepts

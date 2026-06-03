@@ -59,6 +59,14 @@ export default async function PublicHeader() {
           Grupos
         </Link>
         <Link
+          href="/sellos"
+          data-cursor="hover"
+          className="text-ink-dim hover:text-ink transition-colors"
+          title="Sellos discográficos del universo Extremoduro"
+        >
+          Sellos
+        </Link>
+        <Link
           href="/blog"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"
@@ -70,8 +78,13 @@ export default async function PublicHeader() {
           href="/buscar"
           data-cursor="hover"
           className="text-ink-dim hover:text-ink transition-colors"
+          aria-label="Buscar"
+          title="Buscar"
         >
-          Buscar
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+          </svg>
         </Link>
         <Link
           href="/blog#suscribete"
@@ -141,6 +154,7 @@ export default async function PublicHeader() {
           <Link href="/robe" className="text-ink-dim hover:text-ink transition-colors">Robe</Link>
           <Link href="/discografia" className="text-ink-dim hover:text-ink transition-colors">Discografía</Link>
           <Link href="/grupos" className="text-ink-dim hover:text-ink transition-colors" title="Grupos afines a Extremoduro">Grupos</Link>
+          <Link href="/sellos" className="text-ink-dim hover:text-ink transition-colors" title="Sellos discográficos del universo Extremoduro">Sellos</Link>
           <Link href="/blog" className="text-ink-dim hover:text-ink transition-colors" title="De manera urgente · noticias y memoria">De manera urgente</Link>
           <Link href="/buscar" className="text-ink-dim hover:text-ink transition-colors">Buscar</Link>
           <Link href="/blog#suscribete" className="text-accent hover:text-ink transition-colors">Suscríbete al diario</Link>

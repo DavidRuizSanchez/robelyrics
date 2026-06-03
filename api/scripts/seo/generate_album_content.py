@@ -22,6 +22,7 @@ from openai import OpenAI
 
 from app.config import get_settings
 from app.db.models import Album
+from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
@@ -29,6 +30,7 @@ from scripts.seo.common import (
     fetch_sources_for_album,
     format_distilled_block,
     format_sources_block,
+    tone_quotes_for,
     upsert_seo_content,
 )
 
@@ -56,38 +58,36 @@ FUENTES EXTERNAS:
 
 {format_distilled_block(distilled)}
 
-ESTRUCTURA OBLIGATORIA (encabezados H2):
+ESTRUCTURA OBLIGATORIA (encabezados H2, en este orden):
 
 ## El disco de un vistazo
 ~150 palabras: qué es, año, lugar en la discografía de {artist.name},
 qué lo hace particular.
 
-## Contexto histórico y musical
-~400 palabras: lo que pasaba en {artist.name} en {album.year}, contexto
-musical español de la época, sello y producción si lo sabes.
+## Contexto emocional y época de la grabación
+~400 palabras: lo que pasaba en {artist.name} en {album.year}, el momento
+emocional y vital, contexto musical español de la época, sello y producción
+si lo sabes.
 
-## Composición y grabación
-~300 palabras: cómo y dónde se grabó si lo aportan las fuentes; anécdotas
-documentadas. NO inventes datos técnicos.
+## Estilo sonoro: guitarras, arreglos y arquitectura
+~350 palabras: cómo suena el disco (guitarras, arreglos, producción y
+arquitectura del conjunto). Solo lo que conste; no inventes datos técnicos.
 
-## Recorrido por las canciones
+## Canción a canción
 ~600 palabras: repaso por las canciones del tracklist con 1-2 frases por
 cada una. NO copies letras, describe el tema y el tono. Menciona los
 títulos en texto plano — el sistema los linkifica automáticamente a sus
 páginas locales.
 
-## Recepción crítica y comercial
-~300 palabras: cómo lo recibió la prensa especializada (puedes citar Mondo
-Sonoro, Efe Eme, Rockdelux si están en las fuentes), ventas, premios, giras
-asociadas.
+## Formación de estudio: quién grabó qué
+~250 palabras: quién toca qué en este disco, productor e ingenieros si
+constan. SOLO si consta en las fuentes; si no, omite la sección o acórtala.
+NO inventes quién tocó, ni roles, ni nombres.
 
-## Legado
-~250 palabras: lugar del álbum en la obra de {artist.name}, cobertura
-posterior, recopilatorios, regresos en directo.
-
-## Otros discos relacionados
-~50 palabras mencionando 1-2 discos cercanos del mismo artista por su
-título (texto plano, el sistema los linkifica).
+## Ediciones, maquetas y rarezas
+~250 palabras: ediciones, reediciones, maquetas, tomas alternativas, caras B
+o rarezas documentadas. SOLO si consta en las fuentes; si no, omite la
+sección o acórtala. NO inventes maquetas, fechas ni ediciones.
 
 IMPORTANTE:
 - NO escribas markdown de link a mano ni uses placeholders entre
@@ -112,8 +112,15 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
         f"({len(sources)} fuentes, {len(distilled)} destilados)")
 
     prompt = build_user_prompt(album, sources, distilled)
+    # Voz: megafan punki en 1ª persona; el disco de Robe/Extremoduro es el
+    # protagonista, así que sin subject. Ver app/services/voice.py.
+    system_prompt = build_system_prompt(
+        family="seo",
+        persona="primera_admirador",
+        tone_quotes=tone_quotes_for(seed=album.slug),
+    )
     try:
-        out = call_llm(client, prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False
@@ -144,6 +151,7 @@ def generate_for_album(client: OpenAI, db, album_slug: str, *, force: bool) -> b
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
         entities=out.get("entities") or [],
+        sources=sources,
         force=force,
     )
     db.commit()

@@ -608,6 +608,7 @@ class Band(Base):
     image_source_url: Mapped[str | None] = mapped_column(String(1024))
     members: Mapped[list | None] = mapped_column(JSONB)          # [{name, role}]
     related_note: Mapped[str | None] = mapped_column(Text)       # vínculo con Robe/Extremoduro
+    relation_type: Mapped[str | None] = mapped_column(String(16))  # 'family' | 'friend' | None
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

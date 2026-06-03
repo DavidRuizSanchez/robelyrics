@@ -123,6 +123,22 @@ class PublicTaxonomyPill(BaseModel):
     name: str
 
 
+class PublicLineupMember(BaseModel):
+    """Miembro de la formación de la época de un álbum (best-effort por `era`)."""
+    slug: str
+    name: str
+    role: str
+
+
+class PublicRelatedSong(BaseModel):
+    """Canción que comparte taxonomías (temas+conceptos+lugares) con la actual."""
+    title: str
+    url_path: str       # ruta canónica completa, ej. /extremoduro/agila/asco
+    album_title: str
+    year: int
+    shared: int         # nº de taxonomías solapadas
+
+
 class PublicSongDetailOut(BaseModel):
     slug: str
     title: str
@@ -147,6 +163,10 @@ class PublicSongDetailOut(BaseModel):
     places: list[PublicTaxonomyPill] = []
     concepts: list[PublicTaxonomyPill] = []
     entities: list["PublicResolvedEntity"] = []
+    # Formación de la época (best-effort por `era` de BandMembership).
+    lineup: list[PublicLineupMember] = []
+    # Canciones que comparten taxonomías con esta (cross-album).
+    related_songs: list[PublicRelatedSong] = []
 
 
 # --------------------------------------------------------------------------- #
@@ -209,6 +229,188 @@ def _set_cache(response: Response) -> None:
     response.headers["Cache-Control"] = _CACHE_HEADER
 
 
+def _era_covers_year(era: str | None, year: int) -> bool:
+    """Best-effort: ¿la `era` de una membership cubre el `year` del álbum?
+
+    Acepta "YYYY" (un único año) o "YYYY-YYYY" (rango). Si el 2º año falta o
+    es abierto ("2014-", "1989–presente"), cubre hasta el año actual. Si no se
+    puede parsear un primer año de 4 dígitos, devuelve False (no inventamos).
+    """
+    if not era:
+        return False
+    import re
+    years = re.findall(r"\d{4}", era)
+    if not years:
+        return False
+    start = int(years[0])
+    if len(years) >= 2:
+        end = int(years[1])
+    else:
+        # ¿rango abierto? p.ej. "2014-", "1989 - presente". Si hay un guion
+        # tras el año, el rango sigue abierto hasta hoy. Si no, es un año suelto.
+        tail = era.split(years[0], 1)[1]
+        if "-" in tail or "–" in tail:
+            end = datetime.now().year
+        else:
+            end = start
+    return start <= year <= end
+
+
+def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLineupMember"]:
+    """Miembros del artista cuya `era` cubre el `year` del álbum. Best-effort:
+    filas con `era` no parseable se omiten (no se inventa formación)."""
+    from app.db.models import BandMembership as _BM, Person as _P  # lazy
+    rows = (
+        db.query(_BM, _P)
+        .join(_P, _BM.person_id == _P.id)
+        .filter(_BM.artist_id == artist_id)
+        .order_by(_BM.position, _BM.era)
+        .all()
+    )
+    out: list[PublicLineupMember] = []
+    seen: set[str] = set()
+    for m, p in rows:
+        if not _era_covers_year(m.era, year):
+            continue
+        if p.slug in seen:
+            continue
+        seen.add(p.slug)
+        out.append(
+            PublicLineupMember(
+                slug=p.slug,
+                name=p.stage_name or p.full_name,
+                role=m.role,
+            )
+        )
+    return out
+
+
+def _related_songs_by_embedding(
+    db: Session, song_id: int, limit: int = 6
+) -> list["PublicRelatedSong"]:
+    """Canciones semánticamente parecidas vía embeddings (Qdrant lyrics_full_v1).
+
+    Recupera el vector de la canción y busca las más cercanas (coseno). Solo
+    devuelve canciones con seo_content 'song' publicado. Defensivo: ante
+    cualquier fallo de Qdrant devuelve [] (el endpoint cae al método por temas).
+    """
+    try:
+        from app.services.qdrant_client import get_qdrant
+        from scripts.embed_full_lyrics import COLLECTION, stable_id
+
+        qc = get_qdrant()
+        got = qc.retrieve(
+            collection_name=COLLECTION, ids=[stable_id(song_id)], with_vectors=True
+        )
+        if not got or not getattr(got[0], "vector", None):
+            return []
+        resp = qc.query_points(
+            collection_name=COLLECTION, query=got[0].vector, limit=limit + 6
+        )
+        cand_ids: list[int] = []
+        for p in resp.points:
+            pl = p.payload or {}
+            sid = pl.get("song_id")
+            if sid and sid != song_id and sid not in cand_ids:
+                cand_ids.append(int(sid))
+        if not cand_ids:
+            return []
+        rows = db.execute(
+            text(
+                """
+                SELECT s.id, s.title, s.slug AS song_slug, al.slug AS album_slug,
+                       al.title AS album_title, al.year AS year, ar.slug AS artist_slug
+                FROM songs s
+                JOIN albums al ON al.id = s.album_id
+                JOIN artists ar ON ar.id = al.artist_id
+                JOIN seo_content sc ON sc.entity_type = 'song'
+                     AND sc.entity_id = s.id AND sc.published IS TRUE
+                WHERE s.id = ANY(:ids)
+                """
+            ),
+            {"ids": cand_ids},
+        ).fetchall()
+        by_id = {r.id: r for r in rows}
+        out: list[PublicRelatedSong] = []
+        for sid in cand_ids:  # preserva el orden de similitud del embedding
+            r = by_id.get(sid)
+            if not r:
+                continue
+            out.append(PublicRelatedSong(
+                title=r.title,
+                url_path=f"/{r.artist_slug}/{r.album_slug}/{r.song_slug}",
+                album_title=r.album_title,
+                year=r.year,
+                shared=0,
+            ))
+            if len(out) >= limit:
+                break
+        return out
+    except Exception:  # noqa: BLE001 — defensivo, cae al método por temas
+        return []
+
+
+def _related_songs(db: Session, song_id: int, limit: int = 6) -> list["PublicRelatedSong"]:
+    """Otras canciones que comparten temas+conceptos+lugares con `song_id`.
+
+    Solo canciones con seo_content de tipo 'song' publicado. Ordenadas por nº de
+    taxonomías solapadas (desc) y luego por año (desc). Excluye la propia.
+    """
+    sql = text(
+        """
+        WITH cur AS (
+            SELECT theme_id   AS tax FROM song_themes   WHERE song_id = :sid
+            UNION ALL
+            SELECT concept_id       FROM song_concepts  WHERE song_id = :sid
+            UNION ALL
+            SELECT place_id         FROM song_places    WHERE song_id = :sid
+        ),
+        others AS (
+            SELECT song_id, theme_id   AS tax FROM song_themes
+            UNION ALL
+            SELECT song_id, concept_id       FROM song_concepts
+            UNION ALL
+            SELECT song_id, place_id         FROM song_places
+        )
+        SELECT s.title,
+               s.slug      AS song_slug,
+               al.slug     AS album_slug,
+               al.title    AS album_title,
+               al.year     AS year,
+               ar.slug     AS artist_slug,
+               COUNT(*)    AS shared
+        FROM others o
+        JOIN cur     ON cur.tax = o.tax
+        JOIN songs   s  ON s.id = o.song_id
+        JOIN albums  al ON al.id = s.album_id
+        JOIN artists ar ON ar.id = al.artist_id
+        JOIN seo_content sc
+             ON sc.entity_type = 'song'
+            AND sc.entity_id = s.id
+            AND sc.published IS TRUE
+        WHERE o.song_id <> :sid
+        GROUP BY s.title, s.slug, al.slug, al.title, al.year, ar.slug
+        ORDER BY shared DESC, al.year DESC
+        LIMIT :lim
+        """
+    )
+    try:
+        rows = db.execute(sql, {"sid": song_id, "lim": limit}).mappings().all()
+    except Exception:
+        db.rollback()
+        return []
+    return [
+        PublicRelatedSong(
+            title=r["title"],
+            url_path=f"/{r['artist_slug']}/{r['album_slug']}/{r['song_slug']}",
+            album_title=r["album_title"],
+            year=r["year"],
+            shared=int(r["shared"]),
+        )
+        for r in rows
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
@@ -223,6 +425,24 @@ def list_public_artists(
         PublicArtistOut(slug=a.slug, name=a.name, active_years=a.active_years)
         for a in rows
     ]
+
+
+def _span_eras(eras: list[str]) -> str | None:
+    """Combina varias eras de membresía en un único rango legible.
+
+    ["1988-1990", "1990-1993"] -> "1988-1993"; ["1987"] -> "1987".
+    Si no hay años parseables, une los textos con " · ".
+    """
+    if not eras:
+        return None
+    import re as _re
+    years: list[int] = []
+    for e in eras:
+        years.extend(int(y) for y in _re.findall(r"\d{4}", e or ""))
+    if not years:
+        return " · ".join(eras)
+    lo, hi = min(years), max(years)
+    return str(lo) if lo == hi else f"{lo}-{hi}"
 
 
 @router.get("/artists/{slug}", response_model=PublicArtistDetailOut)
@@ -244,13 +464,49 @@ def public_artist_detail(
     # Carga miembros del grupo via BandMembership. Lazy import para no
     # complicar el bloque de imports del módulo.
     from app.db.models import BandMembership as _BM, Person as _P
+    from sqlalchemy import case as _case
+    # Robe es el protagonista del sitio: va siempre primero en la lista de
+    # miembros (tanto en su proyecto en solitario como en Extremoduro), y
+    # luego el resto por position/era.
     members_raw = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
         .filter(_BM.artist_id == artist.id)
-        .order_by(_BM.position, _BM.era)
+        .order_by(
+            _case((_P.slug == "robe-iniesta", 0), else_=1),
+            _BM.position,
+            _BM.era,
+        )
         .all()
     )
+    # Una persona puede tener varias membresías en el mismo artista (p.ej. Salo:
+    # bajista 1988-1990 y luego guitarrista 1990-1993). Colapsamos en una sola
+    # tarjeta combinando roles y abarcando el rango de eras, para no duplicarla.
+    _merged: dict[str, dict] = {}
+    _member_order: list[str] = []
+    for m, p in members_raw:
+        if p.slug not in _merged:
+            _merged[p.slug] = {
+                "slug": p.slug, "full_name": p.full_name,
+                "stage_name": p.stage_name, "roles": [], "eras": [],
+                "is_founder": False, "image_url": p.image_url,
+            }
+            _member_order.append(p.slug)
+        d = _merged[p.slug]
+        if m.role and m.role not in d["roles"]:
+            d["roles"].append(m.role)
+        if m.era and m.era not in d["eras"]:
+            d["eras"].append(m.era)
+        d["is_founder"] = d["is_founder"] or bool(m.is_founder)
+    members_out = [
+        PublicArtistMember(
+            slug=d["slug"], full_name=d["full_name"], stage_name=d["stage_name"],
+            role=" · ".join(d["roles"]) if d["roles"] else None,
+            era=_span_eras(d["eras"]),
+            is_founder=d["is_founder"], image_url=d["image_url"],
+        )
+        for d in (_merged[s] for s in _member_order)
+    ]
     seo = _try_get_seo(db, "artist", artist.id)
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
@@ -267,18 +523,7 @@ def public_artist_detail(
             )
             for a in albums
         ],
-        members=[
-            PublicArtistMember(
-                slug=p.slug,
-                full_name=p.full_name,
-                stage_name=p.stage_name,
-                role=m.role,
-                era=m.era,
-                is_founder=m.is_founder,
-                image_url=p.image_url,
-            )
-            for m, p in members_raw
-        ],
+        members=members_out,
         seo_body=seo["body_md"] if seo else None,
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
@@ -391,11 +636,16 @@ def public_song_detail(
             for c in song.concepts
         ],
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+        lineup=_lineup_for_album(db, artist.id, album.year),
+        related_songs=(
+            _related_songs_by_embedding(db, song.id) or _related_songs(db, song.id)
+        ),
     )
 
 
 class PublicSearchHit(BaseModel):
-    kind: str  # 'artist' | 'album' | 'song'
+    # 'artist' | 'album' | 'song' | 'person' | 'band' | 'theme' | 'place' | 'concept'
+    kind: str
     slug: str
     title: str
     subtitle: str | None = None  # ej. "Extremoduro · 1996" para una canción
@@ -435,7 +685,10 @@ def public_sitemap_entries(
                      WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
                      WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
                      WHEN sc.entity_type='person' THEN '/personas/' || sc.slug
-                     WHEN sc.entity_type='band'   THEN '/grupos/' || sc.slug
+                     WHEN sc.entity_type='band'   THEN
+                       CASE WHEN bd.kind = 'label'
+                            THEN '/sellos/' || sc.slug
+                            ELSE '/grupos/' || sc.slug END
                    END AS url_path
             FROM seo_content sc
             LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
@@ -443,6 +696,7 @@ def public_sitemap_entries(
             LEFT JOIN songs s     ON sc.entity_type='song' AND s.id = sc.entity_id
             LEFT JOIN albums al   ON s.album_id = al.id
             LEFT JOIN artists ar2 ON al.artist_id = ar2.id
+            LEFT JOIN bands bd    ON sc.entity_type='band' AND bd.id = sc.entity_id
             WHERE sc.published = true
             ORDER BY sc.entity_type, sc.slug
             """
@@ -566,7 +820,72 @@ def public_search(
             lyric_match=verse,
         ))
 
-    return PublicSearchOut(query=q, results=out)
+    # Knowledge graph + taxonomías. Matching insensible a acentos vía la
+    # extensión `unaccent` (ya instalada en initial_schema). Usamos SQL crudo
+    # con `unaccent(col) ILIKE unaccent(:pattern)` para que "nuñez" matchee
+    # "Núñez" y "leon" matchee "León".
+    from app.db.models import Band as _Band  # lazy
+
+    # Personas (full_name o stage_name) → /personas/{slug}
+    person_rows = db.execute(text(
+        """
+        SELECT slug, full_name, stage_name
+        FROM persons
+        WHERE unaccent(full_name) ILIKE unaccent(:pattern)
+           OR unaccent(COALESCE(stage_name, '')) ILIKE unaccent(:pattern)
+        ORDER BY full_name
+        LIMIT 8
+        """
+    ), {"pattern": pattern}).all()
+    for r in person_rows:
+        out.append(PublicSearchHit(
+            kind="person", slug=r.slug, title=r.full_name,
+            subtitle=r.stage_name,
+            url_path=f"/personas/{r.slug}",
+        ))
+
+    # Grupos / sellos afines (bands.name) → /grupos/{slug}
+    band_rows = db.execute(text(
+        """
+        SELECT slug, name, kind
+        FROM bands
+        WHERE unaccent(name) ILIKE unaccent(:pattern)
+        ORDER BY name
+        LIMIT 8
+        """
+    ), {"pattern": pattern}).all()
+    for r in band_rows:
+        is_label = r.kind == "label"
+        out.append(PublicSearchHit(
+            kind="band", slug=r.slug, title=r.name,
+            subtitle="Sello discográfico" if is_label else "Grupo",
+            url_path=f"/sellos/{r.slug}" if is_label else f"/grupos/{r.slug}",
+        ))
+
+    # Taxonomías: themes / places / concepts → /temas | /lugares | /conceptos
+    _taxonomies = [
+        ("themes", "theme", "/temas", "Tema"),
+        ("places", "place", "/lugares", "Lugar"),
+        ("concepts", "concept", "/conceptos", "Concepto"),
+    ]
+    for table, kind, prefix, label in _taxonomies:
+        tax_rows = db.execute(text(
+            f"""
+            SELECT slug, name
+            FROM {table}
+            WHERE unaccent(name) ILIKE unaccent(:pattern)
+            ORDER BY name
+            LIMIT 6
+            """
+        ), {"pattern": pattern}).all()
+        for r in tax_rows:
+            out.append(PublicSearchHit(
+                kind=kind, slug=r.slug, title=r.name,
+                subtitle=label,
+                url_path=f"{prefix}/{r.slug}",
+            ))
+
+    return PublicSearchOut(query=q, results=out[:30])
 
 
 # --------------------------------------------------------------------------- #
@@ -673,7 +992,12 @@ def _list_taxonomy(
         deduped = _dedupe_studio_vs_live(published)
         count = len(deduped)
         if count < threshold:
-            continue
+            # Lugares relevantes con artículo propio se muestran aunque no
+            # aparezcan en canciones: su valor es biográfico, no de cancionero
+            # (ej. Bilbao, Barakaldo, Muxika). Themes/concepts siguen exigiendo
+            # canciones (son símbolos del cancionero).
+            if not (kind == "place" and _try_get_seo(db, kind, r.id)):
+                continue
         result.append(PublicTaxonomyListItem(
             slug=r.slug, name=r.name, description=r.description, song_count=count,
         ))
@@ -703,8 +1027,11 @@ def _detail_taxonomy(
         ))
 
     threshold = _MIN_SONGS_BY_KIND.get(kind, 2)
-    if len(songs) < threshold:
-        # Coherente con _list_taxonomy.
+    # seo_content editorial de la taxonomía (entity_type == kind)
+    seo = _try_get_seo(db, kind, row.id)
+    if len(songs) < threshold and not (kind == "place" and seo):
+        # Coherente con _list_taxonomy. Los lugares con artículo propio se
+        # muestran aunque no aparezcan en canciones (valor biográfico).
         raise HTTPException(status_code=404, detail=f"{kind} sin suficientes canciones publicadas")
 
     extra = None
@@ -713,8 +1040,6 @@ def _detail_taxonomy(
                  "geo_lng": float(row.geo_lng) if row.geo_lng else None,
                  "kind": row.kind}
 
-    # seo_content editorial de la taxonomía (entity_type == kind)
-    seo = _try_get_seo(db, kind, row.id)
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
 
@@ -865,6 +1190,7 @@ class PublicPersonDetailOut(PublicPersonListItem):
     image_attribution: str | None = None
     image_license: str | None = None
     image_source_url: str | None = None
+    instruments: list[str] = []
     memberships: list[PublicPersonMembership] = []
     other_bands: list[PublicWikidataRef] = []
     notable_works: list[PublicWikidataRef] = []
@@ -958,6 +1284,11 @@ def public_person_detail(
         image_attribution=person.image_attribution,
         image_license=person.image_license,
         image_source_url=person.image_source_url,
+        instruments=[
+            i["name"]
+            for i in (person.instruments or [])
+            if isinstance(i, dict) and i.get("name")
+        ],
         memberships=memberships,
         other_bands=[
             _ref_with_internal(db, b) for b in (person.other_bands or [])

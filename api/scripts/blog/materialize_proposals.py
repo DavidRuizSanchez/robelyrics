@@ -48,6 +48,12 @@ from app.services.content_generator import (
 )
 from app.services.publishing import auto_publish_post
 from app.services.wikimedia import search_image
+from scripts.blog.context_builder import (
+    album_context,
+    artist_context,
+    song_context,
+    taxonomy_context,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -88,11 +94,16 @@ def _generate_body(db, p: ContentProposal) -> dict | None:
                 SeoContent.entity_type == "song", SeoContent.entity_id == song.id
             )
         ).scalar_one_or_none()
+        try:
+            ctx = song_context(db, song.id)
+        except Exception:
+            ctx = ""
         return generate_song_spotlight(
             song_title=song.title,
             album_title=album.title if album else "",
             artist_name=artist.name if artist else "",
             seo_excerpt=(seo.body_md if seo else None),
+            context=ctx,
             today=today,
         )
 
@@ -108,12 +119,17 @@ def _generate_body(db, p: ContentProposal) -> dict | None:
                 .order_by(Song.track_number.nulls_last())
             ).all()
         ]
+        try:
+            ctx = album_context(db, album.id)
+        except Exception:
+            ctx = ""
         return generate_album_anniversary(
             album_title=album.title,
             artist_name=artist.name if artist else "",
             years_since=max(years, 1),
             release_year=album.release_date.year if album.release_date else album.year,
             track_titles=track_titles,
+            context=ctx,
             today=today,
         )
 
@@ -124,8 +140,16 @@ def _generate_body(db, p: ContentProposal) -> dict | None:
             years = today.year - 2025
         else:
             years = today.year - 1962
+        try:
+            robe = db.execute(
+                select(Artist).where(Artist.slug == "robe")
+            ).scalar_one_or_none()
+            ctx = artist_context(db, robe.id) if robe else ""
+        except Exception:
+            ctx = ""
         return generate_anniversary(
-            kind, person_name=ROBE, years_since=max(years, 1), today=today
+            kind, person_name=ROBE, years_since=max(years, 1),
+            context=ctx, today=today,
         )
 
     if p.kind == "evergreen":
@@ -144,11 +168,25 @@ def _generate_body(db, p: ContentProposal) -> dict | None:
         if model and p.source_id:
             tax = db.get(model, p.source_id)
             if tax:
+                try:
+                    song_ids = [s.id for s in tax.songs]
+                    seo_tax = db.execute(
+                        select(SeoContent).where(
+                            SeoContent.entity_type == p.source_type,
+                            SeoContent.entity_id == tax.id,
+                        )
+                    ).scalar_one_or_none()
+                    ctx = taxonomy_context(
+                        db, song_ids, seo_tax.body_md if seo_tax else None
+                    )
+                except Exception:
+                    ctx = ""
                 return generate_evergreen_topic(
                     taxonomy_kind=p.source_type,
                     taxonomy_name=tax.name,
                     taxonomy_description=tax.description,
                     song_titles=[s.title for s in tax.songs],
+                    context=ctx,
                     today=today,
                 )
         return None

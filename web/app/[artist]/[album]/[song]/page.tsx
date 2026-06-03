@@ -7,7 +7,9 @@ import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
+import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import RelatedSongs from "@/components/RelatedSongs";
+import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -182,9 +184,13 @@ export default async function SongPublicPage({
           </div>
         )}
 
+        <SongDataTable detail={detail} />
+
         <article className="mb-12">
           <MarkdownArticle markdown={detail.seo_body} />
         </article>
+
+        <RelatedSongs songs={detail.related_songs} />
 
         {detail.snippet.length > 0 && (
           <section className="mt-16 max-w-[680px] border-l-2 border-accent/40 pl-6 py-2">
@@ -227,7 +233,7 @@ export default async function SongPublicPage({
               currentSlug={song}
               tracks={albumDetail.tracks}
             />
-            <RelatedSongs
+            <AlbumSiblingSongs
               artistSlug={artist}
               albumSlug={album}
               albumTitle={detail.album.title}

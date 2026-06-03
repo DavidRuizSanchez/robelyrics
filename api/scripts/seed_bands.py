@@ -62,6 +62,8 @@ def main() -> None:
                 band.wikidata_id = entry["wikidata_id"]
             if entry.get("related_note"):
                 band.related_note = " ".join(entry["related_note"].split())
+            if entry.get("relation_type"):
+                band.relation_type = entry["relation_type"]
             if entry.get("founded_year"):
                 band.founded_year = entry["founded_year"]
             if entry.get("members"):

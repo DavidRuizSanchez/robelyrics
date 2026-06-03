@@ -11,8 +11,15 @@ Reglas legales/editoriales que TODOS los prompts deben respetar:
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    yaml = None
 
 from openai import OpenAI
 from sqlalchemy import select
@@ -30,16 +37,76 @@ from scripts.research.common import log
 from app.services.voice import build_system_prompt
 
 MODEL = "gpt-4o"
-# Voz única del sitio (1ª persona admiradora). Ver app/services/voice.py.
+# Voz por defecto del sitio. Los generadores con voz propia (persona/grupo/lugar/
+# tema, etc.) pasan su `system_prompt` a call_llm. Ver app/services/voice.py.
 SYSTEM_PROMPT = build_system_prompt(family="seo")
 
 
-def call_llm(client: OpenAI, user_prompt: str) -> dict[str, Any]:
-    """Invoca GPT-4o con structured output JSON. Lanza ValueError si JSON inválido."""
+def _data_dir_candidates() -> list[str]:
+    """Rutas posibles del dir data/ (contenedor `/app/data` y repo local)."""
+    here = os.path.dirname(os.path.abspath(__file__))  # .../api/scripts/seo
+    return [
+        "/app/data",
+        os.path.normpath(os.path.join(here, "..", "..", "..", "data")),  # repo/data
+        os.path.normpath(os.path.join(here, "..", "..", "data")),
+    ]
+
+
+@lru_cache(maxsize=1)
+def _load_robe_quotes() -> tuple[dict[str, Any], ...]:
+    """Citas VERIFICADAS de Robe desde data/robe_quotes.yaml (cacheado)."""
+    if yaml is None:
+        return ()
+    for d in _data_dir_candidates():
+        path = os.path.join(d, "robe_quotes.yaml")
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh) or {}
+                return tuple(
+                    q for q in (data.get("quotes") or [])
+                    if isinstance(q, dict) and q.get("verified") and q.get("text")
+                )
+            except Exception:  # noqa: BLE001
+                return ()
+    return ()
+
+
+def tone_quotes_for(
+    tags: list[str] | None = None, *, k: int = 3, seed: str = ""
+) -> list[str]:
+    """Hasta k citas de Robe para calibrar el tono (piezas en 1ª persona).
+
+    Con `tags` prioriza las que solapan temáticamente; sin tags, rota de forma
+    DETERMINISTA por `seed` (sin azar, para que la regeneración sea reproducible).
+    """
+    quotes = list(_load_robe_quotes())
+    if not quotes:
+        return []
+    tagset = {t.lower() for t in (tags or [])}
+    if tagset:
+        def _score(q: dict) -> int:
+            return len(tagset & {t.lower() for t in (q.get("tags") or [])})
+        quotes.sort(key=lambda q: (-_score(q), q.get("text", "")))
+        return [q["text"] for q in quotes[:k]]
+    quotes.sort(key=lambda q: q.get("text", ""))
+    offset = (sum(ord(c) for c in seed) % len(quotes)) if seed else 0
+    rotated = quotes[offset:] + quotes[:offset]
+    return [q["text"] for q in rotated[:k]]
+
+
+def call_llm(
+    client: OpenAI, user_prompt: str, *, system_prompt: str | None = None
+) -> dict[str, Any]:
+    """Invoca GPT-4o con structured output JSON. Lanza ValueError si JSON inválido.
+
+    system_prompt: override de la voz por defecto. Las fichas de persona/grupo
+    pasan uno con foco de sujeto (ver app.services.voice.build_system_prompt).
+    """
     resp = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
@@ -66,6 +133,7 @@ def upsert_seo_content(
     meta_description: str | None,
     schema_jsonld: dict | None,
     entities: list | None = None,
+    sources: list[dict] | None = None,
     force: bool = False,
 ) -> int:
     """Inserta o actualiza la fila correspondiente. Si ya existe y --force,
@@ -102,6 +170,7 @@ def upsert_seo_content(
     if body_md:
         from app.services.entity_resolver import (
             autolink_corpus,
+            autolink_sources,
             build_corpus_index,
             load_link_stats,
         )
@@ -109,6 +178,10 @@ def upsert_seo_content(
             body_md, build_corpus_index(db), max_links=4,
             exclude_slug=slug, link_stats=load_link_stats(),
         )
+        # Enlazado externo a medios citados: si una fuente (Mondo Sonoro, Efe
+        # Eme…) se nombra en el cuerpo, enlaza el medio a su url de origen.
+        if sources:
+            body_md = autolink_sources(body_md, sources)
 
     stmt = (
         pg_insert(SeoContent)
@@ -163,6 +236,7 @@ def fetch_sources_for_song(db: Session, song_id: int) -> list[dict[str, Any]]:
             "kind": r.kind,
             "title": r.title or "",
             "author": r.author or "",
+            "url": r.url or "",
             "for_seo_only": r.for_seo_only,
             "content": (r.content_clean or "")[:3000],  # truncamos por tokens
         }
@@ -207,6 +281,7 @@ def fetch_sources_for_album(db: Session, album_id: int) -> list[dict[str, Any]]:
             "kind": r.kind,
             "title": r.title or "",
             "author": r.author or "",
+            "url": r.url or "",
             "for_seo_only": r.for_seo_only,
             "content": (r.content_clean or "")[:3000],
         })
@@ -247,6 +322,7 @@ def fetch_sources_for_artist(db: Session, artist_id: int) -> list[dict[str, Any]
             "kind": r.kind,
             "title": r.title or "",
             "author": r.author or "",
+            "url": r.url or "",
             "for_seo_only": r.for_seo_only,
             "content": (r.content_clean or "")[:2000],
         }
@@ -287,6 +363,7 @@ def fetch_sources_for_entity(
             "kind": r.kind,
             "title": r.title or "",
             "author": r.author or "",
+            "url": r.url or "",
             "for_seo_only": r.for_seo_only,
             "content": (r.content_clean or "")[:2500],
         }

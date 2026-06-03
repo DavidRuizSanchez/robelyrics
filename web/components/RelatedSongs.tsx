@@ -1,50 +1,39 @@
 import Link from "next/link";
-import type { PublicTrackOut } from "@/lib/types";
+import type { PublicRelatedSong } from "@/lib/types";
 
 type Props = {
-  artistSlug: string;
-  albumSlug: string;
-  albumTitle: string;
-  currentSlug: string;
-  tracks: PublicTrackOut[];
+  songs: PublicRelatedSong[];
 };
 
-// Bloque "Otras canciones de este álbum" en la página de canción. Cada track
-// del álbum recibe un inlink adicional desde cada una de sus hermanas → sube
-// la mediana de inlinks por canción de 3 a ~12-15.
-export default function RelatedSongs({
-  artistSlug,
-  albumSlug,
-  albumTitle,
-  currentSlug,
-  tracks,
-}: Props) {
-  const siblings = tracks.filter((t) => t.slug !== currentSlug);
-  if (siblings.length === 0) return null;
+// Bloque "Canciones que tocan lo mismo": otras canciones del corpus (de
+// cualquier disco) que comparten temas/conceptos/lugares con la actual.
+// Refuerza el enlazado interno temático cross-album.
+export default function RelatedSongs({ songs }: Props) {
+  if (songs.length === 0) return null;
 
   return (
     <section className="mt-16">
       <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
-        Más canciones de {albumTitle}
+        Canciones que tocan lo mismo
       </h2>
-      <ol className="space-y-1">
-        {siblings.map((t, i) => (
-          <li key={t.slug}>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {songs.map((s) => (
+          <li key={s.url_path}>
             <Link
-              href={`/${artistSlug}/${albumSlug}/${t.slug}`}
+              href={s.url_path}
               data-cursor="hover"
-              className="group flex items-baseline gap-4 py-2 px-4 -mx-4 hover:bg-paper transition-colors"
+              className="group block py-3 px-4 border border-divider hover:border-accent/60 hover:bg-paper transition-colors"
             >
-              <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right">
-                {t.track_number ?? i + 1}
+              <span className="block font-serif text-lg text-ink-dim group-hover:text-accent transition-colors leading-tight">
+                {s.title}
               </span>
-              <span className="font-serif text-base md:text-lg text-ink-dim group-hover:text-accent transition-colors leading-tight">
-                {t.title}
+              <span className="mt-1 block font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+                {s.album_title} · {s.year}
               </span>
             </Link>
           </li>
         ))}
-      </ol>
+      </ul>
     </section>
   );
 }

@@ -25,6 +25,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.db.models import Band
+from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
@@ -51,8 +52,40 @@ def _band_summary(band: Band) -> str:
     return ". ".join(parts) + "."
 
 
+def _bond_heading(band: Band) -> tuple[str, str]:
+    """Devuelve (encabezado_H2, instrucción) para la sección del lazo con
+    Extremoduro, ramificado según band.relation_type."""
+    if band.relation_type == "family":
+        return (
+            "## El lazo de sangre con el universo de Robe",
+            "el vínculo de familia: este grupo nace de las costillas de "
+            "Extremoduro (músicos, proyectos paralelos, sangre compartida del "
+            "círculo de Robe). Cuéntalo como lo que es, familia del universo "
+            "Extremoduro. Nombra en texto plano a la gente del entorno (Robe, "
+            "Uoho, Fito…) para que se enlacen. No inventes colaboraciones que "
+            "no consten.",
+        )
+    if band.relation_type == "friend":
+        return (
+            "## La trinchera compartida con Extremoduro",
+            "el vínculo de escena: carretera, escenarios y festivales "
+            "compartidos, respeto mutuo entre iguales del rock estatal. No es "
+            "familia, son compañeros de trinchera. Nombra en texto plano a la "
+            "gente del entorno (Robe, Fito, Rosendo, Kutxi…) para que se "
+            "enlacen. No inventes colaboraciones que no consten.",
+        )
+    return (
+        "## Relación con Extremoduro y Robe",
+        "el vínculo documentado con el universo de Robe (escena compartida, "
+        "gente en común, escenarios, carretera). Nombra en texto plano a las "
+        "personas del entorno (Robe, Fito, Rosendo, Kutxi…) para que se "
+        "enlacen. No inventes colaboraciones que no consten.",
+    )
+
+
 def _build_low_data_prompt(band: Band) -> str:
     summary = _band_summary(band)
+    bond_heading, bond_instr = _bond_heading(band)
     return f"""\
 Escribe un artículo editorial de 600 a 900 palabras sobre {band.name},
 en relación con el universo de Extremoduro y Robe Iniesta.
@@ -78,11 +111,8 @@ instrumento/rol, en texto plano (el sistema enlaza solo). Si la formación no
 está documentada, dilo con honestidad y nombra solo a quien conste (al menos
 el líder). NO inventes nombres.
 
-## Relación con Extremoduro y Robe
-~300 palabras: el vínculo documentado con el universo de Robe (escenarios
-compartidos, gente en común, círculo, época). Nombra en texto plano a las
-personas del entorno (Robe, Fito, Rosendo, Kutxi…) para que se enlacen. No
-inventes colaboraciones que no consten.
+{bond_heading}
+~300 palabras: {bond_instr}
 
 ## Lo documentado y lo que queda en penumbra
 ~150 palabras: reconoce con honestidad qué se sabe y qué no.
@@ -113,6 +143,7 @@ def _build_prompt(band: Band, sources: list[dict] | None = None) -> str:
         return _build_low_data_prompt(band)
 
     kind_es = "sello discográfico" if band.kind == "label" else "grupo de rock"
+    bond_heading, bond_instr = _bond_heading(band)
     return f"""\
 Escribe un artículo SEO de 1400-2000 palabras sobre {band.name}, {kind_es}
 del entorno del rock español, en relación con el universo de Extremoduro y
@@ -154,11 +185,8 @@ en texto plano (sin links markdown). NO inventes discos ni fechas.
 ## Estilo y sonido
 ~300 palabras: qué hace distintivo a {band.name} musicalmente.
 
-## Relación con Extremoduro y Robe
-~400 palabras: el vínculo real con el universo de Robe (escena compartida,
-gente en común, escenarios, carretera). Nombra en texto plano a las personas
-del entorno que compartan (p.ej. Robe, Fito, Rosendo, Kutxi…) para que se
-enlacen a sus fichas. No inventes colaboraciones que no consten.
+{bond_heading}
+~400 palabras: {bond_instr}
 
 IMPORTANTE:
 - NO uses placeholders entre corchetes en el texto final.
@@ -177,14 +205,17 @@ def _build_schema(band: Band) -> dict:
     if band.wikidata_id:
         same_as.append(f"https://www.wikidata.org/wiki/{band.wikidata_id}")
 
-    schema_type = "MusicGroup" if band.kind != "label" else "Organization"
-    anchor = "musicgroup" if band.kind != "label" else "organization"
+    is_label = band.kind == "label"
+    schema_type = "Organization" if is_label else "MusicGroup"
+    anchor = "organization" if is_label else "musicgroup"
+    # Los sellos viven en /sellos; los grupos en /grupos.
+    section = "sellos" if is_label else "grupos"
     schema: dict = {
         "@context": "https://schema.org",
         "@type": schema_type,
-        "@id": f"{SITE_URL}/grupos/{band.slug}#{anchor}",
+        "@id": f"{SITE_URL}/{section}/{band.slug}#{anchor}",
         "name": band.name,
-        "url": f"{SITE_URL}/grupos/{band.slug}",
+        "url": f"{SITE_URL}/{section}/{band.slug}",
     }
     if band.founded_year:
         schema["foundingDate"] = str(band.founded_year)
@@ -217,8 +248,13 @@ def generate_for_band(client: OpenAI, db, band_slug: str, *, force: bool) -> boo
     log(f"generando grupo: {band.name} (kind={band.kind}, "
         f"bio_long={'sí' if band.bio_long else 'no'}, {len(sources)} fuentes)")
     prompt = _build_prompt(band, sources)
+    # Voz propia: 3ª persona cálida y cómplice, con el grupo como protagonista
+    # (no Robe). Ver app/services/voice.py.
+    system_prompt = build_system_prompt(
+        family="seo", persona="tercera_calida", subject=band.name
+    )
     try:
-        out = call_llm(client, prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False
@@ -239,6 +275,7 @@ def generate_for_band(client: OpenAI, db, band_slug: str, *, force: bool) -> boo
         meta_description=out.get("meta_description"),
         schema_jsonld=schema,
         entities=out.get("entities") or [],
+        sources=sources,
         force=force,
     )
     db.commit()

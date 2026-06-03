@@ -71,19 +71,19 @@ export async function generateMetadata({
   const { slug } = await params;
   const detail = await fetchBand(slug);
   if (!detail) return {};
-  // Los sellos viven en /sellos: su canónica apunta allí.
-  if (detail.kind === "label") {
-    return { alternates: { canonical: `${SITE_URL}/sellos/${slug}` } };
+  // Un grupo (no sello) no se sirve aquí: su canónica apunta a /grupos.
+  if (detail.kind !== "label") {
+    return { alternates: { canonical: `${SITE_URL}/grupos/${slug}` } };
   }
   const title = detail.seo_meta_title || `${detail.name} · Entre Interiores`;
   const description =
     detail.seo_meta_description ||
     detail.bio_short ||
-    `${detail.name}, grupo afín al universo de Extremoduro y Robe.`;
+    `${detail.name}, sello discográfico del universo de Extremoduro y Robe.`;
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/grupos/${slug}` },
+    alternates: { canonical: `${SITE_URL}/sellos/${slug}` },
     openGraph: {
       title,
       description,
@@ -99,13 +99,12 @@ function buildJsonLd(detail: BandDetail): Record<string, unknown> {
   if (detail.wikidata_id)
     sameAs.push(`https://www.wikidata.org/wiki/${detail.wikidata_id}`);
 
-  const isLabel = detail.kind === "label";
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": isLabel ? "Organization" : "MusicGroup",
-    "@id": `${SITE_URL}/grupos/${detail.slug}#${isLabel ? "organization" : "musicgroup"}`,
+    "@type": "Organization",
+    "@id": `${SITE_URL}/sellos/${detail.slug}#organization`,
     name: detail.name,
-    url: `${SITE_URL}/grupos/${detail.slug}`,
+    url: `${SITE_URL}/sellos/${detail.slug}`,
   };
   if (detail.founded_year) schema.foundingDate = String(detail.founded_year);
   if (detail.dissolved_year)
@@ -137,7 +136,7 @@ function buildJsonLd(detail: BandDetail): Record<string, unknown> {
   return schema;
 }
 
-export default async function GrupoPage({
+export default async function SelloPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -145,14 +144,14 @@ export default async function GrupoPage({
   const { slug } = await params;
   const detail = await fetchBand(slug);
   if (!detail) notFound();
-  // Un sello discográfico no se sirve aquí: redirige permanente a /sellos.
-  if (detail.kind === "label") redirect(`/sellos/${detail.slug}`);
+  // Un grupo (no sello) no se sirve aquí: redirige permanente a /grupos.
+  if (detail.kind !== "label") redirect(`/grupos/${detail.slug}`);
 
   const years = detail.founded_year
     ? `${detail.founded_year}${detail.dissolved_year ? `–${detail.dissolved_year}` : ""}`
     : null;
-  const kindLabel = detail.kind === "label" ? "sello discográfico" : "grupo";
-  const path = `/grupos/${detail.slug}`;
+  const kindLabel = "sello discográfico";
+  const path = `/sellos/${detail.slug}`;
   const jsonLd = buildGraph([
     asNode(buildJsonLd(detail)),
     webPageNode({
@@ -160,11 +159,11 @@ export default async function GrupoPage({
       name: detail.name,
       type: "ProfilePage",
       description: detail.seo_meta_description,
-      mainEntityId: canonical.band(detail.slug, detail.kind === "label"),
+      mainEntityId: canonical.band(detail.slug, true),
     }),
     breadcrumbListNode(path, [
       { name: "Entre Interiores", item: "/" },
-      { name: "Grupos", item: "/grupos" },
+      { name: "Sellos", item: "/sellos" },
       { name: detail.name, item: path },
     ]),
   ]);
@@ -177,8 +176,8 @@ export default async function GrupoPage({
           className="mb-8"
           items={[
             { label: "Entre Interiores", href: "/" },
-            { label: "Grupos", href: "/grupos" },
-            { label: detail.name, href: `/grupos/${detail.slug}` },
+            { label: "Sellos", href: "/sellos" },
+            { label: detail.name, href: `/sellos/${detail.slug}` },
           ]}
         />
 
@@ -189,7 +188,7 @@ export default async function GrupoPage({
                 <div className="aspect-[3/4] overflow-hidden bg-divider/30 relative">
                   <Image
                     src={detail.image_url}
-                    alt={`${detail.name}, ${kindLabel} afín a Extremoduro y Robe`}
+                    alt={`${detail.name}, ${kindLabel} de Extremoduro y Robe`}
                     fill
                     sizes="(max-width: 768px) 100vw, 280px"
                     priority
@@ -240,7 +239,7 @@ export default async function GrupoPage({
               <dl className="mt-8 space-y-2 font-mono text-[11px] tracking-[1px] uppercase text-ink-faint">
                 {detail.members.length > 0 && (
                   <div className="flex gap-4">
-                    <dt className="w-32">formación</dt>
+                    <dt className="w-32">artistas</dt>
                     <dd className="text-ink-dim normal-case tracking-normal font-serif">
                       {detail.members.join(" · ")}
                     </dd>

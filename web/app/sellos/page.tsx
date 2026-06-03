@@ -20,10 +20,10 @@ const SITE_URL =
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Grupos afines a Extremoduro · Entre Interiores",
+  title: "Sellos discográficos del universo Extremoduro · Entre Interiores",
   description:
-    "Los grupos del mismo barro que Extremoduro y Robe: el rock estatal que compartió escenario, cartel y carretera con ellos.",
-  alternates: { canonical: `${SITE_URL}/grupos` },
+    "Los sellos discográficos que editaron a Extremoduro y Robe: de El Dromedario Records a DRO, Avispa o Warner. La trastienda de la industria del rock estatal.",
+  alternates: { canonical: `${SITE_URL}/sellos` },
 };
 
 type BandListItem = {
@@ -35,14 +35,14 @@ type BandListItem = {
   image_url: string | null;
 };
 
-export default async function GruposPage() {
+export default async function SellosPage() {
   let items: BandListItem[] = [];
   try {
     const all = await apiFetch<BandListItem[]>("/public/bands", {
       authenticated: false,
     });
-    // /grupos solo lista bandas; los sellos discográficos viven en /sellos.
-    items = all.filter((b) => b.kind !== "label");
+    // /sellos solo lista sellos discográficos (kind === "label").
+    items = all.filter((b) => b.kind === "label");
   } catch {
     items = [];
   }
@@ -55,26 +55,26 @@ export default async function GruposPage() {
           className="mb-8"
           items={[
             { label: "Entre Interiores", href: "/" },
-            { label: "Grupos", href: "/grupos" },
+            { label: "Sellos", href: "/sellos" },
           ]}
         />
 
         <header className="mb-14">
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-            el mismo barro
+            la trastienda
           </p>
           <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
-            Grupos afines a Extremoduro
+            Sellos discográficos
           </h1>
           <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
-            El rock estatal que compartió escenario, cartel y carretera con
-            Extremoduro y Robe. Las bandas del mismo barro. ¿Buscas los{" "}
+            Las discográficas que editaron y distribuyeron a Extremoduro y Robe.
+            ¿Buscas los{" "}
             <Link
-              href="/sellos"
+              href="/grupos"
               data-cursor="hover"
               className="text-accent hover:underline not-italic"
             >
-              sellos discográficos
+              grupos afines
             </Link>
             ?
           </p>
@@ -82,7 +82,7 @@ export default async function GruposPage() {
 
         {items.length === 0 ? (
           <p className="font-serif italic text-ink-dim">
-            Sin grupos registrados todavía.
+            Sin sellos registrados todavía.
           </p>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
@@ -90,11 +90,10 @@ export default async function GruposPage() {
               const years = b.founded_year
                 ? `${b.founded_year}${b.dissolved_year ? `–${b.dissolved_year}` : ""}`
                 : "";
-              const kindLabel = b.kind === "label" ? "sello" : "grupo";
               return (
                 <li key={b.slug}>
                   <Link
-                    href={`/grupos/${b.slug}`}
+                    href={`/sellos/${b.slug}`}
                     data-cursor="hover"
                     className="group block"
                   >
@@ -102,7 +101,7 @@ export default async function GruposPage() {
                       {b.image_url ? (
                         <Image
                           src={b.image_url}
-                          alt={`${b.name}, ${kindLabel} afín a Extremoduro y Robe`}
+                          alt={`${b.name}, sello discográfico de Extremoduro y Robe`}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
@@ -114,7 +113,7 @@ export default async function GruposPage() {
                       )}
                     </div>
                     <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent mb-1">
-                      {kindLabel}
+                      sello
                     </p>
                     <h2 className="font-serif text-2xl text-ink group-hover:text-accent transition-colors leading-tight">
                       {b.name}
@@ -136,22 +135,22 @@ export default async function GruposPage() {
             __html: safeJsonLd(
               buildGraph([
                 webPageNode({
-                  path: "/grupos",
-                  name: "Grupos afines a Extremoduro",
+                  path: "/sellos",
+                  name: "Sellos discográficos del universo Extremoduro",
                   type: "CollectionPage",
-                  mainEntityId: canonical.itemList("/grupos"),
+                  mainEntityId: canonical.itemList("/sellos"),
                 }),
                 itemListNode(
-                  "/grupos",
+                  "/sellos",
                   items.map((b) => ({
                     name: b.name,
-                    url: `/grupos/${b.slug}`,
-                    id: canonical.band(b.slug, b.kind === "label"),
+                    url: `/sellos/${b.slug}`,
+                    id: canonical.band(b.slug, true),
                   })),
                 ),
-                breadcrumbListNode("/grupos", [
+                breadcrumbListNode("/sellos", [
                   { name: "Entre Interiores", item: "/" },
-                  { name: "Grupos", item: "/grupos" },
+                  { name: "Sellos", item: "/sellos" },
                 ]),
               ]),
             ),

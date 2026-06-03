@@ -1,0 +1,377 @@
+# Fuentes de autoridad curadas → se importan como filas InterpretationSource
+# (script: scripts/research/import_reference_sources.py). El `content` es
+# PARÁFRASIS propia de datos verificables (no copia del libro), redactada para
+# MENCIONAR los nombres de entidad (así fetch_sources_for_entity las enlaza por
+# nombre) y los títulos de canción/disco (así find_referenced_titles las liga).
+# for_seo_only: true → alimentan solo la generación SEO pública, no el destilador fan.
+#
+# Fuentes base: «Extremoduro. De Profundis» (Menéndez Flores, biografía autorizada)
+# y la novela «El viaje íntimo de la locura» (Robe, 2009). Ver data/reference/*.md.
+
+sources:
+  - kind: libro
+    title: "Extremoduro. De Profundis (biografía autorizada) — Robe, orígenes"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#robe-origenes"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Roberto Iniesta Ojea, Robe, nació en Plasencia (Cáceres) el 16 de mayo de 1962
+      en una familia obrera. Trabajó de chapista en el taller de su padre (de ahí el
+      verso "Antes era chapista" de Jesucristo García), vendió chucherías en una
+      furgoneta y regentó en Plasencia un bar de copas, el Simetría, que fue el local
+      decisivo de los inicios de Extremoduro. Dejó los estudios a mitad de BUP y los
+      retomó décadas después en la UNED, estudiando gramática y ortografía mientras
+      escribía su novela. Bautizó su música como rock transgresivo y se autoproclamó
+      "Rey de Extremadura". Desde 1999 vive en el País Vasco. Se declara ateo,
+      antinacionalista y partidario de la legalización de las drogas.
+
+  - kind: libro
+    title: "De Profundis — Extremoduro, historia y sellos"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#extremoduro-historia"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Extremoduro se formó en Plasencia en 1987. Se autofinanció vendiendo boletos a
+      mil pesetas en el bar Simetría y grabó la maqueta Rock transgresivo en enero de
+      1989. Pasó por los sellos Avispa (debut), Pasión (Somos unos animales), DRO
+      (desde Deltoya, 1992) y Warner (desde La ley innata, 2008). El productor de la
+      banda desde Agila es Iñaki Uoho Antón: Robe firma música y letra; Uoho, la
+      música y la producción. En 2012, veinticinco años después de fundarse, hicieron
+      su primera gira por América.
+
+  - kind: libro
+    title: "De Profundis — Gonzalo Muñoz «Salo»"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#salo"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Gonzalo Muñoz, Salo, fue bajista y luego guitarrista solista de Extremoduro en
+      los tres primeros discos. Era unos diez años mayor que Robe y venía de Los Dogos,
+      grupo pionero del rock de Plasencia fundado en 1966, igual que el batería Luis
+      Iglesias von Fanta. De alma setentera y psicodélica, suyo es el solo de guitarra
+      que abre Tu corazón. Empezó a tocar de adolescente. Cuando la banda pasó a
+      cuarteto y entró Carlos el Sucio al bajo, Salo se quedó con la guitarra solista.
+      Gonzalo Muñoz dejó Extremoduro en agosto de 1993.
+
+  - kind: libro
+    title: "De Profundis — Iñaki «Uoho» Antón"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#uoho"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Iñaki Antón, Uoho, nació en Bilbao el 3 de agosto de 1964. Estudió solfeo y
+      piano en el conservatorio y empezó con la guitarra a los diecisiete. Su primer
+      grupo, embrión de Platero y Tú, lo formó con Juantxu Mongol Olano. Entró en
+      Extremoduro como guitarra solista y arreglista y es su productor desde Agila;
+      compaginó durante seis años Platero y Tú con Extremoduro. Grabó en su casa-estudio
+      de Muxika (Vizcaya) discos como Yo, minoría absoluta, La ley innata y Material
+      defectuoso. Iñaki Uoho Antón ayudó a Robe a escribir su novela de principio a fin.
+
+  - kind: libro
+    title: "De Profundis — Miguel Colino"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#colino"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Miguel Colino, bajista de Extremoduro, nació en Portugalete (Vizcaya) en 1966.
+      Antes había tocado en Neurosis y en The Flying Rebollos, y fue el bajista del
+      primer disco de Fito & Fitipaldis, donde conoció a Robe. Regentó el bar Izai en
+      Portugalete. Entró en Extremoduro en 2001, para Yo, minoría absoluta, y completó
+      la formación estable de Robe, Uoho, Cantera y Colino que se mantuvo más de una
+      década.
+
+  - kind: libro
+    title: "De Profundis — José Ignacio Cantera"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#cantera"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      José Ignacio Cantera, batería de Extremoduro, nació en Bilbao en 1970. Es hermano
+      del también batería Ricardo Cantera, que le aficionó al instrumento. Antes de
+      Extremoduro pasó por grupos como Jarabe de Palo. Reclutado por Uoho, entró
+      oficialmente en Canciones prohibidas (1998) sustituyendo a Capi. Durante la sequía
+      creativa entre Yo, minoría absoluta y La ley innata dio clases de batería en una
+      academia de Indautxu, en Bilbao.
+
+  - kind: libro
+    title: "De Profundis — Agila (1996)"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#agila"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Agila se publicó el 23 de febrero de 1996 en DRO; agila significa "espabila" en
+      castúo. Se grabó en los estudios Box de Madrid desde finales de 1995, con
+      producción y arreglos de Iñaki Uoho Antón, cuyo papel se volvió decisivo, e
+      ingeniería de Ventura Rico. Incluye la versión Me estoy quitando del grupo
+      Tabletom y la colaboración de Albert Pla en ¡Qué sonrisa tan rara!; Fito Cabrales
+      toca la guitarra española y el cajón en Me estoy quitando. So payaso fue el gran
+      éxito del disco. Agila superó las trescientas mil copias.
+
+  - kind: libro
+    title: "De Profundis — Canciones prohibidas (1998)"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#canciones-prohibidas"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      Canciones prohibidas se publicó el 28 de septiembre de 1998. Se grabó en los
+      estudios Lorentzo Records de Berriz (Vizcaya) durante el verano de 1998, con
+      producción de Iñaki Uoho Antón y técnico Aitor Ariño. Marcó la entrada oficial de
+      Uoho y del batería José Ignacio Cantera. Robe y Uoho hicieron de hombres orquesta
+      tocando casi todo, con arreglos de cuerda de un cuarteto polaco. La portada del
+      "hombre del saco" es el propio Uoho. Fito & Fitipaldis fueron teloneros de la gira.
+
+  - kind: libro
+    title: "De Profundis — La ley innata (2008)"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#la-ley-innata"
+    for_seo_only: true
+    quality_score: 0.9
+    content: |
+      La ley innata se publicó el 9 de septiembre de 2008, primer disco en Warner. Es
+      un disco conceptual, una sola pieza de menos de cuarenta y cinco minutos dividida
+      en seis movimientos que arranca con Dulce introducción al caos. Se grabó en la
+      casa-estudio de Iñaki Uoho Antón en Muxika, con producción de Uoho, y la cuerda
+      la puso un cuarteto encabezado por el violinista Ara Malikian. Llegó tras una
+      larga sequía creativa de Robe. La portada usa el Hombre de Vitruvio y una cita de
+      Cicerón sobre la ley innata.
+
+  - kind: libro
+    title: "De Profundis — Platero y Tú"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#platero"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Platero y Tú fue la banda de Iñaki Uoho Antón y Fito Cabrales, hermanada con
+      Extremoduro. Sus miembros colaboraron en el directo Iros todos a tomar por culo y
+      ambos grupos compartieron una gira conjunta en 1995 que terminó en el Palacio de
+      los Deportes de Madrid. De aquella formación salieron Fito Cabrales, el bajista
+      Juantxu Mongol Olano y el batería Jesús Maguila García. Platero y Tú se disolvió
+      en 2001 por decisión de Fito Cabrales.
+
+  - kind: libro
+    title: "De Profundis — Extrechinato y Tú / Poesía básica"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#extrechinato"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Extrechinato y Tú fue el grupo creado para musicalizar la poesía de Manolo
+      Chinato en el disco Poesía básica, presentado en mayo de 2001. Lo formaron Robe,
+      Iñaki Uoho Antón, Fito Cabrales y el propio Manolo Chinato; el nombre une
+      Extremoduro, Chinato y Platero y Tú. Se grabó entre Lorentzo Records, Puerto de
+      Béjar y la casa de Iñaki en Muxika. Fue disco de oro.
+
+  - kind: libro
+    title: "De Profundis — Inconscientes"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#inconscientes"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Inconscientes, antes llamado La inconsciencia de Uoho, fue una banda de rock and
+      roll formada hacia 2006 por tres miembros de Extremoduro, Iñaki Uoho Antón, José
+      Ignacio Cantera y Miguel Colino, junto a Jon Calvo, líder de Memoria de Pez. Robe
+      no tocaba: cofinanciaba y promocionaba el proyecto a través de su sello Muxik.es.
+
+  - kind: libro
+    title: "De Profundis — Plasencia, cuna de Extremoduro"
+    author: "Javier Menéndez Flores"
+    url: "https://entreinteriores.com/_ref/de-profundis#plasencia"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Plasencia, en Cáceres, es la ciudad natal de Robe y la cuna de Extremoduro. Allí
+      regentó el bar de copas Simetría, donde se vendieron los boletos de
+      autofinanciación del primer disco. En agosto de 1989 el ayuntamiento vetó la
+      actuación de la banda en la plaza mayor, y la ciudad se llenó de pintadas con la
+      bellota radiactiva del grupo. Robe pasó en Plasencia sus primeros treinta años y
+      sigue volviendo, sobre todo en primavera y verano.
+
+  - kind: libro
+    title: "El viaje íntimo de la locura — faceta literaria de Robe"
+    author: "Roberto Iniesta"
+    url: "https://entreinteriores.com/_ref/viaje-intimo#estilo"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      En 2009 Robe autoeditó su primera novela, El viaje íntimo de la locura, que
+      escribió a lo largo de tres años y en la que le ayudó Iñaki Uoho Antón. Su prosa
+      es la de un poeta: personifica el sol, la luna, el viento y los árboles como
+      personajes con voluntad, encadena aforismos y paradojas, y mezcla surrealismo,
+      humor negro y metaficción. Los símbolos y temas del libro, la locura como
+      liberación, el desapego del tiempo, la naturaleza y la libertad, son los mismos
+      que recorren las letras de Extremoduro. Para escribirla se matriculó en la UNED.
+
+  # ====== Etapa en solitario de Robe (2013-2025) y banda — research web 2026 ======
+  - kind: prensa
+    title: "La banda en solitario de Robe (2013-2025)"
+    author: "El Dromedario Records / Wikipedia / prensa"
+    url: "https://entreinteriores.com/_ref/robe-solo#banda"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Tras Extremoduro, Robe Iniesta formó para su carrera en solitario una banda de
+      músicos extremeños que él llamó simplemente "Robe". El núcleo, presente desde el
+      primer disco de 2013, lo forman Álvaro Rodríguez Barroso a los teclados y la
+      producción, Carlitos Pérez al violín, Alber Fuentes a la batería, David Lerman al
+      bajo y los vientos, y Lorenzo González a la voz y los coros; a finales de 2019 se
+      sumó Woody Amores como guitarra solista. Robe llegó a decir que esta banda era
+      "más banda de lo que ha sido nunca Extremoduro".
+
+  - kind: prensa
+    title: "Álvaro Rodríguez Barroso (banda de Robe)"
+    author: "Wikipedia / El Dromedario Records"
+    url: "https://entreinteriores.com/_ref/robe-solo#alvaro-rodriguez-barroso"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Álvaro Rodríguez Barroso es el teclista de la banda de Robe (piano, órgano Hammond
+      y acordeón) y, además, el productor de sus discos en solitario: produjo, grabó y
+      mezcló Mayéutica (2021) y produjo Se nos lleva el aire (2023) en su estudio
+      Tresnueces. Está en la banda desde el primer disco, Lo que aletea en nuestras
+      cabezas. Dirige el sello y editorial extremeña La Gran Belleza Records.
+
+  - kind: prensa
+    title: "Carlitos Pérez (banda de Robe)"
+    author: "Wikipedia / entrevistas"
+    url: "https://entreinteriores.com/_ref/robe-solo#carlitos-perez"
+    for_seo_only: true
+    quality_score: 0.75
+    content: |
+      Carlitos Pérez es el violinista de la banda de Robe, donde también pone coros y
+      tocó el bajo en un tema del primer disco. Violinista extremeño de formación
+      clásica, ha tocado en orquestas como la Orquesta Joven de Extremadura y la Orquesta
+      de Extremadura. Acompaña a Robe desde Lo que aletea en nuestras cabezas (2013).
+
+  - kind: prensa
+    title: "Alber Fuentes (banda de Robe)"
+    author: "Picota Radio / Wikipedia"
+    url: "https://entreinteriores.com/_ref/robe-solo#alber-fuentes"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Alber Fuentes, también escrito Alberto Fuentes, es el batería y percusionista de la
+      banda de Robe desde el primer disco. Es placentino: se formó en la sección rítmica
+      de la Banda Sinfónica Ciudad de Plasencia, tocó en los grupos Salto Mortal y J.A.N.,
+      estudió batería con Carlos Carli en Madrid y formó parte de la banda de ska-fusión
+      Ayahuasca, con la que tocó en el WOMAD de Cáceres de 2010. También está en Bulo
+      junto a Lorenzo González, Woody Amores y David Lerman.
+
+  - kind: prensa
+    title: "David Lerman (banda de Robe)"
+    author: "Wikipedia / El Dromedario Records"
+    url: "https://entreinteriores.com/_ref/robe-solo#david-lerman"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      David Lerman es el bajista de la banda de Robe y multiinstrumentista de viento:
+      además del bajo toca el saxofón y el clarinete, y pone coros. Está en la banda
+      desde su primer disco, Lo que aletea en nuestras cabezas, y en todos los siguientes.
+      Forma parte también del grupo Bulo, junto a Alber Fuentes, Lorenzo González y Woody
+      Amores.
+
+  - kind: prensa
+    title: "Lorenzo González (banda de Robe)"
+    author: "El Dromedario Records / Wikipedia"
+    url: "https://entreinteriores.com/_ref/robe-solo#lorenzo-gonzalez"
+    for_seo_only: true
+    quality_score: 0.75
+    content: |
+      Lorenzo González es la voz de apoyo y corista de la banda de Robe, además de
+      cantante, compositor y vocal coach. Lidera el grupo Bulo, a la voz, y fundó Qkino
+      junto al guitarrista Woody Amores, con quien grabó en 2010 el disco autoproducido
+      La Vida es tu Comedia. Acompaña a Robe desde el primer disco en solitario.
+
+  - kind: prensa
+    title: "Woody Amores (banda de Robe)"
+    author: "guitarraespañola.net / Wikipedia / El Dromedario Records"
+    url: "https://entreinteriores.com/_ref/robe-solo#woody-amores"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Woody Amores es el guitarrista solista de la banda de Robe desde finales de 2019;
+      su estreno fue grabar Calle melancolía para el disco tributo a Joaquín Sabina de
+      ese año. Es licenciado en Musicología por la Universidad de Salamanca y estudió en
+      el Berklee College of Music de Boston. Ha acompañado a Raimundo Amador, Hilario
+      Camacho y Jeanette, formó Qkino y Bulo con Lorenzo González, y volvió a la banda
+      extremeña Sínkope. Toca la guitarra solista en Mayéutica (2021) y Se nos lleva el
+      aire (2023).
+
+  - kind: prensa
+    title: "Robe en solitario: discografía y El Dromedario Records"
+    author: "El Dromedario Records / Wikipedia"
+    url: "https://entreinteriores.com/_ref/robe-solo#discografia"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Tras Extremoduro, Robe Iniesta publicó en solitario con el sello El Dromedario
+      Records, fundado en 2013 en Pamplona por Alén Ayerdi, batería de Marea y mánager de
+      Robe. Su discografía en solitario incluye Lo que aletea en nuestras cabezas (2015,
+      número uno y disco de oro), Destrozares: canciones para el final de los tiempos
+      (2016), el directo Bienvenidos al temporal (2018), Mayéutica (2021) y Se nos lleva
+      el aire (2023), su último disco de estudio, editado en doble vinilo y también
+      número uno.
+
+  - kind: prensa
+    title: "Disolución de Extremoduro y el Rebrote de Uoho"
+    author: "Prensa (jenesaispop, RockSesión)"
+    url: "https://entreinteriores.com/_ref/robe-solo#disolucion-rebrote"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Extremoduro anunció su disolución el 18 de diciembre de 2019 mediante un comunicado
+      en su web; su último disco había sido Para todos los públicos (2013). Años después,
+      Iñaki Uoho Antón formó la banda Rebrote, presentada en octubre de 2025, en la que no
+      canta él sino Jaime Moreno y repiten el batería José Ignacio Cantera y el bajista
+      Miguel Colino; publicaron su disco debut en enero de 2026 y, tras la muerte de Robe,
+      le dedicaron el tema Cuando no estás tú.
+
+  - kind: prensa
+    title: "Fallecimiento de Robe (2025) y homenajes póstumos"
+    author: "Prensa española"
+    url: "https://entreinteriores.com/_ref/robe-solo#fallecimiento"
+    for_seo_only: true
+    quality_score: 0.85
+    content: |
+      Robe Iniesta falleció el 10 de diciembre de 2025, a los 63 años. Recibió la Medalla
+      de Extremadura en 2014 y la Medalla de Oro al Mérito en las Bellas Artes, concedida
+      en 2024 y entregada de forma póstuma en mayo de 2026 por los Reyes. Plasencia, su
+      ciudad natal, lo nombró Hijo Predilecto a título póstumo en abril de 2026, le dedicó
+      una avenida y un macromural de Jesús Mateos Brea que une su legado con la poesía de
+      Manolo Chinato. En mayo de 2026 la canción Caída Libre, de Robe y Leiva, ganó el
+      premio a la Mejor Canción de Pop Rock de la Academia de la Música.
+
+  - kind: prensa
+    title: "Marea y su vínculo con Robe y Uoho"
+    author: "Wikipedia / Libertad Digital"
+    url: "https://entreinteriores.com/_ref/entorno#marea"
+    for_seo_only: true
+    quality_score: 0.8
+    content: |
+      Marea, la banda de Kutxi Romero fundada en Berriozar en 1997, tiene un vínculo
+      fuerte y documentado con el universo de Robe: Iñaki Uoho Antón produjo su disco
+      Besos de perro (2002) y Robe Iniesta colaboró en él. En octubre de 2019, Robe y Uoho
+      entregaron a Marea el disco de oro por El azogue en el WiZink Center de Madrid.
+      Además, el batería de Marea, Alén Ayerdi, fundó El Dromedario Records, el sello de
+      Robe y Extremoduro.
+
+  - kind: prensa
+    title: "Barricada y su vínculo con Extremoduro"
+    author: "MariskalRock / prensa"
+    url: "https://entreinteriores.com/_ref/entorno#barricada"
+    for_seo_only: true
+    quality_score: 0.75
+    content: |
+      Barricada, banda de rock urbano de Pamplona liderada por Enrique Villarreal El
+      Drogas y Alfredo Piedrafita, fue una de las referencias de Extremoduro: Extremoduro
+      llegaron a telonearlos y Piedrafita reconoció públicamente el mérito de Robe,
+      diciendo que ellos traspasaron una línea pero que Robe las traspasó todas.

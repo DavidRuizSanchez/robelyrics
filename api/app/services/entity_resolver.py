@@ -462,3 +462,148 @@ def autolink_corpus(
     for c in cand[:budget]:
         body_md, _ = _safe_link_first(body_md, c["name"], c["url"])
     return body_md
+
+
+# --------------------------------------------------------------------------- #
+# Autolinker de FUENTES externas: cuando el contenido cita un medio (p.ej.
+# «Mondo Sonoro destacó…»), enlaza el nombre del medio a la URL de la fuente
+# (InterpretationSource.url). Enlace EXTERNO — el frontend lo marca con
+# rel="nofollow noopener" target="_blank" (ver web/components/MarkdownArticle.tsx).
+# Mismo patrón conservador que `autolink_corpus`: primera ocurrencia, respeta
+# links/código existentes, idempotente, tope `max_links`.
+# --------------------------------------------------------------------------- #
+# Dominio → nombre visible del medio. La clave es el dominio registrable sin
+# `www.` ni subdominios. Si el dominio no está aquí y `author` no parece nombre
+# de medio fiable, NO se enlaza (mejor no enlazar que enlazar mal).
+_MEDIA_BY_DOMAIN: dict[str, str] = {
+    "mondosonoro.com": "Mondo Sonoro",
+    "rocksesion.com": "RockSesión",
+    "efeeme.com": "Efe Eme",
+    "elpais.com": "El País",
+    "mariskalrock.com": "MariskalRock",
+    "jenesaispop.com": "Jenesaispop",
+    "publico.es": "Público",
+    "rockdelux.com": "Rockdelux",
+    "elmundo.es": "El Mundo",
+    "abc.es": "ABC",
+    "lavanguardia.com": "La Vanguardia",
+    "eldiario.es": "elDiario.es",
+    "rtve.es": "RTVE",
+    "cadenaser.com": "Cadena SER",
+    "elconfidencial.com": "El Confidencial",
+    "infolibre.es": "infoLibre",
+    "ondacero.es": "Onda Cero",
+    "20minutos.es": "20minutos",
+    "europapress.es": "Europa Press",
+    "ruta66.es": "Ruta 66",
+    "popular1.com": "Popular 1",
+    "lasexta.com": "laSexta",
+    "huffingtonpost.es": "El HuffPost",
+    "huffingtonpost.com": "El HuffPost",
+    "muzikalia.com": "Muzikalia",
+    "indienauta.com": "Indienauta",
+    "binaural.es": "Binaural",
+    "hipersonica.com": "Hipersónica",
+    "youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+    "spotify.com": "Spotify",
+    "bandcamp.com": "Bandcamp",
+    "wikipedia.org": "Wikipedia",
+}
+
+# Hint de que un `author` es un medio (no una persona): contiene una de estas
+# palabras o termina en uno de estos sufijos típicos de cabecera.
+_MEDIA_AUTHOR_HINT = re.compile(
+    r"\b(magazine|revista|diario|radio|tv|televisi[oó]n|prensa|"
+    r"redacci[oó]n|agencia|news|press|media|rock|son(?:oro|ido))\b",
+    re.IGNORECASE,
+)
+
+
+def _domain_of(url: str) -> str | None:
+    """Dominio registrable de una url (sin esquema, sin `www.`, sin path)."""
+    if not url:
+        return None
+    m = re.match(r"\s*(?:https?:)?//", url)
+    rest = url[m.end():] if m else url
+    host = re.split(r"[/?#]", rest, 1)[0].strip().lower()
+    host = host.split("@")[-1].split(":")[0]  # quita user:pass@ y :puerto
+    if not host or "." not in host:
+        return None
+    if host.startswith("www."):
+        host = host[4:]
+    parts = host.split(".")
+    # Dominio registrable: últimos 2 labels (o 3 para .co.uk, .com.es…).
+    if len(parts) >= 3 and parts[-2] in {"co", "com", "org", "net", "gob", "gov"}:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:]) if len(parts) >= 2 else host
+
+
+def _media_name_for_source(src: dict[str, Any]) -> str | None:
+    """Nombre de medio visible y FIABLE para una fuente, o None si no se puede
+    derivar con confianza (en cuyo caso NO se enlaza)."""
+    url = (src.get("url") or "").strip()
+    if not url:
+        return None
+    domain = _domain_of(url)
+    if domain and domain in _MEDIA_BY_DOMAIN:
+        return _MEDIA_BY_DOMAIN[domain]
+    # Fallback: usar `author` solo si parece nombre de medio (no persona) y es
+    # razonablemente específico (evita single-word genérico tipo «Blog»).
+    author = (src.get("author") or "").strip()
+    if author and len(author) >= _AUTOLINK_MIN_LEN and _MEDIA_AUTHOR_HINT.search(author):
+        return author
+    return None
+
+
+def autolink_sources(
+    body_md: str,
+    sources: list[dict[str, Any]],
+    *,
+    max_links: int = 4,
+) -> str:
+    """Enlaza menciones a MEDIOS citados en el cuerpo a la url de su fuente.
+
+    `sources`: dicts como los de fetch_sources_* (con 'kind','title','author',
+    'url'). Para cada fuente con url se deriva un nombre de medio visible
+    (mapa dominio→nombre, o `author` si parece cabecera); si no se puede
+    derivar con fiabilidad, esa fuente NO se enlaza.
+
+    Conservador como `autolink_corpus`: enlaza la PRIMERA ocurrencia (case-
+    insensitive, con fronteras de palabra) de cada nombre, no enlaza dentro de
+    links/código ya presentes, es idempotente y respeta el tope `max_links`.
+    """
+    if not body_md or not sources:
+        return body_md
+
+    # Presupuesto: descuenta enlaces a estas urls ya presentes (idempotencia).
+    existing_urls = set(re.findall(r"\]\((\S+?)\)", body_md))
+    source_urls = {(s.get("url") or "").strip() for s in sources if s.get("url")}
+    budget = max_links - len(existing_urls & source_urls)
+    if budget <= 0:
+        return body_md
+
+    # Dedup por nombre de medio (si varias fuentes son del mismo medio, se
+    # queda la primera) y por url ya enlazada.
+    seen_names: set[str] = set()
+    seen_urls: set[str] = set(existing_urls)
+    linked = 0
+    for src in sources:
+        if linked >= budget:
+            break
+        url = (src.get("url") or "").strip()
+        if not url or url in seen_urls:
+            continue
+        name = _media_name_for_source(src)
+        if not name:
+            continue
+        nkey = _normalize(name)
+        if nkey in seen_names:
+            continue
+        new_body, n = _safe_link_first(body_md, name, url)
+        if n > 0:
+            body_md = new_body
+            seen_names.add(nkey)
+            seen_urls.add(url)
+            linked += 1
+    return body_md

@@ -205,7 +205,7 @@ persons:
     full_name: Álvaro Rodríguez Barroso
     memberships:
       - artist: robe
-        role: músico
+        role: teclados y producción
         era: 2013-2025
         position: 2
 
@@ -213,7 +213,7 @@ persons:
     full_name: Carlitos Pérez
     memberships:
       - artist: robe
-        role: músico
+        role: violín
         era: 2013-2025
         position: 3
 
@@ -221,7 +221,7 @@ persons:
     full_name: Alber Fuentes
     memberships:
       - artist: robe
-        role: músico
+        role: batería
         era: 2013-2025
         position: 4
 
@@ -229,7 +229,7 @@ persons:
     full_name: David Lerman
     memberships:
       - artist: robe
-        role: músico
+        role: bajo y vientos
         era: 2013-2025
         position: 5
 
@@ -237,7 +237,7 @@ persons:
     full_name: Lorenzo González
     memberships:
       - artist: robe
-        role: músico
+        role: voz y coros
         era: 2013-2025
         position: 6
 
@@ -280,6 +280,7 @@ persons:
     full_name: Enrique Villarreal
     stage_name: El Drogas
     wikipedia_url: https://es.wikipedia.org/wiki/Enrique_Villarreal
+    image_filename: "El Drogas, 2019-07-14.jpg"  # Commons CC0 (Gaizka Peñafiel)
 
   - slug: albert-pla
     full_name: Albert Pla
@@ -293,16 +294,112 @@ persons:
     full_name: Woody Amores
     memberships:
       - artist: robe
-        role: guitarra y producción
+        role: guitarra solista
+        era: 2019-2025
+        position: 7
 
+  # CORREGIDO 2026-06-02: Mikel Irazoki y Aitor Ariño NO fueron músicos de la
+  # banda solista de Robe (no hay fuente alguna). Mikel Irazoki fue el bajista
+  # de GRABACIÓN de «Canciones prohibidas» (1998); Aitor Ariño es el técnico de
+  # sonido/ingeniero histórico de Extremoduro. Reasignados a su rol real.
   - slug: mikel-irazoki
     full_name: Mikel Irazoki
     memberships:
-      - artist: robe
-        role: músico
+      - artist: extremoduro
+        role: bajo (grabación)
+        era: "1998"
+        position: 18
 
   - slug: aitor-arino
     full_name: Aitor Ariño
     memberships:
-      - artist: robe
-        role: músico
+      - artist: extremoduro
+        role: técnico de sonido
+        era: 1993-2002
+        position: 19
+
+  # =========================================================================
+  # Entorno real de Robe/Extremoduro — mánagers, productores, diseñadores y
+  # músicos de proyectos satélite (sin membership en la banda, salvo que
+  # tocaran realmente en ella). Añadidos 2026-06-02.
+  # =========================================================================
+
+  - slug: alen-ayerdi
+    full_name: Alén Ayerdi
+    bio_short: Batería de Marea, mánager de Robe y fundador en 2013 del sello El Dromedario Records.
+
+  - slug: tomas-rodriguez
+    full_name: Tomás Rodríguez
+    bio_short: Primer mánager de Extremoduro desde 1990; también diseñó portadas del grupo.
+
+  - slug: raul-guerrero
+    full_name: Raúl Guerrero
+    bio_short: Mánager clave de Extremoduro y primo de Tomás Rodríguez; fallecido en 1996, el directo «Iros todos a tomar por culo» está dedicado a él.
+
+  - slug: ventura-rico
+    full_name: Ventura Rico
+    bio_short: Primer productor externo de Extremoduro («¿Dónde están mis amigos?») e ingeniero de sonido en «Agila».
+
+  - slug: rafael-gallego
+    full_name: Rafael Gallego
+    bio_short: Dibujante y poeta placentino, autor de la portada del disco debut de Extremoduro.
+
+  - slug: juantxu-mongol-olano
+    full_name: Juantxu Olano
+    stage_name: Mongol
+    bio_short: Bajista y diseñador gráfico de Platero y Tú; venía del embrión «Ke» junto a Iñaki «Uoho» Antón.
+
+  - slug: jon-calvo
+    full_name: Jon Calvo
+    bio_short: Líder de Memoria de Pez e integrante de Inconscientes, junto a Uoho, Cantera y Colino.
+
+  - slug: jaime-moreno
+    full_name: Jaime Moreno
+    bio_short: Cantante de Rebrote, la banda de Iñaki «Uoho» Antón tras Extremoduro.
+
+  - slug: selu
+    full_name: Selu
+    bio_short: Saxofonista (ex Reincidentes) e ideólogo del proyecto Pedrá.
+
+  # =========================================================================
+  # Referencias culturales — personas reales citadas en las letras del corpus.
+  # Sin membership; se conectan vía JSON-LD sameAs a Wikidata. Añadidas 2026-06-02.
+  # =========================================================================
+
+  - slug: camaron
+    full_name: José Monje Cruz
+    stage_name: Camarón de la Isla
+    bio_short: Cantaor flamenco, citado en las letras de Extremoduro/Robe (en «Sucede»).
+    wikipedia_url: https://es.wikipedia.org/wiki/Camar%C3%B3n_de_la_Isla
+
+  - slug: frank-zappa
+    full_name: Frank Zappa
+    bio_short: Músico estadounidense, citado en las letras de Extremoduro/Robe (en «Sucede»).
+    wikipedia_url: https://es.wikipedia.org/wiki/Frank_Zappa
+
+  - slug: freddie-mercury
+    full_name: Freddie Mercury
+    bio_short: Cantante de Queen, citado en las letras de Extremoduro/Robe (en «Sucede»).
+    wikipedia_url: https://es.wikipedia.org/wiki/Freddie_Mercury
+
+  - slug: manolete
+    full_name: Manuel Laureano Rodríguez Sánchez
+    stage_name: Manolete
+    bio_short: Torero, citado en las letras de Extremoduro/Robe (en «Islero, shirlero o ladrón»).
+    wikipedia_url: https://es.wikipedia.org/wiki/Manolete
+
+  - slug: ara-malikian
+    full_name: Ara Malikian
+    bio_short: Violinista; primer violín del cuarteto de cuerda de «La ley innata» y «Material defectuoso» de Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Ara_Malikian
+
+  - slug: ariel-rot
+    full_name: Ariel Rot
+    bio_short: Guitarrista (Los Rodríguez); tocó el solo de «Volando solo» en el disco «Deltoya» de Extremoduro.
+    wikipedia_url: https://es.wikipedia.org/wiki/Ariel_Rot
+
+  - slug: leiva
+    full_name: José Miguel Conejo Torres
+    stage_name: Leiva
+    bio_short: Músico; co-firma con Robe «Caída Libre», Mejor Canción de Pop Rock en los Premios de la Academia de la Música 2026.
+    wikipedia_url: https://es.wikipedia.org/wiki/Leiva_(cantante)

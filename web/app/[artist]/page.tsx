@@ -96,13 +96,13 @@ export default async function ArtistPublicPage({
 
           {detail.image_url && (
             <figure className="mb-12">
-              <div className="relative w-full aspect-[16/9] overflow-hidden rounded-sm border border-divider">
+              <div className="relative mx-auto w-full max-w-[720px] aspect-[4/3] overflow-hidden rounded-sm border border-divider">
                 <Image
                   src={detail.image_url}
                   alt={`Fotografía de ${detail.name}`}
                   fill
-                  sizes="(max-width: 1100px) 100vw, 1100px"
-                  className="object-cover"
+                  sizes="(max-width: 720px) 100vw, 720px"
+                  className="object-contain object-center"
                   priority
                 />
               </div>

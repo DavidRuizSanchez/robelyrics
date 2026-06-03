@@ -27,6 +27,7 @@ from app.db.session import SessionLocal
 from app.services.content_generator import generate_song_spotlight
 from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
+from scripts.blog.context_builder import song_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -113,6 +114,10 @@ def main() -> None:
             .where(SeoContent.entity_type == "song", SeoContent.entity_id == song.id)
         ).scalar_one_or_none()
         seo_excerpt = (seo.body_md if seo else None)
+        try:
+            ctx = song_context(db, song.id)
+        except Exception:
+            ctx = ""
 
         logger.info(
             "Spotlight semanal: '%s' (%s · %s)",
@@ -123,6 +128,7 @@ def main() -> None:
             album_title=album.title,
             artist_name=artist.name,
             seo_excerpt=seo_excerpt,
+            context=ctx,
             today=today,
         )
 

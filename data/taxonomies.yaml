@@ -372,6 +372,133 @@ places:
     geo_lat: 39.8333
     geo_lng: -6.0500
 
+  - slug: madrid
+    name: Madrid
+    kind: city
+    description: |
+      Madrid fue base temprana de Extremoduro: Robe llegó a vivir allí en
+      1992, en casa del mánager Tomás Rodríguez. En la capital están los
+      estudios que grabaron buena parte del catálogo (M-20, AudioMadrid,
+      Box) y las salas grandes de las giras, como Las Ventas, La Riviera y
+      el Palacio de Deportes. La ciudad aparece nombrada en alguna letra y
+      es un nodo clave en la historia del grupo, aunque su corazón siga en
+      Extremadura.
+    geo_lat: 40.4168
+    geo_lng: -3.7038
+
+  - slug: bilbao
+    name: Bilbao
+    kind: city
+    description: |
+      Bilbao es el eje vasco que sostiene la mitad de la banda: de allí son
+      Iñaki "Uoho" Antón (Bilbao, 1964) y el batería José Ignacio Cantera,
+      pilares de Extremoduro desde *Canciones prohibidas*. Robe pasó a
+      residir en el País Vasco desde 1999, cerca del estudio de Uoho. El
+      paisaje vizcaíno acabó marcando el sonido y la producción del grupo
+      tanto como las raíces extremeñas marcaron las letras.
+    geo_lat: 43.2630
+    geo_lng: -2.9350
+
+  - slug: barakaldo
+    name: Barakaldo
+    kind: city
+    description: |
+      Barakaldo, localidad obrera de la margen izquierda del Nervión
+      (Vizcaya), es donde Robe falleció en diciembre de 2025, a los 63
+      años. Cierra así su largo arraigo en el País Vasco, la tierra que
+      eligió para vivir desde 1999 y que dio a Extremoduro buena parte de
+      su banda. Un punto en el mapa que pasó a formar parte de su
+      biografía por el final del camino.
+    geo_lat: 43.2967
+    geo_lng: -2.9897
+
+  - slug: muxika
+    name: Muxika
+    kind: village
+    description: |
+      Muxika, en la comarca vizcaína de Busturialdea, alberga "La Casa de
+      Iñaki", el estudio casero de Uoho donde se grabaron algunos de los
+      discos centrales del grupo: *Yo, minoría absoluta* (2002), *La ley
+      innata* (2008) y *Material defectuoso* (2011). El pueblo prestó
+      incluso medio nombre al sello Muxik.es que Robe y Uoho fundaron en
+      2006. Un lugar pequeño donde se cocinó música muy grande.
+    geo_lat: 43.2833
+    geo_lng: -2.6667
+
+  - slug: berriz
+    name: Berriz
+    kind: village
+    description: |
+      Berriz, en el Duranguesado vizcaíno, es la sede de Lorentzo Records,
+      el estudio donde se grabó *Pedrá* (1993), parte de *Canciones
+      prohibidas* (1998) y "El día de la bestia" de *Agila*, además de
+      mezclas de varios directos. Producido casi siempre por Uoho y con
+      Aitor Ariño a los mandos, Berriz fue una de las cocinas técnicas
+      donde el grupo afinó su sonido más áspero.
+    geo_lat: 43.1667
+    geo_lng: -2.5667
+
+  - slug: merida
+    name: Mérida
+    kind: city
+    description: |
+      Mérida, capital de Extremadura, acogió uno de los directos más
+      celebrados de Robe en solitario, *Bienvenidos al temporal*, grabado
+      en su Teatro Romano. En la misma ciudad recibió la Medalla de
+      Extremadura en 2014, gesto institucional hacia quien se autobautizó
+      "Rey de Extremadura". El escenario romano sirvió de marco
+      monumental a una obra que siempre tuvo la región como raíz.
+    geo_lat: 38.9160
+    geo_lng: -6.3437
+
+  - slug: pamplona
+    name: Pamplona
+    kind: city
+    description: |
+      Pamplona es la sede de El Dromedario Records, el sello y promotora
+      que publicó toda la obra en solitario de Robe. Lo fundó en 2013 Alén
+      Ayerdi, batería de Marea y mánager de Robe, y desde Navarra se
+      gestionó la última etapa del artista, además de la de Extremoduro,
+      Marea o Inconscientes. Un centro de operaciones discográfico en el
+      norte para una carrera de raíz sureña.
+    geo_lat: 42.8125
+    geo_lng: -1.6458
+
+  - slug: la-zubia
+    name: La Zubia
+    kind: village
+    description: |
+      La Zubia, en la vega de Granada al pie de Sierra Nevada, fue
+      residencia de Robe desde 1995: en un chalé de la zona remató la
+      escritura y preparación de *Agila* (1996), el disco que cambió la
+      escala del grupo. Una etapa andaluza, entre Extremadura y el
+      posterior traslado al País Vasco, en la que cuajó parte de su obra
+      más reconocible.
+    geo_lat: 37.1167
+    geo_lng: -3.5833
+
+  - slug: carabanchel
+    name: Carabanchel
+    kind: place
+    description: |
+      Carabanchel evoca la antigua prisión madrileña, símbolo de represión
+      y de barrio obrero, y aparece nombrado en *Pepe Botika*. Encaja con
+      la mirada de Robe hacia los márgenes, hacia la calle y hacia quienes
+      caen del lado equivocado de la ley. Un topónimo concreto que el
+      cancionero usa como atajo para nombrar todo un mundo de cárcel y
+      barrio.
+
+  - slug: marte
+    name: Marte
+    kind: place
+    description: |
+      Marte, el planeta rojo, aparece como destino imposible y huida
+      delirante en *Extraterrestre* (*"me voy pa' Marte"*). Es la fuga
+      llevada al extremo cósmico, muy en la línea del Robe que mezcla
+      locura, ciencia ficción de barrio y ganas de largarse lejos. El
+      espacio exterior como metáfora de la distancia que uno necesita
+      poner a veces con todo lo demás.
+
 
 concepts:
   - slug: el-aguila
@@ -481,6 +608,197 @@ concepts:
       habitado, no como ausencia de luz. Robe la nombra a menudo con
       cariño: es el sitio donde se ve mejor.
 
+  - slug: el-viento
+    name: El viento
+    description: |
+      El viento sopla por todo el cancionero como fuerza que arrastra y
+      que limpia: aparece en *De acero*, en *El camino de las utopías*, en
+      *Dulce introducción al caos* y en *Desarraigo*. No es brisa
+      decorativa, es lo incontrolable, el caos que mueve las cosas de
+      sitio. En su novela *El viaje íntimo de la locura* el viento es ya
+      un personaje con voluntad, el huracán que desordena el mundo, y esa
+      misma idea cruza desde la prosa hasta los versos.
+
+  - slug: el-mar
+    name: El mar
+    description: |
+      El mar y las olas marcan buena parte de la obra en solitario de
+      Robe: *Donde se rompen las olas* lo lleva en el título, y vuelve en
+      *Guerrero*, en *Si te vas* y en *Cartas desde Gaia*. Es horizonte,
+      es distancia y es también el sitio donde algo se rompe y se rehace.
+      El imaginario marino (delfines, ballenas, olas) conecta con la
+      iconografía visual de Robe y con su gusto por lo que fluye sin que
+      nadie lo gobierne.
+
+  - slug: el-infierno
+    name: El infierno
+    description: |
+      El infierno aparece como amenaza y como lugar conocido en *A fuego*,
+      en *El poder del arte*, en *La canción más triste* y en *Guerrero*.
+      No siempre es el del catecismo: a menudo es un estado, el sitio al
+      que se baja cuando todo arde por dentro. Encaja con el
+      anticlericalismo de Robe, que toma la imaginería religiosa para
+      darle la vuelta y hablar de lo humano sin pedir permiso a nadie.
+
+  - slug: el-espejo
+    name: El espejo
+    description: |
+      El espejo y el reflejo asoman en *Primer movimiento: El sueño*, en
+      *Por encima del bien y del mal* y en *El hombre pájaro*. Sirven para
+      mirarse de frente, para desdoblarse y para sospechar de la propia
+      identidad. Es un motivo muy de Robe, que en su novela *El viaje
+      íntimo de la locura* juega con narradores que se contradicen y se
+      observan: el espejo como puerta a lo de dentro.
+
+  - slug: la-primavera
+    name: La primavera
+    description: |
+      La primavera vuelve cada cierto tiempo en el cancionero, ligada al
+      renacer y también a la ironía: *Puta*, *Tango suicida*, *Locura
+      transitoria* y *Ama, ama, ama y ensancha el alma* la nombran. En la
+      Plasencia natal de Robe la estación se llena de flores amarillas, un
+      fenómeno literal que el imaginario del grupo recoge: la primavera
+      como promesa que florece aunque alrededor todo se caiga.
+
+  - slug: el-rio
+    name: El río
+    description: |
+      El río es uno de los paisajes más insistentes de Robe: *A la orilla
+      del río* lo pone en el centro, y reaparece en *El hombre pájaro*, en
+      el *Cuarto movimiento* de *La ley innata* y en *Ininteligible*. El
+      río es dejarse llevar, fluir sin oponerse a la corriente, una idea
+      que su novela *El viaje íntimo de la locura* desarrolla como símbolo
+      de aceptación. Naturaleza interlocutora, no decorado.
+
+  - slug: el-bar
+    name: El bar
+    description: |
+      El bar es escenario y refugio en *Pedrá*, en *Desidia*, en *Buscando
+      una luna* y en *Tu corazón*. Robe regentó en Plasencia el bar de
+      copas Simetría, decisivo en los primeros años del grupo, y esa barra
+      de madrugada se cuela en muchas letras: el sitio donde se bebe, se
+      habla y se sobrevive a la noche cuando ya no queda nadie despierto.
+
+  - slug: el-tejado
+    name: El tejado
+    description: |
+      El tejado aparece como altura cotidiana y mirador en *Sol de
+      invierno*, en *Emparedado*, en *Pepe Botika* y en *La vereda de la
+      puerta de atrás*. Es el sitio desde el que se mira la calle sin
+      bajar a ella, el filo entre estar dentro y estar fuera. Un detalle
+      urbano que Robe usa para hablar de los márgenes y de la gente que
+      vive un poco al borde.
+
+  - slug: las-estrellas
+    name: Las estrellas
+    description: |
+      Las estrellas marcan el cielo nocturno del cancionero en *Standby*,
+      en *Sucede*, en *Romperás* y en *Papel secante*. Sirven de medida
+      del tiempo y de la distancia, de compañía a la intemperie y de
+      objetivo inalcanzable. Forman parte del mismo imaginario celeste que
+      el sol, la luna y las nubes que recorren toda la obra de Robe.
+
+  - slug: la-amapola
+    name: La amapola
+    description: |
+      La amapola, flor roja y silvestre, aparece en *Su culo es miel*, en
+      *Hoy te la meto hasta las orejas*, en *Buitre no come alpiste* y en
+      *Si te vas*. Es color, deseo y campo abierto, una imagen muy de la
+      naturaleza castúa que Robe lleva a sus letras más físicas. Florece
+      al borde del camino, sin que nadie la plante, como casi todo lo que
+      le interesa al cancionero.
+
+  - slug: la-tormenta
+    name: La tormenta
+    description: |
+      La tormenta, el temporal y la tempestad cruzan la obra de Robe como
+      paisaje emocional: *El camino de las utopías*, *El cielo cambió de
+      forma* y *Entre interiores* la convocan. El directo *Bienvenidos al
+      temporal* (Mérida) la pone hasta en el título. Es el clima de dentro
+      hecho cielo, la nube que tapa el sol y descarga, eco también del
+      tatuaje del sol y la nube de Robe.
+
+  - slug: el-jardin
+    name: El jardín
+    description: |
+      El jardín y el parque aparecen como espacios cultivados y a la vez
+      salvajes en *Prometeo*, en *El duende del parque* y en *Buscando una
+      luna*. Es naturaleza domesticada que aún esconde algo: el sitio
+      donde crece lo que se planta pero también lo que llega solo. Un
+      motivo que conecta con el gusto de Robe por los árboles y el paisaje
+      vivo.
+
+  - slug: el-cielo-azul
+    name: El cielo azul
+    description: |
+      El cielo azul aparece como calma luminosa, casi siempre antes o
+      después de la tormenta: *Guerrero*, *Adiós cielo azul, llegó la
+      tormenta* y *Mayéutica* lo nombran. Es el revés de la nube, el
+      momento despejado que no dura. Parte del imaginario celeste de Robe,
+      donde el cielo cambia de forma y de color para marcar los estados de
+      ánimo.
+
+  - slug: el-abismo
+    name: El abismo
+    description: |
+      El abismo y el vacío asoman como borde y como caída en *Segundo
+      movimiento* de *La ley innata*, en *Nada que perder* y en *Poema
+      sobrecogido*. Es el filo desde el que se mira hacia abajo, la
+      conciencia del fondo. Conecta con el vértigo y la cuerda floja que
+      en la novela *El viaje íntimo de la locura* simbolizan el equilibrio
+      precario de estar vivo.
+
+  - slug: la-mariposa
+    name: La mariposa
+    description: |
+      La mariposa aparece como imagen de metamorfosis y de fragilidad en
+      el *Tercer movimiento: Lo de dentro* de *La ley innata* y en *Un
+      suspiro acompasado*. Es lo que cambia de forma, lo que dura poco y
+      sin embargo importa, en sintonía con la fugacidad que recorre buena
+      parte del cancionero. Naturaleza menuda elevada a símbolo.
+
+  - slug: el-arbol
+    name: El árbol
+    description: |
+      El árbol es uno de los símbolos más hondos de Robe: aparece en *A la
+      orilla del río* y, sobre todo, vertebra su novela *El viaje íntimo
+      de la locura*, donde un cerezo abre y cierra el libro como ser
+      sintiente que ama con fidelidad y "muere de pie". El cerezo, el
+      eucalipto y el sauce conectan la prosa con el cancionero: arraigo,
+      paciencia y vida que crece sin moverse del sitio.
+
+  - slug: cristo
+    name: Cristo
+    description: |
+      La figura de Cristo recorre el cancionero como símbolo que Robe
+      desmonta desde el anticlericalismo: *Jesucristo García* lo convierte
+      en un chapista (como fue su padre y como fue él mismo), y reaparece
+      en *Pedrá* y en *El día de la bestia*. Robe, ateo declarado, usa la
+      imaginería cristiana para hablar de lo humano y del poder, no para
+      rezarle: la portada de *Yo, minoría absoluta* lo muestra como Cristo
+      con collar de perro.
+
+  - slug: el-diablo
+    name: El diablo
+    description: |
+      El diablo, el demonio y Lucifer aparecen como contrapunto a lo
+      divino en *Dulce introducción al caos*, en *Mi espíritu
+      imperecedero*, en *Mi voluntad* y en *El día de la bestia*. Robe
+      maneja la imaginería infernal con humor negro y sin miedo, igual que
+      en su novela cruza la sátira anticlerical: el diablo como personaje
+      de un teatro donde el verdadero blanco es el poder y la culpa
+      heredada.
+
+  - slug: don-quijote
+    name: Don Quijote
+    description: |
+      La sombra de Don Quijote y los molinos asoma en *Caballero andante*
+      y en *Locura transitoria*: el idealista que pelea contra gigantes
+      imaginarios encaja con el quijotismo de Robe, capaz de defender lo
+      imposible con la cabeza alta. La locura cervantina como lucidez, no
+      como enfermedad, es la misma frontera porosa entre cordura y delirio
+      que su obra explora una y otra vez.
+
 # Mapeo conservador song↔taxonomía por keyword en title|slug.
 # Buscamos sobre slug normalizado (acentos quitados ya en BD via
 # unicode_norm) y sobre title.
@@ -549,5 +867,27 @@ song_matches_lyrics:
     el-piornal: ["Piornal"]
     valle-del-jerte: ["Jerte", "Piornal", "Tornavacas", "Cabezuela", "Navaconcejo"]
     monfrague: ["Monfragüe"]
-  concepts: {}
+    madrid: ["madrid"]
+    carabanchel: ["carabanchel"]
+    marte: ["marte"]
+  concepts:
+    el-viento: ["viento"]
+    el-mar: ["mar", "olas"]
+    el-infierno: ["infierno"]
+    el-espejo: ["espejo", "reflejo"]
+    la-primavera: ["primavera"]
+    el-rio: ["río"]
+    el-bar: ["bar"]
+    el-tejado: ["tejado"]
+    las-estrellas: ["estrella"]
+    la-amapola: ["amapola"]
+    la-tormenta: ["tormenta", "tempestad", "temporal"]
+    el-jardin: ["jardín"]
+    el-cielo-azul: ["cielo azul"]
+    el-abismo: ["abismo", "vacío"]
+    la-mariposa: ["mariposa"]
+    el-arbol: ["árbol", "cerezo", "sauce"]
+    cristo: ["jesucristo", "cristo"]
+    el-diablo: ["diablo", "demonio", "lucifer"]
+    don-quijote: ["quijote", "molino"]
   themes: {}

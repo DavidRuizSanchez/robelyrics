@@ -8,7 +8,17 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/"],
-        disallow: ["/biblioteca/", "/login", "/logout", "/api/", "/*?_rsc="],
+        disallow: [
+          "/biblioteca/",
+          "/login",
+          "/logout",
+          "/api/",
+          "/*?_rsc=",
+          // SERPs internas de búsqueda: thin content / duplicado del catálogo.
+          // Bloqueamos las URLs con query (`/buscar?q=...`); el hub `/buscar`
+          // sin query queda crawleable para la SearchAction de WebSite.
+          "/buscar?",
+        ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

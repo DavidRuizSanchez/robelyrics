@@ -15,6 +15,11 @@ const KIND_LABEL: Record<string, string> = {
   artist: "Artista",
   album: "Disco",
   song: "Canción",
+  person: "Persona",
+  band: "Grupo",
+  theme: "Tema",
+  place: "Lugar",
+  concept: "Concepto",
 };
 
 // La página `/buscar` sin query es un hub indexable (la SearchAction de

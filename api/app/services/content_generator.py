@@ -47,6 +47,9 @@ ROBE_DEATH_DATE = date(2025, 12, 10)
 
 # Voz única del sitio (1ª persona admiradora). Ver app/services/voice.py.
 SYSTEM_PROMPT = build_system_prompt(family="blog")
+# Voz sobria para NOTICIAS/actualidad (3ª persona cálida pero contenida): evita
+# el tono megafan punki en contenido luctuoso o póstumo. Ver app/services/voice.py.
+NEWS_SYSTEM_PROMPT = build_system_prompt(family="blog", persona="tercera_calida")
 
 
 # --------------------------------------------------------------------------- #
@@ -59,12 +62,14 @@ def _client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def _call(user_prompt: str, *, max_tokens: int = 2000) -> dict[str, Any]:
+def _call(
+    user_prompt: str, *, max_tokens: int = 2000, system_prompt: str | None = None
+) -> dict[str, Any]:
     client = _client()
     resp = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
@@ -114,6 +119,7 @@ def generate_anniversary(
     years_since: int,
     today: date | None = None,
     context_notes: str | None = None,
+    context: str | None = None,
 ) -> dict[str, Any]:
     """Efeméride personal (cumpleaños o aniversario de fallecimiento).
 
@@ -122,9 +128,22 @@ def generate_anniversary(
     `context_notes` opcional: nota corta sobre el momento actual (lo que esté
     pasando en el universo, otras efemérides cercanas) para que el texto
     salga distinto cada año.
+    `context` (recomendado): datos y lecturas DOCUMENTADAS de la figura
+    (consenso fan destilado + fuentes + cuerpo SEO) para anclar la pieza en
+    detalles concretos reales y que no salga genérica.
     """
     today = today or date.today()
     kind_label = {"birth": "cumpleaños", "death": "aniversario de su muerte"}[kind]
+
+    grounding = (context or "").strip()
+    grounding_block = (
+        "DATOS Y LECTURAS DOCUMENTADAS de esta figura (tu materia prima: "
+        "parafrasea y elige UN detalle concreto real de aquí; NO lo cites "
+        f"textual ni recites letras):\n{grounding[:3000]}"
+        if grounding else
+        "(Sin contexto documentado: si no conoces un detalle CONCRETO y real, "
+        "escribe poco y honesto; no rellenes con generalidades.)"
+    )
 
     user = f"""\
 Escribe una pieza editorial para el blog con motivo del {kind_label} de \
@@ -136,6 +155,8 @@ Quiero una pieza de 350-500 palabras. Empieza con una imagen concreta (no con \
 resumen.
 
 {f'Nota de contexto sobre este momento: {context_notes}' if context_notes else ''}
+
+{grounding_block}
 
 Devuelve el JSON con todos los campos requeridos.
 """
@@ -163,9 +184,15 @@ def generate_album_anniversary(
     years_since: int,
     release_year: int,
     track_titles: list[str] | None = None,
+    context: str | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
-    """Aniversario de lanzamiento de un disco."""
+    """Aniversario de lanzamiento de un disco.
+
+    `context` (recomendado): datos y lecturas DOCUMENTADAS del disco (consenso
+    fan destilado de sus canciones + fuentes + cuerpo SEO) para que la pieza
+    tenga chicha concreta y no salga genérica.
+    """
     today = today or date.today()
     tracks_hint = ""
     if track_titles:
@@ -174,6 +201,16 @@ def generate_album_anniversary(
             + ", ".join(track_titles[:6])
             + "."
         )
+
+    grounding = (context or "").strip()
+    grounding_block = (
+        "DATOS Y LECTURAS DOCUMENTADAS de este disco (tu materia prima: "
+        "parafrasea y elige UN detalle concreto real de aquí; NO lo cites "
+        f"textual ni recites letras):\n{grounding[:3000]}"
+        if grounding else
+        "(Sin contexto documentado: si no conoces un detalle CONCRETO y real de "
+        "este disco, escribe poco y honesto; no rellenes con generalidades.)"
+    )
 
     user = f"""\
 Hoy {today.isoformat()} se cumplen {years_since} años del lanzamiento de \
@@ -184,6 +221,8 @@ distancia justa: lo que significó al salir, cómo ha envejecido, qué se sigue 
 escuchando hoy. Sin recap de tracks, sin "el contexto era" — entra ya.
 
 {tracks_hint}
+
+{grounding_block}
 
 Dos o tres secciones con H2 evocadores. Cierra con una imagen, no con \
 "sigue siendo imprescindible" ni similares.
@@ -210,26 +249,38 @@ def generate_song_spotlight(
     album_title: str,
     artist_name: str,
     seo_excerpt: str | None = None,
+    context: str | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
-    """Análisis editorial breve de una canción, generado rotativamente."""
+    """Análisis editorial breve de una canción, generado rotativamente.
+
+    `context` (recomendado): datos y lecturas DOCUMENTADAS de la canción
+    (consenso fan destilado + fuentes + cuerpo SEO) para que la pieza tenga
+    chicha concreta y no salga genérica. `seo_excerpt` se mantiene por
+    compatibilidad; si no hay `context` se usa él.
+    """
     today = today or date.today()
-    seo_hint = (
-        f"Como contexto interno (no lo cites textual): {seo_excerpt[:500]}"
-        if seo_excerpt else ""
+    grounding = (context or seo_excerpt or "").strip()
+    grounding_block = (
+        "DATOS Y LECTURAS DOCUMENTADAS de esta canción (tu materia prima: "
+        "parafrasea y elige UN detalle concreto real de aquí; NO lo cites "
+        f"textual ni recites la letra):\n{grounding[:3000]}"
+        if grounding else
+        "(Sin contexto documentado: si no conoces un detalle CONCRETO y real de "
+        "esta canción, escribe poco y honesto; no rellenes con generalidades.)"
     )
     user = f"""\
 Pieza editorial sobre la canción "{song_title}" del disco "{album_title}" \
 de {artist_name}. 350-450 palabras.
 
-Habla de la canción concreta: una imagen que evoca, qué dice (sin recitarla \
-entera), por qué vuelve. No análisis técnico-académico — voz lectora de \
-sábado por la tarde.
+Habla de la canción concreta apoyándote en datos REALES: una imagen que evoca, \
+qué dice (sin recitarla entera), su origen o anécdota si consta, por qué vuelve. \
+Nada de análisis genérico que valdría para cualquier canción.
 
-{seo_hint}
+{grounding_block}
 
-Una sección H2 evocadora, máximo dos. Cierra con un verso o una imagen, no \
-con una conclusión.
+Una sección H2 evocadora y concreta, máximo dos. Cierra con un verso o una \
+imagen real, no con una conclusión.
 
 Devuelve el JSON con todos los campos requeridos.
 """
@@ -321,7 +372,9 @@ meta_description), devuelve también:
 Devuelve el JSON con TODOS los campos.
 """
     try:
-        return _call(user, max_tokens=2600)
+        # Noticias en voz sobria (3ª cálida contenida), no megafan punki: el tono
+        # se adapta a la sensibilidad del hecho (luctuoso ≠ festivo).
+        return _call(user, max_tokens=2600, system_prompt=NEWS_SYSTEM_PROMPT)
     except (OpenAIError, ValueError) as exc:
         logger.warning("rewrite_news_editorial fallback: %s", exc)
         return _fallback(
@@ -370,16 +423,32 @@ def generate_evergreen_topic(
     taxonomy_name: str,
     taxonomy_description: str | None,
     song_titles: list[str],
+    context: str | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
     """Pieza evergreen sobre una taxonomía (tema/lugar/concepto del catálogo).
 
     Sirve como relleno garantizado cuando el scraper no produce y las
     efemérides no caen esa semana.
+
+    `context` (recomendado): datos y lecturas DOCUMENTADAS de la taxonomía
+    (consenso fan destilado de sus canciones + cuerpo SEO) para anclar el
+    ensayo en detalles concretos reales y que no salga genérico.
     """
     today = today or date.today()
     titles_sample = ", ".join(f'"{t}"' for t in song_titles[:8])
     descr = taxonomy_description or ""
+
+    grounding = (context or "").strip()
+    grounding_block = (
+        "DATOS Y LECTURAS DOCUMENTADAS sobre este tema y las canciones donde "
+        "aparece (tu materia prima: parafrasea y elige UN detalle concreto real "
+        f"de aquí; NO lo cites textual ni recites letras):\n{grounding[:3000]}"
+        if grounding else
+        "(Sin contexto documentado: si no conoces un detalle CONCRETO y real, "
+        "escribe poco y honesto; no rellenes con generalidades.)"
+    )
+
     user = f"""\
 Pieza evergreen sobre un {taxonomy_kind} recurrente en el universo \
 Robe/Extremoduro: "{taxonomy_name}". 400-550 palabras.
@@ -388,6 +457,8 @@ Robe/Extremoduro: "{taxonomy_name}". 400-550 palabras.
 
 Canciones del catálogo donde aparece (referéncialas sin enumerarlas todas): \
 {titles_sample}.
+
+{grounding_block}
 
 No quiero un listado. Quiero un ensayo corto: qué imagen evoca este \
 {taxonomy_kind}, por qué aparece tantas veces, cómo lo trata Robe. Dos H2 \
@@ -415,6 +486,7 @@ def generate_seo_article(
     title: str,
     angle: str | None,
     keywords: list[dict[str, Any]] | None = None,
+    context: str | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
     """Artículo de blog SEO-driven: responde a una intención de búsqueda
@@ -422,6 +494,10 @@ def generate_seo_article(
 
     `keywords` es la lista [{keyword, volume, ...}] que el research adjuntó
     a la propuesta. La de mayor volumen es la principal.
+
+    `context` (recomendado): datos y lecturas DOCUMENTADAS relacionadas
+    (consenso fan destilado + fuentes + cuerpo SEO) para anclar el artículo en
+    detalles concretos reales y que no salga genérico.
     """
     today = today or date.today()
     kws = keywords or []
@@ -435,6 +511,17 @@ def generate_seo_article(
         or "(sin keywords objetivo)"
     )
 
+    grounding = (context or "").strip()
+    grounding_block = (
+        "DATOS Y LECTURAS DOCUMENTADAS relacionadas (tu materia prima: "
+        "parafrasea y elige detalles concretos reales de aquí; NO los cites "
+        f"textual ni recites letras):\n{grounding[:3000]}"
+        if grounding else
+        "(Sin contexto documentado: apóyate solo en información pública y "
+        "asumida; si no conoces un detalle CONCRETO y real, no lo inventes ni "
+        "rellenes con generalidades.)"
+    )
+
     user = f"""\
 Escribe un artículo de blog para Entre Interiores que responda a una
 búsqueda real de la gente sobre el universo de Robe Iniesta y Extremoduro.
@@ -444,6 +531,8 @@ TÍTULO ORIENTATIVO: {title}
 
 KEYWORDS OBJETIVO (lo que la gente teclea en Google, con su volumen):
 {kw_block}
+
+{grounding_block}
 
 INSTRUCCIONES:
 - Responde de verdad a la intención de búsqueda de la keyword principal

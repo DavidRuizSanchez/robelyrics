@@ -30,6 +30,7 @@ from app.db.session import SessionLocal
 from app.services.content_generator import generate_album_anniversary
 from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
+from scripts.blog.context_builder import album_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -97,12 +98,18 @@ def main() -> None:
                 album.title, years, len(song_titles),
             )
 
+            try:
+                ctx = album_context(db, album.id)
+            except Exception:
+                ctx = ""
+
             payload = generate_album_anniversary(
                 album_title=album.title,
                 artist_name=artist.name,
                 years_since=years,
                 release_year=album.release_date.year,
                 track_titles=song_titles,
+                context=ctx,
                 today=today,
             )
 

@@ -25,11 +25,12 @@ from datetime import date
 
 from sqlalchemy import select
 
-from app.db.models import Post
+from app.db.models import Artist, Post
 from app.db.session import SessionLocal
 from app.services.content_generator import generate_anniversary
 from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
+from scripts.blog.context_builder import artist_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -101,12 +102,25 @@ def main() -> None:
                 )
                 return
 
+    # Contexto rico de Robe (consenso destilado de su obra + fuentes + SEO)
+    ctx = ""
+    try:
+        with SessionLocal() as db:
+            robe = db.execute(
+                select(Artist).where(Artist.slug == "robe")
+            ).scalar_one_or_none()
+            if robe:
+                ctx = artist_context(db, robe.id)
+    except Exception:
+        ctx = ""
+
     payload = generate_anniversary(
         args.type,
         person_name=ROBE_NAME,
         years_since=years,
         today=today,
         context_notes=args.context,
+        context=ctx,
     )
 
     img = None

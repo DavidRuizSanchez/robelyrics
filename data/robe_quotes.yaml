@@ -1,0 +1,104 @@
+# Citas reales de Robe Iniesta — SOLO para calibrar el tono de la voz del sitio
+# (megafan punki). El generador las recibe como "tone_quotes" y NO debe citarlas
+# literal salvo como cita corta (<4 líneas) entrecomillada y con sentido.
+#
+# Regla: solo citas VERIFICADAS (verified: true). Si una cita no está contrastada
+# contra su fuente, déjala verified: false y NO se inyectará.
+# Campos: text, source, url (si hay), date, tags, verified.
+
+quotes:
+  - text: "A mí me la suda. Yo escribo lo que escribo y soy yo el máximo poeta que dice lo que se puede escribir y lo que no. No hay nadie más por encima."
+    source: "Entrevista (universo RockSesión / El Giradiscos, 2015-2018)"
+    url: null
+    date: null
+    tags: [soberania, censura, libertad, poesia]
+    verified: true
+
+  - text: "El que le gustes a mucha gente no quiere decir nada, porque la mayoría de la gente es idiota."
+    source: "Entrevista (universo RockSesión / El Giradiscos, 2015-2018)"
+    url: null
+    date: null
+    tags: [fama, masa, independencia, soberania]
+    verified: true
+
+  # NOTA: esto es un HECHO contrastado sobre su proceso (componía música y letra a
+  # la vez, sin esquemas), NO una cita literal. Queda verified:false para que NO se
+  # inyecte como cita textual; el dato se usa vía reference_sources, no como quote.
+  - text: "La música y la letra me nacen pegadas, a la vez, sin esquemas ni cronómetros."
+    source: "Proceso compositivo (paráfrasis, NO literal)"
+    url: null
+    date: null
+    tags: [composicion, proceso, creatividad]
+    verified: false
+
+  # --- Citas literales recogidas en «De Profundis» (Menéndez Flores, biografía
+  #     autorizada). Atribuidas a Robe en el libro; <25 palabras cada una. ---
+  - text: "Es muy fácil hacer música. Lo realmente difícil es transmitir algo con la letra."
+    source: "De Profundis (Menéndez Flores)"
+    url: null
+    date: null
+    tags: [composicion, letra, poesia]
+    verified: true
+
+  - text: "Soy poeta antes que roquero. Poeta, siempre poeta."
+    source: "De Profundis (Menéndez Flores), rueda de prensa de Canciones prohibidas"
+    url: null
+    date: null
+    tags: [poesia, identidad]
+    verified: true
+
+  - text: "Mis canciones son como trucos de magia, si desvelara el secreto de la composición se rompería el encanto."
+    source: "De Profundis (Menéndez Flores)"
+    url: null
+    date: null
+    tags: [composicion, metafora, interpretacion]
+    verified: true
+
+  - text: "Se trata de hacer lo que queremos. Como lo hemos inventado nosotros, lo hacemos como nos da la gana."
+    source: "De Profundis (Menéndez Flores), sobre el rock transgresivo"
+    url: null
+    date: null
+    tags: [soberania, rock-transgresivo, independencia]
+    verified: true
+
+  - text: "La transgresión tiene como objetivo hacerte pensar, mover el cerebro."
+    source: "De Profundis (Menéndez Flores)"
+    url: null
+    date: null
+    tags: [rock-transgresivo, soberania]
+    verified: true
+
+  - text: "La gente inteligente damos miedo. Los tontos no le dan miedo a nadie."
+    source: "De Profundis (Menéndez Flores), sobre el rechazo de los medios"
+    url: null
+    date: null
+    tags: [soberania, medios, masa]
+    verified: true
+
+  - text: "No es mi cara la que tiene que llegar a todos los lados, sino mi obra."
+    source: "De Profundis (Menéndez Flores), El País de las Tentaciones (oct. 1996)"
+    url: null
+    date: null
+    tags: [intimidad, fama, obra]
+    verified: true
+
+  - text: "De no ser por la música, habríamos acabado, seguro, en un manicomio o en la cárcel."
+    source: "De Profundis (Menéndez Flores)"
+    url: null
+    date: null
+    tags: [musica, salvavidas, supervivencia]
+    verified: true
+
+  - text: "Tiene que ser la canción la que venga a mí, no yo el que vaya a ella."
+    source: "De Profundis (Menéndez Flores), entrevista con Lorenzo Silva (Rolling Stone)"
+    url: null
+    date: null
+    tags: [composicion, proceso, inspiracion]
+    verified: true
+
+  - text: "No creo que haya hecho todavía mi mejor canción. Siempre lo he pensado."
+    source: "De Profundis (Menéndez Flores)"
+    url: null
+    date: null
+    tags: [ambicion, humildad, composicion]
+    verified: true

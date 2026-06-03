@@ -22,6 +22,7 @@ from openai import OpenAI
 
 from app.config import get_settings
 from app.db.models import Album, Artist, Song
+from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
     call_llm,
@@ -29,6 +30,7 @@ from scripts.seo.common import (
     fetch_sources_for_song,
     format_distilled_block,
     format_sources_block,
+    tone_quotes_for,
     upsert_seo_content,
 )
 
@@ -70,37 +72,41 @@ FUENTES EXTERNAS:
 
 {format_distilled_block(distilled)}
 
-ESTRUCTURA OBLIGATORIA del artículo (encabezados H2):
+ESTRUCTURA OBLIGATORIA del artículo (encabezados H2/H3, en este orden):
 
 ## La canción de un vistazo
 ~150 palabras: qué es, dónde encaja en la discografía de {artist.name},
 qué la diferencia de otras del mismo disco.
 
-## Contexto de creación
-~300 palabras: año, momento de la banda, lo que se sabe sobre la composición.
-Si no sabes algo concreto, dilo en general sin inventar.
+## El origen creativo y las musas
+~300 palabras: año, momento de la banda, lo que se sabe sobre la composición,
+qué disparó la canción y de dónde sale. Si no sabes algo concreto, dilo en
+general sin inventar.
 
-## Tema y lectura interpretativa
+## Hermenéutica y análisis lírico
 ~400 palabras (la sección más importante, ve hondo): de qué trata la letra,
-tono, registros literarios, qué le pasa a quien la escucha. Si hay CONSENSO FAN
-DESTILADO arriba, apóyate en él como base de la interpretación (intégralo con
-tu voz, no lo copies). Aquí es donde más vale tu mirada de fan: por qué esta
+tono, registros literarios, qué le pasa a quien la escucha. Usa el CONSENSO FAN
+DESTILADO de arriba como FUNDAMENTO interpretativo (intégralo con tu voz, no lo
+cites ni lo copies). Aquí es donde más vale tu mirada de fan: por qué esta
 canción importa. Puedes citar versos sueltos entre comillas (máximo 4 líneas
 seguidas), nunca bloques.
 
-## Forma musical
+### La psicología del dolor y el permiso para sentir
+~150 palabras dentro del análisis: qué herida toca la canción y por qué nos da
+permiso para sentirla. Apóyate en el consenso fan, no inventes.
+
+## Arquitectura musical
 ~200 palabras: tempo aproximado, estructura (estrofas, estribillos, puentes),
-instrumentación si la fuente la menciona. No inventes datos técnicos.
+instrumentación y arreglos si la fuente los menciona. No inventes datos técnicos.
 
-## Recepción y legado
-~300 palabras: cómo se recibió, presencia en directos, recopilatorios,
-referencias en críticas posteriores.
-
-## Para seguir escuchando
-~50 palabras + 2-3 canciones del MISMO DISCO mencionadas por su título
-en texto plano. El sistema linkifica automáticamente los títulos a sus
-páginas locales — NO escribas markdown de link a mano ni uses
-placeholders entre corchetes ni `<algo>`.
+## Directos, variaciones de letra y grabaciones de culto
+~300 palabras: presencia en directos, variaciones de letra entre versiones,
+bootlegs o grabaciones de culto, recopilatorios, referencias en críticas
+posteriores. SOLO si constan en las fuentes; no inventes bootlegs ni cambios de
+letra. Cierra mencionando, si encaja, 1-2 canciones del MISMO DISCO por su
+título en texto plano. El sistema linkifica automáticamente los títulos a sus
+páginas locales — NO escribas markdown de link a mano ni uses placeholders
+entre corchetes ni `<algo>`.
 
 NO INVENTES datos. Si no sabes algo concreto, omítelo.
 NO uses placeholders del tipo [título], <slug>, etc.
@@ -125,8 +131,15 @@ def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> boo
     log(f"generando: {artist.name} · {album.title} · {song.title} "
         f"({len(sources)} fuentes, destilado={'sí' if distilled else 'no'})")
     prompt = build_user_prompt(song, album, artist, sources, siblings, distilled)
+    # Voz: megafan punki en 1ª persona; la canción de Robe/Extremoduro es el
+    # protagonista, así que sin subject. Ver app/services/voice.py.
+    system_prompt = build_system_prompt(
+        family="seo",
+        persona="primera_admirador",
+        tone_quotes=tone_quotes_for(seed=song.slug),
+    )
     try:
-        out = call_llm(client, prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False
@@ -162,6 +175,7 @@ def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> boo
         meta_description=meta_description,
         schema_jsonld=schema,
         entities=out.get("entities") or [],
+        sources=sources,
         force=force,
     )
     db.commit()

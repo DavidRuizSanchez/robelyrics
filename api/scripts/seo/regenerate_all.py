@@ -25,16 +25,19 @@ from datetime import datetime, timezone
 from openai import OpenAI
 
 from app.config import get_settings
-from app.db.models import Album, Artist, Concept, Person, Place, SeoContent, Song, Theme
+from app.db.models import (
+    Album, Artist, Band, Concept, Person, Place, SeoContent, Song, Theme,
+)
 from scripts.research.common import get_session, log
 from scripts.seo.generate_album_content import generate_for_album
 from scripts.seo.generate_artist_content import generate_for_artist
+from scripts.seo.generate_band_content import generate_for_band
 from scripts.seo.generate_person_content import generate_for_person
 from scripts.seo.generate_song_content import generate_for_song
 from scripts.seo.generate_taxonomy_content import generate_for_taxonomy
 
 # orden de procesamiento → (nombre, función, lista de "targets")
-PHASES = ["artist", "album", "song", "person", "taxonomy"]
+PHASES = ["artist", "album", "song", "person", "band", "taxonomy"]
 
 
 def _collect_targets(db, only: str | None, limit: int | None):
@@ -53,6 +56,9 @@ def _collect_targets(db, only: str | None, limit: int | None):
     if only in (None, "person"):
         for (slug,) in db.query(Person.slug).order_by(Person.id).all():
             targets.append(("person", slug))
+    if only in (None, "band"):
+        for (slug,) in db.query(Band.slug).order_by(Band.id).all():
+            targets.append(("band", slug))
     if only in (None, "taxonomy"):
         for kind, model in (("theme", Theme), ("place", Place), ("concept", Concept)):
             for (slug,) in db.query(model.slug).order_by(model.id).all():
@@ -73,6 +79,8 @@ def _run_one(client, db, target: tuple) -> bool:
         return generate_for_song(client, db, target[1], force=True)
     if phase == "person":
         return generate_for_person(client, db, target[1], force=True)
+    if phase == "band":
+        return generate_for_band(client, db, target[1], force=True)
     if phase == "taxonomy":
         return generate_for_taxonomy(client, db, target[1], target[2], force=True)
     return False

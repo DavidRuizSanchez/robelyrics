@@ -30,15 +30,27 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
           p: ({ children }) => (
             <p className="my-5 text-ink leading-[1.75]">{children}</p>
           ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              className="text-accent underline decoration-accent/40 hover:decoration-accent transition-colors"
-              data-cursor="hover"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            // Un enlace es externo si apunta a otro dominio vía http(s).
+            // Los autolinks de fuentes (Mondo Sonoro, Efe Eme…) son externos:
+            // los marcamos con rel="nofollow noopener" y target="_blank".
+            const isExternal =
+              !!href &&
+              /^https?:\/\//i.test(href) &&
+              !/^https?:\/\/(www\.)?entreinteriores\.com(\/|$)/i.test(href);
+            return (
+              <a
+                href={href}
+                className="text-accent underline decoration-accent/40 hover:decoration-accent transition-colors"
+                data-cursor="hover"
+                {...(isExternal
+                  ? { target: "_blank", rel: "nofollow noopener" }
+                  : {})}
+              >
+                {children}
+              </a>
+            );
+          },
           ul: ({ children }) => (
             <ul className="my-5 ml-6 list-disc space-y-2 text-ink">{children}</ul>
           ),

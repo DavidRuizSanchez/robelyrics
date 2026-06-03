@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PersonAvatar from "@/components/PersonAvatar";
+import PersonDataTable from "@/components/PersonDataTable";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -63,6 +64,7 @@ type PersonDetail = {
   image_attribution: string | null;
   image_license: string | null;
   image_source_url: string | null;
+  instruments: string[];
   memberships: Membership[];
   other_bands: WikidataRef[];
   notable_works: WikidataRef[];
@@ -469,6 +471,8 @@ export default async function PersonPage({
               )}
             </div>
           </header>
+
+          <PersonDataTable detail={detail} />
 
           {detail.seo_body && (
             <MarkdownArticle markdown={detail.seo_body} />

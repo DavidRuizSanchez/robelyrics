@@ -15,7 +15,8 @@
 //   MusicComposition:  {SITE}/{artist}/{album}/{song}#musiccomposition
 //   MusicRecording:    {SITE}/{artist}/{album}/{song}#musicrecording
 //   Person (corpus):   {SITE}/personas/{slug}#person
-//   Band/sello:        {SITE}/grupos/{slug}#musicgroup | #organization
+//   Band:              {SITE}/grupos/{slug}#musicgroup
+//   Sello (label):     {SITE}/sellos/{slug}#organization
 //   Article:           {SITE}/blog/{slug}#article
 //   Blog:              {SITE}/blog#blog
 //   Taxonomy:          {SITE}/{temas|lugares|conceptos}/{slug}#definedterm | #place
@@ -61,7 +62,7 @@ export const canonical = {
     `${SITE_URL}/${artistSlug}/${albumSlug}/${songSlug}#musicrecording`,
   person: (personSlug: string) => `${SITE_URL}/personas/${personSlug}#person`,
   band: (slug: string, isLabel = false) =>
-    `${SITE_URL}/grupos/${slug}#${isLabel ? "organization" : "musicgroup"}`,
+    `${SITE_URL}/${isLabel ? "sellos" : "grupos"}/${slug}#${isLabel ? "organization" : "musicgroup"}`,
   article: (slug: string) => `${SITE_URL}/blog/${slug}#article`,
   blog: `${SITE_URL}/blog#blog`,
   taxonomy: (kind: TaxonomyKind, slug: string) =>
@@ -79,7 +80,8 @@ export const urls = {
   song: (artistSlug: string, albumSlug: string, songSlug: string) =>
     `${SITE_URL}/${artistSlug}/${albumSlug}/${songSlug}`,
   person: (personSlug: string) => `${SITE_URL}/personas/${personSlug}`,
-  band: (slug: string) => `${SITE_URL}/grupos/${slug}`,
+  band: (slug: string, isLabel = false) =>
+    `${SITE_URL}/${isLabel ? "sellos" : "grupos"}/${slug}`,
   taxonomy: (kind: TaxonomyKind, slug: string) =>
     `${SITE_URL}/${TAX_PATH[kind]}/${slug}`,
   blogPost: (slug: string) => `${SITE_URL}/blog/${slug}`,

@@ -36,6 +36,24 @@ const nextConfig = {
     }
     return config;
   },
+  // Sellos discográficos migrados de /grupos/<slug> a /sellos/<slug>.
+  // Redirect 308 permanente por si alguna URL antigua quedó indexada.
+  async redirects() {
+    const labelSlugs = [
+      "el-dromedario-records",
+      "dro",
+      "avispa",
+      "pasion",
+      "warner",
+      "muxikes",
+      "la-gran-belleza-records",
+    ];
+    return labelSlugs.map((slug) => ({
+      source: `/grupos/${slug}`,
+      destination: `/sellos/${slug}`,
+      permanent: true,
+    }));
+  },
   // Marca como noindex las requests de prefetch RSC. Aplicamos por dos vías
   // (query param ?_rsc= y cabecera RSC: 1) porque Googlebot/otros bots pueden
   // disparar la request por cualquiera de las dos formas.
