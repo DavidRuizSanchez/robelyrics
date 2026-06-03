@@ -150,7 +150,7 @@ export default async function PublicLandingPage() {
               ))}
             </div>
             <p className="mt-6 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
-              El resto del catálogo va cayendo conforme le metemos mano. Sin prisa, pero sin pausa.
+              Lo que falta del catálogo va llegando poco a poco, con su análisis.
             </p>
           </section>
         )}
@@ -163,10 +163,8 @@ export default async function PublicLandingPage() {
           <h2 className="font-serif text-3xl md:text-5xl text-ink leading-[1.1] mb-4 tracking-[-1px]">
             Pregúntale al viento
           </h2>
-          <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-7">
-            Hazle una pregunta a Robe y te responde con su voz, hecha solo con sus
-            palabras: entrevistas, letras y su novela. De un disco o de la vida.
-            Un homenaje, no un truco.
+          <p className="font-serif italic text-base md:text-lg text-ink-dim max-w-xl mx-auto mb-7">
+            Las respuestas más auténticas a tus preguntas más introspectivas.
           </p>
           <ul className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto mb-8">
             {[
@@ -202,12 +200,12 @@ export default async function PublicLandingPage() {
             lo bueno, dentro
           </p>
           <h2 className="font-serif text-2xl md:text-3xl text-ink leading-[1.2] mb-4">
-            La letra entera, el karaoke a tiempo y lo que saca la peña de cada canción
+            Las canciones enteras, el buscador que te entiende y Robe contestándote
           </h2>
           <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
             Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra
-            pegada al audio, lo que la gente saca de cada una y el buscador que te
-            encuentra el verso por lo que sientes.
+            pegada al audio en directo, el buscador que te da el verso según lo que
+            sientes y el sitio donde le preguntas a Robe y te responde con su voz.
           </p>
           <Link
             href="/registro"

@@ -114,6 +114,8 @@ INNEGOCIABLE. Si rompes una de estas, el texto se descarta:
 - PROHIBIDOS los encabezados genéricos: "Introducción", "Contexto", \
   "Conclusión", "Resumen". Los H2/H3 son concretos, con sustantivos del tema.
 - PROHIBIDO referirte a ti como IA o decir "no puedo confirmar".
+- NUNCA escribas "Robe Iniesta" junto. Es "Robe" o "Roberto Iniesta", según el
+  registro, pero nunca los dos nombres cortos pegados.
 - NUNCA recites más de 4 líneas seguidas de letra original. Versos sueltos \
   como cita corta entre comillas, sí; transcripción, no.
 - Adjetivos de peso ("imprescindible", "enorme", "irrepetible") SOLO si los \

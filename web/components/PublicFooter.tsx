@@ -26,9 +26,6 @@ export default function PublicFooter() {
           <Link href="/discografia" data-cursor="hover" className={linkCls}>
             Toda la discografía
           </Link>
-          <Link href="/biblioteca/consultorio" data-cursor="hover" className={linkCls}>
-            Pregúntale al viento
-          </Link>
         </div>
 
         {/* Col 2 · Sitio + apoyar */}

@@ -37,8 +37,8 @@ export default function Hero() {
       </h1>
 
       <p className="relative z-10 font-serif italic text-base md:text-xl text-ink-dim mt-6 max-w-[580px] leading-relaxed">
-        Un buscador para los que viven con sus letras dentro. Encuentra,
-        completa, navega · y entra entre los versos.
+        Estás dentro. Este es el punto de encuentro para todos los fanáticos de
+        Robe y Extremoduro.
       </p>
 
       <div className="relative z-10 mt-8 flex gap-3.5 flex-wrap">

@@ -10,13 +10,20 @@ const ITEMS = [
   },
   {
     n: "02",
+    title: "Pregúntale al viento",
+    desc: "Pregúntale a Robe lo que quieras y te responde con su voz.",
+    example: '"¿qué es para ti la libertad?"',
+    href: "/biblioteca/consultorio",
+  },
+  {
+    n: "03",
     title: "Completa la frase",
     desc: "Empieza una línea y descubre cómo continúa en el cancionero.",
     example: '"abre la puerta" → "que soy el diablo…"',
     href: "/biblioteca?mode=complete#search",
   },
   {
-    n: "03",
+    n: "04",
     title: "Discos y canciones",
     desc: "Navega el catálogo entero. Cada disco, cada letra, cada año.",
     example: "15 discos · 144 canciones",

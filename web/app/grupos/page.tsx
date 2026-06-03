@@ -64,7 +64,7 @@ export default async function GruposPage() {
             el mismo barro
           </p>
           <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
-            Grupos afines a Extremoduro
+            Grupos afines a Extremoduro y Robe
           </h1>
           <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
             El rock estatal que compartió escenario, cartel y carretera con
