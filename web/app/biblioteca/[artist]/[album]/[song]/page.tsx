@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
+import TrackNav from "@/components/TrackNav";
 import KaraokePlayer from "@/components/KaraokePlayer";
 import LyricLine from "@/components/LyricLine";
 import SourcePills, { type SourceLite } from "@/components/SourcePills";
@@ -124,6 +125,16 @@ export default async function SongPage({
             )}
           </div>
         </header>
+
+        {/* Anterior/siguiente justo debajo del reproductor: para saltar de
+            canción mientras escuchas, sin bajar hasta el final. */}
+        <TrackNav
+          artistSlug={artist}
+          albumSlug={album}
+          currentSlug={song}
+          tracks={albumTracks}
+          basePath="/biblioteca"
+        />
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-10 lg:gap-14">
           {/* Letra */}

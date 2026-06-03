@@ -6,6 +6,8 @@ type Props = {
   albumSlug: string;
   currentSlug: string;
   tracks: PublicTrackOut[];
+  // Prefijo de ruta: "" para la web pública, "/biblioteca" para la zona privada.
+  basePath?: string;
 };
 
 // Navegación prev/next dentro del álbum. Aporta 2 inlinks adicionales por
@@ -15,6 +17,7 @@ export default function TrackNav({
   albumSlug,
   currentSlug,
   tracks,
+  basePath = "",
 }: Props) {
   const idx = tracks.findIndex((t) => t.slug === currentSlug);
   if (idx === -1) return null;
@@ -31,7 +34,7 @@ export default function TrackNav({
     >
       {prev ? (
         <Link
-          href={`/${artistSlug}/${albumSlug}/${prev.slug}`}
+          href={`${basePath}/${artistSlug}/${albumSlug}/${prev.slug}`}
           data-cursor="hover"
           className="group block py-4 px-4 -mx-4 hover:bg-paper transition-colors"
         >
@@ -47,7 +50,7 @@ export default function TrackNav({
       )}
       {next ? (
         <Link
-          href={`/${artistSlug}/${albumSlug}/${next.slug}`}
+          href={`${basePath}/${artistSlug}/${albumSlug}/${next.slug}`}
           data-cursor="hover"
           className="group block py-4 px-4 -mx-4 hover:bg-paper transition-colors md:text-right"
         >

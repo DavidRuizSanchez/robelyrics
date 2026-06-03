@@ -184,6 +184,16 @@ export default async function SongPublicPage({
           </div>
         )}
 
+        {/* Anterior/siguiente justo debajo del reproductor. */}
+        {albumDetail && (
+          <TrackNav
+            artistSlug={artist}
+            albumSlug={album}
+            currentSlug={song}
+            tracks={albumDetail.tracks}
+          />
+        )}
+
         <SongDataTable detail={detail} />
 
         <article className="mb-12">
@@ -226,21 +236,13 @@ export default async function SongPublicPage({
         />
 
         {albumDetail && (
-          <>
-            <TrackNav
-              artistSlug={artist}
-              albumSlug={album}
-              currentSlug={song}
-              tracks={albumDetail.tracks}
-            />
-            <AlbumSiblingSongs
-              artistSlug={artist}
-              albumSlug={album}
-              albumTitle={detail.album.title}
-              currentSlug={song}
-              tracks={albumDetail.tracks}
-            />
-          </>
+          <AlbumSiblingSongs
+            artistSlug={artist}
+            albumSlug={album}
+            albumTitle={detail.album.title}
+            currentSlug={song}
+            tracks={albumDetail.tracks}
+          />
         )}
 
         <script
