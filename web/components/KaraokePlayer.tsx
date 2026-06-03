@@ -2,54 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useKaraoke } from "@/lib/karaoke-context";
+import { loadYouTubeAPI, type YTPlayer } from "@/lib/youtube-api";
 
 /**
  * Reproductor YouTube embed con sincronización al contexto Karaoke.
- * Carga la API IFrame de YouTube y hace polling cada 250ms del currentTime.
+ * Carga la API IFrame de YouTube (loader compartido en lib/youtube-api) y hace
+ * polling cada 250ms del currentTime.
  *
  * Si el usuario aún no ha pulsado play, el contexto sigue null → las líneas
  * se renderizan en estado "neutro". En cuanto suena, las líneas reaccionan.
  */
-
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        element: HTMLElement | string,
-        options: Record<string, unknown>,
-      ) => YTPlayer;
-      PlayerState: {
-        ENDED: number;
-        PLAYING: number;
-        PAUSED: number;
-        BUFFERING: number;
-        CUED: number;
-      };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-type YTPlayer = {
-  getCurrentTime(): number;
-  getPlayerState(): number;
-  destroy(): void;
-};
-
-let apiLoadPromise: Promise<void> | null = null;
-function loadYouTubeAPI(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.YT && window.YT.Player) return Promise.resolve();
-  if (apiLoadPromise) return apiLoadPromise;
-
-  apiLoadPromise = new Promise((resolve) => {
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-    window.onYouTubeIframeAPIReady = () => resolve();
-  });
-  return apiLoadPromise;
-}
 
 export default function KaraokePlayer({
   videoId,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import PlayAlbumButton from "@/components/PlayAlbumButton";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { AlbumDetail } from "@/lib/types";
 
@@ -43,6 +44,14 @@ export default async function AlbumPage({
           <h1 className="font-serif text-4xl md:text-[68px] font-normal text-ink mt-1 leading-none tracking-[-1.5px]">
             {detail.title}
           </h1>
+          <div className="mt-5">
+            <PlayAlbumButton
+              artistSlug={artist}
+              albumSlug={album}
+              artistName={detail.artist.name}
+              tracks={detail.tracks}
+            />
+          </div>
         </div>
       </header>
 
