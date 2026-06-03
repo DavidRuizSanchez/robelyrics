@@ -79,3 +79,60 @@ interviews:
     author: "Hablando de Rock"
     medium: video
     author_is_robe: false
+
+  # ── Lote 2 (aportado por el user): entrevistas/semidocs donde HABLA Robe ───
+  - url: https://www.youtube.com/watch?v=Fwc53XV_xBY
+    title: "Roberto Iniesta en el documental 'Todos somos estrellas' de Tabletom (2013)"
+    author: "juancaraes"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=NitwbZRta70
+    title: "Entrevista a Robe (RockFM): no joder el concierto con el móvil"
+    author: "RockFM"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=K05oi6EmrkM
+    title: "Robe, entrevista (Extremoduro Deltoya)"
+    author: "Extremoduro Deltoya"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=Pw07bPKouTw
+    title: "Robe Iniesta: «Lo que más me pone es crear. Ojalá lo pudiera hacer siempre» (Orain)"
+    author: "Orain Noticias"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/shorts/kdUhOKJeWNY
+    title: "Robe y su primer disco (entrevista)"
+    author: "Vionexrais"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=iTWyezfJ_cY
+    title: "Entrevista inédita a Robe (Extremoduro) en 1992 (Canfali Radio, Alcázar de San Juan)"
+    author: "juancaraes"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=AWbrmWA3SFE
+    title: "Entrevista completa Robe (TV, Extremoduro Plasencia 2008)"
+    author: "juancaraes"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=V2mJ-zB0sTc
+    title: "Robe (Extremoduro): sobre la piratería"
+    author: "saikoleptica"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=8X8RaaQ58Ew
+    title: "Entrevista a Robe antes del concierto en el Teatro Romano de Mérida (08-09-2017)"
+    author: "juancaraes"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=Dt7kpCkLA18
+    title: "Entrevista completa a Robe y Uoho de Extremoduro en Noche Hache (sello Muxik)"
+    author: "antisocial terroritmo"
+    medium: video
+    author_is_robe: true
+  - url: https://www.youtube.com/watch?v=UIjRa8xBiCo
+    title: "Entrevista a Robe (Roberto Iniesta) en Tricky"
+    author: "Patricia Ni_Sol"
+    medium: video
+    author_is_robe: true
