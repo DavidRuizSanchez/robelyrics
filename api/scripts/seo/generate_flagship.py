@@ -114,56 +114,88 @@ _FLAGSHIP_SYS = (
 )
 
 
-def _write(client: OpenAI, subject: str, angle: str, hard: str, material: str) -> dict:
-    user = f"""\
-Escribe el artículo DEFINITIVO sobre {subject}. {angle}
-
-OBJETIVO: que no quede ninguna duda sobre su vida (pública y privada), su obra,
-relaciones, miedos, logros e influencias. Cuenta los DETALLES que casi nadie
-cuenta (salen del MATERIAL del corpus de abajo). Cuanto más completo, mejor:
-extiéndete todo lo que el material dé de sí (apunta a 2500-4500 palabras).
-
-DATOS DUROS (inclúyelos sí o sí, son básicos y faltaban):
-{hard}
-
-MATERIAL DEL CORPUS (tu única fuente de hechos; parafrasea, no copies; cruza y
-ordena la información; NO inventes nada que no esté aquí o en los datos duros):
-\"\"\"
-{material}
-\"\"\"
-
-CÓMO ESCRIBIRLO:
-- Headings (H2/H3) ADAPTADOS al contenido y al storytelling: NO sigas una
-  plantilla fija. Que la estructura nazca de lo que hay que contar (orígenes y
-  Plasencia, el nombre, la calle, las adicciones, el método de componer, cada
-  etapa de la obra, el crowdfunding, las relaciones y colaboraciones, los
-  miedos, los logros, las influencias, el final y el legado... lo que el
-  material pida), ordenado de forma lógica y atractiva.
-- Concreto y con fondo: fechas, lugares, nombres, anécdotas reales del material.
-  Nada de relleno ni frases-humo.
-- Enlaza de forma natural cuando nombres discos/canciones/personas del universo
-  (markdown a entreinteriores.com); el sistema añadirá más enlaces después.
-- SEO natural, sin keyword-stuffing.
-
-Devuelve JSON: body_md (markdown, sin H1), meta_title (≤60, entidad al inicio,
-3ª persona), meta_description (≤155), entities (lista de nombres propios del
-universo citados para el knowledge graph).
-"""
+def _chat(client: OpenAI, system: str, user: str, *, max_tokens: int,
+          temp: float = 0.6, jsonmode: bool = True) -> dict | str:
+    kw = {"response_format": {"type": "json_object"}} if jsonmode else {}
     resp = client.chat.completions.create(
         model=MODEL,
-        messages=[
-            {"role": "system", "content": _FLAGSHIP_SYS.format(subject=subject)},
-            {"role": "user", "content": user},
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.6,
-        max_tokens=16000,
+        messages=[{"role": "system", "content": system},
+                  {"role": "user", "content": user}],
+        temperature=temp, max_tokens=max_tokens, **kw,
     )
-    data = json.loads(resp.choices[0].message.content or "{}")
-    for f in ("body_md", "meta_title", "meta_description"):
-        if isinstance(data.get(f), str):
-            data[f] = strip_ai_tells(data[f])
-    return data
+    raw = resp.choices[0].message.content or ("{}" if jsonmode else "")
+    return json.loads(raw) if jsonmode else raw
+
+
+def _outline(client: OpenAI, subject: str, angle: str, hard: str, material: str) -> list[dict]:
+    """Esquema ADAPTATIVO: 9-14 secciones nacidas del contenido y del
+    storytelling, no de una plantilla."""
+    user = f"""\
+Vas a planificar el artículo MÁS COMPLETO de internet sobre {subject}. {angle}
+
+DATOS DUROS:
+{hard}
+
+MATERIAL DEL CORPUS (lo único que existe como fuente de hechos):
+\"\"\"{material[:90000]}\"\"\"
+
+Propón un esquema de 9 a 14 secciones H2 ADAPTADAS a lo que de verdad hay que
+contar (orígenes/Plasencia, el nombre, la calle y las adicciones, cómo componía,
+cada etapa de la obra, crowdfunding, relaciones y colaboraciones, miedos,
+logros, influencias que recibió y que dejó, el final y el legado... lo que el
+material pida), ordenadas con lógica narrativa. NO uses una plantilla genérica.
+Devuelve JSON {{"sections": [{{"heading": "<título H2 concreto y atractivo>",
+"covers": "<qué hechos/anécdotas del material cubre, en una frase>"}}]}}.
+"""
+    data = _chat(client, _FLAGSHIP_SYS.format(subject=subject), user, max_tokens=1500)
+    secs = data.get("sections") if isinstance(data, dict) else None
+    return [s for s in (secs or []) if s.get("heading")][:14]
+
+
+def _write_section(client: OpenAI, subject: str, section: dict,
+                   all_headings: list[str], hard: str, material: str) -> str:
+    """Escribe UNA sección en profundidad, con citas textuales atribuidas."""
+    user = f"""\
+Escribe la sección "{section['heading']}" del artículo definitivo sobre {subject}.
+Cubre: {section.get('covers', '')}
+
+El artículo completo tiene estas secciones (para que NO repitas lo de otras):
+{chr(10).join('- ' + h for h in all_headings)}
+
+DATOS DUROS:
+{hard}
+
+MATERIAL DEL CORPUS (única fuente de hechos; parafrasea, NO inventes nada que no
+esté aquí):
+\"\"\"{material}\"\"\"
+
+INSTRUCCIONES:
+- Empieza con el encabezado markdown "## {section['heading']}".
+- En profundidad y concreto: 250-550 palabras, con fechas, lugares, nombres y
+  ANÉCDOTAS reales del material. Nada de relleno.
+- INCLUYE, si el material las tiene, 1-3 CITAS TEXTUALES de Robe entre comillas,
+  ATRIBUIDAS a su fuente (p.ej. "como contó en una entrevista" o el medio/libro
+  que aparezca en el bloque del material). NUNCA inventes una cita.
+- Enlaza de forma natural discos/canciones/personas del universo (markdown a
+  entreinteriores.com).
+- Solo esta sección, sin intro ni cierre del artículo entero.
+Devuelve JSON {{"body_md": "<la sección en markdown>"}}.
+"""
+    data = _chat(client, _FLAGSHIP_SYS.format(subject=subject), user, max_tokens=2500)
+    body = data.get("body_md", "") if isinstance(data, dict) else ""
+    return strip_ai_tells(body) or body
+
+
+def _meta(client: OpenAI, subject: str, body: str) -> dict:
+    data = _chat(
+        client, "Generas metadatos SEO. JSON.",
+        f"Para este artículo sobre {subject}, devuelve JSON con meta_title "
+        f"(≤60 chars, '{subject}' al inicio, 3ª persona, sin Entre Interiores) y "
+        f"meta_description (≤155 chars, una frase con el ángulo). Artículo:\n"
+        f"{body[:2000]}",
+        max_tokens=300,
+    )
+    return data if isinstance(data, dict) else {}
 
 
 def main() -> None:
@@ -196,8 +228,17 @@ def main() -> None:
         material = f"{material}\n\n---- CONSENSO DESTILADO ----\n{distilled}"
 
         log(f"generando FLAGSHIP: {subject}")
-        out = _write(client, subject, angle, hard, material)
-        body = out.get("body_md") or ""
+        outline = _outline(client, subject, angle, hard, material)
+        log(f"  esquema: {len(outline)} secciones")
+        headings = [s["heading"] for s in outline]
+        parts = []
+        for s in outline:
+            sec = _write_section(client, subject, s, headings, hard, material)
+            if sec.strip():
+                parts.append(sec.strip())
+            log(f"  · {s['heading']} ({len(sec)} chars)")
+        body = "\n\n".join(parts)
+        log(f"  borrador ensamblado: {len(body)} chars")
         if len(body) < 3000:
             log(f"  cuerpo corto ({len(body)} chars); revisar", "warn")
 
@@ -210,7 +251,7 @@ def main() -> None:
         )
         log(f"  ✓ {subject}: {len(body)} chars")
 
-        ents = out.get("entities") if isinstance(out.get("entities"), list) else []
+        meta = _meta(client, subject, body)
         schema = {
             "@context": "https://schema.org",
             "@type": "Person" if args.entity == "robe" else "MusicGroup",
@@ -219,9 +260,9 @@ def main() -> None:
         }
         upsert_seo_content(
             db, entity_type="artist", entity_id=artist.id, slug=artist.slug,
-            body_md=body, meta_title=(out.get("meta_title") or "")[:60],
-            meta_description=(out.get("meta_description") or "")[:155],
-            schema_jsonld=schema, entities=ents, force=True,
+            body_md=body, meta_title=(meta.get("meta_title") or "")[:60],
+            meta_description=(meta.get("meta_description") or "")[:155],
+            schema_jsonld=schema, entities=[], force=True,
         )
         if args.publish:
             from sqlalchemy import update
