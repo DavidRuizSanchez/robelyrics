@@ -302,10 +302,19 @@ def _mention_re(name: str) -> "re.Pattern[str]":
 
 
 def _safe_link_first(body_md: str, name: str, url: str) -> tuple[str, int]:
-    """Enlaza la PRIMERA ocurrencia de `name` (fuera de links/code existentes)."""
-    return _mention_re(name).subn(
-        lambda m: f"[{m.group(0)}]({url})", body_md, count=1
-    )
+    """Enlaza la PRIMERA ocurrencia de `name` fuera de links/code existentes y
+    NUNCA dentro de un encabezado (regla: no enlazar headings)."""
+    for m in _mention_re(name).finditer(body_md):
+        line_start = body_md.rfind("\n", 0, m.start()) + 1
+        nl = body_md.find("\n", m.start())
+        line = body_md[line_start: nl if nl != -1 else len(body_md)]
+        if line.lstrip().startswith("#"):
+            continue  # es un heading: saltar
+        return (
+            body_md[:m.start()] + f"[{m.group(0)}]({url})" + body_md[m.end():],
+            1,
+        )
+    return body_md, 0
 
 
 _TITLE_SUFFIX_RE = re.compile(r"\s*[(\[].*$")

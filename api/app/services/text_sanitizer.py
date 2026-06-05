@@ -79,6 +79,19 @@ def normalize_headings(body_md: str | None) -> str | None:
         return body_md
     lines = body_md.split("\n")
 
+    # 0) Regla global: NUNCA enlazar dentro de un heading. Quita los enlaces
+    # markdown de las líneas de encabezado (conserva el texto). Siempre, aunque
+    # luego no haya que desplazar niveles.
+    _link_re = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+    in_code = False
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("```"):
+            in_code = not in_code
+            continue
+        if not in_code and _RE_ATX.match(ln):
+            lines[i] = _link_re.sub(r"\1", ln)
+    body_md = "\n".join(lines)
+
     # 1) Detectar el nivel mínimo de heading fuera de bloques de código.
     in_code = False
     levels: list[int] = []

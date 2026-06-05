@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 
 from openai import OpenAI
 from sqlalchemy import select
@@ -76,6 +77,7 @@ def _gather_material(db) -> str:
             InterpretationSource.kind,
             InterpretationSource.title,
             InterpretationSource.content_clean,
+            InterpretationSource.url,
         ).where(InterpretationSource.content_clean.is_not(None))
     ).all()
 
@@ -91,17 +93,25 @@ def _gather_material(db) -> str:
 
     rows = sorted(rows, key=sort_key)
     chunks, total = [], 0
-    for kind, title, content in rows:
+    allowed_urls: set[str] = set()
+    for kind, title, content, url in rows:
         snippet = (content or "").strip()[:_PER_SOURCE]
         if len(snippet) < 200:
             continue
-        block = f"[{kind}] {title or ''}\n{snippet}"
+        u = (url or "").strip()
+        # La URL de la fuente va en el bloque: el LLM puede enlazar HECHOS
+        # IMPORTANTES a ella (noticia/vídeo que lo cubre), y solo a estas.
+        head = f"[{kind}] {title or ''}" + (f" — FUENTE: {u}" if u else "")
+        block = f"{head}\n{snippet}"
         if total + len(block) > _TOTAL_CAP:
             break
         chunks.append(block)
         total += len(block)
-    log(f"material curado: {len(chunks)} fuentes · {total//1000}k chars")
-    return "\n\n----\n\n".join(chunks)
+        if u.startswith("http"):
+            allowed_urls.add(u)
+    log(f"material curado: {len(chunks)} fuentes · {total//1000}k chars · "
+        f"{len(allowed_urls)} URLs enlazables")
+    return "\n\n----\n\n".join(chunks), allowed_urls
 
 
 _FLAGSHIP_SYS = (
@@ -176,8 +186,12 @@ INSTRUCCIONES:
 - INCLUYE, si el material las tiene, 1-3 CITAS TEXTUALES de Robe entre comillas,
   ATRIBUIDAS a su fuente (p.ej. "como contó en una entrevista" o el medio/libro
   que aparezca en el bloque del material). NUNCA inventes una cita.
-- Enlaza de forma natural discos/canciones/personas del universo (markdown a
-  entreinteriores.com).
+- NO escribas tú enlaces internos (a entreinteriores.com): solo nombra los
+  discos/canciones/personas; el sistema los enlazará. Y NUNCA enlaces dentro del
+  encabezado.
+- Para un HECHO IMPORTANTE (un homenaje, un evento, un disco señalado) SÍ puedes
+  enlazar a una FUENTE EXTERNA que lo cubra (noticia o vídeo), usando ÚNICAMENTE
+  las URLs que aparecen tras 'FUENTE:' en el material. No inventes URLs.
 - Solo esta sección, sin intro ni cierre del artículo entero.
 Devuelve JSON {{"body_md": "<la sección en markdown>"}}.
 """
@@ -208,6 +222,55 @@ def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
     except Exception as e:  # noqa: BLE001
         log(f"    verify sección falló ({e}); sin verificar", "warn")
         return section_md
+
+
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+
+
+def _sanitize_links(body: str, allowed_ext: set[str]) -> str:
+    """Limpia enlaces: (1) NUNCA en headings; (2) quita los internos escritos por
+    el LLM (el autolink reañade solo los reales en el cuerpo); (3) externos SOLO
+    si están en el material (evita rotos/inventados)."""
+    out = []
+    for line in body.split("\n"):
+        if line.lstrip().startswith("#"):
+            out.append(_LINK_RE.sub(r"\1", line))  # headings sin enlaces
+            continue
+
+        def repl(m):
+            text, url = m.group(1), m.group(2).strip()
+            if url.startswith("/") or "entreinteriores.com" in url:
+                return text  # interno: lo añade autolink_corpus si procede
+            if url.startswith("http"):
+                return m.group(0) if url in allowed_ext else text
+            return text
+
+        out.append(_LINK_RE.sub(repl, line))
+    return "\n".join(out)
+
+
+def _faq(client: OpenAI, subject: str, material: str) -> str:
+    """Sección de Preguntas frecuentes (factuales y no factuales), basada solo
+    en el material y verificada."""
+    user = f"""\
+Genera la sección final de PREGUNTAS FRECUENTES sobre {subject}.
+6-9 preguntas que la gente se hace de verdad: unas FACTUALES (fechas, lugares,
+discos, datos básicos) y otras NO factuales (por qué importa, qué lo hacía
+único, su forma de ser). Respuestas BREVES (1-3 frases), concretas y basadas
+SOLO en el MATERIAL; no inventes nada. Para un hecho importante puedes enlazar a
+una FUENTE externa del material (la URL tras 'FUENTE:') si aporta contexto, pero
+NUNCA enlaces dentro de la pregunta.
+
+MATERIAL:
+\"\"\"{material[:90000]}\"\"\"
+
+Devuelve JSON {{"body_md": "## Preguntas frecuentes\\n\\n**¿pregunta?**\\n\\nrespuesta\\n\\n**¿pregunta?**\\n\\nrespuesta..."}}.
+"""
+    data = _chat(client, _FLAGSHIP_SYS.format(subject=subject), user,
+                 max_tokens=2200, temp=0.4)
+    body = data.get("body_md", "") if isinstance(data, dict) else ""
+    body = _verify_section(client, body, material)
+    return strip_ai_tells(body) or body
 
 
 def _meta(client: OpenAI, subject: str, body: str) -> dict:
@@ -247,7 +310,7 @@ def main() -> None:
             "madurez sinfónica, formaciones, cada disco y gira, y su huella."
         )
         hard = _hard_facts(db)
-        material = _gather_material(db)
+        material, allowed_urls = _gather_material(db)
         distilled = format_distilled_block(fetch_distilled_for_artist(db, artist.id))
         material = f"{material}\n\n---- CONSENSO DESTILADO ----\n{distilled}"
 
@@ -263,12 +326,19 @@ def main() -> None:
             if sec.strip():
                 parts.append(sec.strip())
             log(f"  · {s['heading']} ({len(sec)} chars)")
+        # Sección de Preguntas frecuentes al final.
+        faq = _faq(client, subject, material)
+        if faq.strip():
+            parts.append(faq.strip())
+            log("  · Preguntas frecuentes añadida")
         body = "\n\n".join(parts)
         log(f"  ensamblado y verificado: {len(body)} chars")
         if len(body) < 3000:
             log(f"  cuerpo corto ({len(body)} chars); revisar", "warn")
 
-        # Enlazado interno del knowledge graph.
+        # Limpieza de enlaces: sin enlaces en headings, internos fuera (los pone
+        # el autolink), externos solo del material. Luego enlazado interno.
+        body = _sanitize_links(body, allowed_urls)
         body = autolink_corpus(
             body, build_corpus_index(db), max_links=10,
             exclude_slug=artist.slug, link_stats=load_link_stats(),
