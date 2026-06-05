@@ -81,6 +81,18 @@ TOURS = [
         "discos.",
     },
     {
+        "slug": "gira-la-ley-innata-2008",
+        "album_slug": "la-ley-innata",
+        "title": "La ley innata en directo (2008): una sinfonía en cuatro movimientos",
+        "angle": "La gira de La ley innata, el disco de un solo tema que Extremoduro llevó entero al escenario.",
+        "context": "Gira de 'La ley innata' (del 17 de mayo al 15 de noviembre de 2008). "
+        "'La ley innata' (2008) es un disco conceptual de un solo tema dividido en cuatro "
+        "movimientos, con un enfoque sinfónico que al principio desconcertó al público en "
+        "directo. Anécdota documentada de aquella gira: en un concierto de 2008 se detuvo "
+        "la actuación porque había personas viéndola desde fuera del recinto sin pagar, y "
+        "se reanudó tras resolver la situación.",
+    },
+    {
         "slug": "gira-robando-perchas-2012",
         "album_slug": "material-defectuoso",
         "title": "Robando perchas del hotel (2012): la última gran gira de Extremoduro",
@@ -120,6 +132,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-slug", help="Genera solo la gira con este slug.")
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Regenera (actualiza en sitio) los posts que ya existan.",
+    )
     args = parser.parse_args()
 
     tours = TOURS
@@ -135,7 +151,7 @@ def main() -> None:
             existing = db.execute(
                 select(Post).where(Post.slug == t["slug"])
             ).scalar_one_or_none()
-            if existing is not None:
+            if existing is not None and not args.force:
                 logger.info("Post %s ya existe (status=%s), skip", t["slug"], existing.status)
                 skipped += 1
                 continue
@@ -166,6 +182,22 @@ def main() -> None:
                 print("excerpt:", out.get("excerpt"))
                 print("---BODY---")
                 print(body_md)
+                continue
+
+            # --force sobre un post existente: se actualiza en sitio (conserva
+            # su estado y su URL), no se duplica.
+            if existing is not None:
+                existing.title = title
+                existing.excerpt = out.get("excerpt")
+                existing.body_md = body_md
+                existing.meta_title = out.get("meta_title")
+                existing.meta_description = out.get("meta_description")
+                existing.entities = out.get("entities") or []
+                db.commit()
+                logger.info(
+                    "✓ gira regenerada (status=%s): %s", existing.status, t["slug"]
+                )
+                created += 1
                 continue
 
             post = Post(
