@@ -78,6 +78,9 @@ def regen_post_researched(db, post: Post, *, dry_run: bool) -> bool:
     # Sin acreditar al medio: la investigación es nuestra.
     post.source_name = None
     post.source_url = None
+    # Reconstrucción supervisada: sale de público a revisión (el admin lo
+    # vuelve a publicar tras validar).
+    post.status = "pending_review"
     if img_url:
         try:
             post.hero_image_url = cloudinary_upload.upload(
