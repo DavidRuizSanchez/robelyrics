@@ -186,6 +186,30 @@ Devuelve JSON {{"body_md": "<la sección en markdown>"}}.
     return strip_ai_tells(body) or body
 
 
+def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
+    """Verifica UNA sección contra el material completo (cabe sin truncar el
+    JSON, a diferencia de verificar las 24k de golpe)."""
+    if not section_md.strip():
+        return section_md
+    try:
+        data = _chat(
+            client,
+            "Verificador de hechos ESTRICTO. Devuelve la sección corregida "
+            "quitando o suavizando TODA afirmación factual (fechas, años, "
+            "premios, cifras, títulos, formaciones, lugares, colaboraciones, "
+            "citas, eventos) que NO conste en el MATERIAL. No inventes ni "
+            "añadas. Conserva voz, encabezado y enlaces markdown. JSON "
+            "{\"body_md\": \"<sección corregida>\"}.",
+            f"MATERIAL:\n\"\"\"{material[:95000]}\"\"\"\n\nSECCIÓN:\n\"\"\"{section_md}\"\"\"",
+            max_tokens=2500, temp=0.1,
+        )
+        v = (data.get("body_md") or "").strip() if isinstance(data, dict) else ""
+        return v if len(v) > 120 else section_md
+    except Exception as e:  # noqa: BLE001
+        log(f"    verify sección falló ({e}); sin verificar", "warn")
+        return section_md
+
+
 def _meta(client: OpenAI, subject: str, body: str) -> dict:
     data = _chat(
         client, "Generas metadatos SEO. JSON.",
@@ -232,18 +256,18 @@ def main() -> None:
         log(f"  esquema: {len(outline)} secciones")
         headings = [s["heading"] for s in outline]
         parts = []
+        full_material = f"{hard}\n\n{material}"
         for s in outline:
             sec = _write_section(client, subject, s, headings, hard, material)
+            sec = _verify_section(client, sec, full_material)  # anti-alucinación
             if sec.strip():
                 parts.append(sec.strip())
             log(f"  · {s['heading']} ({len(sec)} chars)")
         body = "\n\n".join(parts)
-        log(f"  borrador ensamblado: {len(body)} chars")
+        log(f"  ensamblado y verificado: {len(body)} chars")
         if len(body) < 3000:
             log(f"  cuerpo corto ({len(body)} chars); revisar", "warn")
 
-        # Verificación factual contra el material (hard + corpus).
-        body = _verify_body(client, body, f"{hard}\n\n{material}")
         # Enlazado interno del knowledge graph.
         body = autolink_corpus(
             body, build_corpus_index(db), max_links=10,
