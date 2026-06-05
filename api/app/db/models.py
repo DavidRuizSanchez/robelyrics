@@ -1123,6 +1123,11 @@ class InstagramQueueItem(Base):
     )
     day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     slot: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Orden manual de publicación (menor = antes). Lo reordena el admin
+    # arrastrando en el planner; `slot`/`day`/`created_at` quedan de desempate.
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, index=True
+    )
     # Snapshot del tema (sobrevive aunque se borre la noticia / el post).
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))

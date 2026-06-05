@@ -1,16 +1,14 @@
-"""Busca una foto REAL con licencia libre (CC) del protagonista de la noticia.
+"""Busca una foto del protagonista de la noticia para el post de Instagram.
 
-Fuentes:
-  - Wikimedia Commons (CC BY / CC BY-SA / CC0 / dominio público).
-  - Openverse (agrega Flickr-CC, museos, etc. — mismas licencias de reúso).
-
-La búsqueda se hace por la ENTIDAD protagonista del tema (`image_query`, que
-genera `editorial`: una persona, un lugar, un grupo…), no solo "Extremoduro".
-Así cada post lleva la foto de su protagonista real. Si no hay nada con
-licencia válida, devuelve None y el post cae a arte IA (degradación elegante).
-
-Solo se aceptan licencias que permiten el reúso con atribución; la atribución
-al autor es obligatoria y se incluye en el caption.
+Para IG el usuario autoriza usar CUALQUIER foto relevante de la web (no solo
+CC), priorizando que sea CORRECTA y del sujeto real. Orden de fuentes:
+  1. Google Images (vía DataForSEO) con una query DESAMBIGUADA del sujeto
+     (`image_search` que genera `editorial`) → foto del sujeto real, con
+     mucha variedad. Es la fuente principal.
+  2. Google Images del universo (Robe/Extremoduro) como respaldo relevante
+     cuando el sujeto no es identificable (evita homónimos tipo 'Pérez').
+  3. Wikimedia/Openverse (CC) como respaldo si DataForSEO no responde.
+  4. Si nada: None → el post cae a arte IA (degradación elegante).
 """
 from __future__ import annotations
 
@@ -22,6 +20,7 @@ import re
 import httpx
 
 from app.services import wikimedia
+from app.services.instagram import web_image
 
 logger = logging.getLogger(__name__)
 
@@ -180,39 +179,75 @@ def _wikidata_photo(query: str) -> dict | None:
     return None
 
 
-def _queries(topic: dict) -> list[str]:
-    """Consultas de la más específica (entidad) a la genérica."""
-    qs = []
-    iq = (topic.get("image_query") or "").strip()
-    if iq:
-        qs.append(iq)
-    # Respaldo genérico solo si no había entidad fiable.
-    qs.append("Extremoduro Robe Iniesta concierto")
-    # Dedup preservando orden.
-    return list(dict.fromkeys(q for q in qs if q))
+def _pick(candidates: list[dict], topic: dict, exclude: set[str]) -> dict | None:
+    """Elige una foto del pool dando variedad y evitando las recién usadas.
 
-
-def find(topic: dict) -> dict | None:
-    """Devuelve {'url','credit'} de una foto CC del protagonista, o None.
-
-    Orden de fuentes:
-      1. Wikidata P18 por la entidad de `image_query` (la foto canónica del
-         protagonista; máxima precisión y variedad).
-      2. Wikimedia + Openverse por texto (respaldo).
+    - Dedup por URL.
+    - Descarta las cuyo crédito esté en `exclude` (fotos de posts recientes);
+      si así se quedaría sin candidatos, ignora el filtro.
+    - Elige de forma determinista por el título → distintos posts, distinta foto.
     """
-    iq = (topic.get("image_query") or "").strip()
-    if iq:
-        wd = _wikidata_photo(iq)
-        if wd:
-            return wd
+    uniq = list({c["url"]: c for c in candidates if c.get("url")}.values())
+    if not uniq:
+        return None
+    fresh = [c for c in uniq if (c.get("credit") or "") not in exclude]
+    pool = fresh or uniq
+    seed = int(hashlib.md5((topic.get("title") or "x").encode()).hexdigest(), 16)
+    elegido = pool[seed % len(pool)]
+    return {"url": elegido["url"], "credit": elegido["credit"]}
 
-    for query in _queries(topic):
-        candidatos = (_wikimedia(query) + _openverse(query))[:8]
-        if candidatos:
-            seed = int(hashlib.md5(
-                (topic.get("title") or query).encode()).hexdigest(), 16)
-            elegido = candidatos[seed % len(candidatos)]
-            logger.info("[foto] «%s» -> %s", query, elegido["credit"])
-            return {"url": elegido["url"], "credit": elegido["credit"]}
-    logger.info("[foto] sin fotos CC; se usará arte IA.")
+
+def _pick_web(candidates: list[dict], topic: dict, exclude: set[str]) -> dict | None:
+    """Elige una imagen web de entre las más relevantes (top de Google), dando
+    variedad por título y evitando las recién usadas (por URL)."""
+    top = [c for c in candidates[:15] if c.get("url")]
+    if not top:
+        return None
+    fresh = [c for c in top if c.get("url") not in exclude]
+    pool = fresh or top
+    seed = int(hashlib.md5((topic.get("title") or "x").encode()).hexdigest(), 16)
+    c = pool[seed % len(pool)]
+    # Sin crédito: para IG el usuario autoriza foto web sin preocuparse del
+    # copyright. `thumb` es respaldo si la imagen full no descarga.
+    return {"url": c["url"], "thumb": c.get("thumb") or "", "credit": ""}
+
+
+def find(topic: dict, exclude: set[str] | None = None) -> dict | None:
+    """Devuelve {'url','thumb','credit'} de una foto del sujeto, o None.
+
+    Prioriza RELEVANCIA y CORRECCIÓN (query desambiguada del sujeto) y VARIEDAD
+    (mucho pool de Google Images + rotación por título).
+    """
+    exclude = exclude or set()
+
+    # 1. Foto web del SUJETO con query desambiguada (la fuente principal).
+    search_q = (topic.get("image_search") or "").strip()
+    if search_q:
+        chosen = _pick_web(web_image.search(search_q), topic, exclude)
+        if chosen:
+            logger.info("[foto] web sujeto «%s» -> %s", search_q, chosen["url"][:60])
+            return chosen
+
+    # 2. Respaldo relevante: foto web del universo (Robe/Extremoduro). Se usa
+    #    cuando el sujeto no es identificable, para NO acabar en un homónimo.
+    for q in ("Robe Iniesta Extremoduro concierto", "Extremoduro banda concierto"):
+        chosen = _pick_web(web_image.search(q), topic, exclude)
+        if chosen:
+            logger.info("[foto] web respaldo «%s» -> %s", q, chosen["url"][:60])
+            return chosen
+
+    # 3. Respaldo CC (Wikimedia/Openverse) por si DataForSEO no responde.
+    iq = (topic.get("image_query") or "").strip()
+    cc_pool: list[dict] = []
+    for ent in ([iq] if iq else []) + ["Robe Iniesta", "Extremoduro"]:
+        wd = _wikidata_photo(ent)
+        if wd:
+            cc_pool.append(wd)
+        cc_pool += _wikimedia(ent)
+    chosen = _pick(cc_pool, topic, exclude)
+    if chosen:
+        logger.info("[foto] respaldo CC -> %s", chosen["credit"])
+        return chosen
+
+    logger.info("[foto] sin foto; se usará arte IA.")
     return None

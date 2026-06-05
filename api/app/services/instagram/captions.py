@@ -4,14 +4,17 @@ Filosofía editorial:
   - El post COMENTA la noticia como contenido propio de Entre Interiores.
   - NO se menciona el medio del que salió la noticia ni se enlaza a él: la
     actualidad se cuenta con voz propia (el comentario lo genera `editorial`).
-  - Solo se enlaza una fuente cuando es NUESTRA: un artículo del blog de
-    entreinteriores.com. Esos posts sí llevan enlace al blog.
-  - Cada post cierra con un verso de Robe/Extremoduro afín al tema y un
-    gancho hacia el buscador semántico de entreinteriores.com.
+  - El cierre invita a seguir en Entre Interiores ("link en la bio"), porque
+    Instagram no permite enlaces clicables en el caption.
+  - Cada post cierra con un verso de Robe/Extremoduro afín al tema.
+  - La atribución de la foto (licencias CC) va al FINAL del todo, discreta, para
+    no ensuciar la imagen ni el cuerpo pero cumplir la licencia.
 """
 from __future__ import annotations
 
 import hashlib
+import re
+import unicodedata
 
 from sqlalchemy.orm import Session
 
@@ -32,42 +35,81 @@ CATEGORY_HASHTAGS = {
     "Conciertos": ["#Concierto", "#Gira", "#EnDirecto"],
     "Música": ["#Música", "#Disco", "#Rock"],
     "Colaboraciones": ["#Colaboración", "#Música"],
-    "Grupos amigos": ["#RockEstatal", "#Fito", "#Marea"],
+    "Grupos amigos": ["#RockEstatal"],
     "Cultura": ["#Poesía", "#Cultura", "#Letras"],
     "Efemérides": ["#UnDíaComoHoy", "#Historia", "#RockHistórico"],
     "Curiosidades": ["#SabíasQue", "#Curiosidades"],
-    "Actualidad": ["#Noticias", "#Actualidad"],
+    "Actualidad": ["#Actualidad"],
     "Blog": ["#Blog", "#Letras", "#Cultura"],
 }
 
-# Llamadas a la acción hacia el buscador semántico de entreinteriores.com.
+# Entidades del universo Robe/Extremoduro → hashtag específico. Se detectan por
+# substring (normalizado) en el título + cuerpo para enriquecer los hashtags
+# con lo concreto de cada publicación.
+ENTITY_HASHTAGS = {
+    "leiva": "#Leiva",
+    "fito": "#FitoYFitipaldis",
+    "marea": "#Marea",
+    "kutxi": "#Marea",
+    "rosendo": "#Rosendo",
+    "platero": "#PlateroYTú",
+    "uoho": "#Uoho",
+    "iñaki antón": "#Uoho",
+    "extrechinato": "#Extrechinato",
+    "chinato": "#ManoloChinato",
+    "el drogas": "#ElDrogas",
+    "barricada": "#Barricada",
+    "plasencia": "#Plasencia",
+    "caceres": "#Cáceres",
+    "extremadura": "#Extremadura",
+    "iniesta": "#RobeIniesta",
+}
+
+# Llamadas a la acción: invitan a seguir en Entre Interiores (link en la bio).
 # Tono FESTIVO: para temas neutros o celebratorios.
 PLAYFUL_CTAS = [
-    "🔎 ¿Hay un verso de Robe para lo que estás viviendo? Lo hay. "
-    "Métete en el buscador de entreinteriores.com, escribe lo que sientes "
-    "y descubre qué canción de Extremoduro lo cuenta mejor que nadie.",
-
-    "🎸 Este verso lo ha encontrado el buscador de entreinteriores.com. "
-    "Pruébalo tú: escribe una emoción, un lío, una alegría… y te decimos "
-    "en qué canción de Robe está escrito.",
-
-    "👉 En entreinteriores.com tienes un buscador que lee como Robe: "
-    "le cuentas lo que te pasa y te encuentra el verso exacto de "
-    "Extremoduro. Engancha. Avisado quedas.",
-
-    "🔥 ¿Sabes qué canción de Robe habla de TU momento? El buscador de "
-    "entreinteriores.com sí. Entra, escribe, y flipa con lo que encuentra.",
+    "Lo típico de esto y mucho más sobre Robe y Extremoduro, en Entre Interiores. 🔗 Link en la bio.",
+    "En Entre Interiores lo contamos a fondo: las letras, las historias y todo el universo de Robe. 🔗 Link en la bio.",
+    "Esto y todo el universo Extremoduro, en Entre Interiores. Tienes el enlace en la bio. 🔗",
+    "¿Quieres más? El universo de Robe y Extremoduro al completo, en Entre Interiores. 🔗 Link en la bio.",
 ]
 
-# Tono SOBRIO: para temas luctuosos o conmemorativos (muerte, homenajes,
-# reconocimientos póstumos). Sin ganchos comerciales ni efusividad.
+# Tono SOBRIO: para temas luctuosos o conmemorativos. Sin efusividad.
 SOBER_CTAS = [
-    "En entreinteriores.com puedes recorrer su obra entera: las letras, "
-    "las historias y el universo de Robe y Extremoduro.",
-
-    "Toda su obra sigue viva en entreinteriores.com: las letras, las "
-    "historias y el universo de Robe y Extremoduro.",
+    "Toda su obra sigue viva en Entre Interiores: las letras, las historias y el universo de Robe y Extremoduro. 🔗 Link en la bio.",
+    "Recorre su legado en Entre Interiores: las letras, las historias, su universo entero. 🔗 Link en la bio.",
 ]
+
+
+def _norm(s: str) -> str:
+    s = "".join(
+        c for c in unicodedata.normalize("NFD", s or "")
+        if unicodedata.category(c) != "Mn"
+    )
+    return s.lower()
+
+
+def _hashtagify(name: str) -> str:
+    """'Caída libre' → '#CaidaLibre'. Conserva tildes en la salida visible."""
+    cleaned = re.sub(r"[^\w\s]", "", name or "", flags=re.UNICODE).strip()
+    if not cleaned:
+        return ""
+    camel = "".join(w.capitalize() for w in cleaned.split())
+    return f"#{camel}" if camel else ""
+
+
+def _specific_hashtags(title: str, body: str) -> list[str]:
+    """Hashtags concretos del contenido: entidades del universo mencionadas.
+
+    NO se incluye la canción del verso ornamental: no es el tema del post y
+    generaba hashtags larguísimos y repetidos entre publicaciones.
+    """
+    text = _norm(f"{title} {body}")
+    tags: list[str] = []
+    for key, tag in ENTITY_HASHTAGS.items():
+        if _norm(key) in text and tag not in tags:
+            tags.append(tag)
+    return tags[:5]
 
 
 def _es_post_de_blog(topic: dict) -> bool:
@@ -111,29 +153,43 @@ def build(db: Session, topic: dict) -> str:
             attribution += f" ({verse['year']})"
         lines += ["", f"🎵 «{verse['line']}»", f"   — {attribution}"]
 
-    lines += ["", "—"]
-
-    # Atribución de la foto cuando el fondo es una imagen real con licencia CC.
-    credit = (topic.get("image_credit") or "").strip()
-    if credit:
-        lines.append(f"📷 Foto: {credit}")
-
-    # Enlace SOLO cuando la fuente es nuestra: un artículo del blog.
+    # Enlace SOLO cuando la fuente es nuestra: un artículo del blog. En IG no
+    # hay enlaces clicables → se remite a la bio.
     if es_blog and topic.get("url"):
-        lines.append("📝 El artículo completo, en nuestro blog:")
-        lines.append(f"🔗 {topic['url']}")
+        lines += ["", "📝 El artículo completo está en el blog (link en la bio)."]
 
-    # Gancho hacia el buscador, según el tono (rotación determinista por título).
+    # Gancho hacia Entre Interiores, según el tono (rotación determinista).
     ctas = SOBER_CTAS if tone == "sober" else PLAYFUL_CTAS
     idx = int(hashlib.md5(title.encode()).hexdigest(), 16) % len(ctas)
-    lines += ["", ctas[idx], ""]
+    lines += ["", ctas[idx]]
 
-    hashtags = BASE_HASHTAGS + CATEGORY_HASHTAGS.get(category, [])
+    # Hashtags. Orden: específicos del contenido PRIMERO (lo concreto de este
+    # post: #MilongasExtremas, etc.), luego categoría y base genérica.
+    #   - topic['hashtags']: los que generó el LLM (nombres propios citados).
+    #   - el sujeto de la foto (image_query) hashtagificado.
+    #   - entidades del universo detectadas + la canción del verso.
+    subject_tag = _hashtagify(topic.get("image_query") or "")
+    llm_tags = [t for t in (topic.get("hashtags") or []) if t and t.startswith("#")]
+    content_tags = (
+        llm_tags
+        + ([subject_tag] if subject_tag else [])
+        + _specific_hashtags(title, body)
+    )
+    hashtags = content_tags + CATEGORY_HASHTAGS.get(category, []) + BASE_HASHTAGS
     seen: list[str] = []
+    seen_norm: set[str] = set()
     for h in hashtags:
-        if h not in seen:
+        key = _norm(h)
+        if key and key not in seen_norm:
+            seen_norm.add(key)
             seen.append(h)
-    lines.append(" ".join(seen))
+    lines += ["", " ".join(seen[:14])]
+
+    # Atribución de la foto al FINAL del todo (discreta), si es foto con
+    # licencia CC. Cumple la licencia sin ensuciar imagen ni cuerpo.
+    credit = (topic.get("image_credit") or "").strip()
+    if credit:
+        lines += ["", f"📷 {credit}"]
 
     # Límite duro de Instagram: 2.200 caracteres.
     return "\n".join(lines)[:2190]

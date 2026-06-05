@@ -878,6 +878,7 @@ class AdminPostListItem(BaseModel):
     source_name: str | None = None
     created_at: datetime
     published_at: datetime | None = None
+    scheduled_for: datetime | None = None
 
 
 class AdminPostDetailOut(AdminPostListItem):
@@ -912,6 +913,7 @@ def admin_posts_list(
             title=p.title, excerpt=p.excerpt,
             source_url=p.source_url, source_name=p.source_name,
             created_at=p.created_at, published_at=p.published_at,
+            scheduled_for=p.scheduled_for,
         )
         for p in rows
     ]
@@ -1015,6 +1017,67 @@ def admin_post_unpublish(
     if not p:
         raise HTTPException(status_code=404, detail="post not found")
     p.status = "approved"  # vuelve a aprobado pero no publicado
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+class AdminPostScheduleIn(BaseModel):
+    # Fecha (o fecha-hora) ISO en la que se publicará. "YYYY-MM-DD" → 00:00 UTC.
+    scheduled_for: str
+
+
+@router.post("/posts/{post_id}/schedule", response_model=AdminPostListItem)
+def admin_post_schedule(
+    post_id: int,
+    body: AdminPostScheduleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    """Programa el post para publicarse en una fecha futura. El cron diario
+    `flush_scheduled_due` lo promueve a `published` cuando llega `scheduled_for`
+    (respetando el cap móvil de 2/semana para kinds no exentos)."""
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    try:
+        when = _dt.fromisoformat(body.scheduled_for)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="fecha inválida (usa YYYY-MM-DD)")
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=_tz.utc)
+    now = _dt.now(_tz.utc)
+    # Permite hoy (se publicará en el próximo run del cron); rechaza ayer o antes.
+    if when.date() < now.date():
+        raise HTTPException(status_code=400, detail="la fecha ya pasó")
+    p.status = "scheduled"
+    p.scheduled_for = when
+    p.approved_by = _admin.id
+    db.commit()
+    return AdminPostListItem(
+        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
+        title=p.title, excerpt=p.excerpt,
+        source_url=p.source_url, source_name=p.source_name,
+        created_at=p.created_at, published_at=p.published_at,
+    )
+
+
+@router.post("/posts/{post_id}/unschedule", response_model=AdminPostListItem)
+def admin_post_unschedule(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminPostListItem:
+    """Desprograma: vuelve a pending_review para revisar/editar/publicar a mano."""
+    p = db.query(_Post).filter(_Post.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="post not found")
+    p.status = "pending_review"
+    p.scheduled_for = None
     db.commit()
     return AdminPostListItem(
         id=p.id, slug=p.slug, kind=p.kind, status=p.status,
@@ -1381,6 +1444,7 @@ class AdminIGItem(BaseModel):
     id: int
     day: str
     slot: int
+    position: int = 0
     status: str
     title: str
     category: str | None = None
@@ -1426,6 +1490,20 @@ class AdminIGPublishIn(BaseModel):
     dry_run: bool = False
 
 
+class AdminIGReorderIn(BaseModel):
+    # IDs de los items publicables (pending/prepared) en el orden de
+    # publicación deseado: el primero se publica antes.
+    ids: list[int]
+
+
+class AdminIGUpdateIn(BaseModel):
+    # Edición manual del contenido antes de publicar. Cualquier campo None se
+    # deja como está.
+    caption: str | None = None
+    title: str | None = None
+    summary: str | None = None
+
+
 class AdminIGAccount(BaseModel):
     ok: bool
     message: str
@@ -1437,6 +1515,7 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         id=it.id,
         day=it.day.isoformat() if it.day else "",
         slot=it.slot,
+        position=it.position,
         status=it.status,
         title=it.title,
         category=it.category,
@@ -1472,6 +1551,17 @@ def admin_ig_queue_list(
     return [_ig_item_to_model(it) for it in rows]
 
 
+def _ig_detail_model(it: _IGItem) -> AdminIGItemDetail:
+    """Modelo de detalle con la imagen preparada en base64 (si el fichero
+    local sigue existiendo) para previsualizarla sin exponer el path."""
+    base = _ig_item_to_model(it)
+    image_b64 = None
+    if it.image_path and _os.path.exists(it.image_path):
+        with open(it.image_path, "rb") as f:
+            image_b64 = _b64.b64encode(f.read()).decode("ascii")
+    return AdminIGItemDetail(**base.model_dump(), caption=it.caption, image_b64=image_b64)
+
+
 @router.get("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)
 def admin_ig_queue_detail(
     item_id: int,
@@ -1481,12 +1571,32 @@ def admin_ig_queue_detail(
     it = db.get(_IGItem, item_id)
     if it is None:
         raise HTTPException(status_code=404, detail="item not found")
-    base = _ig_item_to_model(it)
-    image_b64 = None
-    if it.image_path and _os.path.exists(it.image_path):
-        with open(it.image_path, "rb") as f:
-            image_b64 = _b64.b64encode(f.read()).decode("ascii")
-    return AdminIGItemDetail(**base.model_dump(), caption=it.caption, image_b64=image_b64)
+    return _ig_detail_model(it)
+
+
+@router.patch("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)
+def admin_ig_update(
+    item_id: int,
+    payload: AdminIGUpdateIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGItemDetail:
+    """Edita a mano el contenido de un item de la cola (caption, título,
+    resumen) antes de publicarlo. No se puede editar uno ya publicado."""
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if it.status == "published":
+        raise HTTPException(status_code=409, detail="ya está publicado")
+    if payload.caption is not None:
+        it.caption = payload.caption
+    if payload.title is not None:
+        it.title = payload.title[:300]
+    if payload.summary is not None:
+        it.summary = payload.summary
+    db.commit()
+    db.refresh(it)
+    return _ig_detail_model(it)
 
 
 @router.get("/instagram/news", response_model=list[AdminIGNewsCandidate])
@@ -1582,10 +1692,47 @@ def admin_ig_enqueue(
             status="pending",
         )
 
+    # Va al final de la cola de publicación; el admin puede subirlo a mano.
+    max_pos = db.query(func.coalesce(func.max(_IGItem.position), -1)).scalar()
+    it.position = int(max_pos) + 1
+
     db.add(it)
     db.commit()
     db.refresh(it)
     return _ig_item_to_model(it)
+
+
+@router.post("/instagram/queue/reorder", response_model=list[AdminIGItem])
+def admin_ig_reorder(
+    payload: AdminIGReorderIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminIGItem]:
+    """Reordena el orden de publicación de la cola.
+
+    Recibe los IDs de los items publicables (pending/prepared) en el orden
+    deseado y reasigna `position` = índice. No toca items ya publicados o
+    descartados (su orden ya no importa).
+    """
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="lista de ids vacía")
+    items = {
+        it.id: it
+        for it in db.query(_IGItem).filter(_IGItem.id.in_(payload.ids)).all()
+    }
+    faltan = [i for i in payload.ids if i not in items]
+    if faltan:
+        raise HTTPException(status_code=404, detail=f"ids no encontrados: {faltan}")
+    for pos, item_id in enumerate(payload.ids):
+        items[item_id].position = pos
+    db.commit()
+    rows = (
+        db.query(_IGItem)
+        .filter(_IGItem.id.in_(payload.ids))
+        .order_by(_IGItem.position)
+        .all()
+    )
+    return [_ig_item_to_model(it) for it in rows]
 
 
 @router.post("/instagram/queue/{item_id}/prepare", response_model=AdminIGItem)

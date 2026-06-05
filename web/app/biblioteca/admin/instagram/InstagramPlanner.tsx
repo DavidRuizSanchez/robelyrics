@@ -19,7 +19,10 @@ const STATUS_COLOR: Record<string, string> = {
   discarded: "border-divider text-ink-faint",
 };
 
-const STATUS_ORDER = ["pending", "prepared", "failed", "published", "discarded"];
+// Estados que NO entran en la cola de publicación arrastrable (solo lectura).
+const TERMINAL_ORDER = ["failed", "published", "discarded"];
+// Estados publicables: se muestran juntos en una sola cola ordenable.
+const UPCOMING_STATUSES = new Set(["pending", "prepared"]);
 
 function fmtDate(iso: string): string {
   if (!iso) return "";
@@ -39,6 +42,26 @@ export default function InstagramPlanner({
   account: IGAccount;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Cola de publicación: pending + prepared juntos, ordenados por `position`.
+  // Estado local para el drag-and-drop optimista.
+  const [upcoming, setUpcoming] = useState<IGItem[]>(() =>
+    queue
+      .filter((it) => UPCOMING_STATUSES.has(it.status))
+      .sort((a, b) => a.position - b.position || a.id - b.id),
+  );
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  // Ver/editar el contenido de un item (clic en el título lo despliega).
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<{
+    caption: string | null;
+    image_b64: string | null;
+    image_url: string | null;
+  } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [draftCaption, setDraftCaption] = useState("");
+  const [savedFlash, setSavedFlash] = useState(false);
 
   async function call(method: "POST", url: string, body?: unknown) {
     setBusy(url);
@@ -86,12 +109,112 @@ export default function InstagramPlanner({
     call("POST", `/biblioteca/admin/instagram/api/queue/${id}/discard`);
   }
 
-  // Agrupa la cola por estado, en el orden que nos importa al admin.
-  const byStatus = new Map<string, IGItem[]>();
-  for (const s of STATUS_ORDER) byStatus.set(s, []);
+  // --- Drag-and-drop de la cola de publicación ---
+  function onDragStart(index: number) {
+    setDragIndex(index);
+  }
+
+  function onDragOver(index: number, e: React.DragEvent) {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === index) return;
+    setUpcoming((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(index, 0, moved);
+      return next;
+    });
+    setDragIndex(index);
+  }
+
+  async function persistOrder() {
+    const ids = upcoming.map((it) => it.id);
+    setDragIndex(null);
+    setBusy("reorder");
+    try {
+      const res = await fetch("/biblioteca/admin/instagram/api/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `Error ${res.status}`);
+        window.location.reload(); // re-sincroniza con el servidor
+      }
+    } catch (e) {
+      alert(`Error de red: ${e}`);
+      window.location.reload();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Clic en el título: despliega el detalle (imagen + caption) y lo carga.
+  async function toggleDetail(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      setDetail(null);
+      return;
+    }
+    setExpandedId(id);
+    setDetail(null);
+    setSavedFlash(false);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/biblioteca/admin/instagram/api/queue/${id}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || `Error ${res.status}`);
+        setExpandedId(null);
+        return;
+      }
+      const data = await res.json();
+      setDetail({
+        caption: data.caption ?? null,
+        image_b64: data.image_b64 ?? null,
+        image_url: data.image_url ?? null,
+      });
+      setDraftCaption(data.caption ?? "");
+    } catch (e) {
+      alert(`Error de red: ${e}`);
+      setExpandedId(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function saveCaption(id: number) {
+    setBusy("save");
+    try {
+      const res = await fetch(`/biblioteca/admin/instagram/api/queue/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: draftCaption }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || `Error ${res.status}`);
+        return;
+      }
+      const data = await res.json();
+      setDetail({
+        caption: data.caption ?? null,
+        image_b64: data.image_b64 ?? null,
+        image_url: data.image_url ?? null,
+      });
+      setSavedFlash(true);
+    } catch (e) {
+      alert(`Error de red: ${e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Estados terminales agrupados (solo lectura), tal cual venían de la API.
+  const byTerminal = new Map<string, IGItem[]>();
+  for (const s of TERMINAL_ORDER) byTerminal.set(s, []);
   for (const it of queue) {
-    if (!byStatus.has(it.status)) byStatus.set(it.status, []);
-    byStatus.get(it.status)!.push(it);
+    if (byTerminal.has(it.status)) byTerminal.get(it.status)!.push(it);
   }
 
   const candidateIdsInQueue = new Set(
@@ -103,11 +226,246 @@ export default function InstagramPlanner({
       .filter((x): x is number => typeof x === "number"),
   );
 
+  function ItemMeta({ it }: { it: IGItem }) {
+    return (
+      <>
+        <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
+          {fmtDate(it.day)} · slot {it.slot} ·{" "}
+          {it.is_blog ? "Blog" : it.category ?? "Actualidad"}
+          {it.source_name && ` · ${it.source_name}`}
+        </p>
+        <button
+          type="button"
+          onClick={() => toggleDetail(it.id)}
+          data-cursor="hover"
+          className="text-left font-serif text-lg text-ink leading-tight hover:text-accent transition-colors"
+          title="Ver / editar el contenido"
+        >
+          {it.title}
+          <span className="ml-2 font-mono text-[10px] text-ink-faint">
+            {expandedId === it.id ? "▲" : "▼"}
+          </span>
+        </button>
+        {it.summary && (
+          <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
+            {it.summary}
+          </p>
+        )}
+        <div className="mt-2 flex items-center gap-3 flex-wrap">
+          <span
+            className={`font-mono text-[9px] tracking-[2px] uppercase border px-1.5 py-0.5 ${STATUS_COLOR[it.status] ?? ""}`}
+          >
+            {STATUS_LABEL[it.status] ?? it.status}
+          </span>
+          {it.is_prepared && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+              imagen ✓
+            </span>
+          )}
+          {it.has_caption && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+              caption ✓
+            </span>
+          )}
+          {it.ig_media_id && (
+            <a
+              href={`https://www.instagram.com/p/${it.ig_media_id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[10px] text-accent hover:underline"
+            >
+              ver en IG ↗
+            </a>
+          )}
+          {it.source_url && (
+            <a
+              href={it.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[10px] text-ink-dim hover:text-accent"
+            >
+              fuente ↗
+            </a>
+          )}
+        </div>
+        {it.error && (
+          <p className="mt-2 font-mono text-[10px] text-red-400">{it.error}</p>
+        )}
+
+        {expandedId === it.id && (
+          <div className="mt-4 border-l-2 border-accent/40 pl-4">
+            {detailLoading ? (
+              <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+                cargando…
+              </p>
+            ) : (
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Previsualización de la imagen preparada */}
+                <div className="shrink-0">
+                  {detail?.image_b64 ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`data:image/jpeg;base64,${detail.image_b64}`}
+                      alt="Previsualización del post"
+                      className="w-44 h-44 object-cover border border-divider"
+                    />
+                  ) : detail?.image_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={detail.image_url}
+                      alt="Previsualización del post"
+                      className="w-44 h-44 object-cover border border-divider"
+                    />
+                  ) : (
+                    <div className="w-44 h-44 border border-divider flex items-center justify-center text-center font-mono text-[9px] tracking-[1px] uppercase text-ink-faint p-2">
+                      sin imagen · pulsa "re-preparar"
+                    </div>
+                  )}
+                </div>
+
+                {/* Editor del caption */}
+                <div className="flex-1 min-w-0">
+                  <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+                    caption
+                  </label>
+                  {it.status === "published" ? (
+                    <p className="mt-1 font-serif text-sm text-ink-dim whitespace-pre-wrap">
+                      {detail?.caption || "(sin caption)"}
+                    </p>
+                  ) : (
+                    <>
+                      <textarea
+                        value={draftCaption}
+                        onChange={(e) => {
+                          setDraftCaption(e.target.value);
+                          setSavedFlash(false);
+                        }}
+                        rows={8}
+                        className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-serif leading-relaxed p-2 resize-y"
+                      />
+                      <div className="mt-2 flex items-center gap-3">
+                        <button
+                          type="button"
+                          disabled={busy !== null || draftCaption === (detail?.caption ?? "")}
+                          onClick={() => saveCaption(it.id)}
+                          data-cursor="hover"
+                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+                        >
+                          guardar caption
+                        </button>
+                        {savedFlash && (
+                          <span className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
+                            guardado ✓
+                          </span>
+                        )}
+                        <span className="font-mono text-[9px] text-ink-faint">
+                          {draftCaption.length} car.
+                        </span>
+                      </div>
+                      <p className="mt-2 font-mono text-[9px] text-ink-faint leading-relaxed">
+                        Ojo: "re-preparar" regenera el caption y la imagen desde
+                        cero (pierde esta edición). Edita justo antes de publicar.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function ItemActions({ it }: { it: IGItem }) {
+    if (it.status === "published" || it.status === "discarded") return null;
+    return (
+      <div className="shrink-0 flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => prepare(it.id)}
+          data-cursor="hover"
+          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+        >
+          {it.is_prepared ? "re-preparar" : "preparar"}
+        </button>
+        {it.is_prepared && (
+          <button
+            type="button"
+            disabled={busy !== null || !account.ok}
+            onClick={() => publish(it.id, false)}
+            data-cursor="hover"
+            title={account.ok ? "" : "El token de IG no es válido"}
+            className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+          >
+            ▶ publicar ahora
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => discard(it.id)}
+          data-cursor="hover"
+          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
+        >
+          descartar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-14">
-      {/* ---------- Cola ---------- */}
-      {STATUS_ORDER.map((s) => {
-        const items = byStatus.get(s) ?? [];
+      {/* ---------- Cola de publicación (arrastrable) ---------- */}
+      {upcoming.length > 0 && (
+        <section>
+          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
+            Próximas publicaciones · {upcoming.length}
+          </h2>
+          <p className="font-serif italic text-ink-dim text-sm mb-5">
+            Arrastra para reordenar. El de arriba se publica antes.
+          </p>
+          <ul className="divide-y divide-divider">
+            {upcoming.map((it, index) => (
+              <li
+                key={it.id}
+                onDragOver={(e) => onDragOver(index, e)}
+                onDrop={(e) => e.preventDefault()}
+                className={`py-5 transition-opacity ${
+                  dragIndex === index ? "opacity-40" : ""
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Solo el asa es arrastrable: así el clic en el título o los
+                      botones no se lo traga el drag-and-drop. */}
+                  <span
+                    aria-hidden
+                    draggable={busy === null}
+                    onDragStart={() => onDragStart(index)}
+                    onDragEnd={persistOrder}
+                    data-cursor="hover"
+                    className="select-none font-mono text-ink-faint hover:text-accent cursor-grab active:cursor-grabbing pt-1 text-lg leading-none"
+                    title="Arrastra para reordenar"
+                  >
+                    ⠿
+                  </span>
+                  <div className="flex-1 min-w-0 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <ItemMeta it={it} />
+                    </div>
+                    <ItemActions it={it} />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ---------- Estados terminales (solo lectura) ---------- */}
+      {TERMINAL_ORDER.map((s) => {
+        const items = byTerminal.get(s) ?? [];
         if (items.length === 0) return null;
         return (
           <section key={s}>
@@ -119,100 +477,9 @@ export default function InstagramPlanner({
                 <li key={it.id} className="py-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
-                        {fmtDate(it.day)} · slot {it.slot} ·{" "}
-                        {it.is_blog ? "Blog" : it.category ?? "Actualidad"}
-                        {it.source_name && ` · ${it.source_name}`}
-                      </p>
-                      <p className="font-serif text-lg text-ink leading-tight">
-                        {it.title}
-                      </p>
-                      {it.summary && (
-                        <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
-                          {it.summary}
-                        </p>
-                      )}
-                      <div className="mt-2 flex items-center gap-3 flex-wrap">
-                        <span
-                          className={`font-mono text-[9px] tracking-[2px] uppercase border px-1.5 py-0.5 ${STATUS_COLOR[it.status] ?? ""}`}
-                        >
-                          {STATUS_LABEL[it.status] ?? it.status}
-                        </span>
-                        {it.is_prepared && (
-                          <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                            imagen ✓
-                          </span>
-                        )}
-                        {it.has_caption && (
-                          <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                            caption ✓
-                          </span>
-                        )}
-                        {it.ig_media_id && (
-                          <a
-                            href={`https://www.instagram.com/p/${it.ig_media_id}/`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-[10px] text-accent hover:underline"
-                          >
-                            ver en IG ↗
-                          </a>
-                        )}
-                        {it.source_url && (
-                          <a
-                            href={it.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-[10px] text-ink-dim hover:text-accent"
-                          >
-                            fuente ↗
-                          </a>
-                        )}
-                      </div>
-                      {it.error && (
-                        <p className="mt-2 font-mono text-[10px] text-red-400">
-                          {it.error}
-                        </p>
-                      )}
+                      <ItemMeta it={it} />
                     </div>
-                    <div className="shrink-0 flex items-center gap-2 flex-wrap">
-                      {it.status !== "published" && it.status !== "discarded" && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy !== null}
-                            onClick={() => prepare(it.id)}
-                            data-cursor="hover"
-                            className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-                          >
-                            {it.is_prepared ? "re-preparar" : "preparar"}
-                          </button>
-                          {it.is_prepared && (
-                            <button
-                              type="button"
-                              disabled={busy !== null || !account.ok}
-                              onClick={() => publish(it.id, false)}
-                              data-cursor="hover"
-                              title={
-                                account.ok ? "" : "El token de IG no es válido"
-                              }
-                              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                            >
-                              ▶ publicar ahora
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={busy !== null}
-                            onClick={() => discard(it.id)}
-                            data-cursor="hover"
-                            className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-                          >
-                            descartar
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    <ItemActions it={it} />
                   </div>
                 </li>
               ))}

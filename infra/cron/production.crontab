@@ -52,10 +52,12 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # después del agregador. También difunde los artículos nuevos del blog.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
-# Publica el siguiente post pendiente (cadencia cuentagotas). Se dispara cada
-# 2h; el propio script respeta el intervalo mínimo (4h con atasco, 6h en
-# régimen normal) y no publica antes de tiempo. Idempotente y barato.
-0 */2 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+# Publica el siguiente post pendiente. Horario FIJO (sin cuentagotas): 5 posts
+# al día cada 3h, de 10:00 a 22:00 hora de Madrid. --force salta el guard de
+# intervalo. OJO: el cron va en UTC y NO soporta CRON_TZ → horas en UTC para
+# Madrid en VERANO (CEST=UTC+2): 08,11,14,17,20 → 10,13,16,19,22 Madrid. Al
+# pasar a CET (UTC+1) el 26-oct-2026, cambiar a '0 9,12,15,18,21 * * *'.
+0 8,11,14,17,20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next --force >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)
@@ -90,6 +92,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Cada día a las 08:00 UTC: las propuestas `scheduled` cuya fecha llegó se
 # convierten en Post publicado (genera body si falta, newsletter, revalidate).
 0 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.materialize_proposals >> /var/log/robelyrics-cron.log 2>&1
+
+# Cada día a las 08:15 UTC: los Posts que el admin programó a una fecha (estado
+# `scheduled`, p.ej. desde /biblioteca/admin/posts) se publican al llegar su
+# `scheduled_for` (con re-check del cap 2/sem, newsletter y revalidate).
+15 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.flush_scheduled_due >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Newsletter (red de seguridad diaria)

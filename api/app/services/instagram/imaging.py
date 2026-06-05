@@ -232,6 +232,7 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
     category = topic.get("category", "Actualidad")
     title = (topic.get("headline") or topic.get("title") or "Extremoduro").strip()
     image_hint = (topic.get("image_hint") or "").strip()
+    image_thumb = (topic.get("image_hint_thumb") or "").strip()
     credit = (topic.get("image_credit") or "").strip()
     image_kind = topic.get("image_kind", "photo")
     verse = topic.get("verse") or {}
@@ -240,12 +241,16 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
     mood = MOODS.get(category, MOODS["Actualidad"])
 
     bg, used_photo = None, False
-    if image_hint:
+    # Intenta la imagen full y, si falla la descarga (hotlink/404), el thumbnail.
+    for candidate in (image_hint, image_thumb):
+        if not candidate:
+            continue
         try:
-            bg = _fetch_image(image_hint)
+            bg = _fetch_image(candidate)
             used_photo = True
+            break
         except Exception as exc:  # noqa: BLE001
-            logger.warning("[IMG] foto no usable (%s); voy a fondo IA", exc)
+            logger.warning("[IMG] foto no usable (%s); pruebo respaldo/IA", exc)
     if bg is None:
         try:
             bg = _ai_background(mood, seed)
@@ -285,11 +290,8 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
     y -= 22
     draw.line([(MARGIN, y), (SIZE[0] - MARGIN, y)], fill=(60, 52, 48), width=2)
 
-    # Crédito de la foto (solo si es foto real con licencia).
-    if used_photo and credit:
-        cred_font = _mono(17, bold=False)
-        y -= 30
-        draw.text((MARGIN, y), f"Foto: {credit}", font=cred_font, fill=COL_MUTED)
+    # El crédito de la foto ya NO se dibuja sobre la imagen (queda limpia): la
+    # atribución CC se incluye al final del caption (ver captions.build).
 
     # Verso de Robe (Cormorant itálica) — ornamental, si cabe y existe.
     if verse.get("line"):

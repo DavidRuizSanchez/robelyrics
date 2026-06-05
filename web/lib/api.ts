@@ -8,7 +8,7 @@ const API_BASE = process.env.API_INTERNAL_URL || "http://api:8000";
 export const TOKEN_COOKIE = "robelyrics_token";
 
 type FetchOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   cache?: RequestCache;
   // Si false, no envía Authorization (para /auth/login)

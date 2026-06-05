@@ -29,6 +29,10 @@ services:
     volumes: !override
       - ./data:/app/data:ro
       - ./web/public:/app/web-public
+      # Imágenes preparadas de Instagram: volumen persistente para que la
+      # previsualización del panel sobreviva a los redeploys (un --force-recreate
+      # vaciaría /tmp del contenedor). config.IMAGES_DIR = /tmp/robelyrics_instagram.
+      - ig-images:/tmp/robelyrics_instagram
     environment:
       SITE_URL: https://entreinteriores.com
       NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
@@ -85,3 +89,4 @@ services:
 volumes:
   caddy-data:
   caddy-config:
+  ig-images:

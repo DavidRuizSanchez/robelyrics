@@ -77,6 +77,50 @@ def _freshness(news: NewsItem) -> float:
     return 0.0
 
 
+# Palabras que NO distinguen un tema (vacías + ubicuas del dominio: aparecen en
+# casi todos los titulares, así que no sirven para medir si dos temas se repiten).
+_STOPWORDS = {
+    "de", "la", "el", "los", "las", "en", "con", "una", "uno", "del", "por",
+    "para", "que", "sobre", "su", "sus", "al", "un", "y", "o", "a", "se", "lo",
+    "le", "como", "mas", "este", "esta", "fue", "ser", "es", "su", "the",
+    "robe", "iniesta", "roberto", "extremoduro",
+}
+
+
+def _stem(w: str) -> str:
+    """Stemming ligero para unir plurales (premios→premio, musicas→musica)."""
+    if len(w) > 4 and w.endswith("es"):
+        return w[:-2]
+    if len(w) > 3 and w.endswith("s"):
+        return w[:-1]
+    return w
+
+
+def _keywords(text: str) -> set[str]:
+    """Palabras significativas (sin tildes, sin stopwords, con stem) de un texto.
+    Sirven para medir si dos titulares tratan del mismo tema."""
+    norm = "".join(
+        c for c in __import__("unicodedata").normalize("NFD", text or "")
+        if __import__("unicodedata").category(c) != "Mn"
+    ).lower()
+    words = re.findall(r"[a-z0-9]+", norm)
+    return {_stem(w) for w in words if len(w) > 3 and w not in _STOPWORDS}
+
+
+def _too_similar(kw: set[str], previas: list[set[str]], thr: float = 0.4) -> bool:
+    """True si las keywords solapan demasiado (Jaccard) con algún tema previo."""
+    if not kw:
+        return False
+    for prev in previas:
+        if not prev:
+            continue
+        inter = len(kw & prev)
+        union = len(kw | prev)
+        if union and inter / union >= thr:
+            return True
+    return False
+
+
 def select(db: Session, count: int = 3) -> list[dict]:
     """Selecciona los `count` temas del día.
 
@@ -100,6 +144,16 @@ def select(db: Session, count: int = 3) -> list[dict]:
         ).scalars().all()
     )
 
+    # Keywords de los últimos temas encolados/publicados: para NO repetir la
+    # misma temática en posts seguidos (p.ej. cuatro de los Premios de la Música).
+    recientes_titulos = db.execute(
+        sql_select(InstagramQueueItem.title)
+        .where(InstagramQueueItem.status.in_(["published", "prepared", "pending"]))
+        .order_by(InstagramQueueItem.created_at.desc())
+        .limit(10)
+    ).scalars().all()
+    recent_kwsets = [_keywords(t) for t in recientes_titulos if t]
+
     rankeadas = sorted(
         candidatos,
         key=lambda n: (n.relevance_score or 0) + _freshness(n),
@@ -109,6 +163,8 @@ def select(db: Session, count: int = 3) -> list[dict]:
     temas: list[dict] = []
     categorias_usadas: set[str] = set()
     urls_usadas: set[str] = set()
+    # Arranca con los temas recientes para no repetirlos en esta tanda.
+    kwsets_usados: list[set[str]] = list(recent_kwsets)
 
     def _admisible(n: NewsItem) -> bool:
         if n.url in ya_en_cola or n.url in urls_usadas:
@@ -121,25 +177,33 @@ def select(db: Session, count: int = 3) -> list[dict]:
             return False
         return _es_comentable(n)
 
-    # Primera pasada: máxima variedad de categoría.
+    # Primera pasada: máxima variedad de categoría Y de temática.
     for n in rankeadas:
         if len(temas) >= count:
             break
         cat = n.category or "Actualidad"
+        kw = _keywords(n.title)
         if cat in categorias_usadas or not _admisible(n):
+            continue
+        if _too_similar(kw, kwsets_usados):
             continue
         temas.append(_tema_de_noticia(n))
         categorias_usadas.add(cat)
         urls_usadas.add(n.url)
+        kwsets_usados.append(kw)
 
-    # Segunda pasada: rellenar con buenas noticias aunque repitan categoría.
+    # Segunda pasada: rellenar aunque repita categoría, pero NO la temática.
     for n in rankeadas:
         if len(temas) >= count:
             break
         if not _admisible(n):
             continue
+        kw = _keywords(n.title)
+        if _too_similar(kw, kwsets_usados):
+            continue
         temas.append(_tema_de_noticia(n))
         urls_usadas.add(n.url)
+        kwsets_usados.append(kw)
 
     # Tercera pasada: efeméride del día.
     if len(temas) < count:

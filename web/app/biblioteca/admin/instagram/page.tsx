@@ -8,6 +8,7 @@ export type IGItem = {
   id: number;
   day: string;
   slot: number;
+  position: number;
   status: string;
   title: string;
   category: string | null;

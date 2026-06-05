@@ -16,7 +16,7 @@ import argparse
 import logging
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.models import InstagramQueueItem, Post
 from app.db.session import SessionLocal
@@ -24,6 +24,16 @@ from app.services.instagram import config, publisher, topics
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+def _next_position(db) -> int:
+    """Siguiente `position` libre: al final de la cola de publicación. Así los
+    posts que encola el cron respetan el orden manual del admin (no se cuelan
+    delante de lo ya reordenado a mano)."""
+    max_pos = db.execute(
+        select(func.coalesce(func.max(InstagramQueueItem.position), -1))
+    ).scalar_one()
+    return int(max_pos) + 1
 
 # Slot bajo para que los posts del blog tengan prioridad en la cola.
 BLOG_SLOT = 0
@@ -38,6 +48,9 @@ def _enqueue_news(db, today: date, prepare: bool) -> int:
         select(InstagramQueueItem.id).where(
             InstagramQueueItem.day == today,
             InstagramQueueItem.slot >= 1,
+            # Los descartados/fallidos no "ocupan" el día: si se reseteó la cola
+            # hoy, queremos poder volver a seleccionar temas.
+            InstagramQueueItem.status.notin_(("discarded", "failed")),
         )
     ).first()
     if already is not None:
@@ -52,6 +65,7 @@ def _enqueue_news(db, today: date, prepare: bool) -> int:
             news_item_id=tema.get("news_item_id"),
             day=today,
             slot=slot,
+            position=_next_position(db),
             title=tema["title"][:300],
             category=tema.get("category"),
             summary=tema.get("summary"),
@@ -101,6 +115,7 @@ def _enqueue_blog(db, today: date, prepare: bool) -> int:
             blog_post_id=post.id,
             day=today,
             slot=BLOG_SLOT,
+            position=_next_position(db),
             title=post.title[:300],
             category="Blog",
             summary=post.excerpt,

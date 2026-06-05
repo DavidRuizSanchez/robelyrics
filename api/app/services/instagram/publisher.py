@@ -77,10 +77,25 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             topic["image_hint"] = cover["url"]
             topic["image_kind"] = "cover"
         else:
-            foto = photo_finder.find(topic)
+            # Créditos de las fotos de los últimos posts: para no repetir imagen.
+            recent_credits = {
+                m.group(1).strip()
+                for c in db.execute(
+                    select(InstagramQueueItem.caption)
+                    .where(
+                        InstagramQueueItem.caption.is_not(None),
+                        InstagramQueueItem.id != item.id,
+                    )
+                    .order_by(InstagramQueueItem.id.desc())
+                    .limit(12)
+                ).scalars().all()
+                if c and (m := re.search(r"📷\s*(.+)", c))
+            }
+            foto = photo_finder.find(topic, exclude=recent_credits)
             if foto:
                 topic["image_hint"] = foto["url"]
-                topic["image_credit"] = foto["credit"]
+                topic["image_hint_thumb"] = foto.get("thumb") or ""
+                topic["image_credit"] = foto.get("credit") or ""
                 topic["image_kind"] = "photo"
 
     # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
@@ -165,11 +180,13 @@ def publish(
 
 
 def next_pending(db: Session) -> InstagramQueueItem | None:
-    """Siguiente item a publicar: por slot (blog primero), día y antigüedad."""
+    """Siguiente item a publicar: orden manual (`position`) primero; luego
+    slot (blog primero), día y antigüedad como desempate."""
     return db.execute(
         select(InstagramQueueItem)
         .where(InstagramQueueItem.status.in_(("pending", "prepared")))
         .order_by(
+            InstagramQueueItem.position,
             InstagramQueueItem.slot,
             InstagramQueueItem.day,
             InstagramQueueItem.created_at,
