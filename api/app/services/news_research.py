@@ -232,6 +232,36 @@ _WRITE_SYS = (
 )
 
 
+_VERIFY_SYS = (
+    "Eres un verificador de hechos ESTRICTO de Entre Interiores. Te doy un "
+    "ARTÍCULO y el MATERIAL en el que debe basarse. Tu trabajo: devolver el "
+    "artículo corregido eliminando o suavizando TODA afirmación concreta "
+    "—fechas, años, números de edición ('3ª edición', '2023'), cifras de "
+    "asistentes/premios, nombres propios, lugares y eventos— que NO aparezca o "
+    "no se deduzca CLARAMENTE del material. Reglas: (1) si un dato no está en el "
+    "material, quítalo o reescribe la frase sin él (mejor sin el dato que con "
+    "uno inventado); (2) NO añadas información nueva; (3) no mezcles eventos "
+    "distintos: si el artículo cuela un evento que no está en el material, "
+    "elimínalo; (4) conserva el estilo, los encabezados y los enlaces markdown "
+    "tal cual. Devuelve SOLO JSON: {\"body_md\": \"<artículo corregido>\"}."
+)
+
+
+def verify_facts(body_md: str, material: str) -> str:
+    """Pasada de verificación factual contra el material. Quita lo no respaldado
+    (anti-alucinación). Si falla, devuelve el cuerpo original."""
+    if not body_md.strip():
+        return body_md
+    out = _json(
+        _VERIFY_SYS,
+        f"MATERIAL (única fuente de verdad):\n\"\"\"{material[:7000]}\"\"\"\n\n"
+        f"ARTÍCULO A VERIFICAR:\n\"\"\"{body_md}\"\"\"",
+        max_tokens=2600,
+    )
+    verified = (out.get("body_md") or "").strip()
+    return verified if len(verified) > 200 else body_md
+
+
 def research_and_write(
     *, db, headline: str, source_excerpt: str, matched_term: str,
     today=None,
@@ -282,6 +312,11 @@ INSTRUCCIONES:
   "slug" (kebab-case, 3-5 palabras, sobre el protagonista).
 """
     out = _call(user, max_tokens=2600, system_prompt=_WRITE_SYS)
+
+    # Verificación factual: quita datos no respaldados por el material (fechas,
+    # años, cifras, eventos inventados). Anti-alucinación antes de publicar.
+    material = f"{source_excerpt[:4000]}\n\n{web_txt}\n\n{corpus_txt}"
+    out["body_md"] = verify_facts(out.get("body_md") or "", material)
 
     # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
     # detecta) y se publica su VideoObject vía posts.video.
