@@ -14,13 +14,21 @@ Ejecución:
 """
 from __future__ import annotations
 
+import argparse
 import json
 
 from scripts.research.common import DATA_DIR, clean_text, get_session, log, upsert_source
 
 
 def main() -> None:
-    path = DATA_DIR / "robe_interview_transcripts.json"
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--path",
+        default=None,
+        help="Ruta del JSON a importar (por defecto data/robe_interview_transcripts.json).",
+    )
+    args = ap.parse_args()
+    path = DATA_DIR / args.path if args.path else DATA_DIR / "robe_interview_transcripts.json"
     if not path.exists():
         log(f"{path} no encontrado", "err")
         return
