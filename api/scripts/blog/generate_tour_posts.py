@@ -1,25 +1,38 @@
-"""Genera posts de GIRAS de Extremoduro/Robe como propuestas (pending_review).
+"""Genera posts de GIRAS de Extremoduro/Robe como Post en pending_review.
 
-Crea ContentProposal (kind='evergreen', status pending_review) — NO publica.
-El admin las revisa/edita y publica desde /biblioteca/admin. Grounded con datos
-verificables de los libros (ver data/reference/*.md): no inventar.
+Crea un `Post` (kind='evergreen', status pending_review) por gira — NO publica.
+El admin los revisa/edita y publica desde /biblioteca/admin/posts. Grounded con
+datos verificables de los libros (ver data/reference/*.md): no inventar.
 
-Idempotente: salta si ya existe una propuesta con el mismo título.
+Idempotente: salta si ya existe un Post con el mismo slug.
 
-Uso: python -m scripts.blog.generate_tour_posts
+Uso:
+    python -m scripts.blog.generate_tour_posts
+    python -m scripts.blog.generate_tour_posts --dry-run
 """
 from __future__ import annotations
 
+import argparse
+import logging
+
 from sqlalchemy import select
 
-from app.db.models import ContentProposal
+from app.db.models import Post
+from app.db.session import SessionLocal
 from app.services.content_generator import generate_seo_article
-from scripts.research.common import get_session, log
+from app.services.publishing import propose_for_review
+from scripts.blog.context_builder import tour_context
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 # Datos verificables por gira (de De Profundis + research). El generador
-# parafrasea con la voz megafan punki; estos hechos son su materia prima.
+# parafrasea con la voz del sitio; estos hechos son su materia prima.
+# `slug` es estable y legible — define la URL del post y la idempotencia.
 TOURS = [
     {
+        "slug": "gira-pedra-1995",
+        "album_slug": "pedra",
         "title": "Pedrá en directo (1995): media hora de una sola canción",
         "angle": "La gira de Pedrá, el disco de una sola canción de casi media hora.",
         "context": "Pedrá (proyecto de 1993, editado feb 1995 por DRO). Banda Pedrá: "
@@ -30,6 +43,8 @@ TOURS = [
         "5.000 personas; en directo tocaban Pedrá dos veces.",
     },
     {
+        "slug": "gira-extremoduro-platero-1995",
+        "album_slug": "iros-todos-a-tomar-por-culo",
         "title": "La gira de Extremoduro y Platero y Tú (1995)",
         "angle": "La gira conjunta con Platero y Tú, hermandad y cartel circense.",
         "context": "Verano-noviembre de 1995. Extremoduro y Platero y Tú (la banda de "
@@ -38,6 +53,8 @@ TOURS = [
         "el directo 'Iros todos a tomar por culo' (1997).",
     },
     {
+        "slug": "gira-canciones-prohibidas-1999",
+        "album_slug": "canciones-prohibidas",
         "title": "Moñigos, morid (1999): la gira de Canciones prohibidas",
         "angle": "La gira de Canciones prohibidas con Fito & Fitipaldis de teloneros.",
         "context": "Gira de 1999 tras Canciones prohibidas (1998). Fito & Fitipaldis "
@@ -45,6 +62,8 @@ TOURS = [
         "guitarra y Cantera a la batería ya oficiales.",
     },
     {
+        "slug": "gira-yo-minoria-absoluta-2002",
+        "album_slug": "yo-minoria-absoluta",
         "title": "Gira 2002: Yo, minoría absoluta sobre los escenarios",
         "angle": "La gira de Yo, minoría absoluta, con llenos históricos.",
         "context": "Gira 2002 de Yo, minoría absoluta (2002). Dos noches en La Cubierta "
@@ -53,6 +72,7 @@ TOURS = [
         "Colino + Aiert Erkoreka (teclados) y Félix Landa (guitarra).",
     },
     {
+        "slug": "gira-grandes-exitos-fracasos-2004",
         "title": "Grandes éxitos y fracasos (2004): la gira de la regrabación",
         "angle": "La gira de 2004 alrededor de los Grandes éxitos y fracasos.",
         "context": "Gira de 2004: arrancó en Lleida el 14 de mayo y terminó en Salamanca "
@@ -61,6 +81,8 @@ TOURS = [
         "discos.",
     },
     {
+        "slug": "gira-robando-perchas-2012",
+        "album_slug": "material-defectuoso",
         "title": "Robando perchas del hotel (2012): la última gran gira de Extremoduro",
         "angle": "La gira de 2012, el salto a América y el cierre en Cáceres.",
         "context": "Gira 'Robando perchas del hotel' (2012; nombre inspirado en un "
@@ -70,6 +92,8 @@ TOURS = [
         "15.000 personas, con despedida emotiva de Robe.",
     },
     {
+        "slug": "gira-para-todos-los-publicos-2014",
+        "album_slug": "para-todos-los-publicos",
         "title": "Para todos los públicos (2014): el último adiós de Extremoduro",
         "angle": "La gira de despedida de Extremoduro antes de su disolución.",
         "context": "Gira de 'Para todos los públicos' (2013), organizada por El "
@@ -77,6 +101,7 @@ TOURS = [
         "Extremoduro; el grupo anunció su disolución el 18 de diciembre de 2019.",
     },
     {
+        "slug": "giras-robe-solitario",
         "title": "Robe en solitario: de Lo que aletea a Ni santos ni inocentes",
         "angle": "Las giras de la etapa en solitario de Robe con su banda extremeña.",
         "context": "Tras Extremoduro, Robe giró en solitario con su banda (Álvaro "
@@ -92,49 +117,81 @@ TOURS = [
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--only-slug", help="Genera solo la gira con este slug.")
+    args = parser.parse_args()
+
+    tours = TOURS
+    if args.only_slug:
+        tours = [t for t in TOURS if t["slug"] == args.only_slug]
+        if not tours:
+            logger.error("No hay gira con slug '%s'", args.only_slug)
+            return
+
     created = skipped = failed = 0
-    with get_session() as db:
-        for t in TOURS:
-            exists = db.execute(
-                select(ContentProposal).where(ContentProposal.title == t["title"])
+    with SessionLocal() as db:
+        for t in tours:
+            existing = db.execute(
+                select(Post).where(Post.slug == t["slug"])
             ).scalar_one_or_none()
-            if exists:
+            if existing is not None:
+                logger.info("Post %s ya existe (status=%s), skip", t["slug"], existing.status)
                 skipped += 1
                 continue
             try:
+                # Grounding RAG: entrevistas/citas reales de Robe + consenso fan
+                # del disco + hechos de los libros (no el resumen a mano).
+                ctx = tour_context(db, t)
                 out = generate_seo_article(
                     title=t["title"], angle=t["angle"], keywords=[],
-                    context=t["context"],
-                )
-            except TypeError:
-                # por si esta versión de generate_seo_article no acepta context
-                out = generate_seo_article(
-                    title=t["title"], angle=t["angle"] + "\n\nDatos: " + t["context"],
-                    keywords=[],
+                    context=ctx or t["context"],
                 )
             except Exception as exc:  # noqa: BLE001
-                log(f"  fallo generando '{t['title']}': {exc}", "warn")
+                logger.warning("fallo generando '%s': %s", t["title"], exc)
                 failed += 1
                 continue
-            prop = ContentProposal(
+
+            title = (out.get("title") or t["title"])[:240]
+            body_md = out.get("body_md") or ""
+            if not body_md.strip():
+                logger.warning("'%s' sin body, skip", t["title"])
+                failed += 1
+                continue
+
+            if args.dry_run:
+                print(f"\n=== DRY RUN — gira {t['slug']} ===")
+                print("slug:", t["slug"])
+                print("title:", title)
+                print("excerpt:", out.get("excerpt"))
+                print("---BODY---")
+                print(body_md)
+                continue
+
+            post = Post(
+                slug=t["slug"],
                 kind="evergreen",
-                source_type=None,
-                source_id=None,
-                title=(out.get("title") or t["title"])[:240],
-                angle=t["angle"],
-                body_md=out.get("body_md"),
+                status="draft",
+                title=title,
                 excerpt=out.get("excerpt"),
+                body_md=body_md,
                 meta_title=out.get("meta_title"),
                 meta_description=out.get("meta_description"),
                 entities=out.get("entities") or [],
-                keywords=[],
-                status="pending_review",
             )
-            db.add(prop)
+            db.add(post)
+            db.commit()
+            db.refresh(post)
+            # notify=False: generamos varios de golpe; el admin los revisa en
+            # /biblioteca/admin/posts sin recibir 8 emails.
+            propose_for_review(db, post, notify=False)
+            logger.info("✓ post de gira en pending_review: %s", t["slug"])
             created += 1
-            log(f"  ✓ propuesta de gira: {t['title']}", "ok")
-        db.commit()
-    log(f"Giras: {created} propuestas creadas · {skipped} ya existían · {failed} fallos", "ok")
+
+    logger.info(
+        "Giras: %d posts creados · %d ya existían · %d fallos",
+        created, skipped, failed,
+    )
 
 
 if __name__ == "__main__":

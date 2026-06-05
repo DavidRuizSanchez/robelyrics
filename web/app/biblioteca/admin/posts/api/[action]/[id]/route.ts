@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-const VALID_ACTIONS = new Set(["publish", "reject", "unpublish"]);
+// Acciones que delegan a POST /admin/posts/{id}/{action}; "update" hace
+// PUT /admin/posts/{id}; "schedule"/"update" llevan body JSON.
+const VALID_ACTIONS = new Set([
+  "publish",
+  "reject",
+  "unpublish",
+  "schedule",
+  "unschedule",
+  "update",
+]);
 
-// Proxy POST que delega al endpoint admin del backend con auth via cookie.
+const WITH_BODY = new Set(["schedule", "update"]);
+
+// Proxy que delega al endpoint admin del backend con auth via cookie.
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ action: string; id: string }> },
 ) {
   const { action, id } = await params;
@@ -17,17 +28,27 @@ export async function POST(
     return NextResponse.json({ error: "invalid id" }, { status: 400 });
   }
 
+  let body: unknown = undefined;
+  if (WITH_BODY.has(action)) {
+    try {
+      body = await request.json();
+    } catch {
+      body = undefined;
+    }
+  }
+
+  const backendPath =
+    action === "update"
+      ? `/admin/posts/${numericId}`
+      : `/admin/posts/${numericId}/${action}`;
+  const method = action === "update" ? "PUT" : "POST";
+
   try {
-    const data = await apiFetch<unknown>(`/admin/posts/${numericId}/${action}`, {
-      method: "POST",
-    });
+    const data = await apiFetch<unknown>(backendPath, { method, body });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
-      return NextResponse.json(
-        { error: String(e.detail) },
-        { status: e.status },
-      );
+      return NextResponse.json({ error: String(e.detail) }, { status: e.status });
     }
     return NextResponse.json({ error: "internal error" }, { status: 500 });
   }

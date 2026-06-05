@@ -22,12 +22,16 @@ sabe escribir poco y honesto sin rellenar.
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import SeoContent
+from app.db.models import Album, SeoContent
 from scripts.seo.common import (
     fetch_distilled_for_album,
     fetch_distilled_for_artist,
@@ -169,4 +173,137 @@ def taxonomy_context(
     return _assemble([
         ("CONSENSO FAN (canciones del tema)", consenso[:PART_CAP]),
         ("ARTÍCULO SEO (intro)", seo),
+    ])
+
+
+# --------------------------------------------------------------------------- #
+# Contexto de GIRAS — anclado en el corpus real (entrevistas + fan-content +
+# digests de libros). Ver feedback: el contenido se genera con RAG, no a mano.
+# --------------------------------------------------------------------------- #
+_REFERENCE_DIR = Path(__file__).resolve().parents[2] / "data" / "reference"
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def _norm(s: str) -> str:
+    return _strip_accents(s or "").lower()
+
+
+@lru_cache(maxsize=1)
+def _reference_lines() -> tuple[str, ...]:
+    """Líneas con sustancia de los digests de libros (data/reference/*.md).
+
+    Cada bullet de esos ficheros es un hecho verificable auto-contenido; nos
+    quedamos con las líneas largas (descarta encabezados y ruido).
+    """
+    lines: list[str] = []
+    try:
+        for md in sorted(_REFERENCE_DIR.glob("*.md")):
+            for raw in md.read_text(encoding="utf-8").splitlines():
+                t = raw.strip().lstrip("#-*• ").strip()
+                if len(t) >= 40:
+                    lines.append(t)
+    except Exception as exc:  # pragma: no cover - defensivo
+        logger.warning("_reference_lines falló leyendo %s: %s", _REFERENCE_DIR, exc)
+        return ()
+    return tuple(lines)
+
+
+def _reference_snippets(terms: list[str], max_chars: int = 900) -> str:
+    """Líneas de los digests que mencionan algún término de la gira (año,
+    título del disco). Hechos reales de los libros, no inventados."""
+    norm_terms = [_norm(t) for t in terms if t and len(t) >= 4]
+    if not norm_terms:
+        return ""
+    picked: list[str] = []
+    seen: set[str] = set()
+    total = 0
+    for line in _reference_lines():
+        nline = _norm(line)
+        if any(t in nline for t in norm_terms) and line not in seen:
+            seen.add(line)
+            picked.append(line)
+            total += len(line)
+            if total >= max_chars:
+                break
+    return "\n".join(f"- {ln}" for ln in picked)
+
+
+def _format_voice_block(passages: list[dict[str, Any]]) -> str:
+    """Formatea los pasajes de robe_voice_v1 (lo que dijo Robe) etiquetando
+    tipo y fuente, para que el generador lo trate como palabra suya real."""
+    out: list[str] = []
+    for p in passages:
+        frag = (p.get("fragmento") or "").strip()
+        if not frag:
+            continue
+        tipo = p.get("tipo") or "entrevista"
+        titulo = p.get("titulo") or "Robe"
+        out.append(f"[{tipo} · {titulo}] «{frag}»")
+    return "\n".join(out)
+
+
+def tour_context(db: Session, tour: dict[str, Any]) -> str:
+    """Contexto rico de una GIRA anclado en el corpus real:
+
+      - LO QUE DIJO ROBE: pasajes de entrevistas/citas suyas (robe_voice_v1),
+        recuperados por similitud semántica con la gira.
+      - EL DISCO Y SU RECEPCIÓN: consenso fan + fuentes del disco protagonista
+        (reutiliza album_context si `tour['album_slug']` casa con un álbum).
+      - HECHOS DE LOS LIBROS: líneas de los digests (data/reference/*.md) que
+        mencionan el disco o los años de la gira.
+      - DATOS BASE: el bloque curado a mano del propio tour (ancla mínima).
+
+    Best-effort: si una fuente falla o no hay material, se omite ese bloque.
+    """
+    title = tour.get("title", "")
+    base_ctx = (tour.get("context") or "").strip()
+    album_slug = tour.get("album_slug")
+
+    # Disco protagonista (para album_context y para los términos de búsqueda).
+    album = None
+    if album_slug:
+        try:
+            album = db.execute(
+                select(Album).where(Album.slug == album_slug)
+            ).scalar_one_or_none()
+        except Exception as exc:  # pragma: no cover - defensivo
+            logger.warning("tour_context: lookup álbum %s falló: %s", album_slug, exc)
+
+    # 1. Voz de Robe por RAG sobre robe_voice_v1.
+    voice_block = ""
+    try:
+        from app.services.embeddings import get_embedder
+        from app.services.retrieval import search_robe_voice
+
+        qvec = get_embedder().embed_one(f"{title}. {base_ctx}")
+        voice_block = _format_voice_block(search_robe_voice(qvec, k=6))
+    except Exception as exc:  # pragma: no cover - defensivo
+        logger.warning("tour_context: RAG voz de Robe falló: %s", exc)
+
+    # 2. Disco protagonista: consenso fan + fuentes documentadas.
+    album_block = ""
+    if album is not None:
+        try:
+            album_block = album_context(db, album.id)
+        except Exception as exc:  # pragma: no cover - defensivo
+            logger.warning("tour_context: album_context(%s) falló: %s", album.id, exc)
+
+    # 3. Hechos verificables de los libros (por año + título del disco).
+    years = list(dict.fromkeys(re.findall(r"\b(?:19|20)\d{2}\b", base_ctx)))
+    terms = list(years)
+    if album is not None:
+        terms.append(album.title)
+    refs = _reference_snippets(terms)
+
+    return _assemble([
+        ("DATOS BASE DE LA GIRA", base_ctx[:700]),
+        ("LO QUE DIJO ROBE (entrevistas/citas suyas — parafrasea, no cites literal)", voice_block[:1100]),
+        ("HECHOS VERIFICADOS DE LOS LIBROS", refs[:700]),
+        ("EL DISCO Y SU RECEPCIÓN", album_block[:500]),
     ])

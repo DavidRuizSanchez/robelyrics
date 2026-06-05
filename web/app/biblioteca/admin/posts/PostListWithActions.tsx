@@ -14,18 +14,23 @@ type AdminPostItem = {
   source_name: string | null;
   created_at: string;
   published_at: string | null;
+  scheduled_for: string | null;
 };
 
 const KIND_LABEL: Record<string, string> = {
   editorial: "Editorial",
   news: "Noticia",
   anniversary: "Efeméride",
+  "album-anniversary": "Aniversario de disco",
+  spotlight: "Canción de la semana",
+  evergreen: "Reportaje",
 };
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   draft: { label: "borrador", cls: "text-ink-faint" },
   pending_review: { label: "pendiente", cls: "text-accent" },
   approved: { label: "aprobado", cls: "text-ink" },
+  scheduled: { label: "programado", cls: "text-ink" },
   published: { label: "publicado", cls: "text-accent" },
   rejected: { label: "rechazado", cls: "text-ink-faint" },
 };
@@ -41,7 +46,10 @@ function formatDate(iso: string): string {
 export default function PostListWithActions({ items }: { items: AdminPostItem[] }) {
   const [busy, setBusy] = useState<number | null>(null);
 
-  async function act(id: number, action: "publish" | "reject" | "unpublish") {
+  async function act(
+    id: number,
+    action: "publish" | "reject" | "unpublish" | "unschedule",
+  ) {
     setBusy(id);
     try {
       const res = await fetch(`/biblioteca/admin/posts/api/${action}/${id}`, {
@@ -82,10 +90,16 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                 <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
                   {KIND_LABEL[p.kind] || p.kind} · creado {formatDate(p.created_at)}
                   {p.published_at && ` · publicado ${formatDate(p.published_at)}`}
+                  {p.status === "scheduled" && p.scheduled_for &&
+                    ` · programado ${formatDate(p.scheduled_for)}`}
                 </p>
-                <h3 className="font-serif text-xl md:text-2xl text-ink leading-tight">
+                <Link
+                  href={`/biblioteca/admin/posts/${p.id}`}
+                  data-cursor="hover"
+                  className="font-serif text-xl md:text-2xl text-ink leading-tight hover:text-accent"
+                >
                   {p.title}
-                </h3>
+                </Link>
                 {p.excerpt && (
                   <p className="mt-2 font-serif italic text-ink-dim text-base leading-relaxed max-w-[680px]">
                     {p.excerpt}
@@ -110,6 +124,13 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                   {st.label}
                 </span>
                 <div className="flex gap-2 flex-wrap justify-end">
+                  <Link
+                    href={`/biblioteca/admin/posts/${p.id}`}
+                    data-cursor="hover"
+                    className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
+                  >
+                    abrir
+                  </Link>
                   {p.status === "published" && (
                     <Link
                       href={`/blog/${p.slug}`}
@@ -119,6 +140,17 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                     >
                       ver ↗
                     </Link>
+                  )}
+                  {p.status === "scheduled" && (
+                    <button
+                      type="button"
+                      onClick={() => act(p.id, "unschedule")}
+                      disabled={busy === p.id}
+                      data-cursor="hover"
+                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+                    >
+                      desprogramar
+                    </button>
                   )}
                   {canPublish && (
                     <button

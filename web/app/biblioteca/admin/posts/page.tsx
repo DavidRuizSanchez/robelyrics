@@ -15,6 +15,7 @@ type AdminPostItem = {
   source_name: string | null;
   created_at: string;
   published_at: string | null;
+  scheduled_for: string | null;
 };
 
 export const metadata = {
@@ -29,6 +30,7 @@ const STATUSES = [
   { value: "pending_review", label: "pendientes de revisar" },
   { value: "draft", label: "borrador" },
   { value: "approved", label: "aprobados (no publicados)" },
+  { value: "scheduled", label: "programados" },
   { value: "published", label: "publicados" },
   { value: "rejected", label: "rechazados" },
 ];
@@ -74,9 +76,9 @@ export default async function AdminPostsPage({
           Diario · revisión de entradas
         </h1>
         <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
-          Aprueba o rechaza las entradas detectadas por el scraper de noticias.
-          Solo las publicadas se envían a los suscriptores en el próximo
-          envío de newsletter.
+          Pincha en una entrada para leerla y editarla. Puedes publicarla al
+          momento o programarla para una fecha. Solo las publicadas se envían a
+          los suscriptores en el próximo envío de newsletter.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 text-center">

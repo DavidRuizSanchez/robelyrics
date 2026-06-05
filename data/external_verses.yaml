@@ -1,0 +1,17 @@
+# Versos de canciones RELEVANTES que NO están en nuestro corpus de letras
+# (colaboraciones de Robe fuera de Extremoduro, temas de otros con su voz, etc.).
+#
+# ⚠️ CURADO A MANO Y VERIFICADO. Nunca generado por IA: no inventar letras.
+# Cuando una publicación de Instagram trata claramente de una de estas canciones
+# (detección por `aliases` en el título/cuerpo), se usa SU verso en lugar de
+# buscar uno semántico en el corpus. Citas breves (<25 palabras) con atribución.
+#
+# Estructura de cada entrada:
+#   - song: "Caída libre"
+#     artist: "Leiva feat. Robe"        # atribución que se mostrará
+#     year: 2025
+#     verse: "<verso real, breve, verificado>"
+#     aliases: ["caida libre"]          # cómo detectarla en el texto (sin tildes)
+#
+# Pendiente de poblar con versos verificados (p.ej. «Caída libre»).
+versos: []
