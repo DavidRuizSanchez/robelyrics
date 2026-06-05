@@ -231,6 +231,23 @@ def upsert_seo_content(
         if sources:
             body_md = autolink_sources(body_md, sources)
 
+    update_set = {
+        "slug": slug,
+        "body_md": body_md,
+        "meta_title": meta_title,
+        "meta_description": meta_description,
+        "schema_jsonld": schema_jsonld,
+        "entities": ents,
+        "generated_at": datetime.now(timezone.utc),
+        "generated_by": MODEL,
+    }
+    # Por defecto, regenerar una ficha la vuelve a borrador (revisión humana).
+    # Con SEO_KEEP_PUBLISHED=1 se PRESERVA el estado publicado al regenerar
+    # (para el rewrite masivo de lo ya publicado: no tumba las páginas y el
+    # contenido nuevo ya va verificado por call_llm).
+    if os.environ.get("SEO_KEEP_PUBLISHED") != "1":
+        update_set["reviewed_at"] = None
+        update_set["published"] = False
     stmt = (
         pg_insert(SeoContent)
         .values(
@@ -249,18 +266,7 @@ def upsert_seo_content(
         )
         .on_conflict_do_update(
             constraint="uq_seo_content_entity",
-            set_={
-                "slug": slug,
-                "body_md": body_md,
-                "meta_title": meta_title,
-                "meta_description": meta_description,
-                "schema_jsonld": schema_jsonld,
-                "entities": ents,
-                "generated_at": datetime.now(timezone.utc),
-                "generated_by": MODEL,
-                "reviewed_at": None,
-                "published": False,
-            },
+            set_=update_set,
         )
         .returning(SeoContent.id)
     )
