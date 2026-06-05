@@ -193,6 +193,12 @@ INSTRUCCIONES:
 - Para un HECHO IMPORTANTE (un homenaje, un evento, un disco señalado) SÍ puedes
   enlazar a una FUENTE EXTERNA que lo cubra (noticia o vídeo), usando ÚNICAMENTE
   las URLs que aparecen tras 'FUENTE:' en el material. No inventes URLs.
+- INTERCALAR VÍDEO: si esta sección cubre un momento MUY relevante con un vídeo
+  de YouTube asociado en el material (un directo histórico, el homenaje, un
+  videoclip clave), intercálalo poniendo su URL de YouTube SOLA en su propia
+  línea (sin corchetes ni texto), usando ÚNICAMENTE una URL de YouTube que
+  aparezca tras 'FUENTE:' en el material. Como mucho 1 vídeo, y solo si de
+  verdad aporta. Si no hay nada muy relevante, no metas vídeo.
 - Solo esta sección, sin intro ni cierre del artículo entero.
 Devuelve JSON {{"body_md": "<la sección en markdown>"}}.
 """
@@ -239,6 +245,14 @@ def _sanitize_links(body: str, allowed_ext: set[str]) -> str:
         if line.lstrip().startswith("#"):
             out.append(_LINK_RE.sub(r"\1", line))  # headings sin enlaces
             continue
+        # Línea que es SOLO una URL = vídeo intercalado: se conserva únicamente
+        # si es un YouTube real del material (si no, se descarta para no embeber
+        # un vídeo inventado/equivocado).
+        bare = line.strip()
+        if re.fullmatch(r"https?://\S+", bare):
+            is_yt = "youtube.com" in bare or "youtu.be" in bare
+            out.append(line if (is_yt and bare in allowed_ext) else "")
+            continue
 
         def repl(m):
             text, url = m.group(1), m.group(2).strip()
@@ -254,26 +268,31 @@ def _sanitize_links(body: str, allowed_ext: set[str]) -> str:
 
 def _faq(client: OpenAI, subject: str, material: str) -> str:
     """Sección de Preguntas frecuentes (factuales y no factuales), basada solo
-    en el material y verificada."""
+    en el material y verificada. SIN enlaces ni vídeos: la pregunta es un H3 y
+    la respuesta un párrafo."""
     user = f"""\
 Genera la sección final de PREGUNTAS FRECUENTES sobre {subject}.
 6-9 preguntas que la gente se hace de verdad: unas FACTUALES (fechas, lugares,
 discos, datos básicos) y otras NO factuales (por qué importa, qué lo hacía
 único, su forma de ser). Respuestas BREVES (1-3 frases), concretas y basadas
-SOLO en el MATERIAL; no inventes nada. Para un hecho importante puedes enlazar a
-una FUENTE externa del material (la URL tras 'FUENTE:') si aporta contexto, pero
-NUNCA enlaces dentro de la pregunta.
+SOLO en el MATERIAL; no inventes nada.
+FORMATO: cada pregunta es un encabezado H3 ("### ¿pregunta?") y la respuesta va
+debajo como un párrafo normal. NINGÚN enlace ni vídeo en toda la sección.
 
 MATERIAL:
 \"\"\"{material[:90000]}\"\"\"
 
-Devuelve JSON {{"body_md": "## Preguntas frecuentes\\n\\n**¿pregunta?**\\n\\nrespuesta\\n\\n**¿pregunta?**\\n\\nrespuesta..."}}.
+Devuelve JSON {{"body_md": "## Preguntas frecuentes\\n\\n### ¿pregunta?\\n\\nrespuesta\\n\\n### ¿pregunta?\\n\\nrespuesta..."}}.
 """
     data = _chat(client, _FLAGSHIP_SYS.format(subject=subject), user,
                  max_tokens=2200, temp=0.4)
     body = data.get("body_md", "") if isinstance(data, dict) else ""
     body = _verify_section(client, body, material)
-    return strip_ai_tells(body) or body
+    body = strip_ai_tells(body) or body
+    # Sin NINGUNA referencia en la FAQ: quita enlaces markdown y URLs sueltas.
+    body = _LINK_RE.sub(r"\1", body)
+    body = re.sub(r"(?m)^\s*https?://\S+\s*$", "", body)
+    return body
 
 
 def _meta(client: OpenAI, subject: str, body: str) -> dict:
