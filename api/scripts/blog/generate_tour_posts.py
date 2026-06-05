@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 
 from sqlalchemy import select
 
-from app.db.models import Post
+from app.db.models import Album, Artist, Post, Song
 from app.db.session import SessionLocal
 from app.services.content_generator import generate_seo_article
 from app.services.publishing import propose_for_review
@@ -25,6 +26,32 @@ from scripts.blog.context_builder import tour_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def _album_tracklist(db, album_slug: str | None) -> str:
+    """Tracklist del disco (de nuestro propio catálogo) con enlaces a cada
+    canción. Fuente legítima y verificable; NO usa setlist.fm. Devuelve '' si
+    la gira no tiene un disco único asociado."""
+    if not album_slug:
+        return ""
+    album = db.execute(
+        select(Album).where(Album.slug == album_slug)
+    ).scalar_one_or_none()
+    if album is None:
+        return ""
+    artist = db.get(Artist, album.artist_id)
+    songs = db.execute(
+        select(Song).where(Song.album_id == album.id).order_by(
+            Song.track_number, Song.id
+        )
+    ).scalars().all()
+    if not songs or artist is None:
+        return ""
+    base = os.getenv("SITE_URL", "https://entreinteriores.com").rstrip("/")
+    out = [f"\n\n## El disco: {album.title} ({album.year})\n"]
+    for i, s in enumerate(songs, 1):
+        out.append(f"{i}. [{s.title}]({base}/{artist.slug}/{album.slug}/{s.slug})")
+    return "\n".join(out)
 
 # Datos verificables por gira (de De Profundis + research). El generador
 # parafrasea con la voz del sitio; estos hechos son su materia prima.
@@ -174,6 +201,9 @@ def main() -> None:
                 logger.warning("'%s' sin body, skip", t["title"])
                 failed += 1
                 continue
+            # Tracklist del disco (catálogo propio, enlazado): legítimo y útil
+            # para navegación/SEO. No aplica a giras sin disco único.
+            body_md = body_md.rstrip() + _album_tracklist(db, t.get("album_slug"))
 
             if args.dry_run:
                 print(f"\n=== DRY RUN — gira {t['slug']} ===")
