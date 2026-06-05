@@ -314,4 +314,10 @@ export type PublicPostDetail = PublicPostListItem & {
   anniversary_year: number | null;
   hero_image_attribution: string | null;
   entities: PublicResolvedEntity[];
+  video: {
+    youtube_id: string;
+    title: string | null;
+    upload_date: string | null;
+    channel: string | null;
+  } | null;
 };

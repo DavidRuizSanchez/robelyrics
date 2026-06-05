@@ -230,6 +230,35 @@ export function videoObjectNode(v: VideoInput): Record<string, unknown> {
   return node;
 }
 
+export type PostVideoInput = {
+  youtubeId: string;
+  title?: string | null;
+  uploadDate?: string | null; // ISO-8601
+  description?: string | null;
+  aboutId: string; // @id del Article del post
+};
+
+// VideoObject para un vídeo embebido en un POST del blog. `about` apunta al
+// Article por @id (knowledge graph). Metadatos reales (no derivados).
+export function postVideoObjectNode(
+  v: PostVideoInput,
+): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    "@type": "VideoObject",
+    name: v.title || "Vídeo",
+    description: v.description || v.title || "Vídeo",
+    thumbnailUrl: [
+      `https://i.ytimg.com/vi/${v.youtubeId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,
+    ],
+    contentUrl: `https://www.youtube.com/watch?v=${v.youtubeId}`,
+    embedUrl: `https://www.youtube.com/embed/${v.youtubeId}`,
+    about: { "@id": v.aboutId },
+  };
+  if (v.uploadDate) node.uploadDate = v.uploadDate;
+  return node;
+}
+
 export type RelatedVideoInput = {
   youtubeId: string;
   title: string;

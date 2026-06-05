@@ -1562,6 +1562,13 @@ class PublicPostListItem(BaseModel):
     published_at: datetime
 
 
+class PublicPostVideo(BaseModel):
+    youtube_id: str
+    title: str | None = None
+    upload_date: str | None = None  # ISO-8601
+    channel: str | None = None
+
+
 class PublicPostDetail(PublicPostListItem):
     body_md: str
     meta_title: str | None = None
@@ -1571,6 +1578,7 @@ class PublicPostDetail(PublicPostListItem):
     anniversary_year: int | None = None
     hero_image_attribution: str | None = None
     entities: list[PublicResolvedEntity] = []
+    video: PublicPostVideo | None = None
 
 
 @router.get("/posts", response_model=list[PublicPostListItem])
@@ -1714,6 +1722,7 @@ def public_post_detail(
         anniversary_year=p.anniversary_year,
         hero_image_attribution=p.hero_image_attribution,
         entities=[PublicResolvedEntity(**e) for e in resolved],
+        video=PublicPostVideo(**p.video) if p.video else None,
     )
 
 

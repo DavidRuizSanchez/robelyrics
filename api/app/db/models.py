@@ -809,6 +809,9 @@ class Post(Base):
     entities: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
+    # Vídeo embebido del post (YouTube), con metadatos REALES para el
+    # VideoObject (JSON-LD): {youtube_id, title, upload_date (ISO), channel}.
+    video: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     __table_args__ = (
         CheckConstraint(

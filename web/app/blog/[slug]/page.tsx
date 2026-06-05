@@ -13,6 +13,7 @@ import {
   buildGraph,
   canonical,
   mentionsArray,
+  postVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
 import type { PublicPostDetail } from "@/lib/types";
@@ -175,6 +176,17 @@ export default async function BlogPostPage({
             __html: safeJsonLd(
               buildGraph([
                 articleJsonLd,
+                ...(post.video?.youtube_id
+                  ? [
+                      postVideoObjectNode({
+                        youtubeId: post.video.youtube_id,
+                        title: post.video.title,
+                        uploadDate: post.video.upload_date,
+                        description: post.excerpt,
+                        aboutId: canonical.article(post.slug),
+                      }),
+                    ]
+                  : []),
                 webPageNode({
                   path: `/blog/${post.slug}`,
                   name: post.title,
