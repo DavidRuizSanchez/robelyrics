@@ -21,8 +21,8 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
-from app.services import web_image
 from app.services.content_generator import _call
+from app.services.instagram import web_image
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +224,11 @@ _WRITE_SYS = (
     "al medio del que sale la noticia (ni 'según', ni 'vía', ni el nombre del "
     "medio): la investigación es nuestra. ROBE FALLECIÓ: enmárcalo en pasado. "
     "REGLA CRÍTICA: no inventes datos; usa solo lo que aparezca en el material. "
-    "No uses la raya larga."
+    "FECHAS Y NÚMEROS: no afirmes fechas, años ni números de edición ('3ª "
+    "edición', 'Premios 2023') que NO aparezcan explícitamente en el material; "
+    "si no constan, no los pongas (mejor omitir el año que inventarlo). No "
+    "mezcles eventos distintos en uno: céntrate en el hecho de la noticia. No "
+    "uses la raya larga."
 )
 
 
