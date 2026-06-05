@@ -1,5 +1,14 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import YoutubeEmbed from "@/components/YoutubeEmbed";
+
+// Extrae el id de un vídeo de YouTube de cualquier formato de URL.
+function youtubeId(url: string): string | null {
+  const m = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube(?:-nocookie)?\.com\/embed\/)([\w-]{11})/,
+  );
+  return m ? m[1] : null;
+}
 
 /**
  * Renderiza el body_md del seo_content con estilo editorial Entre Interiores.
@@ -27,9 +36,28 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
               {children}
             </h3>
           ),
-          p: ({ children }) => (
-            <p className="my-5 text-ink leading-[1.75]">{children}</p>
-          ),
+          p: ({ node, children }) => {
+            // Un párrafo cuyo único contenido es un enlace/URL de YouTube se
+            // renderiza como vídeo embebido (lazy, sin cookies hasta el clic).
+            const kids = node?.children ?? [];
+            if (kids.length === 1) {
+              const only = kids[0] as {
+                type: string;
+                tagName?: string;
+                value?: string;
+                properties?: { href?: unknown };
+              };
+              const url =
+                only.type === "element" && only.tagName === "a"
+                  ? String(only.properties?.href ?? "")
+                  : only.type === "text"
+                    ? (only.value ?? "").trim()
+                    : "";
+              const vid = url ? youtubeId(url) : null;
+              if (vid) return <YoutubeEmbed videoId={vid} />;
+            }
+            return <p className="my-5 text-ink leading-[1.75]">{children}</p>;
+          },
           a: ({ href, children }) => {
             // Un enlace es externo si apunta a otro dominio vía http(s).
             // Los autolinks de fuentes (Mondo Sonoro, Efe Eme…) son externos:
