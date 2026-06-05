@@ -99,16 +99,17 @@ def _gather_material(db) -> str:
         if len(snippet) < 200:
             continue
         u = (url or "").strip()
-        # La URL de la fuente va en el bloque: el LLM puede enlazar HECHOS
-        # IMPORTANTES a ella (noticia/vídeo que lo cubre), y solo a estas.
-        head = f"[{kind}] {title or ''}" + (f" — FUENTE: {u}" if u else "")
+        # Solo URLs EXTERNAS reales (noticia/vídeo) son enlazables: las internas
+        # y sintéticas (entreinteriores.com/_ref/...) NO son páginas y romperían.
+        ext = u if (u.startswith("http") and "entreinteriores.com" not in u) else ""
+        head = f"[{kind}] {title or ''}" + (f" — FUENTE: {ext}" if ext else "")
         block = f"{head}\n{snippet}"
         if total + len(block) > _TOTAL_CAP:
             break
         chunks.append(block)
         total += len(block)
-        if u.startswith("http"):
-            allowed_urls.add(u)
+        if ext:
+            allowed_urls.add(ext)
     log(f"material curado: {len(chunks)} fuentes · {total//1000}k chars · "
         f"{len(allowed_urls)} URLs enlazables")
     return "\n\n----\n\n".join(chunks), allowed_urls
@@ -231,6 +232,8 @@ def _sanitize_links(body: str, allowed_ext: set[str]) -> str:
     """Limpia enlaces: (1) NUNCA en headings; (2) quita los internos escritos por
     el LLM (el autolink reañade solo los reales en el cuerpo); (3) externos SOLO
     si están en el material (evita rotos/inventados)."""
+    # Limpia restos de cabeceras del material que el LLM pueda haber copiado.
+    body = re.sub(r"\s*[—-]?\s*FUENTE:\s*\S+", "", body)
     out = []
     for line in body.split("\n"):
         if line.lstrip().startswith("#"):
