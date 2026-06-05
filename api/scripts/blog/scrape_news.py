@@ -36,7 +36,7 @@ from sqlalchemy import select
 from app.db.models import ContentProposal, NewsItem
 from app.db.session import SessionLocal
 from app.services.article_extract import fetch_article_text
-from app.services.content_generator import rewrite_news_editorial
+from app.services.news_research import research_and_write
 from app.services.wikimedia import search_image
 
 logger = logging.getLogger(__name__)
@@ -267,18 +267,20 @@ def main() -> None:
                 if related:
                     logger.info("  cruzando %d fuentes del mismo evento", len(parts))
                 try:
-                    rewritten = rewrite_news_editorial(
+                    # Proceso con investigación adaptativa del tema (web+corpus),
+                    # vídeo y foto reales, y verificación factual. NO acredita al
+                    # medio. Ver app.services.news_research.
+                    rewritten = research_and_write(
+                        db=db,
                         headline=news.title,
                         source_excerpt=combined_excerpt,
-                        source_url=news.url,
-                        source_name=source_label,
                         matched_term=term,
                     )
                 except Exception as exc:  # noqa: BLE001
-                    logger.error("Rewrite falló para %r: %s", news.title, exc)
+                    logger.error("Investigación/escritura falló para %r: %s", news.title, exc)
                     summary["errors"] += 1
                     continue
-                if not rewritten.get("title"):
+                if not rewritten.get("is_relevant", True) or not rewritten.get("title"):
                     logger.info("Falso positivo descartado por LLM: %r", news.title)
                     summary["rejected"] += 1
                     if not args.dry_run:
@@ -304,18 +306,19 @@ def main() -> None:
                         if isinstance(e, dict) and e.get("name")
                     ]
 
-            # Imagen RELEVANTE por construcción: la foto curada de la entidad
-            # protagonista del post (Robe, un disco, una persona…), NO una
-            # búsqueda libre en Commons por keyword (que devolvía cualquier
-            # cosa). Si ninguna entidad del post tiene imagen, va sin foto:
-            # mejor sin foto que una irrelevante. La atribución se muestra en el
-            # figcaption (campo hero_image_attribution), no en el cuerpo.
-            from app.services.hero_image import pick_hero_image
-            img = pick_hero_image(db, entities) if not args.no_image else None
-            if img:
-                logger.info("Imagen de entidad protagonista: %s", img["url"])
+            # Foto REAL del protagonista que devolvió la investigación (web).
+            # Se sube a Cloudinary para servirla optimizada y por host permitido.
+            hero = None
+            img_url = rewritten.get("image_url") if not args.no_image else None
+            if img_url:
+                try:
+                    from app.services.instagram import cloudinary_upload
+                    hero = cloudinary_upload.upload(img_url, folder="entreinteriores-art")
+                    logger.info("Foto del sujeto: %s", hero)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("subida de foto falló: %s", exc)
             else:
-                logger.info("Sin imagen de entidad — post sin foto")
+                logger.info("Sin foto del sujeto — post sin foto")
 
             if args.dry_run:
                 summary["headlines"].append({
@@ -331,17 +334,20 @@ def main() -> None:
             proposal = ContentProposal(
                 kind="news",
                 title=title,
-                angle=f"Noticia de actualidad · vía {source_label}",
+                angle="Noticia de actualidad",
                 body_md=body_md,
                 excerpt=excerpt,
                 meta_title=meta_title,
                 meta_description=meta_description,
+                # Sin acreditar al medio: la investigación es nuestra. Se guarda
+                # source_url para referencia interna, pero source_name=None evita
+                # que la ficha muestre "Fuente: <medio>".
                 source_url=news.url,
-                source_name=source_label,
-                hero_image_url=img["url"] if img else None,
-                hero_image_attribution=img["attribution"] if img else None,
-                hero_image_license=img["license"] if img else None,
-                hero_image_source_url=img["source"] if img else None,
+                source_name=None,
+                hero_image_url=hero,
+                hero_image_attribution=None,
+                hero_image_license=None,
+                hero_image_source_url=None,
                 entities=entities,
                 status="proposed",
             )
