@@ -95,13 +95,58 @@ def tone_quotes_for(
     return [q["text"] for q in rotated[:k]]
 
 
+_VERIFY_SYS = (
+    "Eres un verificador de hechos ESTRICTO de Entre Interiores. Te doy el "
+    "MATERIAL (datos verificados, fuentes y consenso fan que se usaron) y un "
+    "ARTÍCULO. Devuelve el artículo corregido eliminando o suavizando TODA "
+    "afirmación FACTUAL concreta —fechas, años, premios ('Medalla de Oro de "
+    "Bellas Artes 2024'), cifras, títulos de canciones/discos, formaciones, "
+    "lugares, colaboraciones, eventos— que NO aparezca o no se deduzca "
+    "CLARAMENTE del material. Reglas: (1) si un dato no consta en el material, "
+    "quítalo o reescribe la frase sin él (mejor sin el dato que uno inventado); "
+    "(2) NO añadas información nueva; (3) CONSERVA el estilo, la voz, la opinión, "
+    "los encabezados H2/H3 y los enlaces markdown tal cual: solo tocas los "
+    "hechos no respaldados; (4) no acortes por acortar. Devuelve SOLO JSON: "
+    "{\"body_md\": \"<artículo corregido>\"}."
+)
+
+
+def _verify_body(client: OpenAI, body_md: str, material: str) -> str:
+    """Verificación factual del cuerpo contra el material usado. Quita lo no
+    respaldado (anti-alucinación). Si falla, devuelve el original."""
+    if not body_md.strip():
+        return body_md
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": _VERIFY_SYS},
+                {"role": "user", "content":
+                    f"MATERIAL (única fuente de verdad):\n\"\"\"{material[:9000]}\"\"\"\n\n"
+                    f"ARTÍCULO:\n\"\"\"{body_md}\"\"\""},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=4000,
+        )
+        data = json.loads(resp.choices[0].message.content or "{}")
+        verified = (data.get("body_md") or "").strip()
+        return verified if len(verified) > 1000 else body_md
+    except Exception as e:  # noqa: BLE001
+        log(f"  verificación factual falló ({e}); cuerpo sin verificar", "warn")
+        return body_md
+
+
 def call_llm(
-    client: OpenAI, user_prompt: str, *, system_prompt: str | None = None
+    client: OpenAI, user_prompt: str, *, system_prompt: str | None = None,
+    verify: bool = True,
 ) -> dict[str, Any]:
     """Invoca GPT-4o con structured output JSON. Lanza ValueError si JSON inválido.
 
     system_prompt: override de la voz por defecto. Las fichas de persona/grupo
     pasan uno con foco de sujeto (ver app.services.voice.build_system_prompt).
+    verify: si True (por defecto), pasa el body_md por una verificación factual
+    contra el material del prompt (caza fabricaciones tipo 'Medalla de Oro 2024').
     """
     resp = client.chat.completions.create(
         model=MODEL,
@@ -117,9 +162,12 @@ def call_llm(
     if not content:
         raise ValueError("LLM devolvió contenido vacío")
     try:
-        return json.loads(content)
+        out = json.loads(content)
     except json.JSONDecodeError as e:
         raise ValueError(f"JSON inválido del LLM: {e}; raw={content[:200]}") from e
+    if verify and isinstance(out.get("body_md"), str):
+        out["body_md"] = _verify_body(client, out["body_md"], user_prompt)
+    return out
 
 
 def upsert_seo_content(
