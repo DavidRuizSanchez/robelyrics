@@ -288,6 +288,8 @@ def main() -> None:
             meta_description=(meta.get("meta_description") or "")[:155],
             schema_jsonld=schema, entities=[], force=True,
         )
+        db.commit()  # upsert_seo_content NO commitea; el caller debe hacerlo.
+        log("  guardado (borrador)", "ok")
         if args.publish:
             from sqlalchemy import update
             from app.db.models import SeoContent
