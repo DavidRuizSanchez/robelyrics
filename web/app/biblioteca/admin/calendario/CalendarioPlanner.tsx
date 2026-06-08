@@ -38,6 +38,44 @@ export default function CalendarioPlanner({
 }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  function toggleSelected(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkSchedule(ids: number[]) {
+    if (ids.length === 0) return;
+    if (
+      !window.confirm(
+        `¿Aprobar ${ids.length} propuesta(s)? Se auto-programan en las próximas semanas (2/semana).`,
+      )
+    )
+      return;
+    setBusy(-1);
+    try {
+      const res = await fetch("/biblioteca/admin/calendario/api/bulk-schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `Error ${res.status}`);
+        return;
+      }
+      window.location.reload();
+    } catch (e) {
+      alert(`Error de red: ${e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function call(
     action: string,
@@ -147,13 +185,16 @@ export default function CalendarioPlanner({
       />
       <ProposalBank
         title="Repositorio de fondo"
-        subtitle="Temas evergreen para cuando no hay actualidad."
+        subtitle="Temas evergreen (keyword research long-tail). Marca varias y aprueba en bloque."
         items={repositorio}
         busy={busy}
         dates={dates}
         setDates={setDates}
         call={call}
         today={todayIso}
+        selected={selected}
+        toggleSelected={toggleSelected}
+        onBulk={bulkSchedule}
       />
     </div>
   );
@@ -168,6 +209,9 @@ function ProposalBank({
   setDates,
   call,
   today,
+  selected,
+  toggleSelected,
+  onBulk,
 }: {
   title: string;
   subtitle: string;
@@ -177,12 +221,30 @@ function ProposalBank({
   setDates: React.Dispatch<React.SetStateAction<Record<number, string>>>;
   call: (action: string, id: number, body?: Record<string, unknown>) => void;
   today: string;
+  selected?: Set<number>;
+  toggleSelected?: (id: number) => void;
+  onBulk?: (ids: number[]) => void;
 }) {
+  const selectable = !!toggleSelected && !!onBulk;
+  const selCount = selected ? [...selected].filter((id) => items.some((p) => p.id === id)).length : 0;
   return (
     <section>
-      <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-        {title} · {items.length}
-      </h2>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
+          {title} · {items.length}
+        </h2>
+        {selectable && items.length > 0 && (
+          <button
+            type="button"
+            disabled={busy !== null || selCount === 0}
+            onClick={() => onBulk!([...(selected ?? [])])}
+            data-cursor="hover"
+            className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+          >
+            {busy !== null ? "programando…" : `✓ aprobar en bloque (${selCount})`}
+          </button>
+        )}
+      </div>
       <p className="font-serif italic text-ink-dim text-sm mb-5">{subtitle}</p>
       {items.length === 0 ? (
         <p className="font-serif italic text-ink-faint">Nada en esta sección.</p>
@@ -190,10 +252,27 @@ function ProposalBank({
         <ul className="divide-y divide-divider">
           {items.map((p) => (
             <li key={p.id} className="py-4">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-start gap-3">
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    checked={selected?.has(p.id) ?? false}
+                    onChange={() => toggleSelected!(p.id)}
+                    data-cursor="hover"
+                    className="mt-1.5 accent-accent w-4 h-4 shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0 flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
                     {KIND_LABEL[p.kind] ?? p.kind}
+                    {p.is_longtail && <span className="text-accent"> · long-tail</span>}
+                    {p.target_keyword && (
+                      <span className="text-ink-dim">
+                        {" "}· {p.target_keyword}
+                        {p.search_volume ? ` (${p.search_volume}/mes)` : ""}
+                      </span>
+                    )}
                     {p.source_name && ` · ${p.source_name}`}
                   </p>
                   <p className="font-serif text-lg text-ink leading-tight">
@@ -275,6 +354,7 @@ function ProposalBank({
                   >
                     descartar
                   </button>
+                </div>
                 </div>
               </div>
             </li>

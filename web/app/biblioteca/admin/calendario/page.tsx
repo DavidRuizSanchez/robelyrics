@@ -25,6 +25,10 @@ export type ProposalItem = {
   has_body: boolean;
   keywords: ProposalKeyword[];
   keyword_volume: number;
+  target_keyword: string | null;
+  search_volume: number | null;
+  is_longtail: boolean;
+  signal_source: string | null;
   created_at: string;
 };
 

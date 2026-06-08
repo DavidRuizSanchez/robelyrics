@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { IGAccount, IGItem, IGNewsCandidate } from "./page";
 
 const STATUS_LABEL: Record<string, string> = {
+  proposed: "Propuesta",
   pending: "Pendiente",
   prepared: "Preparado",
   published: "Publicado",
@@ -12,11 +13,22 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
+  proposed: "border-accent/50 text-accent/80",
   pending: "border-divider text-ink-dim",
   prepared: "border-accent text-accent",
   published: "border-accent bg-accent/10 text-accent",
   failed: "border-red-500/60 text-red-400",
   discarded: "border-divider text-ink-faint",
+};
+
+// Etiqueta legible del tipo de contenido evergreen.
+const CONTENT_TYPE_LABEL: Record<string, string> = {
+  quote: "Frase de canción",
+  ephemeris: "Efeméride",
+  anecdote: "Anécdota",
+  robe_quote: "Cita de Robe",
+  news: "Noticia",
+  blog: "Blog",
 };
 
 // Estados que NO entran en la cola de publicación arrastrable (solo lectura).
@@ -43,13 +55,17 @@ export default function InstagramPlanner({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Cola de publicación: pending + prepared juntos, ordenados por `position`.
+  // Cola de GOTEO: pending + prepared SIN fecha fija, ordenados por `position`.
   // Estado local para el drag-and-drop optimista.
   const [upcoming, setUpcoming] = useState<IGItem[]>(() =>
     queue
-      .filter((it) => UPCOMING_STATUSES.has(it.status))
+      .filter((it) => UPCOMING_STATUSES.has(it.status) && !it.publish_on)
       .sort((a, b) => a.position - b.position || a.id - b.id),
   );
+  // Efemérides con fecha fija (aniversarios, cumpleaños): se publican su día.
+  const pinned = queue
+    .filter((it) => UPCOMING_STATUSES.has(it.status) && it.publish_on)
+    .sort((a, b) => (a.publish_on || "").localeCompare(b.publish_on || ""));
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   // Ver/editar el contenido de un item (clic en el título lo despliega).
@@ -107,6 +123,51 @@ export default function InstagramPlanner({
   function discard(id: number) {
     if (!window.confirm("¿Descartar este post?")) return;
     call("POST", `/biblioteca/admin/instagram/api/queue/${id}/discard`);
+  }
+
+  // --- Propuestas evergreen: selección múltiple + acciones en bloque ---
+  const proposed = queue
+    .filter((it) => it.status === "proposed")
+    .sort((a, b) => a.content_type.localeCompare(b.content_type) || a.id - b.id);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  function toggleSelected(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) =>
+      prev.size === proposed.length ? new Set() : new Set(proposed.map((it) => it.id)),
+    );
+  }
+
+  function bulkApprove() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (
+      !window.confirm(
+        `¿Aprobar ${ids.length} propuesta(s)? Se les generará imagen + caption y entrarán en la cola de publicación.`,
+      )
+    )
+      return;
+    call("POST", "/biblioteca/admin/instagram/api/queue/bulk/approve", { ids });
+  }
+
+  function bulkDiscard() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(`¿Descartar ${ids.length} propuesta(s)?`)) return;
+    call("POST", "/biblioteca/admin/instagram/api/queue/bulk/discard", { ids });
+  }
+
+  function interleave() {
+    if (!window.confirm("¿Reordenar la cola intercalando los tipos de publicación?")) return;
+    call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
   }
 
   // --- Drag-and-drop de la cola de publicación ---
@@ -417,14 +478,104 @@ export default function InstagramPlanner({
 
   return (
     <div className="space-y-14">
+      {/* ---------- Propuestas evergreen (aprobación en bloque) ---------- */}
+      {proposed.length > 0 && (
+        <section>
+          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
+            Propuestas evergreen · {proposed.length}
+          </h2>
+          <p className="font-serif italic text-ink-dim text-sm mb-4">
+            Material intemporal sacado del corpus (frases, efemérides, anécdotas
+            y citas). Marca las que te gusten y apruébalas en bloque: se les
+            generará imagen + caption y pasarán a la cola.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap mb-4">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              data-cursor="hover"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
+            >
+              {selected.size === proposed.length ? "deseleccionar todo" : "seleccionar todo"}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null || selected.size === 0}
+              onClick={bulkApprove}
+              data-cursor="hover"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+            >
+              {busy !== null
+                ? "procesando… (genera imagen+caption)"
+                : `✓ aprobar seleccionadas (${selected.size})`}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null || selected.size === 0}
+              onClick={bulkDiscard}
+              data-cursor="hover"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
+            >
+              ✕ descartar seleccionadas
+            </button>
+          </div>
+          <ul className="divide-y divide-divider">
+            {proposed.map((it) => (
+              <li key={it.id} className="py-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(it.id)}
+                    onChange={() => toggleSelected(it.id)}
+                    data-cursor="hover"
+                    className="mt-1.5 accent-accent w-4 h-4 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
+                      <span className="text-accent">
+                        {CONTENT_TYPE_LABEL[it.content_type] ?? it.content_type}
+                      </span>
+                      {it.publish_on && (
+                        <span className="text-accent"> · 📅 {fmtDate(it.publish_on)}</span>
+                      )}
+                      {it.source_name && ` · ${it.source_name}`}
+                    </p>
+                    <p className="font-serif text-lg text-ink leading-tight">
+                      {it.title}
+                    </p>
+                    {it.summary && (
+                      <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
+                        {it.summary}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ---------- Cola de publicación (arrastrable) ---------- */}
       {upcoming.length > 0 && (
         <section>
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Próximas publicaciones · {upcoming.length}
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+            <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
+              Próximas publicaciones · {upcoming.length}
+            </h2>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={interleave}
+              data-cursor="hover"
+              title="Reordena la cola intercalando los tipos para que el goteo salga variado"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+            >
+              ⇄ alternar tipos de publicación
+            </button>
+          </div>
           <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Arrastra para reordenar. El de arriba se publica antes.
+            Goteo de 3/día. Arrastra para reordenar; el de arriba se publica antes.
           </p>
           <ul className="divide-y divide-divider">
             {upcoming.map((it, index) => (
@@ -456,6 +607,36 @@ export default function InstagramPlanner({
                     </div>
                     <ItemActions it={it} />
                   </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ---------- Efemérides con fecha fija (salen su día) ---------- */}
+      {pinned.length > 0 && (
+        <section>
+          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
+            Efemérides programadas · {pinned.length}
+          </h2>
+          <p className="font-serif italic text-ink-dim text-sm mb-5">
+            Aniversarios y cumpleaños. Cada uno se publica SOLO el día de su
+            efeméride (no entra en el goteo).
+          </p>
+          <ul className="divide-y divide-divider">
+            {pinned.map((it) => (
+              <li key={it.id} className="py-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent mb-1">
+                      📅 {fmtDate(it.publish_on || "")}
+                    </p>
+                    <div className="flex-1 min-w-0">
+                      <ItemMeta it={it} />
+                    </div>
+                  </div>
+                  <ItemActions it={it} />
                 </div>
               </li>
             ))}

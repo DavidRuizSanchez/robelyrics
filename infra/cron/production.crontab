@@ -24,7 +24,7 @@
 # FLUJO INSTAGRAM (@entreinterioresrobe):
 #   1. aggregate (diario)         → comparte el almacén news_items.
 #   2. ig prepare_daily (diario)  → selecciona temas, prepara imagen+caption.
-#   3. ig publish_next (cada 2h)  → cuentagotas: 4h con atasco, 6h en régimen.
+#   3. ig publish_next (3/día)    → cuentagotas: respeta intervalo mínimo.
 #   Posts del blog se difunden automáticamente al publicarse.
 #
 # Las efemérides personales de Robe se publican directas en el día exacto.
@@ -52,12 +52,21 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # después del agregador. También difunde los artículos nuevos del blog.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
-# Publica el siguiente post pendiente. Horario FIJO (sin cuentagotas): 5 posts
-# al día cada 3h, de 10:00 a 22:00 hora de Madrid. --force salta el guard de
-# intervalo. OJO: el cron va en UTC y NO soporta CRON_TZ → horas en UTC para
-# Madrid en VERANO (CEST=UTC+2): 08,11,14,17,20 → 10,13,16,19,22 Madrid. Al
-# pasar a CET (UTC+1) el 26-oct-2026, cambiar a '0 9,12,15,18,21 * * *'.
-0 8,11,14,17,20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next --force >> /var/log/robelyrics-cron.log 2>&1
+# Publica el siguiente post pendiente. 3 posts al día (08,14,20 UTC). SIN
+# --force: respeta el cuentagotas (intervalo mínimo entre publicaciones), así
+# no drena la cola hasta el relleno repetido cuando escasea la actualidad.
+# OJO: el cron va en UTC y NO soporta CRON_TZ → horas en UTC para Madrid en
+# VERANO (CEST=UTC+2): 08,14,20 → 10,16,22 Madrid. Al pasar a CET (UTC+1) el
+# 26-oct-2026, cambiar a '0 9,15,21 * * *'.
+0 8,14,20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+
+# Lote semanal de contenido EVERGREEN (frases, efemérides, anécdotas, citas).
+# Lunes 07:45 UTC. Encola propuestas en estado `proposed` (sin publicar); el
+# admin las aprueba en bloque desde el panel. Deduplica por content_key.
+45 7 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_evergreen >> /var/log/robelyrics-cron.log 2>&1
+
+# Email semanal de propuestas evergreen al admin. Lunes 09:50 UTC.
+50 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_evergreen >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)

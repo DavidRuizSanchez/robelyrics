@@ -384,6 +384,17 @@ class SeoContent(Base):
     entities: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
+    # KW objetivo de la página + secundarias (research por entidad) y el outline
+    # (estructura de headings) que generó el motor profundo. `sources_count` = nº
+    # de fuentes del corpus que alimentaron la página (cobertura, para el panel).
+    target_keyword: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    secondary_keywords: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    outline: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    sources_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -781,6 +792,13 @@ class Post(Base):
     source_name: Mapped[str | None] = mapped_column(String(200))
     meta_title: Mapped[str | None] = mapped_column(String(256))
     meta_description: Mapped[str | None] = mapped_column(String(512))
+    # Keyword objetivo a la que apunta el artículo (anti-canibalización: no dos
+    # posts a la misma KW). `target_keyword_slug` es la versión normalizada para
+    # el índice/dedup. Lo setea `materialize_proposals` desde la propuesta.
+    target_keyword: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    target_keyword_slug: Mapped[str | None] = mapped_column(
+        String(160), nullable=True, index=True
+    )
     anniversary_year: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -1033,6 +1051,17 @@ class ContentProposal(Base):
     keywords: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
+    # Keyword principal de la propuesta (la de mayor prioridad de `keywords`),
+    # su volumen, si es long-tail y de qué señal viene (corpus|dataforseo|gsc).
+    target_keyword: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    target_keyword_slug: Mapped[str | None] = mapped_column(
+        String(160), nullable=True, index=True
+    )
+    search_volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_longtail: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    signal_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="proposed"
     )
@@ -1105,14 +1134,18 @@ class InstagramQueueItem(Base):
     /biblioteca/admin/instagram. El cron de publicación coge el siguiente
     `pending` y lo sube vía la Graph API de Meta.
 
-    `status`: pending → prepared → published (o failed / discarded).
+    `status`: proposed → pending → prepared → published (o failed / discarded).
+    Los items `proposed` (evergreen sin noticia) esperan aprobación del admin en
+    el panel antes de pasar a `pending` y entrar en la cola de publicación.
+
+    `content_type`: news | blog | quote | ephemeris | anecdote | robe_quote.
     """
 
     __tablename__ = "instagram_queue"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'prepared', 'published', 'failed', "
-            "'discarded')",
+            "status IN ('proposed', 'pending', 'prepared', 'published', "
+            "'failed', 'discarded')",
             name="ck_instagram_queue_status",
         ),
     )
@@ -1131,6 +1164,19 @@ class InstagramQueueItem(Base):
     position: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, index=True
     )
+    # Tipo de contenido: news | blog | quote | ephemeris | anecdote | robe_quote.
+    # Distingue la actualidad (news/blog) del evergreen anclado al corpus.
+    content_type: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="news"
+    )
+    # Huella estable del contenido para deduplicar entre semanas (no repetir el
+    # mismo verso/efeméride/cita/anécdota). P.ej. "quote:line_1234",
+    # "ephemeris:album_la-ley-innata_2008", "robe_quote:<hash>".
+    content_key: Mapped[str | None] = mapped_column(String(160), index=True)
+    # Fecha fija de publicación para contenido con efeméride (aniversario de
+    # disco, cumpleaños): si está, el item SOLO se publica ese día exacto y NO
+    # entra en el goteo normal. NULL = evergreen normal (cuentagotas).
+    publish_on: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     # Snapshot del tema (sobrevive aunque se borre la noticia / el post).
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))

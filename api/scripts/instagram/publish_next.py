@@ -71,6 +71,23 @@ def main() -> None:
     args = parser.parse_args()
 
     with SessionLocal() as db:
+        # Efemérides cuyo día es HOY (aniversarios, cumpleaños): se publican su
+        # día exacto, al margen del cuentagotas. Si hay alguna, se publica y no
+        # se gotea también en este run (un movimiento por disparo del cron).
+        pinned = publisher.due_pinned(db)
+        if pinned:
+            n_ok = 0
+            for it in pinned:
+                logger.info("Efeméride de hoy: publicando item %s «%s»", it.id, it.title)
+                res = publisher.publish(db, it, dry_run=args.dry_run)
+                if res.status == "failed":
+                    logger.error("Error: %s", res.error)
+                else:
+                    n_ok += 1
+            if n_ok:
+                logger.info("Publicada(s) %d efeméride(s) de hoy.", n_ok)
+                return
+
         item = publisher.next_pending(db)
         if item is None:
             logger.info("No hay posts pendientes en la cola.")

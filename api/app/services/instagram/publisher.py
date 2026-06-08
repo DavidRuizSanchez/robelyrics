@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,6 +28,7 @@ from app.services.instagram import (
     robe_quote,
     tone,
 )
+from app.services.instagram.evergreen import EVERGREEN_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -57,65 +58,79 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
 def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     """Genera imagen y caption para un item de la cola (sin publicar)."""
     topic = _topic_from_item(db, item)
-    is_blog = topic.get("category") == "Blog"
+    is_blog = item.content_type == "blog" or topic.get("category") == "Blog"
+    is_evergreen = item.content_type in EVERGREEN_TYPES
 
     # El tono (sobrio vs neutral) gobierna CTA, emoji y prompt editorial.
     topic["tone"] = tone.classify(
         topic.get("title", ""), topic.get("summary", "")
     )
 
-    # Las noticias se reescriben con voz editorial propia (sin citar al medio);
-    # los posts del blog ya traen su propio texto y su imagen destacada.
-    if not is_blog:
-        editorial.enrich(topic)
-        # Fuente de imagen por prioridad:
-        #   1) Portada del disco si el tema trata sobre uno de la discografía.
-        #   2) Foto CC del protagonista real (Wikimedia/Openverse) por entidad.
-        #   3) (en imaging) arte IA temático como último recurso.
+    if is_evergreen:
+        # Evergreen: el contenido (verso/efeméride/anécdota/cita) ya es final y
+        # sale del corpus verificado. NO se reescribe con IA (anti-alucinación)
+        # ni se busca foto externa (un verso no lleva foto de prensa). Imagen:
+        # portada del disco si el texto lo menciona; si no, arte temática (IA).
         cover = album_cover.find(db, topic)
         if cover:
             topic["image_hint"] = cover["url"]
             topic["image_kind"] = "cover"
-        else:
-            # Créditos de las fotos de los últimos posts: para no repetir imagen.
-            recent_credits = {
-                m.group(1).strip()
-                for c in db.execute(
-                    select(InstagramQueueItem.caption)
-                    .where(
-                        InstagramQueueItem.caption.is_not(None),
-                        InstagramQueueItem.id != item.id,
-                    )
-                    .order_by(InstagramQueueItem.id.desc())
-                    .limit(12)
-                ).scalars().all()
-                if c and (m := re.search(r"📷\s*(.+)", c))
-            }
-            foto = photo_finder.find(topic, exclude=recent_credits)
-            if foto:
-                topic["image_hint"] = foto["url"]
-                topic["image_hint_thumb"] = foto.get("thumb") or ""
-                topic["image_credit"] = foto.get("credit") or ""
-                topic["image_kind"] = "photo"
+        # El contenido se basta solo: sin verso ornamental (evita duplicarlo en
+        # los posts de frase, donde el verso YA es el titular).
+        topic["verse"] = {}
+    else:
+        # Las noticias se reescriben con voz editorial propia (sin citar al
+        # medio); los posts del blog ya traen su texto y su imagen destacada.
+        if not is_blog:
+            editorial.enrich(topic)
+            # Fuente de imagen por prioridad:
+            #   1) Portada del disco si el tema trata sobre uno de la discografía.
+            #   2) Foto CC del protagonista real (Wikimedia/Openverse) por entidad.
+            #   3) (en imaging) arte IA temático como último recurso.
+            cover = album_cover.find(db, topic)
+            if cover:
+                topic["image_hint"] = cover["url"]
+                topic["image_kind"] = "cover"
+            else:
+                # Créditos de las fotos recientes: para no repetir imagen.
+                recent_credits = {
+                    m.group(1).strip()
+                    for c in db.execute(
+                        select(InstagramQueueItem.caption)
+                        .where(
+                            InstagramQueueItem.caption.is_not(None),
+                            InstagramQueueItem.id != item.id,
+                        )
+                        .order_by(InstagramQueueItem.id.desc())
+                        .limit(12)
+                    ).scalars().all()
+                    if c and (m := re.search(r"📷\s*(.+)", c))
+                }
+                foto = photo_finder.find(topic, exclude=recent_credits)
+                if foto:
+                    topic["image_hint"] = foto["url"]
+                    topic["image_hint_thumb"] = foto.get("thumb") or ""
+                    topic["image_credit"] = foto.get("credit") or ""
+                    topic["image_kind"] = "photo"
 
-    # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
-    # Se excluyen los versos usados en los últimos posts para no repetirlos.
-    _t = topic.get("headline") or topic.get("title") or ""
-    _b = topic.get("caption_body") or topic.get("summary") or ""
-    recent_caps = db.execute(
-        select(InstagramQueueItem.caption)
-        .where(InstagramQueueItem.caption.is_not(None), InstagramQueueItem.id != item.id)
-        .order_by(InstagramQueueItem.id.desc())
-        .limit(6)
-    ).scalars().all()
-    recent_verses = {
-        m.group(1)
-        for c in recent_caps
-        if (m := re.search(r"«([^»]+)»", c or ""))
-    }
-    topic["verse"] = robe_quote.find_verse(
-        db, f"{_t}. {_b}", exclude_lines=recent_verses
-    ) or {}
+        # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
+        # Se excluyen los versos usados en los últimos posts para no repetirlos.
+        _t = topic.get("headline") or topic.get("title") or ""
+        _b = topic.get("caption_body") or topic.get("summary") or ""
+        recent_caps = db.execute(
+            select(InstagramQueueItem.caption)
+            .where(InstagramQueueItem.caption.is_not(None), InstagramQueueItem.id != item.id)
+            .order_by(InstagramQueueItem.id.desc())
+            .limit(6)
+        ).scalars().all()
+        recent_verses = {
+            m.group(1)
+            for c in recent_caps
+            if (m := re.search(r"«([^»]+)»", c or ""))
+        }
+        topic["verse"] = robe_quote.find_verse(
+            db, f"{_t}. {_b}", exclude_lines=recent_verses
+        ) or {}
 
     image_path, used_hero = imaging.generate(topic, slot=item.slot or 1)
     # Solo se acredita la foto si finalmente se usó una imagen real con
@@ -180,11 +195,15 @@ def publish(
 
 
 def next_pending(db: Session) -> InstagramQueueItem | None:
-    """Siguiente item a publicar: orden manual (`position`) primero; luego
-    slot (blog primero), día y antigüedad como desempate."""
+    """Siguiente item del GOTEO: orden manual (`position`) primero; luego slot
+    (blog primero), día y antigüedad. Excluye el contenido con fecha fija
+    (`publish_on`): ese no gotea, se publica su día vía `due_pinned`."""
     return db.execute(
         select(InstagramQueueItem)
-        .where(InstagramQueueItem.status.in_(("pending", "prepared")))
+        .where(
+            InstagramQueueItem.status.in_(("pending", "prepared")),
+            InstagramQueueItem.publish_on.is_(None),
+        )
         .order_by(
             InstagramQueueItem.position,
             InstagramQueueItem.slot,
@@ -193,3 +212,17 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
         )
         .limit(1)
     ).scalar_one_or_none()
+
+
+def due_pinned(db: Session) -> list[InstagramQueueItem]:
+    """Items con efeméride cuyo día es HOY (aniversarios, cumpleaños). Se
+    publican su día exacto, al margen del cuentagotas."""
+    today = date.today()
+    return db.execute(
+        select(InstagramQueueItem)
+        .where(
+            InstagramQueueItem.status.in_(("pending", "prepared")),
+            InstagramQueueItem.publish_on == today,
+        )
+        .order_by(InstagramQueueItem.position, InstagramQueueItem.created_at)
+    ).scalars().all()

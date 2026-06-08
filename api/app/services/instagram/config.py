@@ -41,7 +41,9 @@ FRESHNESS_DAYS = int(os.getenv("IG_FRESHNESS_DAYS", "7"))
 # --- Cadencia de publicación (cuentagotas) ---
 # Mientras hay atasco (cola > BACKLOG_THRESHOLD) se publica cada
 # BACKLOG_INTERVAL_H horas para drenarlo; en régimen normal, cada
-# STEADY_INTERVAL_H horas. El cron dispara cada 2h y este guard decide.
+# STEADY_INTERVAL_H horas. El cron dispara a 08,14,20 UTC (slots de 6h) y este
+# guard decide. STEADY=5h (no 6) deja margen: con 6h exactos entre slots, un
+# leve retraso del cron daría 5.99h < 6h y se saltaría una publicación.
 BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "4"))
 BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "4"))
-STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "6"))
+STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "5"))

@@ -279,6 +279,8 @@ def main() -> None:
                 body_md=body_md,
                 meta_title=meta_title[:60] if meta_title else None,
                 meta_description=meta_description[:155] if meta_description else None,
+                target_keyword=p.target_keyword,
+                target_keyword_slug=p.target_keyword_slug,
                 source_url=p.source_url,
                 source_name=p.source_name,
                 hero_image_url=hero_url,

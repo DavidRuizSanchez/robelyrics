@@ -10,6 +10,8 @@ export type IGItem = {
   slot: number;
   position: number;
   status: string;
+  content_type: string;
+  publish_on: string | null;
   title: string;
   category: string | null;
   summary: string | null;

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select as sql_select
 from sqlalchemy.orm import Session
@@ -18,6 +18,13 @@ from app.db.models import InstagramQueueItem, NewsItem
 from app.services.instagram import config, efemerides
 
 logger = logging.getLogger(__name__)
+
+# Ventana temporal para deduplicar temas (noticia repetida o misma temática).
+DEDUP_WINDOW_DAYS = 30
+# No encolar dos posts de relleno (efeméride/curiosidad) del mismo tipo dentro
+# de esta ventana: evita "Curiosidad del universo Extremoduro" dos días seguidos
+# cuando escasea la actualidad. Mejor publicar poco que repetir.
+FILLER_COOLDOWN_DAYS = 7
 
 # Contenido que NO es un hecho noticiable propio: encuestas, votaciones,
 # rankings, quizzes, listicles. Como el post lo comenta como nuestro, este
@@ -121,6 +128,21 @@ def _too_similar(kw: set[str], previas: list[set[str]], thr: float = 0.4) -> boo
     return False
 
 
+def _filler_reciente(db: Session, category: str, dias: int = FILLER_COOLDOWN_DAYS) -> bool:
+    """True si ya hay un post de relleno de esa categoría (Efemérides/Curiosidades)
+    encolado o publicado en los últimos `dias`. Sirve para no repetir el mismo
+    tipo de relleno en días seguidos."""
+    ventana = datetime.now(timezone.utc) - timedelta(days=dias)
+    existe = db.execute(
+        sql_select(InstagramQueueItem.id).where(
+            InstagramQueueItem.category == category,
+            InstagramQueueItem.status.in_(["published", "prepared", "pending"]),
+            InstagramQueueItem.created_at >= ventana,
+        ).limit(1)
+    ).first()
+    return existe is not None
+
+
 def select(db: Session, count: int = 3) -> list[dict]:
     """Selecciona los `count` temas del día.
 
@@ -144,13 +166,20 @@ def select(db: Session, count: int = 3) -> list[dict]:
         ).scalars().all()
     )
 
-    # Keywords de los últimos temas encolados/publicados: para NO repetir la
-    # misma temática en posts seguidos (p.ej. cuatro de los Premios de la Música).
+    # Keywords de los temas encolados/publicados en los últimos 30 DÍAS: para NO
+    # repetir la misma temática (p.ej. cuatro posts de los Premios de la Música,
+    # o la misma noticia agregada bajo dos URLs distintas de Google News). Antes
+    # solo se miraban los últimos 10 items y un tema se "salía" de la ventana en
+    # pocos días, colándose duplicado. Ahora la ventana es temporal.
+    ventana = datetime.now(timezone.utc) - timedelta(days=DEDUP_WINDOW_DAYS)
     recientes_titulos = db.execute(
         sql_select(InstagramQueueItem.title)
-        .where(InstagramQueueItem.status.in_(["published", "prepared", "pending"]))
+        .where(
+            InstagramQueueItem.status.in_(["published", "prepared", "pending"]),
+            InstagramQueueItem.created_at >= ventana,
+        )
         .order_by(InstagramQueueItem.created_at.desc())
-        .limit(10)
+        .limit(300)
     ).scalars().all()
     recent_kwsets = [_keywords(t) for t in recientes_titulos if t]
 
@@ -205,11 +234,15 @@ def select(db: Session, count: int = 3) -> list[dict]:
         urls_usadas.add(n.url)
         kwsets_usados.append(kw)
 
-    # Tercera pasada: efeméride del día.
-    if len(temas) < count:
+    # Tercera pasada: efeméride del día. Solo si NO se publicó otra efeméride en
+    # la última semana (cooldown) y su contenido no solapa con lo ya elegido.
+    if len(temas) < count and not _filler_reciente(db, "Efemérides"):
         for ef in efemerides.for_today():
             if len(temas) >= count:
                 break
+            kw = _keywords(ef)
+            if _too_similar(kw, kwsets_usados):
+                continue
             temas.append({
                 "news_item_id": None,
                 "title": "Un día como hoy en la historia de Extremoduro",
@@ -218,17 +251,21 @@ def select(db: Session, count: int = 3) -> list[dict]:
                 "source": "Entre Interiores · Efemérides",
                 "url": "",
             })
+            kwsets_usados.append(kw)
 
-    # Cuarta pasada: curiosidad temática.
-    if len(temas) < count:
-        temas.append({
-            "news_item_id": None,
-            "title": "Curiosidad del universo Extremoduro",
-            "category": "Curiosidades",
-            "summary": efemerides.curiosidad_del_dia(),
-            "source": "Entre Interiores · Curiosidades",
-            "url": "",
-        })
+    # Cuarta pasada: curiosidad temática. Mismo cooldown: nunca dos curiosidades
+    # seguidas. El cuerpo rota por día pero el título es fijo y se veían calcadas.
+    if len(temas) < count and not _filler_reciente(db, "Curiosidades"):
+        curiosidad = efemerides.curiosidad_del_dia()
+        if not _too_similar(_keywords(curiosidad), kwsets_usados):
+            temas.append({
+                "news_item_id": None,
+                "title": "Curiosidad del universo Extremoduro",
+                "category": "Curiosidades",
+                "summary": curiosidad,
+                "source": "Entre Interiores · Curiosidades",
+                "url": "",
+            })
 
     return temas[:count]
 

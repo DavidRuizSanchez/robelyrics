@@ -1258,6 +1258,10 @@ class AdminProposalItem(BaseModel):
     has_body: bool = False
     keywords: list[dict] = []
     keyword_volume: int = 0  # volumen agregado, para ordenar
+    target_keyword: str | None = None
+    search_volume: int | None = None
+    is_longtail: bool = False
+    signal_source: str | None = None
     created_at: datetime
 
 
@@ -1294,6 +1298,10 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         has_body=bool(p.body_md),
         keywords=kws,
         keyword_volume=sum(int(k.get("volume") or 0) for k in kws),
+        target_keyword=getattr(p, "target_keyword", None),
+        search_volume=getattr(p, "search_volume", None),
+        is_longtail=bool(getattr(p, "is_longtail", False)),
+        signal_source=getattr(p, "signal_source", None),
         created_at=p.created_at,
     )
 
@@ -1387,6 +1395,64 @@ def admin_proposal_schedule(
     return _proposal_to_item(p)
 
 
+class BulkScheduleIn(BaseModel):
+    ids: list[int]
+
+
+class BulkScheduleResult(BaseModel):
+    scheduled: list[dict] = []   # [{id, date}]
+    skipped: list[dict] = []     # [{id, reason}]
+
+
+@router.post("/proposals/bulk-schedule", response_model=BulkScheduleResult)
+def admin_proposals_bulk_schedule(
+    payload: BulkScheduleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> BulkScheduleResult:
+    """Aprueba en bloque: auto-programa las propuestas seleccionadas en las
+    próximas semanas respetando el cap (WEEKLY_PUBLISH_CAP/semana). Cada semana
+    se rellena con 2 slots (martes y viernes) antes de pasar a la siguiente."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="lista de ids vacía")
+
+    # Cuenta lo ya programado por semana (lunes ISO → nº).
+    week_counts: dict[_date, int] = {}
+    for (sf,) in db.query(_Proposal.scheduled_for).filter(
+        _Proposal.status == "scheduled", _Proposal.scheduled_for.isnot(None)
+    ).all():
+        if sf:
+            mon, _ = _week_bounds(sf if isinstance(sf, _date) else sf.date())
+            week_counts[mon] = week_counts.get(mon, 0) + 1
+
+    # Empezamos en el lunes de la semana que viene (no en la actual en curso).
+    today = _date.today()
+    start_monday = today - _timedelta(days=today.weekday()) + _timedelta(days=7)
+    slot_days = [1, 4]  # martes y viernes dentro de la semana
+
+    result = BulkScheduleResult()
+    cur = start_monday
+    for pid in payload.ids:
+        p = db.query(_Proposal).filter(_Proposal.id == pid).first()
+        if not p:
+            result.skipped.append({"id": pid, "reason": "no encontrada"})
+            continue
+        if p.status in ("used", "discarded"):
+            result.skipped.append({"id": pid, "reason": p.status})
+            continue
+        # Avanza hasta una semana con hueco.
+        while week_counts.get(cur, 0) >= WEEKLY_PUBLISH_CAP:
+            cur = cur + _timedelta(days=7)
+        n = week_counts.get(cur, 0)
+        target = cur + _timedelta(days=slot_days[n] if n < len(slot_days) else 0)
+        p.status = "scheduled"
+        p.scheduled_for = target
+        week_counts[cur] = n + 1
+        result.scheduled.append({"id": pid, "date": target.isoformat()})
+    db.commit()
+    return result
+
+
 @router.post("/proposals/{proposal_id}/unschedule", response_model=AdminProposalItem)
 def admin_proposal_unschedule(
     proposal_id: int,
@@ -1446,6 +1512,8 @@ class AdminIGItem(BaseModel):
     slot: int
     position: int = 0
     status: str
+    content_type: str = "news"
+    publish_on: str | None = None
     title: str
     category: str | None = None
     summary: str | None = None
@@ -1496,6 +1564,16 @@ class AdminIGReorderIn(BaseModel):
     ids: list[int]
 
 
+class AdminIGBulkIn(BaseModel):
+    # IDs de propuestas evergreen para aprobar/descartar en bloque.
+    ids: list[int]
+
+
+class AdminIGBulkResult(BaseModel):
+    ok: list[int] = []
+    failed: list[dict] = []
+
+
 class AdminIGUpdateIn(BaseModel):
     # Edición manual del contenido antes de publicar. Cualquier campo None se
     # deja como está.
@@ -1517,6 +1595,8 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         slot=it.slot,
         position=it.position,
         status=it.status,
+        content_type=getattr(it, "content_type", None) or "news",
+        publish_on=it.publish_on.isoformat() if getattr(it, "publish_on", None) else None,
         title=it.title,
         category=it.category,
         summary=it.summary,
@@ -1786,6 +1866,101 @@ def admin_ig_discard(
     db.commit()
     db.refresh(it)
     return _ig_item_to_model(it)
+
+
+@router.post("/instagram/queue/interleave", response_model=list[AdminIGItem])
+def admin_ig_interleave(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminIGItem]:
+    """Reordena la cola publicable intercalando los tipos de contenido
+    (round-robin por `content_type`), para que el goteo no saque varias del
+    mismo tipo seguidas. NO toca el contenido con fecha fija (`publish_on`):
+    ese se publica su día, no gotea."""
+    items = (
+        db.query(_IGItem)
+        .filter(
+            _IGItem.status.in_(("pending", "prepared")),
+            _IGItem.publish_on.is_(None),
+        )
+        .order_by(_IGItem.position, _IGItem.created_at)
+        .all()
+    )
+    # Agrupa por tipo conservando el orden interno actual.
+    grupos: dict[str, list] = {}
+    for it in items:
+        grupos.setdefault(it.content_type or "news", []).append(it)
+    # Round-robin: una de cada tipo por ronda (orden de tipo estable).
+    orden_tipos = list(grupos.keys())
+    interleaved: list = []
+    i = 0
+    while any(grupos[t] for t in orden_tipos):
+        t = orden_tipos[i % len(orden_tipos)]
+        if grupos[t]:
+            interleaved.append(grupos[t].pop(0))
+        i += 1
+    for pos, it in enumerate(interleaved):
+        it.position = pos
+    db.commit()
+    return [_ig_item_to_model(it) for it in interleaved]
+
+
+@router.post("/instagram/queue/bulk-approve", response_model=AdminIGBulkResult)
+def admin_ig_bulk_approve(
+    payload: AdminIGBulkIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Aprueba en bloque propuestas evergreen (`proposed`): las pasa a la cola de
+    publicación y les genera imagen + caption (`prepare`). Si una falla al
+    preparar, se marca `failed` y se reporta sin tumbar el resto."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="lista de ids vacía")
+    result = AdminIGBulkResult()
+    for item_id in payload.ids:
+        it = db.get(_IGItem, item_id)
+        if it is None:
+            result.failed.append({"id": item_id, "error": "no encontrado"})
+            continue
+        if it.status != "proposed":
+            result.failed.append({"id": item_id, "error": f"estado {it.status}"})
+            continue
+        it.status = "pending"
+        db.commit()
+        try:
+            _ig_publisher.prepare(db, it)
+            result.ok.append(item_id)
+        except Exception as exc:  # noqa: BLE001
+            it.status = "failed"
+            it.error = f"prepare: {exc}"
+            db.commit()
+            result.failed.append({"id": item_id, "error": str(exc)})
+    return result
+
+
+@router.post("/instagram/queue/bulk-discard", response_model=AdminIGBulkResult)
+def admin_ig_bulk_discard(
+    payload: AdminIGBulkIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Descarta en bloque propuestas. No se vuelven a proponer (su `content_key`
+    queda registrado)."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="lista de ids vacía")
+    result = AdminIGBulkResult()
+    for item_id in payload.ids:
+        it = db.get(_IGItem, item_id)
+        if it is None:
+            result.failed.append({"id": item_id, "error": "no encontrado"})
+            continue
+        if it.status == "published":
+            result.failed.append({"id": item_id, "error": "ya publicado"})
+            continue
+        it.status = "discarded"
+        db.commit()
+        result.ok.append(item_id)
+    return result
 
 
 @router.get("/instagram/account", response_model=AdminIGAccount)

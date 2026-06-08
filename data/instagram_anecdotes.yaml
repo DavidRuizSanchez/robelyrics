@@ -1,0 +1,83 @@
+# Anécdotas y hechos del universo Extremoduro/Robe para Instagram.
+#
+# SOLO hechos VERIFICADOS, curados a mano desde la biografía autorizada
+# «Extremoduro. De Profundis» (Javier Menéndez Flores, 2013) y fuentes
+# contrastadas. Cada entrada es una historia postable y autocontenida. NUNCA
+# inventar: si un dato no está contrastado, no entra aquí.
+#
+# Campos: slug (id estable para dedup), title (titular del card), text (cuerpo
+# del post), source (atribución), tags. El generador crea content_key
+# "anecdote:<slug>" y no repite una anécdota ya encolada/publicada.
+
+anecdotes:
+  - slug: chapista-jesucristo-garcia
+    title: "Robe fue chapista antes que poeta"
+    text: "Antes de vivir de la música, Robe trabajó en el taller de chapa y pintura de su padre en Plasencia. De ahí el verso «antes era chapista» de «Jesucristo García»: no es una imagen, es su biografía."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [robe, plasencia, biografia, oficios]
+
+  - slug: bar-simetria-boletos
+    title: "El bar que financió a Extremoduro"
+    text: "Robe regentó en Plasencia un bar de copas llamado Simetría. Allí se vendieron los boletos de autofinanciación (a 1.000 pesetas) que pagaron las primeras grabaciones de la banda. Sin aquel local, no habría habido maqueta."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [extremoduro, plasencia, historia, autofinanciacion]
+
+  - slug: nombre-extremo-duro
+    title: "Por qué se llaman Extremoduro"
+    text: "El nombre nace de juntar «extremo» y «duro»: extremeños y de rock duro. La banda se fundó en Plasencia en 1987 y bautizó su propio estilo como «rock transgresivo»."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [extremoduro, nombre, historia, rock-transgresivo]
+
+  - slug: plastic-tve-fito
+    title: "Una actuación en playback que lo cambió todo"
+    text: "En 1989 Extremoduro apareció en el programa Plàstic (TVE2) tocando en playback. Así fue como Fito Cabrales conoció a la banda. Poco después, un tercer puesto en un concurso Yamaha les valió el fichaje por el sello Avispa."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [extremoduro, television, fito, historia]
+
+  - slug: agila-castuo
+    title: "«Agila» significa «espabila»"
+    text: "El título del disco «Agila» (1996) viene del castúo, el habla popular extremeña: significa «espabila». Superó las 300.000 copias y entró en la lista de Rolling Stone del rock español."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [agila, disco, castuo, extremadura]
+
+  - slug: deltoya-del-todo-ya
+    title: "«Deltoya» quiere decir «del todo ya»"
+    text: "El doble álbum «Deltoya» (1992) esconde en su título una contracción: «del todo ya». En él colaboró Ariel Rot con un solo en «Volando solo»."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [deltoya, disco, curiosidad]
+
+  - slug: pedra-una-cancion
+    title: "«Pedrá»: una sola canción de casi media hora"
+    text: "«Pedrá» (grabado en 1993, editado en 1995) es una única canción de unos 29 minutos. Se grabó en Lorentzo Records (Berriz) con una banda de amigos, entre ellos Fito Cabrales, aunque DRO exigió atribuirlo a Extremoduro."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [pedra, disco, curiosidad]
+
+  - slug: ley-innata-conceptual
+    title: "«La ley innata»: una obra en seis movimientos"
+    text: "«La ley innata» (2008) es un disco conceptual: una sola pieza de menos de 45 minutos dividida en seis movimientos, con cuarteto de cuerda dirigido por el violinista Ara Malikian. Fue disco de oro en tres semanas."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [la-ley-innata, disco, ara-malikian]
+
+  - slug: material-defectuoso-numero-uno
+    title: "El disco que desbancó a Lady Gaga"
+    text: "«Material defectuoso» (2011) llegó al número uno de ventas en España desbancando a Lady Gaga, y lo hizo sin gira ni promoción. Seis temas largos grabados en La Casa de Iñaki, en Muxika."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [material-defectuoso, disco, numero-uno]
+
+  - slug: uoho-oso-yogi
+    title: "El apodo de Uoho viene del Oso Yogi"
+    text: "Iñaki Antón, «Uoho», guitarrista solista y productor de Extremoduro desde «Agila», sacó su apodo de imitar al Oso Yogi. Durante seis años compaginó Extremoduro con Platero y Tú."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [uoho, musicos, curiosidad]
+
+  - slug: rey-de-extremadura
+    title: "Robe, el autoproclamado «Rey de Extremadura»"
+    text: "Misántropo declarado, ateo y antinacionalista, Robe se autobautizó «Rey de Extremadura». Decía hacer en su música «lo que le sale de los huevos», sin esquemas ni cronómetro: las letras le salían cantadas, música y palabra pegadas."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [robe, filosofia, extremadura]
+
+  - slug: tatuaje-ballenas-agila
+    title: "El tatuaje de Robe en la contraportada de «Agila»"
+    text: "La contraportada de «Agila» (1996) reproduce el tatuaje de Robe: tres ballenas voladoras, el sol y una nube. Esa iconografía se volvió un emblema de toda su obra."
+    source: "Extremoduro. De Profundis (Menéndez Flores, 2013)"
+    tags: [agila, robe, tatuaje, simbolos]
