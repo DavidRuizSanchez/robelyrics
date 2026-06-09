@@ -61,7 +61,7 @@ def _json(system: str, user: str, max_tokens: int = 700) -> dict[str, Any]:
 # 1. Clasificación del tema + plan de investigación (ADAPTATIVO)
 # --------------------------------------------------------------------------- #
 _PLAN_SYS = (
-    "Eres un documentalista de un medio sobre Robe Iniesta y Extremoduro. "
+    "Eres un documentalista de un medio sobre Robe y Extremoduro. "
     "Identificas el TEMA PRINCIPAL de una noticia y planificas cómo investigarlo "
     "para dar el máximo de información relevante. Respondes solo JSON."
 )
@@ -218,9 +218,10 @@ def find_image(query: str) -> str | None:
 # 4. Orquestador: investiga + escribe el post (sin acreditar al medio)
 # --------------------------------------------------------------------------- #
 _WRITE_SYS = (
-    "Eres el redactor de Entre Interiores, un sitio sobre Robe Iniesta y "
+    "Eres el redactor de Entre Interiores, un sitio sobre Robe y "
     "Extremoduro. Escribes en español de España, cercano y con criterio, en "
-    "tercera persona cálida (sin 'yo' vivencial). NUNCA mencionas ni acreditas "
+    "tercera persona cálida (sin 'yo' vivencial). Refiérete a él como 'Robe' o "
+    "'Roberto Iniesta', NUNCA 'Robe Iniesta' (no le gustaba). NUNCA mencionas ni acreditas "
     "al medio del que sale la noticia (ni 'según', ni 'vía', ni el nombre del "
     "medio): la investigación es nuestra. ROBE FALLECIÓ: enmárcalo en pasado. "
     "REGLA CRÍTICA: no inventes datos; usa solo lo que aparezca en el material. "
@@ -262,6 +263,30 @@ def verify_facts(body_md: str, material: str) -> str:
     return verified if len(verified) > 200 else body_md
 
 
+def _slugify(s: str) -> str:
+    """Slug kebab-case determinista (sin acentos, máx 6 palabras). Más fiable
+    que pedírselo al LLM (que a veces alucina el slug)."""
+    import re
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
+    parts = [p for p in re.sub(r"[^a-zA-Z0-9]+", "-", s).lower().split("-") if p]
+    return "-".join(parts[:6])[:80]
+
+
+def _news_meta(subject: str, body_md: str) -> dict[str, Any]:
+    """Title/excerpt/meta/slug del post a partir del cuerpo ya escrito."""
+    return _json(
+        "Eres editor de Entre Interiores. Devuelves SOLO JSON. Refiérete al "
+        "protagonista como 'Robe' o 'Roberto Iniesta', NUNCA 'Robe Iniesta'.",
+        f"Para este post sobre «{subject}», a partir del CUERPO, devuelve JSON con: "
+        "title (titular atractivo y honesto, <=70 chars), excerpt (1 frase gancho, "
+        "<=160 chars), meta_title (<=60 chars, con el protagonista al inicio), "
+        "meta_description (<=155 chars), slug (kebab-case, 3-5 palabras).\n\n"
+        f"CUERPO:\n\"\"\"{body_md[:4500]}\"\"\"",
+        max_tokens=300,
+    )
+
+
 def research_and_write(
     *, db, headline: str, source_excerpt: str, matched_term: str,
     today=None,
@@ -282,41 +307,77 @@ def research_and_write(
     web_txt = "\n".join(f"- {r['title']}: {r['snippet']}" for r in web) or "(sin resultados web)"
     corpus_txt = "\n".join(f"- {r['title']}: {r['excerpt']}" for r in corpus) or "(sin material en el corpus)"
 
-    user = f"""\
-Escribe un post de Entre Interiores sobre esta noticia, centrado en su TEMA
-PRINCIPAL y dando el MÁXIMO de información relevante sobre él.
+    # Material unificado (única fuente de hechos) + datos duros + KW objetivo.
+    hard = (
+        f"Titular de partida: {headline}\n"
+        f"Tipo de tema: {plan.get('topic_type')}\n"
+        f"Protagonista: {subject}\n"
+        f"Enfoque (qué destacar): {plan.get('focus') or ''}"
+    )
+    material = (
+        f"EXTRACTO DE LA NOTICIA (punto de partida, NO copiar literal):\n"
+        f"\"\"\"{source_excerpt[:4000]}\"\"\"\n\n"
+        f"INVESTIGACIÓN WEB:\n{web_txt}\n\n"
+        f"NUESTRO CORPUS:\n{corpus_txt}"
+    )
+    target_kw = subject  # KW primaria del post = el protagonista de la noticia
+    kw_block = (
+        f"KEYWORD OBJETIVO: «{target_kw}» (úsala con naturalidad en el título y "
+        "algún H2). Construye los headings teniéndola en cuenta, sin forzar; "
+        "prima el conocimiento real del material.\n"
+    )
 
-Tipo de tema: {plan.get('topic_type')}
-Protagonista: {subject}
-Enfoque (qué destacar): {plan.get('focus') or ''}
+    # Generación PROFUNDA: mismo motor que las páginas SEO (outline adaptativo +
+    # sección a sección + verificación factual por sección). Sustituye al antiguo
+    # one-shot de 2600 tokens que salía flaco. Import perezoso (contexto script).
+    body_md = ""
+    try:
+        from openai import OpenAI
 
-Titular de partida: {headline}
-Extracto de la noticia (punto de partida, NO lo copies):
-\"\"\"{source_excerpt[:4000]}\"\"\"
+        from scripts.seo.generate_deep import _outline, _verify_section, _write_section
 
-INVESTIGACIÓN WEB (hechos para apoyarte, parafrasea, no copies):
-{web_txt}
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        outline = _outline(client, subject, kw_block, hard, material)
+        headings = [s["heading"] for s in outline]
+        parts: list[str] = []
+        for s in outline:
+            sec = _write_section(client, subject, s, headings, hard, material, kw_block)
+            sec = _verify_section(client, sec, material)
+            if sec.strip():
+                parts.append(sec.strip())
+        body_md = "\n\n".join(parts)
+    except Exception as exc:  # noqa: BLE001 — degradar al one-shot
+        logger.warning("[news_research] motor profundo falló (%s); fallback one-shot", exc)
 
-NUESTRO CORPUS (conocimiento propio para cruzar):
-{corpus_txt}
+    # Fallback one-shot si el motor profundo no dio cuerpo suficiente.
+    if len((body_md or "").strip()) < 400:
+        oneshot = _call(
+            f"Escribe un post de Entre Interiores sobre «{subject}» "
+            f"({plan.get('topic_type')}). Enfoque: {plan.get('focus') or ''}. Da el "
+            f"MÁXIMO de información relevante.\n\nMATERIAL:\n{material}\n\n"
+            "Adapta al tipo (disco->salida/sello/tracklist; evento->fecha/lugar; "
+            "persona/banda->trayectoria y relación con Robe/Extremoduro). 600-900 "
+            "palabras, 2-3 H2. No acredites al medio. No inventes. Devuelve JSON "
+            "con body_md.",
+            max_tokens=2600, system_prompt=_WRITE_SYS,
+        )
+        body_md = verify_facts(oneshot.get("body_md") or body_md, material)
 
-INSTRUCCIONES:
-- Cuenta de verdad QUIÉN/QUÉ es el protagonista y por qué importa, adaptando la
-  información al tipo: si es un disco -> fecha de salida, sello, tracklist y
-  contexto; un evento -> fecha, lugar, quién participa; una persona/banda ->
-  quiénes son, trayectoria y su relación (si la hay) con Robe/Extremoduro; etc.
-- Si NO consta una relación con Robe, dilo con honestidad, no la inventes.
-- 400-700 palabras, una o dos secciones H2 concretas. Entrada directa.
-- NO menciones ni acredites al medio fuente. La investigación es nuestra.
-- Devuelve JSON con: title, excerpt, body_md, meta_title, meta_description y
-  "slug" (kebab-case, 3-5 palabras, sobre el protagonista).
-"""
-    out = _call(user, max_tokens=2600, system_prompt=_WRITE_SYS)
+    # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
+    from app.services.text_sanitizer import strip_ai_tells
+    body_md = strip_ai_tells(body_md) or body_md
 
-    # Verificación factual: quita datos no respaldados por el material (fechas,
-    # años, cifras, eventos inventados). Anti-alucinación antes de publicar.
-    material = f"{source_excerpt[:4000]}\n\n{web_txt}\n\n{corpus_txt}"
-    out["body_md"] = verify_facts(out.get("body_md") or "", material)
+    # Metadatos del post a partir del cuerpo final.
+    meta = _news_meta(subject, body_md)
+    out = {
+        "title": meta.get("title") or subject,
+        "excerpt": meta.get("excerpt") or "",
+        "body_md": body_md,
+        "meta_title": meta.get("meta_title") or "",
+        "meta_description": meta.get("meta_description") or "",
+        "slug": _slugify(meta.get("title") or subject),
+        "target_keyword": target_kw,
+    }
 
     # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
     # detecta) y se publica su VideoObject vía posts.video.

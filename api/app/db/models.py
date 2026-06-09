@@ -1240,3 +1240,32 @@ class PlaylistItem(Base):
     )
     playlist: Mapped[Playlist] = relationship(back_populates="items")
     song: Mapped[Song] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Política de nombre (REGLA DURA): la forma "Robe Iniesta" NUNCA debe persistir
+# en contenido (a él no le gustaba). Listeners a nivel ORM → cualquier escritura
+# (scripts, cron, API, manual) sobre estas tablas la convierte en "Robe". No
+# toca "Roberto Iniesta" ni los slugs (ver text_sanitizer.enforce_name_policy).
+# --------------------------------------------------------------------------- #
+from sqlalchemy import event as _event  # noqa: E402
+from app.services.text_sanitizer import enforce_name_policy as _fix_name  # noqa: E402
+
+
+def _make_name_policy_listener(fields: tuple[str, ...]):
+    def _listener(mapper, connection, target):  # noqa: ANN001
+        for f in fields:
+            v = getattr(target, f, None)
+            if isinstance(v, str) and v:
+                setattr(target, f, _fix_name(v))
+    return _listener
+
+
+for _model, _fields in (
+    (SeoContent, ("body_md", "meta_title", "meta_description", "h1")),
+    (Post, ("body_md", "title", "excerpt", "meta_title", "meta_description")),
+    (InstagramQueueItem, ("caption",)),
+):
+    _lst = _make_name_policy_listener(_fields)
+    _event.listen(_model, "before_insert", _lst)
+    _event.listen(_model, "before_update", _lst)

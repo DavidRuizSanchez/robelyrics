@@ -31,6 +31,19 @@ _RE_ANY_DASH = re.compile(rf"[{_DASHES}]")
 _RE_MULTISPACE = re.compile(r"[ \t]{2,}")
 _RE_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
 
+# Política de nombre (CRÍTICA): a Robe NO le gustaba que le llamaran "Robe
+# Iniesta". Esa forma NUNCA debe aparecer en contenido público: se usa "Robe"
+# (o "Roberto Iniesta" en datos formales). El \b evita tocar "Roberto Iniesta".
+_RE_ROBE_INIESTA = re.compile(r"\bRobe\s+Iniesta\b", re.IGNORECASE)
+
+
+def enforce_name_policy(text: str | None) -> str | None:
+    """Sustituye la forma vetada 'Robe Iniesta' por 'Robe'. No toca 'Roberto
+    Iniesta' (permitida)."""
+    if not text:
+        return text
+    return _RE_ROBE_INIESTA.sub("Robe", text)
+
 
 def strip_ai_tells(text: str | None) -> str | None:
     """Limpia marcas de IA de `text`. Devuelve None si la entrada es None.
@@ -57,6 +70,8 @@ def strip_ai_tells(text: str | None) -> str | None:
     out = _RE_SPACE_BEFORE_PUNCT.sub(r"\1", out)
     # 6) limpiar comas duplicadas que hayan podido surgir
     out = re.sub(r",\s*,", ",", out)
+    # 7) política de nombre: nunca "Robe Iniesta"
+    out = _RE_ROBE_INIESTA.sub("Robe", out)
     return out
 
 
