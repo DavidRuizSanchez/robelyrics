@@ -2014,3 +2014,28 @@ def admin_ig_account(
     """
     ok, msg, username = _ig_graph.connection_is_healthy()
     return AdminIGAccount(ok=ok, message=msg, username=username)
+
+
+# --------------------------------------------------------------------------- #
+# Knowledge graph: extraer cualquier subgrafo bajo demanda (p.ej. universo de X)
+# --------------------------------------------------------------------------- #
+@router.get("/graph/{entity_type}/{slug}")
+def admin_graph(
+    entity_type: str,
+    slug: str,
+    depth: int = 2,
+    max_nodes: int = 60,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Subgrafo del knowledge graph centrado en (entity_type, slug).
+
+    Devuelve {center, nodes, edges}. Ej.: /admin/graph/person/inaki-milindris?depth=2
+    para "el universo de Milindris".
+    """
+    from app.services import graph as graph_svc
+    return graph_svc.subgraph(
+        db, entity_type, slug,
+        depth=max(1, min(depth, 4)),
+        max_nodes=max(5, min(max_nodes, 200)),
+    )
