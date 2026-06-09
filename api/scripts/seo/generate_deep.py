@@ -42,14 +42,32 @@ _MODELS = {
 # Voz editorial en TERCERA persona (no la voz fan del flagship): rigurosa,
 # cercana, sin inventar. Robe FALLECIÓ → pasado.
 _SYS = (
-    "Eres el autor de Entre Interiores, un sitio editorial sobre el universo de "
-    "Robe y Extremoduro. Escribes en tercera persona, con rigor y "
-    "cercanía, sin reverencia mística y SIN inventar datos: si algo no está en "
-    "el material, no lo afirmas. Robe falleció en diciembre de 2025: enmárcalo "
-    "en pasado. No uses la raya larga. IMPORTANTE: refiérete a él SIEMPRE como "
-    "'Robe' (o 'Roberto Iniesta' a secas en contextos formales); NUNCA escribas "
-    "'Robe Iniesta', no le gustaba esa forma."
+    "Eres un fan de toda la vida de Extremoduro, Robe y el punk-rock que escribe "
+    "para Entre Interiores. Te conoces la obra al dedillo y escribes con pasión, "
+    "calle y criterio, en tercera persona, sin reverencia hueca ni misticismo. "
+    "REGLA DE ORO: cada frase aporta un DATO, una historia o una idea CONCRETA del "
+    "material. Prohibido el relleno y las vaguedades de relleno tipo 'pudo haber', "
+    "'sin duda', 'resonó en la comunidad', 'dejó una huella imborrable', 'marcó un "
+    "antes y un después', 'a lo largo de su trayectoria', 'en resumen', 'en última "
+    "instancia'. Si no hay material para algo, NO lo rellenas: mejor corto y con "
+    "chicha que largo y vacío. NUNCA inventas (ni vivencias en primera persona). "
+    "NUNCA repites una frase, un dato ni el mismo encuadre dos veces (no vuelvas a "
+    "presentar al sujeto en cada sección). Robe falleció en diciembre de 2025. "
+    "Refiérete a él como 'Robe' (o 'Roberto Iniesta'), NUNCA 'Robe Iniesta'. No "
+    "uses la raya larga."
 )
+
+
+def _section_cap(material: str) -> int:
+    """Nº máximo de secciones proporcional al material real (anti-paja)."""
+    n = len(material or "")
+    if n < 2500:
+        return 3
+    if n < 6000:
+        return 4
+    if n < 20000:
+        return 6
+    return 8
 
 
 def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> dict:
@@ -66,8 +84,9 @@ def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> d
 
 
 def _outline(client: OpenAI, subject: str, kw_block: str, hard: str, material: str) -> list[dict]:
+    cap = _section_cap(material)
     user = f"""\
-Planifica el artículo MÁS COMPLETO y veraz de internet sobre {subject}.
+Planifica el mejor artículo y MÁS VERAZ de internet sobre {subject}.
 {kw_block}
 DATOS DUROS:
 {hard}
@@ -75,24 +94,33 @@ DATOS DUROS:
 MATERIAL DEL CORPUS (única fuente de hechos):
 \"\"\"{material[:80000]}\"\"\"
 
-Propón un esquema de 5 a 10 secciones H2 ADAPTADAS a lo que de verdad hay que
-contar sobre {subject} (quién es, su papel/etapa, su aportación, anécdotas y
-hechos reales del material, su huella). Si hay material de valor que no encaja
-en ninguna sección "SEO" pero es interesante, créale su propia sección.
-Devuelve JSON {{"sections":[{{"heading":"<H2 concreto>","covers":"<qué cubre>"}}]}}.
+Propón ENTRE 2 Y {cap} secciones H2, SOLO las que el material real permita llenar
+con sustancia (datos, historias, hechos concretos). Si hay poco material, propón
+MENOS secciones y más densas: NO inventes secciones de relleno ni temas sin
+soporte. Cada sección debe cubrir algo DISTINTO (sin solaparse con las demás).
+Devuelve JSON {{"sections":[{{"heading":"<H2 concreto>","covers":"<qué cubre, distinto>"}}]}}.
 """
     data = _chat(client, user, max_tokens=1200)
     secs = data.get("sections") if isinstance(data, dict) else None
-    return [s for s in (secs or []) if s.get("heading")][:10]
+    return [s for s in (secs or []) if s.get("heading")][:cap]
 
 
 def _write_section(client: OpenAI, subject: str, section: dict, headings: list[str],
-                   hard: str, material: str, kw_block: str) -> str:
+                   hard: str, material: str, kw_block: str, prior: str = "") -> str:
+    # Longitud proporcional al material: poco material → secciones cortas y densas.
+    words = "120-220" if len(material) < 3000 else "180-380"
+    prior_block = ""
+    if prior.strip():
+        prior_block = (
+            "YA ESCRITO en secciones anteriores (el lector ya lo ha leído; NO lo "
+            "repitas, ni los datos ni el encuadre, ni vuelvas a presentar al "
+            f"sujeto):\n\"\"\"{prior[-4000:]}\"\"\"\n\n"
+        )
     user = f"""\
-Escribe la sección "{section['heading']}" del artículo definitivo sobre {subject}.
-Cubre: {section.get('covers', '')}
+Escribe la sección "{section['heading']}" del artículo sobre {subject}.
+Cubre (y SOLO esto): {section.get('covers', '')}
 {kw_block}
-Las otras secciones (no repitas su contenido): {', '.join(headings)}
+Otras secciones del artículo (no invadas su tema): {', '.join(headings)}
 
 DATOS DUROS:
 {hard}
@@ -100,9 +128,13 @@ DATOS DUROS:
 MATERIAL (única fuente de hechos; parafrasea, NO inventes nada que no esté aquí):
 \"\"\"{material}\"\"\"
 
-INSTRUCCIONES:
+{prior_block}INSTRUCCIONES:
 - Empieza con "## {section['heading']}".
-- 180-450 palabras, concreto: fechas, lugares, nombres y anécdotas reales del material.
+- {words} palabras. SOLO sustancia: fechas, lugares, nombres, anécdotas y hechos
+  reales del material. Cero relleno, cero vaguedades, cero frases de transición huecas.
+- NO re-presentes al sujeto ni repitas datos/frases ya escritos arriba.
+- Si el material concreto para esta sección es escaso, escribe POCO (incluso 2-3
+  frases) pero real; NUNCA rellenes para alargar.
 - Si el material trae 1-2 CITAS textuales de Robe, inclúyelas entrecomilladas y
   ATRIBUIDAS a su fuente. Nunca inventes una cita.
 - NO escribas enlaces internos (el sistema los añade). Nunca enlaces en el encabezado.
@@ -111,6 +143,29 @@ INSTRUCCIONES:
     data = _chat(client, user, max_tokens=1800)
     body = data.get("body_md", "") if isinstance(data, dict) else ""
     return strip_ai_tells(body) or body
+
+
+def _polish(client: OpenAI, subject: str, body: str) -> str:
+    """Pase final anti-repetición y anti-paja sobre el artículo completo."""
+    if len(body.strip()) < 200:
+        return body
+    user = (
+        f"Pule este artículo sobre {subject} para que lo firme un fan exigente. "
+        "DOS tareas, sin añadir NADA nuevo ni inventar:\n"
+        "1) Elimina TODA repetición: si una frase, un dato o un encuadre (p.ej. "
+        "volver a presentar al sujeto) aparece en más de una sección, deja solo la "
+        "primera vez y borra las demás.\n"
+        "2) Elimina TODO relleno y vaguedad sin información ('pudo haber', 'resonó', "
+        "'dejó huella', 'en resumen', 'a lo largo de', frases de transición huecas).\n"
+        "Si tras quitar la paja una sección se queda sin sustancia, redúcela a lo "
+        "que aporte de verdad o elimínala entera (encabezado incluido). Conserva los "
+        "encabezados '## ' que sobrevivan, los enlaces markdown y las citas. Mejor "
+        "corto y con chicha que largo y vacío. Devuelve JSON {\"body_md\":\"...\"}.\n\n"
+        f"ARTÍCULO:\n\"\"\"{body}\"\"\""
+    )
+    data = _chat(client, user, max_tokens=4000, temp=0.2)
+    v = (data.get("body_md") or "").strip() if isinstance(data, dict) else ""
+    return v if len(v) > 200 else body
 
 
 def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
@@ -186,14 +241,20 @@ def generate_for_entity(
     full = f"{dossier.hard_facts}\n\n{dossier.material}"
     parts: list[str] = []
     for s in outline:
+        # `prior` = lo ya escrito → cada sección evita repetir datos/encuadre.
         sec = _write_section(client, dossier.subject, s, headings,
-                             dossier.hard_facts, dossier.material, kw_block)
+                             dossier.hard_facts, dossier.material, kw_block,
+                             prior="\n\n".join(parts))
         sec = _verify_section(client, sec, full)
         if sec.strip():
             parts.append(sec.strip())
         log(f"  · {s['heading']} ({len(sec)} chars)")
 
     body = "\n\n".join(parts)
+    # Pase final anti-repetición/anti-paja sobre el artículo completo.
+    before = len(body)
+    body = _polish(client, dossier.subject, body)
+    log(f"  pulido: {before} → {len(body)} chars")
     body = _sanitize_links(body, dossier.allowed_urls)
     body = autolink_corpus(
         body, corpus_index if corpus_index is not None else build_corpus_index(db),
