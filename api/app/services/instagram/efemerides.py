@@ -1,4 +1,4 @@
-"""Efemérides de Robe Iniesta y Extremoduro.
+"""Efemérides de Robe y Extremoduro.
 
 Eventos «un día como hoy» curados manualmente a partir de información pública
 y verificable (discografía, biografía). Se usan como tema/curiosidad cuando el

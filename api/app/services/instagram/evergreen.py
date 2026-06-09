@@ -292,8 +292,8 @@ def gen_robe_quotes(db: Session, count: int, used: set[str]) -> list[dict]:
             "content_key": key,
             "title": text,
             "category": "Cultura",
-            "summary": f"— Robe Iniesta. {q.get('source') or ''}".strip(),
-            "source_name": q.get("source") or "Robe Iniesta",
+            "summary": f"— Robe. {q.get('source') or ''}".strip(),
+            "source_name": q.get("source") or "Robe",
             "source_url": q.get("url") or None,
         })
         used.add(key)

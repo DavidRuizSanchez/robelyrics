@@ -230,7 +230,7 @@ def find(topic: dict, exclude: set[str] | None = None) -> dict | None:
 
     # 2. Respaldo relevante: foto web del universo (Robe/Extremoduro). Se usa
     #    cuando el sujeto no es identificable, para NO acabar en un homónimo.
-    for q in ("Robe Iniesta Extremoduro concierto", "Extremoduro banda concierto"):
+    for q in ("Roberto Iniesta Extremoduro concierto", "Extremoduro banda concierto"):
         chosen = _pick_web(web_image.search(q), topic, exclude)
         if chosen:
             logger.info("[foto] web respaldo «%s» -> %s", q, chosen["url"][:60])
@@ -239,7 +239,7 @@ def find(topic: dict, exclude: set[str] | None = None) -> dict | None:
     # 3. Respaldo CC (Wikimedia/Openverse) por si DataForSEO no responde.
     iq = (topic.get("image_query") or "").strip()
     cc_pool: list[dict] = []
-    for ent in ([iq] if iq else []) + ["Robe Iniesta", "Extremoduro"]:
+    for ent in ([iq] if iq else []) + ["Roberto Iniesta", "Extremoduro"]:
         wd = _wikidata_photo(ent)
         if wd:
             cc_pool.append(wd)

@@ -7,7 +7,7 @@ los posts pero no los publica.
 import os
 from datetime import date
 
-# Robe Iniesta falleció el 10 de diciembre de 2025. Caption e imagen abren con
+# Robe falleció el 10 de diciembre de 2025. Caption e imagen abren con
 # el contador memorial "Día X sin Robe".
 ROBE_DEATH = date(2025, 12, 10)
 
