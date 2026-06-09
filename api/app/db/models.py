@@ -1242,6 +1242,44 @@ class PlaylistItem(Base):
     song: Mapped[Song] = relationship()
 
 
+class EntityEdge(Base):
+    """Grafo de conocimiento unificado: una arista entre dos entidades del
+    corpus (artist/album/song/person/band/theme/place/concept).
+
+    Derivado e IDEMPOTENTE: lo repuebla `scripts/graph/build_graph.py` a partir
+    de las tablas relacionales (FK, SongTheme/Place/Concept, BandMembership) y
+    los JSONB (Person.other_bands, SeoContent/Post.entities). Consultable en
+    ambos sentidos (índices en src y dst). `edge_type` ∈ {song_of_album,
+    album_of_artist, song_theme, song_place, song_concept, member_of,
+    other_band, video_of, mentions}.
+    """
+
+    __tablename__ = "entity_edges"
+    __table_args__ = (
+        UniqueConstraint(
+            "src_type", "src_id", "edge_type", "dst_type", "dst_id",
+            name="uq_entity_edges",
+        ),
+        Index("ix_entity_edges_src", "src_type", "src_id"),
+        Index("ix_entity_edges_dst", "dst_type", "dst_id"),
+        Index("ix_entity_edges_type", "edge_type"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    src_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    src_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    src_slug: Mapped[str] = mapped_column(String(180), nullable=False)
+    edge_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    dst_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    dst_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    dst_slug: Mapped[str] = mapped_column(String(180), nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    meta: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Política de nombre (REGLA DURA): la forma "Robe Iniesta" NUNCA debe persistir
 # en contenido (a él no le gustaba). Listeners a nivel ORM → cualquier escritura
