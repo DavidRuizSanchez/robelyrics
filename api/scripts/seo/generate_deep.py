@@ -139,6 +139,99 @@ def _meta(client: OpenAI, subject: str, target_kw: str | None, body: str) -> dic
     )
 
 
+def generate_for_entity(
+    db,
+    client: OpenAI,
+    entity_type: str,
+    entity,
+    *,
+    target_keyword: str | None = None,
+    secondary: list[str] | None = None,
+    publish: bool = False,
+    corpus_index=None,
+    link_stats=None,
+) -> bool:
+    """Genera contenido deep-RAG para UNA entidad y hace upsert + persiste KW/outline.
+
+    Reutilizable por el orquestador del backfill: acepta `corpus_index` y
+    `link_stats` ya construidos (se construyen una vez para todo el lote) para no
+    rehacerlos por entidad. Devuelve True si guardó, False si abortó (outline vacío).
+    El estado publicado lo gobierna `SEO_KEEP_PUBLISHED` en `upsert_seo_content`;
+    `publish=True` lo fuerza a publicado además.
+    """
+    secondary = secondary or []
+    dossier = gather_entity_dossier(db, entity_type, entity)
+    if len(dossier.material) < 400:
+        log(f"corpus escaso para {entity.slug} ({len(dossier.material)} chars); "
+            "la página será honesta y corta", "warn")
+
+    kw_block = ""
+    if target_keyword:
+        kw_block = (
+            f"KEYWORD OBJETIVO: «{target_keyword}» (úsala con naturalidad "
+            "en el título y algún H2). "
+            + (f"SECUNDARIAS: {', '.join(secondary)}. " if secondary else "")
+            + "Construye los headings teniéndolas en cuenta, pero NO fuerces ni "
+            "rellenes: prima el conocimiento real del corpus.\n"
+        )
+
+    log(f"generando DEEP: {entity_type}/{dossier.subject}")
+    outline = _outline(client, dossier.subject, kw_block, dossier.hard_facts, dossier.material)
+    if not outline:
+        log("el outline salió vacío; abortando", "err")
+        return False
+    headings = [s["heading"] for s in outline]
+    full = f"{dossier.hard_facts}\n\n{dossier.material}"
+    parts: list[str] = []
+    for s in outline:
+        sec = _write_section(client, dossier.subject, s, headings,
+                             dossier.hard_facts, dossier.material, kw_block)
+        sec = _verify_section(client, sec, full)
+        if sec.strip():
+            parts.append(sec.strip())
+        log(f"  · {s['heading']} ({len(sec)} chars)")
+
+    body = "\n\n".join(parts)
+    body = _sanitize_links(body, dossier.allowed_urls)
+    body = autolink_corpus(
+        body, corpus_index if corpus_index is not None else build_corpus_index(db),
+        max_links=8, exclude_slug=entity.slug,
+        link_stats=link_stats if link_stats is not None else load_link_stats(),
+    )
+    log(f"  ensamblado: {len(body)} chars")
+
+    meta = _meta(client, dossier.subject, target_keyword, body)
+    schema = {
+        "@context": "https://schema.org",
+        "@type": {"person": "Person", "band": "MusicGroup", "place": "Place"}.get(
+            entity_type, "Thing"),
+        "name": dossier.subject,
+    }
+    upsert_seo_content(
+        db, entity_type=entity_type, entity_id=entity.id, slug=entity.slug,
+        body_md=body, meta_title=(meta.get("meta_title") or "")[:60],
+        meta_description=(meta.get("meta_description") or "")[:155],
+        schema_jsonld=schema, entities=[], force=True,
+    )
+    # Persiste KW objetivo + outline + cobertura (campos del motor profundo).
+    db.execute(
+        update(SeoContent)
+        .where(SeoContent.entity_type == entity_type, SeoContent.entity_id == entity.id)
+        .values(
+            target_keyword=target_keyword,
+            secondary_keywords=[{"keyword": k} for k in secondary],
+            outline=outline,
+            sources_count=dossier.sources_count,
+            **({"published": True} if publish else {}),
+        )
+    )
+    db.commit()
+    keep = os.environ.get("SEO_KEEP_PUBLISHED") == "1"
+    estado = "publicado" if (publish or keep) else "borrador"
+    log(f"  guardado ({estado}) · {dossier.sources_count} fuentes del corpus", "ok")
+    return True
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--entity-type", required=True, choices=list(_MODELS))
@@ -155,75 +248,12 @@ def main() -> None:
         if not entity:
             log(f"{args.entity_type} '{args.slug}' no encontrado", "err")
             return
-
-        dossier = gather_entity_dossier(db, args.entity_type, entity)
-        if len(dossier.material) < 400:
-            log(f"corpus escaso para {args.slug} ({len(dossier.material)} chars); "
-                "la página será honesta y corta", "warn")
-
         secondary = [s.strip() for s in (args.secondary or "").split(";") if s.strip()]
-        kw_block = ""
-        if args.target_keyword:
-            kw_block = (
-                f"KEYWORD OBJETIVO: «{args.target_keyword}» (úsala con naturalidad "
-                "en el título y algún H2). "
-                + (f"SECUNDARIAS: {', '.join(secondary)}. " if secondary else "")
-                + "Construye los headings teniéndolas en cuenta, pero NO fuerces ni "
-                "rellenes: prima el conocimiento real del corpus.\n"
-            )
-
-        log(f"generando DEEP: {args.entity_type}/{dossier.subject}")
-        outline = _outline(client, dossier.subject, kw_block, dossier.hard_facts, dossier.material)
-        if not outline:
-            log("el outline salió vacío; abortando", "err")
-            return
-        headings = [s["heading"] for s in outline]
-        full = f"{dossier.hard_facts}\n\n{dossier.material}"
-        parts: list[str] = []
-        for s in outline:
-            sec = _write_section(client, dossier.subject, s, headings,
-                                 dossier.hard_facts, dossier.material, kw_block)
-            sec = _verify_section(client, sec, full)
-            if sec.strip():
-                parts.append(sec.strip())
-            log(f"  · {s['heading']} ({len(sec)} chars)")
-
-        body = "\n\n".join(parts)
-        body = _sanitize_links(body, dossier.allowed_urls)
-        body = autolink_corpus(
-            body, build_corpus_index(db), max_links=8,
-            exclude_slug=entity.slug, link_stats=load_link_stats(),
+        generate_for_entity(
+            db, client, args.entity_type, entity,
+            target_keyword=args.target_keyword, secondary=secondary,
+            publish=args.publish,
         )
-        log(f"  ensamblado: {len(body)} chars")
-
-        meta = _meta(client, dossier.subject, args.target_keyword, body)
-        schema = {
-            "@context": "https://schema.org",
-            "@type": {"person": "Person", "band": "MusicGroup", "place": "Place"}.get(
-                args.entity_type, "Thing"),
-            "name": dossier.subject,
-        }
-        upsert_seo_content(
-            db, entity_type=args.entity_type, entity_id=entity.id, slug=entity.slug,
-            body_md=body, meta_title=(meta.get("meta_title") or "")[:60],
-            meta_description=(meta.get("meta_description") or "")[:155],
-            schema_jsonld=schema, entities=[], force=True,
-        )
-        # Persiste KW objetivo + outline + cobertura (campos del motor profundo).
-        db.execute(
-            update(SeoContent)
-            .where(SeoContent.entity_type == args.entity_type, SeoContent.entity_id == entity.id)
-            .values(
-                target_keyword=args.target_keyword,
-                secondary_keywords=[{"keyword": k} for k in secondary],
-                outline=outline,
-                sources_count=dossier.sources_count,
-                **({"published": True} if args.publish else {}),
-            )
-        )
-        db.commit()
-        log(f"  guardado ({'publicado' if args.publish else 'borrador'}) · "
-            f"{dossier.sources_count} fuentes del corpus", "ok")
 
 
 if __name__ == "__main__":

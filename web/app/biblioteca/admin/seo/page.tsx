@@ -35,6 +35,11 @@ const TYPES = [
   { value: "artist", label: "artista" },
   { value: "album", label: "disco" },
   { value: "song", label: "canción" },
+  { value: "person", label: "persona" },
+  { value: "band", label: "grupo" },
+  { value: "theme", label: "tema" },
+  { value: "place", label: "lugar" },
+  { value: "concept", label: "concepto" },
 ];
 
 export default async function AdminSeoPage({
@@ -57,7 +62,7 @@ export default async function AdminSeoPage({
 
   const counts = {
     total: items.length,
-    unreviewed: items.filter((i) => !i.reviewed_at).length,
+    unreviewed: items.filter((i) => !i.reviewed_at && !i.published).length,
     pending: items.filter((i) => i.reviewed_at && !i.published).length,
     published: items.filter((i) => i.published).length,
   };

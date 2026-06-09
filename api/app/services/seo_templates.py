@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Album, Artist, SeoContent, SeoTemplate, Song
+from app.db.models import Album, Artist, Person, SeoContent, SeoTemplate, Song
 
 _VAR_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
@@ -69,6 +69,15 @@ def _build_context(db: Session, row: SeoContent) -> dict[str, Any]:
                 "artist": artist_name,
                 "year": year,
                 "kind": kind,
+            })
+    elif row.entity_type == "person":
+        p = db.get(Person, row.entity_id)
+        if p:
+            display = p.stage_name or p.full_name
+            ctx.update({
+                "name": display,
+                "title": display,
+                "full_name": p.full_name,
             })
 
     return ctx

@@ -32,10 +32,15 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     Album,
     Artist,
+    Band,
+    Concept,
     InterpretationSource,
+    Person,
+    Place,
     SeoContent,
     SeoTemplate,
     Song,
+    Theme,
     User,
 )
 from app.db.session import get_db
@@ -484,19 +489,50 @@ def _entity_label_and_url(db: Session, entity_type: str, entity_id: int) -> tupl
             f"{al.artist.name} · {al.title} · {s.title}",
             f"/{al.artist.slug}/{al.slug}/{s.slug}",
         )
+    if entity_type == "person":
+        p = db.query(Person).filter(Person.id == entity_id).first()
+        if not p:
+            return ("?", "")
+        return (p.stage_name or p.full_name, f"/personas/{p.slug}")
+    if entity_type == "band":
+        b = db.query(Band).filter(Band.id == entity_id).first()
+        if not b:
+            return ("?", "")
+        base = "/sellos" if b.kind == "label" else "/grupos"
+        return (b.name, f"{base}/{b.slug}")
+    if entity_type == "theme":
+        t = db.query(Theme).filter(Theme.id == entity_id).first()
+        if not t:
+            return ("?", "")
+        return (t.name, f"/temas/{t.slug}")
+    if entity_type == "place":
+        pl = db.query(Place).filter(Place.id == entity_id).first()
+        if not pl:
+            return ("?", "")
+        return (pl.name, f"/lugares/{pl.slug}")
+    if entity_type == "concept":
+        c = db.query(Concept).filter(Concept.id == entity_id).first()
+        if not c:
+            return ("?", "")
+        return (c.name, f"/conceptos/{c.slug}")
     return ("?", "")
 
 
 @router.get("/seo", response_model=list[SeoContentListItem])
 def list_seo(
     status: Literal["all", "unreviewed", "reviewed", "published"] = "all",
-    entity_type: Literal["all", "artist", "album", "song"] = "all",
+    entity_type: Literal[
+        "all", "artist", "album", "song", "person", "band", "theme", "place", "concept"
+    ] = "all",
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> list[SeoContentListItem]:
     q = db.query(SeoContent)
     if status == "unreviewed":
-        q = q.filter(SeoContent.reviewed_at.is_(None))
+        # "Sin revisar" = pendiente de revisión: ni revisado ni publicado.
+        # (Hay filas publicadas por el script de generación con reviewed_at=NULL;
+        #  no deben colarse aquí.)
+        q = q.filter(SeoContent.reviewed_at.is_(None), SeoContent.published.is_(False))
     elif status == "reviewed":
         q = q.filter(SeoContent.reviewed_at.is_not(None), SeoContent.published.is_(False))
     elif status == "published":
@@ -550,9 +586,12 @@ def get_seo(
         reviewed_at=row.reviewed_at,
         published=row.published,
         public_url=public_url,
-        resolved_title=resolved["title"],
-        resolved_description=resolved["description"],
-        resolved_h1=resolved["h1"],
+        # Coalesce a "" cuando no hay override ni plantilla para el
+        # (entity_type, field) — p.ej. person/band/theme/place/concept sin
+        # plantilla SEO. El frontend los usa como placeholder del editor.
+        resolved_title=resolved["title"] or "",
+        resolved_description=resolved["description"] or "",
+        resolved_h1=resolved["h1"] or "",
     )
 
 

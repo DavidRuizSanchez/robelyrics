@@ -174,7 +174,7 @@ persons:
     memberships:
       - artist: extremoduro
         role: guitarrista
-        era: 1994-1997
+        era: 1995-1998
         position: 15
 
   - slug: capi-gil
@@ -183,7 +183,7 @@ persons:
     memberships:
       - artist: extremoduro
         role: batería
-        era: 1994-1997
+        era: 1995-1998
         position: 16
 
   - slug: diego-garay
