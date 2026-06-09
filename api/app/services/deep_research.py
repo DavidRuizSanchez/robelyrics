@@ -145,6 +145,19 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
     elif entity_type == "album":
         art = db.get(Artist, entity.artist_id)
         facts.append(f"«{entity.title}» ({art.name if art else ''}, {entity.year}), tipo {entity.kind}.")
+    elif entity_type == "song":
+        al = getattr(entity, "album", None)
+        art = getattr(al, "artist", None) if al else None
+        facts.append(
+            f"«{entity.title}» es una canción de {art.name if art else 'Extremoduro'}"
+            + (f", del disco «{al.title}» ({al.year})" if al else "") + "."
+        )
+        themes = [t.name for t in (getattr(entity, "themes", None) or []) if getattr(t, "name", None)]
+        if themes:
+            facts.append(f"Temas que toca: {', '.join(themes[:8])}.")
+        places = [p.name for p in (getattr(entity, "places", None) or []) if getattr(p, "name", None)]
+        if places:
+            facts.append(f"Lugares mencionados: {', '.join(places[:8])}.")
     elif entity_type in ("theme", "place", "concept"):
         if entity.description:
             facts.append(entity.description.strip()[:1200])
@@ -165,6 +178,16 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     blocks: list[str] = []
     allowed: set[str] = set()
     n_sources = 0
+
+    # 0) Para canciones, la LETRA es el material primario del análisis (si no,
+    #    el motor inventa el análisis musical). Se marca como letra, no declaración.
+    if entity_type == "song":
+        letra = (getattr(entity, "lyrics_clean", None) or "").strip()
+        if letra:
+            blocks.append(
+                f"[LETRA de la canción «{subject}» (es la LETRA de la canción, "
+                f"NO una declaración de Robe)]\n{letra[:3500]}"
+            )
 
     # 1) Hechos verificados de De Profundis y demás referencias.
     for fact in _reference_facts(names)[:40]:
