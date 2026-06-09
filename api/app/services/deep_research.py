@@ -176,7 +176,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
         from app.services.retrieval import search_robe_voice
         qvec = get_embedder().embed_one(f"{subject}. {hard[:300]}")
         for v in search_robe_voice(qvec, k=4):
-            blocks.append(f"[robe_voice · {v['titulo']}] {v['fragmento']}")
+            blocks.append(f"[ENTREVISTA/CITA · {v['titulo']}] {v['fragmento']}")
             n_sources += 1
             if v.get("url") and v["url"].startswith("http") and "entreinteriores.com" not in v["url"]:
                 allowed.add(v["url"])
@@ -193,7 +193,19 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             continue
         url = (s.get("url") or "").strip()
         ext = url if (url.startswith("http") and "entreinteriores.com" not in url) else ""
-        head = f"[{s['kind']}] {s.get('title') or ''}" + (f" — FUENTE: {ext}" if ext else "")
+        kind = s.get("kind") or "fuente"
+        is_transcript = "transcript" in kind or kind in ("youtube", "directo", "concierto")
+        if is_transcript:
+            # Las transcripciones de audio/vídeo mezclan LETRAS cantadas con
+            # charla y traen ruido (palabras cortadas). NO son declaraciones.
+            head = (
+                f"[TRANSCRIPCIÓN de audio/vídeo · {s.get('title') or ''}] "
+                "(contiene LETRAS de canciones cantadas y ruido de transcripción; "
+                "NO es una entrevista: prohibido citar esto como algo que Robe "
+                "'dijo' o 'declaró', y prohibido asignarle una fuente de prensa)"
+            )
+        else:
+            head = f"[{kind} · {s.get('title') or ''}]" + (f" — FUENTE: {ext}" if ext else "")
         blocks.append(f"{head}\n{snippet}")
         if ext:
             allowed.add(ext)

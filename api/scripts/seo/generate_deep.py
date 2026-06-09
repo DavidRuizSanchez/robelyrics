@@ -54,7 +54,18 @@ _SYS = (
     "NUNCA repites una frase, un dato ni el mismo encuadre dos veces (no vuelvas a "
     "presentar al sujeto en cada sección). Robe falleció en diciembre de 2025. "
     "Refiérete a él como 'Robe' (o 'Roberto Iniesta'), NUNCA 'Robe Iniesta'. No "
-    "uses la raya larga."
+    "uses la raya larga.\n"
+    "REGLAS DE CITA (CRÍTICAS, un fan jamás falla en esto): el material mezcla "
+    "LETRAS de canciones, TRANSCRIPCIONES de directo (con ruido y palabras "
+    "cortadas) y ENTREVISTAS. (1) Distingue SIEMPRE una letra de canción de una "
+    "declaración: JAMÁS presentes un verso como algo que Robe 'dijo', 'compartió' "
+    "o 'declaró en una entrevista'. Si usas una letra, di de qué CANCIÓN es y "
+    "cítala exacta y completa, o no la uses. (2) NUNCA inventes la fuente de una "
+    "cita: solo atribuye una frase a un medio/entrevista (La Gaceta, Carne Cruda…) "
+    "si esa frase aparece DENTRO del bloque de ESE medio; jamás cojas una frase de "
+    "un bloque y le pongas la fuente de otro. (3) No cites texto garbleado de "
+    "transcripciones. (4) Usa fechas y datos EXACTOS cuando estén en el material "
+    "(el día concreto, no solo el mes)."
 )
 
 
@@ -177,7 +188,17 @@ def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
         "sección corregida, quitando o suavizando TODA afirmación factual (fechas, "
         "premios, cifras, títulos, formaciones, lugares, colaboraciones, citas, "
         "eventos) que NO conste en el MATERIAL. No inventes ni añadas. Conserva la "
-        "voz, el encabezado H2 y los enlaces.\n\n"
+        "voz, el encabezado H2 y los enlaces.\n"
+        "VIGILA EN ESPECIAL (errores graves de credibilidad):\n"
+        "- CITAS FALSAS: si la sección atribuye una frase a una entrevista o medio "
+        "(p.ej. 'en una entrevista con La Gaceta dijo…') y esa frase NO aparece "
+        "literalmente dentro del bloque de ESE medio en el material, elimínala o "
+        "quita la atribución. Jamás vale mezclar una frase de un bloque con la "
+        "fuente de otro.\n"
+        "- LETRAS COMO DECLARACIONES: si la sección presenta un verso de una canción "
+        "(o texto de un bloque [TRANSCRIPCIÓN]) como algo que Robe 'dijo'/'declaró', "
+        "elimínalo (una letra cantada no es una declaración).\n"
+        "- Texto garbleado de transcripciones: quítalo.\n\n"
         f"MATERIAL:\n\"\"\"{material[:90000]}\"\"\"\n\nSECCIÓN:\n\"\"\"{section_md}\"\"\""
     )
     data = _chat(client, user, max_tokens=1800, temp=0.1)
