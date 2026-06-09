@@ -2,8 +2,11 @@
 
 import { type FormEvent, useState } from "react";
 
-// Form de suscripción a la newsletter. POST al endpoint local del frontend
-// que proxea al api. Mantenemos el estado en el cliente con feedback inline.
+// Form de suscripción a la newsletter. POST directo al endpoint público del
+// api a través de Caddy (/api/* → backend, stripping /api → /public/...).
+// OJO: NO usar una route de Next bajo /api/* (p.ej. /api/newsletter/subscribe):
+// Caddy intercepta /api/* y la manda al backend, así que esa route queda
+// "tapada" y devuelve 404. Mantenemos el estado en el cliente con feedback inline.
 
 type State =
   | { kind: "idle" }
@@ -29,7 +32,7 @@ export default function NewsletterForm({
     if (!trimmed) return;
     setState({ kind: "submitting" });
     try {
-      const res = await fetch("/api/newsletter/subscribe", {
+      const res = await fetch("/api/public/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, source }),
