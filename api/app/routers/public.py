@@ -1787,6 +1787,7 @@ def newsletter_subscribe(
 
     row = db.query(Subscriber).filter(Subscriber.email == email).first()
     confirm_token = secrets.token_urlsafe(32)
+    prev_status = row.status if row else None
 
     if row:
         if row.status == "confirmed":
@@ -1823,6 +1824,30 @@ def newsletter_subscribe(
     except EmailError as e:
         # No bloqueamos al usuario: la fila queda pending, podrá reintentar.
         logger.warning("Newsletter subscribe email failed for %s: %s", email, e)
+
+    # Aviso al admin de cada alta nueva o reactivación (lo pidió el user). No
+    # avisa en re-submits de un pending ya existente (evita spam). No bloquea.
+    if prev_status in (None, "unsubscribed", "bounced"):
+        try:
+            from app.config import get_settings
+            _settings = get_settings()
+            if _settings.admin_email:
+                send_email(
+                    to=_settings.admin_email,
+                    subject="🔔 Nueva suscripción · Entre Interiores",
+                    html=(
+                        "<p>Nueva suscripción a la newsletter:</p>"
+                        f"<p><strong>{email}</strong><br>"
+                        f"origen: {body.source or '—'}<br>"
+                        "estado: pendiente de confirmar</p>"
+                    ),
+                    text=(
+                        f"Nueva suscripción: {email} "
+                        f"(origen: {body.source or '—'}, pendiente de confirmar)"
+                    ),
+                )
+        except Exception as e:  # noqa: BLE001 — el aviso nunca debe romper el alta
+            logger.warning("Admin notify (subscribe) failed for %s: %s", email, e)
 
     return NewsletterSubscribeOut(
         status="pending_confirmation",
