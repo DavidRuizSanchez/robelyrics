@@ -131,6 +131,25 @@ def verify_connection(subject_a: str, subject_b: str, hint: str = "") -> dict:
     return res
 
 
+def web_context(query: str, wiki_titles: list[str] | None = None, max_chars: int = 1500) -> str:
+    """Reúne contexto externo (Wikipedia + Google) para una query y lo devuelve
+    como texto (sin juez). Para ENRIQUECER el dossier con datos/nombres que no
+    están en el corpus (p.ej. proyectos actuales). Se etiqueta como 'verifica
+    antes de afirmar'; el verificador factual de cada sección filtra lo no
+    respaldado. Cacheado."""
+    k = _key("ctx", query)
+    with _LOCK:
+        cache = _load_cache()
+        if k in cache:
+            return cache[k]
+    text = _gather_evidence(query, wiki_titles or [])[:max_chars]
+    with _LOCK:
+        cache = _load_cache()
+        cache[k] = text
+        _save_cache(cache)
+    return text
+
+
 def verify_fact(claim: str, wiki_title: str = "") -> dict:
     """¿Es cierto este dato? Devuelve {confirmed, evidence, source}."""
     k = _key("fact", claim)

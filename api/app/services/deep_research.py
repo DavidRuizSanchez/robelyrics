@@ -372,6 +372,25 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     #    conectado, se confirma externamente (Wikipedia/Google) el vínculo con el
     #    universo y se añade con fuente. SOLO se incorpora lo confirmado.
     b_verified: list[str] = []
+    # Para PERSONAS: contexto web (Wikipedia/Google) sobre su carrera y proyectos
+    # actuales → nombra entidades que el corpus no tiene (bandas, proyectos, etc.).
+    if entity_type == "person":
+        try:
+            from app.services.web_verify import web_context
+            ctx = web_context(
+                f"{subject} músico banda proyecto actual discografía",
+                wiki_titles=[subject],
+            )
+            if ctx:
+                b_verified.append(
+                    "[CONTEXTO WEB EXTERNO sobre la persona (Wikipedia/Google; NOMBRA las "
+                    "entidades reales que aquí aparezcan —bandas, proyectos, colaboradores—, "
+                    "pero NO inventes lo que no conste aquí)]\n" + ctx
+                )
+                n_sources += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] web_context persona falló: %s", exc)
+
     richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice)
     if entity_type in ("place", "theme", "concept", "person", "band") and richness < 5:
         try:
