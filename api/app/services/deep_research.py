@@ -175,63 +175,165 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     subject, names = entity_names(db, entity_type, entity)
     hard = _hard_facts(db, entity_type, entity, subject)
 
-    blocks: list[str] = []
     allowed: set[str] = set()
     n_sources = 0
+    # Buckets por prioridad (lo más fuerte primero; al capar, cae lo más débil).
+    b_lyrics: list[str] = []
+    b_deprof: list[str] = []
+    b_graph: list[str] = []
+    b_connsrc: list[str] = []
+    b_voice: list[str] = []
+    b_namesrc: list[str] = []
+    b_affinity: list[str] = []
 
-    # 0) Para canciones, la LETRA es el material primario del análisis (si no,
-    #    el motor inventa el análisis musical). Se marca como letra, no declaración.
+    def _source_head(kind: str, title: str, ext: str) -> str:
+        """Cabecera etiquetada de una fuente (marca transcripciones como no-declaración)."""
+        if "transcript" in kind or kind in ("youtube", "directo", "concierto"):
+            return (f"[TRANSCRIPCIÓN de audio/vídeo · {title}] (contiene LETRAS de canciones "
+                    "cantadas y ruido de transcripción; NO es una entrevista: prohibido citar "
+                    "esto como algo que Robe 'dijo' o 'declaró', y prohibido asignarle fuente de prensa)")
+        return f"[{kind} · {title}]" + (f" — FUENTE: {ext}" if ext else "")
+
+    # 0) Para canciones, la LETRA es el material primario (etiquetada como letra).
     if entity_type == "song":
         letra = (getattr(entity, "lyrics_clean", None) or "").strip()
         if letra:
-            blocks.append(
+            b_lyrics.append(
                 f"[LETRA de la canción «{subject}» (es la LETRA de la canción, "
                 f"NO una declaración de Robe)]\n{letra[:3500]}"
             )
 
     # 1) Hechos verificados de De Profundis y demás referencias.
     for fact in _reference_facts(names)[:40]:
-        blocks.append(fact)
+        b_deprof.append(fact)
 
-    # 2) Voz de Robe sobre el tema (retrieval semántico).
+    # 1b) Contexto enciclopédico (Wikipedia) para persona/grupo: apoyo, NO citable
+    #     como fuente ni como declaración.
+    if entity_type in ("person", "band"):
+        bio = (getattr(entity, "bio_long", None) or "").strip()
+        if bio:
+            b_deprof.append(
+                "[CONTEXTO ENCICLOPÉDICO (Wikipedia; apoyo de fondo, no es una "
+                f"declaración ni una fuente citable)]\n{bio[:1500]}"
+            )
+
+    # qvec compartido para retrieval semántico (voz de Robe + afinidad).
+    qvec = None
     try:
         from app.services.embeddings import get_embedder
-        from app.services.retrieval import search_robe_voice
         qvec = get_embedder().embed_one(f"{subject}. {hard[:300]}")
-        for v in search_robe_voice(qvec, k=4):
-            blocks.append(f"[ENTREVISTA/CITA · {v['titulo']}] {v['fragmento']}")
-            n_sources += 1
-            if v.get("url") and v["url"].startswith("http") and "entreinteriores.com" not in v["url"]:
-                allowed.add(v["url"])
     except Exception as exc:  # noqa: BLE001
-        logger.warning("[deep] robe_voice falló: %s", exc)
+        logger.warning("[deep] embedder falló: %s", exc)
 
-    # 3) Fuentes que mencionan a la entidad por nombre (fan-content, prensa,
-    #    transcripciones). Esto trae lo que el match por canción no ve.
-    sources = fetch_sources_for_entity(db, names, limit=24)
-    n_sources += len(sources)
-    for s in sources:
+    # 2) GRAFO CONECTADO: canciones/personas/bandas relacionadas por aristas REALES
+    #    (datos curados → verificadas por construcción), con el MOTIVO de la conexión.
+    connected_song_ids: list[int] = []
+    try:
+        from app.services.graph import gather_connected
+        from scripts.seo.common import fetch_distilled_for_song, format_distilled_block
+        conn = gather_connected(db, entity_type, entity)
+        for cs in conn.songs:
+            connected_song_ids.append(cs.song_id)
+            head = (f"[CANCIÓN CONECTADA · «{cs.title}»"
+                    + (f" ({cs.album}, {cs.year})" if cs.album else "")
+                    + f" — conecta con {subject} porque {cs.why}]")
+            distilled = fetch_distilled_for_song(db, cs.song_id)
+            body = format_distilled_block(distilled) if distilled else ""
+            b_graph.append(f"{head}\n{body}".strip())
+        n_sources += len(conn.songs)
+        rel = [f"{subject} → {b['label']} ({b['why']})" for b in conn.bands[:6]]
+        rel += [f"{p['label']} ({p['why']})" for p in conn.people[:10]]
+        if rel:
+            b_graph.append("[ENTIDADES RELACIONADAS (del grafo, conexiones verificadas)]\n" + "; ".join(rel))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[deep] grafo conectado falló: %s", exc)
+
+    # 2b) Fuentes ancladas a las canciones conectadas (referenced_song_ids && ids).
+    if connected_song_ids:
+        try:
+            from sqlalchemy import Integer as SAInteger
+            from sqlalchemy import cast
+            from sqlalchemy.dialects.postgresql import ARRAY
+            from app.db.models import InterpretationSource as _IS
+            srcs = db.execute(
+                select(_IS)
+                .where(_IS.referenced_song_ids.op("&&")(cast(connected_song_ids, ARRAY(SAInteger))))
+                .where(_IS.kind != "genius_annotation")
+            ).scalars().all()
+            seen_url: set[str] = set()
+            for r in srcs[:20]:
+                if r.url in seen_url:
+                    continue
+                seen_url.add(r.url)
+                snip = (r.content_clean or "").strip()[:_PER_SOURCE]
+                if len(snip) < 120:
+                    continue
+                ext = r.url if (r.url and r.url.startswith("http") and "entreinteriores.com" not in r.url) else ""
+                b_connsrc.append(f"{_source_head(r.kind or 'fuente', r.title or '', ext)}\n{snip}")
+                if ext:
+                    allowed.add(ext)
+                n_sources += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] fuentes conectadas falló: %s", exc)
+
+    # 3) Voz de Robe sobre el tema (k adaptativo).
+    if qvec is not None:
+        try:
+            from app.services.retrieval import search_robe_voice
+            voice_k = 8 if entity_type in ("person", "theme", "concept", "artist") else 4
+            for v in search_robe_voice(qvec, k=voice_k):
+                b_voice.append(f"[ENTREVISTA/CITA · {v['titulo']}] {v['fragmento']}")
+                n_sources += 1
+                if v.get("url") and v["url"].startswith("http") and "entreinteriores.com" not in v["url"]:
+                    allowed.add(v["url"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] robe_voice falló: %s", exc)
+
+    # 4) Fuentes que mencionan a la entidad por nombre (lo que el match por canción no ve).
+    for s in fetch_sources_for_entity(db, names, limit=24):
         snippet = (s.get("content") or "").strip()[:_PER_SOURCE]
         if len(snippet) < 120:
             continue
         url = (s.get("url") or "").strip()
         ext = url if (url.startswith("http") and "entreinteriores.com" not in url) else ""
-        kind = s.get("kind") or "fuente"
-        is_transcript = "transcript" in kind or kind in ("youtube", "directo", "concierto")
-        if is_transcript:
-            # Las transcripciones de audio/vídeo mezclan LETRAS cantadas con
-            # charla y traen ruido (palabras cortadas). NO son declaraciones.
-            head = (
-                f"[TRANSCRIPCIÓN de audio/vídeo · {s.get('title') or ''}] "
-                "(contiene LETRAS de canciones cantadas y ruido de transcripción; "
-                "NO es una entrevista: prohibido citar esto como algo que Robe "
-                "'dijo' o 'declaró', y prohibido asignarle una fuente de prensa)"
-            )
-        else:
-            head = f"[{kind} · {s.get('title') or ''}]" + (f" — FUENTE: {ext}" if ext else "")
-        blocks.append(f"{head}\n{snippet}")
+        b_namesrc.append(f"{_source_head(s.get('kind') or 'fuente', s.get('title') or '', ext)}\n{snippet}")
         if ext:
             allowed.add(ext)
+        n_sources += 1
+
+    # 5) Afinidad semántica: canciones cercanas SIN arista real. NO se afirman como
+    #    conexión factual (la Fase 4.5 las verifica); van con disclaimer explícito.
+    if qvec is not None:
+        try:
+            from app.services.retrieval import (
+                search_interpretations_for_song_ids,
+                search_lyrics_full_for_song_ids,
+            )
+            from scripts.seo.common import fetch_distilled_for_song, format_distilled_block
+            from app.db.models import Song as _Song
+            aff: dict[int, float] = {}
+            for sid, sc in search_interpretations_for_song_ids(qvec, k=8).items():
+                aff[sid] = max(aff.get(sid, 0.0), sc)
+            for sid, sc in search_lyrics_full_for_song_ids(qvec, k=8).items():
+                aff[sid] = max(aff.get(sid, 0.0), sc)
+            already = set(connected_song_ids)
+            for sid, _sc in sorted(aff.items(), key=lambda x: -x[1])[:6]:
+                if sid in already:
+                    continue
+                s = db.get(_Song, sid)
+                if not s:
+                    continue
+                distilled = fetch_distilled_for_song(db, sid)
+                body = format_distilled_block(distilled) if distilled else ""
+                head = (f"[AFINIDAD SEMÁNTICA · «{s.title}»] (vecindad temática detectada por el "
+                        "buscador; NO afirmes una conexión factual directa con el sujeto salvo que "
+                        "el material la respalde)")
+                b_affinity.append(f"{head}\n{body}".strip())
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] afinidad semántica falló: %s", exc)
+
+    # Orden de prioridad (lo más débil al final → es lo primero que cae al capar).
+    blocks = (b_lyrics + b_deprof + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
 
     # Capa al contexto.
     material, total = [], 0

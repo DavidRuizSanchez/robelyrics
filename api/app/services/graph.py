@@ -11,6 +11,7 @@ por lo que se consideran verificadas por construcción (no necesitan web-check).
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from sqlalchemy import and_, or_, select
@@ -189,12 +190,16 @@ def gather_connected(db: Session, entity_type: str, entity, *, max_songs: int = 
             why=why, weight=weight,
         ))
 
-    def songs_of_artist(artist_id: int, why: str):
+    def songs_of_artist(artist_id: int, why: str, *, year_range: tuple[int, int] | None = None):
         rows = db.execute(
             select(Song).join(Album, Song.album_id == Album.id)
             .where(Album.artist_id == artist_id)
         ).scalars().all()
         for s in rows:
+            if year_range:
+                yr = getattr(getattr(s, "album", None), "year", None)
+                if yr and not (year_range[0] <= yr <= year_range[1]):
+                    continue  # fuera de la etapa de la persona
             add_song(s, why, 1.0)
 
     if entity_type in ("theme", "place", "concept"):
@@ -235,7 +240,10 @@ def gather_connected(db: Session, entity_type: str, entity, *, max_songs: int = 
                 role = (n.get("meta") or {}).get("role")
                 why_artist = f"{subject} fue {role or 'parte'} de esta banda" + (f" ({era})" if era else "")
                 out.bands.append({"slug": n["slug"], "label": n["slug"], "why": why_artist})
-                songs_of_artist(n["id"], f"de {n['slug']}, banda de {subject}" + (f" ({era})" if era else ""))
+                m = re.match(r"(\d{4})\D+(\d{4})", era or "")
+                yr_range = (int(m.group(1)), int(m.group(2))) if m else None
+                why_song = f"de {n['slug']}, banda de {subject}" + (f" en su etapa {era}" if era else "")
+                songs_of_artist(n["id"], why_song, year_range=yr_range)
             elif n["edge_type"] == "other_band":
                 out.bands.append({"slug": n["slug"], "label": n["slug"], "why": f"{subject} también tocó aquí"})
 
