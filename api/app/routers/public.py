@@ -77,6 +77,8 @@ class PublicTrackOut(BaseModel):
     title: str
     track_number: int | None
     youtube_id: str | None = None
+    duration_sec: int | None = None
+    youtube_duration_sec: int | None = None
 
 
 class PublicArtistMember(BaseModel):
@@ -119,6 +121,7 @@ class PublicArtistDetailOut(PublicArtistOut):
 class PublicAlbumDetailOut(PublicAlbumOut):
     artist: PublicArtistOut
     tracks: list[PublicTrackOut]
+    release_date: str | None = None
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -572,12 +575,15 @@ def public_album_detail(
         artist=PublicArtistOut(
             slug=artist.slug, name=artist.name, active_years=artist.active_years,
         ),
+        release_date=album.release_date.isoformat() if album.release_date else None,
         tracks=[
             PublicTrackOut(
                 slug=s.slug,
                 title=s.title,
                 track_number=s.track_number,
                 youtube_id=s.youtube_id,
+                duration_sec=s.duration_sec,
+                youtube_duration_sec=s.youtube_duration_sec,
             )
             for s in songs
         ],

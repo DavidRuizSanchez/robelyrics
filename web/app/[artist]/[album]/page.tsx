@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
+import AlbumDataTable from "@/components/AlbumDataTable";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
@@ -143,9 +144,11 @@ export default async function AlbumPublicPage({
           </div>
         </header>
 
-        <article className="mb-16">
+        <article className="mb-4">
           <MarkdownArticle markdown={detail.seo_body} />
         </article>
+
+        <AlbumDataTable detail={detail} />
 
         <section className="mt-12">
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">

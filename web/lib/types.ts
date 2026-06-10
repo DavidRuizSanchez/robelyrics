@@ -166,6 +166,8 @@ export type PublicTrackOut = {
   title: string;
   track_number: number | null;
   youtube_id: string | null;
+  duration_sec: number | null;
+  youtube_duration_sec: number | null;
 };
 
 export type PublicArtistMember = {
@@ -210,6 +212,7 @@ export type PublicArtistDetail = PublicArtistOut & {
 export type PublicAlbumDetail = PublicAlbumOut & {
   artist: PublicArtistOut;
   tracks: PublicTrackOut[];
+  release_date: string | null;
   seo_body: string | null;
   seo_meta_title: string | null;
   seo_meta_description: string | null;
