@@ -332,8 +332,35 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
         except Exception as exc:  # noqa: BLE001
             logger.warning("[deep] afinidad semántica falló: %s", exc)
 
+    # 6) Enriquecimiento VERIFICADO para entidades flacas: si hay poco material
+    #    conectado, se confirma externamente (Wikipedia/Google) el vínculo con el
+    #    universo y se añade con fuente. SOLO se incorpora lo confirmado.
+    b_verified: list[str] = []
+    richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice)
+    if entity_type in ("place", "theme", "concept", "person", "band") and richness < 5:
+        try:
+            from app.services.web_verify import verify_connection
+            res = verify_connection(
+                subject, "Roberto Iniesta Extremoduro",
+                hint="vínculo con el universo de Robe/Extremoduro",
+            )
+            if res.get("confirmed"):
+                src = res.get("source") or "fuente externa"
+                # El TEXTO de evidencia real (Wikipedia/prensa) ancla los datos; si
+                # no viene, al menos la frase resumida confirmada.
+                grounded = res.get("evidence_text") or res.get("evidence") or ""
+                if grounded:
+                    b_verified.append(
+                        "[CONTEXTO VERIFICADO EXTERNAMENTE (Wikipedia/prensa, fuente citable; "
+                        f"confirmado en {src}; usa SOLO lo que aquí conste, no añadas datos de "
+                        f"memoria)]\n{grounded}"
+                    )
+                    n_sources += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] verificación externa falló: %s", exc)
+
     # Orden de prioridad (lo más débil al final → es lo primero que cae al capar).
-    blocks = (b_lyrics + b_deprof + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
+    blocks = (b_lyrics + b_deprof + b_verified + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
 
     # Capa al contexto.
     material, total = [], 0
