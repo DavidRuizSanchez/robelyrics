@@ -55,6 +55,11 @@ _SYS = (
     "presentar al sujeto en cada sección). Robe falleció en diciembre de 2025. "
     "Refiérete a él como 'Robe' (o 'Roberto Iniesta'), NUNCA 'Robe Iniesta'. No "
     "uses la raya larga.\n"
+    "CONEXIÓN CON EL SUJETO (regla dura): TODO el artículo gira sobre el sujeto. "
+    "Cada sección y CADA párrafo debe conectar EXPLÍCITAMENTE con él; si mencionas "
+    "otra canción, disco, persona o lugar, explica su RELACIÓN con el sujeto. "
+    "JAMÁS metas un párrafo que no se conecte con el sujeto (p.ej. en una página "
+    "de un lugar, no te pongas a hablar de un disco sin atarlo a ese lugar).\n"
     "CONEXIONES: cuando un bloque [CANCIÓN CONECTADA] o [ENTIDADES RELACIONADAS] "
     "indique el MOTIVO de la conexión, EXPLÓTALO: relaciona explícitamente al "
     "sujeto con esa canción/persona/lugar citando ese motivo (es una conexión "
@@ -73,6 +78,39 @@ _SYS = (
     "transcripciones. (4) Usa fechas y datos EXACTOS cuando estén en el material "
     "(el día concreto, no solo el mes)."
 )
+
+
+def _coverage_hint(entity_type: str) -> str:
+    """Qué DEBE cubrir el artículo según el tipo (evita páginas escuetas/genéricas)."""
+    if entity_type == "person":
+        return (
+            "COBERTURA OBLIGATORIA: biografía y carrera (orígenes, trayectoria, bandas, "
+            "instrumentos, anécdotas) y su papel/etapa en el universo de Extremoduro/Robe. "
+            "OBLIGATORIO incluir QUÉ HACE ACTUALMENTE: si el material (p.ej. el [CONTEXTO "
+            "ENCICLOPÉDICO]) menciona una banda o proyecto actual, NÓMBRALO explícitamente; una "
+            "biografía de un músico sin su actividad actual está INCOMPLETA. Si es un colaborador "
+            "o figura EXTERNA al núcleo, dedica la mayor parte a SU propia vida, carrera y "
+            "discografía (sus grupos y discos célebres, anécdotas), no solo a su relación con Robe."
+        )
+    if entity_type in ("theme", "concept"):
+        return (
+            "COBERTURA OBLIGATORIA: qué significa este tema/concepto en la obra. ES OBLIGATORIO "
+            "CITAR TEXTUALMENTE entre 2 y 5 VERSOS del bloque [VERSOS donde aparece...], los más "
+            "significativos (no los triviales), entre comillas e indicando la canción. Una página "
+            "de un tema/concepto SIN versos citados es un FALLO. Explica cómo Robe trabaja la idea."
+        )
+    if entity_type == "place":
+        return (
+            "COBERTURA OBLIGATORIA: la relación REAL del lugar con Robe/Extremoduro y su obra "
+            "(canciones, hechos, biografía), citando lo concreto. Cada párrafo conecta con el lugar."
+        )
+    if entity_type == "band":
+        return "COBERTURA: la banda (historia, miembros, discos célebres) y su vínculo con Robe/Extremoduro."
+    if entity_type == "album":
+        return "COBERTURA: el disco (contexto, grabación, sonido, canciones clave) y su lugar en la trayectoria."
+    if entity_type == "song":
+        return "COBERTURA: significado de la letra (citando versos), la música y su contexto en el disco."
+    return ""
 
 
 def _section_cap(material: str) -> int:
@@ -100,11 +138,13 @@ def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> d
         return {}
 
 
-def _outline(client: OpenAI, subject: str, kw_block: str, hard: str, material: str) -> list[dict]:
+def _outline(client: OpenAI, subject: str, kw_block: str, hard: str, material: str,
+             coverage: str = "") -> list[dict]:
     cap = _section_cap(material)
     user = f"""\
 Planifica el mejor artículo y MÁS VERAZ de internet sobre {subject}.
 {kw_block}
+{coverage}
 DATOS DUROS:
 {hard}
 
@@ -113,9 +153,12 @@ MATERIAL DEL CORPUS (única fuente de hechos):
 
 Propón ENTRE 2 Y {cap} secciones H2, SOLO las que el material real permita llenar
 con sustancia (datos, historias, hechos concretos). Si hay poco material, propón
-MENOS secciones y más densas: NO inventes secciones de relleno ni temas sin
-soporte. Cada sección debe cubrir algo DISTINTO (sin solaparse con las demás).
-Devuelve JSON {{"sections":[{{"heading":"<H2 concreto>","covers":"<qué cubre, distinto>"}}]}}.
+MENOS secciones y más densas: NO inventes secciones de relleno ni temas sin soporte.
+Cada sección debe cubrir algo DISTINTO y tratar SOBRE {subject}.
+ENCABEZADOS: específicos y con sentido sobre {subject}; NADA de títulos forzados,
+genéricos o sin coherencia semántica (mal: «El Rock Transgresivo: Un Género
+Extremadura»). Todo el esquema debe girar en torno a {subject}.
+Devuelve JSON {{"sections":[{{"heading":"<H2 concreto sobre {subject}>","covers":"<qué cubre, distinto>"}}]}}.
 """
     data = _chat(client, user, max_tokens=1200)
     secs = data.get("sections") if isinstance(data, dict) else None
@@ -123,7 +166,8 @@ Devuelve JSON {{"sections":[{{"heading":"<H2 concreto>","covers":"<qué cubre, d
 
 
 def _write_section(client: OpenAI, subject: str, section: dict, headings: list[str],
-                   hard: str, material: str, kw_block: str, prior: str = "") -> str:
+                   hard: str, material: str, kw_block: str, prior: str = "",
+                   coverage: str = "") -> str:
     # Longitud proporcional al material: poco material → secciones cortas y densas.
     words = "120-220" if len(material) < 3000 else "180-380"
     prior_block = ""
@@ -145,10 +189,13 @@ DATOS DUROS:
 MATERIAL (única fuente de hechos; parafrasea, NO inventes nada que no esté aquí):
 \"\"\"{material}\"\"\"
 
+{coverage}
 {prior_block}INSTRUCCIONES:
 - Empieza con "## {section['heading']}".
 - {words} palabras. SOLO sustancia: fechas, lugares, nombres, anécdotas y hechos
   reales del material. Cero relleno, cero vaguedades, cero frases de transición huecas.
+- CONECTA todo con {subject}: cada frase trata sobre {subject}; si mencionas otra
+  canción/disco/persona/lugar, explica su relación con {subject}. No te vayas por las ramas.
 - NO re-presentes al sujeto ni repitas datos/frases ya escritos arriba.
 - Si el material concreto para esta sección es escaso, escribe POCO (incluso 2-3
   frases) pero real; NUNCA rellenes para alargar.
@@ -259,8 +306,9 @@ def generate_for_entity(
             "rellenes: prima el conocimiento real del corpus.\n"
         )
 
+    coverage = _coverage_hint(entity_type)
     log(f"generando DEEP: {entity_type}/{dossier.subject}")
-    outline = _outline(client, dossier.subject, kw_block, dossier.hard_facts, dossier.material)
+    outline = _outline(client, dossier.subject, kw_block, dossier.hard_facts, dossier.material, coverage)
     if not outline:
         log("el outline salió vacío; abortando", "err")
         return False
@@ -271,7 +319,7 @@ def generate_for_entity(
         # `prior` = lo ya escrito → cada sección evita repetir datos/encuadre.
         sec = _write_section(client, dossier.subject, s, headings,
                              dossier.hard_facts, dossier.material, kw_block,
-                             prior="\n\n".join(parts))
+                             prior="\n\n".join(parts), coverage=coverage)
         sec = _verify_section(client, sec, full)
         if sec.strip():
             parts.append(sec.strip())

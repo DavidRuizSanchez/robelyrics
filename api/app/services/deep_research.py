@@ -276,6 +276,42 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
         except Exception as exc:  # noqa: BLE001
             logger.warning("[deep] fuentes conectadas falló: %s", exc)
 
+    # 2c) VERSOS reales donde aparece el tema/lugar/concepto (Line ILIKE), para que
+    #     el contenido cite los versos relevantes textualmente.
+    b_verses: list[str] = []
+    if entity_type in ("theme", "place", "concept"):
+        try:
+            import re as _re
+            from sqlalchemy import or_ as _or
+            from app.db.models import Line as _Line
+            from app.db.models import Song as _Song
+            words = {subject} | {
+                w for w in _re.sub(r"[^0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]", " ", subject).split()
+                if len(w) > 3
+            }
+            rows = db.execute(
+                select(_Line.text, _Song.title)
+                .join(_Song, _Line.song_id == _Song.id)
+                .where(_or(*[_Line.text.ilike(f"%{t}%") for t in words]))
+                .limit(30)
+            ).all()
+            seen: set[str] = set()
+            verses: list[str] = []
+            for txt, title in rows:
+                key = (txt or "").strip().lower()
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                verses.append(f"· «{title}»: {txt.strip()}")
+            if verses:
+                b_verses.append(
+                    f"[VERSOS donde aparece «{subject}» (cítalos TEXTUALMENTE cuando sean "
+                    "relevantes; elige los que mejor capturan la idea, no los triviales)]\n"
+                    + "\n".join(verses[:18])
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] versos falló: %s", exc)
+
     # 3) Voz de Robe sobre el tema (k adaptativo).
     if qvec is not None:
         try:
@@ -360,7 +396,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             logger.warning("[deep] verificación externa falló: %s", exc)
 
     # Orden de prioridad (lo más débil al final → es lo primero que cae al capar).
-    blocks = (b_lyrics + b_deprof + b_verified + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
+    blocks = (b_lyrics + b_deprof + b_verified + b_verses + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
 
     # Capa al contexto.
     material, total = [], 0
