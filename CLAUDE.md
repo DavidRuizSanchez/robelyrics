@@ -39,7 +39,18 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.news.aggregate           (27 fuentes → news_items)
 # docker compose exec api python -m scripts.instagram.prepare_daily  (selecciona temas y prepara IG)
 # docker compose exec api python -m scripts.instagram.publish_next   (publica el siguiente post)
+# docker compose exec api python -m scripts.graph.embed_entity_bios  (vectoriza bio_long → entities_v1)
+# docker compose exec api python -m scripts.graph.build_graph        (SIEMPRE el ÚLTIMO: reconstruye entity_edges)
 ```
+
+El **knowledge graph** (`entity_edges`) conecta todas las entidades y alimenta el
+motor de contenido (`deep_research.gather_entity_dossier` tira de él para que cada
+página cite/relacione/complemente). Es VIVO: `build_graph` es idempotente y un cron
+nocturno (03:30 UTC) re-vectoriza + reconstruye el grafo. **Tras cualquier seed o
+ingesta que añada entidades/relaciones, correr `python -m scripts.graph.build_graph`.**
+Extraer cualquier subgrafo: `scripts.graph.render_subgraph --entity <tipo>/<slug>` o
+`GET /admin/graph/<tipo>/<slug>`. Afinidades/datos fuera de corpus se verifican en
+Wikipedia/Google (`app/services/web_verify.py`) antes de afirmarse.
 
 Puertos: postgres `5435`, qdrant `6333/6334`, api `8001`, web `3001`.
 

@@ -135,3 +135,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # data/related_posts.json. Reinicia el api para refrescar su caché en memoria
 # (blip de 2-3s). Antes del rebalanceo de link equity (06:00).
 0 5 * * 0 cd $APP_DIR && ( $DC exec -T api python -m scripts.seo.related_posts && docker cp robelyrics-api:/tmp/related_posts.json $APP_DIR/data/related_posts.json && $DC restart api ) >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Knowledge graph + embeddings VIVOS (frescura nocturna)
+# ============================================================================
+# 03:30 UTC: vectoriza material nuevo (fan-content + bios de entidades),
+# reconstruye el grafo de conocimiento (entity_edges, idempotente) y audita la
+# cobertura. Mantiene grafo y retrieval al día según crece el corpus, solo.
+30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
