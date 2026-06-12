@@ -19,6 +19,7 @@ que respeta el copyright (solo fotos CC o arte propio).
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import io
 import logging
@@ -26,7 +27,8 @@ import os
 from urllib.parse import quote
 
 import httpx
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont
+from openai import OpenAI
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from app.services.instagram import config
 
@@ -168,32 +170,109 @@ def _fetch_image(url: str, timeout: float = 60.0) -> Image.Image:
     return _cover(Image.open(io.BytesIO(resp.content)).convert("RGB"))
 
 
-def _ai_background(mood: str, seed: int) -> Image.Image:
+# Variaciones de estilo para dar variedad entre posts del mismo mood (gpt-image-1
+# no tiene seed; la variedad la mete el propio prompt, rotado por la semilla).
+_AI_STYLES = (
+    "painterly oil texture",
+    "soft cinematic haze",
+    "grainy film still",
+    "ink wash on paper",
+    "double exposure light leaks",
+    "chiaroscuro deep shadows",
+)
+
+
+def _openai_background(mood: str, seed: int) -> Image.Image:
+    """Fondo artístico con OpenAI gpt-image-1 (motor principal, fiable)."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("sin OPENAI_API_KEY")
+    style = _AI_STYLES[seed % len(_AI_STYLES)]
+    prompt = (
+        f"Abstract atmospheric background for an editorial music card. "
+        f"Theme: {mood}. Style: {style}, deep dark crimson (#a83a3a) and "
+        f"charcoal black tones, cinematic moody low-key lighting, film grain. "
+        f"Empty evocative scene. Absolutely no people, no faces, no text, no "
+        f"words, no letters, no logos."
+    )
+    client = OpenAI(api_key=api_key, timeout=90.0)
+    resp = client.images.generate(
+        model="gpt-image-1", prompt=prompt, size="1024x1024", quality="low", n=1,
+    )
+    raw = base64.b64decode(resp.data[0].b64_json)
+    return _cover(Image.open(io.BytesIO(raw)).convert("RGB"))
+
+
+def _pollinations_background(mood: str, seed: int) -> Image.Image:
+    """Respaldo gratuito (pollinations/flux). Reintenta semilla y modelo `turbo`.
+
+    Nota: desde 2026-06 el tier anónimo devuelve 402 (de pago); se conserva como
+    respaldo por si vuelve a estar disponible (o se configura un token)."""
     prompt = (
         f"abstract artistic background, {mood}, deep dark crimson and charcoal "
         f"black tones, cinematic moody lighting, film grain texture, painterly "
         f"digital art, empty scene, no people no faces no text no words no logos"
     )
-    url = (
-        f"https://image.pollinations.ai/prompt/{quote(prompt)}"
-        f"?width=1080&height=1080&seed={seed}&model=flux&nologo=true"
-    )
-    with httpx.Client(timeout=120.0) as client:
-        resp = client.get(url)
-        resp.raise_for_status()
-    return _cover(Image.open(io.BytesIO(resp.content)).convert("RGB"))
+    encoded = quote(prompt)
+    attempts = (("flux", seed, 60.0), ("turbo", seed, 45.0))
+    last_exc: Exception | None = None
+    for model, s, timeout in attempts:
+        url = (
+            f"https://image.pollinations.ai/prompt/{encoded}"
+            f"?width=1080&height=1080&seed={s}&model={model}&nologo=true"
+        )
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.get(url)
+                resp.raise_for_status()
+            return _cover(Image.open(io.BytesIO(resp.content)).convert("RGB"))
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            logger.warning("[IMG] pollinations %s/seed=%s falló (%s)", model, s, exc)
+    raise RuntimeError(f"pollinations agotado: {last_exc}")
+
+
+def _ai_background(mood: str, seed: int) -> Image.Image:
+    """Fondo artístico por IA, afín al tema. Orden: OpenAI gpt-image-1 (principal)
+    → pollinations (respaldo gratis). Si todo falla, el caller cae al lienzo
+    editorial (`_gradient_background`)."""
+    try:
+        return _openai_background(mood, seed)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[IMG] OpenAI image falló (%s); pruebo pollinations", exc)
+    return _pollinations_background(mood, seed)
 
 
 def _gradient_background(seed: int) -> Image.Image:
-    """Degradado granate→negro propio (último recurso)."""
-    img = Image.new("RGB", SIZE, COL_BG)
-    draw = ImageDraw.Draw(img)
-    for y in range(SIZE[1]):
-        t = y / SIZE[1]
-        r = int(COL_BG[0] + (COL_GRANATE[0] - COL_BG[0]) * (1 - t) * 0.30)
-        g = int(COL_BG[1] + (COL_GRANATE[1] - COL_BG[1]) * (1 - t) * 0.12)
-        b = int(COL_BG[2] + (COL_GRANATE[2] - COL_BG[2]) * (1 - t) * 0.12)
-        draw.line([(0, y), (SIZE[0], y)], fill=(r, g, b))
+    """Lienzo propio cuando no hay foto NI IA (último recurso).
+
+    NO es un plano liso: un halo granate descentrado sobre negro + viñeta en los
+    bordes + grano de película. Lee como una creatividad intencional de Entre
+    Interiores, no como un fondo vacío.
+    """
+    base = Image.new("RGB", SIZE, COL_BG)
+
+    # Halo granate desenfocado, en posición variable según la semilla.
+    glow = Image.new("L", SIZE, 0)
+    gd = ImageDraw.Draw(glow)
+    cx = int(SIZE[0] * (0.28 + 0.44 * ((seed % 100) / 100.0)))
+    cy = int(SIZE[1] * 0.30)
+    rad = int(SIZE[0] * 0.52)
+    gd.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=150)
+    glow = glow.filter(ImageFilter.GaussianBlur(rad // 2))
+    img = Image.composite(Image.new("RGB", SIZE, COL_GRANATE), base, glow)
+
+    # Viñeta: oscurece los bordes hacia el negro de fondo.
+    vig = Image.new("L", SIZE, 0)
+    vd = ImageDraw.Draw(vig)
+    inset = int(SIZE[0] * 0.16)
+    vd.ellipse([inset, inset, SIZE[0] - inset, SIZE[1] - inset], fill=255)
+    vig = vig.filter(ImageFilter.GaussianBlur(140))
+    img = Image.composite(img, Image.new("RGB", SIZE, COL_BG), vig)
+
+    # Grano de película sutil para romper las bandas del degradado.
+    grain = Image.effect_noise(SIZE, 22).convert("RGB")
+    img = Image.blend(img, grain, 0.05)
     return img
 
 

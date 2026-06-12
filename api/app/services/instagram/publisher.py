@@ -15,7 +15,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import InstagramQueueItem, Post
+from app.db.models import InstagramQueueItem, Person, Post
 from app.services.instagram import (
     album_cover,
     captions,
@@ -55,6 +55,53 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
     return topic
 
 
+def _clean_credit(raw: str) -> str:
+    """Pasa una atribución en markdown (pensada para la web) a texto plano apto
+    para el caption de Instagram: sin markdown, sin enlaces y sin raya larga."""
+    txt = (raw or "").strip()
+    txt = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", txt)   # [texto](url) -> texto
+    txt = txt.replace("*", "").replace("_", "")
+    txt = re.sub(r"\s*[—–]\s*", " · ", txt)              # raya larga -> punto medio
+    txt = re.sub(r"^\s*foto:\s*", "", txt, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", txt).strip(" ·")
+
+
+def _apply_person_photo(
+    db: Session, item: InstagramQueueItem, topic: dict
+) -> None:
+    """Para una efeméride de persona, usa la foto curada de su ficha en la web.
+
+    El `content_key` de los cumpleaños/aniversarios natales es
+    `ephemeris:birth_<slug>_<año>`. Si la persona tiene `image_url`, se reusa esa
+    misma imagen (la que ya sale en /personas/<slug>): garantiza que la cara es
+    la correcta (sin homónimos) y respeta su atribución CC.
+    """
+    key = item.content_key or ""
+    prefix = "ephemeris:birth_"
+    if not key.startswith(prefix):
+        return
+    slug = key[len(prefix):].rsplit("_", 1)[0]
+    if not slug:
+        return
+    person = db.execute(
+        select(Person).where(Person.slug == slug)
+    ).scalar_one_or_none()
+    if person is None or not person.image_url:
+        return
+    url = person.image_url
+    if url.startswith("/"):
+        url = config.SITE_URL + url
+    topic["image_hint"] = url
+    topic["image_kind"] = "photo"
+    attribution = _clean_credit(person.image_attribution or "")
+    if attribution:
+        lic = (person.image_license or "").strip()
+        if lic and lic.lower() not in attribution.lower():
+            attribution += f" · {lic}"
+        topic["image_credit"] = attribution
+    logger.info("[IG] efeméride de %s → foto de ficha %s", slug, url[:60])
+
+
 def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     """Genera imagen y caption para un item de la cola (sin publicar)."""
     topic = _topic_from_item(db, item)
@@ -69,12 +116,18 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     if is_evergreen:
         # Evergreen: el contenido (verso/efeméride/anécdota/cita) ya es final y
         # sale del corpus verificado. NO se reescribe con IA (anti-alucinación)
-        # ni se busca foto externa (un verso no lleva foto de prensa). Imagen:
-        # portada del disco si el texto lo menciona; si no, arte temática (IA).
+        # ni se busca foto de prensa. Imagen, por prioridad:
+        #   1) Portada del disco si el texto lo menciona (versos, efeméride de
+        #      disco): el arte del propio disco al que pertenece.
+        #   2) Efeméride de una PERSONA (cumpleaños/aniversario natal): SU foto
+        #      curada de la ficha de la web (misma imagen, sin homónimos).
+        #   3) Si no, arte temático (IA) afín a la categoría.
         cover = album_cover.find(db, topic)
         if cover:
             topic["image_hint"] = cover["url"]
             topic["image_kind"] = "cover"
+        else:
+            _apply_person_photo(db, item, topic)
         # El contenido se basta solo: sin verso ornamental (evita duplicarlo en
         # los posts de frase, donde el verso YA es el titular).
         topic["verse"] = {}
