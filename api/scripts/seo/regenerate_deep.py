@@ -53,6 +53,8 @@ def main() -> None:
                          "resume del backfill KW-aware y protege fichas curadas a mano")
     ap.add_argument("--limit", type=int, default=None,
                     help="tope de entidades a procesar (para sondeos)")
+    ap.add_argument("--slugs", default=None,
+                    help="solo estos slugs (separados por coma); para muestras dirigidas")
     ap.add_argument("--publish", action="store_true",
                     help="fuerza published=True (normalmente basta SEO_KEEP_PUBLISHED=1)")
     ap.add_argument("--no-keywords", action="store_true",
@@ -85,11 +87,14 @@ def main() -> None:
             ).all():
                 kw_done.add((et, eid))
 
+        only_slugs = {s.strip() for s in args.slugs.split(",")} if args.slugs else None
         targets: list[tuple[str, object]] = []
         for et in types:
             model = _MODELS[et]
             for ent in db.execute(select(model).order_by(model.slug)).scalars().all():
                 if (et, ent.slug) in _EXCLUDE:
+                    continue
+                if only_slugs and ent.slug not in only_slugs:
                     continue
                 if args.only_shallow and (et, ent.id) in deep_done:
                     continue
