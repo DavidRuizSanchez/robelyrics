@@ -781,14 +781,15 @@ class Post(Base):
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     excerpt: Mapped[str | None] = mapped_column(Text)
     body_md: Mapped[str] = mapped_column(Text, nullable=False)
-    hero_image_url: Mapped[str | None] = mapped_column(String(500))
+    hero_image_url: Mapped[str | None] = mapped_column(String(1000))
     # Atribución y licencia de la imagen (Wikimedia Commons). Renderizadas en
     # el footer del post para cumplir con la licencia (CC-BY/CC-BY-SA exigen
     # author + licencia + enlace a la fuente).
     hero_image_attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
     hero_image_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    hero_image_source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    source_url: Mapped[str | None] = mapped_column(String(500))
+    hero_image_source_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # URLs largas (Google News genera URLs de >500 chars).
+    source_url: Mapped[str | None] = mapped_column(String(1000))
     source_name: Mapped[str | None] = mapped_column(String(200))
     meta_title: Mapped[str | None] = mapped_column(String(256))
     meta_description: Mapped[str | None] = mapped_column(String(512))
@@ -1041,11 +1042,12 @@ class ContentProposal(Base):
     excerpt: Mapped[str | None] = mapped_column(Text)
     meta_title: Mapped[str | None] = mapped_column(String(256))
     meta_description: Mapped[str | None] = mapped_column(String(512))
-    hero_image_url: Mapped[str | None] = mapped_column(String(500))
+    hero_image_url: Mapped[str | None] = mapped_column(String(1000))
     hero_image_attribution: Mapped[str | None] = mapped_column(Text)
     hero_image_license: Mapped[str | None] = mapped_column(String(64))
-    hero_image_source_url: Mapped[str | None] = mapped_column(String(500))
-    source_url: Mapped[str | None] = mapped_column(String(500))
+    hero_image_source_url: Mapped[str | None] = mapped_column(String(1000))
+    # URLs largas (Google News genera URLs de >500 chars).
+    source_url: Mapped[str | None] = mapped_column(String(1000))
     source_name: Mapped[str | None] = mapped_column(String(200))
     entities: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
