@@ -90,6 +90,11 @@ def _pick_spotlight_song(db, today: date):
 def _insert(db, rows: list[dict]) -> int:
     if not rows:
         return 0
+    # El multi-row INSERT exige que TODAS las filas tengan el mismo conjunto de
+    # columnas (unas traen recommended_date, otras no). Normaliza rellenando con
+    # None las claves que falten en cada fila.
+    all_keys: set[str] = set().union(*(r.keys() for r in rows))
+    rows = [{k: r.get(k) for k in all_keys} for r in rows]
     stmt = (
         pg_insert(ContentProposal)
         .values(rows)
