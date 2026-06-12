@@ -1278,9 +1278,10 @@ def admin_subscribers_delete(
 from datetime import date as _date, timedelta as _timedelta  # noqa: E402
 
 from app.db.models import ContentProposal as _Proposal  # noqa: E402
-
-# Tope de publicaciones por semana natural (lunes-domingo).
-WEEKLY_PUBLISH_CAP = 2
+from app.services.publishing import (  # noqa: E402
+    PUBLISH_SLOT_DAYS,
+    WEEKLY_CAP as WEEKLY_PUBLISH_CAP,
+)
 
 
 class AdminProposalItem(BaseModel):
@@ -1304,11 +1305,23 @@ class AdminProposalItem(BaseModel):
     created_at: datetime
 
 
+class AdminProposalDetail(AdminProposalItem):
+    """Detalle para revisión: incluye el cuerpo (si ya está generado)."""
+    body_md: str | None = None
+    excerpt: str | None = None
+    meta_title: str | None = None
+    meta_description: str | None = None
+    content_key: str | None = None
+
+
 class AdminProposalStats(BaseModel):
     proposed: int
+    approved: int
     scheduled: int
     used: int
     discarded: int
+    # Conteo por estado y tipo: {status: {kind: n}}. Para los filtros por tipo.
+    by_kind: dict[str, dict[str, int]] = {}
 
 
 class ScheduleProposalIn(BaseModel):
@@ -1351,16 +1364,22 @@ def admin_proposals_stats(
     _admin: User = Depends(get_current_admin),
 ) -> AdminProposalStats:
     rows = (
-        db.query(_Proposal.status, func.count(_Proposal.id))
-        .group_by(_Proposal.status)
+        db.query(_Proposal.status, _Proposal.kind, func.count(_Proposal.id))
+        .group_by(_Proposal.status, _Proposal.kind)
         .all()
     )
-    c = {s: int(n) for s, n in rows}
+    totals: dict[str, int] = {}
+    by_kind: dict[str, dict[str, int]] = {}
+    for status, kind, n in rows:
+        totals[status] = totals.get(status, 0) + int(n)
+        by_kind.setdefault(status, {})[kind] = int(n)
     return AdminProposalStats(
-        proposed=c.get("proposed", 0),
-        scheduled=c.get("scheduled", 0),
-        used=c.get("used", 0),
-        discarded=c.get("discarded", 0),
+        proposed=totals.get("proposed", 0),
+        approved=totals.get("approved", 0),
+        scheduled=totals.get("scheduled", 0),
+        used=totals.get("used", 0),
+        discarded=totals.get("discarded", 0),
+        by_kind=by_kind,
     )
 
 
@@ -1385,6 +1404,67 @@ def admin_proposals_list(
     rows = q.order_by(_Proposal.created_at.desc()).limit(min(limit, 1000)).all()
     rows.sort(key=lambda p: (kind_order.get(p.kind, 9), p.created_at))
     return [_proposal_to_item(p) for p in rows]
+
+
+@router.get("/proposals/{proposal_id}", response_model=AdminProposalDetail)
+def admin_proposal_detail(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalDetail:
+    """Detalle de una propuesta para revisarla (incluye el cuerpo si existe)."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    base = _proposal_to_item(p)
+    return AdminProposalDetail(
+        **base.model_dump(),
+        body_md=p.body_md,
+        excerpt=p.excerpt,
+        meta_title=p.meta_title,
+        meta_description=p.meta_description,
+        content_key=p.content_key,
+    )
+
+
+@router.post("/proposals/{proposal_id}/approve", response_model=AdminProposalItem)
+def admin_proposal_approve(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Valida una propuesta: `proposed`/`scheduled` → `approved` (sin fecha).
+    Al aprobar se genera el borrador de forma SÍNCRONA (cuerpo RAG + foto +
+    saneado), salvo que ya tenga cuerpo (noticias). Puede tardar ~1 min. Si la
+    generación falla, queda `approved` sin cuerpo y el cron
+    `generate_approved_drafts` reintenta."""
+    import logging
+
+    from app.services.draft_generator import generate_proposal_draft
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status in ("used", "discarded"):
+        raise HTTPException(
+            status_code=409, detail=f"propuesta en estado {p.status}, no aprobable"
+        )
+    p.status = "approved"
+    p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+
+    if not p.body_md:
+        try:
+            generate_proposal_draft(db, p)
+            db.refresh(p)
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).exception(
+                "Generación de borrador falló al aprobar propuesta %s; "
+                "el cron de respaldo reintentará",
+                p.id,
+            )
+    return _proposal_to_item(p)
 
 
 @router.post("/proposals/{proposal_id}/schedule", response_model=AdminProposalItem)
@@ -1434,8 +1514,10 @@ def admin_proposal_schedule(
     return _proposal_to_item(p)
 
 
-class BulkScheduleIn(BaseModel):
-    ids: list[int]
+class AutoScheduleIn(BaseModel):
+    # Si `ids` viene vacío/None, se auto-programan TODAS las aprobadas.
+    ids: list[int] | None = None
+    weeks: int = 4  # ventana temporal: próximas N semanas
 
 
 class BulkScheduleResult(BaseModel):
@@ -1443,19 +1525,57 @@ class BulkScheduleResult(BaseModel):
     skipped: list[dict] = []     # [{id, reason}]
 
 
-@router.post("/proposals/bulk-schedule", response_model=BulkScheduleResult)
-def admin_proposals_bulk_schedule(
-    payload: BulkScheduleIn,
+_ACTUALIDAD_KINDS = {"news", "anniversary", "album-anniversary"}
+
+
+def _interleave_by_type(proposals: list[_Proposal]) -> list[_Proposal]:
+    """Ordena intercalando tipos para que no salgan dos del mismo tipo
+    seguidos. Buckets por prioridad: actualidad → spotlight → evergreen.
+    Round-robin tomando uno de cada bucket por ronda (prioriza actualidad)."""
+    buckets: dict[int, list[_Proposal]] = {0: [], 1: [], 2: []}
+    for p in proposals:
+        if p.kind in _ACTUALIDAD_KINDS:
+            buckets[0].append(p)
+        elif p.kind == "spotlight":
+            buckets[1].append(p)
+        else:
+            buckets[2].append(p)
+    ordered: list[_Proposal] = []
+    while any(buckets.values()):
+        for b in (0, 1, 2):
+            if buckets[b]:
+                ordered.append(buckets[b].pop(0))
+    return ordered
+
+
+@router.post("/proposals/auto-schedule", response_model=BulkScheduleResult)
+def admin_proposals_auto_schedule(
+    payload: AutoScheduleIn,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> BulkScheduleResult:
-    """Aprueba en bloque: auto-programa las propuestas seleccionadas en las
-    próximas semanas respetando el cap (WEEKLY_PUBLISH_CAP/semana). Cada semana
-    se rellena con 2 slots (martes y viernes) antes de pasar a la siguiente."""
-    if not payload.ids:
-        raise HTTPException(status_code=400, detail="lista de ids vacía")
+    """Auto-programa propuestas en las próximas `weeks` semanas, intercalando
+    tipos (sin dos del mismo tipo seguidos, prioridad actualidad), en slots
+    martes/jueves/sábado y máx WEEKLY_PUBLISH_CAP por semana. Si `ids` viene
+    vacío, programa todas las aprobadas."""
+    q = db.query(_Proposal)
+    if payload.ids:
+        q = q.filter(_Proposal.id.in_(payload.ids))
+    else:
+        q = q.filter(_Proposal.status == "approved")
+    candidates = q.all()
 
-    # Cuenta lo ya programado por semana (lunes ISO → nº).
+    result = BulkScheduleResult()
+    valid = [p for p in candidates if p.status in ("proposed", "approved")]
+    if payload.ids:
+        valid_ids = {p.id for p in valid}
+        for p in candidates:
+            if p.id not in valid_ids:
+                result.skipped.append({"id": p.id, "reason": p.status})
+
+    ordered = _interleave_by_type(valid)
+
+    # Cuenta lo ya programado por semana (lunes natural → nº).
     week_counts: dict[_date, int] = {}
     for (sf,) in db.query(_Proposal.scheduled_for).filter(
         _Proposal.status == "scheduled", _Proposal.scheduled_for.isnot(None)
@@ -1467,27 +1587,23 @@ def admin_proposals_bulk_schedule(
     # Empezamos en el lunes de la semana que viene (no en la actual en curso).
     today = _date.today()
     start_monday = today - _timedelta(days=today.weekday()) + _timedelta(days=7)
-    slot_days = [1, 4]  # martes y viernes dentro de la semana
+    last_monday = start_monday + _timedelta(days=7 * (max(payload.weeks, 1) - 1))
 
-    result = BulkScheduleResult()
     cur = start_monday
-    for pid in payload.ids:
-        p = db.query(_Proposal).filter(_Proposal.id == pid).first()
-        if not p:
-            result.skipped.append({"id": pid, "reason": "no encontrada"})
-            continue
-        if p.status in ("used", "discarded"):
-            result.skipped.append({"id": pid, "reason": p.status})
-            continue
-        # Avanza hasta una semana con hueco.
-        while week_counts.get(cur, 0) >= WEEKLY_PUBLISH_CAP:
+    for p in ordered:
+        # Avanza hasta una semana con hueco dentro de la ventana.
+        while cur <= last_monday and week_counts.get(cur, 0) >= WEEKLY_PUBLISH_CAP:
             cur = cur + _timedelta(days=7)
+        if cur > last_monday:
+            result.skipped.append({"id": p.id, "reason": "ventana llena"})
+            continue
         n = week_counts.get(cur, 0)
-        target = cur + _timedelta(days=slot_days[n] if n < len(slot_days) else 0)
+        slot = PUBLISH_SLOT_DAYS[n] if n < len(PUBLISH_SLOT_DAYS) else 0
+        target = cur + _timedelta(days=slot)
         p.status = "scheduled"
         p.scheduled_for = target
         week_counts[cur] = n + 1
-        result.scheduled.append({"id": pid, "date": target.isoformat()})
+        result.scheduled.append({"id": p.id, "date": target.isoformat()})
     db.commit()
     return result
 
@@ -1503,7 +1619,8 @@ def admin_proposal_unschedule(
         raise HTTPException(status_code=404, detail="proposal not found")
     if p.status != "scheduled":
         raise HTTPException(status_code=409, detail="la propuesta no está programada")
-    p.status = "proposed"
+    # Quitar fecha la devuelve a "aprobada" (no a "proposed": ya está validada).
+    p.status = "approved"
     p.scheduled_for = None
     db.commit()
     db.refresh(p)
@@ -1523,6 +1640,24 @@ def admin_proposal_discard(
         raise HTTPException(status_code=409, detail="propuesta ya usada")
     p.status = "discarded"
     p.scheduled_for = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/restore", response_model=AdminProposalItem)
+def admin_proposal_restore(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Recupera una propuesta descartada: `discarded` → `proposed`."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status != "discarded":
+        raise HTTPException(status_code=409, detail="la propuesta no está descartada")
+    p.status = "proposed"
     db.commit()
     db.refresh(p)
     return _proposal_to_item(p)

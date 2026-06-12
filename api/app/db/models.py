@@ -799,6 +799,9 @@ class Post(Base):
     target_keyword_slug: Mapped[str | None] = mapped_column(
         String(160), nullable=True, index=True
     )
+    # Huella estable del tema (anti-duplicados transversal). Copiada desde la
+    # propuesta al materializar; ver `ContentProposal.content_key`.
+    content_key: Mapped[str | None] = mapped_column(String(160), index=True)
     anniversary_year: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -1003,17 +1006,18 @@ class ContentProposal(Base):
 
     El cron `generate_proposals` crea propuestas ligeras (sin body) de todo
     el catálogo; el scraper crea propuestas `kind='news'` con body ya hecho.
-    El admin las programa (status='scheduled' + scheduled_for) desde la
-    pestaña /biblioteca/admin/calendario, máximo 2 por semana. Al llegar la
-    fecha, el materializador genera el body si falta y crea el `Post`.
+    El admin las valida (aprobar/rechazar) y las programa desde la pestaña
+    /biblioteca/admin/blog, máximo 3 por semana. Al llegar la fecha, el
+    materializador genera el body si falta y crea el `Post`.
 
-    `status`: proposed → scheduled → used (o discarded).
+    `status`: proposed → approved → scheduled → used (o discarded).
     """
 
     __tablename__ = "content_proposals"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('proposed', 'scheduled', 'used', 'discarded')",
+            "status IN ('proposed', 'approved', 'scheduled', 'used', "
+            "'discarded')",
             name="ck_content_proposals_status",
         ),
         CheckConstraint(
@@ -1065,6 +1069,11 @@ class ContentProposal(Base):
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="proposed"
     )
+    # Huella estable del tema para deduplicar entre tipos y semanas (mismo
+    # patrón que `InstagramQueueItem.content_key`). P.ej. "spotlight:song_123",
+    # "evergreen:<kw-slug>", "anniversary:<album-slug>_2008",
+    # "news:<evento-normalizado>". La rellena el productor de la propuesta.
+    content_key: Mapped[str | None] = mapped_column(String(160), index=True)
     scheduled_for: Mapped[date | None] = mapped_column(Date)
     post_id: Mapped[int | None] = mapped_column(
         ForeignKey("posts.id", ondelete="SET NULL")

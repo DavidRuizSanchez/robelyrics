@@ -36,6 +36,11 @@ from sqlalchemy import select
 from app.db.models import ContentProposal, NewsItem
 from app.db.session import SessionLocal
 from app.services.article_extract import fetch_article_text
+from app.services.content_dedup import (
+    NEWS_RECENCY_DAYS,
+    content_key_for,
+    is_duplicate,
+)
 from app.services.news_research import research_and_write
 from app.services.wikimedia import search_image
 
@@ -227,6 +232,16 @@ def main() -> None:
                     db.commit()
                 continue
 
+            # Dedup por EVENTO (otra fuente / otra semana con el mismo tema):
+            # si ya hay propuesta viva o post reciente del mismo evento, saltar.
+            ckey = content_key_for("news", title=news.title)
+            if is_duplicate(db, ckey, recency_days=NEWS_RECENCY_DAYS):
+                summary["duplicate"] = summary.get("duplicate", 0) + 1
+                if not args.dry_run:
+                    news.consumed_blog = True
+                    db.commit()
+                continue
+
             # Reescritura editorial — el LLM provee slug, keywords de imagen y
             # entities para enriquecer schema.org `mentions`.
             image_keywords: list[str] = []
@@ -349,6 +364,7 @@ def main() -> None:
                 hero_image_license=None,
                 hero_image_source_url=None,
                 entities=entities,
+                content_key=ckey,
                 status="proposed",
             )
             db.add(proposal)

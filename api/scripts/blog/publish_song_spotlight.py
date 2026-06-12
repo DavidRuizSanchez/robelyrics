@@ -24,6 +24,7 @@ from sqlalchemy import select
 
 from app.db.models import Album, Artist, Post, SeoContent, Song
 from app.db.session import SessionLocal
+from app.services.content_dedup import content_key_for
 from app.services.content_generator import generate_song_spotlight
 from app.services.publishing import propose_for_review
 from app.services.wikimedia import search_image
@@ -172,6 +173,7 @@ def main() -> None:
             hero_image_license=license_short,
             hero_image_source_url=source_url,
             entities=payload.get("entities") or [],
+            content_key=content_key_for("spotlight", song_id=song.id),
         )
         db.add(post)
         db.commit()

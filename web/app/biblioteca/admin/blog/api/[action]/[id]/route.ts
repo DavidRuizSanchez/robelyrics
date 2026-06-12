@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-const VALID_ACTIONS = new Set(["schedule", "unschedule", "discard"]);
+const VALID_ACTIONS = new Set([
+  "approve",
+  "schedule",
+  "unschedule",
+  "discard",
+  "restore",
+]);
 
-// Proxy POST que delega en /admin/proposals/{id}/{action} con auth via cookie.
+// Proxy POST → /admin/proposals/{id}/{action} con auth via cookie.
 // `schedule` lleva body { date: "YYYY-MM-DD" }; el resto no llevan body.
 export async function POST(
   request: Request,

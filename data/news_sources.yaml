@@ -296,6 +296,34 @@ sources:
     weight: 0.7
     enabled: true
 
+  # --- Cobertura AMPLIA para el blog (cualquier medio nacional/regional). ---
+  # policy blog+ig: entran al blog. El ruido lo filtran `must_mention` + score
+  # + el LLM de news_research. Cazan medios fuera de Extremadura (p.ej. Diario
+  # de Navarra) que las queries con site: no veían.
+  - key: gn_extremoduro_blog
+    name: "Google News · Extremoduro (amplio, blog)"
+    kind: gnews
+    query: "Extremoduro"
+    policy: blog+ig
+    weight: 0.9
+    enabled: true
+
+  - key: gn_robe_blog
+    name: "Google News · Robe Iniesta (amplio, blog)"
+    kind: gnews
+    query: '"Robe Iniesta"'
+    policy: blog+ig
+    weight: 0.9
+    enabled: true
+
+  - key: gn_miembros_blog
+    name: "Google News · Uoho / Iñaki Antón (amplio, blog)"
+    kind: gnews
+    query: 'Uoho OR "Iñaki Antón" Extremoduro'
+    policy: blog+ig
+    weight: 0.8
+    enabled: true
+
   - key: gn_cultura
     name: "Google News · Cultura y entrevistas"
     kind: gnews

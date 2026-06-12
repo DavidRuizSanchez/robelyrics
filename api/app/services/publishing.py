@@ -9,9 +9,10 @@ desde el panel.
 API:
 - `propose_for_review(post, notify=True)` → setea pending_review y manda
   mail con preview + acciones. Llamado por todos los scripts cron.
-- `auto_publish_post(post)` → marca published, dispara newsletter
-  on-publish, hace revalidate Next. Llamado por el endpoint admin (panel
-  o mail one-click).
+- `auto_publish_post(post)` → marca published y hace revalidate Next.
+  Llamado por el endpoint admin (panel o mail one-click). El email NO se
+  manda aquí: la newsletter es un único digest semanal (cron dominical
+  `send_newsletter` → `dispatch_to_all_confirmed`).
 - `schedule_or_publish(post)` → DEPRECATED, alias de propose_for_review
   por compatibilidad con scripts viejos.
 - `flush_scheduled_due(db)` → cron diario que promueve `scheduled` a
@@ -30,12 +31,15 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.models import Post
-from app.services.newsletter import dispatch_for_post
 
 logger = logging.getLogger(__name__)
 
-WEEKLY_CAP = 2
+# Techo de publicaciones por semana natural y ventana móvil para el cap.
+WEEKLY_CAP = 3
 WINDOW_DAYS = 7
+
+# Días de la semana para el reparto automático (lunes=0): martes, jueves, sábado.
+PUBLISH_SLOT_DAYS = [1, 3, 5]
 
 # Kinds que ignoran el cap porque tienen fecha calendario obligatoria.
 CAP_EXEMPT_KINDS = {"anniversary", "album-anniversary"}
@@ -135,17 +139,6 @@ def _revalidate_next(slug: str) -> None:
         logger.warning("Revalidate failed for /blog/%s: %s", slug, exc)
 
 
-def _dispatch_newsletter(db: Session, post_id: int) -> None:
-    """Llama al dispatcher de newsletter. Aislado en try/except para no
-    abortar la publicación si SMTP falla — el cron diario hará catch-up."""
-    try:
-        dispatch_for_post(db, post_id)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception(
-            "Newsletter dispatch_for_post falló para post %s: %s", post_id, exc
-        )
-
-
 # --------------------------------------------------------------------------- #
 # API pública
 # --------------------------------------------------------------------------- #
@@ -212,7 +205,7 @@ def _notify_admin_review(db: Session, post: Post) -> None:
         return
 
     site_url = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
-    admin_panel_url = f"{site_url}/biblioteca/admin/posts?status=pending_review"
+    admin_panel_url = f"{site_url}/biblioteca/admin/blog"
 
     from app.services.auth import create_admin_action_token
     from app.services.email import (
@@ -252,9 +245,7 @@ def _notify_admin_review(db: Session, post: Post) -> None:
             "source_url": p.source_url,
             "approve_url": f"{site_url}/api/public/admin-action?token={approve_token}",
             "reject_url": f"{site_url}/api/public/admin-action?token={reject_token}",
-            "admin_url": f"{site_url}/biblioteca/admin/posts/{p.id}"
-            if False  # endpoint de detalle por id pendiente — link a lista por ahora
-            else f"{site_url}/biblioteca/admin/posts?status=pending_review",
+            "admin_url": f"{site_url}/biblioteca/admin/blog",
         })
 
     html, text = render_admin_review_email(items, admin_panel_url)
@@ -271,12 +262,13 @@ def _notify_admin_review(db: Session, post: Post) -> None:
 
 
 def auto_publish_post(db: Session, post: Post) -> PublishResult:
-    """Marca el post como publicado, lanza newsletter y revalida Next.js.
+    """Marca el post como publicado y revalida Next.js.
 
-    Llamado:
+    NO manda email: la newsletter es un único digest semanal (cron dominical
+    `send_newsletter`). Llamado:
       - Desde el endpoint admin (panel `/admin/posts/{id}/publish`).
       - Desde `/public/admin-action?token=...` (one-click desde email).
-      - Desde flush_scheduled_due (legacy del flujo con cap).
+      - Desde materialize_proposals y flush_scheduled_due.
     """
     if post.status != "published":
         post.status = "published"
@@ -286,7 +278,6 @@ def auto_publish_post(db: Session, post: Post) -> PublishResult:
     db.commit()
     db.refresh(post)
 
-    _dispatch_newsletter(db, post.id)
     _revalidate_next(post.slug)
 
     return {"action": "published", "post_id": post.id, "scheduled_for": None}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-// Proxy POST → /admin/proposals/bulk-schedule. Body: { ids: number[] }.
+// Proxy POST → /admin/proposals/auto-schedule. Body: { ids?: number[], weeks: number }.
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "body no válido" }, { status: 400 });
   }
   try {
-    const data = await apiFetch<unknown>("/admin/proposals/bulk-schedule", {
+    const data = await apiFetch<unknown>("/admin/proposals/auto-schedule", {
       method: "POST",
       body,
     });

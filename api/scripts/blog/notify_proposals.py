@@ -146,7 +146,7 @@ def main() -> None:
             return
 
         site = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
-        admin_url = f"{site}/biblioteca/admin/calendario"
+        admin_url = f"{site}/biblioteca/admin/blog"
         html, text = _render(actualidad, repositorio, admin_url)
 
         if args.dry_run:

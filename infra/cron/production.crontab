@@ -98,8 +98,13 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Materialización (diario): propuestas programadas → posts publicados
 # ============================================================================
 
+# Cada 5 min: red de seguridad que genera el borrador (cuerpo RAG) de las
+# propuestas aprobadas que no lo tengan ya (aprobación en bloque, o un fallo
+# de la generación síncrona al aprobar). Lo normal es que ya esté hecho.
+*/5 * * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.generate_approved_drafts >> /var/log/robelyrics-cron.log 2>&1
+
 # Cada día a las 08:00 UTC: las propuestas `scheduled` cuya fecha llegó se
-# convierten en Post publicado (genera body si falta, newsletter, revalidate).
+# convierten en Post publicado (usa el borrador ya hecho, revalidate).
 0 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.materialize_proposals >> /var/log/robelyrics-cron.log 2>&1
 
 # Cada día a las 08:15 UTC: los Posts que el admin programó a una fecha (estado
@@ -108,12 +113,13 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 15 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.flush_scheduled_due >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
-# Newsletter (red de seguridad diaria)
+# Newsletter (digest semanal)
 # ============================================================================
 
-# Catch-up diario 12:00 UTC: posts publicados que no recibieron el dispatch
-# instantáneo (error SMTP o restart). El envío normal lo hace materialize.
-0 12 * * * cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1
+# Único envío semanal: domingo 12:00 UTC. `dispatch_to_all_confirmed` agrupa
+# por suscriptor (last_sent_at) todo lo publicado en la semana en un solo
+# correo. Ya NO se manda email on-publish (ver publishing.auto_publish_post).
+0 12 * * 0 cd $APP_DIR && $DC exec -T api python -m scripts.blog.send_newsletter >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Link equity interno (semanal)

@@ -29,6 +29,7 @@ from app.config import get_settings
 from app.db.models import Album, Artist, ContentProposal
 from app.db.session import SessionLocal
 from app.services import keyword_research
+from app.services.content_dedup import content_key_for, is_duplicate
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -111,6 +112,9 @@ def main() -> None:
                     f"El {anniv.isoformat()} se cumplen {years} años del "
                     f"lanzamiento de {album.title} ({artist.name}, {rd.year})."
                 ),
+                "content_key": content_key_for(
+                    "album-anniversary", entity_slug=album.slug, year=anniv.year
+                ),
             })
 
         # --- Efemérides de Robe ---
@@ -119,6 +123,8 @@ def main() -> None:
             ("aniversario de la muerte", ROBE_DEATH, "robe-death"),
         ):
             if _days_until(today, m, d) <= args.anniversary_window:
+                ev = date(today.year, m, d)
+                ev_year = today.year if ev >= today else today.year + 1
                 actualidad.append({
                     "kind": "anniversary",
                     "source_type": src,
@@ -127,6 +133,9 @@ def main() -> None:
                     "angle": (
                         f"Se acerca el {label} de Robe Iniesta ({d:02d}/{m:02d}). "
                         "Homenaje editorial actualizado."
+                    ),
+                    "content_key": content_key_for(
+                        "anniversary", entity_slug=src, year=ev_year
                     ),
                 })
 
@@ -153,8 +162,19 @@ def main() -> None:
                       f"({r.get('search_volume')}/mes, {r.get('signal_source')})")
             return
 
-        n_act = _insert(db, actualidad)
-        n_seo = _insert(db, seo_rows)
+        # Red anti-duplicados transversal: descarta lo que ya está vivo en el
+        # banco o publicado recientemente con la misma huella de contenido.
+        def _fresh(rows: list[dict]) -> list[dict]:
+            out = []
+            for r in rows:
+                if is_duplicate(db, r.get("content_key")):
+                    logger.info("dedup: salto %s (%s)", r["title"], r.get("content_key"))
+                    continue
+                out.append(r)
+            return out
+
+        n_act = _insert(db, _fresh(actualidad))
+        n_seo = _insert(db, _fresh(seo_rows))
         db.commit()
         logger.info(
             "Propuestas NUEVAS: %d actualidad + %d SEO-driven = %d",

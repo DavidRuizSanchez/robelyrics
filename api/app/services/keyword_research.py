@@ -331,5 +331,6 @@ def build_proposal_rows(
             "search_volume": (prim.volume if prim else 0),
             "is_longtail": _is_longtail(primary, prim.volume if prim else 0) or longtail_any,
             "signal_source": (prim.signal if prim else signal),
+            "content_key": f"evergreen:{pslug}" if pslug else None,
         })
     return rows
