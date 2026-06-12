@@ -373,11 +373,17 @@ export default function BlogPlanner({
                       )}
                     </p>
                   </div>
-                  <div className="shrink-0 flex items-center gap-2 flex-wrap">
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    {p.recommended_for && (
+                      <p className="font-mono text-[9px] tracking-[1px] uppercase text-accent">
+                        sugerido: {fmtDate(p.recommended_for)} (efeméride)
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="date"
                       min={todayIso}
-                      value={dates[p.id] ?? ""}
+                      value={dates[p.id] ?? p.recommended_for ?? ""}
                       onChange={(e) =>
                         setDates((d) => ({ ...d, [p.id]: e.target.value }))
                       }
@@ -385,11 +391,12 @@ export default function BlogPlanner({
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        dates[p.id]
-                          ? call("schedule", p.id, { date: dates[p.id] })
-                          : alert("Elige una fecha primero")
-                      }
+                      onClick={() => {
+                        const chosen = dates[p.id] ?? p.recommended_for;
+                        chosen
+                          ? call("schedule", p.id, { date: chosen })
+                          : alert("Elige una fecha primero");
+                      }}
                       disabled={busy === p.id}
                       data-cursor="hover"
                       className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
@@ -408,6 +415,7 @@ export default function BlogPlanner({
                     >
                       descartar
                     </button>
+                    </div>
                   </div>
                 </div>
               </li>

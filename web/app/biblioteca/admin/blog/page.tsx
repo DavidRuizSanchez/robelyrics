@@ -20,6 +20,7 @@ export type ProposalItem = {
   angle: string | null;
   status: string;
   scheduled_for: string | null;
+  recommended_for: string | null;
   source_url: string | null;
   source_name: string | null;
   has_body: boolean;

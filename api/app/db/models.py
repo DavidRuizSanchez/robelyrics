@@ -1074,6 +1074,10 @@ class ContentProposal(Base):
     # "evergreen:<kw-slug>", "anniversary:<album-slug>_2008",
     # "news:<evento-normalizado>". La rellena el productor de la propuesta.
     content_key: Mapped[str | None] = mapped_column(String(160), index=True)
+    # Fecha SUGERIDA para programar (la de la efeméride: aniversario de disco,
+    # cumpleaños/muerte de Robe). Solo es una sugerencia que el panel pre-rellena;
+    # `scheduled_for` sigue siendo la fecha real elegida por el admin.
+    recommended_date: Mapped[date | None] = mapped_column(Date)
     scheduled_for: Mapped[date | None] = mapped_column(Date)
     post_id: Mapped[int | None] = mapped_column(
         ForeignKey("posts.id", ondelete="SET NULL")

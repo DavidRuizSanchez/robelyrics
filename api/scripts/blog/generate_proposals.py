@@ -26,7 +26,7 @@ from openai import OpenAI
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import get_settings
-from app.db.models import Album, Artist, ContentProposal
+from app.db.models import Album, Artist, ContentProposal, SeoContent, Song
 from app.db.session import SessionLocal
 from app.services import keyword_research
 from app.services.content_dedup import content_key_for, is_duplicate
@@ -58,6 +58,33 @@ def _days_until(today: date, month: int, day: int) -> int:
     this_year = date(today.year, month, day)
     target = this_year if this_year >= today else date(today.year + 1, month, day)
     return (target - today).days
+
+
+def _pick_spotlight_song(db, today: date):
+    """Elige 1 canción para "canción de la semana" con la misma rotación
+    determinista que publish_song_spotlight, pero saltando las que ya tienen
+    propuesta viva o post reciente (dedup por content_key, 365 días).
+    Devuelve (song, content_key) o None."""
+    rows = (
+        db.query(Song)
+        .join(
+            SeoContent,
+            (SeoContent.entity_type == "song") & (SeoContent.entity_id == Song.id),
+        )
+        .filter(SeoContent.published.is_(True))
+        .order_by(Song.id)
+        .all()
+    )
+    if not rows:
+        return None
+    week = today.isocalendar().week
+    idx = ((today.year * 53 + week) * 31) % len(rows)
+    for offset in range(len(rows)):
+        cand = rows[(idx + offset) % len(rows)]
+        ck = content_key_for("spotlight", song_id=cand.id)
+        if not is_duplicate(db, ck):
+            return cand, ck
+    return None
 
 
 def _insert(db, rows: list[dict]) -> int:
@@ -115,6 +142,7 @@ def main() -> None:
                 "content_key": content_key_for(
                     "album-anniversary", entity_slug=album.slug, year=anniv.year
                 ),
+                "recommended_date": anniv,
             })
 
         # --- Efemérides de Robe ---
@@ -125,6 +153,7 @@ def main() -> None:
             if _days_until(today, m, d) <= args.anniversary_window:
                 ev = date(today.year, m, d)
                 ev_year = today.year if ev >= today else today.year + 1
+                ev = date(ev_year, m, d)  # fecha del PRÓXIMO aniversario
                 actualidad.append({
                     "kind": "anniversary",
                     "source_type": src,
@@ -137,7 +166,24 @@ def main() -> None:
                     "content_key": content_key_for(
                         "anniversary", entity_slug=src, year=ev_year
                     ),
+                    "recommended_date": ev,
                 })
+
+        # --- Spotlight: "canción de la semana" (1/semana, rotación) ---
+        spot = _pick_spotlight_song(db, today)
+        if spot:
+            song, spot_ck = spot
+            actualidad.append({
+                "kind": "spotlight",
+                "source_type": "song",
+                "source_id": song.id,
+                "title": f"Canción de la semana: {song.title}",
+                "angle": (
+                    f"Análisis editorial de «{song.title}»: qué cuenta la letra, "
+                    "cómo suena y por qué se queda contigo."
+                ),
+                "content_key": spot_ck,
+            })
 
         # --- Propuestas SEO-driven (keyword research long-tail del corpus) ---
         if not args.no_research and client is not None:

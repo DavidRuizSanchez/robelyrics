@@ -1293,6 +1293,7 @@ class AdminProposalItem(BaseModel):
     angle: str | None = None
     status: str
     scheduled_for: str | None = None
+    recommended_for: str | None = None  # fecha sugerida (efemérides)
     source_url: str | None = None
     source_name: str | None = None
     has_body: bool = False
@@ -1345,6 +1346,11 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         angle=p.angle,
         status=p.status,
         scheduled_for=p.scheduled_for.isoformat() if p.scheduled_for else None,
+        recommended_for=(
+            p.recommended_date.isoformat()
+            if getattr(p, "recommended_date", None)
+            else None
+        ),
         source_url=p.source_url,
         source_name=p.source_name,
         has_body=bool(p.body_md),

@@ -125,6 +125,21 @@ def _is_relevant(title: str, summary: str, must_mention: list[str]) -> bool:
     return any(k in blob for k in must_mention)
 
 
+def _policy_for(src: dict, medium: str | None) -> str:
+    """La policy la decide la NATURALEZA de la fuente, no la query concreta.
+
+    Medios periodísticos reales (RSS de medios, búsquedas de Google News) →
+    `blog+ig`: se reescriben como post de blog y se difunden en Instagram.
+    Foros / agregadores de comunidad (Reddit) → `ig-only`: solo tarjeta en
+    Instagram con enlace, sin post. (El veto editorial de ciertos medios aplica
+    al CORPUS de fan-content, no a las noticias.)
+    """
+    key = (src.get("key") or "").lower()
+    if "reddit" in key or src.get("kind") == "reddit":
+        return "ig-only"
+    return "blog+ig"
+
+
 def _parse_published(entry) -> datetime | None:
     """Devuelve la fecha de publicación (UTC) si el feed la trae."""
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")
@@ -215,7 +230,7 @@ def fetch_source(src: dict, relevance: dict) -> list[dict]:
             "source_medium": medium[:200] if medium else None,
             "summary": summary,
             "category": _categorize(title, summary, friend_bands),
-            "policy": src["policy"],
+            "policy": _policy_for(src, medium),
             "relevance_score": _score(
                 title, summary, float(src.get("weight", 1.0)), keywords
             ),
@@ -295,10 +310,17 @@ def main() -> None:
                 total_relevant += 1
                 if args.dry_run:
                     continue
-                exists = db.execute(
-                    select(NewsItem.id).where(NewsItem.url == item["url"])
+                existing = db.execute(
+                    select(NewsItem).where(NewsItem.url == item["url"])
                 ).scalar_one_or_none()
-                if exists is not None:
+                if existing is not None:
+                    # Upgrade de policy: si la URL ya existía como ig-only y
+                    # ahora llega de una fuente blog+ig, promoverla al blog
+                    # (nunca degradar). Resuelve el caso de que una query la
+                    # capturase antes con menor policy.
+                    if item["policy"] == "blog+ig" and existing.policy == "ig-only":
+                        existing.policy = "blog+ig"
+                        db.commit()
                     continue
                 db.add(NewsItem(**item))
                 db.commit()

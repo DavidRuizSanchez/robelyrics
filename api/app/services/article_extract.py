@@ -27,7 +27,9 @@ USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
-MIN_CHARS = 600  # por debajo de esto no compensa (probable boilerplate/paywall)
+MIN_CHARS = 350  # por debajo: probable boilerplate/paywall. Más tolerante que
+# antes (600) para no descartar artículos cortos de medios pequeños; el caller
+# cae al snippet y research_and_write investiga el tema igualmente.
 
 
 def fetch_article_text(
@@ -79,6 +81,10 @@ def fetch_article_text(
         logger.info("extracción falló para %s: %s", url[:80], exc)
         return None
 
-    if not text or len(text.strip()) < MIN_CHARS:
+    n = len(text.strip()) if text else 0
+    if n < MIN_CHARS:
+        logger.info(
+            "texto corto (%d<%d) para %s — caigo al snippet", n, MIN_CHARS, url[:80]
+        )
         return None
     return text.strip()[:max_chars]
