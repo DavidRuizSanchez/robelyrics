@@ -102,12 +102,18 @@ export default function BlogPlanner({
 
   async function bulkApprove(ids: number[]) {
     if (ids.length === 0) return;
-    if (!window.confirm(`¿Aprobar ${ids.length} propuesta(s)?`)) return;
+    if (
+      !window.confirm(
+        `¿Aprobar ${ids.length} propuesta(s)? Las noticias quedan listas al ` +
+          `momento; el resto generan su borrador en unos minutos (automático).`,
+      )
+    )
+      return;
     setBusy(-1);
     try {
-      for (const id of ids) {
-        await post(`/biblioteca/admin/blog/api/approve/${id}`);
-      }
+      // Una sola petición: marca todo aprobado al instante. Los borradores
+      // (evergreen/spotlight/efeméride) los genera el cron cada pocos minutos.
+      await post("/biblioteca/admin/blog/api/bulk-approve", { ids });
       window.location.reload();
     } catch (e) {
       alert(String(e));

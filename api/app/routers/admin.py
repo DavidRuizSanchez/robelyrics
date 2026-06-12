@@ -1473,6 +1473,37 @@ def admin_proposal_approve(
     return _proposal_to_item(p)
 
 
+class BulkApproveIn(BaseModel):
+    ids: list[int]
+
+
+@router.post("/proposals/bulk-approve")
+def admin_proposals_bulk_approve(
+    payload: BulkApproveIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Aprueba en bloque SIN generar los borradores (respuesta inmediata).
+    Marca las propuestas como `approved`; el cron `generate_approved_drafts`
+    (cada 5 min) genera el cuerpo RAG de las que no lo traen. Las noticias ya
+    tienen cuerpo del scraper, así que quedan listas al momento. Evita el
+    cuello de botella de generar uno a uno de forma síncrona."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="lista de ids vacía")
+    rows = (
+        db.query(_Proposal)
+        .filter(_Proposal.id.in_(payload.ids))
+        .filter(_Proposal.status == "proposed")
+        .all()
+    )
+    for p in rows:
+        p.status = "approved"
+        p.scheduled_for = None
+    db.commit()
+    pending_draft = sum(1 for p in rows if not p.body_md)
+    return {"approved": len(rows), "pending_draft": pending_draft}
+
+
 @router.post("/proposals/{proposal_id}/schedule", response_model=AdminProposalItem)
 def admin_proposal_schedule(
     proposal_id: int,
