@@ -57,6 +57,11 @@ services:
       REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
       REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      # Ingesta de YouTube "1 click" (Juancares + entrevistas de Robe).
+      # INGEST_API_KEY: bearer del daemon local ↔ endpoints /ingest/youtube/*.
+      # PROD_API_URL: solo lo usa el daemon LOCAL para empujar a prod.
+      INGEST_API_KEY: ${INGEST_API_KEY:-}
+      PROD_API_URL: ${PROD_API_URL:-https://entreinteriores.com/api}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

@@ -50,6 +50,14 @@ class Settings(BaseSettings):
 
     site_url: str = Field("http://localhost:3001", alias="SITE_URL")
 
+    # Ingesta de YouTube (Juancares + entrevistas de Robe) — pipeline "1 click".
+    # INGEST_API_KEY: bearer que autentica al daemon local de la Mac contra los
+    # endpoints /ingest/youtube/* de prod (NO es login de usuario).
+    # PROD_API_URL: base URL de la API de prod a la que el daemon LOCAL empuja
+    # las transcripciones (solo lo usa el daemon, no la API en sí).
+    ingest_api_key: str | None = Field(None, alias="INGEST_API_KEY")
+    prod_api_url: str = Field("https://entreinteriores.com/api", alias="PROD_API_URL")
+
     # CORS — orígenes permitidos, separados por coma. En dev: localhost:3000/3001.
     # En prod: https://entreinteriores.com,https://www.entreinteriores.com.
     allowed_origins: str = Field(

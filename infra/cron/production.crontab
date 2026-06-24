@@ -149,3 +149,24 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # reconstruye el grafo de conocimiento (entity_edges, idempotente) y audita la
 # cobertura. Mantiene grafo y retrieval al día según crece el corpus, solo.
 30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Enriquecimiento del corpus (semanal) — ADQUISICIÓN + DESTILADO
+# ============================================================================
+# Domingo 02:00 UTC (antes del bloque de frescura 03:30): fetch de fan-content
+# nuevo (foros + blogs, tolerante a fuentes caídas) → link → embed → distill
+# --only-missing → vectorize → update payload → embed voz Robe → build_graph.
+# Es lo que el bloque 03:30 NO hace solo: ADQUIRIR y DESTILAR material nuevo.
+# El wrapper define su propia robustez (ver infra/cron/weekly_enrichment.sh).
+0 2 * * 0 cd $APP_DIR && bash infra/cron/weekly_enrichment.sh >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
+# Detección de vídeos nuevos de Juancares + entrevistas de Robe (1 click)
+# ============================================================================
+# Cada 3 días 07:00 UTC: lista uploads nuevos de @juancaraes y siembra las
+# entrevistas de Robe de data/robe_interviews.yaml aún no ingeridas, los encola
+# en youtube_ingest_queue (estado `detected`) y manda al admin un email con un
+# CTA firmado de 1 click. La descarga/transcripción la hace el daemon local de
+# la Mac (IP residencial) — aquí solo se DETECTA y se AVISA (la IP del server
+# está bloqueada por el antibot de YouTube).
+0 7 */3 * * cd $APP_DIR && $DC exec -T api python -m scripts.youtube.detect_uploads >> /var/log/robelyrics-cron.log 2>&1

@@ -1295,6 +1295,82 @@ class EntityEdge(Base):
     )
 
 
+# --- Cola de ingesta de YouTube (Juancares + entrevistas de Robe) ----------
+
+
+class YouTubeIngestQueue(Base):
+    """Vídeos de YouTube pendientes de transcribir e ingerir al corpus.
+
+    Arquitectura "1 click → autónomo" (ver project_robelyrics_youtube_juancares):
+    el cron del server DETECTA uploads nuevos de @juancaraes y siembra las
+    entrevistas de Robe de data/robe_interviews.yaml (no se puede descargar desde
+    la IP del datacenter: antibot de YouTube). Manda al admin un email con un CTA
+    firmado; al hacer click, el batch pasa a `approved`. Un daemon launchd en la
+    Mac (IP residencial) hace polling de los `approved`, descarga/transcribe con
+    yt-dlp+Whisper y empuja la transcripción a prod por HTTP, marcando `done`.
+
+    `status`: detected → approved → processing → done (o failed).
+
+    `target` agrupa el destino (UX del email + colección Qdrant):
+      - `corpus`     → fan-content de Juancares → interpretations_v1 (embed_interpretations).
+      - `robe_voice` → entrevistas/contexto → robe_voice_v1 (embed_robe_voice).
+
+    `kind`/`author` viajan EXPLÍCITOS por fila (no se derivan del target) para no
+    mislabelar a terceros como Robe: `author_is_robe = kind != 'about_robe'` en
+    embed_robe_voice. Mapeo: youtube_transcript (Juancares) · robe_interview (habla
+    Robe) · about_robe (homenaje/análisis de terceros, jamás citado como Robe).
+    """
+
+    __tablename__ = "youtube_ingest_queue"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('detected', 'approved', 'processing', 'done', 'failed')",
+            name="ck_youtube_ingest_status",
+        ),
+        CheckConstraint(
+            "target IN ('corpus', 'robe_voice')",
+            name="ck_youtube_ingest_target",
+        ),
+        CheckConstraint(
+            "kind IN ('youtube_transcript', 'robe_interview', 'about_robe')",
+            name="ck_youtube_ingest_kind",
+        ),
+        UniqueConstraint("video_id", "target", name="uq_youtube_ingest_video_target"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(500))
+    # Canal/fuente de origen ("juancaraes", o el handle de la entrevista).
+    channel: Mapped[str | None] = mapped_column(String(120))
+    target: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="corpus"
+    )
+    # kind final del InterpretationSource (decide author_is_robe en robe_voice_v1).
+    kind: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="youtube_transcript"
+    )
+    # Autor/fuente del material (canal, entrevistador). Para youtube_transcript
+    # de Juancares = "Juancares". NO se usa para flag de voz (eso es por kind).
+    author: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="detected", index=True
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
+        nullable=False,
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 # --------------------------------------------------------------------------- #
 # Política de nombre (REGLA DURA): la forma "Robe Iniesta" NUNCA debe persistir
 # en contenido (a él no le gustaba). Listeners a nivel ORM → cualquier escritura

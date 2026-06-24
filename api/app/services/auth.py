@@ -96,6 +96,41 @@ def decode_admin_action_token(token: str) -> dict[str, Any] | None:
     return data
 
 
+def create_youtube_ingest_token(
+    queue_ids: list[int], *, ttl_hours: int = 168
+) -> str:
+    """JWT firmado para aprobar con un click un batch de vídeos encolados en
+    youtube_ingest_queue, desde el email, sin estar logueado. TTL 7 días.
+
+    El claim `purpose='youtube_ingest'` lo separa de los access tokens y de los
+    admin-action de blog para que no sean intercambiables.
+    """
+    if not queue_ids:
+        raise ValueError("queue_ids no puede estar vacío")
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "youtube_ingest",
+        "queue_ids": [int(i) for i in queue_ids],
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_youtube_ingest_token(token: str) -> dict[str, Any] | None:
+    """Devuelve el payload solo si es un token válido de youtube_ingest."""
+    data = decode_token(token)
+    if not data:
+        return None
+    if data.get("purpose") != "youtube_ingest":
+        return None
+    ids = data.get("queue_ids")
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, int) for i in ids):
+        return None
+    return data
+
+
 def get_current_user(
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),

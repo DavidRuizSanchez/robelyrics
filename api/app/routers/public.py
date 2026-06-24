@@ -2024,3 +2024,51 @@ def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
             f"✗ Rechazado: «{post.title}»", success=True,
         )
     )
+
+
+# --------------------------------------------------------------------------- #
+# YouTube ingest — one-click approve (Juancares + entrevistas de Robe)
+# --------------------------------------------------------------------------- #
+from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+
+from app.db.models import YouTubeIngestQueue  # noqa: E402
+from app.services.auth import decode_youtube_ingest_token  # noqa: E402
+
+
+@router.get("/youtube-ingest", response_class=HTMLResponse)
+def youtube_ingest_approve(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One-click desde el email de detección. Token JWT firmado con la lista de
+    ids de youtube_ingest_queue y purpose='youtube_ingest'. Marca el batch como
+    `approved` para que el daemon local lo recoja. Idempotente: los que ya no
+    estén en `detected` (ya aprobados/procesados) se ignoran sin romper."""
+    data = decode_youtube_ingest_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page("Enlace inválido o caducado.", success=False),
+            status_code=400,
+        )
+    ids = data["queue_ids"]
+    rows = (
+        db.query(YouTubeIngestQueue)
+        .filter(YouTubeIngestQueue.id.in_(ids))
+        .all()
+    )
+    if not rows:
+        return HTMLResponse(
+            _render_admin_action_page(
+                "No quedan vídeos pendientes en ese enlace.", success=True,
+            )
+        )
+    approved = 0
+    for r in rows:
+        if r.status == "detected":
+            r.status = "approved"
+            r.approved_at = _dt.now(_tz.utc)
+            approved += 1
+    db.commit()
+    already = len(rows) - approved
+    msg = f"✓ Aprobados {approved} vídeo{'s' if approved != 1 else ''} para ingerir."
+    if already:
+        msg += f" ({already} ya estaba{'n' if already != 1 else ''} en marcha.)"
+    msg += " El daemon de tu Mac los transcribirá y subirá solo."
+    return HTMLResponse(_render_admin_action_page(msg, success=True))
