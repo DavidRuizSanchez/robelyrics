@@ -29,12 +29,21 @@ Sin herramientas de evasión — usamos la red donde sí se puede.
 
 ## Instalación del agent launchd
 
+⚠️ **El wrapper NO puede vivir en `~/Documents` / `~/Desktop` / `~/Downloads`**:
+macOS (TCC) le niega a launchd ejecutar ahí (`Operation not permitted`). Por eso
+se copia a `~/Library/Application Support/robelyrics/`.
+
 ```bash
-# 1. Edita la ruta absoluta del wrapper en el plist si tu repo no está en
-#    /Users/david.ruiz/Documents/Claude Code/RobeLyrics
+# 1. Copia el wrapper a una ruta no protegida por TCC
+mkdir -p "$HOME/Library/Application Support/robelyrics"
+cp infra/local/juancares_daemon.sh "$HOME/Library/Application Support/robelyrics/"
+chmod +x "$HOME/Library/Application Support/robelyrics/juancares_daemon.sh"
+
+# 2. Copia el plist. Si tu home no es /Users/david.ruiz, edita la ruta absoluta
+#    de ProgramArguments (launchd no expande ~ ni $HOME).
 cp infra/local/com.robelyrics.juancares.plist ~/Library/LaunchAgents/
 
-# 2. Cárgalo (RunAtLoad hace una primera pasada inmediata)
+# 3. Cárgalo (RunAtLoad hace una primera pasada inmediata)
 launchctl load ~/Library/LaunchAgents/com.robelyrics.juancares.plist
 
 # Estado / logs
@@ -56,8 +65,9 @@ docker exec robelyrics-api python -m scripts.youtube.process_queue --max 1
 
 ## Notas
 
-- **flock**: si una pasada tarda más de 15 min, la siguiente se salta (no se
-  solapan). Concurrencia 1 a propósito (`docker exec` se estanca bajo carga).
+- **Lock (mkdir)**: si una pasada tarda más de 15 min, la siguiente se salta (no
+  se solapan). Concurrencia 1 a propósito (`docker exec` se estanca bajo carga).
+  Se usa `mkdir` y no `flock` porque macOS no trae `flock`.
 - Si la Mac está dormida o Docker apagado, el daemon **sale en silencio** (no es
   error): retoma en la siguiente pasada.
 - Un vídeo que falla queda `failed` con el error y **se reintenta solo** en las

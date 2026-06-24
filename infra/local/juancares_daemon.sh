@@ -9,18 +9,23 @@
 # YouTube que bloquea la IP del datacenter del servidor. Sin evasión: usamos la
 # red donde sí se puede.
 #
-# flock evita solapamientos si una pasada tarda más que el intervalo. La
-# concurrencia es 1 a propósito (gotcha: docker exec se estanca bajo carga).
+# Lock con mkdir (atómico y PORTABLE: macOS no trae flock, que es de Linux).
+# Evita solapamientos si una pasada tarda más que el intervalo. Concurrencia 1
+# a propósito (gotcha: docker exec se estanca bajo carga).
 set -uo pipefail
 
 CONTAINER="${ROBELYRICS_CONTAINER:-robelyrics-api}"
-LOCKFILE="/tmp/robelyrics_juancares_daemon.lock"
+LOCKDIR="/tmp/robelyrics_juancares_daemon.lock"
 
-exec 9>"$LOCKFILE" || exit 0
-if ! flock -n 9; then
+# Lock añejo (>2 h, de una pasada que murió sin limpiar) → lo retiramos.
+if [ -d "$LOCKDIR" ] && [ -n "$(find "$LOCKDIR" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then
+  rmdir "$LOCKDIR" 2>/dev/null || true
+fi
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
   echo "[$(date -u +%H:%M:%S)] otra pasada en curso, salgo"
   exit 0
 fi
+trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT INT TERM
 
 # ¿Está vivo el contenedor? Si no, salimos en silencio (la Mac estará dormida o
 # docker apagado): no es un error, simplemente no toca trabajar ahora.

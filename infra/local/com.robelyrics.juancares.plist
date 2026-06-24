@@ -5,11 +5,15 @@
   Corre en la Mac del user (IP residencial). Polling cada 15 min.
 
   Instalar (ver infra/local/README.md):
+    mkdir -p "$HOME/Library/Application Support/robelyrics"
+    cp infra/local/juancares_daemon.sh "$HOME/Library/Application Support/robelyrics/"
     cp infra/local/com.robelyrics.juancares.plist ~/Library/LaunchAgents/
     launchctl load ~/Library/LaunchAgents/com.robelyrics.juancares.plist
 
-  OJO: ProgramArguments lleva la RUTA ABSOLUTA del wrapper. Si mueves el repo,
-  edita la ruta y recarga el agent (unload + load).
+  OJO: ProgramArguments lleva la RUTA ABSOLUTA del wrapper. NO puede vivir en
+  ~/Documents/~/Desktop/~/Downloads: macOS (TCC) bloquea a launchd ahí
+  ("Operation not permitted"). Por eso el wrapper se copia a Application Support.
+  launchd NO expande ~ ni $HOME en ProgramArguments → ruta absoluta literal.
 -->
 <plist version="1.0">
 <dict>
@@ -19,7 +23,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/david.ruiz/Documents/Claude Code/RobeLyrics/infra/local/juancares_daemon.sh</string>
+        <string>/Users/david.ruiz/Library/Application Support/robelyrics/juancares_daemon.sh</string>
     </array>
 
     <!-- Cada 15 minutos. RunAtLoad para una primera pasada al cargar. -->
