@@ -387,9 +387,19 @@ def ask(db: Session, question: str) -> ConsultResult:
     else:
         passages = retrieve_grounding(db, question)
     result = answer_as_robe(client, question, facts, passages, cls["tags"])
+    answer = result["answer"]
+    # Red de seguridad anti-alucinación: corrige errores de catálogo (canción↔
+    # álbum↔año) en la respuesta contra la BD. Determinista, no reescribe.
+    try:
+        from app.services.fact_check import check_body, correct_body
+        rep = check_body(db, answer, use_web=False)
+        if rep.autofixes:
+            answer, _ = correct_body(db, answer, rep)
+    except Exception:  # noqa: BLE001 — best-effort, nunca rompe la respuesta
+        pass
     return ConsultResult(
         question=question,
-        answer=result["answer"],
+        answer=answer,
         citations=result["citations"],
         grounded=result["grounded"],
         kind=cls["kind"],

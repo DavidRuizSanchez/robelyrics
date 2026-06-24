@@ -26,6 +26,7 @@ from app.db.session import SessionLocal
 from scripts.seo.common import (
     MODEL,
     _verify_body,
+    apply_catalog_check,
     fetch_distilled_for_artist,
     format_distilled_block,
     log,
@@ -366,6 +367,9 @@ def main() -> None:
             exclude_slug=artist.slug, link_stats=load_link_stats(),
         )
         log(f"  ✓ {subject}: {len(body)} chars")
+
+        # Red de seguridad anti-alucinación: corrige errores de catálogo contra BD.
+        body = apply_catalog_check(db, body)
 
         meta = _meta(client, subject, body)
         schema = {

@@ -104,7 +104,7 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         tone_quotes=tone_quotes_for(seed=artist.slug),
     )
     try:
-        out = call_llm(client, prompt, system_prompt=system_prompt)
+        out = call_llm(client, prompt, system_prompt=system_prompt, db=db)
     except Exception as e:  # noqa: BLE001
         log(f"  LLM error: {e}", "err")
         return False

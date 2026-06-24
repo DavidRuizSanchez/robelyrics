@@ -165,3 +165,56 @@ def verify_fact(claim: str, wiki_title: str = "") -> dict:
         cache[k] = res
         _save_cache(cache)
     return res
+
+
+_CLASSIFY_SYS = (
+    "Eres un verificador de hechos riguroso. Te doy una AFIRMACIÓN y EVIDENCIA "
+    "externa (Wikipedia y resultados de Google). Clasifica la afirmación en uno "
+    "de tres veredictos y responde SOLO JSON: "
+    '{"verdict": "supported|contradicted|not_found", '
+    '"evidence": "<frase breve>", "source": "<url o medio>"}.\n'
+    "- supported: la evidencia respalda CLARAMENTE la afirmación.\n"
+    "- contradicted: la evidencia dice algo que CONTRADICE la afirmación (p.ej. "
+    "la canción es de OTRO disco, el año real es OTRO, el dato es distinto).\n"
+    "- not_found: la evidencia no menciona el tema o es insuficiente para "
+    "decidir (ausencia de información NO es contradicción).\n"
+    "Ante la duda entre 'contradicted' y 'not_found', elige 'not_found'. "
+    "No inventes."
+)
+
+
+def classify_fact(claim: str, wiki_title: str = "") -> dict:
+    """Verificación de 3 estados: distingue 'contradicho' de 'no encontrado'.
+
+    Devuelve {verdict: supported|contradicted|not_found, evidence, source}.
+    Clave para auto-corregir solo lo realmente falso (contradicted) sin borrar
+    datos reales que la web simplemente no indexa (not_found). Cacheado.
+    """
+    from app.services.news_research import _json
+    k = _key("classify", claim)
+    with _LOCK:
+        cache = _load_cache()
+        if k in cache:
+            return cache[k]
+    evidence = _gather_evidence(claim, [wiki_title] if wiki_title else [])
+    if not evidence.strip():
+        res = {"verdict": "not_found", "evidence": "", "source": ""}
+    else:
+        out = _json(
+            _CLASSIFY_SYS,
+            f"AFIRMACIÓN: {claim}\n\nEVIDENCIA:\n\"\"\"{evidence[:6000]}\"\"\"",
+            max_tokens=200,
+        )
+        verdict = out.get("verdict")
+        if verdict not in ("supported", "contradicted", "not_found"):
+            verdict = "not_found"
+        res = {
+            "verdict": verdict,
+            "evidence": (out.get("evidence") or "")[:300],
+            "source": (out.get("source") or "")[:300],
+        }
+    with _LOCK:
+        cache = _load_cache()
+        cache[k] = res
+        _save_cache(cache)
+    return res

@@ -27,7 +27,8 @@ from sqlalchemy import select
 from app.db.models import ContentProposal, Post
 from app.db.session import SessionLocal
 from app.services.draft_generator import generate_proposal_draft
-from app.services.publishing import auto_publish_post
+from app.services.fact_check import check_body, correct_body
+from app.services.publishing import auto_publish_post, propose_for_review
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -104,10 +105,38 @@ def main() -> None:
             db.commit()
             db.refresh(post)
 
-            # 3. Publicar (revalidate de Next; el email es el digest dominical).
-            auto_publish_post(db, post)
+            # 3. GATE FACTUAL antes de publicar. Auto-corrige las contradicciones
+            #    canónicas de BD (canción↔álbum↔año); si la verificación web
+            #    detecta algo dudoso (to_review), el post NO se auto-publica: va a
+            #    revisión humana. Solo lo que pasa LIMPIO se publica solo.
+            report = check_body(db, post.body_md, use_web=True)
+            skipped: list = []
+            if report.autofixes:
+                fixed, skipped = correct_body(db, post.body_md, report)
+                if fixed and fixed != post.body_md:
+                    post.body_md = fixed
+                    db.commit()
+                    db.refresh(post)
+                    logger.info("  fact-check: %d hecho(s) corregido(s) contra BD",
+                                len(report.autofixes) - len(skipped))
 
-            # 4. Marcar propuesta usada.
+            # A revisión humana si la web detecta algo dudoso (to_review) o si
+            # algún hecho refutado no se pudo corregir limpio (skipped → reformular).
+            needs_review = report.to_review + skipped
+            if needs_review:
+                for v in needs_review:
+                    logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
+                propose_for_review(db, post)
+                p.status = "used"
+                p.post_id = post.id
+                db.commit()
+                logger.info("  ⚠ a revisión humana (%d dato(s)): /blog/%s",
+                            len(needs_review), slug)
+                continue
+
+            # 4. Limpio → publicar (revalidate de Next; el email es el digest dominical).
+            #    factcheck=False: el gate de arriba ya verificó (con capa web).
+            auto_publish_post(db, post, factcheck=False)
             p.status = "used"
             p.post_id = post.id
             db.commit()

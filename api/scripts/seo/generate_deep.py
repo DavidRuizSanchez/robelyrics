@@ -31,7 +31,7 @@ from app.services.entity_resolver import (
     autolink_corpus, build_corpus_index, load_link_stats,
 )
 from app.services.text_sanitizer import strip_ai_tells
-from scripts.seo.common import MODEL, log, upsert_seo_content
+from scripts.seo.common import MODEL, apply_catalog_check, log, upsert_seo_content
 from scripts.seo.generate_flagship import _sanitize_links
 
 _MODELS = {
@@ -343,6 +343,10 @@ def generate_for_entity(
         link_stats=link_stats if link_stats is not None else load_link_stats(),
     )
     log(f"  ensamblado: {len(body)} chars")
+
+    # Red de seguridad anti-alucinación: corrige errores de catálogo (canción↔
+    # álbum↔año) contra la BD antes de persistir. Determinista, no reescribe.
+    body = apply_catalog_check(db, body)
 
     meta = _meta(client, dossier.subject, target_keyword, body)
     schema = {

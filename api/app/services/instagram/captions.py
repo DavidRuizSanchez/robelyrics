@@ -191,5 +191,16 @@ def build(db: Session, topic: dict) -> str:
     if credit:
         lines += ["", f"📷 {credit}"]
 
-    # Límite duro de Instagram: 2.200 caracteres.
-    return "\n".join(lines)[:2190]
+    caption = "\n".join(lines)[:2190]
+
+    # Red de seguridad anti-alucinación: corrige errores de catálogo (canción↔
+    # álbum↔año) contra la BD antes de publicar. Determinista, no reescribe.
+    try:
+        from app.services.fact_check import check_body, correct_body
+        rep = check_body(db, caption, use_web=False)
+        if rep.autofixes:
+            caption, _ = correct_body(db, caption, rep)
+    except Exception:  # noqa: BLE001 — best-effort, nunca bloquea la publicación
+        pass
+
+    return caption

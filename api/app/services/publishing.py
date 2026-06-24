@@ -261,7 +261,7 @@ def _notify_admin_review(db: Session, post: Post) -> None:
         logger.warning("Admin review email failed: %s", exc)
 
 
-def auto_publish_post(db: Session, post: Post) -> PublishResult:
+def auto_publish_post(db: Session, post: Post, *, factcheck: bool = True) -> PublishResult:
     """Marca el post como publicado y revalida Next.js.
 
     NO manda email: la newsletter es un único digest semanal (cron dominical
@@ -269,7 +269,28 @@ def auto_publish_post(db: Session, post: Post) -> PublishResult:
       - Desde el endpoint admin (panel `/admin/posts/{id}/publish`).
       - Desde `/public/admin-action?token=...` (one-click desde email).
       - Desde materialize_proposals y flush_scheduled_due.
+
+    `factcheck`: red de seguridad anti-alucinación común a TODOS los caminos de
+    publicación (efeméride directa, aprobación manual, cron). Corrige errores de
+    catálogo (canción↔álbum↔año) contra la BD, determinista y quirúrgico. Quien
+    ya verificó antes (materialize_proposals) lo pasa en False para no repetir.
     """
+    if factcheck and post.body_md:
+        try:
+            from app.services.fact_check import check_body, correct_body
+            rep = check_body(db, post.body_md, use_web=False)
+            if rep.autofixes:
+                fixed, skipped = correct_body(db, post.body_md, rep)
+                if fixed and fixed != post.body_md:
+                    post.body_md = fixed
+                    db.flush()
+                    logger.info(
+                        "auto_publish: %d hecho(s) de catálogo corregido(s) en post %s",
+                        len(rep.autofixes) - len(skipped), post.id,
+                    )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish fact-check falló: %s", exc)
+
     if post.status != "published":
         post.status = "published"
         post.published_at = _now()

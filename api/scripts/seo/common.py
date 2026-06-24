@@ -137,9 +137,31 @@ def _verify_body(client: OpenAI, body_md: str, material: str) -> str:
         return body_md
 
 
+def apply_catalog_check(db: Session, body_md: str) -> str:
+    """Corrige in-place errores de catálogo (canción↔álbum↔año) contra la BD,
+    de forma determinista y quirúrgica (no reescribe). Para generadores que NO
+    pasan por `call_llm` (deep/flagship). Best-effort: ante fallo, devuelve el
+    cuerpo intacto."""
+    if not body_md:
+        return body_md
+    try:
+        from app.services.fact_check import check_body, correct_body
+        rep = check_body(db, body_md, use_web=False)
+        if not rep.autofixes:
+            return body_md
+        fixed, skipped = correct_body(db, body_md, rep)
+        n = len(rep.autofixes) - len(skipped)
+        if n:
+            log(f"  fact-check catálogo: {n} hecho(s) corregido(s) contra BD")
+        return fixed
+    except Exception as e:  # noqa: BLE001
+        log(f"  fact-check catálogo falló ({e}); cuerpo sin tocar", "warn")
+        return body_md
+
+
 def call_llm(
     client: OpenAI, user_prompt: str, *, system_prompt: str | None = None,
-    verify: bool = True,
+    verify: bool = True, db: Session | None = None,
 ) -> dict[str, Any]:
     """Invoca GPT-4o con structured output JSON. Lanza ValueError si JSON inválido.
 
@@ -147,6 +169,9 @@ def call_llm(
     pasan uno con foco de sujeto (ver app.services.voice.build_system_prompt).
     verify: si True (por defecto), pasa el body_md por una verificación factual
     contra el material del prompt (caza fabricaciones tipo 'Medalla de Oro 2024').
+    db: si se pasa, añade ADEMÁS la verificación canónica contra BD (corrige
+    canción↔álbum↔año contra el catálogo real, determinista). Retrocompatible:
+    sin db, comportamiento idéntico al de antes.
     """
     resp = client.chat.completions.create(
         model=MODEL,
@@ -166,7 +191,18 @@ def call_llm(
     except json.JSONDecodeError as e:
         raise ValueError(f"JSON inválido del LLM: {e}; raw={content[:200]}") from e
     if verify and isinstance(out.get("body_md"), str):
-        out["body_md"] = _verify_body(client, out["body_md"], user_prompt)
+        body = out["body_md"]
+        # Verdad dura del catálogo (canción↔álbum↔año) cuando hay sesión. Barato
+        # y determinista (use_web=False); no añade latencia de red.
+        if db is not None:
+            try:
+                from app.services.fact_check import check_body, correct_body
+                rep = check_body(db, body, material=user_prompt, use_web=False)
+                if rep.autofixes:
+                    body = correct_body(db, body, rep, material=user_prompt)
+            except Exception as e:  # noqa: BLE001
+                log(f"  verificación canónica BD falló ({e}); sigo con material", "warn")
+        out["body_md"] = _verify_body(client, body, user_prompt)
     return out
 
 
