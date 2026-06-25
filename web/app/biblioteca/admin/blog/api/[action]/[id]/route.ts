@@ -7,10 +7,15 @@ const VALID_ACTIONS = new Set([
   "unschedule",
   "discard",
   "restore",
+  "suggest-titles",
+  "title",
 ]);
 
+// Acciones que llevan body JSON.
+const BODY_ACTIONS = new Set(["schedule", "title"]);
+
 // Proxy POST → /admin/proposals/{id}/{action} con auth via cookie.
-// `schedule` lleva body { date: "YYYY-MM-DD" }; el resto no llevan body.
+// `schedule` lleva { date }; `title` lleva { title, meta_title? }; el resto sin body.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ action: string; id: string }> },
@@ -25,7 +30,7 @@ export async function POST(
   }
 
   let body: unknown = undefined;
-  if (action === "schedule") {
+  if (BODY_ACTIONS.has(action)) {
     try {
       body = await request.json();
     } catch {
@@ -41,7 +46,12 @@ export async function POST(
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
-      return NextResponse.json({ error: String(e.detail) }, { status: e.status });
+      // FastAPI devuelve { detail: "..." }; desempaquétalo para el aviso.
+      const detail =
+        typeof e.detail === "object" && e.detail !== null && "detail" in e.detail
+          ? (e.detail as { detail: unknown }).detail
+          : e.detail;
+      return NextResponse.json({ error: String(detail) }, { status: e.status });
     }
     return NextResponse.json({ error: "error interno" }, { status: 500 });
   }

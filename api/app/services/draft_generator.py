@@ -15,6 +15,7 @@ borrador.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date
 
 from sqlalchemy import select
@@ -48,10 +49,66 @@ logger = logging.getLogger(__name__)
 ROBE = "Robe Iniesta"
 
 
+def _deep_body(db, *, entity_type: str, entity, framing: str, coverage: str = "") -> dict | None:
+    """Genera un cuerpo con el MOTOR PROFUNDO (mismo que las páginas de entidad y
+    las noticias): dossier RAG del corpus + outline adaptativo + sección a sección
+    con anti-redundancia (`prior`) + verificación factual + pulido. Devuelve el
+    dict editorial o None si no hay material para algo digno (lo decide el rigor
+    aguas abajo). Sustituye al one-shot genérico que producía relleno."""
+    try:
+        from openai import OpenAI
+
+        from app.services.deep_research import gather_entity_dossier
+        from app.services.news_research import _news_meta
+        from app.services.text_sanitizer import strip_ai_tells
+        from scripts.seo.generate_deep import (
+            _coverage_hint, _outline, _polish, _verify_section, _write_section,
+        )
+
+        dossier = gather_entity_dossier(db, entity_type, entity)
+        material = dossier.material or ""
+        subject = dossier.subject
+        cov = coverage or _coverage_hint(entity_type)
+        hard = f"{framing}\nDATOS DUROS (úsalos, son verídicos):\n{dossier.hard_facts}"
+
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        outline = _outline(client, subject, "", hard, material, cov)
+        if not outline:
+            return None
+        headings = [s["heading"] for s in outline]
+        parts: list[str] = []
+        prior = ""
+        for s in outline:
+            sec = _write_section(client, subject, s, headings, hard, material, "",
+                                 prior=prior, coverage=cov)
+            sec = _verify_section(client, sec, material)
+            if sec.strip():
+                parts.append(sec.strip())
+                prior = "\n\n".join(parts)
+        body = "\n\n".join(parts)
+        if len(body.strip()) < 300:
+            return None
+        body = _polish(client, subject, body) or body
+        body = strip_ai_tells(body) or body
+        meta = _news_meta(subject, body)
+        return {
+            "title": (meta.get("title") or subject)[:240],
+            "excerpt": meta.get("excerpt") or "",
+            "body_md": body,
+            "meta_title": meta.get("meta_title") or "",
+            "meta_description": meta.get("meta_description") or "",
+            "entities": [],
+        }
+    except Exception as exc:  # noqa: BLE001 — degradar al generador clásico
+        logger.warning("[draft] motor profundo falló (%s): %s", entity_type, exc)
+        return None
+
+
 def generate_body(db, p: ContentProposal) -> dict | None:
     """Genera el contenido editorial de una propuesta sin body, según kind.
     Devuelve dict con title/excerpt/body_md/meta_title/meta_description/entities
-    o None si no se pudo."""
+    o None si no se pudo. Los tipos anclados a una entidad real (canción, disco,
+    Robe, taxonomía) usan el MOTOR PROFUNDO; si falla, caen al generador clásico."""
     today = date.today()
 
     if p.kind == "spotlight" and p.source_type == "song" and p.source_id:
@@ -65,6 +122,17 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                 SeoContent.entity_type == "song", SeoContent.entity_id == song.id
             )
         ).scalar_one_or_none()
+        deep = _deep_body(
+            db, entity_type="song", entity=song,
+            framing=(
+                f"Análisis a fondo de la canción «{song.title}»"
+                + (f" del disco «{album.title}»" if album else "")
+                + ". CITA versos textuales concretos entre comillas, explica su "
+                "significado, la música y su contexto en el disco. Nada genérico."
+            ),
+        )
+        if deep:
+            return deep
         try:
             ctx = song_context(db, song.id)
         except Exception:
@@ -92,6 +160,18 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                 .order_by(Song.track_number.nulls_last())
             ).all()
         ]
+        rel_year = album.release_date.year if album.release_date else album.year
+        deep = _deep_body(
+            db, entity_type="album", entity=album,
+            framing=(
+                f"{max(years,1)} años del disco «{album.title}» (salió en {rel_year}). "
+                "Cuenta el CONTEXTO y la grabación, el sello, las CANCIONES CLAVE "
+                f"(nómbralas: {', '.join(track_titles[:12])}), el sonido y su lugar en "
+                "la trayectoria. Datos concretos y citas si las hay; nada de loas vacías."
+            ),
+        )
+        if deep:
+            return deep
         try:
             ctx = album_context(db, album.id)
         except Exception:
@@ -100,7 +180,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
             album_title=album.title,
             artist_name=artist.name if artist else "",
             years_since=max(years, 1),
-            release_year=album.release_date.year if album.release_date else album.year,
+            release_year=rel_year,
             track_titles=track_titles,
             context=ctx,
             today=today,
@@ -112,10 +192,22 @@ def generate_body(db, p: ContentProposal) -> dict | None:
             years = today.year - 2025
         else:
             years = today.year - 1962
+        robe = db.execute(
+            select(Artist).where(Artist.slug == "robe")
+        ).scalar_one_or_none()
+        label = "su muerte (diciembre de 2025)" if kind == "death" else "su nacimiento"
+        if robe:
+            deep = _deep_body(
+                db, entity_type="artist", entity=robe,
+                framing=(
+                    f"Efeméride: {max(years,1)} años de {label} de Robe. Repasa hechos "
+                    "biográficos y de su obra CONCRETOS y datados (discos, canciones, "
+                    "momentos), citando lo verídico. Nada de loas genéricas."
+                ),
+            )
+            if deep:
+                return deep
         try:
-            robe = db.execute(
-                select(Artist).where(Artist.slug == "robe")
-            ).scalar_one_or_none()
             ctx = artist_context(db, robe.id) if robe else ""
         except Exception:
             ctx = ""
@@ -138,6 +230,16 @@ def generate_body(db, p: ContentProposal) -> dict | None:
         if model and p.source_id:
             tax = db.get(model, p.source_id)
             if tax:
+                deep = _deep_body(
+                    db, entity_type=p.source_type, entity=tax,
+                    framing=(
+                        f"Tema de fondo: «{tax.name}» en la obra de Robe/Extremoduro. "
+                        "CITA versos textuales concretos donde aparece e ilústralo con "
+                        "canciones y hechos reales. Nada de divagación genérica."
+                    ),
+                )
+                if deep:
+                    return deep
                 try:
                     song_ids = [s.id for s in tax.songs]
                     seo_tax = db.execute(

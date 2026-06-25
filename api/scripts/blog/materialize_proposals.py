@@ -27,11 +27,92 @@ from sqlalchemy import select
 from app.db.models import ContentProposal, Post
 from app.db.session import SessionLocal
 from app.services.draft_generator import generate_proposal_draft
+from app.services.editorial_review import review as editorial_review
 from app.services.fact_check import check_body, correct_body
+from app.services.focus_check import check_focus
 from app.services.publishing import auto_publish_post, propose_for_review
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def _notify_admin(subject: str, text: str) -> None:
+    """Aviso best-effort al admin (p.ej. publicación caducada cancelada)."""
+    import os
+
+    admin_email = os.getenv("ADMIN_EMAIL")
+    if not admin_email:
+        logger.info("ADMIN: %s — %s", subject, text)
+        return
+    try:
+        from app.services.email import EmailError, send_email
+        send_email(to=admin_email, subject=subject,
+                   html=f"<pre style='font-family:monospace'>{text}</pre>", text=text)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("aviso admin falló (%s); %s", exc, text)
+
+
+def _build_chronicle(db, p: ContentProposal, today) -> dict | None:
+    """Si el evento de `p` ya pasó, intenta reconstruir una CRÓNICA en pasado a
+    partir de material web real. Devuelve el dict de `research_and_write` (modo
+    crónica) o None si no hay material suficiente (→ se cancelará la publicación).
+
+    Anti-invención: la generación en modo crónica pasa por la verificación
+    factual contra el material; si el material no sostiene un relato, el cuerpo
+    queda demasiado corto y se descarta (mejor cancelar que inventar lo ocurrido).
+    """
+    from app.services.news_research import research_and_write, web_research
+
+    subject = (p.target_keyword or p.title or "").strip()
+    year = p.event_date.year if p.event_date else today.year
+    hits = web_research(f"crónica resumen qué pasó {subject} {year}", n=6)
+    if len(hits) < 2:
+        logger.info("  sin material de crónica para «%s»", subject)
+        return None
+    excerpt = "\n".join(f"- {h['title']}: {h['snippet']}" for h in hits)
+    if p.body_md:
+        excerpt += (
+            "\n\nBORRADOR PREVIO (estaba en FUTURO; reconviértelo a crónica en "
+            f"pasado, solo lo que el material confirme):\n{p.body_md[:2000]}"
+        )
+    rw = research_and_write(
+        db=db, headline=p.title, source_excerpt=excerpt,
+        matched_term=subject, today=today, tense="cronica",
+    )
+    if not rw.get("body_md") or len((rw["body_md"] or "").strip()) < 400:
+        logger.info("  crónica insuficiente tras verificación para «%s»", subject)
+        return None
+    return rw
+
+
+def _handle_expired(db, p: ContentProposal, today, *, dry_run: bool) -> str:
+    """Evento ya pasado: reconvierte a crónica si hay material real, o cancela.
+    Devuelve 'rewritten' | 'cancelled'."""
+    logger.info("  ⏰ evento caducado (event_date %s < hoy %s)", p.event_date, today)
+    if dry_run:
+        return "rewritten"  # en dry-run no decidimos, solo informamos
+    cron = _build_chronicle(db, p, today)
+    if cron:
+        p.title = (cron.get("title") or p.title)[:240]
+        p.body_md = cron.get("body_md") or p.body_md
+        p.excerpt = (cron.get("excerpt") or p.excerpt or "")[:200] or None
+        if cron.get("meta_title"):
+            p.meta_title = cron["meta_title"][:60]
+        if cron.get("meta_description"):
+            p.meta_description = cron["meta_description"][:155]
+        db.commit()
+        logger.info("  ↪ reconvertida a CRÓNICA en pasado")
+        return "rewritten"
+    # Sin crónica: no se publica nada caducado.
+    p.status = "discarded"
+    db.commit()
+    _notify_admin(
+        f"🗑 Publicación caducada cancelada: {p.title}",
+        f"El evento (event_date {p.event_date}) ya pasó y no se encontró crónica. "
+        f"La propuesta #{p.id} se ha descartado para no publicar algo obsoleto.",
+    )
+    logger.info("  ✗ cancelada (caducada sin crónica) — propuesta #%s descartada", p.id)
+    return "cancelled"
 
 
 def _slugify(text: str, max_len: int = 90) -> str:
@@ -69,8 +150,17 @@ def main() -> None:
 
         for p in due:
             logger.info("[%s] %s (programada %s)", p.kind, p.title, p.scheduled_for)
+
+            # 0. CADUCIDAD: si el evento de la noticia ya pasó, reconvertir a
+            #    crónica (si hay material) o cancelar (no publicar nada obsoleto).
+            expired = bool(p.event_date and p.event_date < today)
             if args.dry_run:
+                if expired:
+                    logger.info("  ⏰ [dry-run] evento caducado (%s)", p.event_date)
                 continue
+            if expired:
+                if _handle_expired(db, p, today, dry_run=False) == "cancelled":
+                    continue
 
             # 1. Asegurar borrador (normalmente ya hecho al aprobar).
             if not p.body_md:
@@ -78,6 +168,47 @@ def main() -> None:
                 if not generate_proposal_draft(db, p):
                     logger.error("  no se pudo generar body para propuesta %s", p.id)
                     continue
+
+            # 1b. GATE DE FOCO: nada se publica desviado del tema (relleno sobre
+            #     el lugar/sede/contexto ajeno). Si se puede recortar limpio, se
+            #     recorta; si no, va a revisión humana.
+            review_focus = False
+            subject = (p.target_keyword or p.title or "").strip()
+            freport = check_focus(p.body_md, subject)
+            if not freport.ok:
+                if freport.trimmed_body_md:
+                    p.body_md = freport.trimmed_body_md
+                    db.commit()
+                    logger.info("  foco: recortado (score %d, deriva: %s)",
+                                freport.score, ", ".join(freport.drift_headings) or "—")
+                else:
+                    review_focus = True
+                    logger.info("  foco BAJO (score %d) sin recorte limpio → revisión",
+                                freport.score)
+
+            # 1c. GATE DE RIGOR EDITORIAL: nada genérico/relleno se publica. Si se
+            #     puede tensar, se tensa; si es flojo sin remedio (faltan HECHOS),
+            #     se DESCARTA y se avisa (no se publica y punto).
+            when = None
+            if p.event_date:
+                when = "past" if p.event_date < today else "future"
+            verdict = editorial_review(p.body_md, kind=p.kind, subject=subject, event_when=when)
+            if verdict.verdict == "reject":
+                p.status = "discarded"
+                db.commit()
+                _notify_admin(
+                    f"🗑 Descartada por rigor: {p.title}",
+                    f"La propuesta #{p.id} no llega al listón editorial (score "
+                    f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
+                    "No se publica por falta de sustancia/especificidad.",
+                )
+                logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
+                            verdict.score, "; ".join(verdict.reasons))
+                continue
+            if verdict.verdict == "revise" and verdict.tightened_body_md:
+                p.body_md = verdict.tightened_body_md
+                db.commit()
+                logger.info("  rigor: tensado (score %d)", verdict.score)
 
             # 2. Crear el Post copiando el borrador ya saneado/enlazado.
             slug = _unique_slug(db, _slugify(p.title))
@@ -100,6 +231,7 @@ def main() -> None:
                 hero_image_license=p.hero_image_license,
                 hero_image_source_url=p.hero_image_source_url,
                 entities=p.entities or [],
+                event_date=p.event_date,
             )
             db.add(post)
             db.commit()
@@ -120,23 +252,27 @@ def main() -> None:
                     logger.info("  fact-check: %d hecho(s) corregido(s) contra BD",
                                 len(report.autofixes) - len(skipped))
 
-            # A revisión humana si la web detecta algo dudoso (to_review) o si
-            # algún hecho refutado no se pudo corregir limpio (skipped → reformular).
+            # A revisión humana si la web detecta algo dudoso (to_review), si algún
+            # hecho refutado no se pudo corregir limpio (skipped → reformular), o si
+            # el gate de FOCO marcó deriva sin recorte limpio.
             needs_review = report.to_review + skipped
-            if needs_review:
+            if needs_review or review_focus:
                 for v in needs_review:
                     logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
+                if review_focus:
+                    logger.info("  foco REVISAR: deriva no recortable")
                 propose_for_review(db, post)
                 p.status = "used"
                 p.post_id = post.id
                 db.commit()
-                logger.info("  ⚠ a revisión humana (%d dato(s)): /blog/%s",
-                            len(needs_review), slug)
+                logger.info("  ⚠ a revisión humana (%d dato(s)%s): /blog/%s",
+                            len(needs_review), ", +foco" if review_focus else "", slug)
                 continue
 
             # 4. Limpio → publicar (revalidate de Next; el email es el digest dominical).
-            #    factcheck=False: el gate de arriba ya verificó (con capa web).
-            auto_publish_post(db, post, factcheck=False)
+            #    factcheck=False y rigor=False: los gates de arriba ya verificaron
+            #    (capa web + foco + rigor editorial); no repetir.
+            auto_publish_post(db, post, factcheck=False, rigor=False)
             p.status = "used"
             p.post_id = post.id
             db.commit()

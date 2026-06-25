@@ -247,6 +247,7 @@ def main() -> None:
             image_keywords: list[str] = []
             entities: list[dict] = []
             related: list[NewsItem] = []
+            event_date = None
             if args.no_rewrite:
                 title = news.title[:240]
                 excerpt = (news.summary or "")[:200]
@@ -290,6 +291,7 @@ def main() -> None:
                         headline=news.title,
                         source_excerpt=combined_excerpt,
                         matched_term=term,
+                        today=datetime.now(timezone.utc).date(),
                     )
                 except Exception as exc:  # noqa: BLE001
                     logger.error("Investigación/escritura falló para %r: %s", news.title, exc)
@@ -320,6 +322,7 @@ def main() -> None:
                         e for e in raw_ents
                         if isinstance(e, dict) and e.get("name")
                     ]
+                event_date = rewritten.get("event_date")  # solo si explícita
 
             # Foto REAL del protagonista que devolvió la investigación (web).
             # Se sube a Cloudinary para servirla optimizada y por host permitido.
@@ -343,6 +346,12 @@ def main() -> None:
                 })
                 continue
 
+            # Fecha sugerida: si hay evento futuro, publicar con antelación.
+            from app.services.publishing import recommended_from_event
+            recommended_date = recommended_from_event(
+                event_date, datetime.now(timezone.utc).date()
+            )
+
             # Las noticias entran al BANCO de propuestas (content_proposals)
             # con kind='news' y el body ya reescrito. El admin las programa
             # desde la pestaña de calendario.
@@ -365,6 +374,8 @@ def main() -> None:
                 hero_image_source_url=None,
                 entities=entities,
                 content_key=ckey,
+                event_date=event_date,
+                recommended_date=recommended_date,
                 status="proposed",
             )
             db.add(proposal)

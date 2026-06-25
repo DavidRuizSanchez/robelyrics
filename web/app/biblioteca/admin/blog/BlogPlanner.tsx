@@ -60,6 +60,13 @@ export default function BlogPlanner({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<string>("all");
   const [weeks, setWeeks] = useState<number>(4);
+  // Regeneración de titular en la propia lista: id en proceso + candidatos por id.
+  const [titleBusy, setTitleBusy] = useState<number | null>(null);
+  const [titleCands, setTitleCands] = useState<
+    Record<number, { title: string; meta_title: string }[]>
+  >({});
+  // Edición de título a mano inline (id → texto en edición; ausente = no edita).
+  const [titleEdit, setTitleEdit] = useState<Record<number, string>>({});
 
   function matchesFilter(p: ProposalItem): boolean {
     const f = FILTERS.find((x) => x.key === filter);
@@ -126,7 +133,7 @@ export default function BlogPlanner({
     if (
       !window.confirm(
         `¿Auto-programar las aprobadas en las próximas ${weeks} semanas? ` +
-          `Reparte intercalando tipos (mar/jue/sáb, 3/semana).`,
+          `Reparte intercalando tipos (lun/mar/jue/sáb, 4/semana).`,
       )
     )
       return;
@@ -142,6 +149,77 @@ export default function BlogPlanner({
       const n = data.scheduled?.length ?? 0;
       const s = data.skipped?.length ?? 0;
       alert(`Programadas ${n}.${s ? ` Sin hueco: ${s}.` : ""}`);
+      window.location.reload();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function suggestTitle(id: number) {
+    setTitleBusy(id);
+    try {
+      const res = await post(`/biblioteca/admin/blog/api/suggest-titles/${id}`);
+      const data = (await res.json()) as {
+        candidates?: { title: string; meta_title: string }[];
+      };
+      setTitleCands((c) => ({ ...c, [id]: data.candidates ?? [] }));
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setTitleBusy(null);
+    }
+  }
+
+  async function chooseTitle(id: number, title: string) {
+    setTitleBusy(id);
+    try {
+      await post(`/biblioteca/admin/blog/api/title/${id}`, { title });
+      window.location.reload();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setTitleBusy(null);
+    }
+  }
+
+  async function saveTitle(id: number) {
+    const value = (titleEdit[id] ?? "").trim();
+    if (!value) return;
+    setTitleBusy(id);
+    try {
+      await post(`/biblioteca/admin/blog/api/title/${id}`, { title: value });
+      window.location.reload();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setTitleBusy(null);
+    }
+  }
+
+  // Programar con aviso de conflicto: el backend devuelve 409 con el detalle
+  // (ya estaba programada / día o semana ocupados / evento tarde). Confirmamos
+  // y reenviamos con replace=true.
+  async function scheduleProposal(id: number, date: string) {
+    setBusy(id);
+    try {
+      const send = (replace: boolean) =>
+        fetch(`/biblioteca/admin/blog/api/schedule/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, replace }),
+        });
+      let res = await send(false);
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        if (!window.confirm(`${data.error}\n\n¿Programar igualmente?`)) return;
+        res = await send(true);
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Error ${res.status}`);
+      }
       window.location.reload();
     } catch (e) {
       alert(String(e));
@@ -232,13 +310,57 @@ export default function BlogPlanner({
                   <div className="flex-1 min-w-0 flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <Meta p={p} />
-                      <Link
-                        href={`/biblioteca/admin/blog/${p.id}`}
-                        data-cursor="hover"
-                        className="block font-serif text-lg text-ink leading-tight hover:text-accent"
-                      >
-                        {p.title}
-                      </Link>
+                      {p.id in titleEdit ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            value={titleEdit[p.id]}
+                            onChange={(e) =>
+                              setTitleEdit((s) => ({ ...s, [p.id]: e.target.value }))
+                            }
+                            className="flex-1 min-w-[200px] bg-transparent border-0 border-b border-accent focus:outline-none px-0 py-1 font-serif text-lg text-ink"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveTitle(p.id)}
+                            disabled={titleBusy === p.id}
+                            data-cursor="hover"
+                            className="font-mono text-[9px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-2 py-1 disabled:opacity-40"
+                          >
+                            guardar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTitleEdit((s) => {
+                                const n = { ...s };
+                                delete n[p.id];
+                                return n;
+                              })
+                            }
+                            data-cursor="hover"
+                            className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-ink px-2 py-1"
+                          >
+                            cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/biblioteca/admin/blog/${p.id}`}
+                          data-cursor="hover"
+                          className="block font-serif text-lg text-ink leading-tight hover:text-accent"
+                        >
+                          {p.title}
+                        </Link>
+                      )}
+                      {p.event_date && (
+                        <p className="mt-1 font-mono text-[9px] tracking-[2px] uppercase text-accent">
+                          evento: {fmtDate(p.event_date)}
+                          {p.recommended_for
+                            ? ` · sugerido ${fmtDate(p.recommended_for)}`
+                            : ""}
+                        </p>
+                      )}
                       {p.angle && (
                         <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed">
                           {p.angle}
@@ -287,6 +409,28 @@ export default function BlogPlanner({
                     <div className="shrink-0 flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
+                        onClick={() =>
+                          setTitleEdit((s) => ({ ...s, [p.id]: p.title }))
+                        }
+                        disabled={busy !== null}
+                        data-cursor="hover"
+                        title="Editar titular a mano"
+                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
+                      >
+                        ✎ a mano
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => suggestTitle(p.id)}
+                        disabled={titleBusy === p.id || busy !== null}
+                        data-cursor="hover"
+                        title="Regenerar titular (propone 3)"
+                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
+                      >
+                        {titleBusy === p.id ? "…" : "↻ titular"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => call("approve", p.id)}
                         disabled={busy === p.id}
                         data-cursor="hover"
@@ -309,6 +453,40 @@ export default function BlogPlanner({
                     </div>
                   </div>
                 </div>
+                {titleCands[p.id]?.length > 0 && (
+                  <ul className="mt-3 ml-7 space-y-2 border border-divider p-3">
+                    <li className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+                      titulares alternativos · pulsa «usar»
+                    </li>
+                    {titleCands[p.id].map((c, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="flex-1 font-serif text-base text-ink leading-snug">
+                          {c.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => chooseTitle(p.id, c.title)}
+                          disabled={titleBusy === p.id}
+                          data-cursor="hover"
+                          className="shrink-0 font-mono text-[9px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-2 py-1 disabled:opacity-40"
+                        >
+                          usar
+                        </button>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => suggestTitle(p.id)}
+                        disabled={titleBusy === p.id}
+                        data-cursor="hover"
+                        className="font-mono text-[9px] tracking-[2px] uppercase text-ink-dim hover:text-accent disabled:opacity-40"
+                      >
+                        ↻ otras 3
+                      </button>
+                    </li>
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -347,7 +525,7 @@ export default function BlogPlanner({
         </div>
         <p className="font-serif italic text-ink-dim text-sm mb-5">
           Lo aprobado, listo para fecha. Dale fecha a mano o usa auto-programar
-          (intercala tipos, máx 3/semana). Se publica solo al llegar el día.
+          (intercala tipos, máx 4/semana). Se publica solo al llegar el día.
         </p>
 
         {/* Aprobadas sin fecha */}
@@ -382,7 +560,8 @@ export default function BlogPlanner({
                   <div className="shrink-0 flex flex-col items-end gap-1">
                     {p.recommended_for && (
                       <p className="font-mono text-[9px] tracking-[1px] uppercase text-accent">
-                        sugerido: {fmtDate(p.recommended_for)} (efeméride)
+                        sugerido: {fmtDate(p.recommended_for)}
+                        {p.event_date ? ` · evento ${fmtDate(p.event_date)}` : " (efeméride)"}
                       </p>
                     )}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -400,7 +579,7 @@ export default function BlogPlanner({
                       onClick={() => {
                         const chosen = dates[p.id] ?? p.recommended_for;
                         chosen
-                          ? call("schedule", p.id, { date: chosen })
+                          ? scheduleProposal(p.id, chosen)
                           : alert("Elige una fecha primero");
                       }}
                       disabled={busy === p.id}
@@ -442,7 +621,7 @@ export default function BlogPlanner({
             {weeksList.map(([wk, items]) => (
               <div key={wk} className="border border-divider p-4">
                 <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-3">
-                  semana del {fmtDate(wk)} · {items.length}/3
+                  semana del {fmtDate(wk)} · {items.length}/4
                 </p>
                 <ul className="space-y-2">
                   {items

@@ -1279,6 +1279,7 @@ from datetime import date as _date, timedelta as _timedelta  # noqa: E402
 
 from app.db.models import ContentProposal as _Proposal  # noqa: E402
 from app.services.publishing import (  # noqa: E402
+    EVENT_LEAD_DAYS,
     PUBLISH_SLOT_DAYS,
     WEEKLY_CAP as WEEKLY_PUBLISH_CAP,
 )
@@ -1293,7 +1294,8 @@ class AdminProposalItem(BaseModel):
     angle: str | None = None
     status: str
     scheduled_for: str | None = None
-    recommended_for: str | None = None  # fecha sugerida (efemérides)
+    recommended_for: str | None = None  # fecha sugerida (efemérides / evento−3d)
+    event_date: str | None = None       # fecha real del evento (si la hay)
     source_url: str | None = None
     source_name: str | None = None
     has_body: bool = False
@@ -1327,6 +1329,49 @@ class AdminProposalStats(BaseModel):
 
 class ScheduleProposalIn(BaseModel):
     date: str  # YYYY-MM-DD
+    replace: bool = False  # confirmar reemplazo si hay conflicto (avisos del front)
+
+
+class ProposalFromUrlIn(BaseModel):
+    """Alta MANUAL de una propuesta de blog a partir de una URL.
+
+    El admin pega un enlace y entra al banco como `kind='news'`, estado
+    `proposed`, igual que las del agregador automático: se revisa, aprueba y
+    programa desde el mismo panel. Con `rewrite` (por defecto) pasa por la
+    misma investigación + voz editorial + verificación factual que las
+    noticias del cron; sin él, guarda el texto scrapeado tal cual.
+    """
+
+    url: str
+    topic: str | None = None  # pista del tema (si el título no basta)
+    rewrite: bool = True       # voz editorial + investigación + fact-check
+    force: bool = False        # salta el dedup por tema (no el de URL exacta)
+
+    @field_validator("url")
+    @classmethod
+    def _block_ssrf(cls, v: str) -> str:
+        return _validate_external_url(v)
+
+
+class ProposalFromUrlOut(BaseModel):
+    proposal_id: int
+    title: str
+    rewritten: bool
+    warning: str | None = None
+
+
+class TitleCandidate(BaseModel):
+    title: str
+    meta_title: str
+
+
+class SuggestTitlesOut(BaseModel):
+    candidates: list[TitleCandidate]
+
+
+class SetTitleIn(BaseModel):
+    title: str
+    meta_title: str | None = None
 
 
 def _week_bounds(d: _date) -> tuple[_date, _date]:
@@ -1349,6 +1394,11 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         recommended_for=(
             p.recommended_date.isoformat()
             if getattr(p, "recommended_date", None)
+            else None
+        ),
+        event_date=(
+            p.event_date.isoformat()
+            if getattr(p, "event_date", None)
             else None
         ),
         source_url=p.source_url,
@@ -1525,8 +1575,24 @@ def admin_proposal_schedule(
     if target < _date.today():
         raise HTTPException(status_code=400, detail="la fecha ya pasó")
 
-    # Validación del cap: máximo WEEKLY_PUBLISH_CAP por semana natural.
+    # Conflictos (se avisan al front; `replace=True` los confirma):
+    #   1) esta propuesta YA tenía fecha,
+    #   2) ese día/semana ya está ocupado (tope semanal),
+    #   3) la fecha cae el día del evento o después (se publicaría tarde).
+    conflicts: list[str] = []
+    if p.status == "scheduled" and p.scheduled_for and p.scheduled_for != target:
+        conflicts.append(f"ya estaba programada para {p.scheduled_for.isoformat()}")
+
     monday, sunday = _week_bounds(target)
+    same_day = (
+        db.query(func.count(_Proposal.id))
+        .filter(_Proposal.status == "scheduled")
+        .filter(_Proposal.scheduled_for == target)
+        .filter(_Proposal.id != p.id)
+        .scalar()
+    )
+    if same_day:
+        conflicts.append(f"el {target.isoformat()} ya tiene otra publicación")
     week_count = (
         db.query(func.count(_Proposal.id))
         .filter(_Proposal.status == "scheduled")
@@ -1536,12 +1602,18 @@ def admin_proposal_schedule(
         .scalar()
     )
     if week_count >= WEEKLY_PUBLISH_CAP:
+        conflicts.append(
+            f"la semana del {monday.isoformat()} ya tiene {WEEKLY_PUBLISH_CAP}"
+        )
+    if p.event_date and target >= p.event_date:
+        conflicts.append(
+            f"el evento es el {p.event_date.isoformat()}: se publicaría tarde"
+        )
+
+    if conflicts and not payload.replace:
         raise HTTPException(
             status_code=409,
-            detail=(
-                f"La semana del {monday.isoformat()} ya tiene "
-                f"{WEEKLY_PUBLISH_CAP} publicaciones programadas."
-            ),
+            detail=" · ".join(conflicts) + " — confirma para reemplazar/forzar",
         )
 
     p.status = "scheduled"
@@ -1591,10 +1663,13 @@ def admin_proposals_auto_schedule(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> BulkScheduleResult:
-    """Auto-programa propuestas en las próximas `weeks` semanas, intercalando
-    tipos (sin dos del mismo tipo seguidos, prioridad actualidad), en slots
-    martes/jueves/sábado y máx WEEKLY_PUBLISH_CAP por semana. Si `ids` viene
-    vacío, programa todas las aprobadas."""
+    """Auto-programa propuestas en las próximas `weeks` semanas teniendo en
+    cuenta las FECHAS:
+      - efemérides (aniversarios) → su día exacto (recommended_date).
+      - eventos (event_date) → un slot martes/jueves/sábado con ≥EVENT_LEAD_DAYS
+        días de antelación; si no hay hueco antes del evento, se descarta.
+      - resto → reparto normal intercalando tipos, máx WEEKLY_PUBLISH_CAP/semana.
+    Si `ids` viene vacío, programa todas las aprobadas."""
     q = db.query(_Proposal)
     if payload.ids:
         q = q.filter(_Proposal.id.in_(payload.ids))
@@ -1610,8 +1685,6 @@ def admin_proposals_auto_schedule(
             if p.id not in valid_ids:
                 result.skipped.append({"id": p.id, "reason": p.status})
 
-    ordered = _interleave_by_type(valid)
-
     # Cuenta lo ya programado por semana (lunes natural → nº).
     week_counts: dict[_date, int] = {}
     for (sf,) in db.query(_Proposal.scheduled_for).filter(
@@ -1621,26 +1694,64 @@ def admin_proposals_auto_schedule(
             mon, _ = _week_bounds(sf if isinstance(sf, _date) else sf.date())
             week_counts[mon] = week_counts.get(mon, 0) + 1
 
-    # Empezamos en el lunes de la semana que viene (no en la actual en curso).
     today = _date.today()
     start_monday = today - _timedelta(days=today.weekday()) + _timedelta(days=7)
     last_monday = start_monday + _timedelta(days=7 * (max(payload.weeks, 1) - 1))
 
-    cur = start_monday
-    for p in ordered:
-        # Avanza hasta una semana con hueco dentro de la ventana.
-        while cur <= last_monday and week_counts.get(cur, 0) >= WEEKLY_PUBLISH_CAP:
-            cur = cur + _timedelta(days=7)
-        if cur > last_monday:
-            result.skipped.append({"id": p.id, "reason": "ventana llena"})
-            continue
-        n = week_counts.get(cur, 0)
-        slot = PUBLISH_SLOT_DAYS[n] if n < len(PUBLISH_SLOT_DAYS) else 0
-        target = cur + _timedelta(days=slot)
+    def _assign(p: _Proposal, target: _date) -> None:
         p.status = "scheduled"
         p.scheduled_for = target
-        week_counts[cur] = n + 1
+        mon, _ = _week_bounds(target)
+        week_counts[mon] = week_counts.get(mon, 0) + 1
         result.scheduled.append({"id": p.id, "date": target.isoformat()})
+
+    def _first_open_slot(not_after: _date | None = None) -> _date | None:
+        """Primer slot Mar/Jue/Sáb con hueco semanal dentro de la ventana
+        (opcionalmente, no más tarde de `not_after`)."""
+        m = start_monday
+        while m <= last_monday:
+            n = week_counts.get(m, 0)
+            if n < WEEKLY_PUBLISH_CAP:
+                slot = PUBLISH_SLOT_DAYS[n] if n < len(PUBLISH_SLOT_DAYS) else 0
+                target = m + _timedelta(days=slot)
+                if not_after is None or target <= not_after:
+                    return target
+            m = m + _timedelta(days=7)
+        return None
+
+    # 1) EFEMÉRIDES: su día exacto (recommended_date), al margen del cap.
+    ephem = [
+        p for p in valid
+        if p.kind in ("anniversary", "album-anniversary") and p.recommended_date
+    ]
+    for p in ephem:
+        if p.recommended_date < today:
+            result.skipped.append({"id": p.id, "reason": "efeméride ya pasó"})
+            continue
+        _assign(p, p.recommended_date)
+
+    # 2) EVENTOS: slot con ≥EVENT_LEAD_DAYS de antelación al evento.
+    events = [p for p in valid if p not in ephem and p.event_date]
+    for p in events:
+        deadline = p.event_date - _timedelta(days=EVENT_LEAD_DAYS)
+        if deadline < start_monday + _timedelta(days=PUBLISH_SLOT_DAYS[0]):
+            result.skipped.append({"id": p.id, "reason": "evento demasiado próximo/pasado"})
+            continue
+        target = _first_open_slot(not_after=deadline)
+        if target is None:
+            result.skipped.append({"id": p.id, "reason": "sin hueco antes del evento"})
+            continue
+        _assign(p, target)
+
+    # 3) RESTO (sin fecha): reparto normal intercalando tipos.
+    rest = [p for p in valid if p not in ephem and p not in events]
+    for p in _interleave_by_type(rest):
+        target = _first_open_slot()
+        if target is None:
+            result.skipped.append({"id": p.id, "reason": "ventana llena"})
+            continue
+        _assign(p, target)
+
     db.commit()
     return result
 
@@ -1698,6 +1809,253 @@ def admin_proposal_restore(
     db.commit()
     db.refresh(p)
     return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/suggest-titles", response_model=SuggestTitlesOut)
+@limiter.limit("60/hour")
+def admin_proposal_suggest_titles(
+    request: Request,
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SuggestTitlesOut:
+    """Propone 3 titulares alternativos a partir del cuerpo ya escrito. No
+    persiste nada: el panel muestra los candidatos y el admin guarda el que
+    elija (o teclea el suyo)."""
+    from app.services.news_research import suggest_titles
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if not (p.body_md or "").strip():
+        raise HTTPException(
+            status_code=409,
+            detail="la propuesta aún no tiene cuerpo; escribe el titular a mano",
+        )
+    subject = p.target_keyword or p.title
+    candidates = suggest_titles(p.body_md, p.title, subject=subject, n=3)
+    if not candidates:
+        raise HTTPException(
+            status_code=502, detail="no se han podido generar titulares; reintenta"
+        )
+    return SuggestTitlesOut(candidates=[TitleCandidate(**c) for c in candidates])
+
+
+@router.post("/proposals/{proposal_id}/title", response_model=AdminProposalDetail)
+def admin_proposal_set_title(
+    proposal_id: int,
+    payload: SetTitleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalDetail:
+    """Guarda el titular (elegido de las sugerencias o tecleado a mano). Sanea
+    el texto (anti em-dash + nunca 'Robe Iniesta'). NO recalcula `content_key`:
+    cambiar el titular es un retoque editorial del mismo contenido ya
+    deduplicado, así que la huella de evento se mantiene estable."""
+    from app.services.text_sanitizer import enforce_name_policy, strip_ai_tells
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status in ("used", "discarded"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"propuesta en estado {p.status}, no editable",
+        )
+
+    title = (enforce_name_policy(strip_ai_tells(payload.title)) or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="el titular no puede estar vacío")
+    p.title = title[:240]
+
+    if payload.meta_title is not None:
+        meta = (enforce_name_policy(strip_ai_tells(payload.meta_title)) or "").strip()
+        p.meta_title = (meta or title)[:60]
+
+    db.commit()
+    db.refresh(p)
+    base = _proposal_to_item(p)
+    return AdminProposalDetail(
+        **base.model_dump(),
+        body_md=p.body_md,
+        excerpt=p.excerpt,
+        meta_title=p.meta_title,
+        meta_description=p.meta_description,
+        content_key=p.content_key,
+    )
+
+
+def _scrape_article(url: str) -> tuple[str, str]:
+    """Descarga una URL y devuelve (título, texto del artículo).
+
+    Reutiliza el extractor de `fetch_blogs`. La validación SSRF la hace ya el
+    schema (`_validate_external_url`). Lanza HTTPException si no hay contenido
+    aprovechable."""
+    try:
+        with httpx.Client(timeout=20, follow_redirects=True) as client:
+            r = client.get(url, headers=HEADERS)
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"la URL devolvió {r.status_code}")
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=400, detail=f"error al descargar la URL: {e}") from e
+
+    text = extract_article_text(r.text)
+    if not text or len(text) < 200:
+        raise HTTPException(
+            status_code=400,
+            detail="no se ha podido extraer un cuerpo aprovechable (<200 chars)",
+        )
+
+    title = ""
+    soup = BeautifulSoup(r.text, "html.parser")
+    if soup.title and soup.title.string:
+        title = soup.title.string.strip()
+    if not title and soup.h1:
+        title = soup.h1.get_text(strip=True)
+    return title[:240], text
+
+
+@router.post("/proposals/from-url", response_model=ProposalFromUrlOut)
+@limiter.limit("20/hour")
+def admin_proposal_from_url(
+    request: Request,
+    body: ProposalFromUrlIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> ProposalFromUrlOut:
+    """Crea una propuesta de blog (`kind='news'`) a partir de una URL pegada a
+    mano. Con `rewrite` pasa por la misma investigación + voz editorial +
+    verificación factual que el consumidor de noticias; sin él, guarda el texto
+    scrapeado. Entra como `proposed` para revisarla en el panel."""
+    from app.services.content_dedup import (
+        NEWS_RECENCY_DAYS,
+        content_key_for,
+        is_duplicate,
+    )
+
+    title_scraped, text = _scrape_article(body.url)
+
+    # Dedup duro por URL exacta: si ya existe propuesta de esa fuente, no repetir.
+    existing = (
+        db.query(_Proposal.id)
+        .filter(_Proposal.source_url == body.url)
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"ya existe una propuesta (#{existing[0]}) con esa URL",
+        )
+
+    warning: str | None = None
+    entities: list = []
+    hero: str | None = None
+    event_date = None
+
+    if body.rewrite:
+        from app.services.news_research import research_and_write
+
+        matched = (body.topic or title_scraped or "Robe Extremoduro").strip()
+        try:
+            rw = research_and_write(
+                db=db,
+                headline=title_scraped or matched,
+                source_excerpt=text,
+                matched_term=matched,
+                today=_date.today(),
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=502, detail=f"la reescritura editorial falló: {exc}"
+            ) from exc
+
+        if not rw.get("is_relevant", True) or not rw.get("title"):
+            # El clasificador no la ve del universo Robe. No se descarta (el admin
+            # la subió a propósito): se guarda en crudo con un aviso para revisión.
+            warning = (
+                "el clasificador no la ve claramente del universo Robe/Extremoduro; "
+                "se ha guardado el texto sin reescribir — revísala con cuidado"
+            )
+            title = title_scraped or matched
+            body_md = f"{text}\n"
+            excerpt = text[:200]
+            meta_title = title[:60]
+            meta_description = text[:155]
+        else:
+            title = rw["title"][:240]
+            body_md = rw["body_md"]
+            excerpt = (rw.get("excerpt") or "")[:200]
+            meta_title = (rw.get("meta_title") or "")[:60]
+            meta_description = (rw.get("meta_description") or "")[:155]
+            event_date = rw.get("event_date")  # date o None (solo si explícita)
+            entities = [
+                e for e in (rw.get("entities") or [])
+                if isinstance(e, dict) and e.get("name")
+            ]
+            img_url = rw.get("image_url")
+            if img_url:
+                try:
+                    from app.services.instagram import cloudinary_upload
+                    hero = cloudinary_upload.upload(
+                        img_url, folder="entreinteriores-art"
+                    )
+                except Exception:  # noqa: BLE001 — la foto es opcional
+                    hero = None
+    else:
+        if not title_scraped:
+            raise HTTPException(
+                status_code=400,
+                detail="no se pudo extraer un título; activa la reescritura editorial",
+            )
+        title = title_scraped
+        body_md = f"{text}\n"
+        excerpt = text[:200]
+        meta_title = title[:60]
+        meta_description = text[:155]
+
+    # Dedup por evento/tema (otra fuente del mismo hecho), salvo `force`.
+    ckey = content_key_for("news", title=title)
+    if not body.force and is_duplicate(db, ckey, recency_days=NEWS_RECENCY_DAYS):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "ya hay una propuesta o post reciente del mismo tema; "
+                "marca 'forzar' si quieres crearla igualmente"
+            ),
+        )
+
+    # Fecha sugerida: si hay evento futuro, publicar con antelación (event−3 días).
+    from app.services.publishing import recommended_from_event
+    recommended_date = recommended_from_event(event_date, _date.today())
+
+    proposal = _Proposal(
+        kind="news",
+        title=title,
+        angle="Subida manual desde URL",
+        body_md=body_md,
+        excerpt=excerpt,
+        meta_title=meta_title,
+        meta_description=meta_description,
+        # source_url para referencia interna; source_name=None (no acreditamos al
+        # medio: la investigación/reescritura es nuestra, igual que en scrape_news).
+        source_url=body.url,
+        source_name=None,
+        hero_image_url=hero,
+        entities=entities,
+        content_key=ckey,
+        event_date=event_date,
+        recommended_date=recommended_date,
+        status="proposed",
+    )
+    db.add(proposal)
+    db.commit()
+    db.refresh(proposal)
+    return ProposalFromUrlOut(
+        proposal_id=proposal.id,
+        title=title,
+        rewritten=bool(body.rewrite and warning is None),
+        warning=warning,
+    )
 
 
 # --------------------------------------------------------------------------- #

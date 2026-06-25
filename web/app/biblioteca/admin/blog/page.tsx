@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import BlogPlanner from "./BlogPlanner";
+import UrlIngestForm from "./UrlIngestForm";
 import PostListWithActions from "../posts/PostListWithActions";
 
 export type ProposalKeyword = {
@@ -21,6 +22,7 @@ export type ProposalItem = {
   status: string;
   scheduled_for: string | null;
   recommended_for: string | null;
+  event_date: string | null;
   source_url: string | null;
   source_name: string | null;
   has_body: boolean;
@@ -93,7 +95,7 @@ export default async function AdminBlogPage() {
         </h1>
         <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
           Un solo sitio: valida las propuestas (aprobar o rechazar), y luego
-          en el calendario decide cuándo publicarlas. Tope de 3 por semana.
+          en el calendario decide cuándo publicarlas. Tope de 4 por semana.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8 text-center">
@@ -103,6 +105,8 @@ export default async function AdminBlogPage() {
           <Stat label="publicadas" value={stats.used} />
           <Stat label="descartadas" value={stats.discarded} />
         </div>
+
+        <UrlIngestForm />
       </header>
 
       <BlogPlanner

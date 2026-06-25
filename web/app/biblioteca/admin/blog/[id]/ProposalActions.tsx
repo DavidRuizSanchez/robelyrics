@@ -37,6 +37,37 @@ export default function ProposalActions({
     }
   }
 
+  // Programar con aviso de conflicto (ya programada / día o semana ocupados /
+  // evento tarde): el backend devuelve 409; confirmamos y reenviamos replace.
+  async function scheduleWithConfirm(chosen: string) {
+    setBusy(true);
+    try {
+      const send = (replace: boolean) =>
+        fetch(`/biblioteca/admin/blog/api/schedule/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: chosen, replace }),
+        });
+      let res = await send(false);
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        if (!window.confirm(`${data.error}\n\n¿Programar igualmente?`)) return;
+        res = await send(true);
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `Error ${res.status}`);
+        return;
+      }
+      router.push("/biblioteca/admin/blog");
+      router.refresh();
+    } catch (e) {
+      alert(`Error de red: ${e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const btn =
     "font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40";
   const primary = `${btn} border-accent text-accent hover:bg-accent hover:text-white`;
@@ -75,7 +106,7 @@ export default function ProposalActions({
             type="button"
             disabled={busy}
             onClick={() =>
-              date ? call("schedule", { date }) : alert("Elige una fecha primero")
+              date ? scheduleWithConfirm(date) : alert("Elige una fecha primero")
             }
             className={primary}
           >

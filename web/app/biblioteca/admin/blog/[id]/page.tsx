@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import ProposalActions from "./ProposalActions";
+import TitleEditor from "./TitleEditor";
 import GenerationStatus from "./GenerationStatus";
 
 type ProposalDetail = {
@@ -18,6 +19,8 @@ type ProposalDetail = {
   meta_title: string | null;
   meta_description: string | null;
   scheduled_for: string | null;
+  recommended_for: string | null;
+  event_date: string | null;
   source_url: string | null;
   source_name: string | null;
   target_keyword: string | null;
@@ -72,13 +75,23 @@ export default async function ProposalReviewPage({
         <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
           revisar propuesta · {KIND_LABEL[p.kind] ?? p.kind} · {p.status}
         </p>
-        <h1 className="font-serif text-3xl md:text-4xl text-ink leading-[1.15]">
-          {p.title}
-        </h1>
+        {p.status === "used" || p.status === "discarded" ? (
+          <h1 className="font-serif text-3xl md:text-4xl text-ink leading-[1.15]">
+            {p.title}
+          </h1>
+        ) : (
+          <TitleEditor id={p.id} initialTitle={p.title} />
+        )}
         {p.angle && (
           <p className="font-serif italic text-ink-dim text-lg mt-3">{p.angle}</p>
         )}
         <div className="mt-4 font-mono text-[10px] tracking-[1px] text-ink-faint space-y-1">
+          {p.event_date && (
+            <p className="text-accent">
+              evento: {p.event_date}
+              {p.recommended_for ? ` · sugerido publicar ${p.recommended_for}` : ""}
+            </p>
+          )}
           {p.target_keyword && (
             <p>
               KW objetivo: <span className="text-accent">{p.target_keyword}</span>

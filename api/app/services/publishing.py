@@ -35,14 +35,34 @@ from app.db.models import Post
 logger = logging.getLogger(__name__)
 
 # Techo de publicaciones por semana natural y ventana móvil para el cap.
-WEEKLY_CAP = 3
+WEEKLY_CAP = 4
 WINDOW_DAYS = 7
 
-# Días de la semana para el reparto automático (lunes=0): martes, jueves, sábado.
-PUBLISH_SLOT_DAYS = [1, 3, 5]
+# Días de la semana para el reparto automático (lunes=0): lunes, martes, jueves,
+# sábado. El n-ésimo post de la semana cae en PUBLISH_SLOT_DAYS[n].
+PUBLISH_SLOT_DAYS = [1, 3, 5, 0]
 
 # Kinds que ignoran el cap porque tienen fecha calendario obligatoria.
 CAP_EXEMPT_KINDS = {"anniversary", "album-anniversary"}
+
+# Antelación mínima (días) para publicar una noticia de un evento ANTES de que
+# ocurra. Una pieza "a futuro" debe salir con margen, no el mismo día.
+EVENT_LEAD_DAYS = 3
+
+
+def recommended_from_event(event_date, today, *, lead_days: int = EVENT_LEAD_DAYS):
+    """Fecha SUGERIDA de publicación para una noticia con `event_date` futura:
+    `event_date − lead_days`, nunca antes de mañana. Devuelve None si el evento
+    ya pasó o no hay fecha (no se sugiere nada; la caducidad se ocupa del resto)."""
+    from datetime import date as _date, timedelta as _td
+
+    if not event_date or not isinstance(event_date, _date):
+        return None
+    if event_date <= today:
+        return None
+    suggested = event_date - _td(days=lead_days)
+    tomorrow = today + _td(days=1)
+    return max(suggested, tomorrow)
 
 
 class PublishResult(TypedDict):
@@ -261,7 +281,9 @@ def _notify_admin_review(db: Session, post: Post) -> None:
         logger.warning("Admin review email failed: %s", exc)
 
 
-def auto_publish_post(db: Session, post: Post, *, factcheck: bool = True) -> PublishResult:
+def auto_publish_post(
+    db: Session, post: Post, *, factcheck: bool = True, rigor: bool = True
+) -> PublishResult:
     """Marca el post como publicado y revalida Next.js.
 
     NO manda email: la newsletter es un único digest semanal (cron dominical
@@ -274,11 +296,18 @@ def auto_publish_post(db: Session, post: Post, *, factcheck: bool = True) -> Pub
     publicación (efeméride directa, aprobación manual, cron). Corrige errores de
     catálogo (canción↔álbum↔año) contra la BD, determinista y quirúrgico. Quien
     ya verificó antes (materialize_proposals) lo pasa en False para no repetir.
+
+    `rigor`: gate editorial BLOQUEANTE (el "editor jefe"). Si la pieza es genérica/
+    relleno y no se puede tensar, NO se publica: se enruta a `pending_review`. Quien
+    ya lo corrió antes (materialize_proposals) lo pasa en False.
     """
     if factcheck and post.body_md:
         try:
             from app.services.fact_check import check_body, correct_body
-            rep = check_body(db, post.body_md, use_web=False)
+            # Para noticias activamos la capa web (el evento/protagonista no está
+            # en el catálogo): así el camino de publicación manual también pasa
+            # un control real, no solo el canónico de BD.
+            rep = check_body(db, post.body_md, use_web=(post.kind == "news"))
             if rep.autofixes:
                 fixed, skipped = correct_body(db, post.body_md, rep)
                 if fixed and fixed != post.body_md:
@@ -290,6 +319,42 @@ def auto_publish_post(db: Session, post: Post, *, factcheck: bool = True) -> Pub
                     )
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish fact-check falló: %s", exc)
+
+    # Gate de FOCO para noticias: recorta la deriva temática (relleno sobre el
+    # lugar/sede) antes de publicar. Best-effort: no bloquea, solo mejora.
+    if factcheck and post.kind == "news" and post.body_md:
+        try:
+            from app.services.focus_check import check_focus
+            subject = (post.target_keyword or post.title or "").strip()
+            fr = check_focus(post.body_md, subject)
+            if not fr.ok and fr.trimmed_body_md:
+                post.body_md = fr.trimmed_body_md
+                db.flush()
+                logger.info("auto_publish: foco recortado en post %s (score %d)",
+                            post.id, fr.score)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish focus-check falló: %s", exc)
+
+    # Gate de RIGOR editorial (universal, BLOQUEANTE): si la pieza es genérica o
+    # pura paja y no se puede salvar tensando, NO se publica → revisión humana.
+    if rigor and post.body_md:
+        try:
+            from app.services.editorial_review import review as editorial_review
+            subject = (post.target_keyword or post.title or "").strip()
+            when = None
+            if post.kind == "news" and post.event_date:
+                when = "past" if post.event_date < _now().date() else "future"
+            v = editorial_review(post.body_md, kind=post.kind, subject=subject, event_when=when)
+            if v.verdict == "reject":
+                logger.info("auto_publish: RIGOR rechaza post %s (score %d): %s",
+                            post.id, v.score, "; ".join(v.reasons))
+                return propose_for_review(db, post)
+            if v.verdict == "revise" and v.tightened_body_md:
+                post.body_md = v.tightened_body_md
+                db.flush()
+                logger.info("auto_publish: RIGOR tensó post %s (score %d)", post.id, v.score)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish rigor falló: %s", exc)
 
     if post.status != "published":
         post.status = "published"

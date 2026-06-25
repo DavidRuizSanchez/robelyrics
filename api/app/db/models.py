@@ -804,6 +804,9 @@ class Post(Base):
     # propuesta al materializar; ver `ContentProposal.content_key`.
     content_key: Mapped[str | None] = mapped_column(String(160), index=True)
     anniversary_year: Mapped[int | None] = mapped_column(Integer)
+    # Fecha real del evento de la noticia (copiada de la propuesta al
+    # materializar); permite detectar contenido caducado. Ver ContentProposal.
+    event_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -1080,6 +1083,11 @@ class ContentProposal(Base):
     # cumpleaños/muerte de Robe). Solo es una sugerencia que el panel pre-rellena;
     # `scheduled_for` sigue siendo la fecha real elegida por el admin.
     recommended_date: Mapped[date | None] = mapped_column(Date)
+    # Fecha REAL del evento del que trata la noticia (concierto, festival,
+    # homenaje…), SOLO si aparece explícita en la fuente (nunca inventada). Si
+    # es futura, gobierna la antelación de publicación; si llega pasada, dispara
+    # la caducidad (crónica o cancelación). NULL = pieza atemporal.
+    event_date: Mapped[date | None] = mapped_column(Date)
     scheduled_for: Mapped[date | None] = mapped_column(Date)
     post_id: Mapped[int | None] = mapped_column(
         ForeignKey("posts.id", ondelete="SET NULL")

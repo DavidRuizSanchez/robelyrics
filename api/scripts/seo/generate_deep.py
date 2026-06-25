@@ -348,6 +348,20 @@ def generate_for_entity(
     # álbum↔año) contra la BD antes de persistir. Determinista, no reescribe.
     body = apply_catalog_check(db, body)
 
+    # Gate de RIGOR editorial: una página genérica/floja no se publica. Si se puede
+    # tensar, se tensa; si es flojo sin remedio, queda BORRADOR (no se publica).
+    try:
+        from app.services.editorial_review import review as editorial_review
+        v = editorial_review(body, kind=entity_type, subject=dossier.subject)
+        if v.verdict == "revise" and v.tightened_body_md:
+            body = v.tightened_body_md
+            log(f"  rigor: tensado (score {v.score})")
+        elif v.verdict == "reject":
+            publish = False
+            log(f"  rigor RECHAZA (score {v.score}): {'; '.join(v.reasons)} → queda BORRADOR")
+    except Exception as exc:  # noqa: BLE001
+        log(f"  rigor falló: {exc}", "warn")
+
     meta = _meta(client, dossier.subject, target_keyword, body)
     schema = {
         "@context": "https://schema.org",
