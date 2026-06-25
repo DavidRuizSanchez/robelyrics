@@ -32,7 +32,24 @@ logger = logging.getLogger(__name__)
 
 MODEL = "gpt-4o"
 
+# Mínimo de palabras de prosa real para que un post sea publicable. NO se rellena
+# para alcanzarlo: si no llega con sustancia, se rechaza (o el admin lo fuerza).
+MIN_WORDS = 250
+
 Verdict = Literal["pass", "revise", "reject"]
+
+
+def _word_count(body_md: str) -> int:
+    """Cuenta palabras de PROSA real: quita bloques de código, URLs sueltas
+    (vídeos embebidos), sintaxis markdown y encabezados de adorno."""
+    import re
+
+    t = body_md or ""
+    t = re.sub(r"```.*?```", " ", t, flags=re.DOTALL)       # bloques de código
+    t = re.sub(r"^\s*https?://\S+\s*$", " ", t, flags=re.MULTILINE)  # URL sola (embed)
+    t = re.sub(r"!?\[([^\]]*)\]\([^)]+\)", r"\1", t)         # links/imágenes → texto
+    t = re.sub(r"[#>*_`~|-]", " ", t)                        # adornos markdown
+    return len([w for w in t.split() if any(c.isalnum() for c in w)])
 
 # Fórmulas vacías típicas (ejemplos para el critic; no es exhaustivo).
 _FILLER_EXAMPLES = (
@@ -156,7 +173,10 @@ def review(
         "palabras? (p.ej. decir N veces 'banda tributo', 'rindió homenaje').\n"
         f"3. RELLENO: ¿usa fórmulas vacías ({_FILLER_EXAMPLES})?\n"
         "4. VALOR DIFERENCIAL: ¿aporta algo que un fan no encuentre ya en una ficha "
-        "o un cartel genérico?\n\n"
+        "o un cartel genérico?\n"
+        "5. DESARROLLO: un post de apenas unas frases, sin desarrollo, NO es "
+        "publicable aunque sea correcto (mínimo ~250 palabras de sustancia real). "
+        "Si no hay material para desarrollarlo, es 'reject' (jamás se rellena).\n\n"
         "Puntúa de 0 a 100 (100 = imprescindible y concreto; 0 = paja genérica).\n"
         "Decide el VEREDICTO:\n"
         " - 'pass' si ya está concreto y sin relleno.\n"
@@ -209,6 +229,19 @@ def review(
         else:
             from app.services.text_sanitizer import strip_ai_tells
             tightened = strip_ai_tells(tightened) or tightened
+
+    # SUELO DE LONGITUD: el texto que se publicaría (tensado si revise, original
+    # si pass) debe tener ≥ MIN_WORDS palabras de prosa real. Si no llega, no es
+    # publicable (sin rellenar): reject. No aplica a 'reject' (ya fuera).
+    if verdict in ("pass", "revise"):
+        final_body = tightened if verdict == "revise" else body
+        words = _word_count(final_body)
+        if words < MIN_WORDS:
+            verdict, tightened = "reject", None
+            reasons = (reasons or []) + [
+                f"demasiado corto ({words} palabras < {MIN_WORDS}); "
+                "sin material para ampliarlo con sustancia"
+            ]
 
     return EditorialVerdict(
         verdict=verdict,  # type: ignore[arg-type]

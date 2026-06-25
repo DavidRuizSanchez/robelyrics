@@ -9,6 +9,7 @@ const VALID_ACTIONS = new Set([
   "restore",
   "suggest-titles",
   "title",
+  "force-publish",
 ]);
 
 // Acciones que llevan body JSON.

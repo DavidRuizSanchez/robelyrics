@@ -440,6 +440,20 @@ export default function BlogPlanner({
                       </button>
                       <button
                         type="button"
+                        onClick={() => call("force-publish", p.id)}
+                        disabled={busy === p.id}
+                        data-cursor="hover"
+                        title="Publicar sí o sí (salta el control de calidad/longitud)"
+                        className={`font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40 ${
+                          p.force_publish
+                            ? "border-accent bg-accent text-white"
+                            : "border-divider text-ink-faint hover:border-accent hover:text-accent"
+                        }`}
+                      >
+                        {p.force_publish ? "✓ sí o sí" : "sí o sí"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => {
                           if (window.confirm("¿Rechazar esta propuesta?"))
                             call("discard", p.id);
@@ -590,6 +604,20 @@ export default function BlogPlanner({
                     </button>
                     <button
                       type="button"
+                      onClick={() => call("force-publish", p.id)}
+                      disabled={busy === p.id}
+                      data-cursor="hover"
+                      title="Publicar sí o sí (salta el control de calidad/longitud)"
+                      className={`font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40 ${
+                        p.force_publish
+                          ? "border-accent bg-accent text-white"
+                          : "border-divider text-ink-faint hover:border-accent hover:text-accent"
+                      }`}
+                    >
+                      {p.force_publish ? "✓ sí o sí" : "sí o sí"}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         if (window.confirm("¿Descartar esta propuesta?"))
                           call("discard", p.id);
@@ -713,6 +741,8 @@ function Meta({ p }: { p: ProposalItem }) {
     <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
       {KIND_LABEL[p.kind] ?? p.kind}
       {p.is_longtail && <span className="text-accent"> · long-tail</span>}
+      {p.has_video && <span className="text-accent"> · 🎬 vídeo</span>}
+      {p.force_publish && <span className="text-accent"> · ⚡ sí o sí</span>}
       {p.target_keyword && (
         <span className="text-ink-dim">
           {" "}· {p.target_keyword}

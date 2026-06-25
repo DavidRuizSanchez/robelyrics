@@ -335,9 +335,21 @@ def auto_publish_post(
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish focus-check falló: %s", exc)
 
+    # Embebe vídeos referenciados como enlace (URL desnuda → reproductor).
+    if post.body_md:
+        try:
+            from app.services.text_sanitizer import embed_youtube_links
+            emb = embed_youtube_links(post.body_md)
+            if emb and emb != post.body_md:
+                post.body_md = emb
+                db.flush()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish embed-youtube falló: %s", exc)
+
     # Gate de RIGOR editorial (universal, BLOQUEANTE): si la pieza es genérica o
     # pura paja y no se puede salvar tensando, NO se publica → revisión humana.
-    if rigor and post.body_md:
+    # El override del admin (`force_publish`) lo salta.
+    if rigor and post.body_md and not getattr(post, "force_publish", False):
         try:
             from app.services.editorial_review import review as editorial_review
             subject = (post.target_keyword or post.title or "").strip()

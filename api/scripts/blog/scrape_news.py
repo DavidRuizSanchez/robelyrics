@@ -248,6 +248,7 @@ def main() -> None:
             entities: list[dict] = []
             related: list[NewsItem] = []
             event_date = None
+            video = None
             if args.no_rewrite:
                 title = news.title[:240]
                 excerpt = (news.summary or "")[:200]
@@ -323,6 +324,7 @@ def main() -> None:
                         if isinstance(e, dict) and e.get("name")
                     ]
                 event_date = rewritten.get("event_date")  # solo si explícita
+                video = rewritten.get("video")  # {youtube_id,title,upload_date,channel} o None
 
             # Foto REAL del protagonista que devolvió la investigación (web).
             # Se sube a Cloudinary para servirla optimizada y por host permitido.
@@ -376,6 +378,7 @@ def main() -> None:
                 content_key=ckey,
                 event_date=event_date,
                 recommended_date=recommended_date,
+                video=video,
                 status="proposed",
             )
             db.add(proposal)

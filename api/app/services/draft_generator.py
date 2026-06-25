@@ -49,12 +49,19 @@ logger = logging.getLogger(__name__)
 ROBE = "Robe Iniesta"
 
 
-def _deep_body(db, *, entity_type: str, entity, framing: str, coverage: str = "") -> dict | None:
+def _deep_body(
+    db, *, entity_type: str, entity, framing: str, coverage: str = "",
+    extra_material: str = "",
+) -> dict | None:
     """Genera un cuerpo con el MOTOR PROFUNDO (mismo que las páginas de entidad y
     las noticias): dossier RAG del corpus + outline adaptativo + sección a sección
     con anti-redundancia (`prior`) + verificación factual + pulido. Devuelve el
     dict editorial o None si no hay material para algo digno (lo decide el rigor
-    aguas abajo). Sustituye al one-shot genérico que producía relleno."""
+    aguas abajo). Sustituye al one-shot genérico que producía relleno.
+
+    `extra_material`: material adicional REAL (p.ej. investigación web dirigida) que
+    se suma al dossier del corpus. La verificación por sección sigue actuando: solo
+    sobrevive lo que el material (corpus + extra) respalde (anti-invención)."""
     try:
         from openai import OpenAI
 
@@ -67,6 +74,8 @@ def _deep_body(db, *, entity_type: str, entity, framing: str, coverage: str = ""
 
         dossier = gather_entity_dossier(db, entity_type, entity)
         material = dossier.material or ""
+        if extra_material.strip():
+            material = f"{material}\n\nINVESTIGACIÓN WEB (material real adicional):\n{extra_material}"
         subject = dossier.subject
         cov = coverage or _coverage_hint(entity_type)
         hard = f"{framing}\nDATOS DUROS (úsalos, son verídicos):\n{dossier.hard_facts}"
@@ -280,6 +289,9 @@ def _post_process(db, body_md: str, entities: list) -> tuple[str, dict | None]:
     hero = pick_hero_image(db, entities or [])
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
+    # Embebe vídeos referenciados como enlace markdown (URL desnuda → reproductor).
+    from app.services.text_sanitizer import embed_youtube_links
+    body_md = embed_youtube_links(body_md) or body_md
     body_md = autolink_corpus(
         body_md, build_corpus_index(db), max_links=4, link_stats=load_link_stats()
     )
@@ -304,6 +316,22 @@ def generate_proposal_draft(db, p: ContentProposal) -> bool:
         p.meta_title = (payload.get("meta_title") or None)
         p.meta_description = (payload.get("meta_description") or None)
         p.entities = payload.get("entities") or []
+
+    # 1b. Best-effort VÍDEO: si la propuesta no trae vídeo (kinds no-news), buscar
+    #     uno claramente del tema y embeberlo (URL desnuda → reproductor + VideoObject).
+    if not getattr(p, "video", None):
+        try:
+            from app.services.news_research import find_video
+            subject = (p.target_keyword or p.title or "").strip()
+            vid = find_video(subject, subject) if subject else None
+            if vid:
+                p.video = vid
+                p.body_md = (p.body_md or "").rstrip() + (
+                    f"\n\nhttps://www.youtube.com/watch?v={vid['youtube_id']}\n"
+                )
+                logger.info("draft: vídeo añadido a propuesta %s", p.id)
+        except Exception as exc:  # noqa: BLE001 — el vídeo es opcional
+            logger.warning("draft: búsqueda de vídeo falló: %s", exc)
 
     # 2. Post-procesado (hero + saneado + enlazado).
     body_md, hero = _post_process(db, p.body_md, p.entities or [])

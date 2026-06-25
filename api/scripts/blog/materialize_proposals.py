@@ -188,27 +188,40 @@ def main() -> None:
 
             # 1c. GATE DE RIGOR EDITORIAL: nada genérico/relleno se publica. Si se
             #     puede tensar, se tensa; si es flojo sin remedio (faltan HECHOS),
-            #     se DESCARTA y se avisa (no se publica y punto).
-            when = None
-            if p.event_date:
-                when = "past" if p.event_date < today else "future"
-            verdict = editorial_review(p.body_md, kind=p.kind, subject=subject, event_when=when)
-            if verdict.verdict == "reject":
-                p.status = "discarded"
+            #     se DESCARTA y se avisa (no se publica y punto). El override del
+            #     admin (`force_publish`) lo salta — publica bajo su criterio.
+            if p.force_publish:
+                review_focus = False  # el admin fuerza: no bloquear por calidad
+                logger.info("  ⚡ force_publish: se salta el gate de calidad")
+            else:
+                when = None
+                if p.event_date:
+                    when = "past" if p.event_date < today else "future"
+                verdict = editorial_review(p.body_md, kind=p.kind, subject=subject,
+                                           event_when=when)
+                if verdict.verdict == "reject":
+                    p.status = "discarded"
+                    db.commit()
+                    _notify_admin(
+                        f"🗑 Descartada por rigor: {p.title}",
+                        f"La propuesta #{p.id} no llega al listón editorial (score "
+                        f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
+                        "No se publica por falta de sustancia/especificidad.",
+                    )
+                    logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
+                                verdict.score, "; ".join(verdict.reasons))
+                    continue
+                if verdict.verdict == "revise" and verdict.tightened_body_md:
+                    p.body_md = verdict.tightened_body_md
+                    db.commit()
+                    logger.info("  rigor: tensado (score %d)", verdict.score)
+
+            # 1d. Medios: embebe vídeos referenciados como enlace (URL desnuda).
+            from app.services.text_sanitizer import embed_youtube_links
+            embedded = embed_youtube_links(p.body_md)
+            if embedded and embedded != p.body_md:
+                p.body_md = embedded
                 db.commit()
-                _notify_admin(
-                    f"🗑 Descartada por rigor: {p.title}",
-                    f"La propuesta #{p.id} no llega al listón editorial (score "
-                    f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
-                    "No se publica por falta de sustancia/especificidad.",
-                )
-                logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
-                            verdict.score, "; ".join(verdict.reasons))
-                continue
-            if verdict.verdict == "revise" and verdict.tightened_body_md:
-                p.body_md = verdict.tightened_body_md
-                db.commit()
-                logger.info("  rigor: tensado (score %d)", verdict.score)
 
             # 2. Crear el Post copiando el borrador ya saneado/enlazado.
             slug = _unique_slug(db, _slugify(p.title))
@@ -232,6 +245,8 @@ def main() -> None:
                 hero_image_source_url=p.hero_image_source_url,
                 entities=p.entities or [],
                 event_date=p.event_date,
+                video=p.video,
+                force_publish=p.force_publish,
             )
             db.add(post)
             db.commit()
@@ -255,8 +270,10 @@ def main() -> None:
             # A revisión humana si la web detecta algo dudoso (to_review), si algún
             # hecho refutado no se pudo corregir limpio (skipped → reformular), o si
             # el gate de FOCO marcó deriva sin recorte limpio.
+            # El override (force_publish) publica aunque haya dudas (manteniendo la
+            # autocorrección canónica de arriba); el admin asume el criterio.
             needs_review = report.to_review + skipped
-            if needs_review or review_focus:
+            if (needs_review or review_focus) and not p.force_publish:
                 for v in needs_review:
                     logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
                 if review_focus:

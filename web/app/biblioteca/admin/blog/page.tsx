@@ -23,6 +23,8 @@ export type ProposalItem = {
   scheduled_for: string | null;
   recommended_for: string | null;
   event_date: string | null;
+  force_publish: boolean;
+  has_video: boolean;
   source_url: string | null;
   source_name: string | null;
   has_body: boolean;

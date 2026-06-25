@@ -807,6 +807,12 @@ class Post(Base):
     # Fecha real del evento de la noticia (copiada de la propuesta al
     # materializar); permite detectar contenido caducado. Ver ContentProposal.
     event_date: Mapped[date | None] = mapped_column(Date)
+    # Override del admin: publicar "sí o sí" aunque no pase el gate de calidad
+    # (rigor/longitud/foco). Se mantiene el fact-check canónico. Copiado de la
+    # propuesta al materializar.
+    force_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -1088,6 +1094,15 @@ class ContentProposal(Base):
     # es futura, gobierna la antelación de publicación; si llega pasada, dispara
     # la caducidad (crónica o cancelación). NULL = pieza atemporal.
     event_date: Mapped[date | None] = mapped_column(Date)
+    # Vídeo embebido (YouTube) con metadatos REALES para el VideoObject (JSON-LD):
+    # {youtube_id, title, upload_date, channel}. Lo provee research_and_write; se
+    # copia a Post.video al materializar.
+    video: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Override del admin: publicar "sí o sí" saltando el gate de calidad
+    # (rigor/longitud/foco); el fact-check canónico se mantiene.
+    force_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     scheduled_for: Mapped[date | None] = mapped_column(Date)
     post_id: Mapped[int | None] = mapped_column(
         ForeignKey("posts.id", ondelete="SET NULL")

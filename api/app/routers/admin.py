@@ -1296,6 +1296,8 @@ class AdminProposalItem(BaseModel):
     scheduled_for: str | None = None
     recommended_for: str | None = None  # fecha sugerida (efemérides / evento−3d)
     event_date: str | None = None       # fecha real del evento (si la hay)
+    force_publish: bool = False          # override "publicar sí o sí"
+    has_video: bool = False              # lleva vídeo embebido
     source_url: str | None = None
     source_name: str | None = None
     has_body: bool = False
@@ -1401,6 +1403,8 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
             if getattr(p, "event_date", None)
             else None
         ),
+        force_publish=bool(getattr(p, "force_publish", False)),
+        has_video=bool(getattr(p, "video", None)),
         source_url=p.source_url,
         source_name=p.source_name,
         has_body=bool(p.body_md),
@@ -1811,6 +1815,24 @@ def admin_proposal_restore(
     return _proposal_to_item(p)
 
 
+@router.post("/proposals/{proposal_id}/force-publish", response_model=AdminProposalItem)
+def admin_proposal_force_publish(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Conmuta el override 'publicar sí o sí': la propuesta se publicará aunque no
+    pase el gate de calidad (rigor/longitud/foco). El fact-check canónico se
+    mantiene."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    p.force_publish = not bool(p.force_publish)
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
 @router.post("/proposals/{proposal_id}/suggest-titles", response_model=SuggestTitlesOut)
 @limiter.limit("60/hour")
 def admin_proposal_suggest_titles(
@@ -1951,6 +1973,7 @@ def admin_proposal_from_url(
     entities: list = []
     hero: str | None = None
     event_date = None
+    video = None
 
     if body.rewrite:
         from app.services.news_research import research_and_write
@@ -1988,6 +2011,7 @@ def admin_proposal_from_url(
             meta_title = (rw.get("meta_title") or "")[:60]
             meta_description = (rw.get("meta_description") or "")[:155]
             event_date = rw.get("event_date")  # date o None (solo si explícita)
+            video = rw.get("video")  # {youtube_id,...} o None
             entities = [
                 e for e in (rw.get("entities") or [])
                 if isinstance(e, dict) and e.get("name")
@@ -2045,6 +2069,7 @@ def admin_proposal_from_url(
         content_key=ckey,
         event_date=event_date,
         recommended_date=recommended_date,
+        video=video,
         status="proposed",
     )
     db.add(proposal)

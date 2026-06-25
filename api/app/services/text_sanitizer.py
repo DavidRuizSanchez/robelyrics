@@ -45,6 +45,35 @@ def enforce_name_policy(text: str | None) -> str | None:
     return _RE_ROBE_INIESTA.sub("Robe", text)
 
 
+# Enlace markdown a un vídeo de YouTube: [texto](url). El front (MarkdownArticle)
+# solo EMBEBE una URL de YouTube cuando va sola en su línea; un enlace markdown
+# no se embebe. Convertimos esos enlaces en URL desnuda para que se reproduzcan.
+_RE_YT_MD_LINK = re.compile(
+    r"\[[^\]]*\]\((https?://(?:www\.)?(?:youtube\.com/watch\?[^)\s]*v=[\w-]+[^)\s]*"
+    r"|youtu\.be/[\w-]+[^)\s]*|youtube\.com/(?:embed|shorts)/[\w-]+[^)\s]*))\)"
+)
+
+
+def embed_youtube_links(text: str | None) -> str | None:
+    """Convierte enlaces markdown de YouTube `[txt](url)` en la URL desnuda en su
+    PROPIA línea, para que el front la embeba como reproductor. Idempotente y sin
+    duplicar: si esa URL ya aparece desnuda en el texto, elimina el enlace."""
+    if not text:
+        return text
+    out = text
+
+    def _repl(m: re.Match) -> str:
+        url = m.group(1)
+        # Si ya está la URL desnuda en el cuerpo, no la repitas.
+        if re.search(rf"^\s*{re.escape(url)}\s*$", out, flags=re.MULTILINE):
+            return ""
+        return f"\n\n{url}\n\n"
+
+    out = _RE_YT_MD_LINK.sub(_repl, out)
+    out = re.sub(r"\n{3,}", "\n\n", out).strip()
+    return out
+
+
 def strip_ai_tells(text: str | None) -> str | None:
     """Limpia marcas de IA de `text`. Devuelve None si la entrada es None.
 
