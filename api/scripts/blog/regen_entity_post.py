@@ -32,9 +32,10 @@ logger = logging.getLogger(__name__)
 
 
 def regen(db, post: Post, *, kind: str, source_type: str | None,
-          source_id: int | None, apply: bool) -> bool:
-    # Propuesta transitoria (NO se añade a la sesión → no se persiste) que espeja
-    # el post; el pipeline nuevo la rellena (cuerpo profundo + tier + hero + vídeos).
+          source_id: int | None, apply: bool, tier: str | None = None) -> bool:
+    # Propuesta TEMPORAL que espeja el post; el pipeline nuevo la rellena (cuerpo
+    # profundo + tier + hero + vídeos). Se persiste durante la generación (el
+    # pipeline hace commit/refresh) y se elimina al final: el contenido va al post.
     p = ContentProposal(
         kind=kind,
         source_type=source_type,
@@ -43,24 +44,52 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         target_keyword=post.target_keyword,
         search_volume=None,
         entities=post.entities or [],
+        # Estos posts curados son de alto interés: se puede forzar el tier para que
+        # salgan con la extensión/profundidad que la temática merece.
+        quality_tier=tier,
         status="proposed",
     )
-    if not generate_proposal_draft(db, p):
+    db.add(p)
+    db.flush()
+    try:
+        ok = generate_proposal_draft(db, p)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("  ✗ %s: generación falló: %s", post.slug, exc)
+        db.rollback()
+        return False
+    if not ok:
         logger.error("  ✗ %s: la generación no produjo cuerpo", post.slug)
+        db.delete(p)
+        db.commit()
         return False
 
-    # GATE DE VERACIDAD (el mismo que en publicación): no aceptar nada con citas
-    # inventadas ni atribuciones erróneas.
-    lyr = check_lyrics(db, p.body_md or "")
-    rep = check_body(db, p.body_md or "", use_web=False)
+    # Snapshot de lo generado y ELIMINACIÓN de la propuesta temporal (el contenido
+    # va al post, no dejamos una propuesta suelta en BD).
+    g = {
+        "excerpt": p.excerpt, "body_md": p.body_md or "", "meta_title": p.meta_title,
+        "meta_description": p.meta_description, "entities": p.entities,
+        "hero_image_url": p.hero_image_url, "hero_image_alt": p.hero_image_alt,
+        "hero_image_attribution": p.hero_image_attribution,
+        "hero_image_license": p.hero_image_license,
+        "hero_image_source_url": p.hero_image_source_url,
+        "video": p.video, "videos": p.videos,
+        "engagement_score": p.engagement_score, "quality_tier": p.quality_tier,
+    }
+    db.delete(p)
+    db.commit()
+
+    # GATE DE VERACIDAD (el mismo que en publicación): nada con citas inventadas
+    # ni atribuciones erróneas.
+    lyr = check_lyrics(db, g["body_md"])
+    rep = check_body(db, g["body_md"], use_web=False)
     veraz = not lyr.blocking and not lyr.to_review and not rep.autofixes
-    words = len((p.body_md or "").split())
+    words = len(g["body_md"].split())
 
     print(f"\n{'=' * 70}\nPOST: {post.slug}")
-    print(f"  tier={p.quality_tier} score={p.engagement_score} · {words} palabras "
+    print(f"  tier={g['quality_tier']} score={g['engagement_score']} · {words} palabras "
           f"(antes {len((post.body_md or '').split())})")
-    print(f"  hero={'sí' if p.hero_image_url else 'NO'} | alt={p.hero_image_alt!r}")
-    print(f"  vídeos={len(p.videos or [])}")
+    print(f"  hero={'sí' if g['hero_image_url'] else 'NO'} | alt={g['hero_image_alt']!r}")
+    print(f"  vídeos={len(g['videos'] or [])}")
     print(f"  VERACIDAD: {'✅ limpio' if veraz else '⚠️ REVISAR'} "
           f"(citas bloq={len(lyr.blocking)}, revisar={len(lyr.to_review)}, "
           f"álbum/año={len(rep.autofixes)})")
@@ -68,8 +97,7 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         print(f"    - cita {v.status}: «{v.quote[:50]}» → {v.reason}")
     for v in rep.autofixes:
         print(f"    - álbum/año: {v.evidence}")
-    print("  TÍTULO:", p.title)
-    print("  ---BODY (primeros 1800)---\n" + (p.body_md or "")[:1800])
+    print("  ---BODY (primeros 2000)---\n" + g["body_md"][:2000])
 
     if not apply:
         return True
@@ -78,20 +106,20 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         return False
 
     # Se conserva el TÍTULO original (keyword SEO curada); se renueva el cuerpo.
-    post.excerpt = p.excerpt
-    post.body_md = p.body_md
-    post.meta_title = (p.meta_title or None)
-    post.meta_description = (p.meta_description or None)
-    post.entities = p.entities or post.entities
-    post.hero_image_url = p.hero_image_url
-    post.hero_image_alt = p.hero_image_alt
-    post.hero_image_attribution = p.hero_image_attribution
-    post.hero_image_license = p.hero_image_license
-    post.hero_image_source_url = p.hero_image_source_url
-    post.video = p.video
-    post.videos = p.videos
-    post.engagement_score = p.engagement_score
-    post.quality_tier = p.quality_tier
+    post.excerpt = g["excerpt"]
+    post.body_md = g["body_md"]
+    post.meta_title = (g["meta_title"] or None)
+    post.meta_description = (g["meta_description"] or None)
+    post.entities = g["entities"] or post.entities
+    post.hero_image_url = g["hero_image_url"]
+    post.hero_image_alt = g["hero_image_alt"]
+    post.hero_image_attribution = g["hero_image_attribution"]
+    post.hero_image_license = g["hero_image_license"]
+    post.hero_image_source_url = g["hero_image_source_url"]
+    post.video = g["video"]
+    post.videos = g["videos"]
+    post.engagement_score = g["engagement_score"]
+    post.quality_tier = g["quality_tier"]
     post.status = "pending_review"  # reconstrucción supervisada
     db.commit()
     logger.info("  ✓ %s actualizado → pending_review", post.slug)
@@ -105,6 +133,9 @@ def main() -> None:
                     choices=("evergreen", "spotlight", "album-anniversary", "anniversary"))
     ap.add_argument("--source-type", choices=("song", "album", "theme", "place", "concept"))
     ap.add_argument("--source-id", type=int)
+    ap.add_argument("--tier", choices=("standard", "premium", "flagship"),
+                    help="Fuerza el tier (posts curados de alto interés). Si se omite, "
+                         "se calcula por engagement.")
     ap.add_argument("--apply", action="store_true", help="Escribe el post (si no, dry-run).")
     args = ap.parse_args()
 
@@ -114,7 +145,7 @@ def main() -> None:
             ap.error(f"no existe el post {args.slug}")
             return
         regen(db, post, kind=args.kind, source_type=args.source_type,
-              source_id=args.source_id, apply=args.apply)
+              source_id=args.source_id, apply=args.apply, tier=args.tier)
 
 
 if __name__ == "__main__":
