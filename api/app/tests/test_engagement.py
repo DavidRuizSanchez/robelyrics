@@ -53,6 +53,13 @@ def test_tematica_alto_engagement_es_cornerstone():
     assert eng.content_tier("evergreen", 60, "premium", "concept") == "cornerstone"
 
 
+def test_engagement_muy_alto_es_cornerstone_sea_cual_sea_el_origen():
+    # Un tema con score altísimo es cornerstone aunque la propuesta se creara como seo.
+    assert eng.content_tier("evergreen", 81, "flagship", "seo") == "cornerstone"
+    # Score medio-alto no-temática se queda en flagship.
+    assert eng.content_tier("evergreen", 61, "flagship", "seo") == "flagship"
+
+
 def test_tematica_bajo_engagement_no_llega_a_cornerstone():
     assert eng.content_tier("evergreen", 30, "standard", "theme") == "flagship"
 

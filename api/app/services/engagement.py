@@ -32,8 +32,11 @@ TIER_STANDARD = "standard"
 
 _TIER_ORDER = {"standard": 0, "premium": 1, "flagship": 2, "cornerstone": 3}
 
-# Score a partir del cual una TEMÁTICA (theme/concept) se trata como pieza
-# cornerstone (calidad aún mayor que flagship).
+# Engagement muy alto: cornerstone sea cual sea el origen (un tema que de verdad
+# arrastra merece la pieza máxima aunque la propuesta se creara como 'seo').
+CORNERSTONE_STRONG_SCORE = 65
+# Para TEMÁTICAS explícitas (theme/concept) el listón de cornerstone es más bajo:
+# su amplitud ya es señal de engagement.
 CORNERSTONE_MIN_SCORE = 55
 
 
@@ -43,15 +46,17 @@ def content_tier(kind: str, score: int, tier: str, source_type: str | None = Non
     - Noticias: se respeta el tier por engagement (la actualidad manda, no se infla).
     - TODO lo demás (evergreen, spotlight, efemérides, temas): SUELO en `flagship`
       — la calidad profunda es el estándar del blog, no la excepción.
-    - Temáticas (theme/concept) de alto engagement: `cornerstone`, la versión más
-      exhaustiva.
+    - Engagement MUY alto (score ≥ 65) o temática (theme/concept) con engagement
+      notable (≥ 55): `cornerstone`, la versión más exhaustiva —independientemente
+      de cómo se creara la propuesta (seo/evergreen/…).
     El material real sigue gobernando la extensión de cada sección (anti-relleno)."""
     if kind == "news":
         return tier
-    t = tier if _TIER_ORDER.get(tier, 0) >= _TIER_ORDER[TIER_FLAGSHIP] else TIER_FLAGSHIP
-    if source_type in ("theme", "concept") and (score or 0) >= CORNERSTONE_MIN_SCORE:
-        t = TIER_CORNERSTONE
-    return t
+    s = score or 0
+    if s >= CORNERSTONE_STRONG_SCORE or (
+        source_type in ("theme", "concept") and s >= CORNERSTONE_MIN_SCORE):
+        return TIER_CORNERSTONE
+    return TIER_FLAGSHIP
 
 
 def _volume_score(volume: int | None) -> float:
