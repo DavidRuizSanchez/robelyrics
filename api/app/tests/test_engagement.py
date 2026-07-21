@@ -35,3 +35,23 @@ def test_score_acotado_0_100():
         volume=99999, graph_degree=999, fan_sources=999, related_videos=99
     )
     assert 0 <= score <= 100
+
+
+# --- Política content_tier ---------------------------------------------------
+def test_noticia_respeta_su_tier():
+    assert eng.content_tier("news", 10, "standard") == "standard"
+
+
+def test_no_noticia_tiene_suelo_flagship():
+    # Un evergreen flojo NO baja de flagship (calidad por defecto).
+    assert eng.content_tier("evergreen", 20, "standard", "song") == "flagship"
+    assert eng.content_tier("spotlight", 30, "premium", "song") == "flagship"
+
+
+def test_tematica_alto_engagement_es_cornerstone():
+    assert eng.content_tier("evergreen", 70, "flagship", "theme") == "cornerstone"
+    assert eng.content_tier("evergreen", 60, "premium", "concept") == "cornerstone"
+
+
+def test_tematica_bajo_engagement_no_llega_a_cornerstone():
+    assert eng.content_tier("evergreen", 30, "standard", "theme") == "flagship"

@@ -25,9 +25,33 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+TIER_CORNERSTONE = "cornerstone"  # calidad máxima: temáticas de alto engagement
 TIER_FLAGSHIP = "flagship"
 TIER_PREMIUM = "premium"
 TIER_STANDARD = "standard"
+
+_TIER_ORDER = {"standard": 0, "premium": 1, "flagship": 2, "cornerstone": 3}
+
+# Score a partir del cual una TEMÁTICA (theme/concept) se trata como pieza
+# cornerstone (calidad aún mayor que flagship).
+CORNERSTONE_MIN_SCORE = 55
+
+
+def content_tier(kind: str, score: int, tier: str, source_type: str | None = None) -> str:
+    """Política de calidad por tipo de contenido:
+
+    - Noticias: se respeta el tier por engagement (la actualidad manda, no se infla).
+    - TODO lo demás (evergreen, spotlight, efemérides, temas): SUELO en `flagship`
+      — la calidad profunda es el estándar del blog, no la excepción.
+    - Temáticas (theme/concept) de alto engagement: `cornerstone`, la versión más
+      exhaustiva.
+    El material real sigue gobernando la extensión de cada sección (anti-relleno)."""
+    if kind == "news":
+        return tier
+    t = tier if _TIER_ORDER.get(tier, 0) >= _TIER_ORDER[TIER_FLAGSHIP] else TIER_FLAGSHIP
+    if source_type in ("theme", "concept") and (score or 0) >= CORNERSTONE_MIN_SCORE:
+        t = TIER_CORNERSTONE
+    return t
 
 
 def _volume_score(volume: int | None) -> float:

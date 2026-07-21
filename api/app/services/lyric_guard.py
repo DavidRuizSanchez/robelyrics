@@ -169,6 +169,14 @@ def _unwrap_md_links(s: str) -> str:
     return re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s or "")
 
 
+def _mask_link_urls(s: str) -> str:
+    """Sustituye la URL de cada enlace markdown `](url)` por espacios de la MISMA
+    longitud (preserva posiciones). Así los slugs de las URLs (p.ej.
+    `/extremoduro/yo-minoria-absoluta/menamoro`) no se detectan como menciones de
+    canción y no falsean la atribución del verso a la 'canción más cercana'."""
+    return re.sub(r"\]\(([^)\n]*)\)", lambda m: "](" + " " * len(m.group(1)) + ")", s or "")
+
+
 def extract_quotes(body_md: str) -> list[tuple[str, int]]:
     """Devuelve [(texto_cita, posición_inicio)] de todo lo entrecomillado con
     comillas dobles/guillemets y de los blockquotes markdown. Ignora comillas
@@ -307,7 +315,10 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
     title_set = set(titles_norm) | {normalize(s.album) for s in songs if s.album}
     title_tok = {t: frozenset(t.split()) for t in title_set}
 
-    body_norm, norm_map = _norm_positions(body_md)
+    # Para localizar menciones de canción usamos el body con las URLs de los
+    # enlaces enmascaradas (mismo largo → posiciones intactas), de modo que un slug
+    # dentro de una URL no cuente como mención y no falsee la atribución.
+    body_norm, norm_map = _norm_positions(_mask_link_urls(body_md))
     # posición-original → índice en el body normalizado (para localizar menciones)
     orig_to_norm: dict[int, int] = {}
     for ni, oi in enumerate(norm_map):

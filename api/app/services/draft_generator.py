@@ -126,7 +126,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
     today = date.today()
     _tier = getattr(p, "quality_tier", None) or "standard"
     _serp = ""
-    if _tier in ("premium", "flagship"):
+    if _tier in ("premium", "flagship", "cornerstone"):
         try:
             from app.services.serp_brief import build_brief
             _serp = build_brief(p.target_keyword or p.title or "")
@@ -329,14 +329,14 @@ def _collect_videos(db, p: ContentProposal) -> None:
         videos.append(p.video)
         seen.add(p.video["youtube_id"])
     tier = getattr(p, "quality_tier", None) or "standard"
-    if tier in ("premium", "flagship"):
+    if tier in ("premium", "flagship", "cornerstone"):
         try:
             from sqlalchemy import select
 
             from app.db.models import RelatedVideo, RelatedVideoEntity
             slugs = [e["slug_hint"] for e in (p.entities or []) if e.get("slug_hint")]
             if slugs:
-                limit = 3 if tier == "flagship" else 2
+                limit = {"cornerstone": 4, "flagship": 3}.get(tier, 2)
                 rows = db.execute(
                     select(RelatedVideo)
                     .join(RelatedVideoEntity, RelatedVideoEntity.video_id == RelatedVideo.id)
@@ -383,8 +383,12 @@ def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True) -> 
     #    cuerpo para que generate_body lo lea.
     if not p.quality_tier:
         try:
-            from app.services.engagement import compute_for_proposal
-            p.engagement_score, p.quality_tier = compute_for_proposal(db, p)
+            from app.services.engagement import compute_for_proposal, content_tier
+            score, tier = compute_for_proposal(db, p)
+            p.engagement_score = score
+            # Política: no-noticias con SUELO flagship; temáticas de alto engagement
+            # → cornerstone. Las noticias mantienen su tier por actualidad.
+            p.quality_tier = content_tier(p.kind, score, tier, p.source_type)
             logger.info("draft: propuesta %s → engagement %s (%s)",
                         p.id, p.engagement_score, p.quality_tier)
         except Exception as exc:  # noqa: BLE001

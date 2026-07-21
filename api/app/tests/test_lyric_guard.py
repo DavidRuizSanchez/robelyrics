@@ -163,3 +163,21 @@ def test_best_ratio_verso_inventado_es_bajo():
     lyric = lg.normalize(SO_PAYASO)
     r = lg.best_ratio(lg.normalize("te voy a colgar de las piernas"), lyric)
     assert r < lg._REVIEW_RATIO
+
+
+# --------------------------------------------------------------------------- #
+# 8. Los slugs dentro de URLs de enlaces no falsean la atribución
+# --------------------------------------------------------------------------- #
+def test_url_de_enlace_no_falsea_la_atribucion():
+    # Verso real de "Salir" atribuido correctamente, pero con un enlace markdown a
+    # OTRA canción justo antes: el slug de la URL no debe robar la atribución.
+    body = ('En "[Si te vas...](https://x.com/extremoduro/salir/si-te-vas)" y en '
+            '"Salir" suena "Meterme mil rayas, hablar con la gente".')
+    _, rep = _statuses(body)
+    assert not rep.blocking
+    assert not any(v.status == "misattributed" for v in rep.to_review)
+
+
+def test_mask_link_urls_preserva_longitud():
+    s = 'texto "[A](https://larga/url/aqui)" fin'
+    assert len(lg._mask_link_urls(s)) == len(s)

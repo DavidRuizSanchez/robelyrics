@@ -125,8 +125,8 @@ def _section_cap(material: str, tier: str = "standard") -> int:
     MÁS secciones (siempre que el material real las sostenga; el anti-relleno sigue)."""
     n = len(material or "")
     base = 3 if n < 2500 else 4 if n < 6000 else 6 if n < 20000 else 8
-    bump = {"premium": 2, "flagship": 4}.get(tier, 0)
-    return min(base + bump, 12)
+    bump = {"premium": 2, "flagship": 4, "cornerstone": 6}.get(tier, 0)
+    return min(base + bump, 14)
 
 
 def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> dict:
@@ -175,7 +175,9 @@ def _write_section(client: OpenAI, subject: str, section: dict, headings: list[s
     # Longitud proporcional al material Y al tier: los temas premium/flagship
     # admiten secciones más largas (hay más material real que las sostiene).
     scarce = len(material) < 3000
-    if tier == "flagship":
+    if tier == "cornerstone":
+        words = "320-560" if scarce else "420-720"
+    elif tier == "flagship":
         words = "260-460" if scarce else "340-620"
     elif tier == "premium":
         words = "200-360" if scarce else "260-480"
