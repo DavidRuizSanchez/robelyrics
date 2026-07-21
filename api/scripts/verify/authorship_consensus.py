@@ -207,9 +207,11 @@ def process(db, entry: dict, *, apply: bool) -> None:
         result=result, song_id=song.id, applied=(action == "auto_apply" and apply),
     )
     db.flush()
+    applied = False
     if action == "auto_apply":
         if apply:
             n = apply_credits(db, song, credits, result.confidence)
+            applied = n > 0
             logger.info("  APLICADO: %d créditos insertados en song_credits", n)
         else:
             logger.info("  (dry-run) auto-aplicaría créditos: %s",
@@ -217,7 +219,15 @@ def process(db, entry: dict, *, apply: bool) -> None:
     else:
         _open_errata(db, song, author, result, verif)
         logger.info("  → errata para revisión humana")
-    db.commit() if apply else db.rollback()
+    if apply:
+        db.commit()
+        if applied:
+            # Propagación viva: crédito nuevo → marca grafo sucio (aristas de autoría)
+            # + re-embed por si la letra se cita. El barrido corre build_graph al final.
+            from app.services import freshness
+            freshness.propagate(db, "authorship", song_id=song.id)
+    else:
+        db.rollback()
 
 
 def main() -> None:

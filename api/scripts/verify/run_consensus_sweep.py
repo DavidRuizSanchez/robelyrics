@@ -83,6 +83,14 @@ def main() -> None:
         _sweep_authorship(db, args.apply)
         _sweep_catalog(db, args.apply)
         _report_erratas(db)
+
+        # Propagación viva: si algún cambio ensució el grafo (crédito/entidad nueva),
+        # se reconstruye idempotente para que las aristas de autoría queden al día.
+        from app.services import freshness
+        if args.apply and freshness.graph_is_dirty():
+            logger.info("[frescura] grafo sucio → reconstruyendo (build_graph)")
+            import subprocess
+            subprocess.run(["python", "-m", "scripts.graph.build_graph"], check=False)
         if args.full:
             logger.warning("--full aún no implementado: el barrido total del catálogo se hará "
                            "por lotes con control de coste. De momento solo pendientes de YAML.")

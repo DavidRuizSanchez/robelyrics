@@ -164,6 +164,7 @@ def process_song_overrides(db, song: Song, overrides: list[dict], *, apply: bool
     external = lyric_fetchers.fetch_all(song.title, artist)
     logger.info("  fuentes que respondieron: %s", list(external.keys()) or "NINGUNA")
 
+    changed = False
     for ov in overrides:
         for fix in (ov.get("line_fixes") or []):
             wrong, right = fix.get("wrong"), fix.get("right")
@@ -186,6 +187,7 @@ def process_song_overrides(db, song: Song, overrides: list[dict], *, apply: bool
                 fix_val = result.correct_value or right
                 if apply:
                     ok = apply_line_fix(db, song, wrong, fix_val, result.confidence)
+                    changed = changed or ok
                     logger.info("    APLICADO: %r → %r (%s)", wrong, fix_val, "ok" if ok else "no encontró la línea")
                 else:
                     logger.info("    (dry-run) auto-aplicaría: %r → %r", wrong, fix_val)
@@ -194,6 +196,11 @@ def process_song_overrides(db, song: Song, overrides: list[dict], *, apply: bool
                 logger.info("    → errata para revisión humana")
     if apply:
         db.commit()
+        if changed:
+            # Propagación viva: la letra cambió → re-embed de la canción para que
+            # buscador/consultorio/listas por mood la reflejen al instante.
+            from app.services import freshness
+            freshness.propagate(db, "lyric", song_id=song.id)
     else:
         db.rollback()
 
@@ -207,6 +214,7 @@ def apply_verified_overrides(db, *, apply: bool) -> None:
     if not verified:
         return
     logger.info("[verificadas] %d override(s) de letra verificado(s)", len(verified))
+    changed_songs: set[int] = set()
     for ov in verified:
         song = _resolve_song(db, song_id=None, album_slug=ov.get("album_slug"),
                              title=ov.get("song_title"))
@@ -233,12 +241,18 @@ def apply_verified_overrides(db, *, apply: bool) -> None:
                         ),
                         song_id=song.id, applied=True,
                     )
+                if ok:
+                    changed_songs.add(song.id)
                 logger.info("  [%s] verificado APLICADO: %r → %r (%s)",
                             song.title, wrong, right, "ok" if ok else "no encontró línea")
             else:
                 logger.info("  [%s] (dry-run) verificado aplicaría: %r → %r", song.title, wrong, right)
     if apply:
         db.commit()
+        # Propagación viva: re-embed de cada canción cuya letra cambió.
+        from app.services import freshness
+        for sid in changed_songs:
+            freshness.propagate(db, "lyric", song_id=sid)
 
 
 def _resolve_song(db, *, song_id: int | None, album_slug: str | None, title: str | None) -> Song | None:

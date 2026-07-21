@@ -148,7 +148,10 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # 03:30 UTC: vectoriza material nuevo (fan-content + bios de entidades),
 # reconstruye el grafo de conocimiento (entity_edges, idempotente) y audita la
 # cobertura. Mantiene grafo y retrieval al día según crece el corpus, solo.
-30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
+# Incluye embed_lyrics + embed_full_lyrics (red de seguridad de frescura: si una
+# letra cambió fuera del orquestador `freshness`, aquí se re-embebe igualmente para
+# que buscador/consultorio/listas por mood no queden leyendo la letra vieja).
+30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
 
 # 03:50 UTC: barrido del Motor de Consenso de Verificación (MCV). Re-verifica los
 # overrides pendientes (letras/autoría/catálogo) contra sus fuentes y aplica lo que
