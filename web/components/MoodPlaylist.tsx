@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useYoutubePlayer } from "@/lib/youtube-player-context";
 import { toPlayerTrack, type PlaylistTrackOut } from "@/lib/playlists";
+import { trackFeature } from "@/lib/analytics";
 
 // Frases de gancho. El usuario también puede escribir lo suyo. Lo que escribe
 // se embebe y se cruza con la letra completa de cada canción (lyrics_full_v1).
@@ -38,6 +39,7 @@ export default function MoodPlaylist() {
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { tracks: PlaylistTrackOut[] };
       const tracks = data.tracks || [];
+      trackFeature("lista_mood", { n_results: tracks.length });
       setCount(tracks.length);
       if (tracks.length > 0) {
         playQueue(tracks.map(toPlayerTrack), 0);

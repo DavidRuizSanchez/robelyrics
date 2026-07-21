@@ -151,6 +151,8 @@ def semantic(
         for p in search_robe_voice(query_vec, k=3)
     ]
 
+    from app.services.usage import log_feature_query
+    log_feature_query(db, "search", body.query, n_results=len(reranked), user_id=_user.id)
     return SemanticOut(
         query=body.query,
         robe_says=robe_says,
@@ -428,6 +430,8 @@ def complete(
                 artist=artist_meta,
             )
         )
+    from app.services.usage import log_feature_query
+    log_feature_query(db, "complete", body.query, n_results=len(out), user_id=_user.id)
     return CompleteOut(query=body.query, results=out)
 
 

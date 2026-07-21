@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { trackFeature } from "@/lib/analytics";
 
 type Turn = {
   question: string;
@@ -34,6 +35,7 @@ export default function ConsultorioChat({
       if (!res.ok) {
         setError(data.error || "El viento no responde ahora mismo.");
       } else {
+        trackFeature("consultorio_ask", { grounded: !!data.grounded });
         setTurns((t) => [
           {
             question: text,

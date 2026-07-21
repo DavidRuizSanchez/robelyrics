@@ -98,7 +98,9 @@ def mood_playlist(
     scores = search_lyrics_full_for_song_ids(
         qv, k=body.limit * 3, score_threshold=0.18
     )
+    from app.services.usage import log_feature_query
     if not scores:
+        log_feature_query(db, "mood", body.mood, n_results=0, user_id=_user.id)
         return MoodOut(mood=body.mood, tracks=[])
 
     ordered_ids = sorted(scores, key=lambda s: scores[s], reverse=True)
@@ -113,6 +115,7 @@ def mood_playlist(
             tracks.append(t)
         if len(tracks) >= body.limit:
             break
+    log_feature_query(db, "mood", body.mood, n_results=len(tracks), user_id=_user.id)
     return MoodOut(mood=body.mood, tracks=tracks)
 
 

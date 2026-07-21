@@ -4,6 +4,7 @@
 import SemanticResultCard from "@/components/SemanticResultCard";
 import CompleteResultCard from "@/components/CompleteResultCard";
 import { apiFetch, ApiError } from "@/lib/api";
+import TrackEvent from "@/components/TrackEvent";
 import type { SemanticOut, CompleteOut } from "@/lib/types";
 
 type Mode = "semantic" | "complete";
@@ -40,6 +41,10 @@ export default async function SearchResults({
 
   return (
     <section className="mt-14 space-y-9 animate-fade-up">
+      <TrackEvent
+        event={mode === "semantic" ? "buscador_semantico" : "completar"}
+        params={{ n_results: result.results.length }}
+      />
       <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
         {result.results.length} resultado
         {result.results.length === 1 ? "" : "s"} para «{query}»

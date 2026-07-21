@@ -808,6 +808,30 @@ class ConsultQuestion(Base):
     )
 
 
+class FeatureQuery(Base):
+    """Registro de uso de las features de búsqueda/descubrimiento (F2.4).
+
+    Complementa a ConsultQuestion (consultorio): captura qué buscan los usuarios en
+    el buscador semántico, en "completar" y en las listas por mood, para conocer el
+    uso real y qué huecos de contenido revelan las consultas. El RATIO de uso agregado
+    vive en GA4 (eventos); aquí guardamos el TEXTO (que no debe ir a analytics por PII).
+    """
+
+    __tablename__ = "feature_queries"
+    __table_args__ = (Index("ix_feature_queries_feature_created", "feature", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    feature: Mapped[str] = mapped_column(String(24), nullable=False)  # search | complete | mood
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    n_results: Mapped[int | None] = mapped_column(Integer)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Fase 3: blog/noticias --------------------------------------------------
 
 

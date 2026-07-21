@@ -13,6 +13,7 @@ from app.db.session import SessionLocal
 from app.routers import admin as admin_router
 from app.routers import auth as auth_router
 from app.routers import catalog as catalog_router
+from app.routers import analytics as analytics_router
 from app.routers import consult as consult_router
 from app.routers import errata as errata_router
 from app.routers import ingest as ingest_router
@@ -48,6 +49,7 @@ app.include_router(public_router.router)
 app.include_router(sources_router.router)
 app.include_router(consult_router.router)
 app.include_router(errata_router.router)
+app.include_router(analytics_router.router)
 app.include_router(ingest_router.router)
 app.include_router(playlists_router.router)
 
