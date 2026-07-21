@@ -367,12 +367,16 @@ def _collect_videos(db, p: ContentProposal) -> None:
             p.video = videos[0]
 
 
-def generate_proposal_draft(db, p: ContentProposal) -> bool:
+def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True) -> bool:
     """Construye el borrador completo de la propuesta y lo guarda en ella
     (body_md + excerpt + meta + hero + entities). Devuelve True si quedó listo.
 
     Pensado para invocarse al aprobar (en background) y como red de seguridad
-    desde el cron `generate_approved_drafts` y desde `materialize_proposals`."""
+    desde el cron `generate_approved_drafts` y desde `materialize_proposals`.
+
+    `persist`: si False, NO hace commit/refresh finales — para regenerar sobre una
+    propuesta TRANSITORIA (no persistida) sin chocar con constraints ni dejar filas
+    sueltas; el caller lee los campos en memoria (p.ej. regen_entity_post)."""
     # 0. Engagement: score + tier (modula extensión/profundidad/multimedia y activa
     #    el brief de competencia SERP en premium/flagship). Se calcula antes del
     #    cuerpo para que generate_body lo lea.
@@ -433,7 +437,8 @@ def generate_proposal_draft(db, p: ContentProposal) -> bool:
     if p.meta_description:
         p.meta_description = p.meta_description[:155]
 
-    db.commit()
-    db.refresh(p)
-    logger.info("draft listo para propuesta %s (%s)", p.id, p.kind)
+    if persist:
+        db.commit()
+        db.refresh(p)
+        logger.info("draft listo para propuesta %s (%s)", p.id, p.kind)
     return True

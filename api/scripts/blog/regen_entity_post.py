@@ -36,6 +36,9 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
     # Propuesta TEMPORAL que espeja el post; el pipeline nuevo la rellena (cuerpo
     # profundo + tier + hero + vídeos). Se persiste durante la generación (el
     # pipeline hace commit/refresh) y se elimina al final: el contenido va al post.
+    # Propuesta TRANSITORIA (no se añade a la sesión → no persiste, no choca con la
+    # constraint única kind/source y no deja filas sueltas). persist=False evita el
+    # commit/refresh finales; leemos los campos generados en memoria.
     p = ContentProposal(
         kind=kind,
         source_type=source_type,
@@ -49,22 +52,10 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         quality_tier=tier,
         status="proposed",
     )
-    db.add(p)
-    db.flush()
-    try:
-        ok = generate_proposal_draft(db, p)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("  ✗ %s: generación falló: %s", post.slug, exc)
-        db.rollback()
-        return False
-    if not ok:
+    if not generate_proposal_draft(db, p, persist=False):
         logger.error("  ✗ %s: la generación no produjo cuerpo", post.slug)
-        db.delete(p)
-        db.commit()
         return False
 
-    # Snapshot de lo generado y ELIMINACIÓN de la propuesta temporal (el contenido
-    # va al post, no dejamos una propuesta suelta en BD).
     g = {
         "excerpt": p.excerpt, "body_md": p.body_md or "", "meta_title": p.meta_title,
         "meta_description": p.meta_description, "entities": p.entities,
@@ -75,8 +66,6 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         "video": p.video, "videos": p.videos,
         "engagement_score": p.engagement_score, "quality_tier": p.quality_tier,
     }
-    db.delete(p)
-    db.commit()
 
     # GATE DE VERACIDAD (el mismo que en publicación): nada con citas inventadas
     # ni atribuciones erróneas.
