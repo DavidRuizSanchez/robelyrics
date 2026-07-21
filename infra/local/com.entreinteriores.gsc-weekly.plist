@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent de F2.5 (auto-optimización SEO con datos GSC). Corre en la Mac
+  (el token OAuth de GSC vive aquí, no en el server). Lunes 09:00 local.
+
+  Instalar:
+    mkdir -p "$HOME/Library/Application Support/robelyrics"
+    cp infra/local/gsc_weekly.sh "$HOME/Library/Application Support/robelyrics/"
+    chmod +x "$HOME/Library/Application Support/robelyrics/gsc_weekly.sh"
+    cp infra/local/com.entreinteriores.gsc-weekly.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.entreinteriores.gsc-weekly.plist
+
+  El wrapper vive en Application Support (NO en Documents: TCC bloquea a launchd ahí).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.entreinteriores.gsc-weekly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/david.ruiz/Library/Application Support/robelyrics/gsc_weekly.sh</string>
+    </array>
+
+    <!-- Lunes a las 09:00 (hora local). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>1</integer>
+        <key>Hour</key><integer>9</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/Docker.app/Contents/Resources/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/entreinteriores-gsc-weekly.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/entreinteriores-gsc-weekly.log</string>
+</dict>
+</plist>
