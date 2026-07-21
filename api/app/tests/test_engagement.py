@@ -55,3 +55,12 @@ def test_tematica_alto_engagement_es_cornerstone():
 
 def test_tematica_bajo_engagement_no_llega_a_cornerstone():
     assert eng.content_tier("evergreen", 30, "standard", "theme") == "flagship"
+
+
+def test_amplitud_de_tema_sube_el_score():
+    # Un tema que atraviesa medio cancionero es cornerstone-eligible aunque su
+    # volumen de búsqueda directo sea nulo.
+    ancho, ta = eng.score_from_signals(volume=None, graph_degree=2, fan_sources=8, theme_reach=20)
+    estrecho, te = eng.score_from_signals(volume=None, graph_degree=2, fan_sources=8, theme_reach=2)
+    assert ancho > estrecho
+    assert eng.content_tier("evergreen", ancho, ta, "theme") == "cornerstone"

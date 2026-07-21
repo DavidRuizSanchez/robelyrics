@@ -70,11 +70,15 @@ def _volume_score(volume: int | None) -> float:
     return 0.12
 
 
-def _richness_score(graph_degree: int, fan_sources: int) -> float:
-    """0..1 según cuánto material fan y conexión de grafo tiene la entidad."""
+def _richness_score(graph_degree: int, fan_sources: int, theme_reach: int = 0) -> float:
+    """0..1 según cuánto material fan y conexión de grafo tiene la entidad. Para
+    TEMÁTICAS, su AMPLITUD (nº de canciones que tocan el tema) es en sí una señal
+    fuerte de engagement: un tema que atraviesa medio cancionero da para una pieza
+    cornerstone aunque su volumen de búsqueda directo sea modesto."""
     deg = min(1.0, graph_degree / 18.0)      # ~18 aristas = muy central
     fan = min(1.0, fan_sources / 12.0)        # ~12 fuentes fan = muy rico
-    return 0.5 * deg + 0.5 * fan
+    theme = min(1.0, theme_reach / 15.0)      # ~15 canciones = tema muy amplio
+    return max(0.5 * deg + 0.5 * fan, theme)
 
 
 def _media_bonus(related_videos: int) -> float:
@@ -83,11 +87,13 @@ def _media_bonus(related_videos: int) -> float:
 
 
 def score_from_signals(
-    *, volume: int | None, graph_degree: int, fan_sources: int, related_videos: int = 0
+    *, volume: int | None, graph_degree: int, fan_sources: int,
+    related_videos: int = 0, theme_reach: int = 0,
 ) -> tuple[int, str]:
     """Núcleo PURO (testeable): señales → (score 0-100, tier). El SEO y la riqueza
     de fan pesan por igual; el multimedia es un extra acotado."""
-    base = 0.5 * _volume_score(volume) + 0.5 * _richness_score(graph_degree, fan_sources)
+    base = 0.5 * _volume_score(volume) + 0.5 * _richness_score(
+        graph_degree, fan_sources, theme_reach)
     score = int(round(min(1.0, base + _media_bonus(related_videos)) * 100))
     if score >= 65:
         tier = TIER_FLAGSHIP
@@ -150,10 +156,25 @@ def _entity_signals(db, entities: list[dict] | None) -> tuple[int, int, int]:
     return max_degree, fan_sources, related_videos
 
 
+def _theme_reach(db, source_type: str | None, source_id: int | None) -> int:
+    """Nº de canciones que tocan una temática (theme/concept). Amplitud del tema."""
+    if not source_id or source_type not in ("theme", "concept"):
+        return 0
+    try:
+        from app.db.models import Concept, Theme
+        obj = db.get(Theme if source_type == "theme" else Concept, source_id)
+        return len(obj.songs) if obj and obj.songs else 0
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("engagement: theme_reach falló: %s", exc)
+        return 0
+
+
 def compute_for_proposal(db, proposal) -> tuple[int, str]:
     """Calcula (score, tier) de una ContentProposal a partir de sus señales."""
     degree, fan, videos = _entity_signals(db, getattr(proposal, "entities", None))
+    reach = _theme_reach(db, getattr(proposal, "source_type", None),
+                         getattr(proposal, "source_id", None))
     return score_from_signals(
         volume=getattr(proposal, "search_volume", None),
-        graph_degree=degree, fan_sources=fan, related_videos=videos,
+        graph_degree=degree, fan_sources=fan, related_videos=videos, theme_reach=reach,
     )
