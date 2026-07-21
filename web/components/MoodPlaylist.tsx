@@ -39,7 +39,7 @@ export default function MoodPlaylist() {
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { tracks: PlaylistTrackOut[] };
       const tracks = data.tracks || [];
-      trackFeature("lista_mood", { n_results: tracks.length });
+      trackFeature("lista_mood", { n_results: tracks.length, query: text.slice(0, 100) });
       setCount(tracks.length);
       if (tracks.length > 0) {
         playQueue(tracks.map(toPlayerTrack), 0);

@@ -35,7 +35,7 @@ export default function ConsultorioChat({
       if (!res.ok) {
         setError(data.error || "El viento no responde ahora mismo.");
       } else {
-        trackFeature("consultorio_ask", { grounded: !!data.grounded });
+        trackFeature("consultorio_ask", { grounded: !!data.grounded, query: text.slice(0, 100) });
         setTurns((t) => [
           {
             question: text,

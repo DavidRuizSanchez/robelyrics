@@ -43,7 +43,7 @@ export default async function SearchResults({
     <section className="mt-14 space-y-9 animate-fade-up">
       <TrackEvent
         event={mode === "semantic" ? "buscador_semantico" : "completar"}
-        params={{ n_results: result.results.length }}
+        params={{ n_results: result.results.length, query: query.slice(0, 100) }}
       />
       <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
         {result.results.length} resultado
