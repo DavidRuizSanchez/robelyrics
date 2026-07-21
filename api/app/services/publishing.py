@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 
 import httpx
@@ -54,7 +54,8 @@ def recommended_from_event(event_date, today, *, lead_days: int = EVENT_LEAD_DAY
     """Fecha SUGERIDA de publicación para una noticia con `event_date` futura:
     `event_date − lead_days`, nunca antes de mañana. Devuelve None si el evento
     ya pasó o no hay fecha (no se sugiere nada; la caducidad se ocupa del resto)."""
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date
+    from datetime import timedelta as _td
 
     if not event_date or not isinstance(event_date, _date):
         return None
@@ -75,7 +76,7 @@ class PublishResult(TypedDict):
 # Núcleo: scheduler
 # --------------------------------------------------------------------------- #
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _occupied_dates(db: Session, *, look_ahead_days: int = 60) -> list[datetime]:
@@ -367,6 +368,22 @@ def auto_publish_post(
                 logger.info("auto_publish: RIGOR tensó post %s (score %d)", post.id, v.score)
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish rigor falló: %s", exc)
+
+    # Gate de CITAS DE LETRA (universal, BLOQUEANTE, NO evadible ni con
+    # force_publish): último cortafuegos común a TODOS los caminos de publicación
+    # (efeméride directa, publicación manual, cron). Un verso inventado o una cita
+    # de canción sin letra verificable NO se publica jamás: se enruta a revisión.
+    # Determinista y barato; corre siempre (independiente de factcheck/rigor).
+    if post.body_md:
+        try:
+            from app.services.lyric_guard import check_lyrics
+            lr = check_lyrics(db, post.body_md)
+            if lr.blocking or lr.to_review:
+                logger.warning("auto_publish: CITAS bloquean post %s (%s) → revisión",
+                               post.id, lr.summary())
+                return propose_for_review(db, post)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish lyric-guard falló: %s", exc)
 
     if post.status != "published":
         post.status = "published"

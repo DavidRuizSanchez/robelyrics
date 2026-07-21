@@ -45,7 +45,7 @@ def _notify_admin(subject: str, text: str) -> None:
         logger.info("ADMIN: %s — %s", subject, text)
         return
     try:
-        from app.services.email import EmailError, send_email
+        from app.services.email import send_email
         send_email(to=admin_email, subject=subject,
                    html=f"<pre style='font-family:monospace'>{text}</pre>", text=text)
     except Exception as exc:  # noqa: BLE001
@@ -267,23 +267,48 @@ def main() -> None:
                     logger.info("  fact-check: %d hecho(s) corregido(s) contra BD",
                                 len(report.autofixes) - len(skipped))
 
+            # 3b. GATE DE CITAS DE LETRA (determinista, BLOQUEANTE, NO evadible ni
+            #     con force_publish): un verso inventado o una cita de una canción
+            #     sin letra verificable en el corpus NO se publica JAMÁS. La zona
+            #     gris (coincidencia parcial / posible misatribución) va a revisión.
+            from app.services.lyric_guard import check_lyrics
+            lyric_report = check_lyrics(db, post.body_md)
+            if lyric_report.blocking:
+                db.delete(post)
+                p.status = "discarded"
+                db.commit()
+                detalle = "; ".join(f"«{v.quote[:60]}» → {v.reason}"
+                                    for v in lyric_report.blocking)
+                _notify_admin(
+                    f"🗑 Descartada por CITA NO VERAZ: {p.title}",
+                    f"La propuesta #{p.id} cita versos que no existen en la letra real "
+                    f"(o de una canción sin letra verificable): {detalle}. No se publica "
+                    "(regla de veracidad, no evadible ni con force_publish).",
+                )
+                logger.info("  ✗ DESCARTADA por citas no veraces: %s", detalle)
+                continue
+
             # A revisión humana si la web detecta algo dudoso (to_review), si algún
-            # hecho refutado no se pudo corregir limpio (skipped → reformular), o si
-            # el gate de FOCO marcó deriva sin recorte limpio.
-            # El override (force_publish) publica aunque haya dudas (manteniendo la
-            # autocorrección canónica de arriba); el admin asume el criterio.
+            # hecho refutado no se pudo corregir limpio (skipped → reformular), si
+            # una cita de letra queda en zona gris, o si el gate de FOCO marcó deriva.
+            # La VERACIDAD (datos + citas) NO es evadible por force_publish: siempre
+            # va a revisión humana. force_publish solo salta rigor/foco (gustos).
             needs_review = report.to_review + skipped
-            if (needs_review or review_focus) and not p.force_publish:
+            lyric_review = lyric_report.to_review
+            if needs_review or lyric_review or review_focus:
                 for v in needs_review:
                     logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
+                for v in lyric_review:
+                    logger.info("  cita REVISAR: «%s» · %s", v.quote[:50], v.reason)
                 if review_focus:
                     logger.info("  foco REVISAR: deriva no recortable")
                 propose_for_review(db, post)
                 p.status = "used"
                 p.post_id = post.id
                 db.commit()
-                logger.info("  ⚠ a revisión humana (%d dato(s)%s): /blog/%s",
-                            len(needs_review), ", +foco" if review_focus else "", slug)
+                logger.info("  ⚠ a revisión humana (%d dato(s), %d cita(s)%s): /blog/%s",
+                            len(needs_review), len(lyric_review),
+                            ", +foco" if review_focus else "", slug)
                 continue
 
             # 4. Limpio → publicar (revalidate de Next; el email es el digest dominical).

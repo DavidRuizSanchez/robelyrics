@@ -337,6 +337,11 @@ def main() -> None:
     parser.add_argument("--no-vector-fallback", action="store_true", help="Desactiva vector search")
     parser.add_argument("--only-missing", action="store_true",
                         help="Solo canciones sin SongInterpretation aún")
+    parser.add_argument("--stale", action="store_true",
+                        help="Añade las canciones cuyo destilado es más viejo que su "
+                             "fan-content más reciente (incorpora las fuentes nuevas "
+                             "ingeridas tras el último destilado). Combínalo con "
+                             "--only-missing en el enriquecimiento semanal.")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -368,6 +373,22 @@ def main() -> None:
             q = q.outerjoin(SongInterpretation, SongInterpretation.song_id == Song.id)
             q = q.filter(SongInterpretation.id.is_(None))
         slugs = [r[0] for r in q.all()]
+        if args.stale and not args.song_slug:
+            # Canciones ya destiladas pero con fan-content más nuevo que su destilado:
+            # el `distill --only-missing` las saltaba, así que el material fresco nunca
+            # entraba al consenso. `referenced_song_ids` liga fuente→canción.
+            from sqlalchemy import text as _sql
+            stale = db.execute(_sql(
+                "SELECT s.slug FROM songs s "
+                "JOIN song_interpretations si ON si.song_id = s.id "
+                "JOIN interpretation_sources src ON s.id = ANY(src.referenced_song_ids) "
+                "GROUP BY s.slug, si.distilled_at "
+                "HAVING max(src.fetched_at) > si.distilled_at"
+            )).all()
+            stale_slugs = [r[0] for r in stale]
+            if stale_slugs:
+                log(f"stale (fan-content nuevo desde el destilado): {len(stale_slugs)}")
+            slugs = sorted(set(slugs) | set(stale_slugs))
     if not slugs:
         log("Sin canciones que procesar.", "warn")
         return

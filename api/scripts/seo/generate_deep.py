@@ -207,6 +207,10 @@ MATERIAL (única fuente de hechos; parafrasea, NO inventes nada que no esté aqu
   frases) pero real; NUNCA rellenes para alargar.
 - Si el material trae 1-2 CITAS textuales de Robe, inclúyelas entrecomilladas y
   ATRIBUIDAS a su fuente. Nunca inventes una cita.
+- VERSOS: si citas un verso de una canción entre comillas, cópialo LITERAL del
+  bloque [LETRA] del material y atribúyelo a esa canción. Si el verso NO está en
+  el material, NO lo entrecomilles: parafraséalo o descríbelo. JAMÁS inventes un
+  verso ni lo atribuyas a una canción de la que no tienes la letra delante.
 - NO escribas enlaces internos (el sistema los añade). Nunca enlaces en el encabezado.
 - Solo esta sección. Devuelve JSON {{"body_md":"<markdown>"}}.
 """
@@ -257,6 +261,10 @@ def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
         "- LETRAS COMO DECLARACIONES: si la sección presenta un verso de una canción "
         "(o texto de un bloque [TRANSCRIPCIÓN]) como algo que Robe 'dijo'/'declaró', "
         "elimínalo (una letra cantada no es una declaración).\n"
+        "- VERSOS INVENTADOS: si la sección entrecomilla un verso y lo atribuye a una "
+        "canción, y ese verso NO aparece LITERAL en el bloque [LETRA] de esa canción "
+        "dentro del material, es una invención: quita las comillas y parafrasea, o "
+        "elimina la frase. Un verso citado SIEMPRE debe existir en la letra real.\n"
         "- Texto garbleado de transcripciones: quítalo.\n\n"
         f"MATERIAL:\n\"\"\"{material[:90000]}\"\"\"\n\nSECCIÓN:\n\"\"\"{section_md}\"\"\""
     )

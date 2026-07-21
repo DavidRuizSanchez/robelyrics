@@ -32,7 +32,7 @@ $DC exec -T api python -m scripts.research.fetch_blogs  || echo "[!] fetch_blogs
 # 3-9) Destilado + vectorización + grafo (estricto: si algo crítico falla, paramos).
 $DC exec -T api python -m scripts.research.link_sources_to_songs \
   && $DC exec -T api python -m scripts.research.embed_interpretations \
-  && $DC exec -T api python -m scripts.research.distill --only-missing \
+  && $DC exec -T api python -m scripts.research.distill --only-missing --stale \
   && $DC exec -T api python -m scripts.research.vectorize_consensus \
   && $DC exec -T api python -m scripts.research.update_interpretations_payload \
   && $DC exec -T api python -m scripts.research.embed_robe_voice \

@@ -208,12 +208,37 @@ def _audit_item(
     n_eval = len(report.verdicts)
     autofixes = report.autofixes      # refutados con evidencia → se corrigen
     to_review = report.to_review      # no verificables → solo se reportan
-    if not autofixes and not to_review:
+
+    # GATE DE CITAS DE LETRA (determinista): detecta versos inventados o citas de
+    # canciones sin letra verificable en contenido YA publicado. No se auto-borran
+    # (requieren reescritura); se reportan al CSV como revisión.
+    lyric_issues: list = []
+    if item.content_type in ("post", "seo", "interpretation"):
+        try:
+            from app.services.lyric_guard import check_lyrics
+            lr = check_lyrics(db, body)
+            lyric_issues = lr.blocking + lr.to_review
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("lyric-guard %s/%s falló: %s", item.content_type, item.id, exc)
+
+    if not autofixes and not to_review and not lyric_issues:
         return n_eval, 0, 0
 
     before = body
     fixed = body
     skipped: list = []
+    if not autofixes and not to_review and lyric_issues:
+        # Solo hay citas de letra que revisar (nada que corregir contra BD).
+        for lv in lyric_issues:
+            logger.info("  [%s/%s] CITA %s: «%s» — %s",
+                        item.content_type, item.slug, lv.status, lv.quote[:60], lv.reason)
+            if writer:
+                writer.writerow([
+                    item.content_type, item.id, item.slug, f"lyric:{lv.status}", "revisar",
+                    lv.attributed_song or "", lv.quote, lv.matched_song or "", "lyrics",
+                    lv.reason, _snippet(before, lv.quote), "(sin tocar)",
+                ])
+        return n_eval, 0, len(lyric_issues)
     # Corrección quirúrgica determinista (también en dry-run, en memoria, para el
     # preview del antes/después; solo se escribe en BD si no es dry-run).
     fixed, skipped = correct_body(db, before, report, index=index, material=item.material)
@@ -253,7 +278,17 @@ def _audit_item(
                 c.subject, c.object, v.correct_value or "", v.source, v.evidence,
                 _snippet(before, c.quote), "(sin tocar)",
             ])
-    return n_eval, len(corrected), len(skipped) + len(to_review)
+    # Citas de letra inventadas / no verificables (reescritura manual).
+    for lv in lyric_issues:
+        logger.info("  [%s/%s] CITA %s: «%s» — %s",
+                    item.content_type, item.slug, lv.status, lv.quote[:60], lv.reason)
+        if writer:
+            writer.writerow([
+                item.content_type, item.id, item.slug, f"lyric:{lv.status}", "revisar",
+                lv.attributed_song or "", lv.quote, lv.matched_song or "", "lyrics",
+                lv.reason, _snippet(before, lv.quote), "(sin tocar)",
+            ])
+    return n_eval, len(corrected), len(skipped) + len(to_review) + len(lyric_issues)
 
 
 def main() -> None:

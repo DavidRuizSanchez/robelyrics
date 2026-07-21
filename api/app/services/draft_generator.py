@@ -136,8 +136,9 @@ def generate_body(db, p: ContentProposal) -> dict | None:
             framing=(
                 f"Análisis a fondo de la canción «{song.title}»"
                 + (f" del disco «{album.title}»" if album else "")
-                + ". CITA versos textuales concretos entre comillas, explica su "
-                "significado, la música y su contexto en el disco. Nada genérico."
+                + ". CITA versos textuales concretos entre comillas (copiados LITERAL "
+                "de la letra real que tienes en el material [LETRA]; nunca inventes un "
+                "verso), explica su significado, la música y su contexto. Nada genérico."
             ),
         )
         if deep:
@@ -243,8 +244,10 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                     db, entity_type=p.source_type, entity=tax,
                     framing=(
                         f"Tema de fondo: «{tax.name}» en la obra de Robe/Extremoduro. "
-                        "CITA versos textuales concretos donde aparece e ilústralo con "
-                        "canciones y hechos reales. Nada de divagación genérica."
+                        "CITA versos textuales concretos donde aparece (copiados LITERAL "
+                        "del material [LETRA]; nunca inventes un verso ni lo atribuyas a "
+                        "una canción sin tener su letra) e ilústralo con canciones y "
+                        "hechos reales. Nada de divagación genérica."
                     ),
                 )
                 if deep:

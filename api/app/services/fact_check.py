@@ -25,6 +25,7 @@ enlaces markdown y versos citados — solo toca el hecho no respaldado.
 """
 from __future__ import annotations
 
+import difflib
 import json
 import logging
 import os
@@ -180,6 +181,7 @@ class CatalogIndex:
     album_titles: set[str]             # norm(title) presentes
     album_kind: dict[str, str]         # norm(title) -> kind (studio|live|compilation|ep)
     album_url: dict[str, str]          # norm(title) -> "/{artist_slug}/{album_slug}"
+    album_display: dict[str, str]      # norm(title) -> título original (con signos)
     book_titles: set[str]              # norm(title) presentes
 
     def url_for_album(self, title: str) -> str | None:
@@ -202,9 +204,32 @@ class CatalogIndex:
                 return True
         return False
 
+    def _fuzzy_song_key(self, n: str) -> str | None:
+        """Clave de canción más parecida al título normalizado `n` (difflib).
+        Tolera variantes triviales del título que rompen el lookup exacto, p.ej.
+        «Ama, ama y ensancha el alma» (2 «ama») vs la del catálogo «Ama, Ama, Ama
+        y Ensancha el Alma» (3 «ama»). Umbral alto (0.9) para no confundir canciones
+        distintas de título parecido."""
+        if not n:
+            return None
+        best, bestr = None, 0.0
+        for k in self.songs:
+            r = difflib.SequenceMatcher(None, n, k).ratio()
+            if r > bestr:
+                best, bestr = k, r
+        return best if bestr >= 0.9 else None
+
+    def refs_for_song(self, title: str) -> list[_SongRef]:
+        """Referencias de una canción: lookup exacto y, si falla, fuzzy tolerante."""
+        refs = self.songs.get(_norm(title))
+        if refs:
+            return refs
+        key = self._fuzzy_song_key(_norm(title))
+        return self.songs.get(key, []) if key else []
+
     def album_for_song(self, title: str) -> _SongRef | None:
         """Mejor referencia para una canción: prioriza el álbum de estudio."""
-        refs = self.songs.get(_norm(title)) or []
+        refs = self.refs_for_song(title)
         if not refs:
             return None
         studio = [r for r in refs if r.kind == "studio"]
@@ -230,6 +255,7 @@ def build_catalog_index(db: Session) -> CatalogIndex:
     album_titles: set[str] = set()
     album_kind: dict[str, str] = {}
     album_url: dict[str, str] = {}
+    album_display: dict[str, str] = {}
     for title, year, kind, aslug, artslug in db.execute(
         select(Album.title, Album.year, Album.kind, Album.slug, Artist.slug)
         .join(Artist, Album.artist_id == Artist.id)
@@ -238,6 +264,7 @@ def build_catalog_index(db: Session) -> CatalogIndex:
         albums[n] = int(year or 0)
         album_titles.add(n)
         album_kind[n] = kind or "studio"
+        album_display[n] = title or ""
         if aslug and artslug:
             album_url[n] = f"/{artslug}/{aslug}"
 
@@ -245,7 +272,8 @@ def build_catalog_index(db: Session) -> CatalogIndex:
 
     return CatalogIndex(
         songs=songs, albums=albums, album_titles=album_titles,
-        album_kind=album_kind, album_url=album_url, book_titles=book_titles,
+        album_kind=album_kind, album_url=album_url, album_display=album_display,
+        book_titles=book_titles,
     )
 
 
@@ -378,7 +406,7 @@ def _resolve_db(index: CatalogIndex, claim: Claim) -> Verdict | None:
         ref = index.album_for_song(claim.subject)
         if ref is None:
             return None  # canción no está en el catálogo → niveles siguientes
-        refs = index.songs.get(_norm(claim.subject)) or []
+        refs = index.refs_for_song(claim.subject)
         if any(_title_matches(claim.object, r.album_title) for r in refs):
             return Verdict(claim, "confirmed", evidence=f"{claim.subject} ∈ {ref.album_title}", source="db")
         # GUARD anti-falso-positivo: solo es una atribución de álbum ERRÓNEA si el
@@ -401,7 +429,7 @@ def _resolve_db(index: CatalogIndex, claim: Claim) -> Verdict | None:
         )
 
     if claim.type == "song_year":
-        refs = index.songs.get(_norm(claim.subject)) or []
+        refs = index.refs_for_song(claim.subject)
         if not refs:
             return None
         claimed = _year_in(claim.object) or _year_in(claim.text)
@@ -513,6 +541,99 @@ def resolve_claim(
 
 
 # --------------------------------------------------------------------------- #
+# 2b. Extractor DETERMINISTA de atribuciones canción→álbum (sin LLM)
+# --------------------------------------------------------------------------- #
+# Frase que atribuye una canción a un disco ("«X», del álbum «Y»"). Sobre texto
+# ya normalizado (sin acentos, minúsculas).
+_ATTRIB_ALBUM_RE = re.compile(
+    r"\b(?:del|en el|de su|dentro del|incluid[ao]s? en el|"
+    r"perteneciente al|que forma parte del)\s+"
+    r"(?:album|disco|lp|elepe|trabajo|placa|disco de estudio)\b"
+)
+
+
+def _norm_view(body: str) -> tuple[str, list[int]]:
+    """Body normalizado (minúsculas, sin acentos, puntuación→espacio, espacios
+    colapsados) + mapa índice-normalizado → índice-original, para recuperar el
+    substring original de cualquier coincidencia."""
+    src = _strip_accents((body or "").translate(_QUOTES)).lower()
+    chars: list[str] = []
+    imap: list[int] = []
+    prev_space = False
+    for i, ch in enumerate(src):
+        c = ch if re.match(r"[a-z0-9ñ ]", ch) else " "
+        if c == " ":
+            if prev_space:
+                continue
+            prev_space = True
+        else:
+            prev_space = False
+        chars.append(c)
+        imap.append(i)
+    return "".join(chars), imap
+
+
+def _catalog_occ(norm: str, keys: list[str]) -> list[tuple[int, int, str]]:
+    """Ocurrencias (inicio, fin, clave) de títulos del catálogo en el texto
+    normalizado, del más largo al más corto para no casar uno dentro de otro."""
+    occ: list[tuple[int, int, str]] = []
+    for t in sorted(set(keys), key=len, reverse=True):
+        if len(t) < 3:
+            continue
+        for m in re.finditer(r"(?<![a-z0-9ñ])" + re.escape(t) + r"(?![a-z0-9ñ])", norm):
+            occ.append((m.start(), m.end(), t))
+    return occ
+
+
+def extract_catalog_claims(body_md: str, index: CatalogIndex) -> list[Claim]:
+    """Extractor DETERMINISTA de atribuciones canción→álbum explícitas, para no
+    depender de que el LLM pesque el error (caso real: «Ama, ama y ensancha el
+    alma», del álbum «¿Dónde están mis amigos?» — es de «Deltoya»).
+
+    Alta precisión: se ancla en la frase de atribución ('del álbum …'), coge el
+    álbum del catálogo que la sigue y la canción ENTRECOMILLADA que la precede,
+    resuelve la canción de forma fuzzy y emite un claim solo si el álbum afirmado
+    NO es el real (ni un directo/recopilatorio donde también aparece)."""
+    norm, imap = _norm_view(body_md)
+    albums_occ = _catalog_occ(norm, list(index.album_titles))
+    claims: list[Claim] = []
+    seen: set[tuple[str, str]] = set()
+    for m in _ATTRIB_ALBUM_RE.finditer(norm):
+        alb = next(((a0, a1, ak) for (a0, a1, ak) in albums_occ
+                    if m.end() <= a0 <= m.end() + 40), None)
+        if not alb:
+            continue
+        a0, a1, akey = alb
+        # Canción: entrecomillado más cercano ANTES de la frase de atribución.
+        back = body_md[max(0, imap[m.start()] - 130):imap[m.start()]].translate(_QUOTES)
+        qs = re.findall(r'"([^"\n]{3,80})"', back)
+        if not qs:
+            continue
+        song_txt = qs[-1].strip()
+        skey = index._fuzzy_song_key(_norm(song_txt))
+        if not skey:
+            continue
+        refs = index.songs.get(skey) or []
+        if any(_title_matches(akey, r.album_title) for r in refs):
+            continue  # atribución correcta
+        if index.is_live_album(akey):
+            continue  # directo/recopilatorio: no es error
+        # Título canónico (con signos ¿?/¡!) para que el reemplazo case entero y
+        # no deje restos ("¿Deltoya?"); si no está, el substring recuperado.
+        alb_orig = index.album_display.get(akey) or body_md[imap[a0]:imap[a1 - 1] + 1]
+        key = (skey, akey)
+        if key in seen:
+            continue
+        seen.add(key)
+        claims.append(Claim(
+            text=f'"{song_txt}" pertenece al álbum "{alb_orig}"',
+            type="song_album", quote=song_txt, subject=song_txt,
+            object=alb_orig, risk="high",
+        ))
+    return claims
+
+
+# --------------------------------------------------------------------------- #
 # 3. check_body / correct_body
 # --------------------------------------------------------------------------- #
 def check_body(
@@ -525,11 +646,22 @@ def check_body(
     client: OpenAI | None = None,
     use_web: bool = True,
 ) -> FactCheckReport:
-    """Extrae las afirmaciones del texto y las resuelve en cascada."""
+    """Extrae las afirmaciones del texto y las resuelve en cascada.
+
+    Combina DOS extractores: el LLM (amplio) y uno DETERMINISTA de atribuciones
+    canción→álbum (`extract_catalog_claims`), para que un error de disco no
+    dependa de que el LLM lo pesque. Se deduplica por (tipo, canción, álbum)."""
+    idx = index or build_catalog_index(db)
     claims = extract_claims(body_md, max_claims=max_claims, client=client)
+    det = extract_catalog_claims(body_md, idx)
+    seen = {(c.type, _norm(c.subject), _norm(c.object)) for c in claims}
+    for c in det:
+        key = (c.type, _norm(c.subject), _norm(c.object))
+        if key not in seen:
+            claims.append(c)
+            seen.add(key)
     if not claims:
         return FactCheckReport(verdicts=[])
-    idx = index or build_catalog_index(db)
     verdicts = [resolve_claim(db, c, index=idx, use_web=use_web) for c in claims]
     return FactCheckReport(verdicts=verdicts)
 
