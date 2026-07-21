@@ -170,6 +170,21 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Como get_current_user pero devuelve None si no hay sesión válida (no 401).
+    Para endpoints públicos que quieren identificar al usuario si lo hay (p.ej.
+    reportar una errata: cualquiera puede, pero si está logueado se anota quién)."""
+    if not token:
+        return None
+    try:
+        return get_current_user(token=token, db=db)
+    except HTTPException:
+        return None
+
+
 def revoke_all_user_tokens(db: Session, user_id: int) -> bool:
     """Cierra todas las sesiones activas del user.
 

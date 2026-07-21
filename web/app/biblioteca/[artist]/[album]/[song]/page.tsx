@@ -7,7 +7,6 @@ import TrackNav from "@/components/TrackNav";
 import KaraokePlayer from "@/components/KaraokePlayer";
 import LyricLine from "@/components/LyricLine";
 import SourcePills, { type SourceLite } from "@/components/SourcePills";
-import ReportErrata from "./ReportErrata";
 import { KaraokeProvider } from "@/lib/karaoke-context";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { PublicAlbumDetail, SongDetail } from "@/lib/types";
@@ -138,8 +137,6 @@ export default async function SongPage({
             <div className="mt-3">
               <AddToPlaylist songId={detail.id} />
             </div>
-
-            <ReportErrata songId={detail.id} />
 
             {detail.youtube_id ? (
               <KaraokePlayer videoId={detail.youtube_id} />

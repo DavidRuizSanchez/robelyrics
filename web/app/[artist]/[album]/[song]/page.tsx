@@ -280,6 +280,7 @@ export default async function SongPublicPage({
                     albumYear: detail.album.year,
                     artistName: detail.artist.name,
                     title: detail.title,
+                    credits: detail.credits,
                   }),
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }

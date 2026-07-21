@@ -222,7 +222,15 @@ def lexical_repetition_report(
         if phrase in low:
             report.burned.append(phrase)
 
-    allow = {_stem(a) for a in (_ALLOWED_REPEAT | (allowed or set()))}
+    # Palabras que pueden repetirse sin penalizar: nombres propios del universo +
+    # las que pase el llamante (p.ej. el título/tema de la entidad). Se TOKENIZAN:
+    # "ama ama y ensancha el alma" aporta 'ama', 'ensancha', 'alma' como permitidas
+    # (son el tema de la canción, su repetición es legítima).
+    allow: set[str] = set()
+    for phrase in (_ALLOWED_REPEAT | (allowed or set())):
+        for tok in _RE_WORD.findall(phrase):
+            if len(tok) >= 4 and tok.lower() not in _STOPWORDS:
+                allow.add(_stem(tok))
     counts: Counter[str] = Counter()
     display: dict[str, str] = {}
     for tok in _RE_WORD.findall(body):

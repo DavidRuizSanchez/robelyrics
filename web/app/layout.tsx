@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Caveat, JetBrains_Mono, Spectral } from "next/font/google";
 import ConsentManager from "@/components/ConsentManager";
+import GlobalErrata from "@/components/GlobalErrata";
 import InkCursor from "@/components/InkCursor";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { buildGraph, siteGraphNodes } from "@/lib/schema-graph";
@@ -65,6 +66,7 @@ export default async function RootLayout({
       >
         <InkCursor />
         {children}
+        <GlobalErrata />
         {gaId && <ConsentManager gaId={gaId} />}
         <script
           type="application/ld+json"

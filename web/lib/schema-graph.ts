@@ -109,6 +109,12 @@ export type ArtistInput = {
   members?: PersonInput[];
 };
 
+export type SongCreditInput = {
+  role: string; // letra | musica | adaptacion | poema_original | ...
+  name: string;
+  person_slug: string | null;
+};
+
 export type SongInput = {
   slug: string;
   artistSlug: string;
@@ -117,6 +123,7 @@ export type SongInput = {
   albumYear: number;
   artistName: string;
   title: string;
+  credits?: SongCreditInput[];
 };
 
 export type PersonInput = {
@@ -178,6 +185,16 @@ export function musicAlbumNode(album: AlbumInput): Record<string, unknown> {
 export function musicCompositionNode(
   song: SongInput,
 ): Record<string, unknown> {
+  // Persona (nodo mínimo) para un crédito con ficha; si no hay slug, solo nombre.
+  const personRef = (c: SongCreditInput) =>
+    c.person_slug
+      ? { "@type": "Person", "@id": canonical.person(c.person_slug), name: c.name, url: urls.person(c.person_slug) }
+      : { "@type": "Person", name: c.name };
+
+  const credits = song.credits || [];
+  const lyricCredit = credits.find((c) => c.role === "poema_original" || c.role === "letra" || c.role === "adaptacion");
+  const musicCredit = credits.find((c) => c.role === "musica");
+
   return {
     "@type": "MusicComposition",
     "@id": canonical.musicComposition(
@@ -187,7 +204,10 @@ export function musicCompositionNode(
     ),
     name: song.title,
     url: urls.song(song.artistSlug, song.albumSlug, song.slug),
-    composer: { "@id": canonical.musicGroup(song.artistSlug) },
+    // Autoría precisa cuando consta (p.ej. poema de Chinato musicado por Robe);
+    // si no, composer = el grupo (comportamiento previo).
+    ...(lyricCredit ? { lyricist: personRef(lyricCredit) } : {}),
+    composer: musicCredit ? personRef(musicCredit) : { "@id": canonical.musicGroup(song.artistSlug) },
     // isPartOf (de CreativeWork) en vez de inAlbum (que es de MusicRecording,
     // no de MusicComposition, y daba warning de validación).
     isPartOf: { "@id": canonical.musicAlbum(song.artistSlug, song.albumSlug) },

@@ -17,17 +17,21 @@ from sqlalchemy.orm import Session
 
 from app.db.models import ErrataReport, User, VerificationRecord
 from app.db.session import get_db
-from app.services.auth import get_current_admin, get_current_user
+from app.services.auth import get_current_admin, get_optional_user
 
 router = APIRouter(prefix="/errata", tags=["errata"])
 
-_TARGETS = {"song_lyrics", "authorship", "catalog", "interpretation"}
+# "content" = errata genérica de cualquier página (el widget global); las demás son
+# específicas de canción. El `page_ref` (ruta de la página) llega para que el admin
+# sepa dónde y se guarda en `field`.
+_TARGETS = {"song_lyrics", "authorship", "catalog", "interpretation", "content"}
 
 
 class ErrataIn(BaseModel):
-    target_type: str = Field(..., description="song_lyrics|authorship|catalog|interpretation")
+    target_type: str = Field(..., description="song_lyrics|authorship|catalog|interpretation|content")
     target_id: int | None = None
     field: str | None = None
+    page_ref: str | None = None
     reported_wrong: str | None = None
     suggested_right: str | None = None
     note: str | None = None
@@ -43,9 +47,10 @@ class ErrataOut(BaseModel):
 def report_errata(
     payload: ErrataIn,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> ErrataOut:
-    """Un fan reporta una errata. Queda `pending`; el MCV la intentará resolver."""
+    """Cualquiera puede reportar una errata (si está logueado, se anota quién).
+    Queda `pending`; el MCV la intentará resolver, nada se auto-publica."""
     if payload.target_type not in _TARGETS:
         raise HTTPException(status_code=422, detail="target_type no válido")
     if not (payload.reported_wrong or payload.suggested_right or payload.note):
@@ -53,10 +58,10 @@ def report_errata(
     rep = ErrataReport(
         target_type=payload.target_type,
         target_id=payload.target_id,
-        field=(payload.field or None),
+        field=(payload.field or (f"page:{payload.page_ref}" if payload.page_ref else None)),
         reported_wrong=(payload.reported_wrong or None),
         suggested_right=(payload.suggested_right or None),
-        reporter=user.email,
+        reporter=(user.email if user else "anónimo"),
         note=(payload.note or None),
         status="pending",
     )
