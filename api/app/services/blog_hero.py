@@ -85,36 +85,41 @@ _BAD_IMAGE_HOSTS = (
 )
 
 
-def _usable_image_url(url: str) -> bool:
-    """True solo si la URL es una imagen REAL y estable: dominio no vetado y
-    responde 200 con content-type `image/*`. Evita heros rotos (403/HTML) que
-    dejan la página pública sin imagen."""
-    if not url:
-        return False
-    low = url.lower()
-    if any(h in low for h in _BAD_IMAGE_HOSTS):
-        return False
-    # Las rutas locales del propio sitio (portadas, assets) son siempre fiables.
-    if low.startswith("/"):
-        return True
+def _rehost_to_cloudinary(url: str) -> str | None:
+    """Descarga una foto web y la RE-SUBE a Cloudinary (folder del blog), devolviendo
+    la URL `res.cloudinary.com`. Necesario porque Next.js solo optimiza imágenes de
+    dominios en `remotePatterns` (wikimedia/cloudinary): una URL externa de un medio,
+    aunque cargue con 200, da 400 en `/_next/image` y se ve ROTA. Re-alojarla en
+    Cloudinary la hace siempre renderizable y estable (sin hotlink frágil). None si
+    la descarga/subida falla."""
+    import contextlib
+    import tempfile
+
+    path = None
     try:
-        import httpx
-        with httpx.Client(timeout=12.0, follow_redirects=True,
-                          headers={"User-Agent": "Mozilla/5.0"}) as c:
-            r = c.get(url)
-        return r.status_code == 200 and r.headers.get("content-type", "").startswith("image/")
+        from app.services.instagram import cloudinary_upload, imaging
+        img = imaging._fetch_image(url)  # valida que es imagen de verdad
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fh:
+            path = fh.name
+        img.convert("RGB").save(path, "JPEG", quality=88)
+        return cloudinary_upload.upload(path, folder="entreinteriores-blog")
     except Exception as exc:  # noqa: BLE001
-        logger.info("hero: URL de foto no verificable (%s): %s", url[:60], exc)
-        return False
+        logger.info("hero: re-host a Cloudinary falló (%s): %s", url[:60], exc)
+        return None
+    finally:
+        if path and os.path.exists(path):
+            with contextlib.suppress(OSError):
+                os.unlink(path)
 
 
 def _web_photo_hero(
     entities: list[dict] | None, subject: str, alt_label: str, used: set[str]
 ) -> dict | None:
     """Foto REAL del sujeto por búsqueda web (mismo motor que Instagram:
-    Google Images vía DataForSEO + respaldo Wikimedia/Openverse CC), deduplicada
-    por URL ya usada y VALIDADA (200 + image/*). None si no hay ninguna fiable →
-    el caller cae al arte IA figurativo (nunca a un hero roto).
+    Google Images vía DataForSEO + respaldo Wikimedia/Openverse CC). La foto web se
+    RE-ALOJA en Cloudinary para que Next la renderice (los dominios de medios no
+    están en `remotePatterns` → se verían rotas). Deduplicada por URL. None si no
+    hay ninguna usable → el caller cae al arte IA figurativo (nunca a un hero roto).
 
     Prioriza fotos originales relacionadas con el tema del post antes de caer al
     arte IA. Ancla la query al universo Robe/Extremoduro para evitar homónimos."""
@@ -134,17 +139,24 @@ def _web_photo_hero(
         chosen = photo_finder.find(topic, exclude=used)
         if not chosen:
             return None
-        # Prueba la imagen full y, si no es usable, el thumbnail; si ninguna vale, None.
+        # Prueba la imagen full y, si no, el thumbnail. Vetos de dominio inestable;
+        # las locales sirven tal cual, las externas se re-alojan en Cloudinary.
         for url in (chosen.get("url"), chosen.get("thumb")):
-            if url and url not in used and _usable_image_url(url):
-                credit = (chosen.get("credit") or "").strip()
-                return {
-                    "url": url,
-                    "attribution": credit or None,
-                    "license": None,
-                    "source": url,
-                    "alt": f"Fotografía relacionada con «{(alt_label or subject or label).strip()}»",
-                }
+            if not url or url in used:
+                continue
+            if any(h in url.lower() for h in _BAD_IMAGE_HOSTS):
+                continue
+            hosted = url if url.startswith("/") else _rehost_to_cloudinary(url)
+            if not hosted or hosted in used:
+                continue
+            credit = (chosen.get("credit") or "").strip()
+            return {
+                "url": hosted,
+                "attribution": credit or None,
+                "license": None,
+                "source": url,
+                "alt": f"Fotografía relacionada con «{(alt_label or subject or label).strip()}»",
+            }
         return None
     except Exception as exc:  # noqa: BLE001
         logger.warning("foto web de hero falló (%s): %s", subject, exc)
