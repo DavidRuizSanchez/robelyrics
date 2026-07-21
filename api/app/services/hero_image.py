@@ -29,9 +29,10 @@ def _entity_image(db: Session, etype: str, slug: str) -> dict[str, Any] | None:
     if etype == "Person":
         p = db.query(Person).filter(Person.slug == slug).first()
         if p and p.image_url:
+            display = p.stage_name or p.full_name
             return {"url": p.image_url, "attribution": p.image_attribution,
                     "license": p.image_license, "source": p.image_source_url,
-                    "alt": f"Fotografía de {p.name}"}
+                    "alt": f"Fotografía de {display}"}
         return None
 
     if etype == "MusicGroup":
