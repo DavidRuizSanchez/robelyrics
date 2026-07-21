@@ -23,8 +23,10 @@ from sqlalchemy import select
 from app.db.models import (
     Album,
     Artist,
+    Band,
     Concept,
     ContentProposal,
+    Person,
     Place,
     SeoContent,
     Song,
@@ -250,6 +252,28 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                 keywords=p.keywords or [],
                 today=today,
             )
+        # Evergreen anclado a una PERSONA/ARTISTA/BANDA (p.ej. "frases icónicas de
+        # Robe"): motor profundo sobre esa entidad, con el ángulo del título.
+        ent_model = {"artist": Artist, "person": Person, "band": Band}.get(
+            p.source_type or ""
+        )
+        if ent_model and p.source_id:
+            ent = db.get(ent_model, p.source_id)
+            if ent:
+                name = getattr(ent, "name", "") or p.title
+                deep = _deep_body(
+                    db, entity_type=p.source_type, entity=ent,
+                    framing=(
+                        f"{p.title}. Pieza a fondo sobre {name}, anclada al corpus: "
+                        "hechos y versos REALES (los versos, copiados LITERAL del "
+                        "material [LETRA]; nunca inventes un verso ni lo atribuyas a una "
+                        "canción sin tener su letra). Concreto y con sustancia, nada genérico."
+                    ),
+                    tier=_tier, serp_guidance=_serp,
+                )
+                if deep:
+                    return deep
+
         model = {"theme": Theme, "place": Place, "concept": Concept}.get(
             p.source_type or ""
         )

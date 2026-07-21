@@ -121,7 +121,9 @@ def main() -> None:
     ap.add_argument("--slug", required=True)
     ap.add_argument("--kind", required=True,
                     choices=("evergreen", "spotlight", "album-anniversary", "anniversary"))
-    ap.add_argument("--source-type", choices=("song", "album", "theme", "place", "concept"))
+    ap.add_argument("--source-type",
+                    choices=("song", "album", "theme", "place", "concept",
+                             "artist", "person", "band"))
     ap.add_argument("--source-id", type=int)
     ap.add_argument("--tier", choices=("standard", "premium", "flagship", "cornerstone"),
                     help="Fuerza el tier (posts curados de alto interés). Si se omite, "
