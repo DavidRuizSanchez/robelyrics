@@ -102,6 +102,32 @@ def _mentioned_song_ids(db: Session, text: str) -> set[int]:
     return out
 
 
+_TERMINAL = re.compile(r'[.!?…]["»)]?\s*$')
+
+
+def _full_verse(song, line_text: str, max_lines: int = 4) -> str:
+    """Expande la línea casada a la FRASE completa: incluye líneas contiguas hacia
+    atrás (hasta el cierre anterior) y hacia delante (hasta el siguiente cierre de
+    frase), acotado a `max_lines`. Así el verso citado nunca queda a medias."""
+    texts = [(ln.text or "").strip() for ln in song.lines]
+    if not texts:
+        return line_text.strip()
+    nt = _norm_line(line_text)
+    idx = next((i for i, t in enumerate(texts) if _norm_line(t) == nt), None)
+    if idx is None:
+        return line_text.strip()
+    start = idx
+    while start > 0 and texts[start - 1] and not _TERMINAL.search(texts[start - 1]) \
+            and (idx - start) < 2:
+        start -= 1
+    end = idx
+    while end < len(texts) - 1 and texts[end] and not _TERMINAL.search(texts[end]) \
+            and (end - start) < max_lines - 1:
+        end += 1
+    verse = " ".join(t for t in texts[start:end + 1] if t)
+    return verse or line_text.strip()
+
+
 def find_verse(
     db: Session, text: str, exclude_lines: set[str] | None = None
 ) -> dict | None:
@@ -160,6 +186,10 @@ def find_verse(
     song = db.get(Song, top.song_id) if top.song_id else None
     if song is None:
         return {"line": line, "song": "", "artist": "Extremoduro", "year": None}
+
+    # Verso SIEMPRE completo: expande la línea casada a la frase entera (líneas
+    # contiguas hasta cerrar con puntuación), para que la cita no quede a medias.
+    line = _full_verse(song, line)
 
     album = song.album
     artist = album.artist if album is not None else None

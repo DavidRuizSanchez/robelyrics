@@ -329,9 +329,12 @@ def _post_process(db, body_md: str, entities: list, subject: str = "",
         build_corpus_index,
         load_link_stats,
     )
+    from app.services.lyric_guard import complete_verses
     from app.services.text_sanitizer import normalize_headings, strip_ai_tells
 
     hero = build_unique_hero(db, entities or [], subject, alt_label=title or subject)
+    # Versos citados SIEMPRE completos: expande cada cita a la línea real del corpus.
+    body_md = complete_verses(db, body_md) or body_md
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
     # Embebe vídeos referenciados como enlace markdown (URL desnuda → reproductor).

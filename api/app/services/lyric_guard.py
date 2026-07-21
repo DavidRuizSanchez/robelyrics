@@ -251,6 +251,96 @@ def _overlap(q_tokens: set[str], song_tokens: frozenset) -> float:
     return len(q_tokens & song_tokens) / len(q_tokens)
 
 
+# --------------------------------------------------------------------------- #
+# Completado de versos: expande un verso citado a la LÍNEA COMPLETA de la letra
+# real, para que las citas nunca queden a medias (ni en el blog ni en Instagram).
+# --------------------------------------------------------------------------- #
+_COMPLETE_MIN_RATIO = 0.6   # parecido mínimo verso↔línea para considerarlo el mismo
+
+
+def _load_song_lines(db) -> list[dict]:
+    """Por canción: líneas (original + normalizada) y el set de palabras (pre-filtro)."""
+    from sqlalchemy import select
+
+    from app.db.models import Line, Song
+
+    rows = db.execute(
+        select(Song.id, Song.title, Line.text, Line.line_index)
+        .join(Line, Line.song_id == Song.id)
+        .order_by(Song.id, Line.line_index)
+    ).all()
+    by_song: dict[int, dict] = {}
+    for sid, title, text, _idx in rows:
+        s = by_song.setdefault(sid, {"title": title, "lines": []})
+        s["lines"].append((text or "", normalize(text or "")))
+    out: list[dict] = []
+    for s in by_song.values():
+        toks: set[str] = set()
+        for _o, n in s["lines"]:
+            toks.update(n.split())
+        out.append({"title": s["title"], "lines": s["lines"], "tokens": frozenset(toks)})
+    return out
+
+
+def _best_complete_line(quote_norm: str, quote_tokens: set[str], song: dict) -> str | None:
+    """Línea (o par de líneas consecutivas) de la canción que CONTIENE todas las
+    palabras del verso citado y mejor casa con él. Devuelve el texto ORIGINAL
+    completo, o None si ninguna línea lo contiene con parecido suficiente."""
+    lines = song["lines"]
+    best_txt, best_score = None, 0.0
+    for i in range(len(lines)):
+        for span in (1, 2):  # el verso puede abarcar 2 líneas
+            if i + span > len(lines):
+                continue
+            group = lines[i:i + span]
+            gnorm = " ".join(n for _o, n in group if n).strip()
+            if not gnorm:
+                continue
+            gtok = set(gnorm.split())
+            if not quote_tokens.issubset(gtok):  # todas las palabras del verso deben estar
+                continue
+            r = best_ratio(quote_norm, gnorm)
+            if r > best_score:
+                best_score = r
+                best_txt = " / ".join(o.strip() for o, n in group if o.strip())
+    return best_txt if best_txt and best_score >= _COMPLETE_MIN_RATIO else None
+
+
+def complete_verses(db, body_md: str) -> str:
+    """Expande cada verso citado (entre comillas) a la LÍNEA COMPLETA de la letra
+    real cuando el citado sea un fragmento de ella. Determinista y conservador:
+    solo toca la cita si UNA sola línea del corpus la completa sin ambigüedad."""
+    if not body_md:
+        return body_md
+    songs = _load_song_lines(db)
+    matches = list(re.finditer(r'["“«]([^"”»\n]{6,240})["”»]', body_md))
+    if not matches:
+        return body_md
+    body = body_md
+    for m in reversed(matches):  # de atrás→delante para no invalidar posiciones
+        inner = m.group(1).strip()
+        qn = normalize(_unwrap_md_links(inner))
+        qtok = set(qn.split())
+        if len(qtok) < 3:
+            continue
+        completions = set()
+        for s in songs:
+            if not qtok.issubset(s["tokens"]):  # pre-filtro: todas las palabras en la canción
+                continue
+            c = _best_complete_line(qn, qtok, s)
+            if c:
+                completions.add(c)
+        if len(completions) != 1:  # ninguno o ambiguo → no tocar (seguridad)
+            continue
+        full = completions.pop()
+        if normalize(full) == qn:  # el verso ya está completo
+            continue
+        if len(full) > max(140, len(inner) * 3):  # evitar sobre-expansión
+            continue
+        body = body[:m.start(1)] + full + body[m.end(1):]
+    return body
+
+
 def _load_songs(db) -> list[_SongLyrics]:
     from sqlalchemy import select
 

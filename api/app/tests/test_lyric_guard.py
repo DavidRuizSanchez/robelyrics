@@ -181,3 +181,33 @@ def test_url_de_enlace_no_falsea_la_atribucion():
 def test_mask_link_urls_preserva_longitud():
     s = 'texto "[A](https://larga/url/aqui)" fin'
     assert len(lg._mask_link_urls(s)) == len(s)
+
+
+# --------------------------------------------------------------------------- #
+# 9. Completado de versos: un fragmento se expande a la línea completa
+# --------------------------------------------------------------------------- #
+_AFUEGO_LINE = "Y llega en tu braguita, el amor, de visita"
+
+
+def _song_lines_corpus():
+    return [{
+        "title": "A Fuego",
+        "lines": [(_AFUEGO_LINE, lg.normalize(_AFUEGO_LINE)),
+                  ("otra línea cualquiera del tema", lg.normalize("otra línea cualquiera del tema"))],
+        "tokens": frozenset(lg.normalize(_AFUEGO_LINE + " otra linea cualquiera del tema").split()),
+    }]
+
+
+def test_complete_verses_expande_fragmento(monkeypatch):
+    monkeypatch.setattr(lg, "_load_song_lines", lambda db: _song_lines_corpus())
+    # fragmento con palabras del medio caídas ("el amor")
+    body = 'En "A Fuego" suena "en tu braguita, de visita".'
+    out = lg.complete_verses(None, body)
+    assert _AFUEGO_LINE in out
+    assert "en tu braguita, de visita" not in out.replace(_AFUEGO_LINE, "")
+
+
+def test_complete_verses_no_toca_verso_ya_completo(monkeypatch):
+    monkeypatch.setattr(lg, "_load_song_lines", lambda db: _song_lines_corpus())
+    body = f'En "A Fuego": "{_AFUEGO_LINE}".'
+    assert lg.complete_verses(None, body) == body
