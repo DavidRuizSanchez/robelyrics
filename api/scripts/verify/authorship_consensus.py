@@ -45,7 +45,7 @@ def _resolve_song(db, title: str, album_slug: str | None) -> Song | None:
     return best if best_r >= 0.75 else None
 
 
-def _web_source(claim: str) -> SourceRef | None:
+def _web_source(claim: str, author: str) -> SourceRef | None:
     """Señal Wikipedia/Google para el claim de autoría."""
     from app.services.web_verify import classify_fact
 
@@ -55,7 +55,7 @@ def _web_source(claim: str) -> SourceRef | None:
     kind = "wikipedia" if "wiki" in src else "google_serp"
     if verdict == "supported":
         return SourceRef(name=f"web:{res.get('source') or 'wikipedia/google'}",
-                         source_kind=kind, stance="supports", value="__AUTHOR__",
+                         source_kind=kind, stance="supports", value=author,
                          quote=(res.get("evidence") or "")[:200])
     if verdict == "contradicted":
         return SourceRef(name=f"web:{res.get('source') or 'wikipedia/google'}",
@@ -120,7 +120,7 @@ def _corpus_sources(db, song: Song, author: str) -> list[SourceRef]:
             }.get(kind, "unknown")
             sources.append(SourceRef(
                 name=f"corpus:{kind}", source_kind=sk, stance="supports",
-                value="__AUTHOR__", quote=(judge.get("quote") or "")[:200],
+                value=author, quote=(judge.get("quote") or "")[:200],
             ))
     return sources
 
@@ -134,15 +134,15 @@ def verify_credit(db, song: Song, author: str, role: str) -> mcv.ConsensusResult
         f"En la canción «{song.title}», {author} firma la parte de {role}."
     )
     fan = SourceRef(name="fan (feedback)", source_kind="fan_feedback",
-                    stance="supports", value="__AUTHOR__")
+                    stance="supports", value=author)
     sources = [fan]
-    web = _web_source(claim)
+    web = _web_source(claim, author)
     if web:
         sources.append(web)
     sources.extend(_corpus_sources(db, song, author))
-    # evaluamos la hipótesis "__AUTHOR__" (todas las que la respaldan comparten ese value)
+    # evaluamos la hipótesis "<author>" (las fuentes que la respaldan comparten ese value)
     return mcv.evaluate_hypothesis(
-        hypothesis="__AUTHOR__", current_value="__ROBE__", sources=sources,
+        hypothesis=author, current_value="Robe (atribución previa)", sources=sources,
     )
 
 
@@ -197,7 +197,7 @@ def process(db, entry: dict, *, apply: bool) -> None:
     author = key["name"]
     logger.info("Verificando autoría de «%s» → %s (%s)...", song.title, author, key["role"])
     result = verify_credit(db, song, author, key["role"])
-    action = mcv.decide_fan_correction(result, fan_value="__AUTHOR__")
+    action = mcv.decide_fan_correction(result, fan_value=author)
     ext = [s.source_kind for s in result.sources if s.stance == "supports" and s.source_kind != "fan_feedback"]
     logger.info("  veredicto=%s conf=%.2f acción=%s corroboran=%s",
                 result.verdict, result.confidence, action, ext)

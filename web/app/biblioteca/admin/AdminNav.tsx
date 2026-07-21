@@ -7,6 +7,7 @@ const ITEMS: { href: string; label: string }[] = [
   { href: "/biblioteca/admin/sources", label: "fuentes" },
   { href: "/biblioteca/admin/seo", label: "SEO content" },
   { href: "/biblioteca/admin/blog", label: "Blog" },
+  { href: "/biblioteca/admin/erratas", label: "erratas" },
   { href: "/biblioteca/admin/instagram", label: "Instagram" },
   { href: "/biblioteca/admin/users", label: "usuarios" },
   { href: "/biblioteca/admin/subscribers", label: "suscriptores" },
