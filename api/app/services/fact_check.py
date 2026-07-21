@@ -172,6 +172,11 @@ class _SongRef:
     album_year: int
     artist: str
     kind: str  # studio|live|compilation|ep
+    # Primera aparición canónica (la fija catalog_consensus en Song). Cuando está,
+    # manda sobre el álbum/año de esta fila (evita que un recopilatorio enmascare
+    # la verdad: caso "Amor castúo" atribuida a un disco en directo).
+    original_album_slug: str | None = None
+    original_year: int | None = None
 
 
 @dataclass
@@ -227,11 +232,22 @@ class CatalogIndex:
         key = self._fuzzy_song_key(_norm(title))
         return self.songs.get(key, []) if key else []
 
-    def album_for_song(self, title: str) -> _SongRef | None:
-        """Mejor referencia para una canción: prioriza el álbum de estudio."""
+    def album_for_song(self, title: str, artist: str | None = None) -> _SongRef | None:
+        """Mejor referencia para una canción: prioriza la primera aparición canónica
+        (Song.original_*), luego el álbum de estudio más antiguo. Si se pasa `artist`,
+        NO mezcla proyectos (Robe solista vs Extremoduro) cuando hay homónimas."""
         refs = self.refs_for_song(title)
+        if artist:
+            an = _norm(artist)
+            same = [r for r in refs if _norm(r.artist) == an]
+            refs = same or refs
         if not refs:
             return None
+        # 1) primera aparición canónica fijada por catalog_consensus
+        canonical = [r for r in refs if r.original_year]
+        if canonical:
+            return sorted(canonical, key=lambda r: r.original_year)[0]
+        # 2) álbum de estudio más antiguo
         studio = [r for r in refs if r.kind == "studio"]
         pool = studio or refs
         return sorted(pool, key=lambda r: r.album_year)[0]
@@ -243,12 +259,18 @@ def build_catalog_index(db: Session) -> CatalogIndex:
 
     songs: dict[str, list[_SongRef]] = {}
     rows = db.execute(
-        select(Song.title, Album.title, Album.year, Album.kind, Artist.name)
+        select(
+            Song.title, Album.title, Album.year, Album.kind, Artist.name,
+            Song.original_album_slug, Song.original_year,
+        )
         .join(Album, Song.album_id == Album.id)
         .join(Artist, Album.artist_id == Artist.id)
     ).all()
-    for song_title, album_title, year, kind, artist in rows:
-        ref = _SongRef(album_title or "", int(year or 0), artist or "", kind or "studio")
+    for song_title, album_title, year, kind, artist, orig_slug, orig_year in rows:
+        ref = _SongRef(
+            album_title or "", int(year or 0), artist or "", kind or "studio",
+            original_album_slug=orig_slug, original_year=orig_year,
+        )
         songs.setdefault(_norm(song_title), []).append(ref)
 
     albums: dict[str, int] = {}

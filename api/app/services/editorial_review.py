@@ -148,6 +148,21 @@ def review(
             f"\"\"\"{material[:4000]}\"\"\"\n"
         )
 
+    # Linter léxico determinista (Eje E): pista concreta para el criterio 7, para
+    # que el editor no dependa solo de su "olfato" con la repetición.
+    _lexical_note = ""
+    try:
+        from app.services.text_sanitizer import lexical_repetition_report
+
+        _rep = lexical_repetition_report(body, allowed={(subject or "").lower()})
+        if _rep.has_problems:
+            _lexical_note = (
+                "AVISO del linter (detección determinista, tenlo MUY en cuenta en los "
+                f"criterios 6 y 7): {_rep.summary()}.\n"
+            )
+    except Exception:  # noqa: BLE001 — nunca romper el gate por el linter
+        _lexical_note = ""
+
     sys = (
         "Eres el editor jefe de Entre Interiores, un sitio sobre Robe y Extremoduro, "
         "y eres DURÍSIMO con la calidad. Solo aprueblas piezas que un fan de "
@@ -176,8 +191,17 @@ def review(
         "o un cartel genérico?\n"
         "5. DESARROLLO: un post de apenas unas frases, sin desarrollo, NO es "
         "publicable aunque sea correcto (mínimo ~250 palabras de sustancia real). "
-        "Si no hay material para desarrollarlo, es 'reject' (jamás se rellena).\n\n"
-        "Puntúa de 0 a 100 (100 = imprescindible y concreto; 0 = paja genérica).\n"
+        "Si no hay material para desarrollarlo, es 'reject' (jamás se rellena).\n"
+        "6. SOBRE-INTERPRETACIÓN / PSEUDO-ERUDICIÓN: NO vale llamar 'metáfora' o "
+        "'símbolo' a lo que es una afirmación DIRECTA (p.ej. una crítica social "
+        "explícita no es 'una metáfora poderosa'), ni adornar con lirismo hueco no "
+        "trazable a las fuentes/versos. Una lectura floja disfrazada de honda es un "
+        "defecto: exige que la interpretación nazca de un detalle real (un verso, "
+        "una decisión musical, algo que dijo Robe), no de tópico literario.\n"
+        "7. VARIEDAD LÉXICA: penaliza la repetición machacona de una misma palabra "
+        "distintiva o muletilla.\n"
+        + _lexical_note +
+        "\nPuntúa de 0 a 100 (100 = imprescindible y concreto; 0 = paja genérica).\n"
         "Decide el VEREDICTO:\n"
         " - 'pass' si ya está concreto y sin relleno.\n"
         " - 'revise' si tiene sustancia real pero hay redundancia/relleno que QUITAR: "

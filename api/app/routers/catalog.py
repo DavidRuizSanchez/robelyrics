@@ -46,6 +46,13 @@ class LineOut(BaseModel):
     start_seconds: int | None = None
 
 
+class SongCreditOut(BaseModel):
+    role: str
+    role_label: str
+    name: str
+    person_slug: str | None = None
+
+
 class SongDetailOut(BaseModel):
     id: int
     slug: str
@@ -54,6 +61,7 @@ class SongDetailOut(BaseModel):
     artist: ArtistOut
     album: AlbumOut
     lines: list[LineOut]
+    credits: list[SongCreditOut] = []
     interpretation: dict | None
     interpretation_confidence: str | None
     youtube_id: str | None = None
@@ -143,11 +151,17 @@ def song_detail(
         .all()
     )
     interp = song.interpretation
+    from app.routers.public import _credits_for_song  # reutiliza el helper + labels
+    credits = [
+        SongCreditOut(role=c.role, role_label=c.role_label, name=c.name, person_slug=c.person_slug)
+        for c in _credits_for_song(db, song.id)
+    ]
     return SongDetailOut(
         id=song.id,
         slug=song.slug,
         title=song.title,
         track_number=song.track_number,
+        credits=credits,
         artist=ArtistOut(slug=artist.slug, name=artist.name, active_years=artist.active_years),
         album=AlbumOut(
             slug=album.slug,

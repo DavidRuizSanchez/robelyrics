@@ -67,6 +67,7 @@ export type SongDetail = {
   artist: Artist;
   album: Album;
   lines: LyricLine[];
+  credits: PublicSongCredit[];
   interpretation: Interpretation | null;
   interpretation_confidence: "high" | "medium" | "low" | null;
   youtube_id: string | null;
@@ -240,6 +241,13 @@ export type PublicRelatedSong = {
   shared: number;
 };
 
+export type PublicSongCredit = {
+  role: string;
+  role_label: string;
+  name: string;
+  person_slug: string | null;
+};
+
 export type PublicSongDetail = {
   slug: string;
   title: string;
@@ -263,6 +271,7 @@ export type PublicSongDetail = {
   places: PublicTaxonomyPill[];
   concepts: PublicTaxonomyPill[];
   entities: PublicResolvedEntity[];
+  credits: PublicSongCredit[];
   lineup: PublicLineupMember[];
   related_songs: PublicRelatedSong[];
 };

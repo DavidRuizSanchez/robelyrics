@@ -152,6 +152,16 @@ class PublicRelatedSong(BaseModel):
     shared: int         # nº de taxonomías solapadas
 
 
+class PublicSongCredit(BaseModel):
+    """Crédito de autoría de la canción (letra/música/poema original adaptado).
+    Nace del vuelco editorial: p.ej. «Ama, ama y ensancha el alma» es un poema de
+    Manolo Chinato musicado por Robe."""
+    role: str           # letra | musica | adaptacion | poema_original | arreglos | colaboracion
+    role_label: str     # etiqueta legible ("Poema original", "Música"...)
+    name: str
+    person_slug: str | None = None   # si el autor tiene ficha en el site
+
+
 class PublicSongDetailOut(BaseModel):
     slug: str
     title: str
@@ -176,6 +186,8 @@ class PublicSongDetailOut(BaseModel):
     places: list[PublicTaxonomyPill] = []
     concepts: list[PublicTaxonomyPill] = []
     entities: list["PublicResolvedEntity"] = []
+    # Créditos de autoría (letra/música/poema original). Vacío si no consta.
+    credits: list[PublicSongCredit] = []
     # Formación de la época (best-effort por `era` de BandMembership).
     lineup: list[PublicLineupMember] = []
     # Canciones que comparten taxonomías con esta (cross-album).
@@ -295,6 +307,51 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
                 role=m.role,
             )
         )
+    return out
+
+
+_CREDIT_ROLE_LABEL = {
+    "letra": "Letra",
+    "musica": "Música",
+    "adaptacion": "Adaptación",
+    "poema_original": "Poema original",
+    "arreglos": "Arreglos",
+    "colaboracion": "Colaboración",
+}
+# Orden de presentación (lo autoral primero).
+_CREDIT_ROLE_ORDER = ["poema_original", "letra", "adaptacion", "musica", "arreglos", "colaboracion"]
+
+
+def _credits_for_song(db: Session, song_id: int) -> list["PublicSongCredit"]:
+    """Créditos de autoría de la canción, ordenados (autoría primero). Vacío si no
+    consta (jamás se inventa: solo lo que hay en song_credits)."""
+    from app.db.models import Person as _P, SongCredit as _SC  # lazy
+    rows = (
+        db.query(_SC, _P)
+        .outerjoin(_P, _SC.person_id == _P.id)
+        .filter(_SC.song_id == song_id)
+        .all()
+    )
+    def _key(pair):
+        sc = pair[0]
+        return _CREDIT_ROLE_ORDER.index(sc.credit_role) if sc.credit_role in _CREDIT_ROLE_ORDER else 99
+    # Resolución por nombre cuando el FK person_id es nulo (el crédito puede haberse
+    # creado antes de sembrar a la persona, o con un slug distinto al de la ficha).
+    by_name: dict[str, str] = {}
+    if any(p is None for _, p in rows):
+        for pp in db.query(_P).all():
+            for nm in (pp.stage_name, pp.full_name):
+                if nm:
+                    by_name[nm.strip().lower()] = pp.slug
+    out: list[PublicSongCredit] = []
+    for sc, p in sorted(rows, key=_key):
+        slug = p.slug if p else by_name.get((sc.credited_name or "").strip().lower())
+        out.append(PublicSongCredit(
+            role=sc.credit_role,
+            role_label=_CREDIT_ROLE_LABEL.get(sc.credit_role, sc.credit_role.capitalize()),
+            name=sc.credited_name,
+            person_slug=slug,
+        ))
     return out
 
 
@@ -653,6 +710,7 @@ def public_song_detail(
             for c in song.concepts
         ],
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
+        credits=_credits_for_song(db, song.id),
         lineup=_lineup_for_album(db, artist.id, album.year),
         related_songs=(
             _related_songs_by_embedding(db, song.id) or _related_songs(db, song.id)

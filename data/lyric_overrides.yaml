@@ -1,0 +1,45 @@
+# ============================================================
+# Overrides de LETRAS — verdad curada que MANDA sobre Genius
+# ============================================================
+# La fuente de verdad de la letra ya NO es solo Genius (que transcribe mal y se
+# come versos). Estas correcciones sobreviven a cualquier re-ingesta:
+# `upsert_song_with_lyrics` las aplica sobre lo que baje de Genius/LRCLIB.
+#
+# ⚠️ REGLA DE INTEGRIDAD: nada aquí se aplica como verdad "porque sí". Cada
+# entrada lleva `source` y `status`:
+#   - status: pending_verification → el Motor de Consenso (scripts/verify/
+#     lyrics_consensus.py) la contrasta contra LRCLIB + letras.com + Vagalume +
+#     blogs de análisis; si hay consenso, pasa a `verified` y se aplica. Si no,
+#     va a revisión humana (errata_reports). NUNCA se aplica sin corroborar.
+#   - status: verified → confirmada por consenso o por revisión humana; se aplica.
+#
+# Estructura de cada entrada:
+#   - album_slug: deltoya               # álbum donde la tenemos ingerida
+#     song_title: "Fuego"               # título (para resolver la canción)
+#     song_slug: fuego                  # opcional, si se conoce el slug exacto
+#     source: fan_feedback              # fan_feedback | booklet | lrclib | consensus | manual
+#     status: pending_verification
+#     reason: "Genius transcribe 'llega' por 'lleva' y omite 4 versos."
+#     # corrección por líneas (preferente: quirúrgica y trazable):
+#     line_fixes:
+#       - wrong: "Y llega en tu braguita, el amor, de visita"
+#         right: "Y lleva en tu braguita el amor de visita"
+#     # o letra completa verificada (si se dispone de ella entera):
+#     full_lyrics: null
+
+overrides:
+  # Caso de prueba del feedback de la fan (2026-07). Ella la llamó "Fuego"; el
+  # título real en el catálogo es "A Fuego" (disco "Yo, minoría absoluta"). En BD
+  # la línea dice "Y llega en tu braguita, el amor, de visita" (debería ser
+  # "lleva", y sobran comas). Los versos siguientes SÍ están, con comas de más.
+  # Pendiente de que el consenso lo confirme contra LRCLIB/letras.com/Vagalume.
+  - album_slug: yo-minoria-absoluta
+    song_title: "A Fuego"
+    source: fan_feedback
+    status: pending_verification
+    reason: >-
+      Genius transcribe "llega" por "lleva" y mete comas espurias en el estribillo
+      ("Y mis pantalones, entre los cojones" → sin coma).
+    line_fixes:
+      - wrong: "Y llega en tu braguita, el amor, de visita"
+        right: "Y lleva en tu braguita el amor de visita"

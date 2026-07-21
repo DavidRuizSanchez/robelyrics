@@ -230,14 +230,35 @@ def _polish(client: OpenAI, subject: str, body: str) -> str:
     """Pase final anti-repetición y anti-paja sobre el artículo completo."""
     if len(body.strip()) < 200:
         return body
+    # Linter léxico determinista (Eje E): detecta muletillas y palabras
+    # distintivas sobre-usadas (el "encapsula ×6" del feedback de la fan) y se
+    # las nombra al pulidor para que las quite de forma DIRIGIDA. La entidad del
+    # artículo puede repetirse sin penalizar.
+    from app.services.text_sanitizer import lexical_repetition_report
+    rep = lexical_repetition_report(body, allowed={subject.lower()})
+    lexical_task = ""
+    if rep.has_problems:
+        bits = []
+        if rep.overused:
+            bits.append(
+                "no repitas estas palabras (varíalas con sinónimos o reescribe): "
+                + ", ".join(f'"{w}" (aparece {n} veces)' for w, n in rep.overused)
+            )
+        if rep.burned:
+            bits.append(
+                "elimina estas muletillas de relleno y di lo concreto en su lugar: "
+                + ", ".join(f'"{p}"' for p in rep.burned)
+            )
+        lexical_task = "3) VARIEDAD LÉXICA: " + "; ".join(bits) + ".\n"
     user = (
         f"Pule este artículo sobre {subject} para que lo firme un fan exigente. "
-        "DOS tareas, sin añadir NADA nuevo ni inventar:\n"
+        "TAREAS, sin añadir NADA nuevo ni inventar:\n"
         "1) Elimina TODA repetición: si una frase, un dato o un encuadre (p.ej. "
         "volver a presentar al sujeto) aparece en más de una sección, deja solo la "
         "primera vez y borra las demás.\n"
         "2) Elimina TODO relleno y vaguedad sin información ('pudo haber', 'resonó', "
         "'dejó huella', 'en resumen', 'a lo largo de', frases de transición huecas).\n"
+        + lexical_task +
         "Si tras quitar la paja una sección se queda sin sustancia, redúcela a lo "
         "que aporte de verdad o elimínala entera (encabezado incluido). Conserva los "
         "encabezados '## ' que sobrevivan, los enlaces markdown y las citas. Mejor "

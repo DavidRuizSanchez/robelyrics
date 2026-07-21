@@ -1,0 +1,38 @@
+# ============================================================
+# Primera aparición canónica (disco + año) por canción
+# ============================================================
+# La asignación canción→álbum la decidía Genius. Cuando una canción aparece en un
+# recopilatorio, fact_check lo daba por legítimo y no lo corregía, perpetuando
+# años/discos equivocados. Esta tabla fija el disco de ESTUDIO donde una canción
+# apareció por PRIMERA vez (su verdad canónica), overriding a Genius.
+#
+# ⚠️ REGLA DE INTEGRIDAD: cada entrada lleva `source` y `status`. Las de arranque
+# están `pending_verification`: el consenso (scripts/verify/catalog_consensus.py)
+# las contrasta contra MusicBrainz + Wikidata/Wikipedia. Solo al pasar a
+# `verified` se escriben en songs.original_album_slug / original_year y, si hace
+# falta, se propone añadir el disco a discography.yaml.
+#
+# Estructura:
+#   - song_title: "Amor castúo"
+#     original_album: "Tú en tu casa, nosotros en la hoguera"
+#     original_album_slug: tu-en-tu-casa-nosotros-en-la-hoguera
+#     original_year: 1989
+#     source: fan_feedback
+#     status: pending_verification
+#     note: "Debut de 1989; luego reeditada/recopilada. No es de un recopilatorio."
+
+canonical:
+  # Caso de prueba del feedback (2026-07): "Amor castúo" la teníamos en un
+  # recopilatorio; la fan indica que es del debut de 1989. OJO: el título y la
+  # existencia del debut como disco separado de "Rock Transgresivo" (1994) es
+  # justo lo que catalog_consensus debe dirimir contra MusicBrainz/Wikipedia
+  # antes de tocar discography.yaml. No se aplica hasta status: verified.
+  - song_title: "Amor castúo"
+    original_album: "Tú en tu casa, nosotros en la hoguera"
+    original_album_slug: tu-en-tu-casa-nosotros-en-la-hoguera
+    original_year: 1989
+    source: fan_feedback
+    status: pending_verification
+    note: >-
+      Reportado como tema del debut de 1989. Verificar título exacto del debut y
+      su relación con "Rock Transgresivo" (1994) contra MusicBrainz/Wikipedia.

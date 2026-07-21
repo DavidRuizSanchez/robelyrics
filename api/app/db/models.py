@@ -109,6 +109,23 @@ class Song(Base):
     lyrics_raw: Mapped[str | None] = mapped_column(Text)
     lyrics_clean: Mapped[str | None] = mapped_column(Text)
     lyrics_clean_tsv: Mapped[str | None] = mapped_column(TSVECTOR)
+    # Proveniencia de la letra. La fuente de verdad ya NO es solo Genius: el
+    # Motor de Consenso de Verificación (services/consensus.py) contrasta la letra
+    # contra varias fuentes y, si hay consenso, la corrige. `lyrics_source` indica
+    # de dónde salió la versión vigente; `lyrics_confidence` es la confianza del
+    # consenso (0-1). Ver data/lyric_overrides.yaml (verdad curada que manda sobre
+    # Genius en la re-ingesta).
+    lyrics_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="genius", server_default="genius"
+    )  # genius | lrclib | consensus | override | manual
+    lyrics_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lyrics_confidence: Mapped[float | None] = mapped_column(Float)
+    # Primera aparición canónica de estudio. La relación canción→álbum es 1→N que
+    # la BD no modela (una canción puede estar en el debut y en recopilatorios);
+    # estos campos fijan la verdad canónica (disco+año) que decide catalog_consensus,
+    # para que fact_check no la tome del recopilatorio que asignó Genius.
+    original_album_slug: Mapped[str | None] = mapped_column(String(256))
+    original_year: Mapped[int | None] = mapped_column(Integer)
     duration_sec: Mapped[int | None] = mapped_column(Integer)
     genius_id: Mapped[int | None] = mapped_column(Integer)
     genius_url: Mapped[str | None] = mapped_column(String(512))
@@ -196,6 +213,51 @@ class Chunk(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
     song: Mapped[Song] = relationship(back_populates="chunks")
+
+
+class SongCredit(Base):
+    """Autoría de una canción: quién firma la letra, la música, la adaptación o el
+    poema original. Nace del feedback de fans: atribuíamos a Robe textos que son
+    poemas de otros musicados por él (p.ej. "Ama, ama y ensancha el alma" es un
+    poema de Manolo Chinato). Sin esta tabla la autoría se asumía 100% por herencia
+    Song→Album→Artist y era irrepresentable un crédito compartido.
+
+    La puebla `scripts/verify/authorship_consensus.py` (consenso multi-fuente:
+    Wikipedia/Wikidata, anotaciones de Genius verificadas, blogs, "respuestas del
+    Robe", datos curados) o el seed desde `data/song_credits.yaml`. `person_id` es
+    opcional: para autores sin ficha de persona se usa `credited_name`.
+    """
+
+    __tablename__ = "song_credits"
+    __table_args__ = (
+        UniqueConstraint(
+            "song_id", "credit_role", "credited_name",
+            name="uq_song_credits_song_role_name",
+        ),
+        Index("ix_song_credits_song", "song_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    song_id: Mapped[int] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"), nullable=False
+    )
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.id", ondelete="SET NULL"), nullable=True
+    )
+    # letra | musica | adaptacion | poema_original | arreglos | colaboracion
+    credit_role: Mapped[str] = mapped_column(String(24), nullable=False)
+    credited_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    # Proveniencia del crédito (para trazabilidad/auditoría del consenso).
+    source: Mapped[str | None] = mapped_column(String(24))  # consensus | override | manual
+    confidence: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    song: Mapped[Song] = relationship()
+    person: Mapped[Person | None] = relationship()
 
 
 # --------------------------------------------------------------------------- #
@@ -1306,7 +1368,11 @@ class EntityEdge(Base):
     los JSONB (Person.other_bands, SeoContent/Post.entities). Consultable en
     ambos sentidos (índices en src y dst). `edge_type` ∈ {song_of_album,
     album_of_artist, song_theme, song_place, song_concept, member_of,
-    other_band, video_of, mentions}.
+    other_band, video_of, mentions, lyrics_by, music_by, adapted_from}.
+
+    Los tres últimos (autoría) los genera `build_graph.py` desde `SongCredit`:
+    conectan una canción con la persona que firma su letra/música o el poema
+    original adaptado (p.ej. song → person Manolo Chinato vía adapted_from).
     """
 
     __tablename__ = "entity_edges"
@@ -1333,6 +1399,95 @@ class EntityEdge(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# --- Verificación multi-fuente (MCV) y erratas de fans ---------------------
+
+
+class VerificationRecord(Base):
+    """Traza persistente de una verificación del Motor de Consenso (MCV).
+
+    Antes la única caché de verificación era un JSON efímero en /tmp y el veredicto
+    no se guardaba. Aquí se persiste cada claim verificado (letra/autoría/catálogo)
+    con su veredicto, la confianza del consenso y las fuentes que votaron, para:
+    (1) no re-consultar fuentes externas en cada barrido, (2) dar proveniencia
+    auditable a toda auto-corrección, (3) permitir revertir.
+
+    `claim_kind` ∈ {lyric_line, song_authorship, song_album, song_year, album_year}.
+    `verdict` ∈ {confirmed, corrected, conflict, not_found}. `sources` es una lista
+    de dicts {name, tier, url, quote} — las fuentes que respaldan/contradicen.
+    """
+
+    __tablename__ = "verification_records"
+    __table_args__ = (
+        UniqueConstraint("claim_kind", "claim_key", name="uq_verification_claim"),
+        Index("ix_verification_kind", "claim_kind"),
+        Index("ix_verification_verdict", "verdict"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    claim_kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    # Clave estable del claim (p.ej. "song:123:line:14" o "song:123:authorship").
+    claim_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    song_id: Mapped[int | None] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    verdict: Mapped[str] = mapped_column(String(16), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    sources: Mapped[list | None] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    # True si el veredicto se APLICÓ (auto-corrección); False si solo se registró
+    # o quedó pendiente de humano. `auto_applied` permite el feed de auditoría.
+    auto_applied: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reverted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    song: Mapped[Song | None] = relationship()
+
+
+class ErrataReport(Base):
+    """Errata reportada por un fan de confianza (o encolada por el barrido).
+
+    Filosofía: una errata NO va directa al humano. Al llegar dispara el MCV sobre
+    ese claim; si el consenso confirma la corrección se auto-resuelve y solo queda
+    en el feed de auditoría. Solo el residuo ambiguo (fuentes en conflicto, sin
+    cobertura, alto riesgo) queda `needs_human` en la cola admin.
+
+    `target_type` ∈ {song_lyrics, authorship, catalog, interpretation}.
+    `status`: pending → (auto_resolved | needs_human) → (applied | rejected).
+    """
+
+    __tablename__ = "errata_reports"
+    __table_args__ = (
+        Index("ix_errata_status", "status"),
+        Index("ix_errata_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    target_id: Mapped[int | None] = mapped_column(Integer)  # song_id / post_id según target
+    field: Mapped[str | None] = mapped_column(String(120))
+    reported_wrong: Mapped[str | None] = mapped_column(Text)
+    suggested_right: Mapped[str | None] = mapped_column(Text)
+    reporter: Mapped[str | None] = mapped_column(String(120))
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending", server_default="pending"
+    )
+    # Enlace al veredicto del MCV que la resolvió (si lo hubo).
+    verification_id: Mapped[int | None] = mapped_column(
+        ForeignKey("verification_records.id", ondelete="SET NULL"), nullable=True
+    )
+    resolution_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --- Cola de ingesta de YouTube (Juancares + entrevistas de Robe) ----------

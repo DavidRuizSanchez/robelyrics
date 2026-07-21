@@ -1,0 +1,49 @@
+# ============================================================
+# Créditos de AUTORÍA por canción
+# ============================================================
+# El modelo asumía que TODO texto de Extremoduro/Robe era de Robe. Falso: hay
+# poemas de otros (sobre todo Manolo Chinato) que Robe MUSICÓ. Esta tabla fija
+# quién firma letra / música / adaptación / poema original.
+#
+# ⚠️ REGLA DE INTEGRIDAD: cada crédito lleva `source` y `status`. Los de arranque
+# vienen de feedback de fan y están `pending_verification`: el consenso
+# (scripts/verify/authorship_consensus.py) los contrasta contra Wikipedia/Wikidata,
+# anotaciones de Genius verificadas, blogs especializados, "respuestas del Robe"
+# y los datos ya curados del repo (bands.yaml Extrechinato, books.yaml). Solo al
+# pasar a `verified` se escriben en song_credits y en el grafo.
+#
+# credit_role ∈ {letra, musica, adaptacion, poema_original, arreglos, colaboracion}
+#
+# Estructura:
+#   - song_title: "Ama, ama y ensancha el alma"
+#     album_slug: deltoya                 # para desambiguar la canción
+#     source: fan_feedback
+#     status: pending_verification
+#     credits:
+#       - role: poema_original
+#         name: "Manolo Chinato"
+#         person_slug: manolo-chinato       # opcional (ficha de persona)
+#         primary: true
+#         note: "El texto es un poema de Chinato; Robe le puso música."
+#       - role: musica
+#         name: "Robe"
+#         person_slug: robe
+
+credits:
+  # Caso de prueba del feedback (2026-07): atribuíamos "Ama, ama y ensancha el
+  # alma" a Robe como autor; la fan señala que el TEXTO es un poema de Manolo
+  # Chinato musicado por Robe. Pendiente de confirmar por consenso.
+  - song_title: "Ama, ama y ensancha el alma"
+    album_slug: deltoya
+    source: fan_feedback
+    status: pending_verification
+    credits:
+      - role: poema_original
+        name: "Manolo Chinato"
+        person_slug: manolo-chinato
+        primary: true
+        note: "El texto pertenece a un poema de Manolo Chinato; Robe le puso música."
+      - role: musica
+        name: "Robe"
+        person_slug: robe
+        primary: true

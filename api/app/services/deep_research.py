@@ -202,6 +202,22 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
                 f"[LETRA de la canción «{subject}» (es la LETRA de la canción, "
                 f"NO una declaración de Robe)]\n{letra[:3500]}"
             )
+        # Créditos de autoría (verificados por consenso): CRÍTICO para no atribuir
+        # mal el texto. P.ej. «Ama, ama y ensancha el alma» es un poema de Manolo
+        # Chinato musicado por Robe, no una letra escrita por Robe.
+        try:
+            from app.db.models import SongCredit as _SC
+            _credits = db.query(_SC).filter(_SC.song_id == entity.id).all()
+        except Exception:
+            _credits = []
+        if _credits:
+            _lines = "; ".join(f"{c.credit_role.replace('_', ' ')}: {c.credited_name}" for c in _credits)
+            b_lyrics.append(
+                f"[CRÉDITOS de «{subject}» (DATO CANÓNICO, respétalo al pie de la letra): "
+                f"{_lines}. Si el texto NO es de Robe (poema_original/adaptación de otro autor), "
+                f"NUNCA digas que Robe escribió la letra: di que Robe le puso música al poema de "
+                f"ese autor, y nómbralo.]"
+            )
 
     # 1) Hechos verificados de De Profundis y demás referencias.
     for fact in _reference_facts(names)[:40]:

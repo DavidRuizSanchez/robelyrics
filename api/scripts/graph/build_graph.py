@@ -32,6 +32,7 @@ from app.db.models import (
     SeoContent,
     Song,
     SongConcept,
+    SongCredit,
     SongPlace,
     SongTheme,
     Theme,
@@ -142,6 +143,29 @@ def main() -> None:
                 bid = bands_by_norm.get(_norm(name or ""))
                 if bid:
                     add("person", p.id, "other_band", "band", bid, weight=1.5)
+
+        # 4b) Autoría: song→person (letra/música/poema original adaptado). Nace de
+        # SongCredit (feedback de fans: poemas de Chinato musicados por Robe, etc.).
+        _CREDIT_EDGE = {
+            "letra": "lyrics_by",
+            "musica": "music_by",
+            "poema_original": "adapted_from",
+            "adaptacion": "adapted_from",
+        }
+        persons_by_name = {}
+        for p in persons.values():
+            for nm in (p.stage_name, p.full_name):
+                if nm:
+                    persons_by_name[_norm(nm)] = p.id
+        for c in db.query(SongCredit).all():
+            et = _CREDIT_EDGE.get(c.credit_role)
+            if not et:
+                continue
+            pid = c.person_id or persons_by_name.get(_norm(c.credited_name))
+            if not pid:
+                continue  # autor sin ficha de Person (p.ej. Chinato sin sembrar): sin arista
+            add("song", c.song_id, et, "person", pid, weight=2.5,
+                meta={"role": c.credit_role, "credited_name": c.credited_name})
 
         # 5) mentions: páginas (seo_content/posts) → entidades del corpus
         def resolve_url(url: str) -> tuple[str, int] | None:

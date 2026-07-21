@@ -13,6 +13,9 @@ texto de ChatGPT. Los sustituimos según el contexto:
 from __future__ import annotations
 
 import re
+import unicodedata
+from collections import Counter
+from dataclasses import dataclass, field
 
 # --------------------------------------------------------------------------- #
 # Reglas de sustitución de dashes
@@ -102,6 +105,144 @@ def strip_ai_tells(text: str | None) -> str | None:
     # 7) política de nombre: nunca "Robe Iniesta"
     out = _RE_ROBE_INIESTA.sub("Robe", out)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Linter léxico: repetición de muletillas y palabras distintivas sobre-usadas.
+#
+# Nace del feedback de una fan: "el verbo 'encapsula' aparece 5-6 veces en un
+# post, lo hace pesado". Ningún control determinista lo cazaba. Esto NO reescribe
+# (eso es tarea del LLM en el pase _polish); solo DETECTA y devuelve un informe
+# que alimenta ese pase y el gate editorial.
+# --------------------------------------------------------------------------- #
+
+# Muletillas / frases hechas de IA que delatan pseudo-erudición o relleno. Se
+# marcan aunque aparezcan una sola vez.
+_BURNED_PHRASES = [
+    "metáfora poderosa",
+    "especialmente poderosa",
+    "no es casualidad",
+    "no por casualidad",
+    "cabe destacar",
+    "cabe señalar",
+    "a fin de cuentas",
+    "en definitiva",
+    "resulta evidente",
+    "no podemos olvidar",
+    "himno generacional",
+    "verdadera obra maestra",
+    "sin lugar a dudas",
+    "digno de mención",
+]
+
+# Verbos-muletilla que, repetidos, cansan (el caso "encapsula"). Se marcan si
+# aparecen más de una vez (su familia léxica).
+_TELL_LEMMAS = {"encaps", "condens", "destil", "sublim", "cristal", "aglutin"}
+
+# Palabras vacías (no cuentan como "distintivas"). Set pragmático, no exhaustivo.
+_STOPWORDS = {
+    "para", "pero", "como", "cuando", "donde", "porque", "aunque", "desde",
+    "hasta", "entre", "sobre", "esta", "este", "esto", "esos", "esas", "ese",
+    "cada", "todo", "toda", "todos", "todas", "otro", "otra", "otros", "otras",
+    "muy", "más", "mas", "menos", "también", "tampoco", "solo", "sólo", "bien",
+    "puede", "hace", "hacer", "tiene", "tener", "está", "estan", "están", "hay",
+    "son", "una", "unos", "unas", "del", "las", "los", "que", "con", "por",
+    "sus", "mis", "tus", "nos", "les", "sin", "ya", "así", "aquí", "allí",
+    "ahí", "cosa", "cosas", "vez", "veces", "parte", "tema", "canción",
+    "cancion", "disco", "letra", "album", "álbum",
+}
+
+# Nombres propios del universo que legítimamente se repiten.
+_ALLOWED_REPEAT = {"robe", "extremoduro", "roberto", "iniesta", "chinato"}
+
+# Tokens de palabra (con tildes/ñ). Ignora markdown/URLs porque los quitamos antes.
+_RE_WORD = re.compile(r"[a-záéíóúñü]+", re.IGNORECASE)
+
+
+@dataclass
+class LexicalReport:
+    overused: list[tuple[str, int]] = field(default_factory=list)  # (palabra, veces)
+    burned: list[str] = field(default_factory=list)                # frases hechas halladas
+
+    @property
+    def has_problems(self) -> bool:
+        return bool(self.overused or self.burned)
+
+    def summary(self) -> str:
+        parts = []
+        if self.overused:
+            parts.append(
+                "palabras repetidas en exceso: "
+                + ", ".join(f'"{w}" ×{n}' for w, n in self.overused)
+            )
+        if self.burned:
+            parts.append("muletillas de relleno: " + ", ".join(f'"{p}"' for p in self.burned))
+        return "; ".join(parts)
+
+
+def _strip_markup(text: str) -> str:
+    """Quita URLs, enlaces markdown y bloques de código para no contar sus tokens."""
+    out = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    out = re.sub(r"`[^`]*`", " ", out)
+    out = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", out)   # [txt](url) → txt
+    out = re.sub(r"https?://\S+", " ", out)
+    return out
+
+
+def _stem(word: str) -> str:
+    """Lema aproximado: quita tildes y agrupa la familia por prefijo cuando la
+    palabra es larga (encapsula/encapsulan/encapsulación → 'encaps'). Crudo pero
+    suficiente para detectar repetición de una misma raíz."""
+    w = "".join(
+        ch for ch in unicodedata.normalize("NFD", word.lower())
+        if unicodedata.category(ch) != "Mn"
+    )
+    return w[:6] if len(w) >= 7 else w
+
+
+def lexical_repetition_report(
+    text: str | None,
+    *,
+    max_repeats: int = 3,
+    allowed: set[str] | None = None,
+) -> LexicalReport:
+    """Informe determinista de repetición léxica y muletillas.
+
+    - `max_repeats`: una raíz distintiva que aparezca MÁS de esto se marca.
+    - Los verbos-muletilla (_TELL_LEMMAS) se marcan si aparecen más de una vez.
+    - `allowed`: raíces extra que pueden repetirse (p.ej. la entidad del post).
+    """
+    report = LexicalReport()
+    if not text:
+        return report
+    body = _strip_markup(text)
+    low = body.lower()
+
+    for phrase in _BURNED_PHRASES:
+        if phrase in low:
+            report.burned.append(phrase)
+
+    allow = {_stem(a) for a in (_ALLOWED_REPEAT | (allowed or set()))}
+    counts: Counter[str] = Counter()
+    display: dict[str, str] = {}
+    for tok in _RE_WORD.findall(body):
+        if len(tok) < 4:
+            continue
+        low_tok = tok.lower()
+        if low_tok in _STOPWORDS:
+            continue
+        stem = _stem(tok)
+        if stem in allow:
+            continue
+        counts[stem] += 1
+        display.setdefault(stem, low_tok)
+
+    for stem, n in counts.most_common():
+        is_tell = stem in _TELL_LEMMAS
+        if (is_tell and n > 1) or (not is_tell and n > max_repeats):
+            report.overused.append((display[stem], n))
+    report.overused.sort(key=lambda x: -x[1])
+    return report
 
 
 # --------------------------------------------------------------------------- #

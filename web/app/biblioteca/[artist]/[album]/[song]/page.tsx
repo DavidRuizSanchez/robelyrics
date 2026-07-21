@@ -112,6 +112,28 @@ export default async function SongPage({
               {detail.title}
             </h1>
 
+            {detail.credits && detail.credits.length > 0 && (
+              <p className="font-mono text-[10px] md:text-[11px] tracking-[2px] uppercase text-ink-dim leading-relaxed">
+                {detail.credits.map((c, i) => (
+                  <span key={`${c.role}-${c.name}`}>
+                    {i > 0 && <span className="text-ink-faint"> · </span>}
+                    <span className="text-ink-faint">{c.role_label}: </span>
+                    {c.person_slug ? (
+                      <a
+                        href={`/personas/${c.person_slug}`}
+                        data-cursor="hover"
+                        className="text-accent hover:underline"
+                      >
+                        {c.name}
+                      </a>
+                    ) : (
+                      <span className="text-ink">{c.name}</span>
+                    )}
+                  </span>
+                ))}
+              </p>
+            )}
+
             <div className="mt-3">
               <AddToPlaylist songId={detail.id} />
             </div>

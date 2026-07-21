@@ -156,6 +156,27 @@ export default async function SongPublicPage({
             <h1 className="font-serif text-4xl md:text-[58px] text-ink leading-[0.97] tracking-[-1px] mt-2 mb-4">
               {detail.seo_h1 || detail.title}
             </h1>
+            {detail.credits && detail.credits.length > 0 && (
+              <p className="font-mono text-[10px] md:text-[11px] tracking-[2px] uppercase text-ink-dim mb-3 leading-relaxed">
+                {detail.credits.map((c, i) => (
+                  <span key={`${c.role}-${c.name}`}>
+                    {i > 0 && <span className="text-ink-faint"> · </span>}
+                    <span className="text-ink-faint">{c.role_label}: </span>
+                    {c.person_slug ? (
+                      <a
+                        href={`/personas/${c.person_slug}`}
+                        data-cursor="hover"
+                        className="text-accent hover:underline"
+                      >
+                        {c.name}
+                      </a>
+                    ) : (
+                      <span className="text-ink">{c.name}</span>
+                    )}
+                  </span>
+                ))}
+              </p>
+            )}
             {detail.youtube_id && (
               <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-dim">
                 <a
