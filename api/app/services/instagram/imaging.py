@@ -52,7 +52,8 @@ _JB_REG = os.path.join(_FONTS_DIR, "JetBrainsMono-Regular.ttf")
 # Fallback del sistema (presente en la imagen Docker vía fonts-dejavu-core).
 _DEJAVU = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 
-# Ambientes IA según categoría (abstracto, evocador, sin sujetos ni texto).
+# Motivo VISUAL figurativo por categoría: se combina con el titular real del post
+# para anclar el arte IA a algo reconocible (un objeto/escena), no a una mancha.
 MOODS = {
     "Conciertos": "stage light beams, smoke and warm spotlights, concert energy",
     "Música": "vinyl record textures, sound waves, warm analog glow",
@@ -182,37 +183,47 @@ _AI_STYLES = (
 )
 
 
-def _openai_background(mood: str, seed: int) -> Image.Image:
-    """Fondo artístico con OpenAI gpt-image-1 (motor principal, fiable)."""
+def _ai_prompt(subject: str, seed: int) -> str:
+    """Prompt FIGURATIVO y temático (no manchas abstractas). Describe una escena u
+    objeto simbólico CONCRETO que representa el tema real del post, con la paleta de
+    Entre Interiores y hueco inferior para el texto. Sin personas reales
+    identificables (derechos), sin texto ni logos."""
+    style = _AI_STYLES[seed % len(_AI_STYLES)]
+    return (
+        f"Editorial cover illustration for an article about: {subject}. "
+        f"A single evocative, FIGURATIVE scene or symbolic object that clearly "
+        f"represents the subject (e.g. a lone electric guitar on an empty stage, a "
+        f"worn open poetry book, a rain-soaked Extremadura landscape at dusk, a vinyl "
+        f"spinning under a spotlight) — recognizable and concrete, NOT abstract, NOT a "
+        f"color blur. Style: {style}, deep crimson (#a83a3a) and charcoal black "
+        f"palette, cinematic low-key moody lighting, film grain, atmospheric depth. "
+        f"Keep the lower third darker and uncluttered to leave room for text overlay. "
+        f"No text, no words, no letters, no logos, no watermarks. Do not depict real, "
+        f"identifiable famous people's faces."
+    )
+
+
+def _openai_background(subject: str, seed: int) -> Image.Image:
+    """Fondo artístico con OpenAI gpt-image-1 (motor principal, fiable). Figurativo
+    y anclado al tema real (`subject`), no un fondo abstracto."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("sin OPENAI_API_KEY")
-    style = _AI_STYLES[seed % len(_AI_STYLES)]
-    prompt = (
-        f"Abstract atmospheric background for an editorial music card. "
-        f"Theme: {mood}. Style: {style}, deep dark crimson (#a83a3a) and "
-        f"charcoal black tones, cinematic moody low-key lighting, film grain. "
-        f"Empty evocative scene. Absolutely no people, no faces, no text, no "
-        f"words, no letters, no logos."
-    )
-    client = OpenAI(api_key=api_key, timeout=90.0)
+    client = OpenAI(api_key=api_key, timeout=120.0)
     resp = client.images.generate(
-        model="gpt-image-1", prompt=prompt, size="1024x1024", quality="low", n=1,
+        model="gpt-image-1", prompt=_ai_prompt(subject, seed),
+        size="1024x1024", quality="medium", n=1,
     )
     raw = base64.b64decode(resp.data[0].b64_json)
     return _cover(Image.open(io.BytesIO(raw)).convert("RGB"))
 
 
-def _pollinations_background(mood: str, seed: int) -> Image.Image:
+def _pollinations_background(subject: str, seed: int) -> Image.Image:
     """Respaldo gratuito (pollinations/flux). Reintenta semilla y modelo `turbo`.
 
     Nota: desde 2026-06 el tier anónimo devuelve 402 (de pago); se conserva como
     respaldo por si vuelve a estar disponible (o se configura un token)."""
-    prompt = (
-        f"abstract artistic background, {mood}, deep dark crimson and charcoal "
-        f"black tones, cinematic moody lighting, film grain texture, painterly "
-        f"digital art, empty scene, no people no faces no text no words no logos"
-    )
+    prompt = _ai_prompt(subject, seed)
     encoded = quote(prompt)
     attempts = (("flux", seed, 60.0), ("turbo", seed, 45.0))
     last_exc: Exception | None = None
@@ -232,15 +243,15 @@ def _pollinations_background(mood: str, seed: int) -> Image.Image:
     raise RuntimeError(f"pollinations agotado: {last_exc}")
 
 
-def _ai_background(mood: str, seed: int) -> Image.Image:
-    """Fondo artístico por IA, afín al tema. Orden: OpenAI gpt-image-1 (principal)
-    → pollinations (respaldo gratis). Si todo falla, el caller cae al lienzo
-    editorial (`_gradient_background`)."""
+def _ai_background(subject: str, seed: int) -> Image.Image:
+    """Fondo artístico por IA, FIGURATIVO y afín al tema real (`subject`). Orden:
+    OpenAI gpt-image-1 (principal) → pollinations (respaldo gratis). Si todo falla,
+    el caller cae al lienzo editorial (`_gradient_background`)."""
     try:
-        return _openai_background(mood, seed)
+        return _openai_background(subject, seed)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[IMG] OpenAI image falló (%s); pruebo pollinations", exc)
-    return _pollinations_background(mood, seed)
+    return _pollinations_background(subject, seed)
 
 
 def _gradient_background(seed: int) -> Image.Image:
@@ -317,7 +328,10 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
     verse = topic.get("verse") or {}
 
     seed = int(hashlib.md5(f"{title}{slot}".encode()).hexdigest(), 16) % 1_000_000
-    mood = MOODS.get(category, MOODS["Actualidad"])
+    # Subject REAL para el arte IA: el titular concreto + el motivo visual de su
+    # categoría (así la imagen tiene que ver con el post, no es una mancha genérica).
+    motif = MOODS.get(category, MOODS["Actualidad"])
+    ai_subject = f"{title} — {motif}"
 
     bg, used_photo = None, False
     # Intenta la imagen full y, si falla la descarga (hotlink/404), el thumbnail.
@@ -332,7 +346,7 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
             logger.warning("[IMG] foto no usable (%s); pruebo respaldo/IA", exc)
     if bg is None:
         try:
-            bg = _ai_background(mood, seed)
+            bg = _ai_background(ai_subject, seed)
         except Exception as exc:  # noqa: BLE001
             logger.warning("[IMG] pollinations falló (%s); degradado propio", exc)
             bg = _gradient_background(seed)

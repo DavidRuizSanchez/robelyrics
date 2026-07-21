@@ -22,7 +22,7 @@ import unicodedata
 
 from sqlalchemy.orm import Session
 
-from app.db.models import ContentProposal, Post
+from app.db.models import ContentProposal, Post, SeoContent
 
 # Estados de propuesta que cuentan como "vivos" (ocupan el tema).
 LIVE_PROPOSAL_STATES = ("proposed", "approved", "scheduled")
@@ -95,6 +95,60 @@ def content_key_for(kind: str, **kw) -> str | None:
         url = kw.get("url")
         return f"news:{slugify(url)}" if url else None
 
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Anti-canibalización por TÍTULO / H1
+# --------------------------------------------------------------------------- #
+# Umbral de solape (Jaccard de palabras significativas) para considerar que dos
+# titulares apuntan a la misma intención → canibalización. Estricto para no dar
+# falsos positivos: solo salta cuando los títulos son casi el mismo.
+TITLE_COLLISION_THRESHOLD = 0.72
+
+
+def _title_tokens(title: str) -> set[str]:
+    """Palabras significativas de un titular (sin stopwords ni palabras cortas)."""
+    base = slugify(title)
+    return {w for w in base.split("-") if w and w not in _STOPWORDS and len(w) > 2}
+
+
+def published_title_corpus(db: Session) -> list[tuple[str, set[str]]]:
+    """(título, tokens) de todo lo YA publicado (posts de blog + páginas SeoContent).
+    Se construye una vez y se reutiliza para chequear varias propuestas."""
+    corpus: list[tuple[str, set[str]]] = []
+    for (t,) in db.query(Post.title).filter(
+        Post.status == "published", Post.title.isnot(None)
+    ).all():
+        corpus.append((t, _title_tokens(t)))
+    for h1, meta in db.query(SeoContent.h1, SeoContent.meta_title).filter(
+        SeoContent.published.is_(True)
+    ).all():
+        t = (h1 or meta or "").strip()
+        if t:
+            corpus.append((t, _title_tokens(t)))
+    return corpus
+
+
+def title_collision(
+    title: str,
+    corpus: list[tuple[str, set[str]]],
+    *,
+    threshold: float = TITLE_COLLISION_THRESHOLD,
+) -> str | None:
+    """Devuelve el título publicado con el que colisiona (canibalización), o None.
+
+    Compara el solape de palabras significativas (Jaccard). Requiere ≥3 tokens en el
+    título propuesto para evitar falsos positivos con titulares muy cortos."""
+    toks = _title_tokens(title)
+    if len(toks) < 3:
+        return None
+    for other_title, other in corpus:
+        if not other:
+            continue
+        union = len(toks | other)
+        if union and (len(toks & other) / union) >= threshold:
+            return other_title
     return None
 
 

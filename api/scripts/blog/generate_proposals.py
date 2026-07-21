@@ -29,7 +29,12 @@ from app.config import get_settings
 from app.db.models import Album, Artist, ContentProposal, SeoContent, Song
 from app.db.session import SessionLocal
 from app.services import keyword_research
-from app.services.content_dedup import content_key_for, is_duplicate
+from app.services.content_dedup import (
+    content_key_for,
+    is_duplicate,
+    published_title_corpus,
+    title_collision,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -213,19 +218,51 @@ def main() -> None:
                       f"({r.get('search_volume')}/mes, {r.get('signal_source')})")
             return
 
+        # Corpus de títulos ya publicados (blog + páginas SEO) para anti-canibalización.
+        title_corpus = published_title_corpus(db)
+
         # Red anti-duplicados transversal: descarta lo que ya está vivo en el
-        # banco o publicado recientemente con la misma huella de contenido.
+        # banco o publicado recientemente con la misma huella de contenido, y —para
+        # evergreen— lo que canibaliza el TÍTULO de una página ya publicada.
         def _fresh(rows: list[dict]) -> list[dict]:
             out = []
             for r in rows:
                 if is_duplicate(db, r.get("content_key")):
                     logger.info("dedup: salto %s (%s)", r["title"], r.get("content_key"))
                     continue
+                if r.get("kind") == "evergreen":
+                    clash = title_collision(r.get("title") or "", title_corpus)
+                    if clash:
+                        logger.info("canibalización: salto «%s» (choca con «%s»)",
+                                    r["title"], clash)
+                        continue
                 out.append(r)
             return out
 
-        n_act = _insert(db, _fresh(actualidad))
-        n_seo = _insert(db, _fresh(seo_rows))
+        fresh_act = _fresh(actualidad)
+        fresh_seo = _fresh(seo_rows)
+
+        # --- Cuota de FOCO SEO (solo sobre lo NO-actualidad) -------------------
+        # No-actualidad = piezas evergreen (SEO-driven) + spotlight. Objetivo:
+        # ≥70% de esas piezas apuntan a una keyword validada. Las evergreen ya
+        # llevan target_keyword real (build_proposal_rows filtra las que no); el
+        # spotlight cuenta como no-SEO. Si el ratio baja del objetivo, avisamos
+        # (semana pobre en KW): el research no puede fabricar demanda que no existe.
+        n_spotlight = sum(1 for r in fresh_act if r.get("kind") == "spotlight")
+        n_seo_valid = sum(1 for r in fresh_seo if r.get("target_keyword"))
+        non_actualidad = n_seo_valid + n_spotlight
+        if non_actualidad:
+            ratio = n_seo_valid / non_actualidad
+            msg = ("Foco SEO (no-actualidad): %d/%d = %.0f%% con keyword validada "
+                   "(objetivo ≥70%%)")
+            if ratio < 0.70:
+                logger.warning(msg + " · SEMANA POBRE EN KW: revisa el research/panel",
+                               n_seo_valid, non_actualidad, 100 * ratio)
+            else:
+                logger.info(msg, n_seo_valid, non_actualidad, 100 * ratio)
+
+        n_act = _insert(db, fresh_act)
+        n_seo = _insert(db, fresh_seo)
         db.commit()
         logger.info(
             "Propuestas NUEVAS: %d actualidad + %d SEO-driven = %d",

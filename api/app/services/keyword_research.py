@@ -37,6 +37,13 @@ logger = logging.getLogger(__name__)
 LONGTAIL_MIN_WORDS = 4
 LONGTAIL_MAX_VOLUME = 150
 
+# --- Umbral de "foco SEO real" -------------------------------------------------
+# Una propuesta solo cuenta como SEO real si su keyword principal tiene demanda
+# MEDIDA (fuente DataForSEO/GSC, no una semilla del corpus sin validar) por encima
+# de este suelo. Por debajo, es ruido: no merece una pieza.
+SEO_MIN_VOLUME = 10
+SEO_VALID_SIGNALS = ("dataforseo", "gsc")
+
 # Referencias culturales citadas en letras (no gente del universo): sus seeds
 # traían demanda ajena (Frank Zappa, Freddie Mercury...). Fuera del research.
 REFERENCE_SLUGS = {"manolete", "camaron", "frank-zappa", "freddie-mercury"}
@@ -283,12 +290,25 @@ def cluster_topics(client: OpenAI, pool: list[Candidate], *, max_topics: int = 4
     return (data.get("topics") or [])[:max_topics]
 
 
+def _is_generic_head(keyword: str, volume: int) -> bool:
+    """Head-term demasiado genérico: pocas palabras y NO long-tail. Esas KW son
+    cabeceras que ya cubren las páginas-hub / la home; como ángulo de blog canibalizan
+    y no se posicionan. Se descartan."""
+    words = len(_norm(keyword).split())
+    return words <= 2 and not _is_longtail(keyword, volume)
+
+
 def build_proposal_rows(
-    client: OpenAI, db: Session, *, slug_int
+    client: OpenAI, db: Session, *, slug_int, validate_serp: bool = True
 ) -> list[dict]:
     """Devuelve las filas de ContentProposal (kind='evergreen') listas para
     insertar, con target_keyword + metadatos. `slug_int` = hash estable de título
-    para la UNIQUE (kind, source_type, source_id)."""
+    para la UNIQUE (kind, source_type, source_id).
+
+    FOCO SEO REAL: solo se devuelven filas cuya keyword principal tenga demanda
+    MEDIDA (DataForSEO/GSC, volumen ≥ SEO_MIN_VOLUME), no sea un head-term genérico
+    y cuya INTENCIÓN DE BÚSQUEDA (SERP real) pueda satisfacer un artículo editorial
+    (`validate_serp`). Así el banco no se llena de propuestas sin recorrido."""
     pool = research_pool(db)
     by_norm = {_norm(c.keyword): c for c in pool}
     topics = cluster_topics(client, pool)
@@ -296,6 +316,7 @@ def build_proposal_rows(
 
     published = _published_kw_slugs(db)
     rows: list[dict] = []
+    n_drop_vol = n_drop_generic = n_drop_intent = 0
     for topic in topics:
         title = (topic.get("title") or "").strip()
         primary = (topic.get("target_keyword") or "").strip()
@@ -304,21 +325,40 @@ def build_proposal_rows(
         pslug = kw_slug(primary)
         if pslug in published:
             continue  # memoria: no repetir KW ya usada
+
+        prim = by_norm.get(_norm(primary))
+        prim_vol = prim.volume if prim else 0
+        prim_signal = prim.signal if prim else "corpus"
+
+        # (1) FOCO SEO REAL: demanda medida por encima del suelo.
+        if prim_signal not in SEO_VALID_SIGNALS or prim_vol < SEO_MIN_VOLUME:
+            n_drop_vol += 1
+            continue
+        # (2) ANTI-GENÉRICA: nada de head-terms de 1-2 palabras.
+        if _is_generic_head(primary, prim_vol):
+            n_drop_generic += 1
+            continue
+        # (3) INTENCIÓN por SERP: descarta navegacional/transaccional/letras. El
+        #     brief de generación (serp_brief) reconsulta el SERP, así que aquí solo
+        #     lo usamos para FILTRAR, no persistimos títulos en la propuesta.
+        if validate_serp:
+            from app.services import serp_intent as _si
+            verdict = _si.classify(primary, client=client)
+            if not verdict.coverable:
+                n_drop_intent += 1
+                continue
+
         published.add(pslug)
 
         # Ensambla keywords (primary + secundarias) con volumen/señal del pool.
         all_kw = [primary] + [k for k in (topic.get("secondary_keywords") or []) if k]
-        kw_objs, total_vol, longtail_any, signal = [], 0, False, "corpus"
+        kw_objs, longtail_any = [], False
         for kw in all_kw:
             c = by_norm.get(_norm(kw))
             vol = c.volume if c else 0
-            total_vol += vol
             longtail_any = longtail_any or _is_longtail(kw, vol)
-            if c:
-                signal = c.signal
             kw_objs.append({"keyword": kw, "volume": vol, "cpc": None, "competition": None})
 
-        prim = by_norm.get(_norm(primary))
         rows.append({
             "kind": "evergreen",
             "source_type": "seo",
@@ -328,9 +368,13 @@ def build_proposal_rows(
             "keywords": kw_objs,
             "target_keyword": primary[:160],
             "target_keyword_slug": pslug,
-            "search_volume": (prim.volume if prim else 0),
-            "is_longtail": _is_longtail(primary, prim.volume if prim else 0) or longtail_any,
-            "signal_source": (prim.signal if prim else signal),
+            "search_volume": prim_vol,
+            "is_longtail": _is_longtail(primary, prim_vol) or longtail_any,
+            "signal_source": prim_signal,
             "content_key": f"evergreen:{pslug}" if pslug else None,
         })
+    logger.info(
+        "SEO rows: %d válidas · descartadas: %d sin volumen/señal, %d genéricas, "
+        "%d por intención SERP", len(rows), n_drop_vol, n_drop_generic, n_drop_intent
+    )
     return rows

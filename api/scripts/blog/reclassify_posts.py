@@ -1,10 +1,15 @@
 """Recalifica los posts publicados no-noticia: calcula y guarda engagement_score +
-quality_tier. Con --regen-cornerstone, regenera al estándar máximo SOLO los que
-salen cornerstone (temáticas de alto engagement), dejándolos en pending_review.
+quality_tier. Con --regen-cornerstone / --regen-flagship, regenera al estándar
+máximo los posts de ese tier, dejándolos en pending_review.
+
+`--exclude-recent N` salta los N posts publicados MÁS RECIENTES en la regeneración
+(p.ej. los que ya se regeneraron a mano hoy). Se recalifican igual, pero NO se
+regeneran.
 
 Uso:
-  python -m scripts.blog.reclassify_posts                 # solo clasifica (informe)
+  python -m scripts.blog.reclassify_posts                                  # informe
   python -m scripts.blog.reclassify_posts --regen-cornerstone
+  python -m scripts.blog.reclassify_posts --regen-cornerstone --regen-flagship --exclude-recent 3
 """
 from __future__ import annotations
 
@@ -32,11 +37,32 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--regen-cornerstone", action="store_true",
                     help="Regenera (a pending_review) los posts que salgan cornerstone.")
+    ap.add_argument("--regen-flagship", action="store_true",
+                    help="Regenera (a pending_review) también los posts flagship.")
+    ap.add_argument("--exclude-recent", type=int, default=0, metavar="N",
+                    help="Salta de la regeneración los N posts publicados más recientes.")
     args = ap.parse_args()
 
     db = SessionLocal()
     posts = db.query(Post).filter(Post.status == "published").order_by(Post.published_at.desc()).all()
-    cornerstones: list[tuple[Post, str | None, int | None]] = []
+
+    # Los N más recientes se recalifican pero NO se regeneran (p.ej. los de hoy).
+    excluded_ids: set[int] = set()
+    if args.exclude_recent > 0:
+        recientes = posts[: args.exclude_recent]
+        excluded_ids = {p.id for p in recientes}
+        print("\nExcluidos de la regeneración (más recientes):")
+        for p in recientes:
+            print(f"  - {p.slug}  ({p.published_at:%Y-%m-%d})")
+
+    # tier objetivo → recolectamos los posts a regenerar respetando la exclusión.
+    regen_tiers = set()
+    if args.regen_cornerstone:
+        regen_tiers.add("cornerstone")
+    if args.regen_flagship:
+        regen_tiers.add("flagship")
+
+    to_regen: list[tuple[Post, str | None, int | None, str]] = []
     print(f"\nRecalificando {len(posts)} posts publicados (noticias excluidas):\n")
     for p in posts:
         if p.kind == "news":
@@ -52,16 +78,20 @@ def main() -> None:
         p.quality_tier = tier
         db.commit()
         mark = "★ CORNERSTONE" if tier == "cornerstone" else f"  {tier}"
-        print(f"  {mark:14} score={score:3} src={src_t}/{src_i}  | {p.slug[:42]}")
-        if tier == "cornerstone":
-            cornerstones.append((p, src_t, src_i))
+        skip = "  [excluido]" if p.id in excluded_ids else ""
+        print(f"  {mark:14} score={score:3} src={src_t}/{src_i}{skip}  | {p.slug[:42]}")
+        if tier in regen_tiers and p.id not in excluded_ids:
+            to_regen.append((p, src_t, src_i, tier))
 
-    print(f"\n→ Cornerstones detectados: {len(cornerstones)}")
-    if args.regen_cornerstone and cornerstones:
+    n_corner = sum(1 for _, _, _, t in to_regen if t == "cornerstone")
+    n_flag = sum(1 for _, _, _, t in to_regen if t == "flagship")
+    print(f"\n→ A regenerar: {n_corner} cornerstone + {n_flag} flagship "
+          f"(excluidos {len(excluded_ids)} recientes)")
+    if to_regen:
         from scripts.blog.regen_entity_post import regen
-        for p, st, si in cornerstones:
-            print(f"\n=== Regenerando cornerstone: {p.slug} ===")
-            regen(db, p, kind=p.kind, source_type=st, source_id=si, apply=True, tier="cornerstone")
+        for p, st, si, tier in to_regen:
+            print(f"\n=== Regenerando {tier}: {p.slug} ===")
+            regen(db, p, kind=p.kind, source_type=st, source_id=si, apply=True, tier=tier)
     db.close()
 
 

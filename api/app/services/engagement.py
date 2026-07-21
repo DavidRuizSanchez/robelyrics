@@ -53,8 +53,10 @@ def content_tier(kind: str, score: int, tier: str, source_type: str | None = Non
     if kind == "news":
         return tier
     s = score or 0
+    # theme/concept/album con engagement notable → cornerstone con listón más
+    # bajo: su AMPLITUD (temática o de tracklist) ya es señal fuerte de recorrido.
     if s >= CORNERSTONE_STRONG_SCORE or (
-        source_type in ("theme", "concept") and s >= CORNERSTONE_MIN_SCORE):
+        source_type in ("theme", "concept", "album") and s >= CORNERSTONE_MIN_SCORE):
         return TIER_CORNERSTONE
     return TIER_FLAGSHIP
 
@@ -75,15 +77,21 @@ def _volume_score(volume: int | None) -> float:
     return 0.12
 
 
-def _richness_score(graph_degree: int, fan_sources: int, theme_reach: int = 0) -> float:
+def _richness_score(
+    graph_degree: int, fan_sources: int, theme_reach: int = 0, amplitude: float = 0.0
+) -> float:
     """0..1 según cuánto material fan y conexión de grafo tiene la entidad. Para
     TEMÁTICAS, su AMPLITUD (nº de canciones que tocan el tema) es en sí una señal
     fuerte de engagement: un tema que atraviesa medio cancionero da para una pieza
-    cornerstone aunque su volumen de búsqueda directo sea modesto."""
+    cornerstone aunque su volumen de búsqueda directo sea modesto.
+
+    `amplitude` es una señal de amplitud YA NORMALIZADA (0..1) para orígenes cuya
+    riqueza no se mide con un simple contador de canciones — hoy, la RIQUEZA DEL
+    TRACKLIST de un aniversario de disco (ver `_album_tracklist_reach`)."""
     deg = min(1.0, graph_degree / 18.0)      # ~18 aristas = muy central
     fan = min(1.0, fan_sources / 12.0)        # ~12 fuentes fan = muy rico
     theme = min(1.0, theme_reach / 15.0)      # ~15 canciones = tema muy amplio
-    return max(0.5 * deg + 0.5 * fan, theme)
+    return max(0.5 * deg + 0.5 * fan, theme, max(0.0, min(1.0, amplitude)))
 
 
 def _media_bonus(related_videos: int) -> float:
@@ -93,12 +101,14 @@ def _media_bonus(related_videos: int) -> float:
 
 def score_from_signals(
     *, volume: int | None, graph_degree: int, fan_sources: int,
-    related_videos: int = 0, theme_reach: int = 0,
+    related_videos: int = 0, theme_reach: int = 0, amplitude: float = 0.0,
 ) -> tuple[int, str]:
     """Núcleo PURO (testeable): señales → (score 0-100, tier). El SEO y la riqueza
-    de fan pesan por igual; el multimedia es un extra acotado."""
+    de fan pesan por igual; el multimedia es un extra acotado. `amplitude` es una
+    señal de amplitud pre-normalizada (0..1), hoy la riqueza del tracklist de un
+    aniversario de disco."""
     base = 0.5 * _volume_score(volume) + 0.5 * _richness_score(
-        graph_degree, fan_sources, theme_reach)
+        graph_degree, fan_sources, theme_reach, amplitude)
     score = int(round(min(1.0, base + _media_bonus(related_videos)) * 100))
     if score >= 65:
         tier = TIER_FLAGSHIP
@@ -174,12 +184,111 @@ def _theme_reach(db, source_type: str | None, source_id: int | None) -> int:
         return 0
 
 
+def _album_tracklist_reach(db, source_id: int | None) -> float:
+    """Riqueza del TRACKLIST de un disco → amplitud normalizada (0..1). Un
+    aniversario de un disco con muchas canciones, bien analizadas y muy conectadas
+    en el grafo merece una pieza cornerstone aunque el volumen de su keyword sea
+    modesto (mismo espíritu que `_theme_reach` para temáticas).
+
+    Componentes (todos read-only, sin nueva ingesta):
+      - tamaño del disco (nº de canciones),
+      - cobertura de análisis (canciones con destilado fan) y su profundidad
+        (canciones con `confidence='high'`),
+      - conexión de grafo agregada del tracklist (aristas salientes de sus canciones),
+      - fan-content agregado (fuentes que citan cualquier canción del disco),
+      - amplitud temática (temas/conceptos distintos que tocan sus canciones).
+    """
+    if not source_id:
+        return 0.0
+    try:
+        from sqlalchemy import func, or_, select
+
+        from app.db.models import (
+            Album,
+            EntityEdge,
+            InterpretationSource,
+            Song,
+            SongConcept,
+            SongInterpretation,
+            SongTheme,
+        )
+
+        album = db.get(Album, source_id)
+        if album is None:
+            return 0.0
+        song_ids = [
+            sid for (sid,) in db.execute(
+                select(Song.id).where(Song.album_id == album.id)
+            ).all()
+        ]
+        n_songs = len(song_ids)
+        if n_songs == 0:
+            return 0.0
+
+        # Cobertura + profundidad del análisis fan.
+        n_interp = int(db.execute(
+            select(func.count()).select_from(SongInterpretation).where(
+                SongInterpretation.song_id.in_(song_ids)
+            )
+        ).scalar() or 0)
+        n_high = int(db.execute(
+            select(func.count()).select_from(SongInterpretation).where(
+                SongInterpretation.song_id.in_(song_ids),
+                SongInterpretation.confidence == "high",
+            )
+        ).scalar() or 0)
+
+        # Grado de grafo agregado del tracklist (aristas salientes de sus canciones).
+        total_degree = int(db.execute(
+            select(func.count()).select_from(EntityEdge).where(
+                EntityEdge.src_type == "song", EntityEdge.src_id.in_(song_ids)
+            )
+        ).scalar() or 0)
+
+        # Fan-content agregado: fuentes que referencian cualquier canción del disco.
+        fan_sources = int(db.execute(
+            select(func.count()).select_from(InterpretationSource).where(
+                or_(*[InterpretationSource.referenced_song_ids.any(sid) for sid in song_ids])
+            )
+        ).scalar() or 0) if song_ids else 0
+
+        # Amplitud temática: temas + conceptos distintos que tocan sus canciones.
+        n_themes = int(db.execute(
+            select(func.count(func.distinct(SongTheme.theme_id))).where(
+                SongTheme.song_id.in_(song_ids)
+            )
+        ).scalar() or 0)
+        n_concepts = int(db.execute(
+            select(func.count(func.distinct(SongConcept.concept_id))).where(
+                SongConcept.song_id.in_(song_ids)
+            )
+        ).scalar() or 0)
+
+        size = min(1.0, n_songs / 12.0)                    # ~12 tracks = LP completo
+        coverage = n_interp / n_songs                       # % con análisis fan
+        depth = n_high / n_songs                             # % con análisis sólido
+        graph = min(1.0, total_degree / (n_songs * 5.0))    # ~5 aristas/canción = muy conectado
+        fan = min(1.0, fan_sources / 25.0)
+        themes = min(1.0, (n_themes + n_concepts) / 15.0)
+        reach = (0.22 * size + 0.22 * coverage + 0.18 * depth
+                 + 0.16 * graph + 0.12 * themes + 0.10 * fan)
+        return max(0.0, min(1.0, reach))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("engagement: tracklist_reach falló: %s", exc)
+        return 0.0
+
+
 def compute_for_proposal(db, proposal) -> tuple[int, str]:
     """Calcula (score, tier) de una ContentProposal a partir de sus señales."""
     degree, fan, videos = _entity_signals(db, getattr(proposal, "entities", None))
-    reach = _theme_reach(db, getattr(proposal, "source_type", None),
-                         getattr(proposal, "source_id", None))
+    source_type = getattr(proposal, "source_type", None)
+    source_id = getattr(proposal, "source_id", None)
+    reach = _theme_reach(db, source_type, source_id)
+    # Aniversario de disco: su amplitud es la RIQUEZA DEL TRACKLIST, no un contador
+    # de canciones sobre un tema. Se pasa ya normalizada como `amplitude`.
+    amplitude = _album_tracklist_reach(db, source_id) if source_type == "album" else 0.0
     return score_from_signals(
         volume=getattr(proposal, "search_volume", None),
-        graph_degree=degree, fan_sources=fan, related_videos=videos, theme_reach=reach,
+        graph_degree=degree, fan_sources=fan, related_videos=videos,
+        theme_reach=reach, amplitude=amplitude,
     )

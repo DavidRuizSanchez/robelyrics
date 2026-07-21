@@ -71,3 +71,34 @@ def test_amplitud_de_tema_sube_el_score():
     estrecho, te = eng.score_from_signals(volume=None, graph_degree=2, fan_sources=8, theme_reach=2)
     assert ancho > estrecho
     assert eng.content_tier("evergreen", ancho, ta, "theme") == "cornerstone"
+
+
+# --- Amplitud de tracklist (aniversarios de disco) ---------------------------
+def test_riqueza_de_tracklist_sube_el_score():
+    # Un disco con tracklist rico (amplitud alta) puntúa más que uno pobre, aunque
+    # el volumen de búsqueda de su keyword sea el mismo.
+    rico, _ = eng.score_from_signals(
+        volume=40, graph_degree=0, fan_sources=0, amplitude=0.95
+    )
+    pobre, _ = eng.score_from_signals(
+        volume=40, graph_degree=0, fan_sources=0, amplitude=0.1
+    )
+    assert rico > pobre
+
+
+def test_aniversario_de_disco_rico_es_cornerstone():
+    # Un aniversario de disco con tracklist muy rico llega a cornerstone con listón
+    # de 55 (como las temáticas), aun con volumen de búsqueda nulo. score≈56: cae en
+    # la excepción de álbum (55), no en el umbral fuerte genérico (65).
+    score, tier = eng.score_from_signals(
+        volume=None, graph_degree=0, fan_sources=0, amplitude=1.0
+    )
+    assert 55 <= score < 65
+    assert eng.content_tier("album-anniversary", score, tier, "album") == "cornerstone"
+
+
+def test_aniversario_de_disco_pobre_no_llega_a_cornerstone():
+    score, tier = eng.score_from_signals(
+        volume=None, graph_degree=0, fan_sources=0, amplitude=0.1
+    )
+    assert eng.content_tier("album-anniversary", score, tier, "album") == "flagship"

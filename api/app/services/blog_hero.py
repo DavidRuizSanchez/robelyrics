@@ -75,6 +75,53 @@ def _ai_hero(subject: str, seed: int, alt_label: str = "") -> dict | None:
                 os.unlink(path)
 
 
+def _web_photo_hero(
+    entities: list[dict] | None, subject: str, alt_label: str, used: set[str]
+) -> dict | None:
+    """Foto REAL del sujeto por búsqueda web (mismo motor que Instagram:
+    Google Images vía DataForSEO + respaldo Wikimedia/Openverse CC), deduplicada
+    por URL ya usada. None si no encuentra ninguna.
+
+    Prioriza fotos originales relacionadas con el tema del post antes de caer al
+    arte IA. Ancla la query al universo Robe/Extremoduro para evitar homónimos."""
+    try:
+        from app.services.instagram import photo_finder
+
+        label = _protagonist_label(entities) or (alt_label or subject or "").strip()
+        if not label:
+            return None
+        topic = {
+            "title": alt_label or subject,
+            # Query desambiguada del sujeto (photo_finder ya reancla a la banda si
+            # no encuentra algo relevante).
+            "image_search": f"{label} Extremoduro Robe Iniesta",
+            "image_query": label,
+        }
+        chosen = photo_finder.find(topic, exclude=used)
+        if not chosen or not chosen.get("url") or chosen["url"] in used:
+            return None
+        credit = (chosen.get("credit") or "").strip()
+        return {
+            "url": chosen["url"],
+            "attribution": credit or None,
+            "license": None,
+            "source": chosen["url"],
+            "alt": f"Fotografía relacionada con «{(alt_label or subject or label).strip()}»",
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("foto web de hero falló (%s): %s", subject, exc)
+        return None
+
+
+def _protagonist_label(entities: list[dict] | None) -> str:
+    """Etiqueta legible de la entidad protagonista del post (la primera con label)."""
+    for e in entities or []:
+        lbl = (e.get("label") or e.get("name") or "").strip()
+        if lbl:
+            return lbl
+    return ""
+
+
 def build_unique_hero(
     db: Session,
     entities: list[dict] | None,
@@ -87,7 +134,8 @@ def build_unique_hero(
     """Devuelve {url, alt, attribution, license, source} ÚNICO para el post, o None.
 
     1) Imagen REAL de la entidad no usada aún (dedup duro).
-    2) Si no hay ninguna libre → arte editorial IA único (si `allow_ai`).
+    2) Foto REAL del sujeto por búsqueda web (Google Images/Wikimedia), deduplicada.
+    3) Si no hay foto libre → arte editorial IA figurativo único (si `allow_ai`).
 
     `alt_label`: título legible del post para el ALT del arte IA (mejor que el
     slug de keyword). El `subject` (tema) alimenta el prompt de imagen.
@@ -96,6 +144,10 @@ def build_unique_hero(
     img = pick_hero_image(db, entities, used=used)
     if img:
         return img
+    # Foto real por web ANTES de caer a IA: preferimos fotos originales relacionadas.
+    web = _web_photo_hero(entities, subject, alt_label, used)
+    if web:
+        return web
     if allow_ai:
         ai = _ai_hero(subject, _seed(subject), alt_label=alt_label)
         # El arte IA es único por definición, pero por si acaso comprobamos.
