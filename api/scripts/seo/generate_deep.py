@@ -119,16 +119,14 @@ def _coverage_hint(entity_type: str) -> str:
     return ""
 
 
-def _section_cap(material: str) -> int:
-    """Nº máximo de secciones proporcional al material real (anti-paja)."""
+def _section_cap(material: str, tier: str = "standard") -> int:
+    """Nº máximo de secciones proporcional al material real (anti-paja). El `tier`
+    de engagement sube el techo: los temas que un fan quiere leer a fondo admiten
+    MÁS secciones (siempre que el material real las sostenga; el anti-relleno sigue)."""
     n = len(material or "")
-    if n < 2500:
-        return 3
-    if n < 6000:
-        return 4
-    if n < 20000:
-        return 6
-    return 8
+    base = 3 if n < 2500 else 4 if n < 6000 else 6 if n < 20000 else 8
+    bump = {"premium": 2, "flagship": 4}.get(tier, 0)
+    return min(base + bump, 12)
 
 
 def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> dict:
@@ -145,8 +143,8 @@ def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> d
 
 
 def _outline(client: OpenAI, subject: str, kw_block: str, hard: str, material: str,
-             coverage: str = "") -> list[dict]:
-    cap = _section_cap(material)
+             coverage: str = "", tier: str = "standard") -> list[dict]:
+    cap = _section_cap(material, tier)
     user = f"""\
 Planifica el mejor artículo y MÁS VERAZ de internet sobre {subject}.
 {kw_block}
@@ -173,9 +171,16 @@ Devuelve JSON {{"sections":[{{"heading":"<H2 concreto sobre {subject}>","covers"
 
 def _write_section(client: OpenAI, subject: str, section: dict, headings: list[str],
                    hard: str, material: str, kw_block: str, prior: str = "",
-                   coverage: str = "") -> str:
-    # Longitud proporcional al material: poco material → secciones cortas y densas.
-    words = "120-220" if len(material) < 3000 else "180-380"
+                   coverage: str = "", tier: str = "standard") -> str:
+    # Longitud proporcional al material Y al tier: los temas premium/flagship
+    # admiten secciones más largas (hay más material real que las sostiene).
+    scarce = len(material) < 3000
+    if tier == "flagship":
+        words = "260-460" if scarce else "340-620"
+    elif tier == "premium":
+        words = "200-360" if scarce else "260-480"
+    else:
+        words = "120-220" if scarce else "180-380"
     prior_block = ""
     if prior.strip():
         prior_block = (

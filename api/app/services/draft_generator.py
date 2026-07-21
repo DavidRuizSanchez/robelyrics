@@ -51,7 +51,7 @@ ROBE = "Robe Iniesta"
 
 def _deep_body(
     db, *, entity_type: str, entity, framing: str, coverage: str = "",
-    extra_material: str = "",
+    extra_material: str = "", tier: str = "standard", serp_guidance: str = "",
 ) -> dict | None:
     """Genera un cuerpo con el MOTOR PROFUNDO (mismo que las páginas de entidad y
     las noticias): dossier RAG del corpus + outline adaptativo + sección a sección
@@ -79,9 +79,11 @@ def _deep_body(
         subject = dossier.subject
         cov = coverage or _coverage_hint(entity_type)
         hard = f"{framing}\nDATOS DUROS (úsalos, son verídicos):\n{dossier.hard_facts}"
+        if serp_guidance.strip():
+            hard += f"\n\n{serp_guidance.strip()}"
 
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        outline = _outline(client, subject, "", hard, material, cov)
+        outline = _outline(client, subject, "", hard, material, cov, tier=tier)
         if not outline:
             return None
         headings = [s["heading"] for s in outline]
@@ -89,7 +91,7 @@ def _deep_body(
         prior = ""
         for s in outline:
             sec = _write_section(client, subject, s, headings, hard, material, "",
-                                 prior=prior, coverage=cov)
+                                 prior=prior, coverage=cov, tier=tier)
             sec = _verify_section(client, sec, material)
             if sec.strip():
                 parts.append(sec.strip())
@@ -117,8 +119,19 @@ def generate_body(db, p: ContentProposal) -> dict | None:
     """Genera el contenido editorial de una propuesta sin body, según kind.
     Devuelve dict con title/excerpt/body_md/meta_title/meta_description/entities
     o None si no se pudo. Los tipos anclados a una entidad real (canción, disco,
-    Robe, taxonomía) usan el MOTOR PROFUNDO; si falla, caen al generador clásico."""
+    Robe, taxonomía) usan el MOTOR PROFUNDO; si falla, caen al generador clásico.
+
+    El `tier` de engagement (premium/flagship) sube la extensión/profundidad y, para
+    esos temas, trae un brief de competencia SERP como guía de cobertura a superar."""
     today = date.today()
+    _tier = getattr(p, "quality_tier", None) or "standard"
+    _serp = ""
+    if _tier in ("premium", "flagship"):
+        try:
+            from app.services.serp_brief import build_brief
+            _serp = build_brief(p.target_keyword or p.title or "")
+        except Exception as exc:  # noqa: BLE001 — el brief es opcional
+            logger.warning("draft: brief SERP falló: %s", exc)
 
     if p.kind == "spotlight" and p.source_type == "song" and p.source_id:
         song = db.get(Song, p.source_id)
@@ -140,6 +153,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                 "de la letra real que tienes en el material [LETRA]; nunca inventes un "
                 "verso), explica su significado, la música y su contexto. Nada genérico."
             ),
+            tier=_tier, serp_guidance=_serp,
         )
         if deep:
             return deep
@@ -179,6 +193,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                 f"(nómbralas: {', '.join(track_titles[:12])}), el sonido y su lugar en "
                 "la trayectoria. Datos concretos y citas si las hay; nada de loas vacías."
             ),
+            tier=_tier, serp_guidance=_serp,
         )
         if deep:
             return deep
@@ -214,6 +229,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                     "biográficos y de su obra CONCRETOS y datados (discos, canciones, "
                     "momentos), citando lo verídico. Nada de loas genéricas."
                 ),
+                tier=_tier, serp_guidance=_serp,
             )
             if deep:
                 return deep
@@ -249,6 +265,7 @@ def generate_body(db, p: ContentProposal) -> dict | None:
                         "una canción sin tener su letra) e ilústralo con canciones y "
                         "hechos reales. Nada de divagación genérica."
                     ),
+                    tier=_tier, serp_guidance=_serp,
                 )
                 if deep:
                     return deep
@@ -301,12 +318,73 @@ def _post_process(db, body_md: str, entities: list, subject: str = "") -> tuple[
     return body_md, hero
 
 
+def _collect_videos(db, p: ContentProposal) -> None:
+    """Consolida `p.videos` (lista). En premium/flagship añade vídeos REALES
+    relacionados de la entidad (oficial/directo/entrevista) y los embebe en el
+    cuerpo; cada uno emite su VideoObject en el schema. Best-effort."""
+    videos: list[dict] = []
+    seen: set[str] = set()
+    if getattr(p, "video", None) and p.video.get("youtube_id"):
+        videos.append(p.video)
+        seen.add(p.video["youtube_id"])
+    tier = getattr(p, "quality_tier", None) or "standard"
+    if tier in ("premium", "flagship"):
+        try:
+            from sqlalchemy import select
+
+            from app.db.models import RelatedVideo, RelatedVideoEntity
+            slugs = [e["slug_hint"] for e in (p.entities or []) if e.get("slug_hint")]
+            if slugs:
+                limit = 3 if tier == "flagship" else 2
+                rows = db.execute(
+                    select(RelatedVideo)
+                    .join(RelatedVideoEntity, RelatedVideoEntity.video_id == RelatedVideo.id)
+                    .where(RelatedVideoEntity.entity_slug.in_(slugs))
+                    .limit(10)
+                ).scalars().all()
+                added = 0
+                for rv in rows:
+                    if added >= limit or rv.youtube_id in seen:
+                        continue
+                    seen.add(rv.youtube_id)
+                    added += 1
+                    videos.append({
+                        "youtube_id": rv.youtube_id, "title": rv.title,
+                        "upload_date": rv.upload_date.isoformat() if rv.upload_date else None,
+                        "channel": None,
+                    })
+                    p.body_md = (p.body_md or "").rstrip() + (
+                        f"\n\nhttps://www.youtube.com/watch?v={rv.youtube_id}\n"
+                    )
+                if added:
+                    logger.info("draft: %d vídeo(s) relacionado(s) en propuesta %s (%s)",
+                                added, p.id, tier)
+        except Exception as exc:  # noqa: BLE001 — multimedia es opcional
+            logger.warning("draft: vídeos relacionados fallaron: %s", exc)
+    if videos:
+        p.videos = videos
+        if not getattr(p, "video", None):
+            p.video = videos[0]
+
+
 def generate_proposal_draft(db, p: ContentProposal) -> bool:
     """Construye el borrador completo de la propuesta y lo guarda en ella
     (body_md + excerpt + meta + hero + entities). Devuelve True si quedó listo.
 
     Pensado para invocarse al aprobar (en background) y como red de seguridad
     desde el cron `generate_approved_drafts` y desde `materialize_proposals`."""
+    # 0. Engagement: score + tier (modula extensión/profundidad/multimedia y activa
+    #    el brief de competencia SERP en premium/flagship). Se calcula antes del
+    #    cuerpo para que generate_body lo lea.
+    if not p.quality_tier:
+        try:
+            from app.services.engagement import compute_for_proposal
+            p.engagement_score, p.quality_tier = compute_for_proposal(db, p)
+            logger.info("draft: propuesta %s → engagement %s (%s)",
+                        p.id, p.engagement_score, p.quality_tier)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("draft: engagement falló: %s", exc)
+
     # 1. Cuerpo: el que ya trae (news) o generado por kind.
     if not p.body_md:
         payload = generate_body(db, p)
@@ -335,6 +413,10 @@ def generate_proposal_draft(db, p: ContentProposal) -> bool:
                 logger.info("draft: vídeo añadido a propuesta %s", p.id)
         except Exception as exc:  # noqa: BLE001 — el vídeo es opcional
             logger.warning("draft: búsqueda de vídeo falló: %s", exc)
+
+    # 1c. Multimedia enriquecida: consolida la lista `videos` y, en premium/flagship,
+    #     añade vídeos REALES relacionados de la entidad (oficial/directo/entrevista).
+    _collect_videos(db, p)
 
     # 2. Post-procesado (hero ÚNICO + saneado + enlazado).
     subject = (p.target_keyword or p.title or "").strip()
