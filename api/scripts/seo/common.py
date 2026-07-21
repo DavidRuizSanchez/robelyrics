@@ -544,9 +544,15 @@ def format_distilled_block(distilled: dict[str, Any] | list[dict[str, Any]] | No
         return ""
     header = (
         "CONSENSO FAN DESTILADO (lo que la comunidad de fans entiende de estas "
-        "canciones, ya destilado y consensuado). Úsalo como FUNDAMENTO de tu "
-        "lectura interpretativa, intégralo y parafraséalo con tu voz; NO lo "
-        "copies textual ni lo recites como si fuera la letra:"
+        "canciones, ya destilado y consensuado). Úsalo como FUNDAMENTO y GOBIERNO "
+        "de tu lectura interpretativa: tu interpretación debe nacer de aquí (o de "
+        "los versos y lo que dijo Robe), no de tópico literario. Intégralo y "
+        "parafraséalo con tu voz; NO lo copies textual ni lo recites como si fuera "
+        "la letra. REGLA CLAVE: si aquí NO hay consenso sobre un verso (o es "
+        "escaso), NO inventes una lectura honda ni la disfraces de metáfora; sé "
+        "descriptivo y honesto ('a mí me suena a...', o cuéntalo literal), o elige "
+        "otro ángulo con más fundamento. Y NO llames 'metáfora' a lo que es una "
+        "afirmación directa (una crítica social explícita es literal, no figurada)."
     )
     blocks: list[str] = []
     for d in items:
