@@ -150,6 +150,13 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # cobertura. Mantiene grafo y retrieval al día según crece el corpus, solo.
 30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
 
+# 03:50 UTC: barrido del Motor de Consenso de Verificación (MCV). Re-verifica los
+# overrides pendientes (letras/autoría/catálogo) contra sus fuentes y aplica lo que
+# el consenso resuelve; el residuo ambiguo queda en la cola de erratas para revisión
+# humana. Idempotente (VerificationRecord evita re-trabajo). Aislado del bloque del
+# grafo para que un fallo aquí no lo tumbe.
+50 3 * * * cd $APP_DIR && $DC exec -T api python -m scripts.verify.run_consensus_sweep --apply >> /var/log/robelyrics-cron.log 2>&1
+
 # ============================================================================
 # Enriquecimiento del corpus (semanal) — ADQUISICIÓN + DESTILADO
 # ============================================================================
