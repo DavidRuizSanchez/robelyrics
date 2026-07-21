@@ -123,7 +123,7 @@ def main() -> None:
                     choices=("evergreen", "spotlight", "album-anniversary", "anniversary"))
     ap.add_argument("--source-type", choices=("song", "album", "theme", "place", "concept"))
     ap.add_argument("--source-id", type=int)
-    ap.add_argument("--tier", choices=("standard", "premium", "flagship"),
+    ap.add_argument("--tier", choices=("standard", "premium", "flagship", "cornerstone"),
                     help="Fuerza el tier (posts curados de alto interés). Si se omite, "
                          "se calcula por engagement.")
     ap.add_argument("--apply", action="store_true", help="Escribe el post (si no, dry-run).")
