@@ -75,12 +75,46 @@ def _ai_hero(subject: str, seed: int, alt_label: str = "") -> dict | None:
                 os.unlink(path)
 
 
+# Dominios cuyas URLs de imagen NO son heros fiables: widgets/crawlers de redes y
+# CDNs que hotlinkean con 403 o devuelven HTML en vez de la imagen. Un hero roto en
+# una página pública es peor que un arte IA figurativo — se vetan.
+_BAD_IMAGE_HOSTS = (
+    "lookaside.instagram.com", "instagram.com", "cdninstagram.com", "fbcdn.net",
+    "facebook.com", "fbsbx.com", "twimg.com", "pbs.twimg.com", "tiktokcdn.com",
+    "scontent", "pinimg.com",
+)
+
+
+def _usable_image_url(url: str) -> bool:
+    """True solo si la URL es una imagen REAL y estable: dominio no vetado y
+    responde 200 con content-type `image/*`. Evita heros rotos (403/HTML) que
+    dejan la página pública sin imagen."""
+    if not url:
+        return False
+    low = url.lower()
+    if any(h in low for h in _BAD_IMAGE_HOSTS):
+        return False
+    # Las rutas locales del propio sitio (portadas, assets) son siempre fiables.
+    if low.startswith("/"):
+        return True
+    try:
+        import httpx
+        with httpx.Client(timeout=12.0, follow_redirects=True,
+                          headers={"User-Agent": "Mozilla/5.0"}) as c:
+            r = c.get(url)
+        return r.status_code == 200 and r.headers.get("content-type", "").startswith("image/")
+    except Exception as exc:  # noqa: BLE001
+        logger.info("hero: URL de foto no verificable (%s): %s", url[:60], exc)
+        return False
+
+
 def _web_photo_hero(
     entities: list[dict] | None, subject: str, alt_label: str, used: set[str]
 ) -> dict | None:
     """Foto REAL del sujeto por búsqueda web (mismo motor que Instagram:
     Google Images vía DataForSEO + respaldo Wikimedia/Openverse CC), deduplicada
-    por URL ya usada. None si no encuentra ninguna.
+    por URL ya usada y VALIDADA (200 + image/*). None si no hay ninguna fiable →
+    el caller cae al arte IA figurativo (nunca a un hero roto).
 
     Prioriza fotos originales relacionadas con el tema del post antes de caer al
     arte IA. Ancla la query al universo Robe/Extremoduro para evitar homónimos."""
@@ -98,16 +132,20 @@ def _web_photo_hero(
             "image_query": label,
         }
         chosen = photo_finder.find(topic, exclude=used)
-        if not chosen or not chosen.get("url") or chosen["url"] in used:
+        if not chosen:
             return None
-        credit = (chosen.get("credit") or "").strip()
-        return {
-            "url": chosen["url"],
-            "attribution": credit or None,
-            "license": None,
-            "source": chosen["url"],
-            "alt": f"Fotografía relacionada con «{(alt_label or subject or label).strip()}»",
-        }
+        # Prueba la imagen full y, si no es usable, el thumbnail; si ninguna vale, None.
+        for url in (chosen.get("url"), chosen.get("thumb")):
+            if url and url not in used and _usable_image_url(url):
+                credit = (chosen.get("credit") or "").strip()
+                return {
+                    "url": url,
+                    "attribution": credit or None,
+                    "license": None,
+                    "source": url,
+                    "alt": f"Fotografía relacionada con «{(alt_label or subject or label).strip()}»",
+                }
+        return None
     except Exception as exc:  # noqa: BLE001
         logger.warning("foto web de hero falló (%s): %s", subject, exc)
         return None
