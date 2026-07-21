@@ -36,7 +36,11 @@ overrides:
   - album_slug: yo-minoria-absoluta
     song_title: "A Fuego"
     source: fan_feedback
-    status: pending_verification
+    # VERIFICADO: reportado por fan y CORROBORADO por LRCLIB (dice "lleva"). Se
+    # marca verified porque desde el server de prod LRCLIB no es alcanzable (solo
+    # responde letras.com, que arrastra el mismo error de Genius); una corrección
+    # ya confirmada no debe quedar atascada en la cola por la flakiness de una fuente.
+    status: verified
     reason: >-
       Genius transcribe "llega" por "lleva" y mete comas espurias en el estribillo
       ("Y mis pantalones, entre los cojones" → sin coma).

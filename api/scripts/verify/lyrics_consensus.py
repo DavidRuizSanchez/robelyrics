@@ -198,6 +198,49 @@ def process_song_overrides(db, song: Song, overrides: list[dict], *, apply: bool
         db.rollback()
 
 
+def apply_verified_overrides(db, *, apply: bool) -> None:
+    """Aplica los overrides de letra marcados `status: verified` (verdad ya
+    confirmada por un humano) SIN necesitar consenso externo. Necesario porque
+    algunas fuentes (LRCLIB) no son alcanzables desde ciertos servidores, y una
+    corrección ya validada no debe quedar atascada en la cola por eso."""
+    verified = co.verified_only(co.lyric_overrides())
+    if not verified:
+        return
+    logger.info("[verificadas] %d override(s) de letra verificado(s)", len(verified))
+    for ov in verified:
+        song = _resolve_song(db, song_id=None, album_slug=ov.get("album_slug"),
+                             title=ov.get("song_title"))
+        if not song:
+            logger.warning("[verificadas] sin canción: %s", ov.get("song_title"))
+            continue
+        for fix in (ov.get("line_fixes") or []):
+            wrong, right = fix.get("wrong"), fix.get("right")
+            if not (wrong and right):
+                continue
+            if apply:
+                ok = apply_line_fix(db, song, wrong, right, 1.0)
+                if ok:
+                    song.lyrics_source = "override"
+                    mcv.record_verification(
+                        db, claim_kind="lyric_line",
+                        claim_key=f"song:{song.id}:line:{normalize(wrong)[:60]}",
+                        result=mcv.ConsensusResult(
+                            verdict="corrected", confidence=1.0, current_value=wrong,
+                            correct_value=right, sources=[SourceRef(
+                                name="verificado a mano", source_kind="curated",
+                                stance="supports", value=right)],
+                            rationale="Override verificado por humano.",
+                        ),
+                        song_id=song.id, applied=True,
+                    )
+                logger.info("  [%s] verificado APLICADO: %r → %r (%s)",
+                            song.title, wrong, right, "ok" if ok else "no encontró línea")
+            else:
+                logger.info("  [%s] (dry-run) verificado aplicaría: %r → %r", song.title, wrong, right)
+    if apply:
+        db.commit()
+
+
 def _resolve_song(db, *, song_id: int | None, album_slug: str | None, title: str | None) -> Song | None:
     stmt = select(Song)
     if song_id:
@@ -219,6 +262,8 @@ def main() -> None:
 
     db = SessionLocal()
     try:
+        # Los verificados a mano se aplican siempre (no dependen de consenso externo).
+        apply_verified_overrides(db, apply=args.apply)
         if args.pending or args.song_id:
             pend = co.pending_only(co.lyric_overrides())
             if args.song_id:

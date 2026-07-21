@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 
 def _sweep_lyrics(db, apply: bool) -> None:
+    # Primero los verificados a mano (se aplican directos, sin consenso externo).
+    lyrics_consensus.apply_verified_overrides(db, apply=apply)
     pend = co.pending_only(co.lyric_overrides())
     logger.info("[letras] %d override(s) pendiente(s)", len(pend))
     for ov in pend:
