@@ -168,6 +168,15 @@ def test_best_ratio_verso_inventado_es_bajo():
 # --------------------------------------------------------------------------- #
 # 8. Los slugs dentro de URLs de enlaces no falsean la atribución
 # --------------------------------------------------------------------------- #
+def test_verso_enlazado_a_su_cancion_no_es_misatribucion():
+    # Verso de "Salir" citado tras mencionar "So payaso" en prosa, PERO con enlace
+    # interno a Salir: está bien citado (el enlace lo ancla) → no misatribución.
+    body = ('Hablando de "So payaso", recordamos el [Salir](https://x.com/extremoduro/salir) '
+            'con "Meterme mil rayas, hablar con la gente".')
+    _, rep = _statuses(body)
+    assert not any(v.status == "misattributed" for v in rep.to_review)
+
+
 def test_url_de_enlace_no_falsea_la_atribucion():
     # Verso real de "Salir" atribuido correctamente, pero con un enlace markdown a
     # OTRA canción justo antes: el slug de la URL no debe robar la atribución.

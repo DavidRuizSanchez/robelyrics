@@ -492,8 +492,14 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
                     break
 
         if best_r >= _OK_RATIO:
-            if attributed and best_song and normalize(best_song.title) != attributed \
-                    and r_attr < _REVIEW_RATIO:
+            best_norm = normalize(best_song.title) if best_song else ""
+            # ¿La canción CORRECTA está referenciada (nombrada o ENLAZADA) junto al
+            # verso? El enlace interno la ancla aunque la 'mención más cercana' en
+            # prosa apunte a otra: entonces NO es misatribución, está bien citada.
+            near = normalize(body_md[max(0, start - 450):start + len(quote) + 450])
+            referenced = bool(best_norm) and best_norm in near
+            if attributed and best_song and best_norm != attributed \
+                    and r_attr < _REVIEW_RATIO and not referenced:
                 report.verdicts.append(LyricVerdict(
                     quote=quote, status="misattributed",
                     attributed_song=attr_song.title if attr_song else attributed,
