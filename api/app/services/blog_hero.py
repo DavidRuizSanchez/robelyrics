@@ -43,9 +43,12 @@ def _seed(subject: str) -> int:
     return zlib.crc32((subject or "entre interiores").encode("utf-8"))
 
 
-def _ai_hero(subject: str, seed: int) -> dict | None:
+def _ai_hero(subject: str, seed: int, alt_label: str = "") -> dict | None:
     """Arte editorial ÚNICO con gpt-image-1 subido a Cloudinary. None si no hay
-    API key o falla (el caller degrada a sin-imagen, nunca a una repetida)."""
+    API key o falla (el caller degrada a sin-imagen, nunca a una repetida).
+
+    `alt_label`: texto legible (título del post) para el ALT; si no se da, cae al
+    subject. El prompt de imagen usa el subject (tema) tal cual."""
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     path = None
@@ -58,9 +61,10 @@ def _ai_hero(subject: str, seed: int) -> dict | None:
             path = fh.name
         img.convert("RGB").save(path, "JPEG", quality=90)
         url = cloudinary_upload.upload(path, folder="entreinteriores-blog")
+        label = (alt_label or subject or "").strip()
         return {
             "url": url, "attribution": None, "license": None, "source": None,
-            "alt": f"Ilustración editorial que evoca «{subject}»",
+            "alt": f"Ilustración editorial de Entre Interiores para «{label}»",
         }
     except Exception as exc:  # noqa: BLE001
         logger.warning("arte IA de hero falló (%s): %s", subject, exc)
@@ -78,18 +82,22 @@ def build_unique_hero(
     *,
     allow_ai: bool = True,
     used: set[str] | None = None,
+    alt_label: str = "",
 ) -> dict | None:
     """Devuelve {url, alt, attribution, license, source} ÚNICO para el post, o None.
 
     1) Imagen REAL de la entidad no usada aún (dedup duro).
     2) Si no hay ninguna libre → arte editorial IA único (si `allow_ai`).
+
+    `alt_label`: título legible del post para el ALT del arte IA (mejor que el
+    slug de keyword). El `subject` (tema) alimenta el prompt de imagen.
     """
     used = used if used is not None else used_hero_urls(db)
     img = pick_hero_image(db, entities, used=used)
     if img:
         return img
     if allow_ai:
-        ai = _ai_hero(subject, _seed(subject))
+        ai = _ai_hero(subject, _seed(subject), alt_label=alt_label)
         # El arte IA es único por definición, pero por si acaso comprobamos.
         if ai and ai["url"] not in used:
             return ai

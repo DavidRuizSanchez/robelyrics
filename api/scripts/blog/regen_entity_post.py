@@ -86,7 +86,8 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         print(f"    - cita {v.status}: «{v.quote[:50]}» → {v.reason}")
     for v in rep.autofixes:
         print(f"    - álbum/año: {v.evidence}")
-    print("  ---BODY (primeros 2000)---\n" + g["body_md"][:2000])
+    print("  ---BODY COMPLETO---\n" + g["body_md"])
+    print("  ---FIN BODY---")
 
     if not apply:
         return True
