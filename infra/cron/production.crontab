@@ -160,6 +160,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # grafo para que un fallo aquí no lo tumbe.
 50 3 * * * cd $APP_DIR && $DC exec -T api python -m scripts.verify.run_consensus_sweep --apply >> /var/log/robelyrics-cron.log 2>&1
 
+# 09:15 UTC diario: digest de "cosas por revisar" al admin (erratas que el consenso
+# no resolvió solo, blog en pending_review, auto-correcciones de las últimas 24h).
+# No envía nada si no hay nada pendiente (anti-spam). Corre tras el barrido MCV 03:50.
+15 9 * * * cd $APP_DIR && $DC exec -T api python -m scripts.notify_review >> /var/log/robelyrics-cron.log 2>&1
+
 # ============================================================================
 # Enriquecimiento del corpus (semanal) — ADQUISICIÓN + DESTILADO
 # ============================================================================

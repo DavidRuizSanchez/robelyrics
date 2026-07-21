@@ -175,6 +175,8 @@ def apply_credits(db, song: Song, credits: list[dict], confidence: float) -> int
 
 def _open_errata(db, song: Song, author: str, result, verif):
     from app.db.models import ErrataReport
+    if mcv.errata_exists(db, target_type="authorship", target_id=song.id, field="credit"):
+        return
     db.add(ErrataReport(
         target_type="authorship", target_id=song.id, field="credit",
         reported_wrong="atribución actual a Robe",

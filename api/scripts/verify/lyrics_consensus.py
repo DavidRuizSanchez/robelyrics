@@ -145,6 +145,8 @@ def apply_line_fix(db, song: Song, wrong: str, right: str, confidence: float) ->
 
 def _open_errata(db, song: Song, wrong: str, right: str, result: mcv.ConsensusResult, verif):
     from app.db.models import ErrataReport
+    if mcv.errata_exists(db, target_type="song_lyrics", target_id=song.id, field="lyrics_line"):
+        return
     db.add(ErrataReport(
         target_type="song_lyrics",
         target_id=song.id,

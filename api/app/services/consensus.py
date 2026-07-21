@@ -367,6 +367,24 @@ def adjudicate(
 # --------------------------------------------------------------------------- #
 # Persistencia en VerificationRecord (traza auditable).
 # --------------------------------------------------------------------------- #
+def errata_exists(db, *, target_type: str, target_id: int | None, field: str | None = None) -> bool:
+    """¿Ya hay una errata ABIERTA (pending/needs_human) para este target? Evita que
+    el barrido nocturno cree duplicados del mismo caso en cada pasada."""
+    from sqlalchemy import select
+
+    from app.db.models import ErrataReport
+
+    q = select(ErrataReport.id).where(
+        ErrataReport.target_type == target_type,
+        ErrataReport.status.in_(("pending", "needs_human")),
+    )
+    if target_id is not None:
+        q = q.where(ErrataReport.target_id == target_id)
+    if field:
+        q = q.where(ErrataReport.field == field)
+    return db.execute(q).first() is not None
+
+
 def record_verification(
     db,
     *,

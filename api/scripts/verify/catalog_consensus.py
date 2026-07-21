@@ -112,7 +112,7 @@ def process(db, entry: dict, *, apply: bool) -> None:
         logger.info("  → año no corroborado por consenso; a revisión")
 
     if not has_studio:
-        if apply:
+        if apply and not mcv.errata_exists(db, target_type="catalog", target_id=songs[0].id, field="original_album"):
             db.add(ErrataReport(
                 target_type="catalog", target_id=songs[0].id, field="original_album",
                 reported_wrong=f"solo existe versión en directo/recopilatorio de «{title}»",
