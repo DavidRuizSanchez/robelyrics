@@ -226,16 +226,17 @@ MATERIAL (única fuente de hechos; parafrasea, NO inventes nada que no esté aqu
     return strip_ai_tells(body) or body
 
 
-def _polish(client: OpenAI, subject: str, body: str) -> str:
+def _polish(client: OpenAI, subject: str, body: str, allowed_terms: set[str] | None = None) -> str:
     """Pase final anti-repetición y anti-paja sobre el artículo completo."""
     if len(body.strip()) < 200:
         return body
     # Linter léxico determinista (Eje E): detecta muletillas y palabras
     # distintivas sobre-usadas (el "encapsula ×6" del feedback de la fan) y se
-    # las nombra al pulidor para que las quite de forma DIRIGIDA. La entidad del
-    # artículo puede repetirse sin penalizar.
+    # las nombra al pulidor para que las quite de forma DIRIGIDA. Los nombres
+    # propios de la entidad (título de la canción, disco, artista) NO penalizan:
+    # su repetición es legítima.
     from app.services.text_sanitizer import lexical_repetition_report
-    rep = lexical_repetition_report(body, allowed={subject.lower()})
+    rep = lexical_repetition_report(body, allowed=(allowed_terms or {subject.lower()}))
     lexical_task = ""
     if rep.has_problems:
         bits = []
@@ -367,10 +368,34 @@ def generate_for_entity(
             parts.append(sec.strip())
         log(f"  · {s['heading']} ({len(sec)} chars)")
 
+    # Términos que pueden repetirse sin penalizar el linter léxico: los nombres
+    # propios de la entidad (título) + su disco + su artista. Evita el falso
+    # positivo de marcar "ensancha/alma" (título) o "Deltoya" (disco) como muletilla.
+    allowed_terms: set[str] = {dossier.subject.lower()}
+    try:
+        alb = getattr(entity, "album", None)
+        if alb is not None:
+            allowed_terms.add((alb.title or "").lower())
+            art = getattr(alb, "artist", None)
+            if art is not None:
+                allowed_terms.add((art.name or "").lower())
+        if getattr(entity, "title", None):
+            allowed_terms.add(entity.title.lower())
+        if getattr(entity, "name", None):
+            allowed_terms.add(entity.name.lower())
+        # Las palabras de la PROPIA LETRA son imprevisibles y legítimas de repetir
+        # (un motivo lírico como "fuego"/"amor", o los versos que el artículo cita).
+        # Se añaden enteras: el linter las tokeniza y deja de marcarlas.
+        lyr = getattr(entity, "lyrics_clean", None)
+        if lyr:
+            allowed_terms.add(lyr.lower())
+    except Exception:  # noqa: BLE001 — nunca romper por el contexto de nombres
+        pass
+
     body = "\n\n".join(parts)
     # Pase final anti-repetición/anti-paja sobre el artículo completo.
     before = len(body)
-    body = _polish(client, dossier.subject, body)
+    body = _polish(client, dossier.subject, body, allowed_terms=allowed_terms)
     log(f"  pulido: {before} → {len(body)} chars")
     body = _sanitize_links(body, dossier.allowed_urls)
     body = autolink_corpus(
@@ -388,7 +413,8 @@ def generate_for_entity(
     # tensar, se tensa; si es flojo sin remedio, queda BORRADOR (no se publica).
     try:
         from app.services.editorial_review import review as editorial_review
-        v = editorial_review(body, kind=entity_type, subject=dossier.subject)
+        v = editorial_review(body, kind=entity_type, subject=dossier.subject,
+                             allowed_terms=allowed_terms)
         if v.verdict == "revise" and v.tightened_body_md:
             body = v.tightened_body_md
             log(f"  rigor: tensado (score {v.score})")

@@ -117,6 +117,7 @@ def review(
     focus: str = "",
     material: str | None = None,
     event_when: str | None = None,  # 'past' | 'future' | None (pista para news)
+    allowed_terms: set[str] | None = None,  # nombres propios que pueden repetirse
 ) -> EditorialVerdict:
     """Juzga el rigor de una pieza. Degrada a `pass` si no hay API key o el LLM
     falla (no bloquea la publicación por un fallo de infraestructura; el resto de
@@ -154,7 +155,8 @@ def review(
     try:
         from app.services.text_sanitizer import lexical_repetition_report
 
-        _rep = lexical_repetition_report(body, allowed={(subject or "").lower()})
+        _rep = lexical_repetition_report(
+            body, allowed=(allowed_terms or {(subject or "").lower()}))
         if _rep.has_problems:
             _lexical_note = (
                 "AVISO del linter (detección determinista, tenlo MUY en cuenta en los "
