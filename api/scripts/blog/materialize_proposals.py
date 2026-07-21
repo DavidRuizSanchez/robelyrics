@@ -240,12 +240,16 @@ def main() -> None:
                 source_url=p.source_url,
                 source_name=p.source_name,
                 hero_image_url=p.hero_image_url,
+                hero_image_alt=p.hero_image_alt,
                 hero_image_attribution=p.hero_image_attribution,
                 hero_image_license=p.hero_image_license,
                 hero_image_source_url=p.hero_image_source_url,
                 entities=p.entities or [],
                 event_date=p.event_date,
                 video=p.video,
+                videos=p.videos,
+                engagement_score=p.engagement_score,
+                quality_tier=p.quality_tier,
                 force_publish=p.force_publish,
             )
             db.add(post)

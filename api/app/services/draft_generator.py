@@ -278,18 +278,18 @@ def generate_body(db, p: ContentProposal) -> dict | None:
     return None
 
 
-def _post_process(db, body_md: str, entities: list) -> tuple[str, dict | None]:
-    """Aplica hero (foto del sujeto) + saneado anti-IA + jerarquía de headings
-    + enlazado interno automático. Devuelve (body_md, hero|None)."""
+def _post_process(db, body_md: str, entities: list, subject: str = "") -> tuple[str, dict | None]:
+    """Aplica hero ÚNICO (foto del sujeto sin repetir, o arte IA) + saneado anti-IA
+    + jerarquía de headings + enlazado interno automático. Devuelve (body_md, hero|None)."""
     from app.services.entity_resolver import (
         autolink_corpus,
         build_corpus_index,
         load_link_stats,
     )
-    from app.services.hero_image import pick_hero_image
+    from app.services.blog_hero import build_unique_hero
     from app.services.text_sanitizer import normalize_headings, strip_ai_tells
 
-    hero = pick_hero_image(db, entities or [])
+    hero = build_unique_hero(db, entities or [], subject)
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
     # Embebe vídeos referenciados como enlace markdown (URL desnuda → reproductor).
@@ -336,11 +336,13 @@ def generate_proposal_draft(db, p: ContentProposal) -> bool:
         except Exception as exc:  # noqa: BLE001 — el vídeo es opcional
             logger.warning("draft: búsqueda de vídeo falló: %s", exc)
 
-    # 2. Post-procesado (hero + saneado + enlazado).
-    body_md, hero = _post_process(db, p.body_md, p.entities or [])
+    # 2. Post-procesado (hero ÚNICO + saneado + enlazado).
+    subject = (p.target_keyword or p.title or "").strip()
+    body_md, hero = _post_process(db, p.body_md, p.entities or [], subject)
     p.body_md = body_md
     if hero:
         p.hero_image_url = hero["url"]
+        p.hero_image_alt = hero.get("alt")
         p.hero_image_attribution = hero["attribution"]
         p.hero_image_license = hero["license"]
         p.hero_image_source_url = hero["source"]

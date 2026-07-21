@@ -78,31 +78,21 @@ def main() -> None:
                             p.body_md = (p.body_md or "").rstrip() + f"\n\n{url}\n"
                     changed = True
 
-            # 3. Foto (hero) best-effort si no tiene.
+            # 3. Foto (hero) ÚNICA best-effort si no tiene (dedup + arte IA).
             if not p.hero_image_url:
-                hero_url = None
+                hero_meta = None
                 try:
-                    from app.services.hero_image import pick_hero_image
-                    h = pick_hero_image(db, p.entities or [])
-                    if h:
-                        hero_url = h["url"]
-                        hero_meta = h
-                    if not hero_url and subject:
-                        from app.services.instagram import cloudinary_upload
-                        from app.services.news_research import find_image
-                        img = find_image(subject)
-                        if img:
-                            hero_url = cloudinary_upload.upload(img, folder="entreinteriores-art")
-                            hero_meta = {"url": hero_url, "attribution": None,
-                                         "license": None, "source": None}
+                    from app.services.blog_hero import build_unique_hero
+                    hero_meta = build_unique_hero(db, p.entities or [], subject)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("[#%s] foto falló: %s", p.id, exc)
-                    hero_url = None
-                if hero_url:
+                    hero_meta = None
+                if hero_meta:
                     logger.info("[#%s] foto añadida", p.id)
                     stats["foto"] += 1
                     if not args.dry_run:
-                        p.hero_image_url = hero_url
+                        p.hero_image_url = hero_meta["url"]
+                        p.hero_image_alt = hero_meta.get("alt")
                         p.hero_image_attribution = hero_meta.get("attribution")
                         p.hero_image_license = hero_meta.get("license")
                         p.hero_image_source_url = hero_meta.get("source")

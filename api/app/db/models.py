@@ -782,6 +782,9 @@ class Post(Base):
     excerpt: Mapped[str | None] = mapped_column(Text)
     body_md: Mapped[str] = mapped_column(Text, nullable=False)
     hero_image_url: Mapped[str | None] = mapped_column(String(1000))
+    # ALT descriptivo de la imagen hero (accesibilidad + SEO). Describe la FOTO
+    # real (p.ej. "Robe en directo en Villaviciosa, 2007"), no el título del post.
+    hero_image_alt: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Atribución y licencia de la imagen (Wikimedia Commons). Renderizadas en
     # el footer del post para cumplir con la licencia (CC-BY/CC-BY-SA exigen
     # author + licencia + enlace a la fuente).
@@ -843,6 +846,14 @@ class Post(Base):
     # Vídeo embebido del post (YouTube), con metadatos REALES para el
     # VideoObject (JSON-LD): {youtube_id, title, upload_date (ISO), channel}.
     video: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Lista de vídeos (posts premium/flagship llevan varios: oficial + directo +
+    # entrevista). Cada uno {youtube_id, title, upload_date, channel}. `video`
+    # (arriba) se mantiene por compatibilidad = primer elemento de `videos`.
+    videos: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Engagement (WS B): score 0-100 de interés para un fan real y tier derivado
+    # (standard|premium|flagship) que modula extensión, profundidad y multimedia.
+    engagement_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quality_tier: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -1052,6 +1063,7 @@ class ContentProposal(Base):
     meta_title: Mapped[str | None] = mapped_column(String(256))
     meta_description: Mapped[str | None] = mapped_column(String(512))
     hero_image_url: Mapped[str | None] = mapped_column(String(1000))
+    hero_image_alt: Mapped[str | None] = mapped_column(Text)
     hero_image_attribution: Mapped[str | None] = mapped_column(Text)
     hero_image_license: Mapped[str | None] = mapped_column(String(64))
     hero_image_source_url: Mapped[str | None] = mapped_column(String(1000))
@@ -1098,6 +1110,11 @@ class ContentProposal(Base):
     # {youtube_id, title, upload_date, channel}. Lo provee research_and_write; se
     # copia a Post.video al materializar.
     video: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Lista de vídeos (premium/flagship). Se copia a Post.videos al materializar.
+    videos: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Engagement (WS B): score 0-100 y tier (standard|premium|flagship).
+    engagement_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quality_tier: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # Override del admin: publicar "sí o sí" saltando el gate de calidad
     # (rigor/longitud/foco); el fact-check canónico se mantiene.
     force_publish: Mapped[bool] = mapped_column(

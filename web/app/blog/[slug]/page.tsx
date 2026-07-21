@@ -12,6 +12,7 @@ import {
   breadcrumbListNode,
   buildGraph,
   canonical,
+  imageObjectNode,
   mentionsArray,
   postVideoObjectNode,
   webPageNode,
@@ -83,6 +84,23 @@ export default async function BlogPostPage({
   }
 
   const mentions = mentionsArray(post.entities);
+  const postPath = `/blog/${post.slug}`;
+  // Imagen hero como ImageObject (con @id) para poder referenciarla desde el
+  // Article y como primaryImageOfPage del WebPage.
+  const heroImageNode = post.hero_image_url
+    ? imageObjectNode({
+        url: post.hero_image_url,
+        path: postPath,
+        attribution: post.hero_image_attribution,
+      })
+    : null;
+  // Vídeos: la lista (posts premium con varios) o el único legacy.
+  const videoList =
+    post.videos && post.videos.length > 0
+      ? post.videos
+      : post.video
+        ? [post.video]
+        : [];
   // BlogPosting para editorial; NewsArticle para noticias/efemérides.
   const articleJsonLd: Record<string, unknown> = {
     "@type": post.kind === "editorial" ? "BlogPosting" : "NewsArticle",
@@ -90,7 +108,9 @@ export default async function BlogPostPage({
     headline: post.title,
     description: post.excerpt ?? undefined,
     datePublished: post.published_at,
-    image: post.hero_image_url ?? undefined,
+    image: heroImageNode
+      ? { "@id": canonical.primaryImage(postPath) }
+      : undefined,
     url: `${SITE_URL}/blog/${post.slug}`,
     inLanguage: "es-ES",
     isPartOf: { "@id": canonical.blog },
@@ -138,7 +158,7 @@ export default async function BlogPostPage({
               {/* eslint-disable-next-line @next/next/no-restricted-imports */}
               <NextImage
                 src={post.hero_image_url}
-                alt={`Imagen relacionada: ${post.title}`}
+                alt={post.hero_image_alt || `Imagen relacionada: ${post.title}`}
                 fill
                 priority
                 sizes="(max-width: 1100px) 100vw, 1100px"
@@ -176,21 +196,25 @@ export default async function BlogPostPage({
             __html: safeJsonLd(
               buildGraph([
                 articleJsonLd,
-                ...(post.video?.youtube_id
-                  ? [
-                      postVideoObjectNode({
-                        youtubeId: post.video.youtube_id,
-                        title: post.video.title,
-                        uploadDate: post.video.upload_date,
-                        description: post.excerpt,
-                        aboutId: canonical.article(post.slug),
-                      }),
-                    ]
-                  : []),
+                ...(heroImageNode ? [heroImageNode] : []),
+                ...videoList
+                  .filter((v) => v?.youtube_id)
+                  .map((v) =>
+                    postVideoObjectNode({
+                      youtubeId: v.youtube_id,
+                      title: v.title,
+                      uploadDate: v.upload_date,
+                      description: post.excerpt,
+                      aboutId: canonical.article(post.slug),
+                    }),
+                  ),
                 webPageNode({
-                  path: `/blog/${post.slug}`,
+                  path: postPath,
                   name: post.title,
                   mainEntityId: canonical.article(post.slug),
+                  primaryImageId: heroImageNode
+                    ? canonical.primaryImage(postPath)
+                    : undefined,
                   datePublished: post.published_at,
                 }),
                 breadcrumbListNode(`/blog/${post.slug}`, [

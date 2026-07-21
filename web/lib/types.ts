@@ -308,6 +308,13 @@ export type PublicPostListItem = {
   published_at: string;
 };
 
+export type PublicPostVideo = {
+  youtube_id: string;
+  title: string | null;
+  upload_date: string | null;
+  channel: string | null;
+};
+
 export type PublicPostDetail = PublicPostListItem & {
   body_md: string;
   meta_title: string | null;
@@ -315,12 +322,9 @@ export type PublicPostDetail = PublicPostListItem & {
   source_url: string | null;
   source_name: string | null;
   anniversary_year: number | null;
+  hero_image_alt: string | null;
   hero_image_attribution: string | null;
   entities: PublicResolvedEntity[];
-  video: {
-    youtube_id: string;
-    title: string | null;
-    upload_date: string | null;
-    channel: string | null;
-  } | null;
+  video: PublicPostVideo | null;
+  videos: PublicPostVideo[];
 };
