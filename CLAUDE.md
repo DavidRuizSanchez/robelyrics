@@ -68,7 +68,7 @@ local `entrenoticias/`) en `infra/MIGRATION_ENTRENOTICIAS.md`.
 - Reranker: GPT-4o-mini con structured outputs y citation obligatoria.
 - Auth: tabla users + bcrypt directo (passlib falla con bcrypt 5.x).
 - Dev workflow: Docker desde día 1, hot-reload con bind mounts.
-- Repo personal: `DavidRuizSanchez/robelyrics` (NO la organización Convertix).
+- Repo personal: `DavidRuizSanchez/robelyrics`.
 
 ## Añadir un disco nuevo (cuando Robe publique)
 
