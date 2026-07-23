@@ -1602,17 +1602,33 @@ from app.services.text_sanitizer import enforce_name_policy as _fix_name  # noqa
 
 def _make_name_policy_listener(fields: tuple[str, ...]):
     def _listener(mapper, connection, target):  # noqa: ANN001
+        import json as _json
         for f in fields:
             v = getattr(target, f, None)
             if isinstance(v, str) and v:
                 setattr(target, f, _fix_name(v))
+            elif isinstance(v, (dict, list)) and v:
+                # Campos JSONB (p.ej. schema_jsonld): era el hueco por donde se
+                # colaba "Robe Iniesta". Se sanea el JSON serializado.
+                raw = _json.dumps(v, ensure_ascii=False)
+                clean = _fix_name(raw)
+                if clean != raw:
+                    setattr(target, f, _json.loads(clean))
     return _listener
 
 
+# Cubre el contenido generado (incl. schema_jsonld) Y los campos de nombre de las
+# entidades (Person/Artist/Album/Band), que antes quedaban fuera. Ojo: para
+# persons.full_name lo correcto es "Roberto Iniesta"; la política solo actúa si
+# aparece literalmente "Robe Iniesta" (previene la violación, no toca "Roberto").
 for _model, _fields in (
-    (SeoContent, ("body_md", "meta_title", "meta_description", "h1")),
+    (SeoContent, ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld")),
     (Post, ("body_md", "title", "excerpt", "meta_title", "meta_description")),
     (InstagramQueueItem, ("caption",)),
+    (Person, ("full_name", "stage_name", "bio_short", "bio_long")),
+    (Artist, ("name",)),
+    (Album, ("title",)),
+    (Band, ("name",)),
 ):
     _lst = _make_name_policy_listener(_fields)
     _event.listen(_model, "before_insert", _lst)

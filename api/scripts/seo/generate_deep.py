@@ -427,8 +427,8 @@ def generate_for_entity(
     meta = _meta(client, dossier.subject, target_keyword, body)
     schema = {
         "@context": "https://schema.org",
-        "@type": {"person": "Person", "band": "MusicGroup", "place": "Place"}.get(
-            entity_type, "Thing"),
+        "@type": {"person": "Person", "band": "MusicGroup", "artist": "MusicGroup",
+                  "place": "Place"}.get(entity_type, "Thing"),
         "name": dossier.subject,
     }
     upsert_seo_content(

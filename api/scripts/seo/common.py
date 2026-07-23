@@ -224,11 +224,23 @@ def upsert_seo_content(
     sobrescribe body_md y reset reviewed_at + published. Si no force, falla."""
     # Saneado anti marcas de IA (em-dash, etc.) — red de seguridad por si el
     # LLM ignoró el SYSTEM_PROMPT.
-    from app.services.text_sanitizer import normalize_headings, strip_ai_tells
+    from app.services.text_sanitizer import (
+        enforce_name_policy,
+        normalize_headings,
+        strip_ai_tells,
+    )
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
     meta_title = strip_ai_tells(meta_title)
     meta_description = strip_ai_tells(meta_description)
+    # El schema_jsonld NO pasa por strip_ai_tells (es un dict) y era el hueco por el
+    # que se colaba "Robe Iniesta". Se sanea el JSON serializado antes de escribir.
+    if schema_jsonld:
+        import json as _json
+        _raw = _json.dumps(schema_jsonld, ensure_ascii=False)
+        _clean = enforce_name_policy(_raw)
+        if _clean != _raw:
+            schema_jsonld = _json.loads(_clean)
     if not force:
         # Comprueba que no existe ya para evitar pisar revisión humana
         existing = (
