@@ -8,9 +8,10 @@ import type { AuthMe } from "@/lib/types";
 // cada artista; el resto (grupos amigos, colegas, sellos, libros) son URLs
 // globales compartidas. Discografía va filtrada por artista.
 function artistItems(slug: "extremoduro" | "robe") {
+  const name = slug === "robe" ? "los Robe" : "Extremoduro";
   return [
-    { href: `/${slug}`, label: "Historia" },
-    { href: `/discografia?artist=${slug}`, label: "Discografía" },
+    { href: `/${slug}`, label: `Historia de ${name}` },
+    { href: `/discografia?artist=${slug}`, label: `Discografía de ${name}` },
   ];
 }
 
@@ -88,7 +89,7 @@ export default async function PublicHeader() {
       {/* === DESKTOP === */}
       <nav className="hidden lg:flex items-center gap-6 font-mono text-[10px] tracking-[2.5px] uppercase">
         <ArtistDropdown slug="extremoduro" label="Extremoduro" />
-        <ArtistDropdown slug="robe" label="Robe" />
+        <ArtistDropdown slug="robe" label="Los Robe" />
         <Link href="/blog" data-cursor="hover" className={linkCls} title="De manera urgente · noticias y memoria">De manera urgente</Link>
         <Link href="/biblioteca/consultorio" data-cursor="hover" className="text-accent hover:text-ink transition-colors" title="Pregúntame lo que quieras, que pa' eso sigo en el aire">Pregúntale al viento</Link>
         <Link href="/biblioteca?mode=semantic#search" data-cursor="hover" className="text-accent hover:text-ink transition-colors" title="Dime qué sientes y te busco el verso que lo dice">Como lo diría Robe</Link>
@@ -123,7 +124,7 @@ export default async function PublicHeader() {
         </summary>
         <nav className="absolute top-full left-0 right-0 bg-bg border-b border-divider px-5 py-5 flex flex-col gap-5 font-mono text-[11px] tracking-[2.5px] uppercase max-h-[80vh] overflow-y-auto">
           <ArtistAccordion slug="extremoduro" label="Extremoduro" />
-          <ArtistAccordion slug="robe" label="Robe" />
+          <ArtistAccordion slug="robe" label="Los Robe" />
           <Link href="/blog" className={linkCls} title="De manera urgente · noticias y memoria">De manera urgente</Link>
           <Link href="/biblioteca/consultorio" className="text-accent hover:text-ink transition-colors">Pregúntale al viento</Link>
           <Link href="/biblioteca?mode=semantic#search" className="text-accent hover:text-ink transition-colors">Como lo diría Robe</Link>

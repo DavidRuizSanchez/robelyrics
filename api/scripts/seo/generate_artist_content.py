@@ -50,34 +50,44 @@ FUENTES EXTERNAS PRIORITARIAS:
 
 {format_distilled_block(distilled)}
 
+ENFOQUE: esto es la página del PROYECTO MUSICAL / la BANDA {artist.name} (su
+discografía, formación, sonido y directos), NO una biografía personal. Si {artist.name}
+es un proyecto en solitario ligado a una persona (p.ej. «Los Robe» = el proyecto de
+Robe tras Extremoduro), la vida privada, la infancia y la biografía del líder viven en
+SU ficha de persona (/personas/…): NO las narres aquí; céntrate en el proyecto musical.
+
 ESTRUCTURA OBLIGATORIA (encabezados H2, en este orden):
 
-## Orígenes, calle y la forja de una identidad
-~450 palabras: de dónde sale, formación si es banda, el barrio y la calle que
-forjan la identidad, qué representa y qué lugar ocupa en la música española.
+## {artist.name}: qué es y su lugar en el rock
+~350 palabras: qué ES el proyecto/banda, cuándo y cómo se forma, quiénes lo integran,
+qué propuesta musical representa y su sitio en el rock español. Nada de infancia del líder.
 
-## El proceso compositivo: letra y música del mismo útero
-~550 palabras: cómo compone, la relación entre letra y música, su método, qué
-le mueve a escribir. Solo lo que conste en las fuentes; no inventes método.
+## La formación y el sonido de la banda
+~450 palabras: los músicos que la integran y su papel, la evolución del sonido, los
+directos y las giras si constan. Solo lo que conste en las fuentes.
 
-## Discografía comentada: del desgarro analógico a la madurez sinfónica
-~900 palabras: repaso disco a disco con 1-2 frases por álbum, trazando el arco
-del desgarro de los inicios a la madurez sinfónica. Menciona cada disco por su
-título en texto plano — el sistema linkifica los títulos automáticamente a sus
-páginas locales.
+## Discografía comentada, disco a disco
+~1000 palabras: repaso disco a disco con 2-3 frases por álbum (año, tono, temas,
+qué aporta al arco del proyecto). Menciona cada disco por su título en texto plano —
+el sistema linkifica los títulos a sus páginas locales.
 
-## Filosofía, censura y soberanía
-~600 palabras: su mirada del mundo, episodios de censura o pulso con el poder
-si constan, su soberanía como artista y persona, rasgos literarios y lenguaje.
+## El proceso creativo y la mirada del proyecto
+~500 palabras: cómo se compone, la relación letra-música, temas recurrentes y la
+mirada del mundo que atraviesa la obra. Solo lo documentado; no inventes método.
 
-## Legado, homenajes y la herencia que queda
-~500 palabras: impacto en la escena rock española, artistas influidos,
-homenajes documentados y la herencia que deja. Solo datos públicos y verificados.
+## Legado, homenajes y la herencia del proyecto
+~450 palabras: impacto en la escena, artistas influidos, homenajes documentados y la
+herencia que deja el proyecto. Solo datos públicos y verificados.
 
 IMPORTANTE:
 - NO escribas markdown de link a mano ni uses placeholders entre
   corchetes ([Título], <slug>, etc.).
 - NO INVENTES datos.
+
+META (para captar búsquedas del PROYECTO, no biográficas): `meta_title` (≤60 chars)
+debe incluir «{artist.name}» y un término de proyecto/discografía (p.ej. «discografía»,
+«discos», «canciones»); `meta_description` (≤160 chars) resume la banda y su discografía,
+sin biografía personal.
 
 Devuelve JSON con `body_md`, `meta_title` (≤60 chars), `meta_description`
 (≤160 chars), `entities` (según system prompt).
