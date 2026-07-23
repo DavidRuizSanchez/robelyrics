@@ -98,6 +98,15 @@ def _coverage_hint(entity_type: str) -> str:
             "o figura EXTERNA al núcleo, dedica la mayor parte a SU propia vida, carrera y "
             "discografía (sus grupos y discos célebres, anécdotas), no solo a su relación con Robe."
         )
+    if entity_type == "artist":
+        return (
+            "COBERTURA OBLIGATORIA: este es el PROYECTO MUSICAL / la banda, NO una biografía "
+            "personal (la vida del líder vive en su ficha de persona, enlázala para lo biográfico). "
+            "Céntrate en: la DISCOGRAFÍA (álbumes, años, evolución del sonido), giras y directos, "
+            "la FORMACIÓN y los miembros de la banda, el estilo musical y su lugar en el rock. NO "
+            "narres la infancia, las adicciones ni la vida privada; menciona al líder como voz/"
+            "miembro y remite a su ficha personal para eso."
+        )
     if entity_type in ("theme", "concept"):
         return (
             "COBERTURA OBLIGATORIA: qué significa este tema/concepto en la obra. ES OBLIGATORIO "
