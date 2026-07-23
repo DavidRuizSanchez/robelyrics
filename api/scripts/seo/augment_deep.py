@@ -195,6 +195,10 @@ def augment_entity(
                 "grew": False, "noop": True, "subject": subject}
 
     after = current.rstrip() + "\n\n" + "\n\n".join(added)
+    # El LLM a veces devuelve el heading envuelto en <> (eco del placeholder de la
+    # plantilla): «## <Título>». Se limpia para que no rompa el markdown.
+    after = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", after, flags=re.M)
+    added_heads = [re.sub(r"^<\s*(.+?)\s*>$", r"\1", h) for h in added_heads]
     after = normalize_headings(after) or after
     after = strip_ai_tells(after) or after
     after = autolink_corpus(
