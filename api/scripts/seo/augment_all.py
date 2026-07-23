@@ -56,6 +56,8 @@ def main() -> None:
     ap.add_argument("--discover-web", action="store_true",
                     help="descubre eventos recientes por web (figuras clave)")
     ap.add_argument("--apply", action="store_true", help="persiste (si no, dry-run)")
+    ap.add_argument("--force", action="store_true",
+                    help="reprocesa aunque ya esté aumentado (por defecto se saltan)")
     args = ap.parse_args()
 
     client = OpenAI(api_key=get_settings().openai_api_key)
@@ -66,9 +68,19 @@ def main() -> None:
         corpus_index = build_corpus_index(db)
         link_stats = load_link_stats()
         targets = []
+        # Ya aumentados (generated_by empieza por "augment-") → se saltan para no
+        # doble-aumentar, salvo --force.
+        done = set()
+        if not args.force:
+            for et2, slug2 in db.query(SeoContent.entity_type, SeoContent.slug).filter(
+                SeoContent.generated_by.like("augment-%")
+            ).all():
+                done.add((et2, slug2))
         for et in types:
             for ent in db.query(_MODELS[et]).order_by(_MODELS[et].slug).all():
                 if only and ent.slug not in only:
+                    continue
+                if (et, ent.slug) in done:
                     continue
                 targets.append((et, ent))
         if args.limit:
