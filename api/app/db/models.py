@@ -1622,7 +1622,7 @@ def _make_name_policy_listener(fields: tuple[str, ...]):
 # persons.full_name lo correcto es "Roberto Iniesta"; la política solo actúa si
 # aparece literalmente "Robe Iniesta" (previene la violación, no toca "Roberto").
 for _model, _fields in (
-    (SeoContent, ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld")),
+    (SeoContent, ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld", "entities")),
     (Post, ("body_md", "title", "excerpt", "meta_title", "meta_description")),
     (InstagramQueueItem, ("caption",)),
     (Person, ("full_name", "stage_name", "bio_short", "bio_long")),

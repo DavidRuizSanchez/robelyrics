@@ -235,12 +235,19 @@ def upsert_seo_content(
     meta_description = strip_ai_tells(meta_description)
     # El schema_jsonld NO pasa por strip_ai_tells (es un dict) y era el hueco por el
     # que se colaba "Robe Iniesta". Se sanea el JSON serializado antes de escribir.
+    import json as _json
     if schema_jsonld:
-        import json as _json
         _raw = _json.dumps(schema_jsonld, ensure_ascii=False)
         _clean = enforce_name_policy(_raw)
         if _clean != _raw:
             schema_jsonld = _json.loads(_clean)
+    # `entities` (menciones para el JSON-LD) también es JSONB y se colaba con
+    # nombres tipo "Robe Iniesta". Se sanea igual.
+    if entities:
+        _re = _json.dumps(entities, ensure_ascii=False)
+        _ce = enforce_name_policy(_re)
+        if _ce != _re:
+            entities = _json.loads(_ce)
     if not force:
         # Comprueba que no existe ya para evitar pisar revisión humana
         existing = (
