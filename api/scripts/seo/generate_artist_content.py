@@ -114,9 +114,9 @@ def generate_for_artist(client: OpenAI, db, artist_slug: str, *, force: bool) ->
         log(f"  artículo demasiado corto ({len(body_md)} chars)", "warn")
         return False
 
-    schema_type = "MusicGroup" if " " not in artist.name or artist.name.lower().startswith(
-        ("extremoduro",)
-    ) else "Person"
+    # La ruta de artista representa un PROYECTO MUSICAL / banda (Extremoduro, Los
+    # Robe): siempre MusicGroup. La biografía de la persona vive en /personas/*.
+    schema_type = "MusicGroup"
     schema = {
         "@context": "https://schema.org",
         "@type": schema_type,
