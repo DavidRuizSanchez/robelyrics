@@ -117,6 +117,58 @@ def _deep_body(
         return None
 
 
+def _primary_keyword(p: ContentProposal) -> str:
+    """Keyword principal de la propuesta (la de más volumen), o el target/título."""
+    kws = getattr(p, "keywords", None) or []
+    if kws:
+        try:
+            top = max(kws, key=lambda k: (k.get("volume") or 0))
+            if top.get("keyword"):
+                return top["keyword"]
+        except Exception:  # noqa: BLE001
+            pass
+    return (p.target_keyword or p.title or "").strip()
+
+
+def _deep_seo_evergreen(
+    db, p: ContentProposal, *, tier: str = "standard", serp: str = "",
+) -> dict | None:
+    """Intenta anclar un evergreen 'seo' a su entidad central y generarlo con el
+    motor profundo. Devuelve el dict editorial o None si no hay ancla fiable (→ el
+    caller cae al one-shot). El titular/ángulo se pasan como `framing` para no
+    perder la intención de búsqueda; el dossier de la entidad aporta la sustancia."""
+    try:
+        from app.services.blog_anchor import resolve_central_entity
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("draft: resolver de ancla no disponible: %s", exc)
+        return None
+
+    anchor = resolve_central_entity(
+        db, primary_keyword=_primary_keyword(p), title=p.title, angle=p.angle
+    )
+    if not anchor:
+        return None
+
+    angle = (p.angle or "").strip()
+    framing = (
+        f"{p.title}. Pieza a fondo anclada al corpus sobre «{anchor.name}»"
+        + (f" — ángulo: {angle}" if angle else "")
+        + ". Responde de verdad a lo que busca quien teclea «"
+        + _primary_keyword(p)
+        + "»: hechos, datos y (si aplica) versos REALES del material [LETRA] "
+        "(copiados LITERAL; nunca inventes un verso ni lo atribuyas a una canción "
+        "sin tener su letra). Concreto y con sustancia, nada genérico ni de relleno."
+    )
+    deep = _deep_body(
+        db, entity_type=anchor.entity_type, entity=anchor.entity,
+        framing=framing, tier=tier, serp_guidance=serp,
+    )
+    if deep:
+        logger.info("draft: evergreen 'seo' #%s anclado a %s/%s (motor profundo)",
+                    p.id, anchor.entity_type, anchor.name)
+    return deep
+
+
 def generate_body(db, p: ContentProposal) -> dict | None:
     """Genera el contenido editorial de una propuesta sin body, según kind.
     Devuelve dict con title/excerpt/body_md/meta_title/meta_description/entities
@@ -246,6 +298,13 @@ def generate_body(db, p: ContentProposal) -> dict | None:
 
     if p.kind == "evergreen":
         if p.source_type == "seo":
+            # Los evergreen keyword-driven no tienen entidad asignada, pero casi
+            # siempre GIRAN en torno a una (persona, banda/proyecto, Robe, disco,
+            # tema…). Si podemos anclarlos a ella con confianza, los generamos con
+            # el MOTOR PROFUNDO (adiós one-shot flaco); si no, one-shot clásico.
+            deep = _deep_seo_evergreen(db, p, tier=_tier, serp=_serp)
+            if deep:
+                return deep
             return generate_seo_article(
                 title=p.title,
                 angle=p.angle,

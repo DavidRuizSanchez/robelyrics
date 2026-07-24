@@ -169,6 +169,27 @@ def main() -> None:
                     logger.error("  no se pudo generar body para propuesta %s", p.id)
                     continue
 
+            # 1·pre. GUARD DE POLÍTICA NUEVA: nada que no haya pasado por el pipeline
+            #   actual (scoring de engagement + motor profundo) se publica. La señal
+            #   es `quality_tier`: si falta, la propuesta se generó con el motor viejo
+            #   (one-shot flaco → "paja"). Se REGENERA antes de los gates. Las noticias
+            #   conservan el cuerpo del scraper (no hay entidad que profundizar): solo
+            #   se les backfillea el score. El override del admin lo salta.
+            if not p.force_publish and p.quality_tier is None:
+                logger.info("  ⚠ sin quality_tier (motor viejo) → regeneración con pipeline nuevo")
+                if p.kind != "news":
+                    p.body_md = None  # fuerza cuerpo por el motor profundo
+                if not generate_proposal_draft(db, p):
+                    _notify_admin(
+                        f"⏸ No publicada (regen falló): {p.title}",
+                        f"La propuesta #{p.id} no tenía quality_tier (motor viejo) y la "
+                        "regeneración con el pipeline nuevo falló. NO se publica; requiere "
+                        "revisión manual para no sacar contenido flojo.",
+                    )
+                    logger.info("  ✗ regen falló → no se publica (propuesta #%s)", p.id)
+                    continue
+                logger.info("  ↪ regenerada (tier %s)", p.quality_tier)
+
             # 1b. GATE DE FOCO: nada se publica desviado del tema (relleno sobre
             #     el lugar/sede/contexto ajeno). Si se puede recortar limpio, se
             #     recorta; si no, va a revisión humana.
