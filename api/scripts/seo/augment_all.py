@@ -21,7 +21,17 @@ from datetime import datetime, timezone
 from openai import OpenAI
 
 from app.config import get_settings
-from app.db.models import Artist, Band, Person, SeoContent
+from app.db.models import (
+    Album,
+    Artist,
+    Band,
+    Concept,
+    Person,
+    Place,
+    SeoContent,
+    Song,
+    Theme,
+)
 from app.db.session import SessionLocal
 from app.services.entity_resolver import build_corpus_index, load_link_stats
 from scripts.seo.augment_deep import augment_entity
@@ -29,7 +39,12 @@ from scripts.seo.augment_deep import augment_entity
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-_MODELS = {"person": Person, "band": Band, "artist": Artist}
+# Figuras (person/band/artist) admiten eventos recientes/homenajes; el resto
+# (song/album/theme/place/concept) se aumentan solo por HUECOS del corpus.
+_MODELS = {
+    "person": Person, "band": Band, "artist": Artist,
+    "song": Song, "album": Album, "theme": Theme, "place": Place, "concept": Concept,
+}
 
 # Eventos recientes verificados a mano para figuras clave (post-corte del LLM: el
 # descubrimiento web automático no siempre los ve). Cada uno con fuente real.

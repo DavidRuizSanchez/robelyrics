@@ -207,13 +207,26 @@ def augment_entity(
         link_stats=link_stats if link_stats is not None else load_link_stats(),
     )
 
-    # Gate de rigor sobre el conjunto (no debería bajar: solo se ha añadido sustancia).
+    # GATE ANTI-PAJA (bloqueante): la ampliación SOLO se aplica si mejora o mantiene
+    # la calidad. Se compara el rigor del cuerpo ORIGINAL vs el aumentado; si el
+    # añadido es relleno (conexiones temáticas genéricas, redundancia) el rigor lo
+    # castiga → se DESCARTA la ampliación y se conserva el original (no-op). Sin esto,
+    # el auto-detector de huecos metía secciones de "paja" en canciones/discos.
     rigor = None
     try:
         from app.services.editorial_review import review as editorial_review
         allowed = {subject.lower()}
+        v_before = editorial_review(current, kind=entity_type, subject=subject,
+                                    allowed_terms=allowed)
         v = editorial_review(after, kind=entity_type, subject=subject, allowed_terms=allowed)
-        rigor = {"verdict": v.verdict, "score": v.score}
+        rigor = {"verdict": v.verdict, "score": v.score, "before_score": v_before.score}
+        if v.verdict == "reject" or v.score < v_before.score:
+            logger.info("[augment] %s/%s: la ampliación no mejora (antes %d → después %d, %s) "
+                        "→ no-op (se conserva el original)",
+                        entity_type, entity.slug, v_before.score, v.score, v.verdict)
+            return {"before": current, "after": current, "added_headings": [],
+                    "videos_added": [], "grew": False, "noop": True,
+                    "subject": subject, "rigor": rigor}
         if v.verdict == "revise" and v.tightened_body_md and len(v.tightened_body_md) >= len(current):
             after = v.tightened_body_md  # tensado, pero nunca por debajo del original
     except Exception as exc:  # noqa: BLE001
