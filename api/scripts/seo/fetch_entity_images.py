@@ -33,7 +33,9 @@ from app.services.instagram import cloudinary_upload, photo_finder
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-_CONCRETE = {"artist": Artist, "place": Place, "band": Band}
+# Entidades con foto REAL (pasan por el gate de acreditación de image_guard).
+# `person` incluida: son las que más se equivocaban al buscarse por nombre.
+_CONCRETE = {"artist": Artist, "place": Place, "band": Band, "person": Person}
 _ABSTRACT = {"theme": Theme, "concept": Concept}
 # Todos los modelos con campo image_url (para el re-alojado a Cloudinary).
 _ALL_MODELS = {"artist": Artist, "place": Place, "person": Person,
@@ -137,6 +139,30 @@ def _concrete_image(name: str, *, aliases: list[str] | None = None) -> dict | No
     return None
 
 
+def _openai_art_url(subject: str, seed: int) -> str | None:
+    """Arte con gpt-image-1 (el motor que ya usan blog e Instagram) subido a
+    Cloudinary. Respaldo de pollinations, que falla a menudo."""
+    path = None
+    try:
+        from app.services.instagram import cloudinary_upload, imaging
+
+        img = imaging._ai_background(subject or "Robe y Extremoduro", seed)
+        img = imaging._treat(img, has_photo=False)
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fh:
+            path = fh.name
+        img.convert("RGB").save(path, "JPEG", quality=90)
+        return cloudinary_upload.upload(path, folder="entreinteriores-art")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("  gpt-image-1 también falló para «%s»: %s", subject, exc)
+        return None
+    finally:
+        if path and os.path.exists(path):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
 def _ai_art_url(
     name: str, description: str, seed: int, texture: bool = False,
     ai_prompt: str | None = None,
@@ -184,8 +210,11 @@ def _ai_art_url(
             resp.raise_for_status()
             data = resp.content
     except Exception as exc:  # noqa: BLE001
-        logger.warning("  pollinations falló para «%s»: %s", name, exc)
-        return None
+        # pollinations lleva tiempo respondiendo 429/524/402: no es un motor fiable.
+        # El proyecto ya usa gpt-image-1 en blog e Instagram, así que se cae ahí en
+        # vez de dejar la entidad sin imagen.
+        logger.warning("  pollinations falló para «%s» (%s); probando gpt-image-1", name, exc)
+        return _openai_art_url(ai_prompt or name, seed)
     tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
     try:
         tmp.write(data)
@@ -237,8 +266,11 @@ def main() -> None:
                 for e in db.query(model).filter(model.slug.in_(only_slugs)).all():
                     seed = (int(hashlib.md5(e.slug.encode()).hexdigest(), 16)
                             + args.seed_salt) % 1_000_000
-                    url = _ai_art_url(e.name, "", seed,
-                                      ai_prompt=args.ai_prompt or e.name)
+                    # `Person` no tiene `name` (usa stage_name/full_name): leerlo
+                    # a pelo revienta el script a mitad de barrido.
+                    nombre = (getattr(e, "name", None) or getattr(e, "stage_name", None)
+                              or getattr(e, "full_name", None) or e.slug)
+                    url = _ai_art_url(nombre, "", seed, ai_prompt=args.ai_prompt or nombre)
                     if not url:
                         continue
                     db.execute(update(model).where(model.id == e.id).values(
@@ -247,7 +279,7 @@ def main() -> None:
                         image_license="propio",
                         image_source_url=None,
                     ))
-                    logger.info("  ✓ ai-art %s «%s» → %s", t, e.name, url)
+                    logger.info("  ✓ ai-art %s «%s» → %s", t, nombre, url)
                 db.commit()
             return
         for t in types:
@@ -282,13 +314,15 @@ def main() -> None:
                         image_license=img.get("license"),
                         image_source_url=img.get("source"),
                     ))
-                    logger.info("  ✓ %s «%s» → %s", t, e.name, img["credit"])
+                    logger.info("  ✓ %s «%s» → %s", t, nombre, img["credit"])
                 else:
                     seed = (
                         int(hashlib.md5(e.slug.encode()).hexdigest(), 16)
                         + args.seed_salt
                     ) % 1_000_000
-                    url = _ai_art_url(e.name, e.description or "", seed, texture=args.texture)
+                    url = _ai_art_url(getattr(e, "name", None) or e.slug,
+                                      getattr(e, "description", "") or "", seed,
+                                      texture=args.texture)
                     if not url:
                         continue
                     db.execute(update(model).where(model.id == e.id).values(
@@ -297,7 +331,7 @@ def main() -> None:
                         image_license="propio",
                         image_source_url=None,
                     ))
-                    logger.info("  ✓ %s «%s» → %s", t, e.name, url)
+                    logger.info("  ✓ %s «%s» → %s", t, getattr(e, "name", e.slug), url)
             db.commit()
 
 

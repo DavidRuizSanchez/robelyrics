@@ -168,3 +168,25 @@ def test_nada_se_retira_por_no_encontrar_el_nombre(commons):
     v = ig.verify_provenance(entity_name="Leiva", image_url=_WIKI)
     assert not v.publishable
     assert v.needs_human  # a la cola de erratas, no a la papelera
+
+
+def test_el_autor_de_la_imagen_no_acredita_su_contenido(commons):
+    """Caso real: «Francisco de Miranda by Lorenzo Gonzalez, 1977» se aceptó como
+    retrato de Lorenzo González. El nombre casaba como AUTOR de la obra, no como
+    la persona retratada."""
+    commons(categories=["Paintings in Philadelphia", "PD-old"],
+            description="Francisco de Miranda by Lorenzo Gonzalez, 1977, Philadelphia")
+    v = ig.verify_provenance(entity_name="Lorenzo González", image_url=_WIKI)
+    assert not v.publishable
+
+
+def test_el_credito_fotografico_tampoco_acredita(commons):
+    commons(categories=["Concerts in Madrid"], description="Foto: Manolo Chinato, 2015")
+    v = ig.verify_provenance(entity_name="Manolo Chinato", image_url=_WIKI)
+    assert not v.publishable
+
+
+def test_una_descripcion_normal_sigue_acreditando(commons):
+    """El filtro anti-autoría no puede cargarse las descripciones buenas."""
+    commons(categories=["Rosendo"], description="Leño playing live on 28 August 1981")
+    assert ig.verify_provenance(entity_name="Leño", image_url=_WIKI).publishable

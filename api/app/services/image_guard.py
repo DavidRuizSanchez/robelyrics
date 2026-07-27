@@ -100,6 +100,20 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", s).strip()
 
 
+def _strip_authorship(description: str) -> str:
+    """Quita de la descripción a QUIEN HIZO la imagen, para no confundirlo con
+    quien SALE en ella.
+
+    Caso real: «Francisco de Miranda **by Lorenzo Gonzalez**, 1977» se aceptó como
+    retrato de Lorenzo González (un homónimo pintor) cuando el retratado es otro.
+    El autor no acredita el contenido.
+    """
+    if not description:
+        return ""
+    patron = r"\b(?:by|por|photo(?:graph)?(?:\s+by)?|foto(?:graf[íi]a)?|©|\(c\))\s*:?\s*[^,.;()]{0,60}"
+    return re.sub(patron, " ", description, flags=re.IGNORECASE)
+
+
 def _significant_words(name: str) -> list[str]:
     """Palabras con las que reconocer el nombre en un texto ajeno. Fuera artículos
     y preposiciones: «Los Enemigos» tiene que casar por «enemigos», no por «los»."""
@@ -221,7 +235,8 @@ def verify_provenance(
         return ProvenanceVerdict(
             "unaccredited", f"El fichero «{fname}» no está en Commons o no se pudo consultar.")
 
-    haystack = _norm(" ".join(ev.get("categories", [])) + " " + ev.get("description", ""))
+    haystack = _norm(" ".join(ev.get("categories", [])) + " " + _strip_authorship(
+        ev.get("description", "")))
     candidatos = [n for n in ([entity_name] + list(aliases or [])) if _significant_words(n)]
     if not candidatos:
         # Sin nombre no se puede acreditar NI desacreditar: sería retirar fotos buenas
