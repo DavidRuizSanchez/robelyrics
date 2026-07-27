@@ -30,11 +30,22 @@ const ARTISTS = {
     // La regla del proyecto prohíbe «Robe Iniesta» en el contenido; aquí no aplica.
     intro: "el grupo de Robe",
     kicker: "la obra completa",
+    alias: null,
+    aliasNota: null,
   },
   robe: {
     display: "Robe",
     intro: "el proyecto en solitario de Roberto Iniesta tras Extremoduro",
     kicker: "en solitario",
+    // El proyecto se llama «Los Robe» (así figura en su tienda oficial), aunque
+    // la gente lo busca como «Robe» a secas: el nombre propio va en el cuerpo y
+    // en el schema, no en el H1.
+    alias: "Los Robe",
+    // Solo lo comprobado: la tienda oficial (tienda.robe.es) usa «los Robe» para
+    // el proyecto. Que aparezca así acreditado en los discos no lo he verificado,
+    // y en una web pública no se afirma lo que no se ha mirado.
+    aliasNota:
+      "El proyecto se llama Los Robe, que es como figura en su tienda oficial, aunque casi todo el mundo lo busca como Robe a secas.",
   },
 } as const;
 
@@ -127,7 +138,7 @@ export default async function DiscografiaArtistaPage({
   const { artist } = await params;
   if (!isArtist(artist)) notFound();
 
-  const { display, intro, kicker } = ARTISTS[artist];
+  const { display, intro, kicker, alias, aliasNota } = ARTISTS[artist];
   const data = await getArtist(artist);
   const albums = [...data.albums].sort((a, b) => a.year - b.year);
   const s = stats(albums);
@@ -144,10 +155,20 @@ export default async function DiscografiaArtistaPage({
     return acc;
   }, {});
 
+  const estudio = albums.filter((a) => a.kind === "studio");
+  const otrosFormatos = albums.filter((a) => a.kind !== "studio");
+
   const faqs = [
     {
       q: `¿Cuántos discos tiene ${display}?`,
       a: resumen(s, display),
+    },
+    s.estudio !== s.total && {
+      q: `¿Cuántos álbumes de estudio tiene ${display}?`,
+      a:
+        `${s.estudio}, desde «${estudio[0]?.title}» (${estudio[0]?.year}) hasta ` +
+        `«${estudio[estudio.length - 1]?.title}» (${estudio[estudio.length - 1]?.year}). ` +
+        `El resto son ${otrosFormatos.map((a) => `«${a.title}»`).join(", ")}.`,
     },
     s.primero && {
       q: `¿Cuál fue el primer disco de ${display}?`,
@@ -156,6 +177,10 @@ export default async function DiscografiaArtistaPage({
     s.ultimo && {
       q: `¿Cuál es el último disco de ${display}?`,
       a: `«${s.ultimo.title}», de ${s.ultimo.year}.`,
+    },
+    alias && {
+      q: `¿Cómo se llama la banda de ${display}?`,
+      a: `${aliasNota} Por eso su discografía en solitario aparece a veces como discografía de ${alias}.`,
     },
   ].filter(Boolean) as { q: string; a: string }[];
 
@@ -167,7 +192,10 @@ export default async function DiscografiaArtistaPage({
     description: resumen(s, display),
     about: {
       "@type": "MusicGroup",
-      name: data.name,
+      name: display,
+      // El proyecto de Robe se llama «Los Robe»: va como nombre alternativo para
+      // que los buscadores enlacen las dos formas sin canibalizar el H1.
+      ...(alias ? { alternateName: [alias, data.name].filter((n) => n !== display) } : {}),
       url: `${SITE_URL}/${artist}`,
       album: albums.map((alb) => ({
         "@type": "MusicAlbum",
@@ -222,6 +250,11 @@ export default async function DiscografiaArtistaPage({
             Todos los discos de {display}, {intro}, en orden de publicación. {resumen(s, display)}{" "}
             Cada uno abre a su historia, su tracklist y sus letras comentadas.
           </p>
+          {aliasNota && (
+            <p className="mt-4 max-w-[680px] font-serif text-lg text-ink-dim leading-relaxed">
+              {aliasNota}
+            </p>
+          )}
         </header>
 
         <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-divider/60 border border-divider mb-16">
@@ -243,7 +276,7 @@ export default async function DiscografiaArtistaPage({
         {Object.entries(decadas).map(([decada, discos]) => (
           <section key={decada} className="mb-16">
             <h2 className="font-serif text-3xl md:text-[38px] text-ink leading-tight mb-6 border-b border-divider pb-3">
-              Los {decada}
+              {display} en los {decada}
             </h2>
             <ol className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {discos.map((alb) => (
@@ -270,46 +303,59 @@ export default async function DiscografiaArtistaPage({
         ))}
 
         <section className="mb-16">
-          <h2 className="font-serif text-3xl md:text-[38px] text-ink leading-tight mb-6 border-b border-divider pb-3">
-            Todos los discos, uno a uno
+          <h2 className="font-serif text-3xl md:text-[38px] text-ink leading-tight mb-8 border-b border-divider pb-3">
+            Todos los discos de {display}, uno a uno
           </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                  <th className="py-3 pr-4 font-normal border-b border-divider">Año</th>
-                  <th className="py-3 pr-4 font-normal border-b border-divider">Disco</th>
-                  <th className="py-3 font-normal border-b border-divider">Formato</th>
-                </tr>
-              </thead>
-              <tbody>
-                {albums.map((alb) => (
-                  <tr key={alb.slug} className="border-b border-divider/40">
-                    <td className="py-3 pr-4 font-mono text-[13px] text-ink-faint align-top">
-                      {alb.year}
-                    </td>
-                    <td className="py-3 pr-4 font-serif text-[17px] text-ink align-top">
-                      <Link
-                        href={`/${artist}/${alb.slug}`}
-                        data-cursor="hover"
-                        className="hover:text-accent"
-                      >
-                        {alb.title}
-                      </Link>
-                    </td>
-                    <td className="py-3 font-mono text-[11px] tracking-[1px] uppercase text-ink-faint align-top">
-                      {KIND_LABEL[alb.kind] || alb.kind}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* Partido por formato: «álbumes de Extremoduro» (1.900 búsquedas/mes) y
+              «discos de Extremoduro» (1.300) son consultas distintas de la genérica,
+              y así cada una tiene su encabezado sin repetir ni un disco. */}
+          {[
+            { key: "estudio", titulo: `Álbumes de estudio de ${display}`, lista: estudio },
+            { key: "otros", titulo: `Directos, EP y recopilatorios de ${display}`, lista: otrosFormatos },
+          ]
+            .filter((bloque) => bloque.lista.length > 0)
+            .map((bloque) => (
+              <div key={bloque.key} className="mb-10 last:mb-0">
+                <h3 className="font-serif text-2xl text-ink mb-4">{bloque.titulo}</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+                        <th className="py-3 pr-4 font-normal border-b border-divider">Año</th>
+                        <th className="py-3 pr-4 font-normal border-b border-divider">Disco</th>
+                        <th className="py-3 font-normal border-b border-divider">Formato</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bloque.lista.map((alb) => (
+                        <tr key={alb.slug} className="border-b border-divider/40">
+                          <td className="py-3 pr-4 font-mono text-[13px] text-ink-faint align-top">
+                            {alb.year}
+                          </td>
+                          <td className="py-3 pr-4 font-serif text-[17px] text-ink align-top">
+                            <Link
+                              href={`/${artist}/${alb.slug}`}
+                              data-cursor="hover"
+                              className="hover:text-accent"
+                            >
+                              {alb.title}
+                            </Link>
+                          </td>
+                          <td className="py-3 font-mono text-[11px] tracking-[1px] uppercase text-ink-faint align-top">
+                            {KIND_LABEL[alb.kind] || alb.kind}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
         </section>
 
         <section className="mb-16">
           <h2 className="font-serif text-3xl md:text-[38px] text-ink leading-tight mb-6 border-b border-divider pb-3">
-            Preguntas frecuentes
+            Preguntas frecuentes sobre la discografía de {display}
           </h2>
           <dl className="space-y-6 max-w-[720px]">
             {faqs.map((f) => (
