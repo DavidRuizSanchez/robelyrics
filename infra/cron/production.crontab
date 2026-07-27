@@ -160,9 +160,26 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # grafo para que un fallo aquí no lo tumbe.
 50 3 * * * cd $APP_DIR && $DC exec -T api python -m scripts.verify.run_consensus_sweep --apply >> /var/log/robelyrics-cron.log 2>&1
 
-# 09:15 UTC diario: digest de "cosas por revisar" al admin (erratas que el consenso
-# no resolvió solo, blog en pending_review, auto-correcciones de las últimas 24h).
-# No envía nada si no hay nada pendiente (anti-spam). Corre tras el barrido MCV 03:50.
+# 04:20 UTC diario: red de seguridad de fichas SEO. El alta automática de un disco
+# (cuando el consenso tapa un hueco de catálogo) lanza la generación de sus fichas
+# desatendida; si se cortó a medias, esto la repesca. Sin ella, el listado de
+# discografía enlazaría páginas que responden 404. Tope de 6 fichas por pasada
+# (~2 min cada una con el motor profundo).
+20 4 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.fill_missing_content --missing --limit 6 >> /var/log/robelyrics-cron.log 2>&1
+
+# 04:40 UTC diario: auditoría de imágenes de TODO el site. Comprueba que cada foto
+# CARGA (las hotlinkeadas a Wikimedia reciben 429 y se rompían solas, de forma
+# intermitente) y que su procedencia ACREDITA a quién retrata (se colaron un homónimo
+# argentino, tocino ucraniano y una foto de prensa sin fuente). --fix se las trae a
+# Cloudinary; --review abre errata por cada foto dudosa (nunca borra: los metadatos de Commons
+# son irregulares y a Leiva lo escriben «Leyva»). Llega al digest de las 09:15.
+40 4 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_images --fix --review >> /var/log/robelyrics-cron.log 2>&1
+
+# 09:15 UTC diario: digest de "cosas por revisar" al admin. Primero intenta ARREGLAR
+# sola cada errata abierta (mismo motor que el botón «Arreglar» del panel), y solo
+# después mira qué queda. SILENCIO por defecto: compara la firma de lo pendiente con
+# la del último envío y no manda nada si no hay novedad (recordatorio cada 14 días).
+# Corre tras el barrido MCV 03:50 y el relleno de fichas 04:20.
 15 9 * * * cd $APP_DIR && $DC exec -T api python -m scripts.notify_review >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================

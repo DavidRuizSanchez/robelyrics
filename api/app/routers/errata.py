@@ -24,7 +24,7 @@ router = APIRouter(prefix="/errata", tags=["errata"])
 # "content" = errata genérica de cualquier página (el widget global); las demás son
 # específicas de canción. El `page_ref` (ruta de la página) llega para que el admin
 # sepa dónde y se guarda en `field`.
-_TARGETS = {"song_lyrics", "authorship", "catalog", "interpretation", "content"}
+_TARGETS = {"song_lyrics", "authorship", "catalog", "interpretation", "content", "image"}
 
 
 class ErrataIn(BaseModel):
@@ -129,6 +129,38 @@ def admin_resolve(
     rep.resolved_at = datetime.now(timezone.utc)
     db.commit()
     return ErrataOut(id=rep.id, status=rep.status, message="Errata actualizada.")
+
+
+class FixOut(BaseModel):
+    id: int
+    status: str
+    action: str
+    message: str
+    applied: bool
+    closed: bool
+    detail: str | None = None
+    verdict: str | None = None
+    confidence: float | None = None
+    sources: list[str] = []
+
+
+@router.post("/admin/{errata_id}/fix", response_model=FixOut)
+def admin_fix(
+    errata_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> FixOut:
+    """Vuelve a pasar el Motor de Consenso por ESTA errata, ahora y con las fuentes
+    de ahora, y aplica la corrección si el consenso da para ello (mismas reglas que
+    el barrido nocturno: nada se aplica sin corroboración externa). Si no puede,
+    devuelve el porqué. Tarda: consulta fuentes externas."""
+    from app.services.errata_fix import try_fix
+
+    rep = db.get(ErrataReport, errata_id)
+    if not rep:
+        raise HTTPException(status_code=404, detail="errata no encontrada")
+    outcome = try_fix(db, rep)
+    return FixOut(id=rep.id, status=rep.status, **outcome.as_dict())
 
 
 class AuditItem(BaseModel):

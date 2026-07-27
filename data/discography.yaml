@@ -21,6 +21,15 @@ artists:
         # release_date pendiente: el casete original de 1989 no tiene fecha
         # exacta conocida. La reedición de estudio se publicó el 26/08/1994.
 
+      - title: "Tú en tu casa, nosotros en la hoguera"
+        year: 1990
+        kind: studio
+        slug: tu-en-tu-casa-nosotros-en-la-hoguera
+        # Alta automática del Motor de Consenso (jul-2026): faltaba en el catálogo
+        # y por eso «Amor castúo» solo existía como versión en directo de 1997.
+        # Verificado contra MusicBrainz (release-group be718ce7-d997-4547-a211-6a5c7d7deb88,
+        # 8 cortes, 1990). Se versiona aquí para que seed_catalog lo reproduzca.
+
       - title: "Somos unos animales"
         year: 1991
         kind: ep

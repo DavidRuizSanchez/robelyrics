@@ -54,6 +54,59 @@ Wikipedia/Google (`app/services/web_verify.py`) antes de afirmarse.
 
 Puertos: postgres `5435`, qdrant `6333/6334`, api `8001`, web `3001`.
 
+## Imágenes: ni rotas ni de otro
+
+Dos fallos que volvían una y otra vez, con su causa raíz:
+
+- **Rotas**: las fotos se guardaban como hot-link a `upload.wikimedia.org`, que
+  responde **429** cuando el optimizador de Next pide varias desde la IP del server.
+  Se rompían unas u otras según el momento. Existía un `--rehost` manual, pero el
+  camino de asignación seguía guardando hotlinks: el problema regresaba solo.
+- **Falsas**: se buscaban por nombre y se asignaban sin comprobar nada. Se colaron
+  tocino ucraniano como «Salo», Fito Páez como Fito Cabrales, un homónimo mexicano y
+  una foto de prensa sin fuente como «Rebrote».
+
+`app/services/image_guard.py` es la guarda: **una URL externa nunca llega a la BD**
+(`must_rehost` → se re-aloja en Cloudinary antes de guardar) y una foto solo se
+publica si su PROCEDENCIA acredita a quién retrata (`verify_provenance` contra las
+categorías de Commons, no contra el nombre del fichero). Estados: `accredited`,
+`own_art` (arte IA propio: no afirma identidad), `legacy_cc` (re-alojada con autor y
+licencia), `unaccredited`, `unverifiable`, `homonym_risk`.
+
+**Ninguna imagen se borra automáticamente.** Los metadatos de Commons son irregulares
+(a Leiva lo escriben «Leyva») y un falso positivo borraría contenido bueno de una web
+pública. `scripts/seo/audit_images.py --fix --review` (cron 04:40 UTC) re-aloja lo
+hotlinkeado y abre errata por cada foto dudosa; el borrado lo ejecuta una persona con
+el botón «Arreglar» del panel de erratas.
+
+Al tocar esto, ojo: **`Person` no tiene campo `name`** (es `stage_name` / `full_name`),
+y leerlo mal dejaba el nombre vacío marcando como falsas TODAS las fotos de personas.
+
+## Erratas: se arreglan solas o no molestan
+
+El circuito de erratas (`/biblioteca/admin/erratas`) tiene un botón **Arreglar**
+(`POST /errata/admin/{id}/fix` → `app/services/errata_fix.py`) que vuelve a pasar el
+Motor de Consenso por esa errata concreta con las fuentes de AHORA. Cierra sola lo ya
+resuelto, aplica lo que el consenso respalde y, cuando no puede, dice por qué. Mismas
+reglas que el barrido: nada se aplica sin corroboración externa.
+
+Caso fuerte: si falta un disco entero (`catalog`), `app/services/catalog_ingest.py` lo
+da de alta **de punta a punta** — MusicBrainz (T1) para título/año/tracklist, letras de
+LRCLIB/letras.com, embeddings, enlazado de versiones — pero solo si pasa SEIS puertas
+duras (score, título, artista, año, tracklist, y que la canción esté en él). Si falla
+una, no se toca nada. **Nunca se inventa un tracklist ni una letra.**
+
+Un disco nuevo deja 9 páginas enlazadas que darían 404 hasta tener ficha SEO (cada una
+cuesta ~2 min de motor profundo), así que el alta lanza
+`scripts.seo.fill_missing_content --album-slug X` desatendido y el cron (04:20 UTC)
+repesca lo que falte con `--missing`.
+
+El digest diario (`scripts/notify_review.py`, 09:15 UTC) primero intenta arreglar la
+cola y solo después avisa; **solo manda correo si hay novedad** (firma de lo pendiente
+en `notification_digests`, recordatorio cada 14 días). `verification_records.applied_at`
+distingue lo aplicado de verdad de lo re-verificado: `checked_at` se re-sella cada
+noche y por eso el correo repetía siempre las mismas "auto-correcciones".
+
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
 `infra/cron/production.crontab`. Guía de migración (jubilación del proyecto
@@ -71,6 +124,9 @@ local `entrenoticias/`) en `infra/MIGRATION_ENTRENOTICIAS.md`.
 - Repo personal: `DavidRuizSanchez/robelyrics`.
 
 ## Añadir un disco nuevo (cuando Robe publique)
+
+A mano (un disco recién publicado no está aún en MusicBrainz; el alta automática del
+consenso solo cubre huecos de catálogo antiguos):
 
 1. Editar `data/discography.yaml` con `slug`, `title`, `year`, `kind: studio`.
 2. `python -m scripts.seed_catalog` (idempotente, añade el album).

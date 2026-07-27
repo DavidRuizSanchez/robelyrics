@@ -409,6 +409,14 @@ def record_verification(
     if rec is None:
         rec = VerificationRecord(claim_kind=claim_kind, claim_key=claim_key)
         db.add(rec)
+    # `applied_at` marca el momento REAL de la corrección: la primera vez que se
+    # aplica, o cuando cambia el valor aplicado. `checked_at` se re-sella en cada
+    # barrido, así que no sirve para saber si algo es nuevo (el digest diario
+    # repetía las mismas correcciones cada mañana por confundir ambas cosas).
+    value_changed = rec.new_value != result.correct_value
+    if applied and (rec.applied_at is None or value_changed):
+        rec.applied_at = datetime.now(timezone.utc)
+
     rec.song_id = song_id
     rec.old_value = result.current_value
     rec.new_value = result.correct_value

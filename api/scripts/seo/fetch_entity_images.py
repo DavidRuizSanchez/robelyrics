@@ -86,20 +86,54 @@ def _rehost(db, types: list[str]) -> None:
         db.commit()
 
 
-def _concrete_image(name: str) -> dict | None:
-    """Foto CC real: Wikidata P18 y, si falla, búsqueda de texto en Commons."""
+def _concrete_image(name: str, *, aliases: list[str] | None = None) -> dict | None:
+    """Foto CC real de ESTA entidad: Wikidata P18 y, si falla, búsqueda en Commons.
+
+    Dos guardas que antes no había y que son el origen de los fallos repetidos:
+
+      - **Acreditación**: buscar por nombre devuelve lo que sea (una foto de las
+        fiestas de San Isidro, un homónimo argentino, tocino ucraniano para «Salo»).
+        Solo se acepta la foto si la procedencia de Commons dice que es esta entidad
+        (`image_guard.verify_provenance`). Si no lo dice, se queda sin foto.
+      - **Alojamiento**: la URL se re-aloja SIEMPRE en Cloudinary antes de guardarla.
+        Un hot-link a Wikimedia se rompe solo en cuanto Commons devuelve 429, y
+        limpiarlo después con `--rehost` es una carrera que siempre se pierde.
+    """
+    from app.services import image_guard
+
+    candidatos: list[dict] = []
     foto = photo_finder._wikidata_photo(name)
     if foto:
-        return {"url": foto["url"], "credit": foto["credit"], "license": "CC"}
+        candidatos.append({"url": foto["url"], "credit": foto["credit"],
+                           "license": "CC", "source": foto.get("source")})
     wi = wikimedia.search_image(name)
     if wi:
-        return {
+        candidatos.append({
             "url": wi.thumb_url,
             "credit": f"{wi.author or 'Autor desconocido'} · Wikimedia Commons "
                       f"({wi.license_short or 'CC'})",
             "license": wi.license_short or "CC",
             "source": wi.source_page_url,
-        }
+        })
+
+    for img in candidatos:
+        verdict = image_guard.verify_provenance(
+            entity_name=name, aliases=aliases, image_url=img["url"],
+            source_url=img.get("source"), attribution=img.get("credit"),
+            license_=img.get("license"),
+        )
+        if not verdict.publishable:
+            logger.info("  ✗ descartada para «%s»: %s", name, verdict.reason)
+            continue
+        origen = img["url"]
+        hosted = _rehost_to_cloudinary(origen) if image_guard.must_rehost(origen) else origen
+        if not hosted:
+            logger.warning("  ✗ «%s»: no se pudo re-alojar la foto; no se guarda un hot-link", name)
+            continue
+        img["url"] = hosted
+        img.setdefault("source", origen)
+        img["source"] = img.get("source") or origen
+        return img
     return None
 
 
@@ -233,9 +267,14 @@ def main() -> None:
 
             for e in todo:
                 if t in _CONCRETE:
-                    img = _concrete_image(e.name)
+                    # Una persona se acredita por su nombre artístico o por el de
+                    # pila (Commons etiqueta a unos por uno y a otros por el otro).
+                    aliases = [a for a in (getattr(e, "stage_name", None),
+                                           getattr(e, "full_name", None)) if a]
+                    nombre = getattr(e, "name", None) or (aliases[0] if aliases else e.slug)
+                    img = _concrete_image(nombre, aliases=aliases)
                     if not img:
-                        logger.info("  %s «%s»: sin foto CC", t, e.name)
+                        logger.info("  %s «%s»: sin foto CC acreditada", t, getattr(e, "name", e.slug))
                         continue
                     db.execute(update(model).where(model.id == e.id).values(
                         image_url=img["url"],

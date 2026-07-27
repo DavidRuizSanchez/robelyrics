@@ -32,12 +32,16 @@ canonical:
     original_album_slug: tu-en-tu-casa-nosotros-en-la-hoguera
     original_year: 1990
     source: fan_feedback
-    status: pending_verification
+    status: verified
     note: >-
-      Verificado (Wikipedia, jul-2026): «Amor castúo» es tema del álbum debut de
-      estudio «Tú en tu casa, nosotros en la hoguera» (Avispa), cara A. Publicación
-      real el 2-feb-1990 (depósito legal en 1989 → de ahí que muchas discografías
-      lo citen como 1989; se fija 1990 como año de publicación canónico). La única
-      versión en BD es la de directo de «Iros todos a tomar por culo» (1997). El
-      disco de estudio NO está ingerido (Genius bloqueado por Cloudflare): el
-      consenso deja errata needs_human para reingestarlo cuando se pueda.
+      RESUELTO (jul-2026). Verificado (Wikipedia): «Amor castúo» es tema del álbum
+      debut de estudio «Tú en tu casa, nosotros en la hoguera» (Avispa), cara A.
+      Publicación real el 2-feb-1990 (depósito legal en 1989 → de ahí que muchas
+      discografías lo citen como 1989; se fija 1990 como año canónico). El disco no
+      estaba ingerido (Genius bloqueado por Cloudflare) y el hueco quedó como errata
+      needs_human. Lo cerró el alta automática del consenso: MusicBrainz
+      (release-group be718ce7-d997-4547-a211-6a5c7d7deb88) confirmó título, año y
+      los 8 cortes; se creó el álbum con sus canciones (letras de LRCLIB/letras.com)
+      y se marcó como disco original en las versiones en directo de 1997. Ya está
+      en discography.yaml. OJO: las canciones homónimas de «Rock Transgresivo»
+      (1989 en BD) NO se tocan: un disco posterior no puede ser su primera aparición.

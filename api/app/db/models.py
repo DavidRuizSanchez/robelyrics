@@ -1467,6 +1467,11 @@ class VerificationRecord(Base):
     # o quedó pendiente de humano. `auto_applied` permite el feed de auditoría.
     auto_applied: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     reverted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Momento en que la corrección se aplicó DE VERDAD (o cambió de valor). Distinto
+    # de `checked_at`, que se re-sella en cada barrido nocturno aunque no cambie nada:
+    # sin esta columna el digest diario repetía eternamente las mismas correcciones
+    # como si fueran de las últimas 24h.
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -1512,6 +1517,27 @@ class ErrataReport(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Última vez que esta errata salió en el digest al admin. Evita repetir cada
+    # mañana lo mismo: se re-avisa solo pasado `DIGEST_REMINDER_DAYS`.
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class NotificationDigest(Base):
+    """Huella del último digest enviado al admin, por tipo.
+
+    El digest diario sonaba aunque no hubiera nada nuevo que hacer. Guardamos la
+    FIRMA de lo pendiente (qué erratas, qué posts, qué auto-correcciones) y solo
+    se envía si la firma cambió: si no ha pasado nada desde ayer, no hay correo.
+    """
+
+    __tablename__ = "notification_digests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 # --- Cola de ingesta de YouTube (Juancares + entrevistas de Robe) ----------
