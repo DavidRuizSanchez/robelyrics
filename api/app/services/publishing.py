@@ -385,6 +385,31 @@ def auto_publish_post(
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish lyric-guard falló: %s", exc)
 
+    # Gate de RELEVANCIA de la IMAGEN hero (universal): una foto que no muestra al
+    # sujeto NO llega a producción. Cortafuegos común a TODOS los caminos, incluidos
+    # los que fijan el hero fuera de build_unique_hero (efeméride, scrape_news, admin
+    # desde URL). Si falla, se REGENERA a imagen relevante (degrada a arte propio,
+    # on-topic por construcción); si ni así hay imagen verificable, se publica SIN
+    # imagen (mejor un post sin foto que con una foto equivocada).
+    if post.hero_image_url:
+        try:
+            from app.services.hero_guard import verify_hero
+            from app.services.hero_io import apply_hero, read_hero
+            subject = (post.target_keyword or post.title or "").strip()
+            verdict = verify_hero(read_hero(post), subject=subject, entities=post.entities or [])
+            if not verdict.ok:
+                logger.warning("auto_publish: HERO irrelevante en post %s (%s) → regenerando",
+                               post.id, verdict.reason)
+                from app.services.blog_hero import build_unique_hero, used_hero_urls
+                used = used_hero_urls(db) - {post.hero_image_url}
+                new_hero = build_unique_hero(
+                    db, post.entities or [], subject, used=used, alt_label=post.title,
+                )
+                apply_hero(post, new_hero)  # verificado, o None → sin imagen
+                db.flush()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish hero-guard falló: %s", exc)
+
     if post.status != "published":
         post.status = "published"
         post.published_at = _now()

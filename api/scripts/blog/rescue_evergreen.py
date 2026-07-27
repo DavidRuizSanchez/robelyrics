@@ -26,6 +26,7 @@ from app.db.models import Concept, ContentProposal, Person, Place, Song, Theme
 from app.db.session import SessionLocal
 from app.services.draft_generator import _deep_body, _post_process, _primary_keyword
 from app.services.editorial_review import review as editorial_review
+from app.services.hero_io import apply_hero
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -115,9 +116,7 @@ def main() -> None:
                 p.meta_title = (d.get("meta_title") or None)
                 p.meta_description = (d.get("meta_description") or None)
                 if winner["hero"]:
-                    p.hero_image_url = winner["hero"]["url"]
-                    p.hero_image_alt = winner["hero"].get("alt")
-                    p.hero_image_source_url = winner["hero"]["source"]
+                    apply_hero(p, winner["hero"])  # paquete completo, sin desincronizar
                 p.quality_tier = "flagship"
                 p.status = "approved"  # vuelve a la cola (David la programa)
                 db.commit()

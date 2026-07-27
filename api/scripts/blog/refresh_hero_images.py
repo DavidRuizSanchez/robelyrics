@@ -16,7 +16,9 @@ import logging
 
 from app.db.models import Post
 from app.db.session import SessionLocal
+from app.services.blog_hero import used_hero_urls
 from app.services.hero_image import pick_hero_image
+from app.services.hero_io import apply_hero
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -42,11 +44,18 @@ def main() -> None:
         if args.slug:
             q = q.filter(Post.slug == args.slug)
         posts = q.all()
+        # Dedup ACTIVO: nunca dos posts con la misma imagen. Arrancamos del conjunto
+        # de URLs ya en uso y lo vamos actualizando conforme reasignamos, para que la
+        # dedup valga también entre posts de este mismo barrido.
+        used = used_hero_urls(db)
         changed = 0
         for p in posts:
-            img = pick_hero_image(db, p.entities)
+            own = p.hero_image_url
+            candidate_used = (used - {own}) if own else used
+            subject = (p.target_keyword or p.title or "").strip()
+            img = pick_hero_image(db, p.entities, used=candidate_used, subject=subject)
             if not img:
-                logger.info("  – %-50s sin imagen de entidad (se deja)", p.slug[:50])
+                logger.info("  – %-50s sin imagen de entidad libre (se deja)", p.slug[:50])
                 continue
             if img["url"] == p.hero_image_url:
                 continue
@@ -56,10 +65,10 @@ def main() -> None:
                 changed += 1
                 continue
             p.body_md = _strip_old_attribution(p.body_md, p.hero_image_attribution)
-            p.hero_image_url = img["url"]
-            p.hero_image_attribution = img["attribution"]
-            p.hero_image_license = img["license"]
-            p.hero_image_source_url = img["source"]
+            apply_hero(p, img)  # los 5 campos juntos (incluido alt), sin desincronizar
+            if own:
+                used.discard(own)
+            used.add(img["url"])
             changed += 1
         if not args.dry_run:
             db.commit()

@@ -91,11 +91,8 @@ def main() -> None:
                     logger.info("[#%s] foto añadida", p.id)
                     stats["foto"] += 1
                     if not args.dry_run:
-                        p.hero_image_url = hero_meta["url"]
-                        p.hero_image_alt = hero_meta.get("alt")
-                        p.hero_image_attribution = hero_meta.get("attribution")
-                        p.hero_image_license = hero_meta.get("license")
-                        p.hero_image_source_url = hero_meta.get("source")
+                        from app.services.hero_io import apply_hero
+                        apply_hero(p, hero_meta)  # paquete completo, sin desincronizar
                     changed = True
 
             if changed and not args.dry_run:

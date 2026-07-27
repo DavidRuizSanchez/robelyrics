@@ -328,15 +328,19 @@ def main() -> None:
 
             # Foto REAL del protagonista que devolvió la investigación (web).
             # Se sube a Cloudinary para servirla optimizada y por host permitido.
-            hero = None
-            img_url = rewritten.get("image_url") if not args.no_image else None
-            if img_url:
+            # Paquete hero COHERENTE (url re-alojada + procedencia + alt), nunca
+            # url suelta. La relevancia se valida en el gate de materialización.
+            hero_pkg = rewritten.get("hero") if not args.no_image else None
+            if hero_pkg:
                 try:
                     from app.services.instagram import cloudinary_upload
-                    hero = cloudinary_upload.upload(img_url, folder="entreinteriores-art")
-                    logger.info("Foto del sujeto: %s", hero)
+                    hosted = cloudinary_upload.upload(hero_pkg["url"], folder="entreinteriores-art")
+                    hero_pkg = {**hero_pkg, "url": hosted,
+                                "source": hero_pkg.get("source") or hero_pkg["url"]}
+                    logger.info("Foto del sujeto: %s", hosted)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("subida de foto falló: %s", exc)
+                    hero_pkg = None
             else:
                 logger.info("Sin foto del sujeto — post sin foto")
 
@@ -370,10 +374,11 @@ def main() -> None:
                 # que la ficha muestre "Fuente: <medio>".
                 source_url=news.url,
                 source_name=None,
-                hero_image_url=hero,
-                hero_image_attribution=None,
-                hero_image_license=None,
-                hero_image_source_url=None,
+                hero_image_url=(hero_pkg or {}).get("url"),
+                hero_image_alt=(hero_pkg or {}).get("alt"),
+                hero_image_attribution=(hero_pkg or {}).get("attribution"),
+                hero_image_license=(hero_pkg or {}).get("license"),
+                hero_image_source_url=(hero_pkg or {}).get("source"),
                 entities=entities,
                 content_key=ckey,
                 event_date=event_date,

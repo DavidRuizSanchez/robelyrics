@@ -39,6 +39,7 @@ from app.services.draft_generator import (
     generate_proposal_draft,
 )
 from app.services.editorial_review import review as editorial_review
+from app.services.hero_io import apply_hero, read_hero
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -196,12 +197,17 @@ def _apply_posts(db, post_ids: list[int], *, attempts: int = 4) -> None:
                 body = v.tightened_body_md if (v.verdict == "revise" and v.tightened_body_md) \
                     else prop.body_md
                 winner = {
-                    "body": body, "title": (prop.title or post.title)[:240],
+                    # OJO: la columna del modelo es body_md, no body. Con "body"
+                    # el setattr creaba un atributo fantasma y el cuerpo nuevo NO
+                    # se persistía al regenerar un post publicado (--post-ids).
+                    "body_md": body, "title": (prop.title or post.title)[:240],
                     "excerpt": prop.excerpt or post.excerpt,
                     "meta_title": prop.meta_title or post.meta_title or None,
                     "meta_description": prop.meta_description or post.meta_description or None,
-                    "hero_image_url": prop.hero_image_url or post.hero_image_url,
-                    "hero_image_alt": prop.hero_image_alt or post.hero_image_alt,
+                    # Hero ATÓMICO: el paquete entero de la propuesta, o el del post
+                    # si la propuesta no trae imagen. Nunca url suelta con crédito
+                    # viejo (bug de Rosendo). Se aplica con apply_hero más abajo.
+                    "hero": read_hero(prop) or read_hero(post),
                     "entities": prop.entities or post.entities,
                     "videos": prop.videos or post.videos, "video": prop.video or post.video,
                     "engagement_score": prop.engagement_score, "quality_tier": prop.quality_tier,
@@ -223,6 +229,9 @@ def _apply_posts(db, post_ids: list[int], *, attempts: int = 4) -> None:
 
         for k, val in winner.items():
             if k in ("score", "verdict"):
+                continue
+            if k == "hero":
+                apply_hero(post, val)  # los 5 campos juntos, nunca desincronizados
                 continue
             setattr(post, k, val)
         auto_publish_post(db, post, factcheck=False, rigor=False)

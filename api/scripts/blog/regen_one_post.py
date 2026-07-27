@@ -24,6 +24,7 @@ from app.services.entity_resolver import (
     build_corpus_index,
     load_link_stats,
 )
+from app.services.hero_io import apply_hero
 from app.services.text_sanitizer import normalize_headings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -56,7 +57,8 @@ def regen_post_researched(db, post: Post, *, dry_run: bool) -> bool:
         exclude_slug=post.slug, link_stats=load_link_stats(),
     )
     video = out.get("video")
-    img_url = out.get("image_url")
+    hero = out.get("hero")  # paquete coherente {url,alt,attribution,license,source} o None
+    img_url = hero["url"] if hero else None
     logger.info(
         "  ✓ %s (%d chars) · vídeo=%s · foto=%s",
         post.slug, len(new_body), bool(video), bool(img_url),
@@ -81,11 +83,12 @@ def regen_post_researched(db, post: Post, *, dry_run: bool) -> bool:
     # Reconstrucción supervisada: sale de público a revisión (el admin lo
     # vuelve a publicar tras validar).
     post.status = "pending_review"
-    if img_url:
+    if hero:
         try:
-            post.hero_image_url = cloudinary_upload.upload(
-                img_url, folder="entreinteriores-art"
-            )
+            hosted = cloudinary_upload.upload(hero["url"], folder="entreinteriores-art")
+            # Re-alojamos la URL pero conservamos el resto del paquete (source/alt)
+            # de forma coherente. Nunca url nueva con crédito viejo.
+            apply_hero(post, {**hero, "url": hosted, "source": hero.get("source") or hero["url"]})
         except Exception as exc:  # noqa: BLE001
             logger.warning("  · %s: subida de foto falló (%s)", post.slug, exc)
     db.commit()

@@ -1971,7 +1971,7 @@ def admin_proposal_from_url(
 
     warning: str | None = None
     entities: list = []
-    hero: str | None = None
+    hero_pkg: dict | None = None
     event_date = None
     video = None
 
@@ -2016,15 +2016,17 @@ def admin_proposal_from_url(
                 e for e in (rw.get("entities") or [])
                 if isinstance(e, dict) and e.get("name")
             ]
-            img_url = rw.get("image_url")
-            if img_url:
+            hero_pkg = rw.get("hero")  # paquete coherente {url,alt,...} o None
+            if hero_pkg:
                 try:
                     from app.services.instagram import cloudinary_upload
-                    hero = cloudinary_upload.upload(
-                        img_url, folder="entreinteriores-art"
+                    hosted = cloudinary_upload.upload(
+                        hero_pkg["url"], folder="entreinteriores-art"
                     )
+                    hero_pkg = {**hero_pkg, "url": hosted,
+                                "source": hero_pkg.get("source") or hero_pkg["url"]}
                 except Exception:  # noqa: BLE001 — la foto es opcional
-                    hero = None
+                    hero_pkg = None
     else:
         if not title_scraped:
             raise HTTPException(
@@ -2064,7 +2066,11 @@ def admin_proposal_from_url(
         # medio: la investigación/reescritura es nuestra, igual que en scrape_news).
         source_url=body.url,
         source_name=None,
-        hero_image_url=hero,
+        hero_image_url=(hero_pkg or {}).get("url"),
+        hero_image_alt=(hero_pkg or {}).get("alt"),
+        hero_image_attribution=(hero_pkg or {}).get("attribution"),
+        hero_image_license=(hero_pkg or {}).get("license"),
+        hero_image_source_url=(hero_pkg or {}).get("source"),
         entities=entities,
         content_key=ckey,
         event_date=event_date,

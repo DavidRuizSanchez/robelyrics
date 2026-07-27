@@ -62,6 +62,7 @@ def _trigger_spotlight(dry_run: bool) -> None:
     from app.services.content_generator import generate_song_spotlight
     from app.services.publishing import propose_for_review
     from app.services.wikimedia import search_image
+    from app.services.hero_io import apply_hero
     from app.db.models import Album, Artist, Post as PostModel, SeoContent
 
     today = date.today()
@@ -99,12 +100,20 @@ def _trigger_spotlight(dry_run: bool) -> None:
             today=today,
         )
         body_md = payload["body_md"]
-        hero_url = album.cover_url
-        if not hero_url:
+        # Hero como PAQUETE coherente (la atribución va en los campos estructurados
+        # → figcaption, NO incrustada en el cuerpo). Portada del disco si la hay;
+        # si no, foto CC del artista con su crédito completo.
+        hero_pkg = None
+        if album.cover_url:
+            hero_pkg = {"url": album.cover_url, "alt": f"Portada del disco «{album.title}»",
+                        "attribution": f"Portada de «{album.title}»",
+                        "license": None, "source": None}
+        else:
             img = search_image(f"{artist.name} {album.title}")
             if img:
-                hero_url = img.thumb_url
-                body_md = body_md.rstrip() + "\n\n" + img.attribution_text + "\n"
+                hero_pkg = {"url": img.thumb_url, "alt": f"Fotografía de {artist.name}",
+                            "attribution": img.attribution_text,
+                            "license": img.license_short, "source": img.source_page_url}
 
         if dry_run:
             print(f"[dry-run] spotlight: {payload['title']}")
@@ -119,9 +128,9 @@ def _trigger_spotlight(dry_run: bool) -> None:
             body_md=body_md,
             meta_title=payload["meta_title"],
             meta_description=payload["meta_description"],
-            hero_image_url=hero_url,
             entities=payload.get("entities") or [],
         )
+        apply_hero(post, hero_pkg)  # los 5 campos juntos, sin desincronizar
         db.add(post)
         db.commit()
         db.refresh(post)

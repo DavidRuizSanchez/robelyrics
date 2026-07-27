@@ -518,11 +518,8 @@ def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True) -> 
     body_md, hero = _post_process(db, p.body_md, p.entities or [], subject, title=p.title)
     p.body_md = body_md
     if hero:
-        p.hero_image_url = hero["url"]
-        p.hero_image_alt = hero.get("alt")
-        p.hero_image_attribution = hero["attribution"]
-        p.hero_image_license = hero["license"]
-        p.hero_image_source_url = hero["source"]
+        from app.services.hero_io import apply_hero
+        apply_hero(p, hero)  # los 5 campos juntos, sin desincronizar
     if p.meta_title:
         p.meta_title = p.meta_title[:60]
     if p.meta_description:

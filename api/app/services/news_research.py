@@ -223,11 +223,30 @@ def find_video(query: str, subject: str) -> dict | None:
         return None
 
 
-def find_image(query: str) -> str | None:
+def find_image(query: str) -> dict | None:
+    """Foto web del sujeto de la noticia como PAQUETE hero coherente, o None.
+
+    Para noticias el usuario autoriza foto web sin crédito CC (la investigación es
+    nuestra): `attribution`/`license` van a None de forma coherente, `source`
+    conserva la URL original (procedencia). El paquete tiene la forma canónica de
+    `hero_io` para aplicarse con `apply_hero` sin desincronizar campos.
+    """
     if not query:
         return None
     cands = web_image.search(query)
-    return cands[0]["url"] if cands else None
+    if not cands:
+        return None
+    top = cands[0]
+    url = top.get("url")
+    if not url:
+        return None
+    return {
+        "url": url,
+        "alt": (top.get("title") or "").strip() or None,
+        "attribution": None,
+        "license": None,
+        "source": url,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -601,7 +620,10 @@ def research_and_write(
             f"\n\nhttps://www.youtube.com/watch?v={video['youtube_id']}\n"
         )
     out["video"] = video
-    out["image_url"] = image
+    # Paquete hero coherente (url+alt+attribution+license+source) para apply_hero.
+    # `image_url` se mantiene por compatibilidad con lectores antiguos.
+    out["hero"] = image
+    out["image_url"] = image["url"] if image else None
     out["event_date"] = event_date  # date o None (solo si explícita en la fuente)
     out["is_event"] = bool(plan.get("is_event"))
     out["is_relevant"] = True

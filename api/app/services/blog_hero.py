@@ -190,17 +190,23 @@ def build_unique_hero(
     `alt_label`: título legible del post para el ALT del arte IA (mejor que el
     slug de keyword). El `subject` (tema) alimenta el prompt de imagen.
     """
+    from app.services import hero_guard
+
     used = used if used is not None else used_hero_urls(db)
-    img = pick_hero_image(db, entities, used=used)
-    if img:
+    subj = subject or alt_label
+    # 1) Imagen curada de la entidad protagonista, GATED por relevancia: una foto
+    #    correcta de otra entidad (p.ej. Robe en un post de Rosendo) se rechaza.
+    img = pick_hero_image(db, entities, used=used, subject=subj)
+    if img and hero_guard.verify_hero(img, subject=subj, entities=entities).ok:
         return img
-    # Foto real por web ANTES de caer a IA: preferimos fotos originales relacionadas.
+    # 2) Foto real por web del sujeto, también GATED (fuente no fiable → visión).
     web = _web_photo_hero(entities, subject, alt_label, used)
-    if web:
+    if web and hero_guard.verify_hero(web, subject=subj, entities=entities).ok:
         return web
+    # 3) Arte editorial IA propio: on-topic por construcción (se genera DEL sujeto),
+    #    así una foto web irrelevante NUNCA gana; se degrada a arte propio.
     if allow_ai:
         ai = _ai_hero(subject, _seed(subject), alt_label=alt_label)
-        # El arte IA es único por definición, pero por si acaso comprobamos.
         if ai and ai["url"] not in used:
             return ai
     return None
