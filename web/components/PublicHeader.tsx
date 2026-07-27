@@ -6,12 +6,15 @@ import type { AuthMe } from "@/lib/types";
 
 // Submenú compartido por Extremoduro y Robe. "Historia" es lo único propio de
 // cada artista; el resto (grupos amigos, colegas, sellos, libros) son URLs
-// globales compartidas. Discografía va filtrada por artista.
+// globales compartidas. Cada discografía tiene su propia URL (antes era un
+// `?artist=` sobre el hub, que ni posicionaba ni tenía contenido propio).
 function artistItems(slug: "extremoduro" | "robe") {
   const name = slug === "robe" ? "los Robe" : "Extremoduro";
+  // En la discografía manda cómo lo busca la gente: «discografía de Robe».
+  const discoName = slug === "robe" ? "Robe" : "Extremoduro";
   return [
     { href: `/${slug}`, label: `Historia de ${name}` },
-    { href: `/discografia?artist=${slug}`, label: `Discografía de ${name}` },
+    { href: `/discografia/${slug}`, label: `Discografía de ${discoName}` },
   ];
 }
 

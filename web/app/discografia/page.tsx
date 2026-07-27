@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { permanentRedirect } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
@@ -17,21 +18,7 @@ export const revalidate = 3600;
 
 const NAME: Record<string, string> = { extremoduro: "Extremoduro", robe: "Robe" };
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams?: Promise<{ artist?: string }>;
-}): Promise<Metadata> {
-  const { artist } = (await searchParams) || {};
-  const f = artist && NAME[artist] ? artist : null;
-  if (f) {
-    return {
-      title: `Discografía de ${NAME[f]} · Entre Interiores`,
-      description: `Toda la discografía de ${NAME[f]} en orden cronológico: cada disco enlaza a su análisis, contexto y letras comentadas.`,
-      // Canónica a la discografía completa para no duplicar contenido.
-      alternates: { canonical: `${SITE_URL}/discografia` },
-    };
-  }
+export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Discografía de Extremoduro y Robe · completa y comentada · Entre Interiores",
     description:
@@ -45,12 +32,15 @@ export default async function DiscografiaPage({
 }: {
   searchParams?: Promise<{ artist?: string }>;
 }) {
+  // `?artist=X` era la vieja discografía filtrada: mismo H1 y misma canónica que
+  // el hub, así que no era una página para nadie. Ahora cada artista tiene la suya
+  // (`/discografia/extremoduro`, `/discografia/robe`) con contenido y metadata
+  // propios; el parámetro se redirige de forma permanente para no perder enlaces.
   const { artist } = (await searchParams) || {};
-  const filter = artist && NAME[artist] ? artist : null;
-  const slugs = filter ? [filter] : [...ARTIST_SLUGS];
+  if (artist && NAME[artist]) permanentRedirect(`/discografia/${artist}`);
 
   const artists = await Promise.all(
-    slugs.map((slug) =>
+    [...ARTIST_SLUGS].map((slug) =>
       apiFetch<PublicArtistDetail>(`/public/artists/${slug}`, {
         authenticated: false,
       }),
@@ -99,6 +89,18 @@ export default async function DiscografiaPage({
             Toda la obra de Extremoduro y Robe en orden, del primer guitarrazo
             al último. Cada disco abre a su historia, sus versos y sus canciones.
           </p>
+          <nav className="mt-7 flex flex-wrap gap-x-8 gap-y-3 font-mono text-[11px] tracking-[2px] uppercase">
+            {ARTIST_SLUGS.map((slug) => (
+              <Link
+                key={slug}
+                href={`/discografia/${slug}`}
+                data-cursor="hover"
+                className="text-accent hover:text-ink"
+              >
+                Solo {NAME[slug]} →
+              </Link>
+            ))}
+          </nav>
         </header>
 
         {artists.map((a) => (

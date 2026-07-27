@@ -20,6 +20,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const urls: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
     { url: `${SITE_URL}/discografia`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
+    // Una por artista: son las que responden a «discografía de Extremoduro»
+    // (4.400 búsquedas/mes) y «discografía de Robe» (~710), con contenido propio.
+    { url: `${SITE_URL}/discografia/extremoduro`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${SITE_URL}/discografia/robe`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/temas`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/lugares`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/conceptos`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },

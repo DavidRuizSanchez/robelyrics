@@ -9,7 +9,7 @@ import LogoBomba from "@/components/LogoBomba";
 function artistItems(slug: "extremoduro" | "robe") {
   return [
     { href: `/${slug}`, label: "Historia" },
-    { href: `/discografia?artist=${slug}`, label: "Discografía" },
+    { href: `/discografia/${slug}`, label: "Discografía" },
   ];
 }
 
