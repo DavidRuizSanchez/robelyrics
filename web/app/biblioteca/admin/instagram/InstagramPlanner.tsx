@@ -375,6 +375,9 @@ export default function InstagramPlanner({
         caption: data.caption ?? null,
         image_b64: data.image_b64 ?? null,
         image_url: data.image_url ?? null,
+        // Sin esto la preview nunca recibía las piezas, y un reel se veía como
+        // «vídeo por generar» aunque estuviera generado y servido bien.
+        media: data.media ?? [],
       });
       setDraftCaption(data.caption ?? "");
     } catch (e) {
