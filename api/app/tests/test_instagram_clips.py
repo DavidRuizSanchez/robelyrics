@@ -175,3 +175,58 @@ def test_si_falla_el_borrado_externo_se_marca_igual(db, monkeypatch):
     assert "Cloudinary" in msg
     assert clip.status == "retired"       # se marca igualmente
     assert clip.retired_reason == "aviso"
+
+
+# --------------------------------------------------------------------------- #
+# Montaje: el escalado tiene que valer para CUALQUIER proporción de origen
+# --------------------------------------------------------------------------- #
+# Falló en la primera prueba real con un vídeo de YouTube: un 16:9 escalado a
+# ancho 1080 queda en 1080x608, y recortar 1920 de alto de eso revienta con
+# "Invalid too big or non positive size for width '1080' or height '1920'".
+
+def test_el_fondo_escala_para_cubrir_y_el_primer_plano_para_caber():
+    import inspect
+    fuente = inspect.getsource(vc.descargar_y_recortar)
+    assert "force_original_aspect_ratio=increase" in fuente, (
+        "el fondo debe CUBRIR el lienzo antes de recortar"
+    )
+    assert "force_original_aspect_ratio=decrease" in fuente, (
+        "el primer plano debe CABER entero"
+    )
+
+
+@pytest.mark.parametrize(
+    "ancho,alto", [(1920, 1080), (1080, 1080), (720, 1280), (640, 480)]
+)
+def test_el_montaje_da_9_16_venga_como_venga(ancho, alto, tmp_path):
+    """Se monta un vídeo sintético de cada proporción y se comprueba la salida."""
+    import shutil
+    import subprocess
+
+    if not shutil.which("ffmpeg"):
+        pytest.skip("sin ffmpeg")
+
+    origen = str(tmp_path / "in.mp4")
+    salida = str(tmp_path / "out.mp4")
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+         "-i", f"testsrc=size={ancho}x{alto}:rate=25:duration=1",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", origen],
+        check=True,
+    )
+    filtros = [
+        f"[0:v]scale={vc.ANCHO}:{vc.ALTO}:force_original_aspect_ratio=increase,"
+        f"crop={vc.ANCHO}:{vc.ALTO},boxblur=28:2[bg]",
+        f"[0:v]scale={vc.ANCHO}:{vc.ALTO}:force_original_aspect_ratio=decrease[fg]",
+        "[bg][fg]overlay=(W-w)/2:(H-h)/2[v]",
+    ]
+    vc._ffmpeg([
+        "-i", origen, "-filter_complex", ";".join(filtros), "-map", "[v]",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-t", "1", salida,
+    ])
+    medida = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "csv=p=0", salida],
+        capture_output=True, text=True,
+    )
+    assert medida.stdout.strip() == f"{vc.ANCHO},{vc.ALTO}"

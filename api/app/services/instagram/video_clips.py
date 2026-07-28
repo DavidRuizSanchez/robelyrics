@@ -147,10 +147,18 @@ def descargar_y_recortar(
             raise RuntimeError("yt-dlp no dejó fichero")
 
         # A 9:16 con relleno desenfocado + atribución quemada abajo.
+        #
+        # OJO con el escalado, que ya falló una vez: un vídeo 16:9 escalado a
+        # ANCHO=1080 queda en 1080x608, y recortar 1920 de alto de eso revienta
+        # con "Invalid too big or non positive size". Hay que escalar para
+        # CUBRIR el lienzo (`increase`) antes de recortar, y para que QUEPA
+        # (`decrease`) en el primer plano. Así vale cualquier proporción de
+        # origen, horizontal o vertical.
         credito = _escapar_drawtext(f"Vídeo: {canal}" if canal else "Vídeo de YouTube")
         filtros = [
-            f"[0:v]scale={ANCHO}:-2,boxblur=28:2,crop={ANCHO}:{ALTO}[bg]",
-            f"[0:v]scale={ANCHO}:-2[fg]",
+            f"[0:v]scale={ANCHO}:{ALTO}:force_original_aspect_ratio=increase,"
+            f"crop={ANCHO}:{ALTO},boxblur=28:2[bg]",
+            f"[0:v]scale={ANCHO}:{ALTO}:force_original_aspect_ratio=decrease[fg]",
             "[bg][fg]overlay=(W-w)/2:(H-h)/2[v0]",
         ]
         texto = (
