@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from app.services.instagram import community
 
-
 CAPTION = """Hay versos que se te quedan dentro sin pedir permiso.
 
 «Standby» · Extremoduro · Agila (1996)
