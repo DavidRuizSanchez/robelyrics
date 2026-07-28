@@ -391,6 +391,13 @@ export default function InstagramPlanner({
           >
             {STATUS_LABEL[it.status] ?? it.status}
           </span>
+          {it.media_type && it.media_type !== "IMAGE" && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-divider text-ink-dim px-1.5 py-0.5">
+              {it.media_type === "CAROUSEL"
+                ? `▣ carrusel · ${it.media_count}`
+                : "▶ reel"}
+            </span>
+          )}
           {scheduleOf(it) && (
             <span className="font-mono text-[9px] tracking-[2px] uppercase border border-accent/60 text-accent px-1.5 py-0.5">
               🕒{" "}
@@ -500,6 +507,38 @@ export default function InstagramPlanner({
                         Ojo: "re-preparar" regenera el caption y la imagen desde
                         cero (pierde esta edición). Edita justo antes de publicar.
                       </p>
+
+                      <div className="mt-4 pt-4 border-t border-divider">
+                        <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+                          formato
+                        </label>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <select
+                            value={it.media_type || "IMAGE"}
+                            disabled={busy !== null}
+                            onChange={async (e) => {
+                              const nuevo = e.target.value;
+                              await fetch(
+                                `/biblioteca/admin/instagram/api/queue/${it.id}`,
+                                {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ media_type: nuevo }),
+                                },
+                              );
+                              window.location.reload();
+                            }}
+                            className="bg-transparent border border-divider focus:border-accent outline-none text-ink text-xs font-mono px-2 py-1.5"
+                          >
+                            <option value="IMAGE">Foto única</option>
+                            <option value="CAROUSEL">Carrusel</option>
+                            <option value="REELS">Reel (vídeo)</option>
+                          </select>
+                          <span className="font-mono text-[9px] text-ink-faint">
+                            al cambiarlo hay que «re-preparar»
+                          </span>
+                        </div>
+                      </div>
 
                       <div className="mt-4 pt-4 border-t border-divider">
                         <ProgramarPost

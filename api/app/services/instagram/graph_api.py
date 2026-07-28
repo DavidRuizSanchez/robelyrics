@@ -344,3 +344,43 @@ def reply_to_comment(comment_id: str, texto: str) -> tuple[str | None, str]:
     if "id" in data:
         return data["id"], "Respondido"
     return None, str(data.get("error", data))
+
+
+# --------------------------------------------------------------------------- #
+# Reels
+# --------------------------------------------------------------------------- #
+# El procesado de vídeo de Meta tarda de 30 s a varios minutos, así que el
+# polling es mucho más largo que el de una foto (15×4 s = 60 s daría timeout casi
+# siempre). OJO: eso NO cabe dentro de una petición del panel — Cloudflare corta
+# a los 100 s y el proyecto ya se comió un 524 por esto. Los reels se publican
+# desde el cron; el panel solo prepara.
+REELS_POLL_ATTEMPTS = 60
+REELS_POLL_INTERVAL = 10.0
+
+
+def create_reel_container(
+    video_url: str, caption: str, cover_url: str | None = None,
+    share_to_feed: bool = True,
+) -> tuple[str | None, str]:
+    """Container de un reel a partir de una URL de vídeo pública."""
+    campos = {
+        "media_type": "REELS",
+        "video_url": video_url,
+        "caption": caption,
+        "share_to_feed": "true" if share_to_feed else "false",
+    }
+    if cover_url:
+        campos["cover_url"] = cover_url
+    return _create_media(**campos)
+
+
+def post_reel(
+    video_url: str, caption: str, cover_url: str | None = None
+) -> tuple[str | None, str]:
+    """Publica un reel de principio a fin. Devuelve (ig_media_id, mensaje)."""
+    container, msg = create_reel_container(video_url, caption, cover_url=cover_url)
+    if not container:
+        return None, msg
+    return publish(
+        container, attempts=REELS_POLL_ATTEMPTS, interval=REELS_POLL_INTERVAL
+    )

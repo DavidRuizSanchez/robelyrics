@@ -37,6 +37,7 @@ from app.services.instagram import (
     photo_finder,
     robe_quote,
     tone,
+    video,
 )
 from app.services.instagram.evergreen import EVERGREEN_TYPES
 
@@ -281,6 +282,19 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     # Formato: carrusel si el tema da para ello, foto única en cualquier otro
     # caso (que sigue siendo el camino por defecto). `carousel.plan` devuelve
     # None cuando no hay material verificado suficiente.
+    if item.media_type == "REELS":
+        # Vídeo propio: un verso animado. Solo si el admin lo pide para este
+        # item — no se decide solo, porque cuesta bastante más de generar.
+        ruta = video.render_verse_reel(topic, slot=item.slot or 1)
+        specs, paths, used_hero = [{"layout": "reel"}], [ruta], False
+        _sync_media(db, item, paths, specs, kind="video")
+        item.image_path = ruta
+        item.caption = captions.build(db, topic)
+        item.status = "prepared"
+        item.error = None
+        db.commit()
+        return item
+
     quiere_carrusel = config.CAROUSEL_ENABLED or item.media_type == "CAROUSEL"
     specs = carousel.plan(topic, item.content_type) if quiere_carrusel else None
     if specs:
@@ -306,7 +320,8 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
 
 
 def _sync_media(
-    db: Session, item: InstagramQueueItem, paths: list[str], specs: list[dict]
+    db: Session, item: InstagramQueueItem, paths: list[str], specs: list[dict],
+    kind: str = "image",
 ) -> None:
     """Reescribe las filas de media del item con las rutas recién generadas."""
     item.media.clear()          # delete-orphan limpia las anteriores
@@ -314,7 +329,7 @@ def _sync_media(
     for i, ruta in enumerate(paths):
         rol = (specs[i].get("layout") if i < len(specs) else None) or "body"
         item.media.append(
-            InstagramQueueMedia(position=i, kind="image", role=rol, local_path=ruta)
+            InstagramQueueMedia(position=i, kind=kind, role=rol, local_path=ruta)
         )
 
 
@@ -360,7 +375,13 @@ def publish(
     try:
         if piezas:
             for m in piezas:
-                m.url = cloudinary_upload.upload(m.local_path)
+                if m.kind == "video":
+                    subido = cloudinary_upload.upload_video(m.local_path)
+                    m.url = subido["url"]
+                    m.cloudinary_public_id = subido["public_id"]
+                    m.duration_s = subido.get("duration")
+                else:
+                    m.url = cloudinary_upload.upload(m.local_path)
         else:  # item antiguo, anterior a la tabla de media
             item.image_url = cloudinary_upload.upload(item.image_path)
     except Exception as exc:  # noqa: BLE001
@@ -374,7 +395,11 @@ def publish(
     db.commit()
 
     urls = [m.url for m in piezas if m.url] or [item.image_url]
-    if item.media_type == "CAROUSEL" and len(urls) >= graph_api.MIN_CAROUSEL_ITEMS:
+    if item.media_type == "REELS":
+        # Meta tarda minutos en procesar un vídeo: el polling largo solo es
+        # viable desde el cron, nunca dentro de una petición del panel.
+        media_id, result_msg = graph_api.post_reel(urls[0], item.caption or "")
+    elif item.media_type == "CAROUSEL" and len(urls) >= graph_api.MIN_CAROUSEL_ITEMS:
         media_id, result_msg = graph_api.post_carousel(urls, item.caption or "")
     else:
         media_id, result_msg = graph_api.post_photo(urls[0], item.caption or "")

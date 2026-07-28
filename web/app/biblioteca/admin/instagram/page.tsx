@@ -11,6 +11,10 @@ export type IGItem = {
   position: number;
   status: string;
   content_type: string;
+  /** IMAGE | CAROUSEL | REELS */
+  media_type: string;
+  /** Nº de piezas (diapositivas de un carrusel). */
+  media_count: number;
   publish_on: string | null;
   /** Programación exacta (ISO, UTC). Si está, el item no entra en el goteo. */
   publish_at: string | null;

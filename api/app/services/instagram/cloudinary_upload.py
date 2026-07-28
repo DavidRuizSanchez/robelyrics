@@ -34,3 +34,35 @@ def upload(image_path: str, folder: str = "entreinteriores-ig") -> str:
         resource_type="image",
     )
     return result["secure_url"]
+
+
+def upload_video(
+    video_path: str, folder: str = "entreinteriores-ig-video"
+) -> dict:
+    """Sube un vídeo. Devuelve {url, public_id, duration, width, height}.
+
+    Se usa `upload_large`, que trocea el envío: los MP4 pasan de los 20 MB con
+    facilidad y `upload` a secas falla ahí. Guardar el `public_id` es lo que
+    permite luego borrar de Cloudinary lo que quede huérfano.
+    """
+    _ensure()
+    result = cloudinary.uploader.upload_large(
+        video_path,
+        folder=folder,
+        resource_type="video",
+        chunk_size=6_000_000,
+    )
+    return {
+        "url": result["secure_url"],
+        "public_id": result.get("public_id"),
+        "duration": result.get("duration"),
+        "width": result.get("width"),
+        "height": result.get("height"),
+    }
+
+
+def destroy(public_id: str, resource_type: str = "image") -> bool:
+    """Borra un asset de Cloudinary. Para retirar un clip rápido si hace falta."""
+    _ensure()
+    res = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+    return res.get("result") == "ok"

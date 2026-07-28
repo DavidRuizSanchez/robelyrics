@@ -2059,6 +2059,8 @@ class AdminIGItem(BaseModel):
     position: int = 0
     status: str
     content_type: str = "news"
+    media_type: str = "IMAGE"
+    media_count: int = 1
     publish_on: str | None = None
     publish_at: datetime | None = None
     title: str
@@ -2131,6 +2133,8 @@ class AdminIGUpdateIn(BaseModel):
     # mandar `clear_publish_at: true`: un None aquí significa "no tocar".
     publish_at: datetime | None = None
     clear_publish_at: bool = False
+    # Formato: IMAGE | CAROUSEL | REELS. Cambiarlo exige re-preparar.
+    media_type: str | None = None
 
 
 class AdminIGAccount(BaseModel):
@@ -2147,6 +2151,8 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         position=it.position,
         status=it.status,
         content_type=getattr(it, "content_type", None) or "news",
+        media_type=getattr(it, "media_type", None) or "IMAGE",
+        media_count=len(getattr(it, "media", []) or []) or 1,
         publish_on=it.publish_on.isoformat() if getattr(it, "publish_on", None) else None,
         publish_at=getattr(it, "publish_at", None),
         title=it.title,
@@ -2227,6 +2233,10 @@ def admin_ig_update(
         it.title = payload.title[:300]
     if payload.summary is not None:
         it.summary = payload.summary
+    if payload.media_type is not None:
+        if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS"):
+            raise HTTPException(status_code=400, detail="formato no válido")
+        it.media_type = payload.media_type
     if payload.clear_publish_at:
         it.publish_at = None          # vuelve al goteo normal
     elif payload.publish_at is not None:
