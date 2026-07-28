@@ -2301,7 +2301,7 @@ def admin_ig_update(
     if payload.summary is not None:
         it.summary = payload.summary
     if payload.media_type is not None:
-        if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS"):
+        if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS", "CLIP", "PRODUCT"):
             raise HTTPException(status_code=400, detail="formato no válido")
         it.media_type = payload.media_type
         # Elegido por una persona: el repartidor automático ya no lo toca.

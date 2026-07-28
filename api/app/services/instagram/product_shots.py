@@ -257,3 +257,19 @@ def generar(db, destino_dir: str | None = None) -> dict[str, str]:
         logger.warning("[product] buscador falló: %s", exc)
 
     return hechas
+
+
+def ficha(slug: str) -> dict:
+    """Datos editoriales de una funcionalidad (data/instagram_product.yaml)."""
+    import yaml
+
+    from app.services.instagram.evergreen import _data_path
+
+    ruta = _data_path("instagram_product.yaml")
+    if not ruta:
+        return {}
+    data = yaml.safe_load(open(ruta, encoding="utf-8")) or {}
+    for f in data.get("funcionalidades") or []:
+        if (f.get("slug") or "").strip() == slug:
+            return f
+    return {}

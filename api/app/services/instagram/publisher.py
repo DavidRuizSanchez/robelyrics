@@ -284,16 +284,25 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     # Formato: carrusel si el tema da para ello, foto única en cualquier otro
     # caso (que sigue siendo el camino por defecto). `carousel.plan` devuelve
     # None cuando no hay material verificado suficiente.
-    if item.media_type == "REELS":
-        # Si hay un CLIP de terceros asignado a este post y ya está descargado,
-        # se usa ese: trae imagen y sonido reales, que es justo lo que un verso
+    if item.media_type == "PRODUCT":
+        return _prepare_product(db, item, topic)
+
+    if item.media_type in ("REELS", "CLIP"):
+        # CLIP: fragmento de otro canal, con su sonido. Es lo que un verso
         # animado no puede dar (los reels propios van mudos a propósito).
         clip = db.execute(
             select(VideoClip).where(
                 VideoClip.queue_item_id == item.id,
-                VideoClip.status == "ready",
+                VideoClip.status.in_(("ready", "published")),
             )
         ).scalars().first()
+
+        if item.media_type == "CLIP" and not (clip and clip.url_cdn):
+            raise RuntimeError(
+                "este post es de formato «clip externo» pero no tiene ninguno "
+                "enlazado. Pide el clip abajo, en «clips de vídeo», y pulsa "
+                "«usar en un post»."
+            )
 
         if clip and clip.url_cdn:
             _sync_media(db, item, [], [], kind="video")
@@ -309,6 +318,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # en el vídeo.
             topic["image_credit"] = clip.atribucion
             item.image_path = None      # el material vive en Cloudinary
+            item.media_type = "CLIP"
             item.caption = captions.build(db, topic)
             item.status = "prepared"
             item.error = None
@@ -356,6 +366,52 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     item.status = "prepared"
     item.error = None
     db.commit()
+    return item
+
+
+def _prepare_product(
+    db: Session, item: InstagramQueueItem, topic: dict
+) -> InstagramQueueItem:
+    """Prepara un post que enseña una funcionalidad de la web.
+
+    La pieza se compone consultando la API de VERDAD (pregunta real al
+    consultorio, versos reales del buscador). Si el post no dice qué
+    funcionalidad enseña, se coge la primera que tenga pieza disponible.
+    """
+    from app.services.instagram import product_shots
+
+    slug = (item.content_key or "").replace("product:", "").strip()
+    piezas = product_shots.generar(db)
+    if not piezas:
+        raise RuntimeError(
+            "no se pudo componer ninguna pieza de la web (¿falla el consultorio "
+            "o el buscador?)"
+        )
+
+    ruta = piezas.get(slug) or next(iter(piezas.values()))
+    if not slug:
+        # Se adopta la funcionalidad que se haya podido componer.
+        slug = next(k for k, v in piezas.items() if v == ruta)
+        item.content_key = f"product:{slug}"
+
+    ficha = product_shots.ficha(slug)
+    topic["content_type"] = "product"
+    topic["detalle"] = ficha.get("detalle", "")
+    topic["cta"] = ficha.get("cta", "")
+    if ficha.get("title"):
+        topic["title"] = topic["headline"] = ficha["title"]
+        item.title = ficha["title"][:300]
+    if ficha.get("claim"):
+        topic["summary"] = ficha["claim"]
+        item.summary = ficha["claim"]
+
+    _sync_media(db, item, [ruta], [{"layout": "product"}])
+    item.image_path = ruta
+    item.caption = captions.build(db, topic)
+    item.status = "prepared"
+    item.error = None
+    db.commit()
+    logger.info("[IG] item %s prepara la pieza de %s", item.id, slug)
     return item
 
 

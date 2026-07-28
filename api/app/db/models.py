@@ -1331,7 +1331,13 @@ class InstagramQueueItem(Base):
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)
-    # Formato del post: IMAGE (una foto) | CAROUSEL (2-10) | REELS (vídeo).
+    # Formato del post. Los cinco son lo mismo desde la cola: formas que puede
+    # tomar una publicación.
+    #   IMAGE    · una foto
+    #   CAROUSEL · 2-10 diapositivas
+    #   REELS    · vídeo propio (verso animado, sin audio)
+    #   CLIP     · fragmento de vídeo de otro canal, con su sonido
+    #   PRODUCT  · pieza que enseña una funcionalidad de la web
     media_type: Mapped[str] = mapped_column(
         String(16), nullable=False, default="IMAGE"
     )

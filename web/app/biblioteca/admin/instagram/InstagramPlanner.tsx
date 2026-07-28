@@ -484,7 +484,11 @@ export default function InstagramPlanner({
             <span className="font-mono text-[9px] tracking-[2px] uppercase border border-divider text-ink-dim px-1.5 py-0.5">
               {it.media_type === "CAROUSEL"
                 ? `▣ carrusel · ${it.media_count}`
-                : "▶ reel"}
+                : it.media_type === "CLIP"
+                  ? "🎬 clip externo"
+                  : it.media_type === "PRODUCT"
+                    ? "✦ la web"
+                    : "▶ reel"}
             </span>
           )}
           {scheduleOf(it) && (
@@ -626,10 +630,16 @@ export default function InstagramPlanner({
                           >
                             <option value="IMAGE">Foto única</option>
                             <option value="CAROUSEL">Carrusel</option>
-                            <option value="REELS">Reel (vídeo)</option>
+                            <option value="REELS">Reel · verso animado</option>
+                            <option value="CLIP">Clip externo (de YouTube)</option>
+                            <option value="PRODUCT">Funcionalidad de la web</option>
                           </select>
                           <span className="font-mono text-[9px] text-ink-faint">
-                            al cambiarlo hay que «re-preparar»
+                            {it.media_type === "CLIP"
+                              ? "necesita un clip enlazado (abajo, en «clips de vídeo»)"
+                              : it.media_type === "PRODUCT"
+                                ? "la pieza se compone consultando la web de verdad"
+                                : "al cambiarlo hay que «re-preparar»"}
                           </span>
                         </div>
                       </div>
