@@ -74,3 +74,48 @@ docker exec robelyrics-api python -m scripts.youtube.process_queue --max 1
   siguientes pasadas hasta 3 intentos (el endpoint `pending` devuelve los
   `failed` con `attempts < 3`). Pasado ese tope, se queda `failed` y se mira a
   mano en `youtube_ingest_queue`.
+
+---
+
+## Daemon de CLIPS de vídeo para Instagram
+
+Hermano del de Juancares y por el mismo motivo: yt-dlp desde la IP del servidor
+recibe un bloqueo de YouTube, así que los clips se bajan desde casa.
+
+**Qué hace**: cada 10 minutos pregunta a producción si hay clips pedidos desde
+el panel; por cada uno, baja SOLO el tramo indicado, lo pasa a 9:16, le quema
+encima la atribución del canal, lo sube a Cloudinary y devuelve la URL.
+
+### Instalación (una vez)
+
+```bash
+# 1. Copiar el wrapper fuera de ~/Documents (TCC bloquea a launchd ahí)
+mkdir -p ~/Library/Application\ Support/robelyrics
+cp infra/local/clips_daemon.sh ~/Library/Application\ Support/robelyrics/
+chmod +x ~/Library/Application\ Support/robelyrics/clips_daemon.sh
+
+# 2. Instalar el agente de launchd
+cp infra/local/com.robelyrics.clips.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.robelyrics.clips.plist
+
+# 3. Comprobar
+launchctl list | grep robelyrics
+tail -f /tmp/robelyrics_clips_daemon.log
+```
+
+El contenedor `robelyrics-api` local necesita en su `.env`:
+`INGEST_API_KEY` (el mismo de producción), `PROD_API_URL` y las credenciales de
+Cloudinary.
+
+### Probar a mano, sin esperar al temporizador
+
+```bash
+docker exec robelyrics-api python -m scripts.instagram.process_clips --dry-run
+docker exec robelyrics-api python -m scripts.instagram.process_clips
+```
+
+### Si algo va mal
+
+Un clip que falla se reintenta hasta 3 veces y luego queda en `failed` con el
+motivo en la columna `error` de `video_clips`. El daemon sale en silencio si
+Docker está apagado o la Mac dormida: no es un error.

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent del daemon de ingesta de YouTube (Juancares + entrevistas).
+  Corre en la Mac del user (IP residencial). Polling cada 15 min.
+
+  Instalar (ver infra/local/README.md):
+    mkdir -p "$HOME/Library/Application Support/robelyrics"
+    cp infra/local/clips_daemon.sh "$HOME/Library/Application Support/robelyrics/"
+    cp infra/local/com.robelyrics.clips.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.robelyrics.clips.plist
+
+  OJO: ProgramArguments lleva la RUTA ABSOLUTA del wrapper. NO puede vivir en
+  ~/Documents/~/Desktop/~/Downloads: macOS (TCC) bloquea a launchd ahí
+  ("Operation not permitted"). Por eso el wrapper se copia a Application Support.
+  launchd NO expande ~ ni $HOME en ProgramArguments → ruta absoluta literal.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.robelyrics.clips</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/david.ruiz/Library/Application Support/robelyrics/clips_daemon.sh</string>
+    </array>
+
+    <!-- Cada 15 minutos. RunAtLoad para una primera pasada al cargar. -->
+    <key>StartInterval</key>
+    <integer>600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- PATH para encontrar docker (Docker Desktop) además de los del sistema. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/Docker.app/Contents/Resources/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/robelyrics_clips_daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/robelyrics_clips_daemon.log</string>
+</dict>
+</plist>
