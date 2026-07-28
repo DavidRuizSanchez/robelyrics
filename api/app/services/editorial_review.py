@@ -248,10 +248,24 @@ def review(
         verdict = "pass" if score >= 70 else "reject"
 
     if verdict == "revise":
-        # Necesita una versión tensa válida; si no la hay (o es un recorte
-        # absurdo), no es salvable → reject.
         if not tightened or len(tightened) < max(200, int(len(body) * 0.2)):
-            verdict, tightened = "reject", None
+            # Falta la versión tensa. Antes esto era `reject` directo, y resultó ser
+            # la mayor fuente de rechazos FALSOS: 'revise' significa que el editor le
+            # ve sustancia y solo quiere condensar, así que rechazar porque el LLM se
+            # dejó un campo es castigar un fallo de formato como si fuera de calidad.
+            # Medido sobre un mismo post (85/100, «específico, aporta ejemplos
+            # concretos»): 3 pasadas → revise, reject, reject, según viniera o no el
+            # campo. El veredicto no puede depender de eso.
+            # Desempata el score con el mismo umbral que ya usa el fallback de
+            # arriba: con nota de sobra se publica el original; sin ella, reject.
+            if score >= 70:
+                verdict, tightened = "pass", None
+                reasons = (reasons or []) + [
+                    "sin versión condensada del editor; se mantiene el original "
+                    f"(rigor {score}/100)"
+                ]
+            else:
+                verdict, tightened = "reject", None
         else:
             from app.services.text_sanitizer import strip_ai_tells
             tightened = strip_ai_tells(tightened) or tightened
@@ -263,11 +277,24 @@ def review(
         final_body = tightened if verdict == "revise" else body
         words = _word_count(final_body)
         if words < MIN_WORDS:
-            verdict, tightened = "reject", None
-            reasons = (reasons or []) + [
-                f"demasiado corto ({words} palabras < {MIN_WORDS}); "
-                "sin material para ampliarlo con sustancia"
-            ]
+            if verdict == "revise" and _word_count(body) >= MIN_WORDS:
+                # El ORIGINAL sí llega al suelo y es la TIJERA la que se ha pasado.
+                # Antes esto era `reject`, y castigaba al editor por hacer bien su
+                # trabajo: un post de 256 palabras condensado a 188/242/246 salía
+                # rechazado 3 de 3 veces «por falta de material», teniendo un 85/100
+                # y material de sobra. Cuanto mejor condensaba, más seguro el
+                # rechazo. Se publica el original, que ya cumple.
+                verdict, tightened = "pass", None
+                reasons = (reasons or []) + [
+                    f"la versión condensada se quedaba en {words} palabras (< "
+                    f"{MIN_WORDS}): se mantiene el original, que sí llega"
+                ]
+            else:
+                verdict, tightened = "reject", None
+                reasons = (reasons or []) + [
+                    f"demasiado corto ({words} palabras < {MIN_WORDS}); "
+                    "sin material para ampliarlo con sustancia"
+                ]
 
     return EditorialVerdict(
         verdict=verdict,  # type: ignore[arg-type]
