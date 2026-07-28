@@ -184,6 +184,24 @@ export default function InstagramPlanner({
     call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
   }
 
+  // --- Generar posts que enseñan la web ---
+  // Las piezas se componen consultando la API de verdad, así que cada vez que
+  // se pulsa salen con una pregunta y unos versos nuevos.
+  async function generateProduct() {
+    if (
+      !window.confirm(
+        "¿Generar publicaciones que enseñen la web?\n\n" +
+          "Se consulta el consultorio y el buscador de verdad para componer las " +
+          "piezas con contenido real, y entran en la cola como propuestas.",
+      )
+    )
+      return;
+    await call(
+      "POST",
+      "/biblioteca/admin/instagram/api/queue/generate-product",
+    );
+  }
+
   // --- Preparar en bloque lo que se quedó sin material ---
   // Hace falta porque «variar formatos» limpia el material de todo lo que
   // cambia de tipo: las diapositivas de un carrusel no sirven para un reel.
@@ -782,6 +800,16 @@ export default function InstagramPlanner({
               className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
             >
               🗓 autoprogramar
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={generateProduct}
+              data-cursor="hover"
+              title="Compone piezas del consultorio y del buscador con contenido real y las encola"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+            >
+              ✦ enseñar la web
             </button>
             <button
               type="button"

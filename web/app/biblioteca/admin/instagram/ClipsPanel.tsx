@@ -31,6 +31,7 @@ type Clip = {
   error: string | null;
   requested_by: string | null;
   ig_media_id: string | null;
+  queue_item_id: number | null;
   retired_at: string | null;
   retired_reason: string | null;
   created_at: string;
@@ -67,7 +68,14 @@ function aSegundos(valor: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export default function ClipsPanel() {
+export type Asignable = { id: number; title: string };
+
+export default function ClipsPanel({
+  asignables = [],
+}: {
+  /** Publicaciones de la cola a las que se puede enlazar un clip. */
+  asignables?: Asignable[];
+}) {
   const [clips, setClips] = useState<Clip[]>([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(false);
@@ -125,6 +133,48 @@ export default function ClipsPanel() {
       await recargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : "no se pudo pedir");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function asignar(clip: Clip) {
+    if (asignables.length === 0) {
+      window.alert("No hay publicaciones en la cola a las que enlazarlo.");
+      return;
+    }
+    const lista = asignables
+      .slice(0, 25)
+      .map((a, i) => `${i + 1}. ${a.title.slice(0, 58)}`)
+      .join("\n");
+    const eleccion = window.prompt(
+      `¿En qué publicación va este clip?\n\n${lista}\n\nEscribe el número:`,
+    );
+    if (!eleccion) return;
+    const idx = Number(eleccion) - 1;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= asignables.length) {
+      window.alert("Número no válido");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/biblioteca/admin/instagram/api/clips/${clip.id}/assign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ queue_item_id: asignables[idx].id }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `error ${res.status}`);
+      window.alert(
+        `Enlazado con «${asignables[idx].title.slice(0, 50)}».\n\n` +
+          "Ese post pasa a formato reel y hay que prepararlo para que use el clip.",
+      );
+      await recargar();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "no se pudo enlazar");
     } finally {
       setBusy(false);
     }
@@ -301,6 +351,11 @@ export default function ClipsPanel() {
                     ver original ↗
                   </a>
                 </p>
+                {c.queue_item_id && (
+                  <p className="mt-1 font-mono text-[10px] text-accent">
+                    enlazado con la publicación #{c.queue_item_id}
+                  </p>
+                )}
                 {c.retired_reason && (
                   <p className="mt-1 font-mono text-[10px] text-ink-faint">
                     retirado: {c.retired_reason}
@@ -320,6 +375,19 @@ export default function ClipsPanel() {
                   playsInline
                   className="w-[150px] h-[266px] object-contain bg-black border border-divider shrink-0"
                 />
+              )}
+
+              {c.status === "ready" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => asignar(c)}
+                  data-cursor="hover"
+                  title="Enlaza el clip con una publicación: al prepararla se usará este vídeo, con su sonido"
+                  className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40 shrink-0"
+                >
+                  {c.queue_item_id ? "cambiar post" : "usar en un post"}
+                </button>
               )}
 
               {c.status !== "retired" && (

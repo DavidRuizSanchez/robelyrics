@@ -128,7 +128,11 @@ export default async function InstagramAdminPage() {
         account={account}
       />
 
-      <ClipsPanel />
+      <ClipsPanel
+        asignables={queue
+          .filter((it) => it.status !== "published" && it.status !== "discarded")
+          .map((it) => ({ id: it.id, title: it.title }))}
+      />
     </main>
   );
 }

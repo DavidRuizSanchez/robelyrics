@@ -329,9 +329,22 @@ def gen_product(db: Session, count: int, used: set[str]) -> list[dict]:
         key = f"product:{slug}"
         if key in used:
             continue
-        captura = os.path.join(shots_dir, f.get("captura") or "")
-        if not (shots_dir and os.path.exists(captura)):
-            logger.info("[evergreen] sin captura para %s, se salta", slug)
+        # La pieza puede venir de dos sitios: generada con datos reales por
+        # `product_shots.generar()` (lo normal) o una captura de pantalla puesta
+        # a mano en data/product_shots/ (para lo que no se puede recomponer,
+        # como el karaoke, donde lo que se vende es la interacción).
+        captura = ""
+        generada = os.path.join(
+            config.IMAGES_DIR, "product", (f.get("generada") or "")
+        )
+        if f.get("generada") and os.path.exists(generada):
+            captura = generada
+        else:
+            estatica = os.path.join(shots_dir, f.get("captura") or "")
+            if shots_dir and f.get("captura") and os.path.exists(estatica):
+                captura = estatica
+        if not captura:
+            logger.info("[evergreen] sin pieza para %s, se salta", slug)
             continue
         out.append({
             "content_type": "product",

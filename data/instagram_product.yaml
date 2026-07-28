@@ -4,9 +4,15 @@
 # estos posts son el gancho de registro: la pieza enseña QUÉ hay dentro y el CTA
 # manda a /registro, nunca a la ruta privada (que rebotaría al login).
 #
-# `captura` es una ruta relativa a data/product_shots/. Si el fichero no existe,
-# el generador salta esa entrada en vez de publicar un post sin la imagen que lo
-# justifica — enseñar una funcionalidad sin enseñarla no tiene sentido.
+# Dos formas de tener la pieza:
+#   - `generada`: la compone `product_shots.generar()` consultando la API de
+#     verdad (pregunta real al consultorio, versos reales del buscador).
+#   - `captura`: una captura de pantalla puesta a mano en data/product_shots/,
+#     para lo que no se puede recomponer honestamente — el karaoke o las listas
+#     venden la interacción, y eso hay que verlo de verdad.
+#
+# Si no hay ninguna de las dos, el generador salta la entrada en vez de publicar
+# un post sin la imagen que lo justifica.
 #
 # Cuota: como mucho 1 de cada 6 publicaciones, para no volverse un folleto.
 
@@ -18,6 +24,7 @@ funcionalidades:
       No es un chatbot que se lo inventa.
       Cada respuesta se apoya en entrevistas, textos y letras reales.
       Cuando de algo no dejó dicho nada, lo dice.
+    generada: consultorio.jpg
     captura: consultorio.png
     cta: Está en Entre Interiores. Cuenta gratis.
 
@@ -27,6 +34,7 @@ funcionalidades:
     detalle: |
       Buscas «se acabó lo bonito» y te saca «se acabaron las flores de papel».
       No busca palabras: busca lo que quieres decir.
+    generada: buscador-semantico.jpg
     captura: buscador-semantico.png
     cta: Está en Entre Interiores. Cuenta gratis.
 

@@ -2747,6 +2747,58 @@ def admin_clips_assign(
     return _clip_model(clip)
 
 
+@router.post("/instagram/queue/generate-product", response_model=AdminIGBulkResult)
+def admin_ig_generate_product(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Genera las piezas que enseñan la web y las encola.
+
+    Las piezas se componen consultando la API de VERDAD (pregunta real al
+    consultorio, versos reales del buscador), así que cada vez que se pulsa
+    salen con contenido nuevo y actual.
+    """
+    from app.services.instagram import evergreen as _ev
+    from app.services.instagram import product_shots as _ps
+
+    result = AdminIGBulkResult()
+    try:
+        _ps.generar(db)
+    except Exception as exc:  # noqa: BLE001
+        result.failed.append({"id": 0, "error": f"al componer las piezas: {exc}"})
+
+    usados = _ev.used_content_keys(db)
+    candidatos = _ev.gen_product(db, count=4, used=usados)
+    if not candidatos:
+        result.failed.append(
+            {"id": 0, "error": "sin piezas disponibles (o ya estaban todas en la cola)"}
+        )
+        return result
+
+    pos = db.query(func.coalesce(func.max(_IGItem.position), -1)).scalar() or -1
+    for i, cand in enumerate(candidatos, start=1):
+        it = _IGItem(
+            day=_date.today(), slot=2, position=pos + i,
+            content_type=cand["content_type"], content_key=cand["content_key"],
+            title=cand["title"][:300], category=cand.get("category"),
+            summary=cand.get("summary"), source_name=cand.get("source_name"),
+            status="proposed",
+        )
+        db.add(it)
+        db.commit()
+        db.refresh(it)
+        try:
+            _ig_publisher.prepare(db, it)
+            result.ok.append(it.id)
+        except Exception as exc:  # noqa: BLE001
+            it.status = "failed"
+            it.error = f"prepare: {exc}"
+            db.commit()
+            result.failed.append({"id": it.id, "error": str(exc)[:200]})
+    return result
+
+
+
 class AdminIGShuffleIn(BaseModel):
     # Cambiar la semilla da otro reparto; con la misma, el resultado se repite.
     seed: int = 0
