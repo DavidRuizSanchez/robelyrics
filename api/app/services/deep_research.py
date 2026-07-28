@@ -55,6 +55,25 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+# Etiqueta de procedencia por fichero de referencia. Antes TODO se citaba como
+# «[De Profundis]», así que datos de Wikipedia acababan atribuidos a un libro que
+# no los dice: una cita falsa es tan grave como un dato inventado. Los ficheros
+# nuevos pueden declarar su fuente con `<!-- fuente: ... -->` en la cabecera.
+_REF_LABELS = {
+    "deprofundis_facts": "De Profundis",
+    "viaje_intimo_novela": "El viaje íntimo de la locura",
+    "wikipedia_giras_facts": "Wikipedia",
+    "robe_solo_y_entorno": "research web",
+}
+
+
+def _reference_label(stem: str, text: str) -> str:
+    m = re.search(r"<!--\s*fuente:\s*(.+?)\s*-->", text[:500], re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return _REF_LABELS.get(stem, stem.replace("_", " "))
+
+
 def _reference_facts(names: list[str]) -> list[str]:
     """Párrafos/líneas de data/reference/*.md que mencionan a la entidad."""
     here = Path(__file__).resolve()
@@ -73,10 +92,11 @@ def _reference_facts(names: list[str]) -> list[str]:
             text = md.read_text(encoding="utf-8")
         except OSError:
             continue
+        label = _reference_label(md.stem, text)
         for line in text.splitlines():
             nline = _norm(line)
             if len(line.strip()) > 40 and any(k in nline for k in keys):
-                out.append(f"[De Profundis] {line.strip().lstrip('-* ')}")
+                out.append(f"[{label}] {line.strip().lstrip('-* ')}")
     return out
 
 
