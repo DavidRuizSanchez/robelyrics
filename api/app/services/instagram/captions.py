@@ -148,6 +148,29 @@ def _ctx_moldes(topic: dict) -> dict:
     return ctx
 
 
+def _atribucion(ctx: dict) -> str:
+    """«Canción» · Artista · Disco (año), reconstruida desde el corpus AHORA.
+
+    No se reutiliza el `summary` del item: es un snapshot de cuando se encoló y
+    envejece mal. Un caso real lo demostró en producción — un post preparado
+    antes de corregir el catálogo seguía diciendo «Rock Transgresivo (1989)»
+    cuando el disco es de 1994 (1989 era la fecha de la maqueta). El molde, que
+    sí lee la BD, decía 1994 en la misma pieza: el post se contradecía solo.
+
+    Regla del proyecto: cada dato se re-deriva de su fuente canónica en el
+    momento de usarlo, nunca se arrastra de un texto anterior.
+    """
+    song, artist, album = ctx.get("song"), ctx.get("artist"), ctx.get("album")
+    if not (song and album):
+        return ""
+    partes = [f"«{song}»"]
+    if artist:
+        partes.append(str(artist))
+    anio = f" ({ctx['year']})" if ctx.get("year") else ""
+    partes.append(f"{album}{anio}")
+    return " · ".join(partes)
+
+
 def build(db: Session, topic: dict) -> str:
     """Construye el caption final del post."""
     content_type = topic.get("content_type") or "news"
@@ -168,7 +191,7 @@ def build(db: Session, topic: dict) -> str:
     #    troceado a una frase por línea (que es como respiran los captions que
     #    funcionan en este nicho).
     if content_type in IMAGEN_SE_BASTA:
-        body = (topic.get("summary") or "").strip()
+        body = _atribucion(ctx) or (topic.get("summary") or "").strip()
         if body:
             lines += ["", body]
     else:

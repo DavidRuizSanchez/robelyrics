@@ -183,3 +183,27 @@ def test_post_de_verso_no_repite_el_verso():
     caption = captions.build(None, topic)
     assert caption.count(verso) == 0, "el verso ya va escrito en la imagen"
     assert "Standby" in caption, "pero sí debe llevar la atribución"
+
+
+# --------------------------------------------------------------------------- #
+# La atribución se re-deriva del corpus, no se arrastra del summary
+# --------------------------------------------------------------------------- #
+def test_la_atribucion_no_usa_el_summary_viejo():
+    """Caso real de producción: un post preparado antes de corregir el catálogo
+    decía «Rock Transgresivo (1989)» cuando el disco es de 1994."""
+    topic = _topic(
+        title="Soy yo el guionista de mi única novela",
+        summary="«Emparedado (Rock Transgresivo)» · Extremoduro · Rock Transgresivo (1989)",
+        corpus={"song": "Emparedado", "album": "Rock Transgresivo", "year": 1994,
+                "artist": "Extremoduro"},
+    )
+    caption = captions.build(None, topic)
+    assert "1989" not in caption, "se está arrastrando el año viejo del summary"
+    assert "1994" in caption
+    # Y sin el desambiguador interno del catálogo.
+    assert "Emparedado (Rock Transgresivo)" not in caption
+
+
+def test_sin_corpus_cae_al_summary():
+    topic = _topic(summary="«X» · Extremoduro · Y (2000)", corpus={})
+    assert "«X»" in captions.build(None, topic)
