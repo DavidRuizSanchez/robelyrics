@@ -88,6 +88,22 @@ portada original colgada». La contraportada original sí circula: se reconoce p
 lista los ocho temas del disco, «Amor castúo» incluido, y acredita la grabación en los
 Estudios M-20.
 
+## Lo que dice la propia contraportada (fuente primaria)
+
+La contraportada de la edición de Avispa acredita, con estas palabras:
+
+- Los ocho temas por orden: «La hoguera», «Extremaydura», «Romperás», «Amor castúo»,
+  «Decidí», «Jesucristo García», «Emparedado», «Arrebato».
+- «Producido por Extremoduro para Avispa».
+- «Grabado y mezclado en los Estudios M-20, Madrid».
+- Ingeniero de sonido: **J.J. Serrano**. Ayudante técnico: **Iván Camacho**.
+- Diseño de portada: **Rafael Gallego**.
+- «(P) (C) Copyright **1990** by Avispa», editado y distribuido por Avispa (Madrid).
+
+El copyright impreso en el propio disco zanja la discusión del año: 1990. Las
+discografías que lo fechan en 1989 se están refiriendo a la grabación (finales de
+1989 en M-20) o al depósito legal, no a la publicación.
+
 ## Cómo se ordena en el catálogo
 
 Por fecha de publicación: «Tú en tu casa, nosotros en la hoguera» (1990) es el **primer
@@ -113,3 +129,11 @@ no la de publicación—, lo que lo colocaba erróneamente como debut.
 - La Fonoteca, ficha del disco (consultado 2026-07-28): la banda compró los derechos en
   1998 para retirarlo de la venta; la portada original no está ni en la web oficial del
   grupo, y la imagen que se muestra habitualmente es la de la reedición de DRO de 1994.
+- **Contraportada de la edición de Avispa** (fuente primaria; imagen en
+  `web/public/album-covers/tu-en-tu-casa-nosotros-en-la-hoguera.jpg`, vía Musicoscopio):
+  tracklist de los 8 temas, producción, Estudios M-20, J.J. Serrano, Iván Camacho,
+  diseño de Rafael Gallego y copyright de 1990.
+- «Extremoduro. De Profundis» (Javier Menéndez Flores): maqueta de enero de 1989 en
+  Duplimatic; debut grabado en M-20 en menos de una semana con J.J. Serrano e Iván
+  Camacho, portada de Rafael Gallego; «reeditado 1994 como Rock transgresivo»
+  (remezclado por Uoho; técnicos Aitor Ariño, Félix Arribas, Josu Monge).
