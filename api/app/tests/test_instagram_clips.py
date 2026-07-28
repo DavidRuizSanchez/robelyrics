@@ -230,3 +230,26 @@ def test_el_montaje_da_9_16_venga_como_venga(ancho, alto, tmp_path):
         capture_output=True, text=True,
     )
     assert medida.stdout.strip() == f"{vc.ANCHO},{vc.ALTO}"
+
+
+def test_el_borrado_invalida_la_cache_del_cdn():
+    """Sin `invalidate`, Cloudinary borra el asset pero el CDN lo sigue sirviendo.
+
+    Comprobado en la primera prueba de retirada: el fichero ya no existía en la
+    cuenta y su URL seguía devolviendo HTTP 200.
+    """
+    import inspect
+    from app.services.instagram import cloudinary_upload
+    assert "invalidate=True" in inspect.getsource(cloudinary_upload.destroy)
+
+
+def test_la_retirada_no_promete_lo_que_no_puede(db, monkeypatch):
+    """La invalidación del CDN tarda: el mensaje no debe decir que ya no existe."""
+    from app.services.instagram import cloudinary_upload
+    monkeypatch.setattr(cloudinary_upload, "destroy", lambda *a, **k: True)
+
+    clip = vc.solicitar(db, URL, 0, 20)
+    clip.cloudinary_public_id = "x/y"
+    db.commit()
+    _, msg = vc.retire(db, clip, motivo="aviso")
+    assert "CDN" in msg or "caché" in msg

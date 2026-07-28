@@ -238,4 +238,9 @@ def retire(db: Session, clip: VideoClip, motivo: str) -> tuple[bool, str]:
 
     if problemas:
         return False, "Retirado en nuestro registro, pero: " + " · ".join(problemas)
-    return True, "Clip retirado por completo"
+    # NO se promete que ya sea inaccesible: el borrado en Cloudinary es
+    # inmediato, pero la copia del CDN tarda unos minutos en invalidarse.
+    return True, (
+        "Clip retirado. El fichero puede seguir sirviéndose desde la caché del "
+        "CDN unos minutos más"
+    )

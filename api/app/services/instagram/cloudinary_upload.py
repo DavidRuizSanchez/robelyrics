@@ -62,7 +62,18 @@ def upload_video(
 
 
 def destroy(public_id: str, resource_type: str = "image") -> bool:
-    """Borra un asset de Cloudinary. Para retirar un clip rápido si hace falta."""
+    """Borra un asset de Cloudinary. Para retirar un clip rápido si hace falta.
+
+    `invalidate=True` es imprescindible y no es un detalle: sin él, Cloudinary
+    borra el asset pero la copia del CDN sigue sirviéndose desde su URL. Se
+    comprobó en la primera prueba de retirada — el fichero ya no existía en la
+    cuenta y la URL seguía devolviendo 200.
+
+    La invalidación no es instantánea: Cloudinary la propaga por el CDN en unos
+    minutos. Quien llame a esto no debe prometer que el vídeo ya es inaccesible.
+    """
     _ensure()
-    res = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+    res = cloudinary.uploader.destroy(
+        public_id, resource_type=resource_type, invalidate=True
+    )
     return res.get("result") == "ok"
