@@ -115,9 +115,16 @@ Esto te da un token de servidor que no expira, ideal para el cron.
 4. **Generar nuevo token**:
    - App: la app nueva.
    - **Caducidad del token: Nunca**.
-   - Permisos (marca estos 5):
+   - Permisos (marca estos 6):
      `instagram_basic`, `instagram_content_publish`,
-     `pages_show_list`, `pages_read_engagement`, `business_management`.
+     `pages_show_list`, `pages_read_engagement`, `business_management`,
+     `instagram_manage_insights`.
+
+   > ⚠️ `instagram_manage_insights` faltaba en el token generado en su día y
+   > por eso **cualquier LECTURA de datos falla con `(#10) Application does not
+   > have permission for this action`**: tanto los insights de la propia cuenta
+   > como `business_discovery` (estudiar qué publican otras cuentas). Publicar
+   > sí funcionaba, porque eso solo necesita `instagram_content_publish`.
    - **Generar** → copia el token YA (solo se muestra una vez) → ese es
      `INSTAGRAM_ACCESS_TOKEN`.
 

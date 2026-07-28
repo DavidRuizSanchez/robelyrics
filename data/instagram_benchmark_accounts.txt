@@ -1,0 +1,22 @@
+# Cuentas de Instagram de referencia para el estudio de patrones.
+#
+# Un username por línea (sin @, aunque se admite «@cuenta» y la URL del perfil).
+# Las líneas vacías y lo que siga a '#' se ignoran.
+#
+# OJO: `business_discovery` de la Graph API solo alcanza cuentas Business o
+# Creator. Las cuentas PERSONALES no devuelven datos y quedarán registradas
+# como no legibles en el JSON de salida — no se estima nada por ellas.
+#
+# Uso:
+#   docker compose exec api python -m scripts.instagram.benchmark_accounts
+#   docker compose exec api python -m scripts.instagram.analyze_benchmark
+
+donrobertoiniesta
+robe_extremoduro
+robeenelalma
+robe_dice_
+entrerobeyextremo
+roberto.iniesta_
+cuando.eldiabloseaburre
+elpoderdel_arte
+robeinnato
