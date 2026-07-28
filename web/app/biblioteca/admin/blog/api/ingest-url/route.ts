@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-// Proxy POST → /admin/proposals/from-url.
-// Body: { url: string, topic?: string, rewrite?: boolean, force?: boolean }.
-// La reescritura editorial investiga + escribe + verifica, así que puede tardar
-// 1-2 min: dejamos que el route handler corra el tiempo que haga falta.
-export const maxDuration = 300;
+// Proxy del alta manual desde URL.
+//   POST → /admin/proposals/from-url  (encola y responde 202 al momento)
+//   GET  → /admin/ingest-jobs?limit=N  (estado de los últimos trabajos)
+//
+// El trabajo real tarda 2-4 min y Cloudflare corta a los 100 s, así que NO se
+// espera aquí: corre en el servidor y el panel pregunta por él. Por eso este
+// handler es rápido y no necesita maxDuration largo.
+// Body del POST: { url, topic?, body_text?, rewrite?, force? }.
+
+function unwrap(e: unknown) {
+  if (e instanceof ApiError) {
+    const detail =
+      typeof e.detail === "object" && e.detail !== null && "detail" in e.detail
+        ? (e.detail as { detail: unknown }).detail
+        : e.detail;
+    if (typeof detail === "object" && detail !== null) {
+      return NextResponse.json(detail, { status: e.status });
+    }
+    return NextResponse.json({ error: String(detail) }, { status: e.status });
+  }
+  return NextResponse.json({ error: "error interno" }, { status: 500 });
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -19,16 +36,20 @@ export async function POST(request: Request) {
       method: "POST",
       body,
     });
+    return NextResponse.json(data, { status: 202 });
+  } catch (e) {
+    return unwrap(e);
+  }
+}
+
+export async function GET(request: Request) {
+  const limit = new URL(request.url).searchParams.get("limit") || "5";
+  try {
+    const data = await apiFetch<unknown>(
+      `/admin/ingest-jobs?limit=${encodeURIComponent(limit)}`,
+    );
     return NextResponse.json(data);
   } catch (e) {
-    if (e instanceof ApiError) {
-      // FastAPI devuelve { detail: "..." }; desempaquétalo para el aviso.
-      const detail =
-        typeof e.detail === "object" && e.detail !== null && "detail" in e.detail
-          ? (e.detail as { detail: unknown }).detail
-          : e.detail;
-      return NextResponse.json({ error: String(detail) }, { status: e.status });
-    }
-    return NextResponse.json({ error: "error interno" }, { status: 500 });
+    return unwrap(e);
   }
 }

@@ -1616,6 +1616,61 @@ class YouTubeIngestQueue(Base):
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class UrlIngestJob(Base):
+    """Alta manual de una noticia desde una URL, ejecutada en SEGUNDO PLANO.
+
+    El motor tarda de 2 a 4 minutos (planifica, investiga, escribe sección a
+    sección verificando cada una y, si el gate de rigor la rechaza, reintenta con
+    investigación reforzada). Cloudflare corta cualquier petición a los 100 s: por
+    HTTP síncrono el admin recibía un `524` y NUNCA llegaba a ver el resultado —
+    ni la propuesta creada ni las razones del rechazo—, aunque el servidor hubiera
+    terminado bien. Medido en prod: 264,8 s de punta a punta.
+
+    Ahora la petición solo encola. El trabajo lo ejecuta el servidor, así que
+    sobrevive a cerrar la pestaña, y el estado vive en BD (no en memoria) porque
+    uvicorn corre con varios workers y el polling puede caer en otro distinto.
+
+    `status`: running → done | rejected | failed
+      - `done`     → `proposal_id` apunta a la propuesta creada.
+      - `rejected` → el editor jefe la tumbó; `score` y `reasons` explican por qué.
+      - `failed`   → se rompió algo; `error` lo cuenta.
+    """
+
+    __tablename__ = "url_ingest_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'done', 'rejected', 'failed')",
+            name="ck_url_ingest_jobs_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # La petición, tal cual, para poder reintentarla sin volver a pegar el texto.
+    url: Mapped[str] = mapped_column(String(1000), nullable=False, index=True)
+    topic: Mapped[str | None] = mapped_column(String(240))
+    body_text: Mapped[str | None] = mapped_column(Text)
+    rewrite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    force: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="running", index=True
+    )
+    proposal_id: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(String(240))
+    rewritten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    warning: Mapped[str | None] = mapped_column(Text)
+    # Veredicto del gate cuando rechaza (para pintarlo en el panel).
+    score: Mapped[int | None] = mapped_column(Integer)
+    reasons: Mapped[list | None] = mapped_column(JSONB)
+    boosted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 # --------------------------------------------------------------------------- #
 # Política de nombre (REGLA DURA): la forma "Robe Iniesta" NUNCA debe persistir
 # en contenido (a él no le gustaba). Listeners a nivel ORM → cualquier escritura

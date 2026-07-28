@@ -107,6 +107,33 @@ en `notification_digests`, recordatorio cada 14 días). `verification_records.ap
 distingue lo aplicado de verdad de lo re-verificado: `checked_at` se re-sella cada
 noche y por eso el correo repetía siempre las mismas "auto-correcciones".
 
+## Alta manual de noticias: en segundo plano, y con el editor jefe delante
+
+Pegar una URL en `/biblioteca/admin/blog` **no** genera nada en la petición: crea un
+`UrlIngestJob` y responde 202 en ~0,2 s. El trabajo lo ejecuta el servidor
+(`app/services/url_ingest.py`), así que sobrevive a cerrar la pestaña, y el panel
+pregunta por él en `GET /admin/ingest-jobs`. Es obligatorio que sea así: el ciclo
+completo mide **264,8 s** en prod y **Cloudflare corta a los 100 s** — en síncrono
+solo se veía un `524`, nunca el resultado.
+
+Dos cosas que hay que respetar al tocar esto:
+
+- **Un medio puede bloquear la descarga** (el WAF de deia.eus responde 406 a todo lo
+  que no sea un navegador, incluso en su `robots.txt`). No se disfraza el User-Agent:
+  el formulario tiene «cuerpo del artículo» para pegar el texto a mano, y con eso el
+  resto del pipeline corre igual.
+- **El gate de rigor** (`editorial_review`) sí corre aquí, con un reintento de
+  investigación reforzada (`research_and_write(boost=True)`) si rechaza. Potenciar es
+  traer MÁS MATERIAL REAL, nunca aflojar el listón. Pero el gate es durísimo y falla
+  a favor del rechazo, así que «forzar» es la válvula: guarda igual con el veredicto
+  colgado. `scripts/blog/audit_published.py` **despublica** lo que el gate rechaza y
+  por eso **no está en el crontab**; dejarlo así hasta calibrarlo.
+
+El motor busca el corpus por el sujeto **y** por las entidades citadas
+(`news_research.entity_dossiers`): buscar «Bar Umore Ona de Bilbao» daba 0 resultados
+mientras «Calle Esperanza S/N» —la canción de la que iba la noticia— daba su letra,
+sus créditos y su disco.
+
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
 `infra/cron/production.crontab`. Guía de migración (jubilación del proyecto

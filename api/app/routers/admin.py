@@ -24,7 +24,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -1277,7 +1277,11 @@ def admin_subscribers_delete(
 # --------------------------------------------------------------------------- #
 from datetime import date as _date, timedelta as _timedelta  # noqa: E402
 
-from app.db.models import ContentProposal as _Proposal  # noqa: E402
+from app.db.models import (  # noqa: E402
+    ContentProposal as _Proposal,
+    UrlIngestJob as _IngestJob,
+)
+from app.services import url_ingest  # noqa: E402
 from app.services.publishing import (  # noqa: E402
     EVENT_LEAD_DAYS,
     PUBLISH_SLOT_DAYS,
@@ -1342,10 +1346,17 @@ class ProposalFromUrlIn(BaseModel):
     programa desde el mismo panel. Con `rewrite` (por defecto) pasa por la
     misma investigación + voz editorial + verificación factual que las
     noticias del cron; sin él, guarda el texto scrapeado tal cual.
+
+    `body_text` es la salida para los medios que bloquean la descarga desde el
+    server (WAF que responde 406/403 a cualquier UA que no sea navegador, muros
+    de pago, artículos montados por JS): el admin abre el artículo, copia el
+    texto y lo pega. Si viene, se usa en vez de descargar — el resto del
+    pipeline (voz editorial, fact-check, dedup) corre igual.
     """
 
     url: str
     topic: str | None = None  # pista del tema (si el título no basta)
+    body_text: str | None = None  # texto pegado a mano si el scrape no puede
     rewrite: bool = True       # voz editorial + investigación + fact-check
     force: bool = False        # salta el dedup por tema (no el de URL exacta)
 
@@ -1355,11 +1366,44 @@ class ProposalFromUrlIn(BaseModel):
         return _validate_external_url(v)
 
 
-class ProposalFromUrlOut(BaseModel):
-    proposal_id: int
-    title: str
-    rewritten: bool
+class UrlIngestJobOut(BaseModel):
+    """Estado de un alta manual. El trabajo tarda minutos y corre en segundo
+    plano, así que el panel pregunta por él hasta que deja de estar `running`."""
+
+    id: int
+    status: str  # running | done | rejected | failed
+    url: str
+    # done
+    proposal_id: int | None = None
+    title: str | None = None
+    rewritten: bool = False
     warning: str | None = None
+    # rejected (veredicto del editor jefe)
+    score: int | None = None
+    reasons: list[str] = []
+    boosted: bool = False
+    # failed
+    error: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
+def _job_to_out(j: "_IngestJob") -> UrlIngestJobOut:
+    return UrlIngestJobOut(
+        id=j.id,
+        status=j.status,
+        url=j.url,
+        proposal_id=j.proposal_id,
+        title=j.title,
+        rewritten=bool(j.rewritten),
+        warning=j.warning,
+        score=j.score,
+        reasons=list(j.reasons or []),
+        boosted=bool(j.boosted),
+        error=j.error,
+        created_at=j.created_at,
+        finished_at=j.finished_at,
+    )
 
 
 class TitleCandidate(BaseModel):
@@ -1907,186 +1951,87 @@ def admin_proposal_set_title(
     )
 
 
-def _scrape_article(url: str) -> tuple[str, str]:
-    """Descarga una URL y devuelve (título, texto del artículo).
-
-    Reutiliza el extractor de `fetch_blogs`. La validación SSRF la hace ya el
-    schema (`_validate_external_url`). Lanza HTTPException si no hay contenido
-    aprovechable."""
-    try:
-        with httpx.Client(timeout=20, follow_redirects=True) as client:
-            r = client.get(url, headers=HEADERS)
-        if r.status_code != 200:
-            raise HTTPException(status_code=400, detail=f"la URL devolvió {r.status_code}")
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=400, detail=f"error al descargar la URL: {e}") from e
-
-    text = extract_article_text(r.text)
-    if not text or len(text) < 200:
-        raise HTTPException(
-            status_code=400,
-            detail="no se ha podido extraer un cuerpo aprovechable (<200 chars)",
-        )
-
-    title = ""
-    soup = BeautifulSoup(r.text, "html.parser")
-    if soup.title and soup.title.string:
-        title = soup.title.string.strip()
-    if not title and soup.h1:
-        title = soup.h1.get_text(strip=True)
-    return title[:240], text
-
-
-@router.post("/proposals/from-url", response_model=ProposalFromUrlOut)
+@router.post(
+    "/proposals/from-url", response_model=UrlIngestJobOut, status_code=202
+)
 @limiter.limit("20/hour")
 def admin_proposal_from_url(
     request: Request,
     body: ProposalFromUrlIn,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
-) -> ProposalFromUrlOut:
-    """Crea una propuesta de blog (`kind='news'`) a partir de una URL pegada a
-    mano. Con `rewrite` pasa por la misma investigación + voz editorial +
-    verificación factual que el consumidor de noticias; sin él, guarda el texto
-    scrapeado. Entra como `proposed` para revisarla en el panel."""
-    from app.services.content_dedup import (
-        NEWS_RECENCY_DAYS,
-        content_key_for,
-        is_duplicate,
+) -> UrlIngestJobOut:
+    """ENCOLA el alta de una propuesta desde una URL y responde al momento (202).
+
+    El trabajo real (investigación + voz editorial + verificación + gate de rigor)
+    tarda de 2 a 4 minutos y Cloudflare corta a los 100 s, así que no cabe en la
+    petición: lo ejecuta el servidor en segundo plano —sobrevive a cerrar la
+    pestaña— y el panel consulta el estado con `GET /admin/ingest-jobs`.
+    """
+    job = _IngestJob(
+        url=body.url,
+        topic=body.topic,
+        body_text=body.body_text,
+        rewrite=body.rewrite,
+        force=body.force,
+        status="running",
     )
-
-    title_scraped, text = _scrape_article(body.url)
-
-    # Dedup duro por URL exacta: si ya existe propuesta de esa fuente, no repetir.
-    existing = (
-        db.query(_Proposal.id)
-        .filter(_Proposal.source_url == body.url)
-        .first()
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=f"ya existe una propuesta (#{existing[0]}) con esa URL",
-        )
-
-    warning: str | None = None
-    entities: list = []
-    hero_pkg: dict | None = None
-    event_date = None
-    video = None
-
-    if body.rewrite:
-        from app.services.news_research import research_and_write
-
-        matched = (body.topic or title_scraped or "Robe Extremoduro").strip()
-        try:
-            rw = research_and_write(
-                db=db,
-                headline=title_scraped or matched,
-                source_excerpt=text,
-                matched_term=matched,
-                today=_date.today(),
-            )
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(
-                status_code=502, detail=f"la reescritura editorial falló: {exc}"
-            ) from exc
-
-        if not rw.get("is_relevant", True) or not rw.get("title"):
-            # El clasificador no la ve del universo Robe. No se descarta (el admin
-            # la subió a propósito): se guarda en crudo con un aviso para revisión.
-            warning = (
-                "el clasificador no la ve claramente del universo Robe/Extremoduro; "
-                "se ha guardado el texto sin reescribir — revísala con cuidado"
-            )
-            title = title_scraped or matched
-            body_md = f"{text}\n"
-            excerpt = text[:200]
-            meta_title = title[:60]
-            meta_description = text[:155]
-        else:
-            title = rw["title"][:240]
-            body_md = rw["body_md"]
-            excerpt = (rw.get("excerpt") or "")[:200]
-            meta_title = (rw.get("meta_title") or "")[:60]
-            meta_description = (rw.get("meta_description") or "")[:155]
-            event_date = rw.get("event_date")  # date o None (solo si explícita)
-            video = rw.get("video")  # {youtube_id,...} o None
-            entities = [
-                e for e in (rw.get("entities") or [])
-                if isinstance(e, dict) and e.get("name")
-            ]
-            hero_pkg = rw.get("hero")  # paquete coherente {url,alt,...} o None
-            if hero_pkg:
-                try:
-                    from app.services.instagram import cloudinary_upload
-                    hosted = cloudinary_upload.upload(
-                        hero_pkg["url"], folder="entreinteriores-art"
-                    )
-                    hero_pkg = {**hero_pkg, "url": hosted,
-                                "source": hero_pkg.get("source") or hero_pkg["url"]}
-                except Exception:  # noqa: BLE001 — la foto es opcional
-                    hero_pkg = None
-    else:
-        if not title_scraped:
-            raise HTTPException(
-                status_code=400,
-                detail="no se pudo extraer un título; activa la reescritura editorial",
-            )
-        title = title_scraped
-        body_md = f"{text}\n"
-        excerpt = text[:200]
-        meta_title = title[:60]
-        meta_description = text[:155]
-
-    # Dedup por evento/tema (otra fuente del mismo hecho), salvo `force`.
-    ckey = content_key_for("news", title=title)
-    if not body.force and is_duplicate(db, ckey, recency_days=NEWS_RECENCY_DAYS):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "ya hay una propuesta o post reciente del mismo tema; "
-                "marca 'forzar' si quieres crearla igualmente"
-            ),
-        )
-
-    # Fecha sugerida: si hay evento futuro, publicar con antelación (event−3 días).
-    from app.services.publishing import recommended_from_event
-    recommended_date = recommended_from_event(event_date, _date.today())
-
-    proposal = _Proposal(
-        kind="news",
-        title=title,
-        angle="Subida manual desde URL",
-        body_md=body_md,
-        excerpt=excerpt,
-        meta_title=meta_title,
-        meta_description=meta_description,
-        # source_url para referencia interna; source_name=None (no acreditamos al
-        # medio: la investigación/reescritura es nuestra, igual que en scrape_news).
-        source_url=body.url,
-        source_name=None,
-        hero_image_url=(hero_pkg or {}).get("url"),
-        hero_image_alt=(hero_pkg or {}).get("alt"),
-        hero_image_attribution=(hero_pkg or {}).get("attribution"),
-        hero_image_license=(hero_pkg or {}).get("license"),
-        hero_image_source_url=(hero_pkg or {}).get("source"),
-        entities=entities,
-        content_key=ckey,
-        event_date=event_date,
-        recommended_date=recommended_date,
-        video=video,
-        status="proposed",
-    )
-    db.add(proposal)
+    db.add(job)
     db.commit()
-    db.refresh(proposal)
-    return ProposalFromUrlOut(
-        proposal_id=proposal.id,
-        title=title,
-        rewritten=bool(body.rewrite and warning is None),
-        warning=warning,
+    db.refresh(job)
+    background.add_task(url_ingest.run_job, job.id)
+    return _job_to_out(job)
+
+
+@router.get("/ingest-jobs", response_model=list[UrlIngestJobOut])
+def admin_ingest_jobs(
+    limit: int = 5,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[UrlIngestJobOut]:
+    """Últimos trabajos de alta manual. El panel lo consulta al cargar para
+    recuperar lo que quedó corriendo cuando se cerró la pestaña."""
+    # Huérfanos: el trabajo vive en el proceso de la API, así que un reinicio (un
+    # deploy, sin ir más lejos) lo mata sin que nadie lo marque. Sin esto el panel
+    # se quedaría girando para siempre. El techo real medido son ~4,5 min.
+    stale = (
+        db.query(_IngestJob)
+        .filter(
+            _IngestJob.status == "running",
+            _IngestJob.created_at < datetime.now(timezone.utc) - _timedelta(minutes=15),
+        )
+        .all()
     )
+    for j in stale:
+        j.status = "failed"
+        j.error = (
+            "el trabajo se perdió (probablemente un reinicio del servidor); "
+            "vuelve a intentarlo"
+        )
+        j.finished_at = datetime.now(timezone.utc)
+    if stale:
+        db.commit()
+
+    rows = (
+        db.query(_IngestJob)
+        .order_by(_IngestJob.id.desc())
+        .limit(max(1, min(limit, 20)))
+        .all()
+    )
+    return [_job_to_out(j) for j in rows]
+
+
+@router.get("/ingest-jobs/{job_id}", response_model=UrlIngestJobOut)
+def admin_ingest_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> UrlIngestJobOut:
+    job = db.get(_IngestJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="trabajo no encontrado")
+    return _job_to_out(job)
 
 
 # --------------------------------------------------------------------------- #
