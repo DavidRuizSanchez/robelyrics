@@ -253,3 +253,48 @@ def test_la_retirada_no_promete_lo_que_no_puede(db, monkeypatch):
     db.commit()
     _, msg = vc.retire(db, clip, motivo="aviso")
     assert "CDN" in msg or "caché" in msg
+
+
+# --------------------------------------------------------------------------- #
+# Canales vetados: los oficiales no
+# --------------------------------------------------------------------------- #
+# Decisión del usuario tras ver que el primer clip de prueba salió del canal
+# «Extremoduro (Oficial)». Publicar de un canal de fan y del canal oficial de la
+# banda o su discográfica no tienen el mismo riesgo: el titular de derechos es
+# quien reclamaría y Meta puede tumbar el post automáticamente.
+
+@pytest.mark.parametrize(
+    "canal",
+    [
+        "Extremoduro (Oficial)",
+        "Robe Iniesta Official",
+        "ExtremoduroVEVO",
+        "Extremoduro - Topic",
+        "Warner Music Spain",
+        "Sony Music España",
+        "DRO East West",
+    ],
+)
+def test_los_canales_oficiales_estan_vetados(canal):
+    assert vc.canal_vetado(canal) is not None
+
+
+@pytest.mark.parametrize(
+    "canal",
+    ["Juancares", "Rock del Bueno", "Archivo Extremoduro Fans", "El Faro (SER)"],
+)
+def test_los_canales_de_fan_y_archivo_valen(canal):
+    assert vc.canal_vetado(canal) is None
+
+
+def test_sin_canal_no_se_veta_a_ciegas():
+    assert vc.canal_vetado("") is None
+    assert vc.canal_vetado(None) is None
+
+
+def test_el_veto_se_comprueba_con_el_canal_REAL():
+    """No con lo que uno crea al pegar la URL: el nombre lo da yt-dlp."""
+    import inspect
+    fuente = inspect.getsource(vc.descargar_y_recortar)
+    assert "canal_vetado(canal_real)" in fuente
+    assert 'info or {}).get("uploader")' in fuente

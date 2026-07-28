@@ -2728,6 +2728,48 @@ def admin_ig_shuffle_formats(
     )
 
 
+class AdminIGBulkPrepareIn(BaseModel):
+    # Sin ids, prepara TODO lo que esté pendiente y sin material.
+    ids: list[int] | None = None
+    limit: int = 20
+
+
+@router.post("/instagram/queue/bulk-prepare", response_model=AdminIGBulkResult)
+def admin_ig_bulk_prepare(
+    payload: AdminIGBulkPrepareIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Genera el material de los posts que se quedaron sin él.
+
+    Hace falta porque el repartidor de formatos deja en `pending` y sin
+    material todo lo que cambia de formato (las diapositivas de un carrusel no
+    valen para un reel). Sin esto habría que entrar post por post.
+
+    `limit` acota el coste: generar un reel o un carrusel no es gratis.
+    """
+    q = db.query(_IGItem).filter(_IGItem.status.in_(("pending", "prepared")))
+    if payload.ids:
+        q = q.filter(_IGItem.id.in_(payload.ids))
+    else:
+        q = q.filter(_IGItem.caption.is_(None) | (_IGItem.image_path.is_(None)))
+    items = q.order_by(_IGItem.position, _IGItem.id).limit(
+        max(1, min(payload.limit, 50))
+    ).all()
+
+    result = AdminIGBulkResult()
+    for it in items:
+        try:
+            _ig_publisher.prepare(db, it)
+            result.ok.append(it.id)
+        except Exception as exc:  # noqa: BLE001
+            it.status = "failed"
+            it.error = f"prepare: {exc}"
+            db.commit()
+            result.failed.append({"id": it.id, "error": str(exc)[:200]})
+    return result
+
+
 @router.post("/instagram/queue/bulk-approve", response_model=AdminIGBulkResult)
 def admin_ig_bulk_approve(
     payload: AdminIGBulkIn,

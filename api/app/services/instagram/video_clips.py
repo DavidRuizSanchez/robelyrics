@@ -50,6 +50,29 @@ _YT_ID = re.compile(
     r"(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)([\w-]{11})"
 )
 
+# Canales de los que NO se cogen clips.
+#
+# Publicar un fragmento de un canal de fan y publicarlo del canal OFICIAL de la
+# banda o de su discográfica no tienen el mismo riesgo: el titular de derechos es
+# justo quien reclamaría, e Instagram detecta audio con derechos y puede tumbar
+# el post sin que intervenga nadie. Los canales de fan, entrevistas y archivo son
+# terreno mucho más tranquilo.
+#
+# Se comprueba sobre el nombre del canal que devuelve yt-dlp, que es el real, no
+# sobre lo que uno crea al pegar la URL.
+CANALES_VETADOS = (
+    "oficial", "official", "vevo", " - topic", "records", "discos",
+    "warner", "sony music", "universal music", "dro east west",
+)
+
+
+def canal_vetado(canal: str) -> str | None:
+    """Devuelve el patrón que veta a este canal, o None si se puede usar."""
+    c = (canal or "").casefold()
+    if not c:
+        return None
+    return next((p for p in CANALES_VETADOS if p in c), None)
+
 
 def extraer_video_id(url: str) -> str | None:
     """El id de 11 caracteres de una URL de YouTube, o None si no lo parece."""
@@ -142,6 +165,18 @@ def descargar_y_recortar(
         }
         with yt_dlp.YoutubeDL(opciones) as ydl:
             info = ydl.extract_info(url, download=True)
+
+        # El canal real solo se conoce ahora: se comprueba aquí, no al pedirlo.
+        canal_real = (info or {}).get("uploader") or canal
+        vetado = canal_vetado(canal_real)
+        if vetado:
+            raise RuntimeError(
+                f"canal vetado: «{canal_real}» (coincide con «{vetado}»). "
+                "No se cogen clips de canales oficiales ni de discográficas: "
+                "el titular de derechos es quien reclamaría y Meta puede tumbar "
+                "el post automáticamente. Busca el mismo material en un canal "
+                "de fan, de archivo o de entrevistas."
+            )
 
         if not os.path.exists(crudo):
             raise RuntimeError("yt-dlp no dejó fichero")

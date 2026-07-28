@@ -184,6 +184,27 @@ export default function InstagramPlanner({
     call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
   }
 
+  // --- Preparar en bloque lo que se quedó sin material ---
+  // Hace falta porque «variar formatos» limpia el material de todo lo que
+  // cambia de tipo: las diapositivas de un carrusel no sirven para un reel.
+  async function bulkPrepare() {
+    const sinMaterial = upcoming.filter((it) => !it.is_prepared).length;
+    if (sinMaterial === 0) {
+      window.alert("Todo lo de la cola ya tiene su material generado.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `${sinMaterial} publicaci\u00f3n(es) sin material. ¿Generarlo ahora?\n\n` +
+          "Los reels y carruseles tardan un rato y tienen coste. Se hacen hasta 20 por tanda.",
+      )
+    )
+      return;
+    await call("POST", "/biblioteca/admin/instagram/api/queue/bulk/prepare", {
+      limit: 20,
+    });
+  }
+
   // --- Variar formatos: que el feed no salga todo del mismo tipo ---
   async function shuffleFormats() {
     // Semilla distinta en cada pulsación: volver a darle da otro reparto.
@@ -513,6 +534,7 @@ export default function InstagramPlanner({
                   mediaSrc={(pos) =>
                     `/biblioteca/admin/instagram/api/queue/${it.id}/media/${pos}`
                   }
+                  formatoPedido={it.media_type}
                 />
 
                 {/* Editor del caption */}
@@ -757,6 +779,16 @@ export default function InstagramPlanner({
               className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
             >
               🗓 autoprogramar
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={bulkPrepare}
+              data-cursor="hover"
+              title="Genera imagen, carrusel o vídeo de todo lo que esté pendiente y sin material"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+            >
+              ⚙ generar material
             </button>
             <button
               type="button"

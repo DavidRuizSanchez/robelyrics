@@ -32,6 +32,8 @@ type Props = {
   media?: PreviewMedia[];
   /** Construye la URL de bytes de cada pieza. */
   mediaSrc?: (position: number) => string;
+  /** Formato pedido (IMAGE|CAROUSEL|REELS), para explicar qué falta por generar. */
+  formatoPedido?: string;
 };
 
 function partirEnElCorte(caption: string): { visible: string; resto: string } {
@@ -63,6 +65,7 @@ export default function InstagramPreview({
   username = "entreinterioresrobe",
   media = [],
   mediaSrc,
+  formatoPedido = "IMAGE",
 }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -160,8 +163,18 @@ export default function InstagramPreview({
             className="w-[320px] h-[320px] object-cover"
           />
         ) : (
-          <div className="w-[320px] h-[320px] bg-[#111] flex items-center justify-center text-center font-mono text-[9px] tracking-[1px] uppercase text-ink-faint p-4">
-            sin material · pulsa «re-preparar»
+          <div className="w-[320px] h-[320px] bg-[#111] flex flex-col items-center justify-center text-center p-5 gap-2">
+            <span className="font-mono text-[9px] tracking-[1px] uppercase text-ink-faint">
+              {formatoPedido === "REELS"
+                ? "vídeo por generar"
+                : formatoPedido === "CAROUSEL"
+                  ? "carrusel por generar"
+                  : "sin material"}
+            </span>
+            <span className="font-mono text-[9px] leading-relaxed text-ink-faint/70">
+              Pulsa «preparar» aquí, o «⚙ generar material» arriba para hacerlo
+              de todos a la vez.
+            </span>
           </div>
         )}
 
