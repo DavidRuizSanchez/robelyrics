@@ -295,7 +295,14 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         db.commit()
         return item
 
-    quiere_carrusel = config.CAROUSEL_ENABLED or item.media_type == "CAROUSEL"
+    # El formato lo decide `item.media_type`, que fija el repartidor de formatos
+    # (`scheduling.repartir_formatos`) o el admin desde el panel. Antes se
+    # forzaba carrusel siempre que se pudiera, y el resultado fue que 26 de los
+    # 28 posts de la cola quedaron en carrusel: un feed monótono.
+    quiere_carrusel = item.media_type == "CAROUSEL" or (
+        config.CAROUSEL_ENABLED and item.media_type == "IMAGE" and not item.media_locked
+        and not item.media
+    )
     specs = carousel.plan(topic, item.content_type) if quiere_carrusel else None
     if specs:
         paths, used_hero = carousel.render(topic, specs, slot=item.slot or 1)

@@ -174,3 +174,92 @@ def test_apply_plan_escribe_las_fechas(db):
     asignaciones, _ = scheduling.plan(db, weeks=4, desde=AHORA)
     assert scheduling.apply_plan(db, asignaciones) == 1
     assert db.query(InstagramQueueItem).first().publish_at is not None
+
+
+# --------------------------------------------------------------------------- #
+# Reparto de formatos: que el feed no salga monótono
+# --------------------------------------------------------------------------- #
+# Al activar el carrusel por defecto, 26 de los 28 posts de la cola pasaron a
+# ser carrusel de golpe. Esto reparte foto / carrusel / reel.
+
+def _prog(db, i, **kw):
+    return _add(db, position=i, publish_at=AHORA + timedelta(days=1, hours=i), **kw)
+
+
+def test_reparte_los_tres_formatos(db):
+    for i in range(12):
+        _prog(db, i)
+    scheduling.repartir_formatos(db, semilla=0)
+    formatos = {it.media_type for it in db.query(InstagramQueueItem).all()}
+    assert formatos == {"IMAGE", "CAROUSEL", "REELS"}
+
+
+def test_no_deja_dos_formatos_iguales_seguidos(db):
+    for i in range(15):
+        _prog(db, i)
+    scheduling.repartir_formatos(db, semilla=3)
+    items = db.query(InstagramQueueItem).order_by(InstagramQueueItem.publish_at).all()
+    tipos = [it.media_type for it in items]
+    seguidos = [
+        (a, b) for a, b in zip(tipos, tipos[1:]) if a == b
+    ]
+    assert not seguidos, f"formatos repetidos seguidos: {tipos}"
+
+
+def test_respeta_el_formato_elegido_a_mano(db):
+    fijo = _prog(db, 0, media_type="REELS", media_locked=True)
+    for i in range(1, 8):
+        _prog(db, i)
+    scheduling.repartir_formatos(db, semilla=1)
+    db.refresh(fijo)
+    assert fijo.media_type == "REELS", "se ha pisado una decisión humana"
+
+
+def test_es_determinista_con_la_misma_semilla(db):
+    for i in range(9):
+        _prog(db, i)
+    scheduling.repartir_formatos(db, semilla=7)
+    primera = [it.media_type for it in
+               db.query(InstagramQueueItem).order_by(InstagramQueueItem.id).all()]
+    scheduling.repartir_formatos(db, semilla=7)
+    segunda = [it.media_type for it in
+               db.query(InstagramQueueItem).order_by(InstagramQueueItem.id).all()]
+    assert primera == segunda
+
+
+def test_otra_semilla_da_otro_reparto(db):
+    for i in range(9):
+        _prog(db, i)
+    scheduling.repartir_formatos(db, semilla=0)
+    a = [it.media_type for it in
+         db.query(InstagramQueueItem).order_by(InstagramQueueItem.id).all()]
+    scheduling.repartir_formatos(db, semilla=5)
+    b = [it.media_type for it in
+         db.query(InstagramQueueItem).order_by(InstagramQueueItem.id).all()]
+    assert a != b
+
+
+def test_el_que_cambia_vuelve_a_pendiente(db):
+    """Cambiar de formato obliga a regenerar el material."""
+    it = _prog(db, 0, media_type="IMAGE", status="prepared", image_path="/tmp/x.jpg")
+    for i in range(1, 6):
+        _prog(db, i)
+    cambios = scheduling.repartir_formatos(db, semilla=0)
+    db.refresh(it)
+    if any(c["id"] == it.id for c in cambios):
+        assert it.status == "pending"
+        assert it.image_path is None
+
+
+def test_no_toca_lo_que_no_esta_programado(db):
+    suelto = _add(db, position=0)          # sin publish_at
+    _prog(db, 1)
+    scheduling.repartir_formatos(db, semilla=0, solo_programados=True)
+    db.refresh(suelto)
+    assert suelto.media_type == "IMAGE"
+
+
+def test_la_mezcla_es_configurable():
+    mezcla = scheduling.mezcla_formatos()
+    assert mezcla
+    assert set(mezcla) <= set(scheduling.FORMATOS_VALIDOS)

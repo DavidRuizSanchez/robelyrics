@@ -2237,6 +2237,8 @@ def admin_ig_update(
         if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS"):
             raise HTTPException(status_code=400, detail="formato no válido")
         it.media_type = payload.media_type
+        # Elegido por una persona: el repartidor automático ya no lo toca.
+        it.media_locked = True
     if payload.clear_publish_at:
         it.publish_at = None          # vuelve al goteo normal
     elif payload.publish_at is not None:
@@ -2513,6 +2515,38 @@ def admin_ig_auto_schedule(
         skipped=descartes,
         weekly_cap=_ig_scheduling.cap_semanal(),
         slots=[h.strftime("%H:%M") for h in _ig_scheduling.slots_diarios()],
+    )
+
+
+class AdminIGShuffleIn(BaseModel):
+    # Cambiar la semilla da otro reparto; con la misma, el resultado se repite.
+    seed: int = 0
+    # Por defecto solo toca los programados; con False, toda la cola activa.
+    only_scheduled: bool = True
+
+
+class AdminIGShuffleResult(BaseModel):
+    changed: list[dict] = []   # [{id, title, antes, ahora}]
+    mix: list[str] = []        # la mezcla objetivo desplegada
+
+
+@router.post("/instagram/queue/shuffle-formats", response_model=AdminIGShuffleResult)
+def admin_ig_shuffle_formats(
+    payload: AdminIGShuffleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGShuffleResult:
+    """Reparte formatos variados (foto / carrusel / reel) entre los posts.
+
+    Evita que el feed salga monótono. NO toca los que tienen el formato elegido
+    a mano (`media_locked`). Los que cambian de formato vuelven a `pending` y hay
+    que re-prepararlos, porque el material hay que regenerarlo.
+    """
+    cambios = _ig_scheduling.repartir_formatos(
+        db, semilla=payload.seed, solo_programados=payload.only_scheduled
+    )
+    return AdminIGShuffleResult(
+        changed=cambios, mix=_ig_scheduling.mezcla_formatos()
     )
 
 

@@ -1335,6 +1335,11 @@ class InstagramQueueItem(Base):
     media_type: Mapped[str] = mapped_column(
         String(16), nullable=False, default="IMAGE"
     )
+    # True si el formato lo eligió una PERSONA en el panel. El repartidor
+    # automático de formatos no toca los bloqueados.
+    media_locked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
     # Espejo de la diapositiva 0. Se conservan aunque el post sea un carrusel:
     # así el camino de foto única sigue intacto y la previsualización del panel
     # no depende de la tabla hija.

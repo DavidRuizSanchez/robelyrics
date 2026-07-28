@@ -183,6 +183,52 @@ export default function InstagramPlanner({
     call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
   }
 
+  // --- Variar formatos: que el feed no salga todo del mismo tipo ---
+  async function shuffleFormats() {
+    // Semilla distinta en cada pulsación: volver a darle da otro reparto.
+    const seed = Math.floor(Date.now() / 1000) % 9973;
+    setBusy("shuffle");
+    try {
+      const res = await fetch(
+        "/biblioteca/admin/instagram/api/queue/shuffle-formats",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seed, only_scheduled: false }),
+        },
+      ).then((r) => r.json());
+      if (res.error) throw new Error(res.error);
+
+      const n = res.changed?.length ?? 0;
+      if (n === 0) {
+        window.alert(
+          `Ya estaban repartidos según la mezcla (${res.mix?.join(" · ")}).`,
+        );
+        return;
+      }
+      const ETIQUETA: Record<string, string> = {
+        IMAGE: "foto", CAROUSEL: "carrusel", REELS: "reel",
+      };
+      const muestra = res.changed
+        .slice(0, 8)
+        .map(
+          (c: { title: string; antes: string; ahora: string }) =>
+            `· ${ETIQUETA[c.antes] ?? c.antes} → ${ETIQUETA[c.ahora] ?? c.ahora}  ${c.title}`,
+        )
+        .join("\n");
+      const cola = n > 8 ? `\n… y ${n - 8} más` : "";
+      window.alert(
+        `${n} publicaciones cambian de formato:\n\n${muestra}${cola}\n\n` +
+          "Vuelven a «pendiente»: hay que re-prepararlas para regenerar el material.",
+      );
+      window.location.reload();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "no se pudo repartir");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // --- Autoprogramar: reparte lo aprobado por las próximas semanas ---
   async function autoSchedule() {
     setBusy("auto-schedule");
@@ -706,6 +752,16 @@ export default function InstagramPlanner({
               className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
             >
               🗓 autoprogramar
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={shuffleFormats}
+              data-cursor="hover"
+              title="Reparte formatos variados (foto / carrusel / reel) para que el feed no salga monótono. Respeta los que hayas elegido a mano."
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+            >
+              🎲 variar formatos
             </button>
           </div>
           <p className="font-serif italic text-ink-dim text-sm mb-5">

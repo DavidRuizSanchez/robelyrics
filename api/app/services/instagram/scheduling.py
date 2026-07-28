@@ -212,3 +212,112 @@ def apply_plan(
         item.publish_at = momento
     db.commit()
     return len(asignaciones)
+
+
+# --------------------------------------------------------------------------- #
+# Reparto de FORMATOS
+# --------------------------------------------------------------------------- #
+# Mezcla objetivo del feed. Es una decisión EDITORIAL, no un dato: el nicho
+# publica un 69% de vídeo, pero nuestro vídeo propio va sin audio (la música
+# tiene derechos) y rinde peor que uno con sonido, así que no se copia esa
+# proporción a ciegas. Formato del env: "REELS:4,CAROUSEL:3,IMAGE:3".
+FORMAT_MIX_RAW = os.getenv("IG_FORMAT_MIX", "REELS:4,CAROUSEL:3,IMAGE:3")
+
+FORMATOS_VALIDOS = ("IMAGE", "CAROUSEL", "REELS")
+
+
+def mezcla_formatos() -> list[str]:
+    """La mezcla desplegada en una lista, p.ej. [REELS, REELS, CAROUSEL, IMAGE…]."""
+    salida: list[str] = []
+    for trozo in FORMAT_MIX_RAW.split(","):
+        trozo = trozo.strip()
+        if not trozo:
+            continue
+        try:
+            fmt, n = trozo.split(":")
+            fmt = fmt.strip().upper()
+            if fmt in FORMATOS_VALIDOS:
+                salida.extend([fmt] * max(int(n), 0))
+            else:
+                logger.warning("[IG] formato desconocido en IG_FORMAT_MIX: %r", fmt)
+        except (ValueError, IndexError):
+            logger.warning("[IG] tramo inválido en IG_FORMAT_MIX: %r", trozo)
+    return salida or ["REELS", "CAROUSEL", "IMAGE"]
+
+
+def _sin_repetir_seguidos(secuencia: list[str]) -> list[str]:
+    """Reordena para que no caigan dos formatos iguales consecutivos.
+
+    Va tomando siempre el formato que MÁS queda por colocar, evitando el que
+    acaba de salir. Si solo queda uno, se acepta la repetición: mejor repetir
+    que dejar posts sin formato.
+    """
+    from collections import Counter
+
+    quedan = Counter(secuencia)
+    salida: list[str] = []
+    anterior = None
+    while sum(quedan.values()):
+        candidatos = [f for f in quedan if quedan[f] and f != anterior]
+        if not candidatos:                       # solo queda el repetido
+            candidatos = [f for f in quedan if quedan[f]]
+        elegido = max(candidatos, key=lambda f: quedan[f])
+        salida.append(elegido)
+        quedan[elegido] -= 1
+        anterior = elegido
+    return salida
+
+
+def repartir_formatos(
+    db: Session, semilla: int = 0, solo_programados: bool = True
+) -> list[dict]:
+    """Asigna formato variado a los posts, respetando los fijados a mano.
+
+    Sin esto el feed sale monótono: al activar el carrusel por defecto, 26 de los
+    28 posts de la cola pasaron a ser carrusel de golpe.
+
+    `semilla` desplaza el punto de arranque de la mezcla, así que volver a
+    repartir con otra semilla da otro orden. Dentro de una misma semilla es
+    determinista: repetir la operación no cambia nada.
+
+    Devuelve la lista de cambios [{id, title, antes, ahora}] — los items que ya
+    tenían el formato que les tocaba no aparecen.
+    """
+    q = select(InstagramQueueItem).where(
+        InstagramQueueItem.status.in_(ACTIVOS),
+        InstagramQueueItem.media_locked.is_(False),
+    )
+    if solo_programados:
+        q = q.where(InstagramQueueItem.publish_at.is_not(None))
+    items = list(db.execute(
+        q.order_by(InstagramQueueItem.publish_at, InstagramQueueItem.position)
+    ).scalars().all())
+    if not items:
+        return []
+
+    base = mezcla_formatos()
+    # Se repite la mezcla hasta cubrir todos los items y se desplaza por semilla.
+    repeticiones = (len(items) // len(base)) + 1
+    secuencia = (base * repeticiones)[:len(items)]
+    if semilla:
+        corte = semilla % len(secuencia)
+        secuencia = secuencia[corte:] + secuencia[:corte]
+    secuencia = _sin_repetir_seguidos(secuencia)
+
+    cambios: list[dict] = []
+    for item, formato in zip(items, secuencia):
+        if item.media_type == formato:
+            continue
+        cambios.append({
+            "id": item.id,
+            "title": item.title[:70],
+            "antes": item.media_type,
+            "ahora": formato,
+        })
+        item.media_type = formato
+        # El formato cambia ⇒ hay que regenerar el material.
+        item.status = "pending"
+        item.media.clear()
+        item.image_path = None
+    db.commit()
+    return cambios
