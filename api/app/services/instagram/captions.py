@@ -145,6 +145,9 @@ def _ctx_moldes(topic: dict) -> dict:
     m = re.search(r"[Hh]ace\s+(\d+)\s+años", topic.get("title") or "")
     if m:
         ctx["years"] = m.group(1)
+    if headline:
+        # Para moldes que encajan el titular dentro de una frase.
+        ctx["headline_min"] = headline[0].lower() + headline[1:]
     return ctx
 
 
@@ -224,7 +227,15 @@ def build(db: Session, topic: dict) -> str:
 
     # 5) CTA solo cuando el post empuja de verdad a la web. Antes iba en todos y
     #    se leía repetido; ninguna de las cuentas del benchmark lo usa siempre.
-    if es_blog and topic.get("url"):
+    if content_type == "product":
+        cuerpo_extra = (topic.get("detalle") or "").strip()
+        if cuerpo_extra:
+            lines += ["", captions_moldes.one_sentence_per_line(cuerpo_extra)]
+        # A /registro, NUNCA a la ruta privada: rebotaría al login y dejaría al
+        # visitante en la puerta.
+        lines += ["", (topic.get("cta") or
+                       "Está en Entre Interiores. Cuenta gratis. 🔗 Link en la bio.")]
+    elif es_blog and topic.get("url"):
         lines += ["", "📝 El artículo completo está en el blog (link en la bio)."]
 
     # 6) Hashtags: primero los concretos de este post, luego categoría y marca.

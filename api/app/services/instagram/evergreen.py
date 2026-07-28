@@ -33,7 +33,7 @@ from app.services.instagram import config
 
 logger = logging.getLogger(__name__)
 
-EVERGREEN_TYPES = ("quote", "ephemeris", "anecdote", "robe_quote")
+EVERGREEN_TYPES = ("quote", "ephemeris", "anecdote", "robe_quote", "product")
 
 # Horizonte para generar efemérides con fecha fija (`publish_on`): se proponen
 # con antelación y SOLO se publican su día exacto, así que la ventana es amplia.
@@ -302,12 +302,65 @@ def gen_robe_quotes(db: Session, count: int, used: set[str]) -> list[dict]:
     return out
 
 
+def gen_product(db: Session, count: int, used: set[str]) -> list[dict]:
+    """Posts que ENSEÑAN la web (data/instagram_product.yaml).
+
+    Casi todo lo bueno del sitio vive tras el login, así que estos posts son el
+    gancho de registro: el CTA manda a /registro, no a la ruta privada (que
+    rebotaría al login y dejaría al visitante en la puerta).
+
+    Si falta la captura, se salta la funcionalidad: un post que promete enseñar
+    algo y no lo enseña no vale para nada.
+    """
+    path = _data_path("instagram_product.yaml")
+    if not path:
+        logger.warning("[evergreen] instagram_product.yaml no encontrado")
+        return []
+    data = yaml.safe_load(open(path, encoding="utf-8")) or {}
+    items = list(data.get("funcionalidades") or [])
+    random.shuffle(items)
+
+    shots_dir = _data_path("product_shots") or ""
+    out: list[dict] = []
+    for f in items:
+        slug = (f.get("slug") or "").strip()
+        if not slug:
+            continue
+        key = f"product:{slug}"
+        if key in used:
+            continue
+        captura = os.path.join(shots_dir, f.get("captura") or "")
+        if not (shots_dir and os.path.exists(captura)):
+            logger.info("[evergreen] sin captura para %s, se salta", slug)
+            continue
+        out.append({
+            "content_type": "product",
+            "content_key": key,
+            "title": f.get("title") or slug,
+            "category": "Cultura",
+            "summary": (f.get("claim") or "").strip(),
+            "detalle": (f.get("detalle") or "").strip(),
+            "image_hint": captura,
+            "image_kind": "photo",
+            "cta": f.get("cta") or "",
+            "source_name": "Entre Interiores",
+            "source_url": None,
+        })
+        used.add(key)
+        if len(out) >= count:
+            break
+    return out
+
+
 # Reparto por defecto del lote semanal (tipo → cuántos proponer).
 DEFAULT_MIX = {
     "quote": 6,
     "ephemeris": 4,
     "anecdote": 4,
     "robe_quote": 3,
+    # Cuota corta a propósito: como mucho 1 de cada 6 publicaciones enseña la
+    # web. Más que eso convierte la cuenta en un folleto.
+    "product": 2,
 }
 
 _GENERATORS = {
@@ -315,6 +368,7 @@ _GENERATORS = {
     "ephemeris": gen_ephemerides,
     "anecdote": gen_anecdotes,
     "robe_quote": gen_robe_quotes,
+    "product": gen_product,
 }
 
 

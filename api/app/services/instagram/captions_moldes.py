@@ -84,6 +84,12 @@ HOOKS: dict[str, list[str]] = {
     "blog": [
         "{headline}",
     ],
+    # Posts que enseñan la web. El gancho promete lo que se ve en la captura.
+    "product": [
+        "{headline}",
+        "Esto existe y funciona: {headline_min}.",
+        "Lo hemos montado para esto: {headline_min}.",
+    ],
 }
 
 # --------------------------------------------------------------------------- #
@@ -130,6 +136,11 @@ QUESTIONS: dict[str, list[str]] = {
     "blog": [
         "¿Qué opináis?",
         "¿Añadiríais algo?",
+    ],
+    "product": [
+        "¿Qué le preguntaríais vosotros?",
+        "¿Qué echáis en falta?",
+        "¿Lo probáis y me contáis?",
     ],
 }
 

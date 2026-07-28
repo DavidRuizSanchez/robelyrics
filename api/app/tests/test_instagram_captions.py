@@ -207,3 +207,43 @@ def test_la_atribucion_no_usa_el_summary_viejo():
 def test_sin_corpus_cae_al_summary():
     topic = _topic(summary="«X» · Extremoduro · Y (2000)", corpus={})
     assert "«X»" in captions.build(None, topic)
+
+
+# --------------------------------------------------------------------------- #
+# Contenido de producto: enseñar la web sin dejar al visitante en la puerta
+# --------------------------------------------------------------------------- #
+def _topic_product(**kw) -> dict:
+    base = _topic(
+        content_type="product",
+        content_key="product:consultorio",
+        title="Pregúntale al viento",
+        headline="Pregúntale al viento",
+        category="Cultura",
+        summary="Le preguntas lo que quieras y te responde con su voz.",
+        detalle="No es un chatbot. Cada respuesta se apoya en material real.",
+        cta="Está en Entre Interiores. Cuenta gratis. 🔗 Link en la bio.",
+    )
+    base.update(kw)
+    return base
+
+
+def test_el_post_de_producto_lleva_su_cta():
+    caption = captions.build(None, _topic_product())
+    assert "Cuenta gratis" in caption
+
+
+def test_el_cta_no_manda_a_una_ruta_privada():
+    """`/biblioteca/*` rebota al login: mandar ahí deja al visitante en la puerta."""
+    caption = captions.build(None, _topic_product())
+    assert "/biblioteca" not in caption
+
+
+def test_el_producto_tambien_pregunta():
+    caption = captions.build(None, _topic_product())
+    assert "?" in caption
+
+
+def test_el_detalle_va_una_frase_por_linea():
+    caption = captions.build(None, _topic_product())
+    assert "No es un chatbot." in caption
+    assert "Cada respuesta se apoya en material real." in caption
