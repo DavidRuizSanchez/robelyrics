@@ -12,13 +12,23 @@ import os
 import re
 from datetime import date, datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import InstagramQueueItem, Person, Post
+from app.db.models import (
+    Album,
+    Artist,
+    InstagramQueueItem,
+    InstagramQueueMedia,
+    Line,
+    Person,
+    Post,
+    Song,
+)
 from app.services.instagram import (
     album_cover,
     captions,
+    carousel,
     cloudinary_upload,
     config,
     editorial,
@@ -43,6 +53,9 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
         "summary": item.summary or "",
         "source": item.source_name or "",
         "url": item.source_url or "",
+        # Semilla estable de la rotación de moldes del caption: re-preparar un
+        # item no debe cambiarle el texto por sorpresa.
+        "content_key": item.content_key or "",
     }
     if item.blog_post_id:
         post = db.get(Post, item.blog_post_id)
@@ -53,6 +66,81 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
             if not topic["summary"]:
                 topic["summary"] = post.excerpt or ""
     return topic
+
+
+def _sin_desambiguador(song: str, album: str) -> str:
+    """«Emparedado (Rock Transgresivo)» → «Emparedado».
+
+    Los dos discos gemelos («Rock transgresivo» y «Tú en tu casa, nosotros en la
+    hoguera») comparten canciones, y en el catálogo se desambiguan poniendo el
+    disco entre paréntesis. Eso es interno: en un caption el nombre de la canción
+    es el de la canción, y el disco ya va aparte.
+
+    Solo se recorta si el paréntesis coincide con el título del álbum — así no se
+    toca ningún título que lleve paréntesis de verdad.
+    """
+    s, a = (song or "").strip(), (album or "").strip()
+    if not s.endswith(")") or "(" not in s or not a:
+        return s
+    base, _, dentro = s.rpartition("(")
+    if dentro.rstrip(")").strip().casefold() == a.casefold():
+        return base.strip()
+    return s
+
+
+def _corpus_context(db: Session, item: InstagramQueueItem) -> dict:
+    """Datos ESTRUCTURADOS del corpus para rellenar los moldes del caption.
+
+    El `summary` de un evergreen viene ya formateado («canción» · artista · disco
+    (año)), y parsearlo sería frágil. Aquí se vuelve a la fuente: el
+    `content_key` identifica la fila exacta de la que salió el candidato, así que
+    se releen los campos de BD. Si algo no está, se omite la clave y el molde que
+    la necesite queda descartado — nunca se rellena con un valor plausible.
+
+    NOTA: no se expone autoría. Robe es el letrista de casi todo, pero no de todo
+    («Ama, ama y ensancha el alma» es un poema de Manolo Chinato), y un molde que
+    afirmara "esto lo escribió Robe" mentiría en esos casos.
+    """
+    key = item.content_key or ""
+    ctx: dict = {}
+
+    if key.startswith("quote:line_"):
+        try:
+            line_id = int(key.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            return ctx
+        row = db.execute(
+            select(Song.title, Album.title, Album.year, Artist.name)
+            .select_from(Line)
+            .join(Song, Line.song_id == Song.id)
+            .join(Album, Song.album_id == Album.id)
+            .join(Artist, Album.artist_id == Artist.id)
+            .where(Line.id == line_id)
+        ).first()
+        if row:
+            ctx["song"], ctx["album"], ctx["year"], ctx["artist"] = row
+            ctx["song"] = _sin_desambiguador(ctx["song"], ctx["album"])
+
+    elif key.startswith("ephemeris:album_"):
+        slug = key[len("ephemeris:album_"):].rsplit("_", 1)[0]
+        row = db.execute(
+            select(Album.title, Album.year, Artist.name)
+            .join(Artist, Album.artist_id == Artist.id)
+            .where(Album.slug == slug)
+        ).first()
+        if row:
+            ctx["album"], ctx["year"], ctx["artist"] = row
+
+    elif key.startswith("ephemeris:birth_"):
+        slug = key[len("ephemeris:birth_"):].rsplit("_", 1)[0]
+        person = db.execute(
+            select(Person).where(Person.slug == slug)
+        ).scalar_one_or_none()
+        if person is not None:
+            ctx["person"] = person.stage_name or person.full_name
+            ctx["is_memorial"] = person.death_date is not None
+
+    return ctx
 
 
 def _clean_credit(raw: str) -> str:
@@ -107,6 +195,11 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     topic = _topic_from_item(db, item)
     is_blog = item.content_type == "blog" or topic.get("category") == "Blog"
     is_evergreen = item.content_type in EVERGREEN_TYPES
+
+    # Contexto para los moldes del caption: de qué tipo es y qué datos reales del
+    # corpus hay detrás. Sin esto, `captions` solo tendría texto ya formateado.
+    topic["content_type"] = item.content_type
+    topic["corpus"] = _corpus_context(db, item)
 
     # El tono (sobrio vs neutral) gobierna CTA, emoji y prompt editorial.
     topic["tone"] = tone.classify(
@@ -185,12 +278,26 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             db, f"{_t}. {_b}", exclude_lines=recent_verses
         ) or {}
 
-    image_path, used_hero = imaging.generate(topic, slot=item.slot or 1)
+    # Formato: carrusel si el tema da para ello, foto única en cualquier otro
+    # caso (que sigue siendo el camino por defecto). `carousel.plan` devuelve
+    # None cuando no hay material verificado suficiente.
+    quiere_carrusel = config.CAROUSEL_ENABLED or item.media_type == "CAROUSEL"
+    specs = carousel.plan(topic, item.content_type) if quiere_carrusel else None
+    if specs:
+        paths, used_hero = carousel.render(topic, specs, slot=item.slot or 1)
+        item.media_type = "CAROUSEL"
+    else:
+        path, used_hero = imaging.generate(topic, slot=item.slot or 1)
+        paths, specs = [path], [{"layout": "cover"}]
+        item.media_type = "IMAGE"
+
     # Solo se acredita la foto si finalmente se usó una imagen real con
     # licencia; si la generación cayó al fondo IA, no hay crédito que poner.
     if not used_hero:
         topic.pop("image_credit", None)
-    item.image_path = image_path
+
+    _sync_media(db, item, paths, specs)
+    item.image_path = paths[0]      # espejo de la diapositiva 0
     item.caption = captions.build(db, topic)
     item.status = "prepared"
     item.error = None
@@ -198,11 +305,37 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     return item
 
 
+def _sync_media(
+    db: Session, item: InstagramQueueItem, paths: list[str], specs: list[dict]
+) -> None:
+    """Reescribe las filas de media del item con las rutas recién generadas."""
+    item.media.clear()          # delete-orphan limpia las anteriores
+    db.flush()
+    for i, ruta in enumerate(paths):
+        rol = (specs[i].get("layout") if i < len(specs) else None) or "body"
+        item.media.append(
+            InstagramQueueMedia(position=i, kind="image", role=rol, local_path=ruta)
+        )
+
+
+def _media_lista(item: InstagramQueueItem) -> bool:
+    """¿Están TODAS las piezas en disco?
+
+    `IMAGES_DIR` vive en /tmp y es efímero. Con una sola imagen daba igual
+    (se regeneraba), pero con un carrusel puede sobrevivir un subconjunto y
+    publicarse mutilado o con las diapositivas desordenadas. Si falta una, se
+    regenera el carrusel entero.
+    """
+    if not item.media:
+        return bool(item.image_path and os.path.exists(item.image_path))
+    return all(m.local_path and os.path.exists(m.local_path) for m in item.media)
+
+
 def publish(
     db: Session, item: InstagramQueueItem, dry_run: bool = False
 ) -> InstagramQueueItem:
     """Publica un item ya preparado (lo prepara si hace falta)."""
-    if not item.image_path or not os.path.exists(item.image_path):
+    if not _media_lista(item):
         prepare(db, item)
 
     if dry_run:
@@ -220,19 +353,31 @@ def publish(
         logger.error("[IG] conexión no saludable para publicar: %s", msg)
         return item
 
-    # Subir la imagen a Cloudinary (la Graph API exige una URL pública).
+    # Subir a Cloudinary (la Graph API exige URLs públicas). Se hace commit de
+    # las URLs ANTES de llamar a Meta: si la publicación falla, reintentar no
+    # tiene que volver a subir nada.
+    piezas = sorted(item.media, key=lambda m: m.position) or []
     try:
-        image_url = cloudinary_upload.upload(item.image_path)
+        if piezas:
+            for m in piezas:
+                m.url = cloudinary_upload.upload(m.local_path)
+        else:  # item antiguo, anterior a la tabla de media
+            item.image_url = cloudinary_upload.upload(item.image_path)
     except Exception as exc:  # noqa: BLE001
         item.status = "failed"
         item.error = f"Cloudinary: {exc}"
         db.commit()
         logger.error("[IG] subida a Cloudinary falló: %s", exc)
         return item
-    item.image_url = image_url
+    if piezas:
+        item.image_url = piezas[0].url      # espejo de la diapositiva 0
     db.commit()
 
-    media_id, result_msg = graph_api.post_photo(image_url, item.caption or "")
+    urls = [m.url for m in piezas if m.url] or [item.image_url]
+    if item.media_type == "CAROUSEL" and len(urls) >= graph_api.MIN_CAROUSEL_ITEMS:
+        media_id, result_msg = graph_api.post_carousel(urls, item.caption or "")
+    else:
+        media_id, result_msg = graph_api.post_photo(urls[0], item.caption or "")
     if media_id:
         item.status = "published"
         item.ig_media_id = media_id
@@ -249,13 +394,15 @@ def publish(
 
 def next_pending(db: Session) -> InstagramQueueItem | None:
     """Siguiente item del GOTEO: orden manual (`position`) primero; luego slot
-    (blog primero), día y antigüedad. Excluye el contenido con fecha fija
-    (`publish_on`): ese no gotea, se publica su día vía `due_pinned`."""
+    (blog primero), día y antigüedad. Excluye el contenido con momento fijado
+    (`publish_on` de efeméride o `publish_at` programado a mano): ese no gotea,
+    sale a su hora vía `due_pinned`."""
     return db.execute(
         select(InstagramQueueItem)
         .where(
             InstagramQueueItem.status.in_(("pending", "prepared")),
             InstagramQueueItem.publish_on.is_(None),
+            InstagramQueueItem.publish_at.is_(None),
         )
         .order_by(
             InstagramQueueItem.position,
@@ -268,14 +415,25 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
 
 
 def due_pinned(db: Session) -> list[InstagramQueueItem]:
-    """Items con efeméride cuyo día es HOY (aniversarios, cumpleaños). Se
-    publican su día exacto, al margen del cuentagotas."""
+    """Items con momento fijado que YA toca publicar, al margen del cuentagotas.
+
+    Dos formas de fijar el momento, y las dos vencen aquí:
+      - `publish_on` (efeméride): su día exacto, sin hora.
+      - `publish_at`  (programado a mano en el panel): fecha y hora concretas;
+        vence cuando ese instante ya pasó, así que un post programado para una
+        hora en la que el cron no corría sale en la pasada siguiente en vez de
+        perderse.
+    """
     today = date.today()
+    ahora = datetime.now(timezone.utc)
     return db.execute(
         select(InstagramQueueItem)
         .where(
             InstagramQueueItem.status.in_(("pending", "prepared")),
-            InstagramQueueItem.publish_on == today,
+            or_(
+                InstagramQueueItem.publish_on == today,
+                InstagramQueueItem.publish_at <= ahora,
+            ),
         )
         .order_by(InstagramQueueItem.position, InstagramQueueItem.created_at)
     ).scalars().all()
