@@ -2611,6 +2611,7 @@ class AdminClipOut(BaseModel):
     error: str | None = None
     requested_by: str | None = None
     ig_media_id: str | None = None
+    queue_item_id: int | None = None
     retired_at: datetime | None = None
     retired_reason: str | None = None
     created_at: datetime
@@ -2627,6 +2628,7 @@ def _clip_model(c) -> AdminClipOut:
         start_s=c.start_s, end_s=c.end_s, subtitle=c.subtitle, status=c.status,
         url_cdn=c.url_cdn, duration_s=c.duration_s, error=c.error,
         requested_by=c.requested_by, ig_media_id=c.ig_media_id,
+        queue_item_id=c.queue_item_id,
         retired_at=c.retired_at, retired_reason=c.retired_reason,
         created_at=c.created_at,
     )
@@ -2693,6 +2695,55 @@ def admin_clips_retire(
     db.refresh(clip)
     if not ok:
         logger.warning("[clip] retirada parcial de %s: %s", clip_id, msg)
+    return _clip_model(clip)
+
+
+class AdminClipAssignIn(BaseModel):
+    queue_item_id: int | None = None   # None = desasignar
+
+
+@router.post("/instagram/clips/{clip_id}/assign", response_model=AdminClipOut)
+def admin_clips_assign(
+    clip_id: int,
+    payload: AdminClipAssignIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Asigna el clip a una publicación de la cola (o lo desasigna).
+
+    Al preparar ese post como reel se usará el clip —con su imagen y su sonido
+    reales— en vez de generar un verso animado. El post pasa a `pending` para
+    que haya que re-prepararlo.
+    """
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    if clip.status == "retired":
+        raise HTTPException(status_code=409, detail="el clip está retirado")
+
+    if payload.queue_item_id is None:
+        clip.queue_item_id = None
+        db.commit()
+        db.refresh(clip)
+        return _clip_model(clip)
+
+    item = db.get(_IGItem, payload.queue_item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="publicación no encontrada")
+    if item.status == "published":
+        raise HTTPException(status_code=409, detail="esa publicación ya salió")
+
+    clip.queue_item_id = item.id
+    # El post pasa a reel y hay que rehacer su material.
+    item.media_type = "REELS"
+    item.media_locked = True      # lo ha decidido una persona
+    item.status = "pending"
+    item.image_path = None
+    item.media.clear()
+    db.commit()
+    db.refresh(clip)
     return _clip_model(clip)
 
 

@@ -24,6 +24,7 @@ from app.db.models import (
     Person,
     Post,
     Song,
+    VideoClip,
 )
 from app.services.instagram import (
     album_cover,
@@ -284,8 +285,39 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     # caso (que sigue siendo el camino por defecto). `carousel.plan` devuelve
     # None cuando no hay material verificado suficiente.
     if item.media_type == "REELS":
-        # Vídeo propio: un verso animado. Solo si el admin lo pide para este
-        # item — no se decide solo, porque cuesta bastante más de generar.
+        # Si hay un CLIP de terceros asignado a este post y ya está descargado,
+        # se usa ese: trae imagen y sonido reales, que es justo lo que un verso
+        # animado no puede dar (los reels propios van mudos a propósito).
+        clip = db.execute(
+            select(VideoClip).where(
+                VideoClip.queue_item_id == item.id,
+                VideoClip.status == "ready",
+            )
+        ).scalars().first()
+
+        if clip and clip.url_cdn:
+            _sync_media(db, item, [], [], kind="video")
+            item.media.append(
+                InstagramQueueMedia(
+                    position=0, kind="video", role="clip",
+                    url=clip.url_cdn,
+                    cloudinary_public_id=clip.cloudinary_public_id,
+                    duration_s=clip.duration_s,
+                )
+            )
+            # El crédito del canal viaja también en el caption, no solo quemado
+            # en el vídeo.
+            topic["image_credit"] = clip.atribucion
+            item.image_path = None      # el material vive en Cloudinary
+            item.caption = captions.build(db, topic)
+            item.status = "prepared"
+            item.error = None
+            db.commit()
+            logger.info("[IG] item %s usará el clip #%s (%s)",
+                        item.id, clip.id, clip.channel_title)
+            return item
+
+        # Sin clip asignado: verso animado propio.
         ruta = video.render_verse_reel(topic, slot=item.slot or 1)
         specs, paths, used_hero = [{"layout": "reel"}], [ruta], False
         _sync_media(db, item, paths, specs, kind="video")
@@ -351,7 +383,13 @@ def _media_lista(item: InstagramQueueItem) -> bool:
     """
     if not item.media:
         return bool(item.image_path and os.path.exists(item.image_path))
-    return all(m.local_path and os.path.exists(m.local_path) for m in item.media)
+    # Una pieza vale si está en disco O ya subida: los clips de terceros los baja
+    # el daemon de la Mac y llegan directamente a Cloudinary, sin pasar por el
+    # /tmp del servidor.
+    return all(
+        (m.local_path and os.path.exists(m.local_path)) or m.url
+        for m in item.media
+    )
 
 
 def publish(
@@ -417,6 +455,18 @@ def publish(
         item.published_at = datetime.now(timezone.utc)
         item.error = None
         logger.info("[IG] ✅ item %s publicado · media_id=%s", item.id, media_id)
+        # Si el post salió de un clip de terceros, se cierra su ficha: así el
+        # registro de procedencia sabe en qué publicación acabó y la retirada
+        # puede borrar el post correcto.
+        clip = db.execute(
+            select(VideoClip).where(VideoClip.queue_item_id == item.id)
+        ).scalars().first()
+        if clip is not None:
+            clip.status = "published"
+            clip.ig_media_id = media_id
+            clip.published_at = item.published_at
+            db.commit()
+
         # Arranca el hilo con la pregunta del caption, como hacen las cuentas
         # del nicho con mejor engagement. Best-effort: si falla, el post ya está
         # publicado y no se toca.
