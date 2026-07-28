@@ -197,9 +197,21 @@ def datos_consultorio(db, pregunta: str) -> dict:
 
 def datos_buscador(db, consulta: str, k: int = 2) -> list[dict]:
     """Busca de verdad en el buscador semántico. Propaga el error si falla."""
+    from sqlalchemy import select
+
+    from app.db.models import User
     from app.routers.search import SemanticIn, semantic
 
-    salida = semantic(SemanticIn(query=consulta, k=k), db=db, _user=None)
+    # El endpoint registra la consulta con el id del usuario, así que se le pasa
+    # el admin: la búsqueda queda en la analítica como lo que es, una consulta
+    # del sistema para montar la pieza, y no con un usuario falso.
+    admin = db.execute(
+        select(User).where(User.is_admin.is_(True)).order_by(User.id)
+    ).scalars().first()
+    if admin is None:
+        raise RuntimeError("no hay usuario admin con el que consultar")
+
+    salida = semantic(SemanticIn(query=consulta, k=k), db=db, _user=admin)
     resultados = []
     for hit in salida.results[:k]:
         d = hit.model_dump() if hasattr(hit, "model_dump") else dict(hit)
