@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import InstagramPlanner from "./InstagramPlanner";
+import ClipsPanel from "./ClipsPanel";
 
 export type IGItem = {
   id: number;
@@ -126,6 +127,8 @@ export default async function InstagramAdminPage() {
         candidates={candidates}
         account={account}
       />
+
+      <ClipsPanel />
     </main>
   );
 }

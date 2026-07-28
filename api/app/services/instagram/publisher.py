@@ -30,6 +30,7 @@ from app.services.instagram import (
     captions,
     carousel,
     cloudinary_upload,
+    community,
     config,
     editorial,
     graph_api,
@@ -416,6 +417,15 @@ def publish(
         item.published_at = datetime.now(timezone.utc)
         item.error = None
         logger.info("[IG] ✅ item %s publicado · media_id=%s", item.id, media_id)
+        # Arranca el hilo con la pregunta del caption, como hacen las cuentas
+        # del nicho con mejor engagement. Best-effort: si falla, el post ya está
+        # publicado y no se toca.
+        try:
+            ok, detalle = community.comentar_post(media_id, item.caption or "")
+            if not ok:
+                logger.info("[IG] sin autocomentario en %s: %s", item.id, detalle)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[IG] autocomentario falló en %s: %s", item.id, exc)
     else:
         item.status = "failed"
         item.error = result_msg

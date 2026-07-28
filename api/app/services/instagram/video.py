@@ -14,11 +14,23 @@ clave (fondo limpio → fondo con el verso) y ffmpeg hace el trabajo: zoom lento
 tipo Ken Burns sobre cada una y un fundido entre ambas. Sale barato y se ve como
 un vídeo de verdad.
 
-SIN AUDIO, y es una limitación consciente: la música de Extremoduro tiene
-derechos y la biblioteca de audio de Instagram no se puede elegir por API. Un
-reel mudo rinde menos que uno con música; ponerle música que no es nuestra no es
-una opción. Se incrusta una pista silenciosa porque algunos reproductores
-esperan un stream de audio.
+SIN AUDIO, y es una DECISIÓN TOMADA, no una carencia pendiente de resolver
+(jul-2026):
+
+  - La música de Extremoduro tiene derechos e Instagram la detecta sola: no
+    hace falta que nadie reclame, el sistema silencia o bloquea el reel. Y la
+    biblioteca de audio licenciada de Instagram solo se puede elegir a mano
+    desde la app, nunca por API — justo la vía por la que publicamos.
+  - Poner música libre de derechos se descartó por criterio editorial: en un
+    reel de un verso de Robe, un fondo genérico que no es de Extremoduro queda
+    peor que el silencio.
+
+Las guitarras de verdad entran por otra puerta: los CLIPS DE TERCEROS
+(`video_clips.py`) conservan su audio original — un fan tocando, una entrevista,
+un directo. Ahí el sonido es real y viene con el material.
+
+Se incrusta una pista silenciosa porque algunos reproductores esperan un stream
+de audio.
 """
 from __future__ import annotations
 
