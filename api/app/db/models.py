@@ -1409,6 +1409,74 @@ class InstagramQueueMedia(Base):
     item: Mapped["InstagramQueueItem"] = relationship(back_populates="media")
 
 
+class VideoClip(Base):
+    """Un fragmento de vídeo de YouTube usado en una publicación de Instagram.
+
+    La decisión editorial es publicar clips de canales ajenos sin pedir permiso
+    previo y atender las reclamaciones si llegan. Esta tabla es lo que hace eso
+    sostenible: guarda DE DÓNDE salió cada clip (vídeo, canal, tramo exacto),
+    quién lo aprobó y en qué publicación acabó, de modo que ante un aviso se
+    puede responder en minutos y retirarlo con un botón.
+
+    Mismo ciclo que `YoutubeIngestQueue`, y por la misma razón: la IP del
+    servidor está bloqueada por YouTube, así que la descarga la hace un daemon
+    en la Mac y empuja el resultado por HTTP.
+
+    Estados: requested → downloading → ready → published → retired | failed.
+    """
+
+    __tablename__ = "video_clips"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('requested','downloading','ready','published',"
+            "'retired','failed')",
+            name="ck_video_clips_status",
+        ),
+        CheckConstraint("end_s > start_s", name="ck_video_clips_tramo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # --- Procedencia: lo que se enseña si alguien reclama ---
+    video_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    video_title: Mapped[str | None] = mapped_column(String(500))
+    channel_title: Mapped[str | None] = mapped_column(String(200))
+    channel_url: Mapped[str | None] = mapped_column(String(500))
+    # --- Tramo utilizado ---
+    start_s: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    end_s: Mapped[float] = mapped_column(Float, nullable=False)
+    subtitle: Mapped[str | None] = mapped_column(Text)
+    # --- Ciclo de vida ---
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="requested", index=True
+    )
+    local_path: Mapped[str | None] = mapped_column(String(500))
+    url_cdn: Mapped[str | None] = mapped_column(String(700))
+    cloudinary_public_id: Mapped[str | None] = mapped_column(String(200))
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    # --- Trazabilidad ---
+    requested_by: Mapped[str | None] = mapped_column(String(200))
+    queue_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("instagram_queue.id", ondelete="SET NULL")
+    )
+    ig_media_id: Mapped[str | None] = mapped_column(String(64))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    @property
+    def atribucion(self) -> str:
+        """Texto de crédito que va SIEMPRE con el clip, en la pieza y el caption."""
+        canal = (self.channel_title or "").strip()
+        return f"🎬 Vídeo: {canal}" if canal else "🎬 Vídeo de YouTube"
+
+
+
 # --- Listas de reproducción (zona privada) ---------------------------------
 
 

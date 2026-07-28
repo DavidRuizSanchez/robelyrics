@@ -2585,6 +2585,117 @@ def admin_ig_auto_schedule(
     )
 
 
+# --------------------------------------------------------------------------- #
+# Clips de vídeo de terceros
+# --------------------------------------------------------------------------- #
+class AdminClipIn(BaseModel):
+    url: str
+    start_s: float = 0.0
+    end_s: float
+    subtitle: str | None = None
+
+
+class AdminClipOut(BaseModel):
+    id: int
+    video_id: str
+    url: str
+    video_title: str | None = None
+    channel_title: str | None = None
+    channel_url: str | None = None
+    start_s: float
+    end_s: float
+    subtitle: str | None = None
+    status: str
+    url_cdn: str | None = None
+    duration_s: float | None = None
+    error: str | None = None
+    requested_by: str | None = None
+    ig_media_id: str | None = None
+    retired_at: datetime | None = None
+    retired_reason: str | None = None
+    created_at: datetime
+
+
+class AdminClipRetireIn(BaseModel):
+    reason: str
+
+
+def _clip_model(c) -> AdminClipOut:
+    return AdminClipOut(
+        id=c.id, video_id=c.video_id, url=c.url, video_title=c.video_title,
+        channel_title=c.channel_title, channel_url=c.channel_url,
+        start_s=c.start_s, end_s=c.end_s, subtitle=c.subtitle, status=c.status,
+        url_cdn=c.url_cdn, duration_s=c.duration_s, error=c.error,
+        requested_by=c.requested_by, ig_media_id=c.ig_media_id,
+        retired_at=c.retired_at, retired_reason=c.retired_reason,
+        created_at=c.created_at,
+    )
+
+
+@router.get("/instagram/clips", response_model=list[AdminClipOut])
+def admin_clips_list(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminClipOut]:
+    """Todos los clips con su procedencia. Es el registro que se consulta si
+    llega una reclamación."""
+    from app.db.models import VideoClip
+
+    rows = (
+        db.query(VideoClip)
+        .order_by(VideoClip.created_at.desc())
+        .limit(min(limit, 500))
+        .all()
+    )
+    return [_clip_model(c) for c in rows]
+
+
+@router.post("/instagram/clips", response_model=AdminClipOut)
+def admin_clips_create(
+    payload: AdminClipIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Pide un clip de YouTube. La descarga la hace el daemon de la Mac: la IP
+    del servidor está bloqueada por YouTube."""
+    from app.services.instagram import video_clips as _vc
+
+    try:
+        clip = _vc.solicitar(
+            db, url=payload.url, start_s=payload.start_s, end_s=payload.end_s,
+            subtitle=payload.subtitle, requested_by=admin.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _clip_model(clip)
+
+
+@router.post("/instagram/clips/{clip_id}/retire", response_model=AdminClipOut)
+def admin_clips_retire(
+    clip_id: int,
+    payload: AdminClipRetireIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Retira un clip: borra el post de Instagram y el fichero de Cloudinary.
+
+    Es la válvula que hace asumible publicar sin pedir permiso previo — permite
+    responder a una reclamación en minutos.
+    """
+    from app.db.models import VideoClip
+    from app.services.instagram import video_clips as _vc
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    ok, msg = _vc.retire(db, clip, payload.reason)
+    db.refresh(clip)
+    if not ok:
+        logger.warning("[clip] retirada parcial de %s: %s", clip_id, msg)
+    return _clip_model(clip)
+
+
 class AdminIGShuffleIn(BaseModel):
     # Cambiar la semilla da otro reparto; con la misma, el resultado se repite.
     seed: int = 0

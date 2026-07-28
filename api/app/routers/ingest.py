@@ -17,9 +17,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.models import YouTubeIngestQueue
@@ -179,3 +178,114 @@ def fail(item_id: int, payload: FailIn, db: Session = Depends(get_db)) -> OkOut:
     row.attempts = (row.attempts or 0) + 1
     db.commit()
     return OkOut(status=row.status)
+
+
+# =========================================================================== #
+# Clips de vídeo para Instagram
+# =========================================================================== #
+# Mismo reparto de trabajo que las transcripciones y por el mismo motivo: la IP
+# del servidor está bloqueada por YouTube, así que descarga el daemon de la Mac
+# y sube el resultado ya recortado y con la atribución quemada.
+
+clips_router = APIRouter(prefix="/ingest/clips", tags=["ingest"])
+
+
+class ClipPending(BaseModel):
+    id: int
+    url: str
+    video_id: str
+    start_s: float
+    end_s: float
+    subtitle: str | None = None
+    channel_title: str | None = None
+    attempts: int
+
+
+class ClipComplete(BaseModel):
+    """Lo que manda el daemon cuando ya ha subido el clip a Cloudinary."""
+    url_cdn: str
+    cloudinary_public_id: str | None = None
+    duration_s: float | None = None
+    video_title: str | None = None
+    channel_title: str | None = None
+    channel_url: str | None = None
+
+
+@clips_router.get("/pending", response_model=list[ClipPending])
+def clips_pending(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> list[ClipPending]:
+    """Clips que quedan por descargar."""
+    from app.services.instagram import video_clips as _vc
+
+    return [
+        ClipPending(
+            id=c.id, url=c.url, video_id=c.video_id, start_s=c.start_s,
+            end_s=c.end_s, subtitle=c.subtitle, channel_title=c.channel_title,
+            attempts=c.attempts,
+        )
+        for c in _vc.pendientes(db, max_intentos=MAX_ATTEMPTS)
+    ]
+
+
+@clips_router.post("/{clip_id}/claim")
+def clips_claim(
+    clip_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    """Marca el clip como en descarga, para que dos daemons no lo dupliquen."""
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.status = "downloading"
+    clip.attempts += 1
+    db.commit()
+    return {"ok": True, "attempts": clip.attempts}
+
+
+@clips_router.post("/{clip_id}/complete")
+def clips_complete(
+    clip_id: int,
+    payload: ClipComplete,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    """El clip ya está en Cloudinary: se guarda su URL y su procedencia."""
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.url_cdn = payload.url_cdn
+    clip.cloudinary_public_id = payload.cloudinary_public_id
+    clip.duration_s = payload.duration_s
+    # La procedencia real la sabe quien descargó, no quien pidió el clip.
+    clip.video_title = payload.video_title or clip.video_title
+    clip.channel_title = payload.channel_title or clip.channel_title
+    clip.channel_url = payload.channel_url or clip.channel_url
+    clip.status = "ready"
+    clip.error = None
+    db.commit()
+    return {"ok": True, "status": clip.status}
+
+
+@clips_router.post("/{clip_id}/fail")
+def clips_fail(
+    clip_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.status = "failed"
+    clip.error = str(payload.get("error", ""))[:2000]
+    db.commit()
+    return {"ok": True, "attempts": clip.attempts}
