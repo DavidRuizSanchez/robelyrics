@@ -2078,11 +2078,27 @@ class AdminIGItem(BaseModel):
     published_at: datetime | None = None
 
 
+class AdminIGMedia(BaseModel):
+    """Una pieza de media del post, para la previsualización del panel.
+
+    Sin bytes: se sirven por `/media/{position}`. Diez diapositivas en base64
+    serían ~5 MB por petición de detalle, y un vídeo mucho más.
+    """
+    position: int
+    kind: str = "image"
+    role: str | None = None
+    url: str | None = None
+    duration_s: float | None = None
+    has_local: bool = False
+
+
 class AdminIGItemDetail(AdminIGItem):
     caption: str | None = None
     # Imagen preparada, codificada en base64 para previsualizarla en el
     # panel sin tener que exponer el fichero local del contenedor.
+    # Solo se rellena en posts de una pieza; el resto va por `media`.
     image_b64: str | None = None
+    media: list[AdminIGMedia] = []
 
 
 class AdminIGNewsCandidate(BaseModel):
@@ -2190,14 +2206,65 @@ def admin_ig_queue_list(
 
 
 def _ig_detail_model(it: _IGItem) -> AdminIGItemDetail:
-    """Modelo de detalle con la imagen preparada en base64 (si el fichero
-    local sigue existiendo) para previsualizarla sin exponer el path."""
+    """Modelo de detalle para el panel.
+
+    La primera imagen sigue yendo en base64 por compatibilidad, pero SOLO si el
+    post es de una pieza y no es vídeo: un carrusel de 10 serían ~5 MB por
+    petición y un MP4 bastante más. El resto se sirve por `/media/{position}`.
+    """
     base = _ig_item_to_model(it)
+    piezas = sorted(getattr(it, "media", []) or [], key=lambda m: m.position)
+
     image_b64 = None
-    if it.image_path and _os.path.exists(it.image_path):
+    solo_una_imagen = len(piezas) <= 1 and not any(m.kind == "video" for m in piezas)
+    if solo_una_imagen and it.image_path and _os.path.exists(it.image_path):
         with open(it.image_path, "rb") as f:
             image_b64 = _b64.b64encode(f.read()).decode("ascii")
-    return AdminIGItemDetail(**base.model_dump(), caption=it.caption, image_b64=image_b64)
+
+    return AdminIGItemDetail(
+        **base.model_dump(),
+        caption=it.caption,
+        image_b64=image_b64,
+        media=[
+            AdminIGMedia(
+                position=m.position, kind=m.kind, role=m.role, url=m.url,
+                duration_s=m.duration_s,
+                has_local=bool(m.local_path and _os.path.exists(m.local_path)),
+            )
+            for m in piezas
+        ],
+    )
+
+
+@router.get("/instagram/queue/{item_id}/media/{position}")
+def admin_ig_media_bytes(
+    item_id: int,
+    position: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Sirve una pieza de media (imagen o vídeo) para previsualizarla.
+
+    Prioriza el fichero local recién generado; si ya no está en `/tmp` (que es
+    efímero) pero se subió a Cloudinary, redirige allí.
+    """
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    pieza = next(
+        (m for m in (getattr(it, "media", []) or []) if m.position == position), None
+    )
+    if pieza is None:
+        raise HTTPException(status_code=404, detail="media not found")
+
+    if pieza.local_path and _os.path.exists(pieza.local_path):
+        tipo = "video/mp4" if pieza.kind == "video" else "image/jpeg"
+        return FileResponse(pieza.local_path, media_type=tipo)
+    if pieza.url:
+        return RedirectResponse(pieza.url)
+    raise HTTPException(status_code=404, detail="media sin fichero ni URL")
 
 
 @router.get("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)

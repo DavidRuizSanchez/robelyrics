@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { IGAccount, IGItem, IGNewsCandidate } from "./page";
-import InstagramPreview from "./InstagramPreview";
+import InstagramPreview, { type PreviewMedia } from "./InstagramPreview";
 import ProgramarPost from "./ProgramarPost";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -87,6 +87,7 @@ export default function InstagramPlanner({
     caption: string | null;
     image_b64: string | null;
     image_url: string | null;
+    media?: PreviewMedia[];
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [draftCaption, setDraftCaption] = useState("");
@@ -507,6 +508,10 @@ export default function InstagramPlanner({
                     it.status === "published"
                       ? detail?.caption ?? ""
                       : draftCaption
+                  }
+                  media={detail?.media ?? []}
+                  mediaSrc={(pos) =>
+                    `/biblioteca/admin/instagram/api/queue/${it.id}/media/${pos}`
                   }
                 />
 

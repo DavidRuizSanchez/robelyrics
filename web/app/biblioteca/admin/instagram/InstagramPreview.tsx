@@ -17,10 +17,21 @@ import { useState } from "react";
 /** Lo que Instagram deja ver antes del «… más» (aprox., por caracteres). */
 const CORTE = 125;
 
+export type PreviewMedia = {
+  position: number;
+  kind: string;          // "image" | "video"
+  role?: string | null;
+  duration_s?: number | null;
+};
+
 type Props = {
   imageSrc: string | null;
   caption: string;
   username?: string;
+  /** Piezas del post. Si hay más de una, se navega como carrusel. */
+  media?: PreviewMedia[];
+  /** Construye la URL de bytes de cada pieza. */
+  mediaSrc?: (position: number) => string;
 };
 
 function partirEnElCorte(caption: string): { visible: string; resto: string } {
@@ -50,10 +61,19 @@ export default function InstagramPreview({
   imageSrc,
   caption,
   username = "entreinterioresrobe",
+  media = [],
+  mediaSrc,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
+  const [slide, setSlide] = useState(0);
   const { visible, resto } = partirEnElCorte(caption);
   const hayMas = resto.trim().length > 0;
+
+  const piezas = media.length > 0 ? media : [];
+  const actual = piezas[Math.min(slide, piezas.length - 1)];
+  const esVideo = actual?.kind === "video";
+  // Los reels son 9:16; el resto, cuadrado.
+  const alto = esVideo ? 568 : 320;
 
   return (
     <div className="w-[320px] shrink-0">
@@ -70,8 +90,69 @@ export default function InstagramPreview({
           </span>
         </div>
 
-        {/* Imagen */}
-        {imageSrc ? (
+        {/* Media: vídeo, carrusel navegable o imagen suelta */}
+        {piezas.length > 0 && mediaSrc ? (
+          <div className="relative bg-[#111]" style={{ height: alto }}>
+            {esVideo ? (
+              <video
+                key={actual.position}
+                src={mediaSrc(actual.position)}
+                controls
+                loop
+                muted
+                playsInline
+                className="w-[320px] object-contain bg-black"
+                style={{ height: alto }}
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={mediaSrc(actual.position)}
+                alt={`Diapositiva ${slide + 1}`}
+                className="w-[320px] object-cover"
+                style={{ height: alto }}
+              />
+            )}
+
+            {piezas.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSlide((s) => Math.max(0, s - 1))}
+                  disabled={slide === 0}
+                  data-cursor="hover"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-[#f5f5f5] text-sm disabled:opacity-25"
+                  aria-label="Anterior"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSlide((s) => Math.min(piezas.length - 1, s + 1))
+                  }
+                  disabled={slide === piezas.length - 1}
+                  data-cursor="hover"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-[#f5f5f5] text-sm disabled:opacity-25"
+                  aria-label="Siguiente"
+                >
+                  ›
+                </button>
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                  {piezas.map((p, i) => (
+                    <span
+                      key={p.position}
+                      className={`w-1.5 h-1.5 rounded-full ${i === slide ? "bg-[#f5f5f5]" : "bg-[#f5f5f5]/40"}`}
+                    />
+                  ))}
+                </div>
+                <span className="absolute top-2 right-2 font-mono text-[10px] bg-black/60 text-[#f5f5f5] px-1.5 py-0.5 rounded">
+                  {slide + 1}/{piezas.length}
+                </span>
+              </>
+            )}
+          </div>
+        ) : imageSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={imageSrc}
@@ -80,7 +161,7 @@ export default function InstagramPreview({
           />
         ) : (
           <div className="w-[320px] h-[320px] bg-[#111] flex items-center justify-center text-center font-mono text-[9px] tracking-[1px] uppercase text-ink-faint p-4">
-            sin imagen · pulsa «re-preparar»
+            sin material · pulsa «re-preparar»
           </div>
         )}
 
@@ -123,6 +204,12 @@ export default function InstagramPreview({
         quien pasa haciendo scroll: {visible.length} de {caption.length} car.
         {hayMas ? " El resto solo lo ve quien pulsa «más»." : ""}
       </p>
+      {esVideo && (
+        <p className="mt-1 font-mono text-[9px] text-ink-faint">
+          Reel {actual?.duration_s ? `de ${Math.round(actual.duration_s)} s ` : ""}
+          · sin audio (la música tiene derechos)
+        </p>
+      )}
     </div>
   );
 }
