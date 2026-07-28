@@ -172,6 +172,68 @@ def corpus_research(db, query: str, n: int = 4) -> list[dict]:
     return [{"title": t or "", "excerpt": (c or "")[:600]} for t, c in rows]
 
 
+def entity_dossiers(db, blob: str, *, max_songs: int = 2) -> str:
+    """Dossier de las ENTIDADES del catálogo que menciona la noticia.
+
+    `corpus_research` busca por el sujeto tal cual lo nombra el titular, y eso deja
+    fuera lo mejor que tenemos: una noticia sobre el bar Umore Ona daba 0 resultados,
+    cuando va de «Calle Esperanza S/N» —canción nuestra, con letra, créditos y
+    fuentes—. Aquí se detecta de qué canciones del catálogo habla el texto y se trae
+    su dossier completo (el mismo que alimenta las páginas SEO profundas), más el de
+    su disco. SUMA a `corpus_research`, no lo sustituye.
+
+    Devuelve "" si no reconoce ninguna entidad: entonces no hay nada que añadir."""
+    if db is None or not blob:
+        return ""
+    try:
+        from app.db.models import Album, Song
+        from app.services.deep_research import gather_entity_dossier
+        from scripts.research.common import find_referenced_titles, get_all_song_titles
+
+        song_ids = find_referenced_titles(blob, get_all_song_titles(db))
+        if not song_ids:
+            return ""
+        songs = db.query(Song).filter(Song.id.in_(song_ids[:max_songs])).all()
+        if not songs:
+            return ""
+
+        def _fmt(kind: str, title: str, dossier, cap: int) -> str:
+            """Datos duros + corpus del dossier, capados. `hard_facts` es lo canónico
+            (año, disco, créditos): va primero para que sobreviva al recorte."""
+            hard = (dossier.hard_facts or "").strip()
+            mat = (dossier.material or "").strip()
+            body = "\n\n".join(p for p in (hard, mat[: max(cap - len(hard), 0)]) if p)
+            return f"### {kind} «{title}»\n{body}" if body else ""
+
+        blocks: list[str] = []
+        for s in songs:
+            blk = _fmt("Canción", s.title, gather_entity_dossier(db, "song", s), 6000)
+            if blk:
+                blocks.append(blk)
+
+        # El disco de la primera canción reconocida: contexto del álbum (año, sello,
+        # tracklist, recepción) sin repetir dossieres por cada corte del mismo disco.
+        album_ids = [s.album_id for s in songs if s.album_id]
+        if album_ids:
+            album = db.query(Album).filter(Album.id == album_ids[0]).first()
+            if album is not None:
+                blk = _fmt("Disco", album.title,
+                           gather_entity_dossier(db, "album", album), 4000)
+                if blk:
+                    blocks.append(blk)
+
+        if not blocks:
+            return ""
+        return (
+            "DOSSIER DE NUESTRO CATÁLOGO (entidades reconocidas en la noticia; es "
+            "material PROPIO y verificado: úsalo para aportar lo que ningún medio "
+            "tiene, sin inventar nada que no esté aquí)\n\n" + "\n\n".join(blocks)
+        )
+    except Exception as exc:  # noqa: BLE001 — el dossier es un extra, nunca un bloqueo
+        logger.warning("[news_research] dossier de entidades falló: %s", exc)
+        return ""
+
+
 # --------------------------------------------------------------------------- #
 # 3. Vídeo relevante (YouTube) — con selección por el LLM para no embeber uno
 #    equivocado (homónimo / canal ajeno).
@@ -444,9 +506,37 @@ def suggest_titles(
     return candidates
 
 
+def _boost_queries(topic_type: str, subject: str) -> list[str]:
+    """Consultas de refuerzo por tipo de tema, para cuando el primer intento sale
+    sin sustancia. Buscan lo CONCRETO que un fan quiere leer (declaraciones,
+    anécdotas, fechas, nombres), que es justo lo que echa en falta el gate."""
+    common = [
+        f"{subject} Extremoduro Robe relación historia",
+        f"{subject} declaraciones entrevista qué dijo",
+    ]
+    by_type = {
+        "lugar": [
+            f"{subject} historia anécdotas músicos que pasaron",
+            f"{subject} cierre año qué fue testimonios",
+        ],
+        "persona": [
+            f"{subject} biografía trayectoria discos",
+            f"{subject} colaboración Robe Extremoduro",
+        ],
+        "banda": [
+            f"{subject} grupo formación miembros discos",
+            f"{subject} versión homenaje Extremoduro",
+        ],
+        "disco": [f"{subject} disco grabación sello críticas", f"{subject} canciones tracklist"],
+        "cancion": [f"{subject} letra significado grabación", f"{subject} directo versiones"],
+        "evento": [f"{subject} fecha lugar entradas cartel", f"{subject} quién actúa invitados"],
+    }
+    return common + by_type.get(topic_type, [f"{subject} qué es contexto detalles"])
+
+
 def research_and_write(
     *, db, headline: str, source_excerpt: str, matched_term: str,
-    today=None, tense: str = "informativo",
+    today=None, tense: str = "informativo", boost: bool = False,
 ) -> dict[str, Any]:
     """Investiga el tema (adaptado a su tipo) y escribe el post. Devuelve el
     dict del post + 'video' (metadatos reales o None) + 'image_url' (o None) +
@@ -457,6 +547,10 @@ def research_and_write(
       - "informativo" (def.): redacta el hecho tal cual (futuro o presente).
       - "cronica": el evento YA pasó; redacta en PASADO como crónica de lo que
         ocurrió (lo usa la caducidad cuando hay material de crónica).
+
+    `boost`: segunda pasada tras un rechazo del gate de rigor. Amplía la búsqueda
+    web con consultas por tipo de tema (`_boost_queries`). NO relaja ningún
+    criterio: solo trae más material real para que haya de qué escribir.
     """
     today_iso = today.isoformat() if hasattr(today, "isoformat") else today
     plan = plan_research(headline, source_excerpt, matched_term, today=today_iso)
@@ -467,6 +561,13 @@ def research_and_write(
     # Solo aceptamos la fecha si aparece LITERAL en la fuente (anti-invención).
     event_date = validated_event_date(plan.get("event_date"), source_excerpt)
     web = web_research(plan.get("web_query") or subject)
+    if boost:
+        seen_urls = {r.get("url") for r in web if r.get("url")}
+        for q in _boost_queries(str(plan.get("topic_type") or ""), subject):
+            for r in web_research(q, n=4):
+                if r.get("url") and r["url"] not in seen_urls:
+                    seen_urls.add(r["url"])
+                    web.append(r)
     corpus = corpus_research(db, subject)
     video = find_video(plan.get("video_query") or "", subject)
     image = find_image(plan.get("image_query") or "")
@@ -511,6 +612,13 @@ def research_and_write(
     web_txt = "\n".join(f"- {r['title']}: {r['snippet']}" for r in web) or "(sin resultados web)"
     corpus_txt = "\n".join(f"- {r['title']}: {r['excerpt']}" for r in corpus) or "(sin material en el corpus)"
 
+    # Dossier de las entidades del catálogo que nombra la noticia. Va APARTE del
+    # corpus por sujeto (que se busca por el titular y a veces no engancha nada) y
+    # es lo que permite aportar algo que ningún medio tiene.
+    dossier_txt = entity_dossiers(
+        db, " ".join([headline, source_excerpt[:4000], web_txt])
+    )
+
     # En modo crónica el evento ya ocurrió: redacta en pasado, sin anunciar nada
     # a futuro. En informativo, respeta el tiempo del hecho.
     tense_line = (
@@ -524,15 +632,31 @@ def research_and_write(
         else ""
     )
     # Material unificado (única fuente de hechos) + datos duros + KW objetivo.
+    # El veto a hablar del lugar nació para que la crónica de un concierto no derive
+    # en la historia de la sala. Cuando el protagonista ES el lugar, ese veto deja al
+    # texto sin nada que desarrollar y sale dando vueltas: ahí se invierte.
+    if plan.get("topic_type") == "lugar":
+        foco_line = (
+            "FOCO OBLIGATORIO: el protagonista ES el lugar. Cuéntalo con lo concreto "
+            "que haya en el material (qué fue, quién pasó por allí con nombre, qué "
+            "canciones o discos lo nombran, qué queda hoy) y ATA el relato a nuestro "
+            "catálogo: si el dossier trae una canción, el ancla es ella —de qué habla "
+            "su letra, en qué disco salió—, no el bar en abstracto. Nada de párrafos "
+            "de ambiente ni de repetir la misma idea con otras palabras."
+        )
+    else:
+        foco_line = (
+            "FOCO OBLIGATORIO: céntrate en el hecho y sus protagonistas (quién, qué, "
+            "cuándo, actuaciones, guiños a Robe/Extremoduro). Prohibido dedicar "
+            "secciones al lugar/recinto/sede o su historia: solo mención de pasada."
+        )
     hard = (
         f"{tense_line}"
         f"Titular de partida: {headline}\n"
         f"Tipo de tema: {plan.get('topic_type')}\n"
         f"Protagonista: {subject}\n"
         f"Enfoque (qué destacar): {plan.get('focus') or ''}\n"
-        "FOCO OBLIGATORIO: céntrate en el hecho y sus protagonistas (quién, qué, "
-        "cuándo, actuaciones, guiños a Robe/Extremoduro). Prohibido dedicar "
-        "secciones al lugar/recinto/sede o su historia: solo mención de pasada."
+        f"{foco_line}"
     )
     material = (
         f"EXTRACTO DE LA NOTICIA (punto de partida, NO copiar literal):\n"
@@ -540,6 +664,7 @@ def research_and_write(
         f"INVESTIGACIÓN WEB:\n{web_txt}\n\n"
         + (f"CRÓNICA / ESPECÍFICOS DEL EVENTO:\n{cronica_txt}\n\n" if cronica_txt else "")
         + f"NUESTRO CORPUS:\n{corpus_txt}"
+        + (f"\n\n{dossier_txt}" if dossier_txt else "")
     )
     target_kw = subject  # KW primaria del post = el protagonista de la noticia
     kw_block = (
