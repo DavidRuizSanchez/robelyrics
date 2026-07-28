@@ -2048,6 +2048,7 @@ from app.db.models import (  # noqa: E402
 from app.services.instagram import (  # noqa: E402
     graph_api as _ig_graph,
     publisher as _ig_publisher,
+    scheduling as _ig_scheduling,
 )
 
 
@@ -2059,6 +2060,7 @@ class AdminIGItem(BaseModel):
     status: str
     content_type: str = "news"
     publish_on: str | None = None
+    publish_at: datetime | None = None
     title: str
     category: str | None = None
     summary: str | None = None
@@ -2125,6 +2127,10 @@ class AdminIGUpdateIn(BaseModel):
     caption: str | None = None
     title: str | None = None
     summary: str | None = None
+    # Programación exacta. Para DESprogramar (devolver el item al goteo) hay que
+    # mandar `clear_publish_at: true`: un None aquí significa "no tocar".
+    publish_at: datetime | None = None
+    clear_publish_at: bool = False
 
 
 class AdminIGAccount(BaseModel):
@@ -2142,6 +2148,7 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         status=it.status,
         content_type=getattr(it, "content_type", None) or "news",
         publish_on=it.publish_on.isoformat() if getattr(it, "publish_on", None) else None,
+        publish_at=getattr(it, "publish_at", None),
         title=it.title,
         category=it.category,
         summary=it.summary,
@@ -2207,7 +2214,8 @@ def admin_ig_update(
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGItemDetail:
     """Edita a mano el contenido de un item de la cola (caption, título,
-    resumen) antes de publicarlo. No se puede editar uno ya publicado."""
+    resumen) y su programación, antes de publicarlo. No se puede editar uno ya
+    publicado."""
     it = db.get(_IGItem, item_id)
     if it is None:
         raise HTTPException(status_code=404, detail="item not found")
@@ -2219,6 +2227,14 @@ def admin_ig_update(
         it.title = payload.title[:300]
     if payload.summary is not None:
         it.summary = payload.summary
+    if payload.clear_publish_at:
+        it.publish_at = None          # vuelve al goteo normal
+    elif payload.publish_at is not None:
+        programado = payload.publish_at
+        # Sin zona horaria se interpreta como UTC, que es como corre el cron.
+        if programado.tzinfo is None:
+            programado = programado.replace(tzinfo=timezone.utc)
+        it.publish_at = programado
     db.commit()
     db.refresh(it)
     return _ig_detail_model(it)
@@ -2450,6 +2466,46 @@ def admin_ig_interleave(
     return [_ig_item_to_model(it) for it in interleaved]
 
 
+class AdminIGAutoScheduleIn(BaseModel):
+    weeks: int = 4          # ventana: próximas N semanas
+    dry_run: bool = False   # calcular y devolver el reparto sin escribirlo
+
+
+class AdminIGAutoScheduleResult(BaseModel):
+    scheduled: list[dict] = []   # [{id, title, when}]
+    skipped: list[dict] = []     # [{id, title, reason}]
+    weekly_cap: int = 0
+    slots: list[str] = []
+
+
+@router.post(
+    "/instagram/queue/auto-schedule", response_model=AdminIGAutoScheduleResult
+)
+def admin_ig_auto_schedule(
+    payload: AdminIGAutoScheduleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGAutoScheduleResult:
+    """Reparte los posts aprobados y sin fecha por las próximas `weeks` semanas.
+
+    Intercala tipos de contenido y respeta el techo semanal que impone el
+    cuentagotas, así que no puede saltarse la cadencia acordada. Con
+    `dry_run=true` devuelve el reparto propuesto sin tocar nada.
+    """
+    asignaciones, descartes = _ig_scheduling.plan(db, weeks=payload.weeks)
+    if not payload.dry_run:
+        _ig_scheduling.apply_plan(db, asignaciones)
+    return AdminIGAutoScheduleResult(
+        scheduled=[
+            {"id": it.id, "title": it.title[:80], "when": cuando.isoformat()}
+            for it, cuando in asignaciones
+        ],
+        skipped=descartes,
+        weekly_cap=_ig_scheduling.cap_semanal(),
+        slots=[h.strftime("%H:%M") for h in _ig_scheduling.slots_diarios()],
+    )
+
+
 @router.post("/instagram/queue/bulk-approve", response_model=AdminIGBulkResult)
 def admin_ig_bulk_approve(
     payload: AdminIGBulkIn,
@@ -2473,7 +2529,11 @@ def admin_ig_bulk_approve(
         it.status = "pending"
         db.commit()
         try:
-            _ig_publisher.prepare(db, it)
+            # Si ya venía preparado (lo hace `prepare_daily` para que la vista
+            # previa del panel sea real), no se regenera: `prepare` cuesta una
+            # llamada a OpenAI y perdería cualquier edición del caption.
+            if not it.caption or not it.image_path:
+                _ig_publisher.prepare(db, it)
             result.ok.append(item_id)
         except Exception as exc:  # noqa: BLE001
             it.status = "failed"

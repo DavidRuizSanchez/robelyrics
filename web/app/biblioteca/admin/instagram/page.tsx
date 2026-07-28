@@ -12,6 +12,8 @@ export type IGItem = {
   status: string;
   content_type: string;
   publish_on: string | null;
+  /** Programación exacta (ISO, UTC). Si está, el item no entra en el goteo. */
+  publish_at: string | null;
   title: string;
   category: string | null;
   summary: string | null;

@@ -41,9 +41,41 @@ FRESHNESS_DAYS = int(os.getenv("IG_FRESHNESS_DAYS", "7"))
 # --- Cadencia de publicación (cuentagotas) ---
 # Mientras hay atasco (cola > BACKLOG_THRESHOLD) se publica cada
 # BACKLOG_INTERVAL_H horas para drenarlo; en régimen normal, cada
-# STEADY_INTERVAL_H horas. El cron dispara a 08,14,20 UTC (slots de 6h) y este
-# guard decide. STEADY=5h (no 6) deja margen: con 6h exactos entre slots, un
-# leve retraso del cron daría 5.99h < 6h y se saltaría una publicación.
+# STEADY_INTERVAL_H horas. El cron dispara cada 15 min y este guard es quien
+# decide de verdad: con disparos frecuentes, un post programado a las 19:40 sale
+# a las 19:45 y no en el siguiente slot de 6 horas.
+#
+# El intervalo se subió de 5h a 15h en jul-2026. Con el cron antiguo (3 disparos
+# al día) salían 21,5 posts/semana medidos, tres al día de contenido plantillero;
+# el objetivo ahora son 10-12 semanales bien trabajados:
+#     24 × 7 / 15 h ≈ 11,2 posts/semana
+# OJO al tocarlo: como el cron dispara cada 15 min, este número es lo ÚNICO que
+# limita el ritmo. Bajarlo a 5 devolvería casi 34 posts/semana.
 BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "4"))
-BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "4"))
-STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "5"))
+BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "10"))
+STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "15"))
+
+# --- Aprobación ------------------------------------------------------------
+# Todo el contenido nace `proposed` y NADIE lo publica sin que el admin lo
+# apruebe en /biblioteca/admin/instagram. Antes solo pasaba por ahí el evergreen:
+# las noticias entraban directas a `pending` y se publicaban sin que nadie las
+# viera. Poniendo IG_AUTO_APPROVE=true se vuelve al automatismo anterior.
+AUTO_APPROVE = os.getenv("IG_AUTO_APPROVE", "false").strip().lower() in (
+    "1", "true", "yes", "si", "sí",
+)
+
+
+def estado_inicial() -> str:
+    """Estado con el que nace un item recién encolado."""
+    return "pending" if AUTO_APPROVE else "proposed"
+
+
+# --- Formato ---------------------------------------------------------------
+# Se intenta CARRUSEL siempre que el tema dé material verificado para ≥2
+# diapositivas con sustancia; si no, se cae a foto única (que sigue siendo el
+# camino por defecto y no ha cambiado). En el benchmark del nicho el carrusel de
+# diseño fue el formato con más engagement con mucha diferencia.
+# Poniendo IG_CAROUSEL=false solo se generan carruseles marcados a mano.
+CAROUSEL_ENABLED = os.getenv("IG_CAROUSEL", "true").strip().lower() in (
+    "1", "true", "yes", "si", "sí",
+)

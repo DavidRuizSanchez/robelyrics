@@ -52,13 +52,19 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # después del agregador. También difunde los artículos nuevos del blog.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
-# Publica el siguiente post pendiente. 3 posts al día (08,14,20 UTC). SIN
-# --force: respeta el cuentagotas (intervalo mínimo entre publicaciones), así
-# no drena la cola hasta el relleno repetido cuando escasea la actualidad.
-# OJO: el cron va en UTC y NO soporta CRON_TZ → horas en UTC para Madrid en
-# VERANO (CEST=UTC+2): 08,14,20 → 10,16,22 Madrid. Al pasar a CET (UTC+1) el
-# 26-oct-2026, cambiar a '0 9,15,21 * * *'.
-0 8,14,20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+# Publica lo que toque. Dispara CADA 15 MINUTOS, pero NO publica cada 15 min:
+# quien manda es el cuentagotas de `config.STEADY_INTERVAL_H` (15 h → ~11 posts
+# por semana). Los disparos frecuentes son para que un post programado a mano
+# desde el panel (`publish_at`, fecha y hora) salga a su hora y no en el
+# siguiente slot de 6 horas.
+#
+# Antes eran 3 disparos al día (08,14,20 UTC) con intervalo de 5 h, lo que daba
+# 21,5 posts/semana medidos. Si alguna vez se vuelve a horas fijas, hay que
+# revisar STEADY_INTERVAL_H o el ritmo se dispara.
+#
+# Efecto colateral bueno: al no depender de horas fijas, este cron ya NO hay que
+# tocarlo en el cambio a CET del 26-oct-2026.
+*/15 * * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
 
 # Lote semanal de contenido EVERGREEN (frases, efemérides, anécdotas, citas).
 # Lunes 07:45 UTC. Encola propuestas en estado `proposed` (sin publicar); el

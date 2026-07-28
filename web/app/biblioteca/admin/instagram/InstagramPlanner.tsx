@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { IGAccount, IGItem, IGNewsCandidate } from "./page";
+import InstagramPreview from "./InstagramPreview";
+import ProgramarPost from "./ProgramarPost";
 
 const STATUS_LABEL: Record<string, string> = {
   proposed: "Propuesta",
@@ -62,10 +64,21 @@ export default function InstagramPlanner({
       .filter((it) => UPCOMING_STATUSES.has(it.status) && !it.publish_on)
       .sort((a, b) => a.position - b.position || a.id - b.id),
   );
-  // Efemérides con fecha fija (aniversarios, cumpleaños): se publican su día.
+  // Con momento fijado: efemérides (día del aniversario) y posts programados a
+  // mano con fecha y hora. Ninguno entra en el goteo.
   const pinned = queue
-    .filter((it) => UPCOMING_STATUSES.has(it.status) && it.publish_on)
-    .sort((a, b) => (a.publish_on || "").localeCompare(b.publish_on || ""));
+    .filter(
+      (it) => UPCOMING_STATUSES.has(it.status) && (it.publish_on || it.publish_at),
+    )
+    .sort((a, b) =>
+      (a.publish_on || a.publish_at || "").localeCompare(
+        b.publish_on || b.publish_at || "",
+      ),
+    );
+  // Programaciones cambiadas en esta sesión, para reflejarlas sin recargar.
+  const [schedules, setSchedules] = useState<Record<number, string | null>>({});
+  const scheduleOf = (it: IGItem) =>
+    it.id in schedules ? schedules[it.id] : it.publish_at;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   // Ver/editar el contenido de un item (clic en el título lo despliega).
@@ -168,6 +181,66 @@ export default function InstagramPlanner({
   function interleave() {
     if (!window.confirm("¿Reordenar la cola intercalando los tipos de publicación?")) return;
     call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
+  }
+
+  // --- Autoprogramar: reparte lo aprobado por las próximas semanas ---
+  async function autoSchedule() {
+    setBusy("auto-schedule");
+    try {
+      // Primero en seco, para enseñar el reparto ANTES de escribir nada.
+      const previa = await fetch(
+        "/biblioteca/admin/instagram/api/queue/auto-schedule",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weeks: 4, dry_run: true }),
+        },
+      ).then((r) => r.json());
+
+      if (previa.error) throw new Error(previa.error);
+      const n = previa.scheduled?.length ?? 0;
+      if (n === 0) {
+        window.alert(
+          previa.skipped?.length
+            ? `Nada que programar. ${previa.skipped.length} sin hueco (tope ${previa.weekly_cap}/semana).`
+            : "No hay posts aprobados sin fecha que programar.",
+        );
+        return;
+      }
+      const muestra = previa.scheduled
+        .slice(0, 6)
+        .map(
+          (s: { title: string; when: string }) =>
+            `· ${new Date(s.when).toLocaleString("es-ES", {
+              weekday: "short", day: "numeric", month: "short",
+              hour: "2-digit", minute: "2-digit",
+            })} — ${s.title}`,
+        )
+        .join("\n");
+      const cola =
+        previa.scheduled.length > 6
+          ? `\n… y ${previa.scheduled.length - 6} más`
+          : "";
+      const fuera = previa.skipped?.length
+        ? `\n\n${previa.skipped.length} se quedan fuera por falta de hueco.`
+        : "";
+      const ok = window.confirm(
+        `Se van a programar ${n} posts (máx. ${previa.weekly_cap}/semana, ` +
+          `en los slots ${previa.slots?.join(" y ")}):\n\n${muestra}${cola}${fuera}` +
+          `\n\n¿Confirmas?`,
+      );
+      if (!ok) return;
+
+      await call(
+        "POST",
+        "/biblioteca/admin/instagram/api/queue/auto-schedule",
+        { weeks: 4 },
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "no se pudo autoprogramar");
+    } finally {
+      setBusy(null);
+    }
   }
 
   // --- Drag-and-drop de la cola de publicación ---
@@ -318,6 +391,14 @@ export default function InstagramPlanner({
           >
             {STATUS_LABEL[it.status] ?? it.status}
           </span>
+          {scheduleOf(it) && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-accent/60 text-accent px-1.5 py-0.5">
+              🕒{" "}
+              {new Date(scheduleOf(it) as string).toLocaleString("es-ES", {
+                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+              })}
+            </span>
+          )}
           {it.is_prepared && (
             <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
               imagen ✓
@@ -360,29 +441,21 @@ export default function InstagramPlanner({
                 cargando…
               </p>
             ) : (
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Previsualización de la imagen preparada */}
-                <div className="shrink-0">
-                  {detail?.image_b64 ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={`data:image/jpeg;base64,${detail.image_b64}`}
-                      alt="Previsualización del post"
-                      className="w-44 h-44 object-cover border border-divider"
-                    />
-                  ) : detail?.image_url ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={detail.image_url}
-                      alt="Previsualización del post"
-                      className="w-44 h-44 object-cover border border-divider"
-                    />
-                  ) : (
-                    <div className="w-44 h-44 border border-divider flex items-center justify-center text-center font-mono text-[9px] tracking-[1px] uppercase text-ink-faint p-2">
-                      sin imagen · pulsa "re-preparar"
-                    </div>
-                  )}
-                </div>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Vista previa fiel al feed: imagen + caption con su corte
+                    real. Es donde se ve si la primera línea dice algo. */}
+                <InstagramPreview
+                  imageSrc={
+                    detail?.image_b64
+                      ? `data:image/jpeg;base64,${detail.image_b64}`
+                      : detail?.image_url ?? null
+                  }
+                  caption={
+                    it.status === "published"
+                      ? detail?.caption ?? ""
+                      : draftCaption
+                  }
+                />
 
                 {/* Editor del caption */}
                 <div className="flex-1 min-w-0">
@@ -427,6 +500,18 @@ export default function InstagramPlanner({
                         Ojo: "re-preparar" regenera el caption y la imagen desde
                         cero (pierde esta edición). Edita justo antes de publicar.
                       </p>
+
+                      <div className="mt-4 pt-4 border-t border-divider">
+                        <ProgramarPost
+                          itemId={it.id}
+                          publishAt={scheduleOf(it)}
+                          publishOn={it.publish_on}
+                          disabled={busy !== null}
+                          onSaved={(nuevo) =>
+                            setSchedules((prev) => ({ ...prev, [it.id]: nuevo }))
+                          }
+                        />
+                      </div>
                     </>
                   )}
                 </div>
@@ -573,9 +658,20 @@ export default function InstagramPlanner({
             >
               ⇄ alternar tipos de publicación
             </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={autoSchedule}
+              data-cursor="hover"
+              title="Reparte los posts aprobados por las próximas 4 semanas, intercalando tipos y respetando el tope semanal"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+            >
+              🗓 autoprogramar
+            </button>
           </div>
           <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Goteo de 3/día. Arrastra para reordenar; el de arriba se publica antes.
+            Goteo de ~11 a la semana. Arrastra para reordenar; el de arriba se
+            publica antes. «Autoprogramar» les pone fecha y hora concretas.
           </p>
           <ul className="divide-y divide-divider">
             {upcoming.map((it, index) => (

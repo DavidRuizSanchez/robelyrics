@@ -1318,6 +1318,12 @@ class InstagramQueueItem(Base):
     # disco, cumpleaños): si está, el item SOLO se publica ese día exacto y NO
     # entra en el goteo normal. NULL = evergreen normal (cuentagotas).
     publish_on: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    # Programación EXACTA hecha a mano desde el panel (fecha + hora). Convive con
+    # `publish_on`, que es de día suelto y lo pone el generador de efemérides:
+    # aquí el admin decide el momento. Si está, el item no entra en el goteo.
+    publish_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     # Snapshot del tema (sobrevive aunque se borre la noticia / el post).
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))
@@ -1325,6 +1331,13 @@ class InstagramQueueItem(Base):
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)
+    # Formato del post: IMAGE (una foto) | CAROUSEL (2-10) | REELS (vídeo).
+    media_type: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="IMAGE"
+    )
+    # Espejo de la diapositiva 0. Se conservan aunque el post sea un carrusel:
+    # así el camino de foto única sigue intacto y la previsualización del panel
+    # no depende de la tabla hija.
     image_url: Mapped[str | None] = mapped_column(String(700))
     image_path: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(
@@ -1336,6 +1349,59 @@ class InstagramQueueItem(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    media: Mapped[list["InstagramQueueMedia"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="InstagramQueueMedia.position",
+        lazy="selectin",
+    )
+
+
+class InstagramQueueMedia(Base):
+    """Una pieza de media (imagen o vídeo) de un post de Instagram.
+
+    Un post de foto única tiene exactamente una fila (posición 0); un carrusel,
+    entre 2 y 10. Se modela como tabla hija y no como JSONB porque el panel
+    reordena y regenera diapositivas sueltas mientras el cron puede estar
+    leyendo: con un array habría que reescribirlo entero en cada cambio.
+    """
+
+    __tablename__ = "instagram_queue_media"
+    __table_args__ = (
+        CheckConstraint("kind IN ('image','video')", name="ck_iqm_kind"),
+        # En Postgres esta restricción se crea DEFERRABLE INITIALLY DEFERRED (ver
+        # la migración igmedia2026_01): reordenar N diapositivas colisiona a
+        # mitad del bucle si se comprueba fila a fila. Aquí no se declara porque
+        # SQLite —que es lo que usan los tests— no entiende DEFERRABLE.
+        UniqueConstraint(
+            "item_id", "position", name="uq_instagram_queue_media_item_pos"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("instagram_queue.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="image")
+    # Layout que la generó: cover | verse | fact | list | timeline | closing.
+    role: Mapped[str | None] = mapped_column(String(16))
+    local_path: Mapped[str | None] = mapped_column(String(500))
+    url: Mapped[str | None] = mapped_column(String(700))
+    # Permite limpiar en Cloudinary lo que quede huérfano de un carrusel fallido.
+    cloudinary_public_id: Mapped[str | None] = mapped_column(String(200))
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    cover_url: Mapped[str | None] = mapped_column(String(700))
+    ig_container_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    item: Mapped["InstagramQueueItem"] = relationship(back_populates="media")
 
 
 # --- Listas de reproducción (zona privada) ---------------------------------
