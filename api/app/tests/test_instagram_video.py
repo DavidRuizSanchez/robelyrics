@@ -97,3 +97,39 @@ def test_el_polling_de_video_no_cabe_en_una_peticion_web():
     """
     total = graph_api.REELS_POLL_ATTEMPTS * graph_api.REELS_POLL_INTERVAL
     assert total > 100, "con menos margen el vídeo no termina de procesarse"
+
+
+# --------------------------------------------------------------------------- #
+# Ritmo: el reel tiene que tener nervio, salvo en temas delicados
+# --------------------------------------------------------------------------- #
+def test_el_verso_entra_en_el_primer_segundo():
+    """La primera versión lo sacaba a los 2,2 s de 8: medio vídeo pasaba sin
+    que se leyera nada y en un feed eso es scroll asegurado."""
+    assert video.ENTRADA_VERSO_S < 1.0
+
+
+def test_el_corte_es_seco_no_un_fundido_largo():
+    assert video.CORTE_S <= 0.25
+
+
+def test_el_ritmo_rock_late_y_cierra():
+    filtro = video._filtro_rock(90, 210, 7.0)
+    assert "sin(" in filtro, "el zoom debe latir, no subir liso"
+    assert "fadeblack" in filtro, "el corte al verso debe ser seco"
+    assert "color=white" in filtro, "falta el flash de entrada"
+    assert "fade=t=out" in filtro, "falta el cierre"
+
+
+def test_el_ritmo_sobrio_no_tiene_sobresaltos():
+    """En un homenaje, flashes y cortes secos son una falta de tacto."""
+    filtro = video._filtro_sobrio(90, 210, 7.0)
+    assert "color=white" not in filtro
+    assert "fadeblack" not in filtro
+    assert "sin(" not in filtro
+
+
+def test_el_tono_del_post_elige_el_ritmo():
+    import inspect
+    fuente = inspect.getsource(video.render_verse_reel)
+    assert 'topic.get("tone") == "sober"' in fuente
+    assert "RITMO_SOBRIO" in fuente and "RITMO_ROCK" in fuente

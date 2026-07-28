@@ -37,11 +37,22 @@ logger = logging.getLogger(__name__)
 # Formato vertical de reel.
 SIZE_REEL = (1080, 1920)
 FPS = 30
-DUR_TOTAL = 8.0          # segundos
-DUR_FUNDIDO = 1.2
+DUR_TOTAL = 7.0          # segundos
+MIN_DUR = 3.0            # Instagram admite de 3 s; los cortos funcionan mejor
 
-# Instagram admite reels de 3 s a 15 min; los cortos funcionan mejor.
-MIN_DUR = 3.0
+# CUÁNDO APARECE EL VERSO. La primera versión lo sacaba a los 2,2 s de 8 y el
+# reel parecía otra cosa: medio vídeo pasaba sin que se leyera nada. Ahora entra
+# casi de inmediato — en un feed, quien no lee algo en el primer segundo, sigue
+# haciendo scroll.
+ENTRADA_VERSO_S = 0.55
+CORTE_S = 0.14           # transición seca, no un fundido largo
+
+# RITMO. El motor tiene dos marchas y las gobierna el tono del post:
+#   - "rock"   → cortes secos, zoom que late, flash y cierre en negro.
+#   - "sobrio" → lo de antes: lento y sin sobresaltos. Para homenajes y
+#     fallecimientos, donde el nervio visual desentona.
+RITMO_ROCK = "rock"
+RITMO_SOBRIO = "sobrio"
 
 
 def _fondo_limpio(topic: dict, seed: int) -> Image.Image:
@@ -166,6 +177,49 @@ def _ffmpeg(args: list[str]) -> None:
         raise RuntimeError(f"ffmpeg falló: {proc.stderr.strip()[:400]}")
 
 
+def _filtro_rock(frames_a: int, frames_b: int, duracion: float) -> str:
+    """Secuencia con nervio: entrada seca, zoom que late, flash y cierre.
+
+    Todo el movimiento lo hace ffmpeg sobre dos imágenes clave; no se generan
+    fotogramas en Python. Las piezas:
+
+      - la portada arranca ya con zoom rápido (`0.14*on`), no reposada;
+      - el corte al verso es `fadeblack` de 0,14 s — un golpe, no un fundido;
+      - sobre el verso, el zoom LATE (`sin`) en vez de subir liso: es lo que da
+        sensación de pulso;
+      - un flash blanco muy corto justo al entrar el texto;
+      - cierre a negro al final.
+    """
+    ancho, alto = SIZE_REEL
+    return (
+        # Portada: zoom agresivo desde el primer fotograma.
+        f"[0:v]zoompan=z='1+0.14*on/{frames_a}':d={frames_a}:"
+        f"s={ancho}x{alto}:fps={FPS}[a];"
+        # Verso: zoom base + latido. El seno hace que respire.
+        f"[1:v]zoompan=z='1.06+0.035*sin(on/7)':d={frames_b}:"
+        f"s={ancho}x{alto}:fps={FPS},"
+        # Flash de entrada: blanco muy breve al aparecer el texto.
+        f"fade=t=in:st=0:d=0.10:color=white,"
+        # Cierre a negro.
+        f"fade=t=out:st={max(duracion - ENTRADA_VERSO_S - 0.45, 0.1):.2f}:d=0.45[b];"
+        f"[a][b]xfade=transition=fadeblack:duration={CORTE_S}:"
+        f"offset={ENTRADA_VERSO_S:.2f}[v]"
+    )
+
+
+def _filtro_sobrio(frames_a: int, frames_b: int, duracion: float) -> str:
+    """Sin nervio: para homenajes y temas delicados, donde el ritmo desentona."""
+    ancho, alto = SIZE_REEL
+    return (
+        f"[0:v]zoompan=z='1+0.05*on/{frames_a}':d={frames_a}:"
+        f"s={ancho}x{alto}:fps={FPS}[a];"
+        f"[1:v]zoompan=z='1.05+0.04*on/{frames_b}':d={frames_b}:"
+        f"s={ancho}x{alto}:fps={FPS},"
+        f"fade=t=out:st={max(duracion - 1.6, 0.1):.2f}:d=0.8[b];"
+        f"[a][b]xfade=transition=fade:duration=0.9:offset=1.1[v]"
+    )
+
+
 def render_verse_reel(
     topic: dict, slot: int = 1, duracion: float = DUR_TOTAL
 ) -> str:
@@ -184,6 +238,11 @@ def render_verse_reel(
         if corpus.get("album"):
             atribucion += f' · {corpus["album"]}'
 
+    # El ritmo lo decide el TONO del post, que ya calcula `tone.classify`: un
+    # homenaje o un fallecimiento con cortes secos y flashes sería una falta de
+    # tacto. Todo lo demás va con nervio.
+    ritmo = RITMO_SOBRIO if topic.get("tone") == "sober" else RITMO_ROCK
+
     duracion = max(duracion, MIN_DUR)
     seed = int(hashlib.md5(f"{verso}{slot}v".encode()).hexdigest(), 16) % 1_000_000
     os.makedirs(config.IMAGES_DIR, exist_ok=True)
@@ -200,17 +259,13 @@ def render_verse_reel(
         escrita.save(f_escrita)
 
         frames = int(duracion * FPS)
-        # Zoom lento sobre cada imagen clave (Ken Burns) y fundido entre ambas.
         # `zoompan` trabaja fotograma a fotograma: 'on' es el índice actual.
-        # Zoom SUTIL (1.00→1.09 en total). Con el 1.18 del primer intento, el
-        # recorte del encuadre se comía el final de los versos largos.
+        # El zoom se mantiene contenido (máx ~1.14): con el 1.18 del primer
+        # intento, el recorte del encuadre se comía el final de los versos.
         filtro = (
-            f"[0:v]zoompan=z='1+0.05*on/{frames}':d={frames}:"
-            f"s={SIZE_REEL[0]}x{SIZE_REEL[1]}:fps={FPS}[a];"
-            f"[1:v]zoompan=z='1.05+0.04*on/{frames}':d={frames}:"
-            f"s={SIZE_REEL[0]}x{SIZE_REEL[1]}:fps={FPS}[b];"
-            f"[a][b]xfade=transition=fade:duration={DUR_FUNDIDO}:"
-            f"offset={max(duracion * 0.28, 1.0):.2f}[v]"
+            _filtro_sobrio(frames, frames, duracion)
+            if ritmo == RITMO_SOBRIO
+            else _filtro_rock(frames, frames, duracion)
         )
         _ffmpeg([
             "-loop", "1", "-t", f"{duracion}", "-i", f_limpia,
