@@ -13,7 +13,7 @@ real lo hace el Pipeline 1 semanal (embed_interpretations / embed_robe_voice).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -28,6 +28,9 @@ router = APIRouter(prefix="/ingest/youtube", tags=["ingest"])
 
 # Reintentos automáticos de un vídeo que falló (yt-dlp/Whisper transitorio).
 MAX_ATTEMPTS = 3
+# Un `processing` más viejo que esto se considera abandonado y vuelve a la cola
+# (el daemon o el api se cayeron entre el claim y el complete).
+STALE_CLAIM_MINUTES = 30
 
 # quality_score por defecto según el kind (alineado con import_interview_transcripts).
 _DEFAULT_QUALITY = {
@@ -90,9 +93,18 @@ class OkOut(BaseModel):
     dependencies=[Depends(require_ingest_key)],
 )
 def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
-    """Vídeos listos para que el daemon los transcriba: los `approved` y los
-    `failed` con margen de reintento (< MAX_ATTEMPTS), por si el fallo fue
-    transitorio (yt-dlp/Whisper)."""
+    """Vídeos listos para que el daemon los transcriba: los `approved`, los `failed`
+    con margen de reintento (< MAX_ATTEMPTS) por si el fallo fue transitorio
+    (yt-dlp/Whisper), y los `processing` con el claim RANCIO.
+
+    Ese tercer caso existe porque un claim no expiraba: si el daemon muere entre
+    `claim` y `complete` —o si el api se reinicia justo entonces y el daemon recibe
+    502— el vídeo se quedaba en `processing` para siempre, invisible para esta lista
+    y por tanto sin reintento posible. Pasó en un rebuild: `ejYQ6I0Ef44` quedó
+    colgado. Media hora es de sobra para el vídeo más largo del corpus (35 min de
+    audio se transcriben en minutos), así que pasado ese plazo se asume abandonado.
+    """
+    stale = datetime.now(UTC) - timedelta(minutes=STALE_CLAIM_MINUTES)
     return (
         db.query(YouTubeIngestQueue)
         .filter(
@@ -101,6 +113,11 @@ def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
                 and_(
                     YouTubeIngestQueue.status == "failed",
                     YouTubeIngestQueue.attempts < MAX_ATTEMPTS,
+                ),
+                and_(
+                    YouTubeIngestQueue.status == "processing",
+                    YouTubeIngestQueue.attempts < MAX_ATTEMPTS,
+                    YouTubeIngestQueue.updated_at < stale,
                 ),
             )
         )
@@ -164,7 +181,7 @@ def complete(
     )
     row.status = "done"
     row.error = None
-    row.done_at = datetime.now(timezone.utc)
+    row.done_at = datetime.now(UTC)
     db.commit()
     return OkOut(status=row.status)
 
