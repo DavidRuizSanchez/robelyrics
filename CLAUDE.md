@@ -217,6 +217,34 @@ gestiona desde `/biblioteca/admin/instagram`. Cron en
 `infra/cron/production.crontab`. Guía de migración (jubilación del proyecto
 local `entrenoticias/`) en `infra/MIGRATION_ENTRENOTICIAS.md`.
 
+## Un post de Instagram que falla no puede evaporarse
+
+Dos fallos que se destaparon juntos cuando el clip de la sala Vértigo, programado
+para el 29-jul-2026 a las 20:30, sencillamente no salió:
+
+- **Se re-subía lo que ya estaba subido.** Un clip de terceros lo baja el daemon
+  de la Mac y va DIRECTO a Cloudinary: llega con `url` puesta y sin `local_path`,
+  sin pisar el `/tmp` del servidor. `_media_lista` lo daba por bueno justamente
+  por eso, pero el bucle de subida de `publish()` no hacía la misma comprobación
+  y llamaba a `upload_video(None)` → «expected str, bytes or os.PathLike object,
+  not NoneType». El comentario del propio bloque ya declaraba la intención
+  correcta («si la publicación falla, reintentar no tiene que volver a subir
+  nada»); solo faltaba el `if m.url: continue` que la cumpliera.
+- **`failed` era terminal de hecho, no por decisión.** `next_pending` y
+  `due_pinned` filtran por `pending`/`prepared`, así que un tropiezo transitorio
+  borraba el post del calendario para siempre y en silencio. Ahora
+  `instagram_queue.attempts` cuenta intentos y ambos selectores repescan lo
+  `failed` mientras queden (`config.MAX_PUBLISH_ATTEMPTS`, 3).
+
+Al marcar un fallo, ojo con **de quién es la culpa**: `_marcar_fallo(...,
+quema_intento=False)` para lo global (la conexión con Meta caída), porque quemarle
+intentos a un post por algo que no es suyo condena a la cola entera. Mismo criterio
+que la cola de ingesta de YouTube con los 502 de un rebuild.
+
+El test que existía no cazó nada de esto porque su mock de `upload_video` aceptaba
+`None` tan campante: un mock más permisivo que la realidad no prueba el camino que
+dice probar.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
