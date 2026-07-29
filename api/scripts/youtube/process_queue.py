@@ -33,7 +33,9 @@ from openai import OpenAI
 from app.config import get_settings
 from scripts.research.common import clean_text
 from scripts.research.transcribe_juancares import (
+    audio_duration_s,
     download_audio,
+    min_chars_for,
     split_audio,
     transcribe,
 )
@@ -41,7 +43,7 @@ from scripts.research.transcribe_juancares import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-MIN_CHARS = 100  # transcripción más corta = sospechosa (igual que transcribe_juancares)
+MIN_CHARS = 100  # tope del suelo; el real lo escala min_chars_for() con la duración
 
 
 def _base_and_headers() -> tuple[str, dict]:
@@ -81,10 +83,15 @@ def main() -> None:
                     audio = download_audio(vid, td)
                     if not audio:
                         raise RuntimeError("yt-dlp no devolvió audio")
+                    dur = audio_duration_s(audio)
                     chunks = split_audio(audio, td)
                     text = clean_text(transcribe(openai, chunks)) or ""
-                if len(text) < MIN_CHARS:
-                    raise RuntimeError("transcripción demasiado corta")
+                floor = min_chars_for(dur, ceiling=MIN_CHARS)
+                if len(text) < floor:
+                    raise RuntimeError(
+                        f"transcripción demasiado corta ({len(text)} chars < {floor} "
+                        f"para {dur and round(dur)}s de audio)"
+                    )
                 resp = http.post(
                     f"{base}/ingest/youtube/{item_id}/complete",
                     json={"content_clean": text, "title": it.get("title")},
