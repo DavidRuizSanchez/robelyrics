@@ -128,3 +128,48 @@ def test_la_cadencia_da_entre_10_y_12_posts_por_semana(monkeypatch):
         f"{por_semana:.1f} posts/semana con STEADY={config.STEADY_INTERVAL_H}h; "
         "el objetivo acordado son 10-12"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Reintentos: un fallo transitorio no puede borrar un post del calendario
+# --------------------------------------------------------------------------- #
+def test_failed_con_intentos_de_sobra_vuelve_a_la_cola(db):
+    """El caso del clip de la sala Vértigo: programado, falló al publicar y
+    desapareció. `failed` no era terminal por decisión, sino porque los dos
+    selectores filtraban por pending/prepared."""
+    it = _add(db, status="failed", attempts=1,
+              publish_at=datetime.now(timezone.utc) - timedelta(minutes=5))
+    assert [x.id for x in publisher.due_pinned(db)] == [it.id]
+
+
+def test_failed_en_el_goteo_tambien_vuelve(db):
+    it = _add(db, status="failed", attempts=0)
+    assert publisher.next_pending(db).id == it.id
+
+
+def test_failed_sin_intentos_se_queda_fuera(db):
+    """Agotados los intentos sí para: si no, un post roto de verdad se
+    reintentaría cada 15 minutos para siempre."""
+    _add(db, status="failed", attempts=config.MAX_PUBLISH_ATTEMPTS,
+         publish_at=datetime.now(timezone.utc) - timedelta(minutes=5))
+    _add(db, status="failed", attempts=config.MAX_PUBLISH_ATTEMPTS)
+    assert publisher.due_pinned(db) == []
+    assert publisher.next_pending(db) is None
+
+
+def test_un_fallo_del_item_gasta_intento(db):
+    it = _add(db, status="prepared")
+    publisher._marcar_fallo(db, it, "Cloudinary: lo que sea")
+    assert it.status == "failed"
+    assert it.attempts == 1
+    assert "Cloudinary" in it.error
+
+
+def test_un_fallo_global_no_gasta_intento(db):
+    """Si lo que está caído es la conexión con Meta, el post no tiene la culpa:
+    quemarle intentos condenaría a la cola entera por algo que no es suyo."""
+    it = _add(db, status="prepared")
+    for _ in range(5):
+        publisher._marcar_fallo(db, it, "token caducado", quema_intento=False)
+    assert it.attempts == 0
+    assert [x.id for x in [publisher.next_pending(db)]] == [it.id]

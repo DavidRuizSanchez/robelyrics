@@ -12,7 +12,7 @@ import os
 import re
 from datetime import date, datetime, timezone
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -505,6 +505,26 @@ def _media_lista(item: InstagramQueueItem) -> bool:
     )
 
 
+def _marcar_fallo(
+    db: Session, item: InstagramQueueItem, motivo: str, *, quema_intento: bool = True
+) -> InstagramQueueItem:
+    """Deja el item en `failed` con su motivo, gastando o no un intento.
+
+    Solo gastan intento los fallos ATRIBUIBLES AL ITEM (su material, su caption,
+    lo que Meta diga de él). Cuando lo que está caído es la conexión con Meta el
+    fallo es global —le pasaría igual a cualquier post— y quemarle un intento a
+    este condenaría a la cola entera por algo que no es suyo. Mismo criterio que
+    la cola de ingesta de YouTube, donde un 502 masivo durante un rebuild no
+    consume reintentos.
+    """
+    item.status = "failed"
+    item.error = motivo[:2000]
+    if quema_intento:
+        item.attempts = (item.attempts or 0) + 1
+    db.commit()
+    return item
+
+
 def publish(
     db: Session, item: InstagramQueueItem, dry_run: bool = False
 ) -> InstagramQueueItem:
@@ -524,11 +544,8 @@ def publish(
             return item
         except Exception as exc:  # noqa: BLE001
             db.rollback()
-            item.status = "failed"
-            item.error = f"al preparar: {exc}"[:2000]
-            db.commit()
             logger.error("[IG] item %s no se pudo preparar: %s", item.id, exc)
-            return item
+            return _marcar_fallo(db, item, f"al preparar: {exc}")
 
     if dry_run:
         item.status = "prepared"
@@ -539,11 +556,9 @@ def publish(
     # Verificar token Y que la cuenta sea alcanzable (no solo el scope).
     ok, msg, _ = graph_api.connection_is_healthy()
     if not ok:
-        item.status = "failed"
-        item.error = msg
-        db.commit()
         logger.error("[IG] conexión no saludable para publicar: %s", msg)
-        return item
+        # Fallo global, no de este post: no le quema un intento (ver `_marcar_fallo`).
+        return _marcar_fallo(db, item, msg, quema_intento=False)
 
     # Subir a Cloudinary (la Graph API exige URLs públicas). Se hace commit de
     # las URLs ANTES de llamar a Meta: si la publicación falla, reintentar no
@@ -552,6 +567,16 @@ def publish(
     try:
         if piezas:
             for m in piezas:
+                if m.url:
+                    # Ya está en el CDN: o se subió en un intento anterior, o nunca
+                    # pasó por aquí. Los clips de terceros son lo segundo — los baja
+                    # el daemon de la Mac y llegan directos a Cloudinary sin tocar el
+                    # /tmp del servidor, así que su `local_path` está vacío a
+                    # propósito. `_media_lista` los da por buenos por eso mismo;
+                    # aquí faltaba la misma comprobación y se llamaba a
+                    # `upload_video(None)` → «expected str, bytes or os.PathLike
+                    # object, not NoneType» y el post moría sin llegar a Meta.
+                    continue
                 if m.kind == "video":
                     subido = cloudinary_upload.upload_video(m.local_path)
                     m.url = subido["url"]
@@ -562,11 +587,8 @@ def publish(
         else:  # item antiguo, anterior a la tabla de media
             item.image_url = cloudinary_upload.upload(item.image_path)
     except Exception as exc:  # noqa: BLE001
-        item.status = "failed"
-        item.error = f"Cloudinary: {exc}"
-        db.commit()
         logger.error("[IG] subida a Cloudinary falló: %s", exc)
-        return item
+        return _marcar_fallo(db, item, f"Cloudinary: {exc}")
     if piezas:
         item.image_url = piezas[0].url      # espejo de la diapositiva 0
     db.commit()
@@ -590,6 +612,7 @@ def publish(
         item.ig_media_id = media_id
         item.published_at = datetime.now(timezone.utc)
         item.error = None
+        item.attempts = 0
         logger.info("[IG] ✅ item %s publicado · media_id=%s", item.id, media_id)
         # Si el post salió de un clip de terceros, se cierra su ficha: así el
         # registro de procedencia sabe en qué publicación acabó y la retirada
@@ -613,11 +636,28 @@ def publish(
         except Exception as exc:  # noqa: BLE001
             logger.warning("[IG] autocomentario falló en %s: %s", item.id, exc)
     else:
-        item.status = "failed"
-        item.error = result_msg
         logger.error("[IG] ❌ item %s falló: %s", item.id, result_msg)
+        return _marcar_fallo(db, item, result_msg or "Meta no devolvió media_id")
     db.commit()
     return item
+
+
+def _publicable():
+    """Condición SQL de «a este item todavía le toca salir».
+
+    Además de lo que espera turno (`pending`/`prepared`), incluye lo que falló
+    pero conserva intentos. Antes un `failed` era terminal de hecho: los dos
+    selectores de la cola filtraban por pending/prepared, así que un tropiezo
+    transitorio —el CDN, un timeout de Meta— borraba el post del calendario para
+    siempre y en silencio. Nadie se enteraba hasta echar de menos la publicación.
+    """
+    return or_(
+        InstagramQueueItem.status.in_(("pending", "prepared")),
+        and_(
+            InstagramQueueItem.status == "failed",
+            InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
+        ),
+    )
 
 
 def next_pending(db: Session) -> InstagramQueueItem | None:
@@ -639,7 +679,7 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
     return db.execute(
         select(InstagramQueueItem)
         .where(
-            InstagramQueueItem.status.in_(("pending", "prepared")),
+            _publicable(),
             InstagramQueueItem.publish_on.is_(None),
             InstagramQueueItem.publish_at.is_(None),
             or_(InstagramQueueItem.media_type != "CLIP", clip_listo),
@@ -663,13 +703,16 @@ def due_pinned(db: Session) -> list[InstagramQueueItem]:
         vence cuando ese instante ya pasó, así que un post programado para una
         hora en la que el cron no corría sale en la pasada siguiente en vez de
         perderse.
+
+    Lo que falló con intentos de sobra también vence aquí: un post programado no
+    puede evaporarse porque el CDN diera un error a su hora exacta.
     """
     today = date.today()
     ahora = datetime.now(timezone.utc)
     return db.execute(
         select(InstagramQueueItem)
         .where(
-            InstagramQueueItem.status.in_(("pending", "prepared")),
+            _publicable(),
             or_(
                 InstagramQueueItem.publish_on == today,
                 InstagramQueueItem.publish_at <= ahora,

@@ -55,6 +55,15 @@ BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "4"))
 BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "10"))
 STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "15"))
 
+# --- Reintentos de publicación --------------------------------------------
+# Cuántas veces se reintenta un post que falló al publicar. Un fallo transitorio
+# (Cloudinary, un timeout de Meta) dejaba el item en `failed` y ahí se moría: los
+# dos selectores de la cola filtran por pending/prepared, así que nadie lo volvía
+# a mirar. Se cuenta en `instagram_queue.attempts` y solo lo gastan los fallos
+# atribuibles al item — si lo que está caído es la conexión con Meta, el post no
+# tiene la culpa y no se le quema un intento.
+MAX_PUBLISH_ATTEMPTS = int(os.getenv("IG_MAX_PUBLISH_ATTEMPTS", "3"))
+
 # --- Aprobación ------------------------------------------------------------
 # Todo el contenido nace `proposed` y NADIE lo publica sin que el admin lo
 # apruebe en /biblioteca/admin/instagram. Antes solo pasaba por ahí el evergreen:

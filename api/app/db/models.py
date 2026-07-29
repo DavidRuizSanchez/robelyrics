@@ -1364,6 +1364,13 @@ class InstagramQueueItem(Base):
     )
     ig_media_id: Mapped[str | None] = mapped_column(String(64))
     error: Mapped[str | None] = mapped_column(Text)
+    # Intentos de publicación gastados. Un `failed` NO era el final de nada por
+    # decisión, sino porque `due_pinned`/`next_pending` filtran por
+    # pending/prepared: un fallo transitorio (Cloudinary, un timeout de Meta)
+    # mataba el post para siempre sin reintento posible. Con esto vuelve a la
+    # cola hasta `MAX_PUBLISH_ATTEMPTS`, y solo los fallos que son culpa del item
+    # gastan intento (una caída global de la conexión, no).
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

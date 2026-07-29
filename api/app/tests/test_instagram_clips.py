@@ -424,3 +424,83 @@ def test_un_clip_bajandose_no_atasca_la_cola(db):
     clip.url_cdn = "https://res.cloudinary.com/x/video/upload/clip.mp4"
     db.commit()
     assert publisher.next_pending(db) is not None
+
+
+def test_un_clip_ya_en_el_cdn_no_se_vuelve_a_subir(db, monkeypatch):
+    """Regresión (29-jul-2026): el clip de la sala Vértigo no se publicó.
+
+    El daemon de la Mac baja el vídeo y lo sube DIRECTO a Cloudinary, así que la
+    pieza llega con `url` puesta y sin `local_path` — nunca pasa por el /tmp del
+    servidor. `_media_lista` lo daba por bueno justamente por eso, pero el bucle
+    de subida no hacía la misma comprobación y llamaba a `upload_video(None)`:
+    «expected str, bytes or os.PathLike object, not NoneType». El post quedaba
+    `failed` sin haber llegado a Meta.
+
+    El test anterior no lo cazó porque su mock de `upload_video` aceptaba `None`
+    tan campante. Aquí se comprueba el invariante de verdad: si ya está en el
+    CDN, no se sube nada.
+    """
+    from app.db.models import InstagramQueueMedia
+    from app.services.instagram import publisher
+
+    CDN = "https://res.cloudinary.com/x/video/upload/clip.mp4"
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    item.media_type = "CLIP"
+    item.caption = "un pie de foto"
+    item.media.append(InstagramQueueMedia(
+        position=0, kind="video", role="clip",
+        url=CDN, cloudinary_public_id="x/clip", local_path=None,
+    ))
+    db.commit()
+
+    subidas: list = []
+
+    def _no_deberia(path):
+        subidas.append(path)
+        raise TypeError(
+            "expected str, bytes or os.PathLike object, not NoneType"
+        )
+
+    monkeypatch.setattr(publisher.graph_api, "connection_is_healthy",
+                        lambda: (True, "ok", None))
+    monkeypatch.setattr(publisher.cloudinary_upload, "upload_video", _no_deberia)
+    monkeypatch.setattr(publisher.cloudinary_upload, "upload", _no_deberia)
+    monkeypatch.setattr(publisher.graph_api, "post_reel",
+                        lambda url, cap: ("17", "ok"))
+    monkeypatch.setattr(publisher.community, "comentar_post",
+                        lambda mid, cap: (True, ""))
+
+    publisher.publish(db, item)
+
+    assert subidas == [], f"no había nada que subir y se intentó: {subidas}"
+    assert item.status == "published"
+    assert item.error is None
+    assert item.media[0].url == CDN     # se conserva la del daemon
+
+
+def test_el_clip_se_publica_con_la_url_que_ya_tenia(db, monkeypatch):
+    """Y lo que se le manda a Meta es esa misma URL, no otra."""
+    from app.db.models import InstagramQueueMedia
+    from app.services.instagram import publisher
+
+    CDN = "https://res.cloudinary.com/x/video/upload/vertigo.mp4"
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    item.media_type = "CLIP"
+    item.caption = "un pie de foto"
+    item.media.append(InstagramQueueMedia(
+        position=0, kind="video", role="clip", url=CDN, local_path=None,
+    ))
+    db.commit()
+
+    enviadas: list[str] = []
+    monkeypatch.setattr(publisher.graph_api, "connection_is_healthy",
+                        lambda: (True, "ok", None))
+    monkeypatch.setattr(publisher.graph_api, "post_reel",
+                        lambda url, cap: (enviadas.append(url), ("17", "ok"))[1])
+    monkeypatch.setattr(publisher.community, "comentar_post",
+                        lambda mid, cap: (True, ""))
+
+    publisher.publish(db, item)
+    assert enviadas == [CDN]
