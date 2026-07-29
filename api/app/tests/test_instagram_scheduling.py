@@ -263,3 +263,50 @@ def test_la_mezcla_es_configurable():
     mezcla = scheduling.mezcla_formatos()
     assert mezcla
     assert set(mezcla) <= set(scheduling.FORMATOS_VALIDOS)
+
+
+# --------------------------------------------------------------------------- #
+# Formatos con tema propio: ni se reparten ni inundan el feed
+# --------------------------------------------------------------------------- #
+def test_el_repartidor_no_toca_los_clips_ni_las_piezas_de_la_web(db):
+    """Un CLIP es un vídeo concreto y un PRODUCT una consulta concreta: no son
+    formas de contar un tema, así que el repartidor no puede reasignárselos.
+
+    El botón «🎲 variar formatos» manda `only_scheduled: false`, o sea que barre
+    TODA la cola activa: sin esta exclusión, los dejaba sin su vídeo y sin su
+    pieza.
+    """
+    clip = _add(db, "clip", media_type="CLIP")
+    web = _add(db, "product", media_type="PRODUCT")
+    normal = _add(db, "quote", media_type="IMAGE")
+
+    scheduling.repartir_formatos(db, semilla=0, solo_programados=False)
+
+    db.refresh(clip); db.refresh(web); db.refresh(normal)
+    assert clip.media_type == "CLIP"
+    assert web.media_type == "PRODUCT"
+    assert normal.media_type in scheduling.FORMATOS_VALIDOS
+
+
+def test_la_web_tiene_cuota_propia_de_una_por_semana(db):
+    """~10% del feed. Más que eso convierte la cuenta en un folleto."""
+    assert scheduling.cupo_semanal("product") == 1
+    assert scheduling.cupo_semanal("quote") == scheduling.cap_semanal()
+
+    for _ in range(4):
+        _add(db, "product", media_type="PRODUCT")
+    asignaciones, _ = scheduling.plan(db, weeks=4, desde=AHORA)
+
+    por_semana: dict = {}
+    for item, momento in asignaciones:
+        lunes = scheduling._lunes_de(momento)
+        por_semana[lunes] = por_semana.get(lunes, 0) + 1
+    assert por_semana and max(por_semana.values()) == 1
+
+
+def test_el_cupo_libre_cuenta_lo_que_aun_no_tiene_fecha(db):
+    """Pulsar «✦ enseñar la web» cuatro veces no puede meter dieciséis en cola."""
+    libre_inicial = scheduling.cupo_libre(db, "product", weeks=4)
+    for _ in range(3):
+        _add(db, "product", media_type="PRODUCT")
+    assert scheduling.cupo_libre(db, "product", weeks=4) == libre_inicial - 3

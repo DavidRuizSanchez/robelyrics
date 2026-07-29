@@ -41,6 +41,29 @@ MAX_SLIDES = 5
 # --------------------------------------------------------------------------- #
 # Planificación
 # --------------------------------------------------------------------------- #
+def prosa(markdown: str, max_chars: int = 2000) -> str:
+    """El texto corrido de un artículo, sin la sintaxis de markdown.
+
+    Un post de blog tiene el artículo entero en `body_md`, pero al carrusel solo
+    le llegaba el `excerpt`: una frase suelta, y `plan()` pide dos, así que
+    cualquier post de blog al que se le pidiera carrusel se caía a foto única.
+
+    Se quitan titulares, imágenes, citas y listas —que no son prosa seguida— y
+    de los enlaces se conserva el texto, no la URL.
+    """
+    txt = markdown or ""
+    txt = re.sub(r"```.*?```", " ", txt, flags=re.S)          # bloques de código
+    txt = re.sub(r"^\s{0,3}#{1,6}\s.*$", " ", txt, flags=re.M)  # titulares
+    txt = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", txt)            # imágenes
+    txt = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", txt)         # enlaces → su texto
+    txt = re.sub(r"^\s{0,3}>\s?", " ", txt, flags=re.M)        # citas
+    txt = re.sub(r"^\s{0,3}([-*+]|\d+\.)\s+", " ", txt, flags=re.M)  # listas
+    txt = re.sub(r"<[^>]+>", " ", txt)                         # HTML suelto
+    txt = txt.replace("**", "").replace("__", "").replace("*", "")
+    txt = re.sub(r"\s+", " ", txt).strip()
+    return txt[:max_chars]
+
+
 def _frases(texto: str, minimo: int = 40) -> list[str]:
     """Trocea en frases con sustancia (las muy cortas no llenan una diapositiva)."""
     limpio = re.sub(r"\s+", " ", (texto or "").strip())

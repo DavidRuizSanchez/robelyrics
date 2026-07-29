@@ -10,19 +10,24 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.db.models import VideoClip
+from app.db.models import InstagramQueueItem, InstagramQueueMedia, VideoClip
 from app.services.instagram import video_clips as vc
 
 
 @pytest.fixture()
 def db():
     engine = create_engine("sqlite://")
+    # Pedir un clip crea también su publicación, así que hacen falta sus tablas
+    # (`media` es una relación selectin y se carga al refrescar el item).
     VideoClip.__table__.create(engine)
+    InstagramQueueItem.__table__.create(engine)
+    InstagramQueueMedia.__table__.create(engine)
     with Session(engine) as s:
         yield s
 
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+TEMA = "Concierto de Extremoduro en la sala Vértigo, 1993"
 
 
 # --------------------------------------------------------------------------- #
@@ -47,11 +52,69 @@ def test_extrae_el_id_del_video(url, esperado):
 # Alta: tramos y procedencia
 # --------------------------------------------------------------------------- #
 def test_registra_la_procedencia(db):
-    clip = vc.solicitar(db, URL, 10, 40, requested_by="admin@x.com")
+    clip = vc.solicitar(db, URL, 10, 40, subtitle=TEMA, requested_by="admin@x.com")
     assert clip.video_id == "dQw4w9WgXcQ"
     assert clip.url == URL
     assert clip.requested_by == "admin@x.com"
     assert clip.status == "requested"
+
+
+def test_el_clip_crea_su_propia_publicacion(db):
+    """El clip ES el tema, no un formato colgado sobre un post que iba de otra
+    cosa: pedirlo deja ya su publicación en la cola, con su título."""
+    clip = vc.solicitar(db, URL, 10, 40, subtitle=TEMA)
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    assert item is not None
+    assert item.title == TEMA
+    assert item.content_type == "clip"
+    assert item.media_type == "CLIP"
+    assert item.media_locked is True          # no lo toca el repartidor
+    assert item.content_key == "clip:dQw4w9WgXcQ:10-40"
+
+
+def test_sin_tema_no_hay_clip(db):
+    """El tema es el título del post: sin él saldría una publicación muda."""
+    with pytest.raises(ValueError, match="de qué va"):
+        vc.solicitar(db, URL, 0, 20)
+
+
+def test_un_clip_se_publica_como_VIDEO_no_como_foto(db, monkeypatch):
+    """Regresión: `publish` solo mandaba a `post_reel` si el formato era REELS.
+
+    CLIP caía al `else` y acababa en `post_photo` con una URL de .mp4, así que
+    NINGÚN clip podía publicarse. Un clip es vídeo, igual que un reel.
+    """
+    from app.db.models import InstagramQueueMedia
+    from app.services.instagram import publisher
+
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    item.media_type = "CLIP"
+    item.caption = "un pie de foto"
+    item.media.append(InstagramQueueMedia(
+        position=0, kind="video", role="clip",
+        url="https://res.cloudinary.com/x/video/upload/clip.mp4",
+        cloudinary_public_id="x/clip",
+    ))
+    db.commit()
+
+    usados: list[str] = []
+    monkeypatch.setattr(publisher.graph_api, "connection_is_healthy",
+                        lambda: (True, "ok", None))
+    monkeypatch.setattr(publisher.cloudinary_upload, "upload_video",
+                        lambda p: {"url": "https://cdn/x.mp4", "public_id": "x"})
+    monkeypatch.setattr(publisher.graph_api, "post_reel",
+                        lambda url, cap: (usados.append("reel"), ("17", "ok"))[1])
+    monkeypatch.setattr(publisher.graph_api, "post_photo",
+                        lambda url, cap: (usados.append("photo"), ("17", "ok"))[1])
+    monkeypatch.setattr(publisher.community, "comentar_post",
+                        lambda mid, cap: (True, ""))
+
+    publisher.publish(db, item)
+    assert usados == ["reel"]          # jamás "photo": es un .mp4
+    assert item.status == "published"
+    db.refresh(clip)
+    assert clip.status == "published"  # la ficha de procedencia se cierra
 
 
 def test_rechaza_una_url_que_no_es_youtube(db):
@@ -67,7 +130,7 @@ def test_rechaza_un_tramo_demasiado_largo(db):
 
 def test_rechaza_un_tramo_ridiculo(db):
     with pytest.raises(ValueError, match="menos de"):
-        vc.solicitar(db, URL, 0, 1)
+        vc.solicitar(db, URL, 0, 1, subtitle=TEMA)
 
 
 def test_el_tope_es_de_un_minuto():
@@ -78,13 +141,13 @@ def test_el_tope_es_de_un_minuto():
 # Atribución: viaja con la pieza, no solo en el caption
 # --------------------------------------------------------------------------- #
 def test_la_atribucion_nombra_al_canal(db):
-    clip = vc.solicitar(db, URL, 0, 20)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     clip.channel_title = "Juancares"
     assert "Juancares" in clip.atribucion
 
 
 def test_hay_atribucion_aunque_falte_el_canal(db):
-    clip = vc.solicitar(db, URL, 0, 20)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     assert clip.atribucion.strip()
 
 
@@ -115,8 +178,8 @@ def test_escapa_el_texto_para_ffmpeg():
 # Cola
 # --------------------------------------------------------------------------- #
 def test_los_pendientes_incluyen_los_fallidos(db):
-    a = vc.solicitar(db, URL, 0, 20)
-    b = vc.solicitar(db, "https://youtu.be/abcdefghijk", 0, 20)
+    a = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    b = vc.solicitar(db, "https://youtu.be/abcdefghijk", 0, 20, subtitle="Otro tema")
     b.status, b.attempts = "failed", 1
     db.commit()
     ids = {c.id for c in vc.pendientes(db)}
@@ -124,14 +187,14 @@ def test_los_pendientes_incluyen_los_fallidos(db):
 
 
 def test_deja_de_reintentar_tras_varios_fallos(db):
-    c = vc.solicitar(db, URL, 0, 20)
+    c = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     c.status, c.attempts = "failed", 3
     db.commit()
     assert vc.pendientes(db, max_intentos=3) == []
 
 
 def test_lo_ya_publicado_no_se_vuelve_a_bajar(db):
-    c = vc.solicitar(db, URL, 0, 20)
+    c = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     c.status = "published"
     db.commit()
     assert vc.pendientes(db) == []
@@ -144,7 +207,7 @@ def test_retirar_deja_constancia(db, monkeypatch):
     from app.services.instagram import cloudinary_upload
     monkeypatch.setattr(cloudinary_upload, "destroy", lambda *a, **k: True)
 
-    clip = vc.solicitar(db, URL, 0, 20)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     clip.status = "published"
     clip.cloudinary_public_id = "abc/def"
     db.commit()
@@ -165,7 +228,7 @@ def test_si_falla_el_borrado_externo_se_marca_igual(db, monkeypatch):
 
     monkeypatch.setattr(cloudinary_upload, "destroy", peta)
 
-    clip = vc.solicitar(db, URL, 0, 20)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     clip.status = "published"
     clip.cloudinary_public_id = "abc/def"
     db.commit()
@@ -248,7 +311,7 @@ def test_la_retirada_no_promete_lo_que_no_puede(db, monkeypatch):
     from app.services.instagram import cloudinary_upload
     monkeypatch.setattr(cloudinary_upload, "destroy", lambda *a, **k: True)
 
-    clip = vc.solicitar(db, URL, 0, 20)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
     clip.cloudinary_public_id = "x/y"
     db.commit()
     _, msg = vc.retire(db, clip, motivo="aviso")
@@ -298,3 +361,66 @@ def test_el_veto_se_comprueba_con_el_canal_REAL():
     fuente = inspect.getsource(vc.descargar_y_recortar)
     assert "canal_vetado(canal_real)" in fuente
     assert 'info or {}).get("uploader")' in fuente
+
+
+# --------------------------------------------------------------------------- #
+# Un fallo al preparar no puede tumbar el cron ni atascar la cola
+# --------------------------------------------------------------------------- #
+def test_si_preparar_falla_el_item_queda_failed_y_no_atasca(db, monkeypatch):
+    """`publish_next` llama a `publish()` sin try/except y `next_pending` solo
+    mira (pending, prepared): si el item se quedara `pending`, el cron lo
+    reelegiría cada 15 min y la cola entera se pararía detrás de él."""
+    from app.services.instagram import publisher
+
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+
+    def _revienta(_db, _item):
+        raise RuntimeError("este post es de formato «clip externo» y no tiene ninguno")
+
+    monkeypatch.setattr(publisher, "prepare", _revienta)
+    res = publisher.publish(db, item)
+
+    assert res.status == "failed"
+    assert "clip externo" in (res.error or "")
+    # Y ya no lo devuelve el goteo: la cola sigue corriendo.
+    assert publisher.next_pending(db) is None
+
+
+def test_un_clip_bajandose_no_marca_el_post_como_fallido(db, monkeypatch):
+    """Regresión del 29-jul: el goteo llegó al post NUEVE MINUTOS antes de que
+    el daemon terminara de bajar el vídeo y lo dejó `failed` para siempre.
+
+    «Aún no está listo» no es «está roto»."""
+    from app.services.instagram import publisher
+
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)   # nace en `requested`
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    item.status = "pending"
+    db.commit()
+
+    def _aun_no(_db, _item):
+        raise publisher.MaterialPendiente("el clip #1 aún se está bajando")
+
+    monkeypatch.setattr(publisher, "prepare", _aun_no)
+    res = publisher.publish(db, item)
+    assert res.status == "pending", "no puede quedar fallido: el vídeo viene en camino"
+    assert not res.error
+
+
+def test_un_clip_bajandose_no_atasca_la_cola(db):
+    """Y mientras tanto no puede ser el elegido del goteo: iría por `position`
+    y siempre saldría el mismo, con toda la cola parada detrás."""
+    from app.services.instagram import publisher
+
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    pendiente = db.get(InstagramQueueItem, clip.queue_item_id)
+    pendiente.status = "pending"
+    db.commit()
+    assert publisher.next_pending(db) is None
+
+    # En cuanto el daemon lo deja listo, ya sí entra en el goteo.
+    clip.status = "ready"
+    clip.url_cdn = "https://res.cloudinary.com/x/video/upload/clip.mp4"
+    db.commit()
+    assert publisher.next_pending(db) is not None

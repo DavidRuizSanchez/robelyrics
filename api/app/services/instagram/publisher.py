@@ -48,6 +48,16 @@ logger = logging.getLogger(__name__)
 BLOG_BASE_URL = f"{config.SITE_URL}/blog"
 
 
+class MaterialPendiente(RuntimeError):
+    """El material aún no está, pero viene en camino: no es un fallo.
+
+    Un clip lo baja el daemon de la Mac y tarda unos minutos. Si el goteo llega
+    al post en ese hueco, el post NO está roto — solo hay que esperar. Tratarlo
+    como fallo lo dejaba muerto para siempre por haber llegado nueve minutos
+    antes que su vídeo.
+    """
+
+
 def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
     """Construye el dict de tema que consumen editorial / imaging / captions."""
     topic = {
@@ -68,6 +78,13 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
             topic["image_hint"] = post.hero_image_url or ""
             if not topic["summary"]:
                 topic["summary"] = post.excerpt or ""
+            # El artículo entero, en prosa, para quien necesite material de
+            # verdad. Al carrusel solo le llegaba el `excerpt` —una frase— y
+            # `carousel.plan` pide dos, así que un post de blog nunca podía ser
+            # carrusel: se caía a foto única sin decir por qué.
+            from app.services.instagram.carousel import prosa
+
+            topic["caption_body"] = prosa(post.body_md or "")
     return topic
 
 
@@ -298,6 +315,20 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         ).scalars().first()
 
         if item.media_type == "CLIP" and not (clip and clip.url_cdn):
+            # ¿Está el vídeo en camino o no hay ninguno? No es lo mismo: el
+            # daemon de la Mac tarda sus minutos en bajarlo, y durante ese rato
+            # el post no está roto, solo no está listo todavía.
+            enCamino = db.execute(
+                select(VideoClip).where(
+                    VideoClip.queue_item_id == item.id,
+                    VideoClip.status.in_(("requested", "downloading")),
+                )
+            ).scalars().first()
+            if enCamino is not None:
+                raise MaterialPendiente(
+                    f"el clip #{enCamino.id} aún se está bajando "
+                    f"({enCamino.status}); se reintentará solo"
+                )
             raise RuntimeError(
                 "este post es de formato «clip externo» pero no tiene ninguno "
                 "enlazado. Pide el clip abajo, en «clips de vídeo», y pulsa "
@@ -347,6 +378,16 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         and not item.media
     )
     specs = carousel.plan(topic, item.content_type) if quiere_carrusel else None
+    if not specs and item.media_type == "CAROUSEL" and item.media_locked:
+        # Lo eligió una PERSONA en el panel: no se le cambia el formato a su
+        # espalda. Antes se caía al `else`, que reescribe `media_type = "IMAGE"`,
+        # y desde fuera parecía que el selector no funcionaba: elegías carrusel,
+        # re-preparabas y volvía a foto sin una palabra.
+        raise RuntimeError(
+            "no hay material para un carrusel de este tema: hacen falta al menos "
+            "dos frases de desarrollo y solo se ha encontrado una. Alarga el "
+            "resumen del post o déjalo en foto única."
+        )
     if specs:
         paths, used_hero = carousel.render(topic, specs, slot=item.slot or 1)
         item.media_type = "CAROUSEL"
@@ -374,36 +415,52 @@ def _prepare_product(
 ) -> InstagramQueueItem:
     """Prepara un post que enseña una funcionalidad de la web.
 
-    La pieza se compone consultando la API de VERDAD (pregunta real al
-    consultorio, versos reales del buscador). Si el post no dice qué
-    funcionalidad enseña, se coge la primera que tenga pieza disponible.
-    """
-    from app.services.instagram import product_shots
+    El TEMA del post es la consulta concreta («¿Qué es la libertad para Robe?»),
+    no la funcionalidad en abstracto: viene ya en el título desde que se creó, y
+    aquí no se toca. Antes se machacaba con el título de la ficha, así que los
+    cuatro posts de producto se llamaban todos igual.
 
-    slug = (item.content_key or "").replace("product:", "").strip()
-    piezas = product_shots.generar(db)
-    if not piezas:
+    La pieza se compone consultando la API de VERDAD (pregunta real al
+    consultorio, versos reales del buscador). Si la consulta falla, se lanza:
+    un post que dice enseñar una funcionalidad tiene que enseñarla.
+    """
+    from app.services.instagram import product_shots, product_topics
+
+    # content_key = "product:<funcionalidad>:<consulta>" (la consulta es lo que se
+    # pregunta de verdad, y es el TEMA del post).
+    ref = (item.content_key or "").removeprefix("product:").strip()
+    slug, _, consulta_id = ref.partition(":")
+    if not slug:
         raise RuntimeError(
-            "no se pudo componer ninguna pieza de la web (¿falla el consultorio "
-            "o el buscador?)"
+            "este post de «la web» no dice qué funcionalidad enseña. Créalo desde "
+            "«✦ enseñar la web», que le pone el tema."
         )
 
-    ruta = piezas.get(slug) or next(iter(piezas.values()))
-    if not slug:
-        # Se adopta la funcionalidad que se haya podido componer.
-        slug = next(k for k, v in piezas.items() if v == ruta)
-        item.content_key = f"product:{slug}"
-
     ficha = product_shots.ficha(slug)
+    if not ficha:
+        raise RuntimeError(f"«{slug}» no está en data/instagram_product.yaml")
+
+    consulta = product_topics.consulta_de(db, slug, consulta_id)
+    ruta = product_shots.componer(db, slug, consulta)
+    if not ruta:
+        # Antes se cogía «la primera pieza que hubiera», y como el slug no se
+        # reasignaba salía el título del karaoke sobre la foto del consultorio:
+        # un post que promete una cosa y enseña otra. Mejor fallar y que se vea.
+        raise RuntimeError(
+            f"no se pudo componer la pieza de «{slug}» con «{consulta}» "
+            "(¿falla el consultorio o el buscador?)"
+        )
+
     topic["content_type"] = "product"
     topic["detalle"] = ficha.get("detalle", "")
     topic["cta"] = ficha.get("cta", "")
-    if ficha.get("title"):
-        topic["title"] = topic["headline"] = ficha["title"]
-        item.title = ficha["title"][:300]
-    if ficha.get("claim"):
-        topic["summary"] = ficha["claim"]
+    topic["consulta"] = consulta
+    # El título del post manda; el de la ficha es solo el nombre de la sección.
+    topic["title"] = topic["headline"] = item.title
+    topic["seccion"] = ficha.get("title") or slug
+    if not (item.summary or "").strip() and ficha.get("claim"):
         item.summary = ficha["claim"]
+    topic["summary"] = item.summary or ficha.get("claim", "")
 
     _sync_media(db, item, [ruta], [{"layout": "product"}])
     item.image_path = ruta
@@ -411,7 +468,7 @@ def _prepare_product(
     item.status = "prepared"
     item.error = None
     db.commit()
-    logger.info("[IG] item %s prepara la pieza de %s", item.id, slug)
+    logger.info("[IG] item %s: «%s» sobre «%s»", item.id, consulta, slug)
     return item
 
 
@@ -453,7 +510,25 @@ def publish(
 ) -> InstagramQueueItem:
     """Publica un item ya preparado (lo prepara si hace falta)."""
     if not _media_lista(item):
-        prepare(db, item)
+        # Preparar puede fallar por motivos legítimos (un post de clip sin clip
+        # enlazado, un carrusel sin material). Eso NO puede tumbar el cron: sin
+        # este `except`, la excepción subía hasta `publish_next` y además el item
+        # se quedaba `pending`, así que `next_pending` lo volvía a elegir cada
+        # 15 minutos y la cola entera se quedaba atascada detrás de él.
+        try:
+            prepare(db, item)
+        except MaterialPendiente as esperando:
+            # Se queda como está y se reintenta en la siguiente pasada del cron.
+            db.rollback()
+            logger.info("[IG] item %s todavía no: %s", item.id, esperando)
+            return item
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            item.status = "failed"
+            item.error = f"al preparar: {exc}"[:2000]
+            db.commit()
+            logger.error("[IG] item %s no se pudo preparar: %s", item.id, exc)
+            return item
 
     if dry_run:
         item.status = "prepared"
@@ -497,7 +572,12 @@ def publish(
     db.commit()
 
     urls = [m.url for m in piezas if m.url] or [item.image_url]
-    if item.media_type == "REELS":
+    if item.media_type in ("REELS", "CLIP"):
+        # CLIP va aquí con REELS porque las dos cosas son un VÍDEO: en Instagram
+        # el clip de otro canal se publica como reel igual que el verso animado.
+        # Faltaba, y caía al `else` → `post_photo` con una URL de .mp4, así que
+        # ningún clip podía publicarse.
+        #
         # Meta tarda minutos en procesar un vídeo: el polling largo solo es
         # viable desde el cron, nunca dentro de una petición del panel.
         media_id, result_msg = graph_api.post_reel(urls[0], item.caption or "")
@@ -545,12 +625,24 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
     (blog primero), día y antigüedad. Excluye el contenido con momento fijado
     (`publish_on` de efeméride o `publish_at` programado a mano): ese no gotea,
     sale a su hora vía `due_pinned`."""
+    # Un post de clip cuyo vídeo aún se está bajando NO cuenta como pendiente:
+    # si contara, el goteo lo elegiría cada 15 minutos —siempre es el mismo, va
+    # por `position`— y toda la cola se quedaría parada detrás esperándolo.
+    clip_listo = (
+        select(VideoClip.id)
+        .where(
+            VideoClip.queue_item_id == InstagramQueueItem.id,
+            VideoClip.status.in_(("ready", "published")),
+        )
+        .exists()
+    )
     return db.execute(
         select(InstagramQueueItem)
         .where(
             InstagramQueueItem.status.in_(("pending", "prepared")),
             InstagramQueueItem.publish_on.is_(None),
             InstagramQueueItem.publish_at.is_(None),
+            or_(InstagramQueueItem.media_type != "CLIP", clip_listo),
         )
         .order_by(
             InstagramQueueItem.position,

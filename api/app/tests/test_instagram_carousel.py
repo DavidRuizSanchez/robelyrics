@@ -166,3 +166,47 @@ def test_foto_unica_sigue_funcionando_igual(graph):
     assert creacion[2]["image_url"] == "http://x/y.jpg"
     assert creacion[2]["caption"] == "cap"
     assert "media_type" not in creacion[2]
+
+
+# --------------------------------------------------------------------------- #
+# Un post de blog SÍ puede ser carrusel: su material es el artículo
+# --------------------------------------------------------------------------- #
+def test_prosa_limpia_el_markdown():
+    md = (
+        "## Un titular\n\n"
+        "Robe [lo contó](/blog/x) en una entrevista larga y tendida del año.\n\n"
+        "> Una cita que no es prosa seguida\n\n"
+        "- un punto de lista\n\n"
+        "![foto](https://x/y.jpg)\n\n"
+        "Y **aquí** sigue el artículo con su segunda frase de desarrollo real."
+    )
+    out = carousel.prosa(md)
+    assert "##" not in out and "![" not in out and "**" not in out
+    assert "/blog/x" not in out          # del enlace se queda el texto
+    assert "lo contó" in out
+    assert "segunda frase de desarrollo real" in out
+
+
+def test_blog_con_una_sola_frase_de_resumen_no_da_carrusel():
+    """El caso real: el `excerpt` es una frase y `plan` pide dos."""
+    topic = {
+        "title": "Robe: frases icónicas y su significado profundo",
+        "summary": "Explora las mejores frases de Robe en Extremoduro.",
+    }
+    assert carousel.plan(topic, "blog") is None
+
+
+def test_blog_con_el_articulo_entero_si_da_carrusel():
+    """Con `caption_body` (el body_md en prosa) hay material de sobra."""
+    topic = {
+        "title": "Robe: frases icónicas y su significado profundo",
+        "summary": "Explora las mejores frases de Robe en Extremoduro.",
+        "caption_body": carousel.prosa(
+            "Robe lleva media vida escribiendo versos que la gente se tatúa. "
+            "Sus frases funcionan porque no explican nada y lo dicen todo. "
+            "En Agila hay media docena que se han vuelto refranes de barra."
+        ),
+    }
+    specs = carousel.plan(topic, "blog")
+    assert specs is not None
+    assert len(specs) >= carousel.MIN_SLIDES

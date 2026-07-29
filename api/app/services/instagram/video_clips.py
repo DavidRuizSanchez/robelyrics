@@ -28,9 +28,9 @@ import os
 import re
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import VideoClip
@@ -84,7 +84,20 @@ def solicitar(
     db: Session, url: str, start_s: float, end_s: float,
     subtitle: str | None = None, requested_by: str | None = None,
 ) -> VideoClip:
-    """Da de alta la petición de un clip. La descarga la hará el daemon local."""
+    """Da de alta la petición de un clip Y su publicación propia.
+
+    La descarga la hará el daemon local. El post nace aquí, con el clip como
+    TEMA: «Concierto de Extremoduro en la sala Vértigo, 1993» es de lo que va el
+    post, no un adorno sobre una noticia que iba de otra cosa. Antes había que ir
+    a la cola, buscar un post ajeno y pulsar «usar en un post», lo que convertía
+    el clip en un formato colgado encima de un tema que no era el suyo.
+
+    Por eso `subtitle` pasa a ser obligatorio: es el título del post. Lo que
+    solo se sabe tras bajar el vídeo (canal, título real) lo rellena
+    `clips_complete`.
+    """
+    from app.db.models import InstagramQueueItem
+
     video_id = extraer_video_id(url)
     if not video_id:
         raise ValueError("no parece una URL de YouTube")
@@ -92,16 +105,41 @@ def solicitar(
         raise ValueError(f"el tramo es de menos de {MIN_CLIP_S:.0f} s")
     if end_s - start_s > MAX_CLIP_S:
         raise ValueError(f"el tramo pasa de {MAX_CLIP_S:.0f} s")
+    tema = (subtitle or "").strip()
+    if not tema:
+        raise ValueError(
+            "dinos de qué va el clip (p. ej. «Concierto de Extremoduro en la sala "
+            "Vértigo, 1993»): es el título de su publicación"
+        )
 
     clip = VideoClip(
         video_id=video_id, url=url.strip(), start_s=start_s, end_s=end_s,
-        subtitle=(subtitle or "").strip() or None,
-        requested_by=requested_by, status="requested",
+        subtitle=tema, requested_by=requested_by, status="requested",
     )
     db.add(clip)
+    db.flush()
+
+    pos = db.execute(
+        select(func.coalesce(func.max(InstagramQueueItem.position), -1))
+    ).scalar() or -1
+    item = InstagramQueueItem(
+        day=date.today(), slot=2, position=pos + 1,
+        content_type="clip",
+        content_key=f"clip:{video_id}:{int(start_s)}-{int(end_s)}",
+        title=tema[:300],
+        category="Cultura",
+        source_url=clip.url,
+        media_type="CLIP",
+        media_locked=True,          # lo ha decidido una persona
+        status=config.estado_inicial(),
+    )
+    db.add(item)
+    db.flush()
+    clip.queue_item_id = item.id
     db.commit()
     db.refresh(clip)
-    logger.info("[clip] solicitado %s (%.0f-%.0f s)", video_id, start_s, end_s)
+    logger.info("[clip] solicitado %s (%.0f-%.0f s) → post #%s «%s»",
+                video_id, start_s, end_s, item.id, tema[:60])
     return clip
 
 

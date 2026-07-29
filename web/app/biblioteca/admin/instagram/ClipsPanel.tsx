@@ -86,6 +86,13 @@ export default function ClipsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Lo que impide pedir el clip, dicho con palabras. Se enseña junto al botón.
+  const falta = [
+    !url.trim() && "la URL",
+    !hasta.trim() && "el final del tramo",
+    !subtitulo.trim() && "«de qué va»",
+  ].filter(Boolean) as string[];
+
   async function recargar() {
     setCargando(true);
     try {
@@ -111,6 +118,11 @@ export default function ClipsPanel({
       setError("Pon el final del tramo (segundos o m:ss)");
       return;
     }
+    // El tema es el título de la publicación del clip, así que es obligatorio.
+    if (!subtitulo.trim()) {
+      setError("Di de qué va el clip: es el título de su publicación");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -121,7 +133,7 @@ export default function ClipsPanel({
           url,
           start_s: s,
           end_s: e,
-          subtitle: subtitulo.trim() || null,
+          subtitle: subtitulo.trim(),
         }),
       });
       const data = await res.json();
@@ -170,7 +182,7 @@ export default function ClipsPanel({
       if (!res.ok) throw new Error(data.error ?? `error ${res.status}`);
       window.alert(
         `Enlazado con «${asignables[idx].title.slice(0, 50)}».\n\n` +
-          "Ese post pasa a formato reel y hay que prepararlo para que use el clip.",
+          "Ese post pasa a formato «clip externo» y hay que prepararlo para que lo use.",
       );
       await recargar();
     } catch (err) {
@@ -264,28 +276,48 @@ export default function ClipsPanel({
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                texto sobreimpreso (opcional)
+                de qué va <span className="text-accent">· obligatorio</span>
               </label>
+              {/*
+                El ejemplo va con «p. ej.» delante a propósito: sin eso parecía
+                un campo ya relleno, y como es obligatorio el botón se quedaba
+                apagado sin que se viera por qué.
+              */}
               <input
                 value={subtitulo}
                 onChange={(e) => setSubtitulo(e.target.value)}
-                placeholder="Cuando Kutxi conoció a Robe"
-                className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-serif px-2 py-1.5"
+                placeholder="p. ej. Concierto de Extremoduro en la sala Vértigo, 1993"
+                className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-serif px-2 py-1.5 placeholder:text-ink-faint/50 placeholder:italic"
               />
+              <p className="mt-1 font-mono text-[9px] text-ink-faint">
+                es el título de su publicación en la cola
+              </p>
             </div>
           </div>
           <div className="mt-4 flex items-center gap-3 flex-wrap">
             <button
               type="button"
-              disabled={busy || !url.trim() || !hasta.trim()}
+              disabled={busy || falta.length > 0}
               onClick={pedir}
               data-cursor="hover"
               className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
             >
               {busy ? "…" : "pedir clip"}
             </button>
+            {/*
+              Un botón apagado sin explicación es un callejón sin salida: el
+              placeholder de «de qué va» parecía un valor puesto y no había forma
+              de saber qué faltaba. Ahora se dice.
+            */}
             <span className="font-mono text-[9px] text-ink-faint">
-              máximo 60 s · nada de canales oficiales ni discográficas
+              {falta.length > 0 ? (
+                <span className="text-accent">falta {falta.join(" y ")}</span>
+              ) : (
+                <>
+                  máximo 60 s · nada de canales oficiales ni discográficas · el
+                  clip entra en la cola como publicación propia
+                </>
+              )}
             </span>
           </div>
           {error && (

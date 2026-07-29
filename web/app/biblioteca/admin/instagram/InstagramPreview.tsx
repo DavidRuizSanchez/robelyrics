@@ -32,7 +32,10 @@ type Props = {
   media?: PreviewMedia[];
   /** Construye la URL de bytes de cada pieza. */
   mediaSrc?: (position: number) => string;
-  /** Formato pedido (IMAGE|CAROUSEL|REELS), para explicar qué falta por generar. */
+  /**
+   * Formato pedido (IMAGE|CAROUSEL|REELS|CLIP|PRODUCT), para explicar qué falta
+   * por generar y qué hay que hacer para tenerlo.
+   */
   formatoPedido?: string;
 };
 
@@ -169,11 +172,16 @@ export default function InstagramPreview({
                 ? "vídeo por generar"
                 : formatoPedido === "CAROUSEL"
                   ? "carrusel por generar"
-                  : "sin material"}
+                  : formatoPedido === "CLIP"
+                    ? "clip por bajar"
+                    : formatoPedido === "PRODUCT"
+                      ? "pieza por componer"
+                      : "sin material"}
             </span>
             <span className="font-mono text-[9px] leading-relaxed text-ink-faint/70">
-              Pulsa «preparar» aquí, o «⚙ generar material» arriba para hacerlo
-              de todos a la vez.
+              {formatoPedido === "CLIP"
+                ? "El clip lo baja el daemon de la Mac (YouTube bloquea la IP del servidor). Cuando esté listo, prepara el post."
+                : "Pulsa «preparar» aquí, o «⚙ generar material» arriba para hacerlo de todos a la vez."}
             </span>
           </div>
         )}

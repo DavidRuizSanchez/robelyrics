@@ -610,6 +610,19 @@ export default function InstagramPlanner({
                         <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
                           formato
                         </label>
+                        {/*
+                          Un post de clip o de «la web» NO cambia de formato: su
+                          formato ES su tema. Ofrecerlo en el desplegable dejaba
+                          convertir una noticia en «clip externo» y el post se
+                          quedaba esperando un vídeo que nunca iba a tener.
+                        */}
+                        {it.content_type === "clip" || it.content_type === "product" ? (
+                          <p className="mt-1 font-mono text-[10px] text-ink-dim">
+                            {it.content_type === "clip"
+                              ? "🎬 Clip externo. El vídeo es el tema de este post, así que el formato no se cambia."
+                              : "✦ Funcionalidad de la web. La consulta es el tema de este post, así que el formato no se cambia."}
+                          </p>
+                        ) : (
                         <div className="mt-1 flex items-center gap-2 flex-wrap">
                           <select
                             value={it.media_type || "IMAGE"}
@@ -631,17 +644,12 @@ export default function InstagramPlanner({
                             <option value="IMAGE">Foto única</option>
                             <option value="CAROUSEL">Carrusel</option>
                             <option value="REELS">Reel · verso animado</option>
-                            <option value="CLIP">Clip externo (de YouTube)</option>
-                            <option value="PRODUCT">Funcionalidad de la web</option>
                           </select>
                           <span className="font-mono text-[9px] text-ink-faint">
-                            {it.media_type === "CLIP"
-                              ? "necesita un clip enlazado (abajo, en «clips de vídeo»)"
-                              : it.media_type === "PRODUCT"
-                                ? "la pieza se compone consultando la web de verdad"
-                                : "al cambiarlo hay que «re-preparar»"}
+                            al cambiarlo hay que «re-preparar»
                           </span>
                         </div>
+                        )}
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-divider">

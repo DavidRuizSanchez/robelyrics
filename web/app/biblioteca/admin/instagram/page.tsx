@@ -12,7 +12,14 @@ export type IGItem = {
   position: number;
   status: string;
   content_type: string;
-  /** IMAGE | CAROUSEL | REELS */
+  /**
+   * IMAGE | CAROUSEL | REELS | CLIP | PRODUCT.
+   *
+   * Los tres primeros son formas de contar un tema y los reparte
+   * `scheduling.repartir_formatos`. CLIP (vídeo de otro canal) y PRODUCT (pieza
+   * que enseña la web) NO: son un tema en sí, nacen con su propio post y el
+   * repartidor no los toca.
+   */
   media_type: string;
   /** Nº de piezas (diapositivas de un carrusel). */
   media_count: number;

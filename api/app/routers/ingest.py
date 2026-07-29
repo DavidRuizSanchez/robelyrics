@@ -269,6 +269,20 @@ def clips_complete(
     clip.channel_url = payload.channel_url or clip.channel_url
     clip.status = "ready"
     clip.error = None
+
+    # La publicación del clip se creó al pedirlo, con el tema que escribió el
+    # admin. Ahora se le añade la procedencia REAL, que hasta la descarga no se
+    # conocía: es lo que acredita de dónde sale el vídeo y va en el caption.
+    if clip.queue_item_id:
+        from app.db.models import InstagramQueueItem
+
+        item = db.get(InstagramQueueItem, clip.queue_item_id)
+        if item is not None and item.status != "published":
+            item.source_name = clip.channel_title or item.source_name
+            item.source_url = clip.channel_url or clip.url or item.source_url
+            if not (item.summary or "").strip() and clip.video_title:
+                item.summary = clip.video_title[:500]
+
     db.commit()
     return {"ok": True, "status": clip.status}
 

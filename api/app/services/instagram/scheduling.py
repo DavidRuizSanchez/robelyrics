@@ -24,7 +24,7 @@ import os
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import InstagramQueueItem
@@ -130,6 +130,65 @@ def _intercalar(items: list[InstagramQueueItem]) -> list[InstagramQueueItem]:
     return salida
 
 
+# Cuota máxima por tipo de contenido, como fracción del feed. Es una decisión
+# EDITORIAL: los posts que enseñan la web son el gancho de registro, y pasado
+# cierto punto la cuenta deja de ser un cancionero y es un folleto.
+CUOTA_POR_TIPO: dict[str, float] = {"product": 0.10}
+
+
+def cupo_semanal(tipo: str) -> int:
+    """Cuántos posts de ese tipo caben por semana. Sin cuota, no hay tope."""
+    fraccion = CUOTA_POR_TIPO.get(tipo)
+    if fraccion is None:
+        return cap_semanal()
+    return max(1, round(cap_semanal() * fraccion))
+
+
+def _ocupacion_por_tipo(db: Session, tipo: str) -> dict:
+    """Posts de ese tipo ya comprometidos por semana (lunes local → nº)."""
+    conteo: dict = {}
+    filas = db.execute(
+        select(
+            InstagramQueueItem.publish_at,
+            InstagramQueueItem.publish_on,
+            InstagramQueueItem.published_at,
+        ).where(
+            InstagramQueueItem.status.in_((*ACTIVOS, "published")),
+            InstagramQueueItem.content_type == tipo,
+        )
+    ).all()
+    for publish_at, publish_on, published_at in filas:
+        momento = publish_at or published_at
+        if momento is not None:
+            lunes = _lunes_de(momento)
+        elif publish_on is not None:
+            lunes = publish_on - timedelta(days=publish_on.weekday())
+        else:
+            continue
+        conteo[lunes] = conteo.get(lunes, 0) + 1
+    return conteo
+
+
+def cupo_libre(db: Session, tipo: str, weeks: int = 4) -> int:
+    """Cuántos posts más de ese tipo caben en las próximas semanas.
+
+    Cuenta también los que aún no tienen fecha: si no, pulsar «✦ enseñar la web»
+    cuatro veces seguidas metía dieciséis en la cola y luego la programación no
+    tenía dónde ponerlos.
+    """
+    cupo = cupo_semanal(tipo)
+    ocupados = sum(_ocupacion_por_tipo(db, tipo).values())
+    sin_fecha = db.execute(
+        select(func.count()).select_from(InstagramQueueItem).where(
+            InstagramQueueItem.status.in_(ACTIVOS),
+            InstagramQueueItem.content_type == tipo,
+            InstagramQueueItem.publish_at.is_(None),
+            InstagramQueueItem.publish_on.is_(None),
+        )
+    ).scalar() or 0
+    return max(0, cupo * max(weeks, 1) - ocupados - sin_fecha)
+
+
 def candidatos(db: Session) -> list[InstagramQueueItem]:
     """Items aprobados y aún sin momento asignado, en orden de cola."""
     return list(db.execute(
@@ -162,6 +221,8 @@ def plan(
     cap = cap_semanal()
     ocupacion = _ocupacion_semanal(db)
     tomados = _ocupados(db)
+    # Ocupación por tipo, para los que tienen cuota propia (ver CUOTA_POR_TIPO).
+    por_tipo = {t: _ocupacion_por_tipo(db, t) for t in CUOTA_POR_TIPO}
 
     pendientes = _intercalar(candidatos(db))
     asignaciones: list[tuple[InstagramQueueItem, datetime]] = []
@@ -174,10 +235,16 @@ def plan(
     for item in pendientes:
         colocado = False
         d = dia
+        tipo = item.content_type or "news"
+        cupo_tipo = cupo_semanal(tipo) if tipo in CUOTA_POR_TIPO else None
         while d <= fin:
             lunes = d - timedelta(days=d.weekday())
             if ocupacion.get(lunes, 0) >= cap:
                 # Semana llena: salta al lunes siguiente de golpe.
+                d = lunes + timedelta(days=7)
+                continue
+            if cupo_tipo is not None and por_tipo[tipo].get(lunes, 0) >= cupo_tipo:
+                # Esta semana ya lleva su cuota de este tipo: a la siguiente.
                 d = lunes + timedelta(days=7)
                 continue
             for h in horas:
@@ -188,6 +255,8 @@ def plan(
                 asignaciones.append((item, momento))
                 tomados.add(momento)
                 ocupacion[lunes] = ocupacion.get(lunes, 0) + 1
+                if cupo_tipo is not None:
+                    por_tipo[tipo][lunes] = por_tipo[tipo].get(lunes, 0) + 1
                 colocado = True
                 break
             if colocado:
@@ -195,10 +264,13 @@ def plan(
             d += timedelta(days=1)
 
         if not colocado:
+            motivo = f"sin hueco en {weeks} semanas (tope {cap}/semana)"
+            if cupo_tipo is not None:
+                motivo += f" o cuota de «{tipo}» llena ({cupo_tipo}/semana)"
             descartes.append({
                 "id": item.id,
                 "title": item.title[:80],
-                "reason": f"sin hueco en {weeks} semanas (tope {cap}/semana)",
+                "reason": motivo,
             })
 
     return asignaciones, descartes
@@ -223,7 +295,16 @@ def apply_plan(
 # proporción a ciegas. Formato del env: "REELS:4,CAROUSEL:3,IMAGE:3".
 FORMAT_MIX_RAW = os.getenv("IG_FORMAT_MIX", "REELS:4,CAROUSEL:3,IMAGE:3")
 
+# Formatos que el repartidor PUEDE asignar. Son los tres que valen para cualquier
+# tema: una noticia o un verso se cuentan igual de bien en foto, carrusel o reel.
 FORMATOS_VALIDOS = ("IMAGE", "CAROUSEL", "REELS")
+
+# Formatos que NO se reparten porque no son una forma de contar un tema: son un
+# tema en sí. Un CLIP es un vídeo concreto de un canal concreto y un PRODUCT es
+# una consulta concreta a la web; ninguno se puede «asignar» a un post que iba de
+# otra cosa. Se excluyen aquí explícitamente y no solo vía `media_locked`, que es
+# una marca que se puede quitar desde el panel sin querer.
+FORMATOS_PROPIOS = ("CLIP", "PRODUCT")
 
 
 def mezcla_formatos() -> list[str]:
@@ -286,6 +367,10 @@ def repartir_formatos(
     q = select(InstagramQueueItem).where(
         InstagramQueueItem.status.in_(ACTIVOS),
         InstagramQueueItem.media_locked.is_(False),
+        # Los clips y las piezas de la web tienen formato propio por naturaleza:
+        # el repartidor los arrasaba (el botón manda `only_scheduled: false`, así
+        # que barre toda la cola activa) y se quedaban sin su vídeo o su pieza.
+        InstagramQueueItem.media_type.not_in(FORMATOS_PROPIOS),
     )
     if solo_programados:
         q = q.where(InstagramQueueItem.publish_at.is_not(None))

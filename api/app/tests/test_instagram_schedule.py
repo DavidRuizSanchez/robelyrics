@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.db.models import InstagramQueueItem, InstagramQueueMedia
+from app.db.models import InstagramQueueItem, InstagramQueueMedia, VideoClip
 from app.services.instagram import config, publisher
 
 
@@ -25,6 +25,9 @@ def db():
     engine = create_engine("sqlite://")
     InstagramQueueItem.__table__.create(engine)
     InstagramQueueMedia.__table__.create(engine)
+    # `next_pending` mira si el clip de un post ya está listo, así que la
+    # tabla tiene que existir aunque estos tests no usen clips.
+    VideoClip.__table__.create(engine)
     with Session(engine) as s:
         yield s
 

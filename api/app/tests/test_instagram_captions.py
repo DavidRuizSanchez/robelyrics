@@ -247,3 +247,53 @@ def test_el_detalle_va_una_frase_por_linea():
     caption = captions.build(None, _topic_product())
     assert "No es un chatbot." in caption
     assert "Cada respuesta se apoya en material real." in caption
+
+
+# --------------------------------------------------------------------------- #
+# Posts que enseñan la web: el titular es la CONSULTA, y muchas son preguntas
+# --------------------------------------------------------------------------- #
+def test_el_molde_no_pone_punto_detras_de_una_interrogacion():
+    """El titular de un post de «la web» es la consulta real. Con `{headline_min}.`
+    salía «…has actuado en Plasencia?.»."""
+    from app.services.instagram import captions as cap
+
+    ctx = cap._ctx_moldes({"headline": "¿Cuántas veces has actuado en Plasencia?"})
+    assert ctx["headline_frase"].endswith("?")
+    assert not ctx["headline_frase"].endswith("?.")
+
+
+def test_el_molde_si_remata_lo_que_no_lleva_puntuacion():
+    from app.services.instagram import captions as cap
+
+    ctx = cap._ctx_moldes({"headline": "Se acabó lo bonito"})
+    assert ctx["headline_frase"] == "se acabó lo bonito."
+
+
+def test_las_consultas_tecleadas_se_presentan_decentes():
+    """Se arregla la TIPOGRAFÍA (mayúscula, apertura), nunca las palabras.
+
+    Los acentos que falten se quedan como están: corregirlos sería reescribir lo
+    que preguntó otra persona, y la pregunta que viaja al consultorio es esta.
+    """
+    from app.services.instagram.product_topics import _presentable
+
+    # Caso real del registro de prod, tal cual lo tecleó alguien.
+    assert (_presentable("cuantas veces has actuado en plasencia?")
+            == "¿Cuantas veces has actuado en plasencia?")
+    assert _presentable("se acabó lo bonito") == "Se acabó lo bonito"
+    assert _presentable("¿Qué es la libertad?") == "¿Qué es la libertad?"
+    # La mayúscula va en la primera LETRA: con «¿como…» caía sobre el «¿».
+    assert (_presentable("¿como te lo pasaste con Manué?")
+            == "¿Como te lo pasaste con Manué?")
+    assert _presentable("") == ""
+
+
+def test_al_consultorio_solo_van_preguntas_escritas_con_cuidado():
+    """La consulta es el TITULAR del post: «cuantas veces has actuado en
+    plasencia?» canta. No se corrigen acentos (sería reescribir lo que preguntó
+    otra persona), así que se filtra antes por un signo, sin adivinar."""
+    from app.services.instagram.product_topics import _escrita_con_cuidado
+
+    assert _escrita_con_cuidado("¿Qué es para ti la libertad?")
+    assert not _escrita_con_cuidado("cuantas veces has actuado en plasencia?")
+    assert not _escrita_con_cuidado("")

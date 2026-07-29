@@ -148,6 +148,12 @@ def _ctx_moldes(topic: dict) -> dict:
     if headline:
         # Para moldes que encajan el titular dentro de una frase.
         ctx["headline_min"] = headline[0].lower() + headline[1:]
+        # Igual, pero ya rematado: el molde no puede añadir el punto a ciegas
+        # porque el titular puede ser una pregunta y salía «…en Plasencia?.».
+        minusculo = ctx["headline_min"].rstrip()
+        ctx["headline_frase"] = (
+            minusculo if minusculo.endswith((".", "?", "!", "…")) else f"{minusculo}."
+        )
     return ctx
 
 

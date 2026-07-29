@@ -82,13 +82,18 @@ def _centrar(pintar) -> Image.Image:
     Sin esto sobraba medio lienzo en blanco debajo del contenido — las
     respuestas y los resultados no siempre ocupan lo mismo, así que la posición
     no se puede fijar a ojo.
+
+    OJO con lo que devuelve `pintar`: es la Y FINAL, no la altura. Midiendo
+    desde `MARGEN + 20` y tratando ese número como si fuera el alto, el hueco
+    salía inflado en el margen inicial y el contenido quedaba pegado arriba con
+    un palmo de negro debajo. Se mide desde 0, y así la Y final ES la altura.
     """
     medidor = ImageDraw.Draw(Image.new("RGB", SIZE, FONDO))
-    alto = pintar(medidor, MARGEN + 20)
+    alto = pintar(medidor, 0)
 
     img, draw = _lienzo()
-    libre = SIZE[1] - 150 - alto          # 150 = zona del pie
-    offset = max(MARGEN + 20, (libre // 2) + 20)
+    util = SIZE[1] - 150                  # 150 = zona del pie
+    offset = max(MARGEN + 20, (util - alto) // 2)
     pintar(draw, offset)
     _pie_marca(draw)
     return img
@@ -229,33 +234,66 @@ def datos_buscador(db, consulta: str, k: int = 2) -> list[dict]:
     return resultados
 
 
-def generar(db, destino_dir: str | None = None) -> dict[str, str]:
-    """Genera las piezas de producto con datos reales. Devuelve {slug: ruta}.
+def _nombre_fichero(slug: str, consulta: str) -> str:
+    """Un fichero por (funcionalidad, consulta): dos posts de la misma sección
+    con preguntas distintas no pueden pisarse la imagen."""
+    import hashlib
+    import unicodedata
 
-    Lo que falle se omite del resultado en vez de salir con datos de relleno.
+    base = "".join(
+        c for c in unicodedata.normalize("NFD", slug.lower())
+        if unicodedata.category(c) != "Mn" and (c.isalnum() or c == "-")
+    )
+    firma = hashlib.md5(consulta.strip().lower().encode("utf-8")).hexdigest()[:8]
+    return f"{base or 'pieza'}-{firma}.jpg"
+
+
+def componer(db, slug: str, consulta: str, destino_dir: str | None = None) -> str | None:
+    """Compone LA pieza de una funcionalidad con UNA consulta concreta.
+
+    Devuelve la ruta, o None si la consulta falla — y entonces no se publica
+    nada: un post que promete enseñar algo con datos inventados sería justo lo
+    contrario de lo que vende el proyecto.
+
+    Antes esto era `generar()`, que recomponía TODAS las piezas con dos consultas
+    fijas y en cada `prepare`: una llamada al LLM y una búsqueda semántica
+    completas aunque solo hiciera falta una.
     """
     destino_dir = destino_dir or os.path.join(config.IMAGES_DIR, "product")
     os.makedirs(destino_dir, exist_ok=True)
+    destino = os.path.join(destino_dir, _nombre_fichero(slug, consulta))
+
+    try:
+        if slug == "pregúntale-al-viento":
+            d = datos_consultorio(db, consulta)
+            return consultorio(d["pregunta"], d["respuesta"], destino)
+        if slug in ("como-lo-diria-robe", "listas-por-mood"):
+            return buscador(consulta, datos_buscador(db, consulta), destino)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[product] «%s» sobre %s falló: %s", consulta, slug, exc)
+        return None
+
+    logger.info("[product] «%s» no se recompone (vive de su captura)", slug)
+    return None
+
+
+def generar(db, destino_dir: str | None = None) -> dict[str, str]:
+    """Compone una pieza de cada funcionalidad recomponible. Devuelve {slug: ruta}.
+
+    Es solo el arranque (poblar el directorio la primera vez). Los posts usan
+    `componer()`, que hace UNA con la consulta que toca.
+    """
+    from app.services.instagram import product_topics
+
     hechas: dict[str, str] = {}
-
-    try:
-        d = datos_consultorio(db, "¿Qué es para ti la libertad?")
-        hechas["pregúntale-al-viento"] = consultorio(
-            d["pregunta"], d["respuesta"],
-            os.path.join(destino_dir, "consultorio.jpg"),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[product] consultorio falló: %s", exc)
-
-    try:
-        res = datos_buscador(db, "se acabó lo bonito")
-        hechas["como-lo-diria-robe"] = buscador(
-            "se acabó lo bonito", res,
-            os.path.join(destino_dir, "buscador-semantico.jpg"),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[product] buscador falló: %s", exc)
-
+    for slug in product_topics.FUENTES:
+        consultas = product_topics.consultas_para(db, slug)
+        if not consultas:
+            logger.warning("[product] sin consultas reales para %s", slug)
+            continue
+        ruta = componer(db, slug, consultas[0], destino_dir)
+        if ruta:
+            hechas[slug] = ruta
     return hechas
 
 

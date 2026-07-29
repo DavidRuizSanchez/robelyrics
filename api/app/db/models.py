@@ -1289,6 +1289,12 @@ class InstagramQueueItem(Base):
             "'failed', 'discarded')",
             name="ck_instagram_queue_status",
         ),
+        # Declarado aquí además de en la migración: sin esto el CHECK solo existía
+        # en Postgres, y los tests (SQLite) daban por buenos formatos inventados.
+        CheckConstraint(
+            "media_type IN ('IMAGE', 'CAROUSEL', 'REELS', 'CLIP', 'PRODUCT')",
+            name="ck_instagram_queue_media_type",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -1305,8 +1311,10 @@ class InstagramQueueItem(Base):
     position: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, index=True
     )
-    # Tipo de contenido: news | blog | quote | ephemeris | anecdote | robe_quote.
-    # Distingue la actualidad (news/blog) del evergreen anclado al corpus.
+    # Tipo de contenido: news | blog | quote | ephemeris | anecdote | robe_quote |
+    # clip | product. Distingue la actualidad (news/blog) del evergreen anclado al
+    # corpus, y ambos de los que traen su propio tema (`clip` es un vídeo concreto,
+    # `product` una consulta concreta a la web).
     content_type: Mapped[str] = mapped_column(
         String(24), nullable=False, default="news"
     )

@@ -87,8 +87,10 @@ HOOKS: dict[str, list[str]] = {
     # Posts que enseñan la web. El gancho promete lo que se ve en la captura.
     "product": [
         "{headline}",
-        "Esto existe y funciona: {headline_min}.",
-        "Lo hemos montado para esto: {headline_min}.",
+        # `headline_frase`, no `headline_min` + «.»: el titular de estos posts es
+        # la consulta real, y muchas son preguntas → «…en Plasencia?.».
+        "Esto existe y funciona: {headline_frase}",
+        "Lo hemos montado para esto: {headline_frase}",
     ],
 }
 

@@ -2303,6 +2303,14 @@ def admin_ig_update(
     if payload.media_type is not None:
         if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS", "CLIP", "PRODUCT"):
             raise HTTPException(status_code=400, detail="formato no válido")
+        if payload.media_type != it.media_type:
+            # Cambiar de formato invalida el material: hay que rehacerlo. Sin
+            # esto el post se quedaba con las piezas del formato anterior y la
+            # etiqueta mentía — un «carrusel · 1», que no existe. Es lo mismo
+            # que ya hacía `scheduling.repartir_formatos`, y aquí faltaba.
+            it.media.clear()
+            it.image_path = None
+            it.status = "pending"
         it.media_type = payload.media_type
         # Elegido por una persona: el repartidor automático ya no lo toca.
         it.media_locked = True
@@ -2709,11 +2717,11 @@ def admin_clips_assign(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminClipOut:
-    """Asigna el clip a una publicación de la cola (o lo desasigna).
+    """Reasigna el clip a OTRA publicación de la cola (o lo desasigna).
 
-    Al preparar ese post como reel se usará el clip —con su imagen y su sonido
-    reales— en vez de generar un verso animado. El post pasa a `pending` para
-    que haya que re-prepararlo.
+    Ya no es el camino normal: al pedir un clip se crea su propia publicación,
+    con el clip como tema. Esto queda como válvula para moverlo de sitio, y el
+    post destino pasa a `pending` para que haya que re-prepararlo.
     """
     from app.db.models import VideoClip
 
@@ -2736,8 +2744,10 @@ def admin_clips_assign(
         raise HTTPException(status_code=409, detail="esa publicación ya salió")
 
     clip.queue_item_id = item.id
-    # El post pasa a reel y hay que rehacer su material.
-    item.media_type = "REELS"
+    # CLIP, no REELS: un reel es vídeo PROPIO y va mudo (la música tiene
+    # derechos); un clip es de otro canal y lleva su sonido y su atribución
+    # quemada. Poner REELS aquí obligaba a que `prepare` lo corrigiera después.
+    item.media_type = "CLIP"
     item.media_locked = True      # lo ha decidido una persona
     item.status = "pending"
     item.image_path = None
@@ -2752,27 +2762,37 @@ def admin_ig_generate_product(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGBulkResult:
-    """Genera las piezas que enseñan la web y las encola.
+    """Crea posts PROPIOS que enseñan la web y los encola.
 
-    Las piezas se componen consultando la API de VERDAD (pregunta real al
-    consultorio, versos reales del buscador), así que cada vez que se pulsa
-    salen con contenido nuevo y actual.
+    Cada post es una consulta real («¿Qué es la libertad para Robe?»), no la
+    funcionalidad en abstracto, y la pieza se compone preguntando a la API DE
+    VERDAD. Son posts independientes: ya no se le cuelga el formato encima a una
+    noticia que iba de otra cosa.
+
+    Cantidad acotada por la cuota semanal (≈10% del feed): esto es el gancho de
+    registro, no un folleto.
     """
     from app.services.instagram import evergreen as _ev
-    from app.services.instagram import product_shots as _ps
+    from app.services.instagram import scheduling as _sched
 
     result = AdminIGBulkResult()
-    try:
-        _ps.generar(db)
-    except Exception as exc:  # noqa: BLE001
-        result.failed.append({"id": 0, "error": f"al componer las piezas: {exc}"})
-
     usados = _ev.used_content_keys(db)
-    candidatos = _ev.gen_product(db, count=4, used=usados)
+    cupo = _sched.cupo_libre(db, "product")
+    if cupo <= 0:
+        result.failed.append({
+            "id": 0,
+            "error": "ya hay posts de «la web» suficientes para las próximas "
+                     "semanas (cuota ~10% del feed)",
+        })
+        return result
+
+    candidatos = _ev.gen_product(db, count=cupo, used=usados)
     if not candidatos:
-        result.failed.append(
-            {"id": 0, "error": "sin piezas disponibles (o ya estaban todas en la cola)"}
-        )
+        result.failed.append({
+            "id": 0,
+            "error": "sin consultas nuevas con las que enseñar la web "
+                     "(ya han salido todas las del registro y el corpus)",
+        })
         return result
 
     pos = db.query(func.coalesce(func.max(_IGItem.position), -1)).scalar() or -1
@@ -2782,6 +2802,11 @@ def admin_ig_generate_product(
             content_type=cand["content_type"], content_key=cand["content_key"],
             title=cand["title"][:300], category=cand.get("category"),
             summary=cand.get("summary"), source_name=cand.get("source_name"),
+            # Sin esto se quedaban en IMAGE y `prepare` los mandaba a la rama
+            # genérica en vez de a `_prepare_product`: salía arte IA cualquiera
+            # en lugar de la pieza que enseña la funcionalidad. `media_locked`
+            # los protege del repartidor de formatos.
+            media_type="PRODUCT", media_locked=True,
             status="proposed",
         )
         db.add(it)
