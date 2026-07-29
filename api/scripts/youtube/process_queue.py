@@ -102,6 +102,11 @@ def main() -> None:
             except Exception as e:  # noqa: BLE001
                 n_fail += 1
                 msg = f"{type(e).__name__}: {e}"
+                # Un 4xx de prod trae el motivo REAL en el cuerpo; sin esto, un
+                # rechazo de validación se registraba como «422» a secas y había que
+                # ir a leer el router para saber qué campo lo había tumbado.
+                if isinstance(e, httpx.HTTPStatusError):
+                    msg += f" · respuesta: {e.response.text[:300]}"
                 logger.warning("[✗] %s: %s", vid, msg)
                 try:
                     http.post(

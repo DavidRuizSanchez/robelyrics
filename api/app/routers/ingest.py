@@ -64,7 +64,12 @@ class PendingItem(BaseModel):
 
 
 class CompleteIn(BaseModel):
-    content_clean: str = Field(min_length=100)
+    # Suelo ABSOLUTO, solo contra payloads vacíos o basura. El criterio fino lo
+    # aplica el daemon con `min_chars_for`, que es quien conoce la duración del
+    # audio: aquí había un 100 fijo que rechazaba con un 422 opaco cualquier pieza
+    # legítimamente corta (un tráiler de 40 s, o los shorts de @tesonica), y el
+    # daemon lo registraba como fallo genérico sin decir que venía del servidor.
+    content_clean: str = Field(min_length=25)
     title: str | None = None
     published_at: datetime | None = None
     quality_score: float | None = None
