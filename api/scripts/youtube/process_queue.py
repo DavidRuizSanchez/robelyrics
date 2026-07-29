@@ -78,7 +78,15 @@ def main() -> None:
             vid = it["video_id"]
             title = it.get("title") or vid
             try:
-                http.post(f"{base}/ingest/youtube/{item_id}/claim").raise_for_status()
+                claim = http.post(f"{base}/ingest/youtube/{item_id}/claim")
+                if claim.status_code == 409:
+                    # Otra pasada se lo llevó (el launchd dispara cada 15 min y una
+                    # manual puede solaparse). No es un fallo nuestro y no se reporta
+                    # como tal: se salta y ya.
+                    logger.info("[·] %s lo está haciendo otra pasada: %s",
+                                vid, claim.json().get("detail", "")[:60])
+                    continue
+                claim.raise_for_status()
                 with tempfile.TemporaryDirectory() as td:
                     audio = download_audio(vid, td)
                     if not audio:

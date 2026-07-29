@@ -176,11 +176,19 @@ def complete(
 )
 def fail(item_id: int, payload: FailIn, db: Session = Depends(get_db)) -> OkOut:
     """El daemon reporta un fallo (yt-dlp/Whisper). Suma intento y marca failed;
-    el daemon reintenta `failed`/`approved` en la siguiente pasada."""
+    el daemon reintenta `failed`/`approved` en la siguiente pasada.
+
+    Un item YA COMPLETADO no se degrada. Con dos pasadas solapadas —el launchd cada
+    15 min y una lanzada a mano— la segunda recibe un 409 al reclamar lo que la
+    primera ya terminó, y reportaba ese 409 como fallo: el item quedaba `failed` con
+    su `done_at` sellado, y el daemon lo volvía a descargar y transcribir, pagando
+    Whisper por algo que ya estaba en el corpus.
+    """
     row = _get_or_404(db, item_id)
-    row.status = "failed"
     row.error = payload.error[:2000]
     row.attempts = (row.attempts or 0) + 1
+    if row.status != "done":
+        row.status = "failed"
     db.commit()
     return OkOut(status=row.status)
 
