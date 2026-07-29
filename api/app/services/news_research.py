@@ -156,9 +156,18 @@ def web_research(query: str, n: int = 6) -> list[dict]:
 
 def corpus_research(db, query: str, n: int = 4) -> list[dict]:
     """Extractos de NUESTRO corpus (interpretation_sources) que mencionen el
-    tema. Conocimiento propio para enriquecer y cruzar."""
+    tema. Conocimiento propio para enriquecer y cruzar.
+
+    Dos pasadas: primero la LITERAL (ILIKE, exacta y baratísima) y, si no llena el
+    cupo, la SEMÁNTICA sobre los embeddings del corpus. La segunda hace falta
+    porque el ILIKE solo encuentra lo que repite el titular palabra por palabra, y
+    porque más de la mitad de las fuentes no están ligadas a ninguna canción: sin
+    ella, ese material está indexado y nunca se recupera.
+    """
     if db is None or not query:
         return []
+    out: list[dict] = []
+    vistos: set[str] = set()
     try:
         from app.db.models import InterpretationSource
         rows = db.execute(
@@ -166,10 +175,29 @@ def corpus_research(db, query: str, n: int = 4) -> list[dict]:
             .where(InterpretationSource.content_clean.ilike(f"%{query}%"))
             .limit(n)
         ).all()
+        for t, c in rows:
+            out.append({"title": t or "", "excerpt": (c or "")[:600]})
+            vistos.add(t or "")
     except Exception as exc:  # noqa: BLE001
-        logger.warning("[news_research] corpus falló: %s", exc)
-        return []
-    return [{"title": t or "", "excerpt": (c or "")[:600]} for t, c in rows]
+        logger.warning("[news_research] corpus literal falló: %s", exc)
+
+    if len(out) >= n:
+        return out
+    try:
+        from app.services.embeddings import get_embedder
+        from app.services.retrieval import search_interpretations_passages
+        qvec = get_embedder().embed_one(query)
+        for p in search_interpretations_passages(db, qvec, k=n * 2):
+            titulo = p.get("title") or ""
+            if titulo in vistos:
+                continue
+            vistos.add(titulo)
+            out.append({"title": titulo, "excerpt": (p.get("fragmento") or "")[:600]})
+            if len(out) >= n:
+                break
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[news_research] corpus semántico falló: %s", exc)
+    return out
 
 
 def entity_dossiers(db, blob: str, *, max_songs: int = 2) -> str:

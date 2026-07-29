@@ -157,7 +157,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Incluye embed_lyrics + embed_full_lyrics (red de seguridad de frescura: si una
 # letra cambió fuera del orquestador `freshness`, aquí se re-embebe igualmente para
 # que buscador/consultorio/listas por mood no queden leyendo la letra vieja).
-30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
+# `audit_corpus` cierra el bloque: `audit_embeddings` cuenta puntos por colección,
+# pero no dice si el material SE PUEDE RECUPERAR. Vectorizar no es servir — 420 de
+# las 731 fuentes estaban indexadas y eran irrecuperables porque el único camino de
+# lectura pedía song_ids y ellas no están ligadas a ninguna canción. Esto lo vigila.
+30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings && $DC exec -T api python -m scripts.audit_corpus ) >> /var/log/robelyrics-cron.log 2>&1
 
 # 03:50 UTC: barrido del Motor de Consenso de Verificación (MCV). Re-verifica los
 # overrides pendientes (letras/autoría/catálogo) contra sus fuentes y aplica lo que

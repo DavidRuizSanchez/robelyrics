@@ -204,6 +204,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     b_connsrc: list[str] = []
     b_voice: list[str] = []
     b_namesrc: list[str] = []
+    b_semantic: list[str] = []
     b_affinity: list[str] = []
 
     def _source_head(kind: str, title: str, ext: str) -> str:
@@ -373,6 +374,30 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             allowed.add(ext)
         n_sources += 1
 
+    # 4b) Corpus por SIGNIFICADO. El paso 4 exige que la fuente NOMBRE a la entidad;
+    #     esto trae lo que habla del asunto sin nombrarlo, y sobre todo desatasca las
+    #     fuentes que no están ligadas a ninguna canción (más de la mitad del corpus),
+    #     que hasta ahora estaban vectorizadas y no salían por ningún camino.
+    if qvec is not None:
+        try:
+            from app.services.retrieval import search_interpretations_passages
+            ya_vistas = {b.split("\n", 1)[0] for b in b_namesrc}
+            for p in search_interpretations_passages(db, qvec, k=6):
+                frag = (p.get("fragmento") or "").strip()[:_PER_SOURCE]
+                if len(frag) < 120:
+                    continue
+                url = (p.get("url") or "").strip()
+                ext = url if (url.startswith("http") and "entreinteriores.com" not in url) else ""
+                head = _source_head(p.get("kind") or "fuente", p.get("title") or "", ext)
+                if head in ya_vistas:  # ya vino por nombre en el paso 4
+                    continue
+                b_semantic.append(f"{head}\n{frag}")
+                if ext:
+                    allowed.add(ext)
+                n_sources += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] corpus semántico falló: %s", exc)
+
     # 5) Afinidad semántica: canciones cercanas SIN arista real. NO se afirman como
     #    conexión factual (la Fase 4.5 las verifica); van con disclaimer explícito.
     if qvec is not None:
@@ -427,7 +452,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
         except Exception as exc:  # noqa: BLE001
             logger.warning("[deep] web_context persona falló: %s", exc)
 
-    richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice)
+    richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice) + len(b_semantic)
     if entity_type in ("place", "theme", "concept", "person", "band") and richness < 5:
         try:
             from app.services.web_verify import verify_connection
@@ -451,7 +476,8 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             logger.warning("[deep] verificación externa falló: %s", exc)
 
     # Orden de prioridad (lo más débil al final → es lo primero que cae al capar).
-    blocks = (b_lyrics + b_deprof + b_verified + b_verses + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
+    blocks = (b_lyrics + b_deprof + b_verified + b_verses + b_graph + b_connsrc + b_voice
+              + b_namesrc + b_semantic + b_affinity)
 
     # Capa al contexto.
     material, total = [], 0

@@ -134,6 +134,60 @@ El motor busca el corpus por el sujeto **y** por las entidades citadas
 mientras «Calle Esperanza S/N» —la canción de la que iba la noticia— daba su letra,
 sus créditos y su disco.
 
+## El corpus: vectorizar no es servir
+
+`interpretations_v1` tenía el 100% del corpus embebido y aun así **420 de las 731
+fuentes eran irrecuperables**. La única lectura de esa colección
+(`search_interpretations_for_song_ids`) devuelve `payload.song_ids` para boostear el
+ranking, así que una fuente sin canción asociada tenía su hit descartado: 141
+transcripciones de YouTube (≈2,6 M de caracteres) y las 110 anotaciones de Genius
+—estas además excluidas del ILIKE de `fetch_sources_for_entity`— pagadas en OpenAI y
+mudas. El consultorio, encima, no consultaba esa colección en absoluto.
+
+`retrieval.search_interpretations_passages` es el camino que faltaba: recupera por
+SIGNIFICADO y devuelve el pasaje. El texto no vive en Qdrant a propósito, pero el
+payload guarda `chunk_index`, así que se rehidrata gratis releyendo `content_clean` y
+volviendo a trocear con el mismo `chunk_text` del indexado. Lo consumen las fichas SEO
+(`deep_research`, bloque 4b), el blog (`news_research.corpus_research`, segunda pasada
+tras el ILIKE) y el consultorio.
+
+**En el consultorio ese material entra como material AJENO** (`author_is_robe=False`,
+etiquetado «ANÁLISIS DE UN TERCERO») y nunca como voz de Robe. Un análisis de Juancares
+o de Tesônica no es algo que Robe dijera, y las transcripciones automáticas traen
+erratas (Whisper escribe «Robben y Niesta»): sirven de fondo, no como dato ni cita.
+
+`scripts/audit_corpus.py` (cron 03:30, tras `audit_embeddings`) vigila que esto no
+vuelva: cuenta por kind qué fuentes alcanza cada camino y lista las que no alcanza
+ninguno. `audit_embeddings` cuenta puntos; este dice si sirven.
+
+## Canales de YouTube: no todos son monotemáticos
+
+Los canales que se barren viven en `data/sources.yaml` con `ingest: true`, y
+`detect_uploads` itera todos (antes tenía `juancaraes` hardcodeado). La diferencia está
+en `relevance`: `all` se lo traga todo (Juancares, que solo habla de esto) y `catalog`
+pasa por `app/services/youtube_relevance.py`, que exige mención de Robe/Extremoduro o
+de un título del catálogo — el vocabulario sale de la BD, así que un disco nuevo se
+reconoce solo.
+
+@tesonica es el caso: 134 uploads, de los que **39 van del universo Robe** (la serie
+completa «LA LEY INNATA — Análisis exhaustivo», armonía y motivos conductores, que no
+existe en ninguna otra fuente) y el resto es metal, chelo y vídeos personales.
+
+Dos cosas medidas que conviene no deshacer:
+
+- Los títulos de catálogo **cortos** («Mama», «Golfa», «La Carrera» → «carrera») solo
+  casan como palabra completa y **solo en el título**, nunca en la descripción: buscar
+  «carrera» en prosa larga metía un vídeo sobre Tarja Turunen que hablaba de «su
+  carrera». El umbral está en 10 caracteres porque «La ley innata» normaliza a «ley
+  innata», que son exactamente 10.
+- El suelo de caracteres de una transcripción **escala con la duración**
+  (`min_chars_for`). El valor fijo de 100 agotó los 3 intentos de un tráiler de
+  Juancares por «transcripción demasiado corta», y casi la mitad de lo que entra de
+  @tesonica son shorts de menos de 90 s.
+
+El motivo del match viaja al email de aprobación: el filtro puede ser generoso porque
+la decisión final es tuya, con el CTA de 1 click.
+
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
 `infra/cron/production.crontab`. Guía de migración (jubilación del proyecto

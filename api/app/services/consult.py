@@ -239,11 +239,43 @@ def _lyric_passages(db: Session, query_vec: list[float], k: int) -> list[Passage
     return out
 
 
+def _corpus_passages(db: Session, query_vec: list[float], k: int) -> list[Passage]:
+    """Análisis de terceros del corpus (fan-content, transcripciones, prensa).
+
+    El consultorio solo miraba `robe_voice_v1` y `chunks_v1`, así que el 95% del
+    corpus —341 transcripciones, anotaciones, foros, libros— no le servía ni como
+    dato de fondo. Esto lo suma, pero NUNCA como voz de Robe: entra con
+    `author_is_robe=False` y etiquetado como material ajeno, igual que `about_robe`.
+    """
+    try:
+        from app.services.retrieval import search_interpretations_passages
+        hits = search_interpretations_passages(db, query_vec, k=k)
+    except Exception:  # noqa: BLE001
+        return []
+    out: list[Passage] = []
+    for h in hits:
+        frag = (h.get("fragmento") or "").strip()
+        if not frag:
+            continue
+        out.append(
+            Passage(
+                tipo="corpus_terceros",
+                titulo=h.get("title") or h.get("author") or "análisis de un tercero",
+                fragmento=frag[:600],
+                ref=h.get("url"),
+                author_is_robe=False,
+            )
+        )
+    return out
+
+
 def retrieve_grounding(db: Session, query: str) -> list[Passage]:
     qvec = get_embedder().embed_one(query)
     passages = _voice_passages(qvec, only_robe=True, k=10)
     passages += _voice_passages(qvec, only_robe=False, k=2)
     passages += _lyric_passages(db, qvec, k=3)
+    # Al final y con k corto: es contexto de fondo, no puede ahogar su voz.
+    passages += _corpus_passages(db, qvec, k=3)
     return passages
 
 
@@ -297,6 +329,11 @@ def _build_user_prompt(question: str, facts: list[str], passages: list[Passage])
                 "robe_prose": "texto tuyo",
                 "letra": "verso tuyo (para tu tono e ideas, NO para copiarlo)",
                 "about_robe": "CONTEXTO de terceros (no eres tú)",
+                "corpus_terceros": (
+                    "ANÁLISIS DE UN TERCERO sobre ti (NO eres tú: prohibido citarlo "
+                    "como algo que dijiste; puede ser transcripción automática con "
+                    "erratas, no te fíes de sus datos, úsalo solo de fondo)"
+                ),
             }.get(p.tipo, p.tipo)
             parts.append(f"[{i}] ({etiqueta} · {p.titulo}) {p.fragmento}")
         parts.append("")
