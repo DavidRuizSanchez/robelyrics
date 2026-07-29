@@ -18,7 +18,7 @@ export default async function SongPage({
 }: {
   params: Promise<{ artist: string; album: string; song: string }>;
 }) {
-  const { artist, album, song } = await params;
+  const { song } = await params;
 
   let detail: SongDetail;
   try {
@@ -27,6 +27,12 @@ export default async function SongPage({
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   }
+
+  // Los slugs de artista y disco salen de la ficha, NO de la URL. Sacarlos del
+  // segmento hacía que /biblioteca/lo-que-sea/lo-que-sea/cancion pintara la
+  // navegación de un disco que no es el de la canción.
+  const artistSlug = detail.artist.slug;
+  const albumSlug = detail.album.slug;
 
   // Interpolar timestamps: una línea sin start_seconds hereda el de la anterior
   // (evita "saltos" en el karaoke cuando lrclib/whisper saltó alguna línea).
@@ -60,9 +66,12 @@ export default async function SongPage({
   // Otras canciones del álbum (navegación + inlinks). Endpoint público.
   let albumTracks: PublicAlbumDetail["tracks"] = [];
   try {
-    const ad = await apiFetch<PublicAlbumDetail>(`/public/albums/${album}`, {
-      authenticated: false,
-    });
+    const ad = await apiFetch<PublicAlbumDetail>(
+      `/public/albums/${artistSlug}/${albumSlug}`,
+      {
+        authenticated: false,
+      },
+    );
     albumTracks = ad.tracks;
   } catch {
     albumTracks = [];
@@ -74,7 +83,7 @@ export default async function SongPage({
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] uppercase text-ink-dim">
           <Link
-            href={`/biblioteca/${artist}`}
+            href={`/biblioteca/${artistSlug}`}
             data-cursor="hover"
             className="hover:text-ink"
           >
@@ -82,7 +91,7 @@ export default async function SongPage({
           </Link>
           <span className="opacity-50">·</span>
           <Link
-            href={`/biblioteca/${artist}/${album}`}
+            href={`/biblioteca/${artistSlug}/${albumSlug}`}
             data-cursor="hover"
             className="hover:text-ink"
           >
@@ -156,9 +165,9 @@ export default async function SongPage({
         {/* Anterior/siguiente justo debajo del reproductor: para saltar de
             canción mientras escuchas, sin bajar hasta el final. */}
         <TrackNav
-          artistSlug={artist}
-          albumSlug={album}
-          currentSlug={song}
+          artistSlug={artistSlug}
+          albumSlug={albumSlug}
+          currentSlug={detail.slug}
           tracks={albumTracks}
           basePath="/biblioteca"
         />
@@ -310,10 +319,10 @@ export default async function SongPage({
         </div>
 
         <AlbumSiblingSongs
-          artistSlug={artist}
-          albumSlug={album}
+          artistSlug={artistSlug}
+          albumSlug={albumSlug}
           albumTitle={detail.album.title}
-          currentSlug={song}
+          currentSlug={detail.slug}
           tracks={albumTracks}
           basePath="/biblioteca"
         />

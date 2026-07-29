@@ -213,6 +213,12 @@ export type PublicArtistDetail = PublicArtistOut & {
 export type PublicAlbumDetail = PublicAlbumOut & {
   artist: PublicArtistOut;
   tracks: PublicTrackOut[];
+  /**
+   * Ruta real de la ficha, derivada de la BD. Se compara con la URL que sirvió
+   * la página: si no casan, se redirige. Es lo que impide servir un 200 con la
+   * canción de un disco y el contexto de otro.
+   */
+  canonical_path: string;
   release_date: string | null;
   seo_body: string | null;
   seo_meta_title: string | null;
@@ -254,6 +260,8 @@ export type PublicSongDetail = {
   track_number: number | null;
   artist: PublicArtistOut;
   album: PublicAlbumOut;
+  /** Ver `PublicAlbumDetail.canonical_path`. */
+  canonical_path: string;
   /** Cover propia de la canción si tiene single/clip con artwork distinto. */
   cover_url: string | null;
   snippet: string[];

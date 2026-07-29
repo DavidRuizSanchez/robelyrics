@@ -231,6 +231,19 @@ def upsert_seo_content(
     )
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
+
+    # Enlaces internos: cada ruta se valida contra la BD antes de guardar. Es el
+    # cuello por el que pasan TODOS los generadores SEO, así que engancharlo aquí
+    # los cubre de golpe. Hacía falta porque el LLM se inventaba rutas
+    # (`/extremoduro/pedra/...`) que además se servían con 200: `fact_check` y
+    # compañía revisan el texto, ninguno miraba una URL.
+    from app.services.url_resolver import guard_internal_links
+
+    _links = guard_internal_links(db, body_md)
+    if _links.changed:
+        log(f"  enlaces internos: {_links.summary()}", "warn")
+        body_md = _links.body_md
+
     meta_title = strip_ai_tells(meta_title)
     meta_description = strip_ai_tells(meta_description)
     # El schema_jsonld NO pasa por strip_ai_tells (es un dict) y era el hueco por el

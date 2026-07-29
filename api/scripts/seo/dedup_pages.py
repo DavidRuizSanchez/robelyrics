@@ -156,9 +156,19 @@ def _targets(db, entity_type, slugs):
         q = q.filter(SeoContent.entity_type.in_(SEO_TYPES))
     rows = []
     only = {s.strip() for s in slugs.split(",")} if slugs else None
+    vistos: dict[str, int] = {}
     for sc in q.all():
         if only and sc.slug not in only:
             continue
+        if only:
+            # Un slug de cancion se repite entre discos: si pides uno y salen
+            # dos fichas, no estas de-duplicando lo que crees.
+            vistos[sc.slug] = vistos.get(sc.slug, 0) + 1
+            if vistos[sc.slug] > 1:
+                logger.warning(
+                    "«%s» corresponde a mas de una ficha (%s#%s); acota con "
+                    "--entity-type", sc.slug, sc.entity_type, sc.entity_id,
+                )
         body = sc.body_md or ""
         if not only and len(body) < MIN_CHARS_TO_DEDUP:
             continue  # thin: nada que de-duplicar (salvo que se pida explícito por slug)

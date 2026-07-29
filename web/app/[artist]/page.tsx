@@ -11,6 +11,7 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { SITE_URL } from "@/lib/site";
 import {
   breadcrumbListNode,
   buildGraph,
@@ -43,6 +44,9 @@ export async function generateMetadata({
       description:
         detail.seo_meta_description ||
         `Discografía completa, contexto y análisis fan de ${detail.name}.`,
+      // Con el slug de la BD, no con el de la URL: cierra el hueco que dejaba a
+      // las tres páginas de catálogo como las únicas del sitio sin canónica.
+      alternates: { canonical: `${SITE_URL}/${detail.slug}` },
       openGraph: {
         title: detail.seo_meta_title || detail.name,
         description: detail.seo_meta_description || "",

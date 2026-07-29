@@ -70,13 +70,14 @@ def main() -> None:
     for ai, slug in enumerate(album_slugs, 1):
         with get_session() as db:
             album = db.query(Album).filter(Album.slug == slug).first()
-            song_slugs = [s.slug for s in album.songs]
+            # Por id: el slug de canción solo es único dentro del disco.
+            song_ids = [(s.id, s.slug) for s in album.songs]
             aname = album.artist.name
-        log(f"[{ai}/{len(album_slugs)}] {aname} · {slug} ({len(song_slugs)} canciones)")
-        for ss in song_slugs:
+        log(f"[{ai}/{len(album_slugs)}] {aname} · {slug} ({len(song_ids)} canciones)")
+        for sid, ss in song_ids:
             with get_session() as db:
                 try:
-                    generate_for_song(client, db, ss, force=True)
+                    generate_for_song(client, db, sid, force=True)
                 except Exception as e:  # noqa: BLE001
                     log(f"  fallo canción {ss}: {e}", "err")
         with get_session() as db:

@@ -123,9 +123,12 @@ def pasted_article(text: str, topic: str | None) -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 # Gate editorial
 # --------------------------------------------------------------------------- #
-def editorial_gate(body_md: str, subject: str, material: str | None = None):
+def editorial_gate(
+    body_md: str, subject: str, material: str | None = None, db=None,
+):
     """Pasa una pieza recién escrita por los mismos gates que el cron y la
-    publicación: foco (recorta deriva, no bloquea) y rigor (editor jefe).
+    publicación: foco (recorta deriva, no bloquea), rigor (editor jefe) y
+    enlaces internos (rutas inventadas → la real, o desenlazadas).
 
     Devuelve `(body_final, verdict)`. El alta manual NO los tenía —viven en
     `publishing.auto_publish_post` y en `scripts.blog.materialize_proposals`—, así
@@ -145,10 +148,22 @@ def editorial_gate(body_md: str, subject: str, material: str | None = None):
         v = editorial_review(body_md, kind="news", subject=subject, material=material)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[url_ingest] rigor falló: %s", exc)
-        return body_md, None
+        v = None
 
-    if v.verdict == "revise" and v.tightened_body_md:
+    if v is not None and v.verdict == "revise" and v.tightened_body_md:
         body_md = v.tightened_body_md
+
+    # Enlaces internos: se validan aquí, antes de que la propuesta se guarde, para
+    # que el admin no vea en el panel un texto con rutas inventadas. Necesita
+    # sesión, así que solo corre cuando se la pasan.
+    if db is not None:
+        from app.services.url_resolver import guard_internal_links
+
+        enlaces = guard_internal_links(db, body_md)
+        if enlaces.changed:
+            logger.info("[url_ingest] enlaces internos → %s", enlaces.summary())
+            body_md = enlaces.body_md
+
     return body_md, v
 
 
@@ -245,7 +260,9 @@ def ingest(
             boosted = False
             verdict = None
             for intento in (0, 1):
-                judged, verdict = editorial_gate(rw.get("body_md") or "", matched)
+                judged, verdict = editorial_gate(
+                    rw.get("body_md") or "", matched, db=db,
+                )
                 rw["body_md"] = judged
                 if verdict is None or verdict.verdict != "reject":
                     break

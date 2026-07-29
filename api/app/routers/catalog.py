@@ -139,9 +139,18 @@ def song_detail(
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ) -> SongDetailOut:
-    song = db.query(Song).filter(Song.slug == slug).first()
-    if not song:
+    # `songs.slug` solo es único dentro del álbum (`uq_songs_album_slug`): con
+    # `.first()` una canción homónima de otro disco se servía a cara o cruz.
+    candidatos = db.query(Song).filter(Song.slug == slug).order_by(Song.id).all()
+    if not candidatos:
         raise HTTPException(status_code=404, detail="song not found")
+    if len(candidatos) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail=f"«{slug}» es el slug de {len(candidatos)} canciones; "
+                   "hace falta el disco para saber cuál",
+        )
+    song = candidatos[0]
     album = song.album
     artist = album.artist
     lines = (

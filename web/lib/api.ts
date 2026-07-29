@@ -21,6 +21,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Ruta canónica que propone la API cuando una URL de catálogo no casa.
+ *
+ * Los endpoints de canción y disco responden 404 con `redirect_to` cuando la
+ * ruta apunta a una entidad real pero por el sitio equivocado (el disco de otro
+ * artista, o una canción colgando de un disco que no es el suyo). Devuelve null
+ * si el 404 es un 404 de verdad.
+ *
+ * FastAPI envuelve el detalle en `{detail: ...}`, así que hay que bajar dos
+ * niveles: `body.detail.redirect_to`.
+ */
+export function redirectTargetOf(e: unknown): string | null {
+  if (!(e instanceof ApiError) || e.status !== 404) return null;
+  const body = e.detail as { detail?: { redirect_to?: unknown } } | null;
+  const destino = body?.detail?.redirect_to;
+  return typeof destino === "string" && destino.startsWith("/") ? destino : null;
+}
+
 export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const { method = "GET", body, cache = "no-store", authenticated = true } = opts;
   const headers: Record<string, string> = { "Content-Type": "application/json" };

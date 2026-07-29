@@ -12,8 +12,9 @@ import RelatedSongs from "@/components/RelatedSongs";
 import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, redirectTargetOf } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { SITE_URL } from "@/lib/site";
 import {
   breadcrumbListNode,
   buildGraph,
@@ -25,25 +26,17 @@ import {
   videoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
 
-async function tryResolveSong(
-  albumSlug: string,
-  pedido: string,
-): Promise<string | null> {
-  try {
-    const album = await apiFetch<PublicAlbumDetail>(
-      `/public/albums/${albumSlug}`,
-      { authenticated: false },
-    );
-    return resolveSlug(
-      pedido,
-      album.tracks.map((t) => t.slug),
-    );
-  } catch {
-    return null;
-  }
+/**
+ * Los tres segmentos viajan a la API, que resuelve la canción DENTRO de su
+ * disco. Antes se pedía `/public/songs/${song}` a secas y el disco se sacaba
+ * del segmento de la URL: `/extremoduro/pedra/ama-...-en-directo` devolvía 200
+ * con el artículo de una canción y el tracklist, el prev/next y el JSON-LD de
+ * otro disco. Cualquier combinación de artista y disco colaba.
+ */
+function songPath(artist: string, album: string, song: string): string {
+  return `/public/songs/${artist}/${album}/${song}`;
 }
 
 export async function generateMetadata({
@@ -51,17 +44,21 @@ export async function generateMetadata({
 }: {
   params: Promise<{ artist: string; album: string; song: string }>;
 }) {
-  const { song } = await params;
+  const { artist, album, song } = await params;
   try {
-    const detail = await apiFetch<PublicSongDetail>(`/public/songs/${song}`, {
-      authenticated: false,
-    });
+    const detail = await apiFetch<PublicSongDetail>(
+      songPath(artist, album, song),
+      { authenticated: false },
+    );
     if (!detail.seo_body) return {};
     return {
       title:
         detail.seo_meta_title ||
         `${detail.title} · ${detail.album.title} · ${detail.artist.name}`,
       description: detail.seo_meta_description || "",
+      // La canónica sale de la BD, nunca de la URL pedida: si no, cada variante
+      // cruzada se declaraba canónica de sí misma y el duplicado era infinito.
+      alternates: { canonical: `${SITE_URL}${detail.canonical_path}` },
       openGraph: {
         title: detail.seo_meta_title || detail.title,
         description: detail.seo_meta_description || "",
@@ -82,25 +79,38 @@ export default async function SongPublicPage({
   const { artist, album, song } = await params;
   let detail: PublicSongDetail;
   try {
-    detail = await apiFetch<PublicSongDetail>(`/public/songs/${song}`, {
-      authenticated: false,
-    });
+    detail = await apiFetch<PublicSongDetail>(
+      songPath(artist, album, song),
+      { authenticated: false },
+    );
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
-      const matched = await tryResolveSong(album, song);
-      if (matched) permanentRedirect(`/${artist}/${album}/${matched}`);
-      notFound();
-    }
-    throw e;
+    // La API ya intentó resolverla (typo del slug, disco equivocado, artista
+    // equivocado). Si tiene destino, se manda allí; si no, es un 404 de verdad.
+    const destino = redirectTargetOf(e);
+    if (destino) permanentRedirect(destino);
+    notFound();
   }
   if (!detail.seo_body) notFound();
+
+  // Segundo cerrojo, independiente del primero: si la ruta servida no es la
+  // canónica, se redirige. Para servir un Frankenstein tendrían que fallar los
+  // dos a la vez.
+  if (detail.canonical_path !== `/${artist}/${album}/${song}`) {
+    permanentRedirect(detail.canonical_path);
+  }
+
+  // A partir de aquí NO se vuelve a usar `params`: todo sale de `detail`, que
+  // es la BD. Mezclar ambas fuentes fue justo la causa del contenido cruzado.
+  const artistSlug = detail.artist.slug;
+  const albumSlug = detail.album.slug;
+  const songSlug = detail.slug;
 
   // Pillamos el tracklist del álbum para los bloques prev/next + "más del
   // álbum". Si falla (raro), simplemente no renderizamos esos bloques.
   let albumDetail: PublicAlbumDetail | null = null;
   try {
     albumDetail = await apiFetch<PublicAlbumDetail>(
-      `/public/albums/${album}`,
+      `/public/albums/${artistSlug}/${albumSlug}`,
       { authenticated: false },
     );
   } catch {
@@ -129,13 +139,13 @@ export default async function SongPublicPage({
           className="mb-6"
           items={[
             { label: "Entre Interiores", href: "/" },
-            { label: detail.artist.name, href: `/${artist}` },
+            { label: detail.artist.name, href: `/${artistSlug}` },
             {
               label: detail.album.title,
-              href: `/${artist}/${album}`,
+              href: `/${artistSlug}/${albumSlug}`,
               meta: `(${detail.album.year})`,
             },
-            { label: detail.title, href: `/${artist}/${album}/${song}` },
+            { label: detail.title, href: `/${artistSlug}/${albumSlug}/${songSlug}` },
           ]}
         />
 
@@ -208,9 +218,9 @@ export default async function SongPublicPage({
         {/* Anterior/siguiente justo debajo del reproductor. */}
         {albumDetail && (
           <TrackNav
-            artistSlug={artist}
-            albumSlug={album}
-            currentSlug={song}
+            artistSlug={artistSlug}
+            albumSlug={albumSlug}
+            currentSlug={songSlug}
             tracks={albumDetail.tracks}
           />
         )}
@@ -258,10 +268,10 @@ export default async function SongPublicPage({
 
         {albumDetail && (
           <AlbumSiblingSongs
-            artistSlug={artist}
-            albumSlug={album}
+            artistSlug={artistSlug}
+            albumSlug={albumSlug}
             albumTitle={detail.album.title}
-            currentSlug={song}
+            currentSlug={songSlug}
             tracks={albumDetail.tracks}
           />
         )}
@@ -273,9 +283,9 @@ export default async function SongPublicPage({
               buildGraph([
                 {
                   ...musicCompositionNode({
-                    slug: song,
-                    artistSlug: artist,
-                    albumSlug: album,
+                    slug: songSlug,
+                    artistSlug: artistSlug,
+                    albumSlug: albumSlug,
                     albumTitle: detail.album.title,
                     albumYear: detail.album.year,
                     artistName: detail.artist.name,
@@ -288,19 +298,19 @@ export default async function SongPublicPage({
                 },
                 // Nodos mínimos para que Google una entidades cross-page
                 musicAlbumNode({
-                  slug: album,
-                  artistSlug: artist,
+                  slug: albumSlug,
+                  artistSlug: artistSlug,
                   title: detail.album.title,
                   year: detail.album.year,
                 }),
-                musicGroupNode({ slug: artist, name: detail.artist.name }),
+                musicGroupNode({ slug: artistSlug, name: detail.artist.name }),
                 // VideoObject si la canción tiene vídeo de YouTube embebido.
                 ...(detail.youtube_id
                   ? [
                       videoObjectNode({
-                        artistSlug: artist,
-                        albumSlug: album,
-                        songSlug: song,
+                        artistSlug: artistSlug,
+                        albumSlug: albumSlug,
+                        songSlug: songSlug,
                         songTitle: detail.title,
                         artistName: detail.artist.name,
                         youtubeId: detail.youtube_id,
@@ -311,24 +321,24 @@ export default async function SongPublicPage({
                     ]
                   : []),
                 webPageNode({
-                  path: `/${artist}/${album}/${song}`,
+                  path: `/${artistSlug}/${albumSlug}/${songSlug}`,
                   name: detail.title,
                   type: "ItemPage",
                   description: detail.seo_meta_description,
-                  mainEntityId: canonical.musicComposition(artist, album, song),
+                  mainEntityId: canonical.musicComposition(artistSlug, albumSlug, songSlug),
                 }),
-                breadcrumbListNode(`/${artist}/${album}/${song}`, [
+                breadcrumbListNode(`/${artistSlug}/${albumSlug}/${songSlug}`, [
                   { name: "Entre Interiores", item: "/" },
-                  { name: detail.artist.name, item: `/${artist}` },
-                  { name: detail.album.title, item: `/${artist}/${album}` },
-                  { name: detail.title, item: `/${artist}/${album}/${song}` },
+                  { name: detail.artist.name, item: `/${artistSlug}` },
+                  { name: detail.album.title, item: `/${artistSlug}/${albumSlug}` },
+                  { name: detail.title, item: `/${artistSlug}/${albumSlug}/${songSlug}` },
                 ]),
               ]),
             ),
           }}
         />
 
-        <RelatedPosts entityType="song" slug={song} />
+        <RelatedPosts entityType="song" slug={songSlug} />
       </main>
       <PublicFooter />
       </div>

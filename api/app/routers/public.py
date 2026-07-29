@@ -31,6 +31,7 @@ from app.db.models import (
     Theme,
 )
 from app.db.session import get_db
+from app.services import url_resolver
 from app.services.seo_templates import resolve_all
 
 router = APIRouter(prefix="/public", tags=["public"])
@@ -122,6 +123,10 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     artist: PublicArtistOut
     tracks: list[PublicTrackOut]
     release_date: str | None = None
+    # Ruta real de esta ficha, derivada de la BD. El frontend la compara con la
+    # URL que sirvió la página y redirige si no casan: es lo que impide que
+    # /artista-que-sea/disco-que-sea/canción devuelva 200 con datos mezclados.
+    canonical_path: str = ""
     seo_body: str | None = None
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
@@ -168,6 +173,8 @@ class PublicSongDetailOut(BaseModel):
     track_number: int | None
     artist: PublicArtistOut
     album: PublicAlbumOut
+    # Ver `PublicAlbumDetailOut.canonical_path`.
+    canonical_path: str = ""
     # Cover propia de la canción (single/EP/clip con artwork distinto del álbum).
     # Si NULL, el frontend cae a `album.cover_url`.
     cover_url: str | None = None
@@ -603,16 +610,69 @@ def public_artist_detail(
     )
 
 
-@router.get("/albums/{slug}", response_model=PublicAlbumDetailOut)
+def _resolver_o_404(res, tipo: str):
+    """Traduce una `Resolution` en 404, con la canónica dentro cuando la hay.
+
+    El frontend lee `redirect_to` del detalle y responde con un redirect
+    permanente, así que la resolución tolerante vive solo aquí y no hay dos
+    criterios (uno en la API y otro en la página) que puedan divergir.
+    """
+    if res.status == "ok":
+        return
+    detalle: dict = {"error": f"{tipo} not found", "reason": res.reason}
+    if res.status == "redirect" and res.canonical_path:
+        detalle["redirect_to"] = res.canonical_path
+    raise HTTPException(status_code=404, detail=detalle)
+
+
+@router.get("/albums/{artist_slug}/{album_slug}", response_model=PublicAlbumDetailOut)
+def public_album_detail_scoped(
+    artist_slug: str,
+    album_slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicAlbumDetailOut:
+    """Ficha de un disco resuelta por artista + disco.
+
+    `albums.slug` solo es único DENTRO del artista (`uq_albums_artist_slug`), así
+    que pedirlo suelto obliga a un `.first()` que puede devolver el disco de otro.
+    """
+    _set_cache(response)
+    res = url_resolver.resolve_album_db(db, artist_slug, album_slug)
+    _resolver_o_404(res, "album")
+    return _album_payload(db, db.get(Album, res.entity_id))
+
+
+@router.get("/albums/{slug}", response_model=PublicAlbumDetailOut, deprecated=True)
 def public_album_detail(
     slug: str,
     response: Response,
     db: Session = Depends(get_db),
 ) -> PublicAlbumDetailOut:
+    """OBSOLETO: usa `/albums/{artist_slug}/{album_slug}`.
+
+    Se mantiene mientras queden clientes viejos, pero ya no puede devolver una
+    fila al azar: si el slug está repetido en dos artistas, responde 409 en vez
+    de elegir uno.
+    """
     _set_cache(response)
-    album = db.query(Album).filter(Album.slug == slug).first()
-    if not album:
+    candidatos = db.query(Album).filter(Album.slug == slug).order_by(Album.id).all()
+    if not candidatos:
         raise HTTPException(status_code=404, detail="album not found")
+    if len(candidatos) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail=f"«{slug}» es el slug de {len(candidatos)} discos; "
+                   "hace falta el artista para saber cuál",
+        )
+    return _album_payload(db, candidatos[0])
+
+
+def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
+    """Arma la ficha a partir del disco YA resuelto.
+
+    Recibe el objeto, no un slug: así ninguna ruta puede colar un slug suelto.
+    """
     songs = (
         db.query(Song)
         .filter(Song.album_id == album.id)
@@ -632,6 +692,7 @@ def public_album_detail(
         artist=PublicArtistOut(
             slug=artist.slug, name=artist.name, active_years=artist.active_years,
         ),
+        canonical_path=f"/{artist.slug}/{album.slug}",
         release_date=album.release_date.isoformat() if album.release_date else None,
         tracks=[
             PublicTrackOut(
@@ -652,16 +713,57 @@ def public_album_detail(
     )
 
 
-@router.get("/songs/{slug}", response_model=PublicSongDetailOut)
+@router.get(
+    "/songs/{artist_slug}/{album_slug}/{song_slug}",
+    response_model=PublicSongDetailOut,
+)
+def public_song_detail_scoped(
+    artist_slug: str,
+    album_slug: str,
+    song_slug: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublicSongDetailOut:
+    """Ficha de una canción resuelta por artista + disco + canción.
+
+    Es el arreglo del fallo que servía la ficha de «Ama, ama, ama y ensancha el
+    alma (en directo)» bajo la URL de Pedrá con un 200: resolver solo por el
+    slug de canción y sacar el disco del segmento de la URL permitía que
+    cualquier combinación colase. `songs.slug` es único DENTRO del álbum
+    (`uq_songs_album_slug`), nunca globalmente.
+    """
+    _set_cache(response)
+    res = url_resolver.resolve_song_db(db, artist_slug, album_slug, song_slug)
+    _resolver_o_404(res, "song")
+    return _song_payload(db, db.get(Song, res.entity_id))
+
+
+@router.get("/songs/{slug}", response_model=PublicSongDetailOut, deprecated=True)
 def public_song_detail(
     slug: str,
     response: Response,
     db: Session = Depends(get_db),
 ) -> PublicSongDetailOut:
+    """OBSOLETO: usa `/songs/{artist_slug}/{album_slug}/{song_slug}`.
+
+    Sin el disco no se puede desambiguar, así que un slug repetido responde 409
+    en vez de devolver la primera fila por id.
+    """
     _set_cache(response)
-    song = db.query(Song).filter(Song.slug == slug).first()
-    if not song:
+    candidatos = db.query(Song).filter(Song.slug == slug).order_by(Song.id).all()
+    if not candidatos:
         raise HTTPException(status_code=404, detail="song not found")
+    if len(candidatos) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail=f"«{slug}» es el slug de {len(candidatos)} canciones; "
+                   "hace falta el disco para saber cuál",
+        )
+    return _song_payload(db, candidatos[0])
+
+
+def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
+    """Arma la ficha a partir de la canción YA resuelta. Ver `_album_payload`."""
     album = song.album
     artist = album.artist
     snippet = _snippet_lines(db, song.id)
@@ -679,6 +781,7 @@ def public_song_detail(
             slug=album.slug, title=album.title, year=album.year, kind=album.kind,
             cover_url=album.cover_url,
         ),
+        canonical_path=f"/{artist.slug}/{album.slug}/{song.slug}",
         cover_url=song.cover_url,
         snippet=snippet,
         snippet_attribution=(
@@ -746,6 +849,12 @@ def public_sitemap_entries(
 ) -> list[PublicSitemapEntry]:
     """Lista de entidades con seo_content publicado, para construir sitemap.xml.
     Devuelve la URL canónica relativa y la última fecha de revisión.
+
+    OJO con `sc.slug`: es una copia denormalizada del slug de la entidad y se
+    desincroniza en cuanto alguien renombra. La ruta se arma con el slug de la
+    ENTIDAD (`ar3.slug`, `al_a.slug`, `s.slug`, `pe.slug`, `bd.slug`) porque
+    usar el de `seo_content` hacía que el sitemap emitiera URLs cruzadas —
+    canción de un disco colgando del slug de otro— que además devolvían 200.
     """
     _set_cache(response)
     from sqlalchemy import text
@@ -756,21 +865,23 @@ def public_sitemap_entries(
                    sc.slug,
                    COALESCE(sc.reviewed_at, sc.generated_at) AS last_mod,
                    CASE
-                     WHEN sc.entity_type='artist' THEN '/' || sc.slug
-                     WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || sc.slug
-                     WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || sc.slug
-                     WHEN sc.entity_type='person' THEN '/personas/' || sc.slug
+                     WHEN sc.entity_type='artist' THEN '/' || ar3.slug
+                     WHEN sc.entity_type='album'  THEN '/' || ar.slug || '/' || al_a.slug
+                     WHEN sc.entity_type='song'   THEN '/' || ar2.slug || '/' || al.slug || '/' || s.slug
+                     WHEN sc.entity_type='person' THEN '/personas/' || pe.slug
                      WHEN sc.entity_type='band'   THEN
                        CASE WHEN bd.kind = 'label'
-                            THEN '/sellos/' || sc.slug
-                            ELSE '/grupos/' || sc.slug END
+                            THEN '/sellos/' || bd.slug
+                            ELSE '/grupos/' || bd.slug END
                    END AS url_path
             FROM seo_content sc
+            LEFT JOIN artists ar3 ON sc.entity_type='artist' AND ar3.id = sc.entity_id
             LEFT JOIN albums al_a ON sc.entity_type='album' AND al_a.id = sc.entity_id
             LEFT JOIN artists ar  ON al_a.artist_id = ar.id
             LEFT JOIN songs s     ON sc.entity_type='song' AND s.id = sc.entity_id
             LEFT JOIN albums al   ON s.album_id = al.id
             LEFT JOIN artists ar2 ON al.artist_id = ar2.id
+            LEFT JOIN persons pe  ON sc.entity_type='person' AND pe.id = sc.entity_id
             LEFT JOIN bands bd    ON sc.entity_type='band' AND bd.id = sc.entity_id
             WHERE sc.published = true
             ORDER BY sc.entity_type, sc.slug
@@ -996,18 +1107,11 @@ class PublicTaxonomyDetailOut(BaseModel):
     entities: list[PublicResolvedEntity] = []
 
 
-def _is_live_version(slug: str, title: str) -> bool:
-    """True si la canción es una versión 'en directo'."""
-    s = slug.lower()
-    t = title.lower()
-    return s.endswith("-en-directo") or "(en directo)" in t or "[en directo]" in t
-
-
-def _base_slug(slug: str) -> str:
-    """Devuelve el slug sin el sufijo `-en-directo` para emparejar versiones."""
-    if slug.lower().endswith("-en-directo"):
-        return slug[: -len("-en-directo")]
-    return slug
+# El criterio de «esto es un directo» vive en `url_resolver`: lo usan también el
+# resolvedor de URLs y el barrido, y tenerlo duplicado era garantía de que un día
+# divergieran.
+_is_live_version = url_resolver.is_live_version
+_base_slug = url_resolver.base_slug
 
 
 def _dedupe_studio_vs_live(songs):

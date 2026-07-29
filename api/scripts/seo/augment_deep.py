@@ -153,9 +153,16 @@ def augment_entity(
     metadatos, o None si no había SeoContent que aumentar."""
     from app.db.models import SeoContent
 
+    # Por `entity_id`, no por slug: `seo_content.slug` es una copia denormalizada
+    # y con dos entidades homónimas se aumentaba la ficha equivocada. Si esto
+    # empieza a devolver None donde antes «encontraba» algo, es la corrección
+    # haciendo su trabajo: lo que encontraba era de otro.
     sc = (
         db.query(SeoContent)
-        .filter(SeoContent.entity_type == entity_type, SeoContent.slug == entity.slug)
+        .filter(
+            SeoContent.entity_type == entity_type,
+            SeoContent.entity_id == entity.id,
+        )
         .first()
     )
     if not sc or not (sc.body_md or "").strip():

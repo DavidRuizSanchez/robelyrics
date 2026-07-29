@@ -181,6 +181,18 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # son irregulares y a Leiva lo escriben «Leyva»). Llega al digest de las 09:15.
 40 4 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_images --fix --review >> /var/log/robelyrics-cron.log 2>&1
 
+# 05:00 UTC diario: auditoría de COHERENCIA DE URLs. Un enlace inventado por el LLM
+# a un disco que no era (/extremoduro/pedra/ama-...) hacía que la página sirviera un
+# 200 con el artículo de una canción y el tracklist, el prev/next y el JSON-LD de OTRO
+# disco. Ningún guard lo miraba: los cuatro que hay revisan el CUERPO, ninguno la URL.
+# --fix reapunta el enlace a su ruta real y sincroniza los slugs de seo_content;
+# --review abre errata por lo que no sabe resolver. NO borra nada, y los fantasmas
+# solo se desenlazan a mano (--unlink) o desde el botón «Arreglar» del panel.
+# Va después de las fichas (04:20) y las imágenes (04:40), y antes del digest (09:15).
+# El cruce con GSC (--gsc) NO va aquí: el token vive solo en la Mac. Pasada manual:
+#   python -m scripts.seo.audit_urls --gsc --verbose
+0 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_urls --fix --review >> /var/log/robelyrics-cron.log 2>&1
+
 # 09:15 UTC diario: digest de "cosas por revisar" al admin. Primero intenta ARREGLAR
 # sola cada errata abierta (mismo motor que el botón «Arreglar» del panel), y solo
 # después mira qué queda. SILENCIO por defecto: compara la firma de lo pendiente con

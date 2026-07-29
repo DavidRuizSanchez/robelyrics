@@ -123,14 +123,26 @@ def _resolve_one(
                 from_corpus = True
 
     if not from_corpus and e_type in {"MusicComposition", "MusicRecording"}:
+        from app.services.url_resolver import is_live_version
+
+        def _desempatar(cands: list) -> object | None:
+            """Con homónimas, manda la de estudio. Si sigue el empate, ninguna:
+            el `.first()` de antes elegía por orden de PK, o sea a cara o cruz."""
+            if len(cands) == 1:
+                return cands[0]
+            estudio = [c for c in cands if not is_live_version(c.slug, c.title)]
+            return estudio[0] if len(estudio) == 1 else None
+
         song = None
         if slug_hint:
-            song = db.query(Song).filter(Song.slug == slug_hint).first()
+            song = _desempatar(
+                db.query(Song).filter(Song.slug == slug_hint).order_by(Song.id).all()
+            )
         if song is None:
-            for s in db.query(Song).all():
-                if _normalize(s.title) == norm_name:
-                    song = s
-                    break
+            song = _desempatar([
+                s for s in db.query(Song).order_by(Song.id).all()
+                if _normalize(s.title) == norm_name
+            ])
         if song is not None and song.album and song.album.artist:
             canonical_id = (
                 f"{site_url}/{song.album.artist.slug}/{song.album.slug}/{song.slug}#musiccomposition"
