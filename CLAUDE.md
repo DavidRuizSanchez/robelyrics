@@ -188,6 +188,30 @@ Dos cosas medidas que conviene no deshacer:
 El motivo del match viaja al email de aprobación: el filtro puede ser generoso porque
 la decisión final es tuya, con el CTA de 1 click.
 
+### La cola de ingesta y los rebuilds
+
+Tres cosas que solo se ven cuando el api se reinicia mientras el daemon trabaja (o sea,
+en cualquier deploy):
+
+- **Un claim no expiraba.** Si el daemon muere entre `claim` y `complete`, o si recibe un
+  502 porque el api está rebuildeando, el vídeo se quedaba en `processing`: `pending` no
+  lo listaba y no había reintento posible. Ahora `pending` recoge los `processing` con
+  más de `STALE_CLAIM_MINUTES` (30) sin tocar.
+- **Un 409 por solape degradaba lo ya hecho.** El launchd dispara cada 15 min; si se
+  cruza con una pasada manual, la segunda recibe 409 al reclamar lo que la primera ya
+  terminó. Ese 409 se reportaba como fallo y el item quedaba `failed` **con su `done_at`
+  sellado**, así que volvía a la cola y se re-pagaba Whisper. Cerrado por los dos lados:
+  el daemon reconoce el 409 y `fail` no degrada un `done`.
+- **Un 502 masivo no hace daño**, porque el `fail` también falla y no se quema ningún
+  intento. Se vio en directo: 31 fallos seguidos durante un rebuild y los 30 vídeos
+  siguieron en `approved` con `attempts = 0`.
+
+Los fallos permanentes conviene marcarlos a mano con su motivo en `error` y
+`attempts = 3` para que no consuman reintentos en balde. Hay tres así: un directo que
+nunca se emitió, un tráiler con 51 caracteres en 36 s (casi sin habla) y una entrevista
+de Robe en RockFM con **restricción de edad** — yt-dlp pediría cookies y no se usan; la
+salida para esa es pegar el texto en el alta manual del blog.
+
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
 `infra/cron/production.crontab`. Guía de migración (jubilación del proyecto
