@@ -74,12 +74,20 @@ def audit() -> dict:
     interp = _scroll_payloads(q, INTERPRETATIONS) if INTERPRETATIONS in names else []
     voice = _scroll_payloads(q, ROBE_VOICE) if ROBE_VOICE in names else []
 
-    # source_id → tiene algún chunk con song_ids / tiene algún chunk indexado
+    # source_id → tiene algún chunk con song_ids / tiene algún chunk indexado.
+    # `vectorize_consensus` mete en esta MISMA colección los consensos destilados con
+    # `source_id` negativo (-song_id): no son fuentes del corpus y contarlos infla el
+    # total de «con song_ids» (145 puntos en producción, que es justo la diferencia
+    # entre creer que hay 275 fuentes irrecuperables y las 420 que hay de verdad).
     con_songids: set[int] = set()
     indexados: set[int] = set()
+    consensos = 0
     for p in interp:
         sid = p.get("source_id")
         if not isinstance(sid, int):
+            continue
+        if sid < 0 or (p.get("kind") or "") == "fan_consensus":
+            consensos += 1
             continue
         indexados.add(sid)
         if p.get("song_ids"):
@@ -142,6 +150,7 @@ def audit() -> dict:
             "indexadas": len(indexados & {r[0] for r in rows}),
             "con_songids": len(con_songids),
             "no_servidas": len(no_servidas),
+            "chunks_de_consenso": consensos,
         },
     }
 
@@ -168,12 +177,13 @@ def _print(report: dict, verbose: bool) -> None:
     print(
         f"\nTOTAL: {t['fuentes']} fuentes · {t['indexadas']} indexadas · "
         f"{t['con_songids']} con song_ids · {t['no_servidas']} NO SERVIDAS"
+        f"  (+{t['chunks_de_consenso']} chunks de consenso, que no son fuentes)"
     )
     rescatadas = t["indexadas"] - t["con_songids"]
     if rescatadas > 0:
         print(
-            f"Rescatadas por el camino semántico: {rescatadas} fuentes que están "
-            "indexadas y no tienen song_ids (antes, irrecuperables)."
+            f"Rescatadas por el camino semántico: {rescatadas} fuentes indexadas sin "
+            "song_ids, que antes ningún retrieval podía devolver."
         )
     if report["no_servidas"]:
         print(f"\n=== NO SERVIDAS ({len(report['no_servidas'])}) ===")

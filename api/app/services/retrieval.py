@@ -96,7 +96,12 @@ def search_interpretations_passages(
     except Exception:  # noqa: BLE001
         return []
 
-    excluded = set(exclude_kinds or ())
+    # `vectorize_consensus` comparte esta colección y marca sus puntos con
+    # `source_id` NEGATIVO (-song_id) porque no son fuentes: son los consensos ya
+    # destilados, que llegan a los generadores por su propio camino
+    # (`fetch_distilled_for_song`). Se descartan aquí para no gastar huecos del top-k
+    # en algo que luego no se podría rehidratar de `interpretation_sources`.
+    excluded = set(exclude_kinds or ()) | {"fan_consensus"}
     # Mejor hit por fuente, preservando el orden por score que ya trae Qdrant.
     best: dict[int, dict[str, Any]] = {}
     for r in resp.points:
@@ -106,6 +111,8 @@ def search_interpretations_passages(
         try:
             sid = int(p["source_id"])
         except (KeyError, TypeError, ValueError):
+            continue
+        if sid < 0:  # cinturón, por si algún payload viejo no trae `kind`
             continue
         if sid in best:
             continue
