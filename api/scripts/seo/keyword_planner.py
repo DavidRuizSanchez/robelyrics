@@ -43,6 +43,21 @@ def _clean(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _marca(artist_name: str) -> str:
+    """Nombre del artista tal como se usa EN KEYWORDS.
+
+    `Artist.name` guarda «Robe Iniesta», que el proyecto prohíbe escribir en
+    contenido (regla dura, con enforcement en el ORM y en `strip_ai_tells`).
+    Meterlo en el `target_keyword` obligaba al motor a pelearse con su propio
+    guard. Y además es peor keyword: medido con Ahrefs, «mayeutica robe» tiene
+    1.100 búsquedas/mes y «robe iniesta mayeutica» solo 70.
+    """
+    a = (artist_name or "").strip()
+    if _norm(a) in ("robe iniesta", "roberto iniesta", "roberto iniesta ojea"):
+        return "Robe"
+    return a
+
+
 def _dedup_clean(seq: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
@@ -140,9 +155,14 @@ def candidates_for(db: Session, entity_type: str, entity) -> EntityKW:
         al = getattr(entity, "album", None)
         if al and getattr(al, "artist", None):
             artist = _clean(al.artist.name)
-        pool = [f"{title} letra", f"{title} significado", f"{title} extremoduro"]
-        cands = [f"{title} letra", f"{title} significado", f"{title} extremoduro", title]
-        if artist:
+        # La marca del pool es la del artista REAL, no «extremoduro» a pelo.
+        # Estaba hardcodeado y afectaba a los 5 discos de Robe (34 canciones):
+        # se les proponía «X extremoduro» como primaria cuando su artista es
+        # Robe, y `artist` solo entraba como candidata secundaria.
+        marca = _marca(artist) or "extremoduro"
+        pool = [f"{title} letra", f"{title} significado", f"{title} {marca}"]
+        cands = [f"{title} letra", f"{title} significado", f"{title} {marca}", title]
+        if artist and artist.lower() != marca.lower():
             cands.append(f"{title} {artist}")
         return EntityKW(core=title, preferred=f"{title} letra",
                         primary_pool=_dedup_clean(pool), candidates=_dedup_clean(cands))
@@ -150,11 +170,13 @@ def candidates_for(db: Session, entity_type: str, entity) -> EntityKW:
     if entity_type == "album":
         title = _clean(entity.title or "")
         artist = _clean(entity.artist.name) if getattr(entity, "artist", None) else ""
-        pool = [f"{title} extremoduro", f"{title} disco"]
-        cands = [f"{title} extremoduro", f"{title} disco", title]
-        if artist:
-            cands.append(f"{title} {artist}")
-        return EntityKW(core=title, preferred=f"{title} extremoduro",
+        marca = _marca(artist) or "extremoduro"
+        pool = [f"{title} {marca}", f"{title} disco"]
+        cands = [f"{title} {marca}", f"{title} disco", title]
+        # Intenciones que el research y GSC confirman y que este pool ignoraba:
+        # «agila contraportada» está en posición 8,0 y «agila significado» en 22.
+        cands += [f"{title} significado", f"{title} portada", f"{title} canciones"]
+        return EntityKW(core=title, preferred=f"{title} {marca}",
                         primary_pool=_dedup_clean(pool), candidates=_dedup_clean(cands))
 
     name = _clean(getattr(entity, "name", None) or getattr(entity, "title", "") or "")

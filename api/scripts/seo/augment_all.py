@@ -71,6 +71,10 @@ def main() -> None:
     ap.add_argument("--discover-web", action="store_true",
                     help="descubre eventos recientes por web (figuras clave)")
     ap.add_argument("--apply", action="store_true", help="persiste (si no, dry-run)")
+    ap.add_argument("--gap-hint",
+                    help="temática con demanda que la página no cubre; la aporta "
+                         "el diagnóstico del skill optimizar-pagina. Solo dirige "
+                         "la MIRADA al material: si no lo respalda, no se escribe")
     ap.add_argument("--force", action="store_true",
                     help="reprocesa aunque ya esté aumentado (por defecto se saltan)")
     args = ap.parse_args()
@@ -108,7 +112,8 @@ def main() -> None:
             curated = _CURATED.get((et, ent.slug))
             res = augment_entity(db, client, et, ent, recent_events=curated,
                                  discover_web=args.discover_web,
-                                 corpus_index=corpus_index, link_stats=link_stats)
+                                 corpus_index=corpus_index, link_stats=link_stats,
+                                 gap_hint=args.gap_hint)
             if not res:
                 logger.info("  %s/%s: sin body; salto", et, ent.slug); skipped += 1; continue
             if res.get("noop") or not res.get("grew"):

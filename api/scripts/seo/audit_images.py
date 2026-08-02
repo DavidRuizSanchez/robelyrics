@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import httpx
 from sqlalchemy import select
@@ -110,6 +111,25 @@ class Finding:
         return "revisar" in self.problems
 
 
+# Raíz de los estáticos de Next dentro del contenedor (bind-mount de web/public).
+_PUBLIC_DIR = Path("/app/web-public")
+
+
+def _local_file_missing(url: str) -> bool:
+    """¿Una ruta local apunta a un fichero que no está?
+
+    Hacía falta porque `_http_status` corta en seco con las rutas que empiezan
+    por `/` y devuelve None, así que un `cover_url` apuntando a un JPG borrado
+    pasaba la auditoría impoluto. Hoy no hay ninguno roto, pero el agujero
+    estaba abierto — y el renombrado de la contraportada de «Tú en tu casa…»
+    era exactamente el caso que lo habría provocado.
+    """
+    if not url.startswith("/"):
+        return False
+    p = _PUBLIC_DIR / url.lstrip("/")
+    return not p.is_file()
+
+
 def _http_status(url: str) -> int | None:
     """Código real de la imagen. None si ni siquiera se pudo preguntar."""
     if url.startswith("/"):
@@ -136,6 +156,30 @@ def audit(db, kinds: list[str], *, check_http: bool = True) -> list[Finding]:
         for row in rows:
             url = _getattr(row, t.url_field)
             if not url:
+                # Antes: `continue` a secas, así que las entidades SIN imagen
+                # eran invisibles para la auditoría. Los tres discos que se
+                # publicaron ayer sin portada no los reportó nadie.
+                nombres = [str(_getattr(row, nf)) for nf in t.name_fields
+                           if _getattr(row, nf)]
+                out.append(Finding(
+                    kind=kind,
+                    slug=getattr(row, "slug", str(getattr(row, "id", "?"))),
+                    name=nombres[0] if nombres else "",
+                    url="",
+                    problems=["sin imagen"],
+                ))
+                continue
+
+            if _local_file_missing(url):
+                nombres = [str(_getattr(row, nf)) for nf in t.name_fields
+                           if _getattr(row, nf)]
+                out.append(Finding(
+                    kind=kind,
+                    slug=getattr(row, "slug", str(getattr(row, "id", "?"))),
+                    name=nombres[0] if nombres else "",
+                    url=url,
+                    problems=["fichero local ausente"],
+                ))
                 continue
             nombres = [str(_getattr(row, nf)) for nf in t.name_fields if _getattr(row, nf)]
             f = Finding(
@@ -245,13 +289,24 @@ def _report(findings: list[Finding], *, verbose: bool) -> None:
     rotas = [f for f in findings if f.broken]
     sin_acred = [f for f in findings if f.unaccredited]
     revisar = [f for f in findings if f.to_review]
-    logger.info("=== %d imágenes auditadas ===", len(findings))
+    ausentes = [f for f in findings if "fichero local ausente" in f.problems]
+    # Solo se listan los tipos donde faltar imagen es un problema real: un disco
+    # sin portada se ve, un concepto abstracto sin foto no.
+    sin_img = [f for f in findings
+               if "sin imagen" in f.problems and f.kind in ("album", "artist", "band", "person")]
+    logger.info("=== %d entidades auditadas ===", len(findings))
     logger.info("  · %d dependen de un tercero o no cargan", len(rotas))
     logger.info("  · %d cuya fuente no las acredita", len(sin_acred))
     logger.info("  · %d sin fuente que las acredite (van a revisión, NO se borran)", len(revisar))
-    for grupo, titulo in ((rotas, "DEPENDEN DE TERCEROS / NO CARGAN"),
+    if ausentes:
+        logger.info("  · %d con FICHERO LOCAL AUSENTE (enlace roto)", len(ausentes))
+    if sin_img:
+        logger.info("  · %d sin imagen (informativo, no se arregla solo)", len(sin_img))
+    for grupo, titulo in ((ausentes, "FICHERO LOCAL AUSENTE — enlace roto"),
+                          (rotas, "DEPENDEN DE TERCEROS / NO CARGAN"),
                           (sin_acred, "SIN ACREDITAR"),
-                          (revisar, "A REVISAR (sin fuente / homónimo)")):
+                          (revisar, "A REVISAR (sin fuente / homónimo)"),
+                          (sin_img, "SIN IMAGEN")):
         if not grupo:
             continue
         logger.info("\n--- %s ---", titulo)

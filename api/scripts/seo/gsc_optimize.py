@@ -31,7 +31,13 @@ logger = logging.getLogger(__name__)
 
 _SITE = "https://entreinteriores.com"
 _POS_MIN, _POS_MAX = 5.0, 30.0
-_MIN_IMPRESSIONS = 20
+# Suelo de impresiones. Estaba en 20 y dejaba ciego al script en un sitio de
+# nicho: medido el 02-08-2026, de 155 páginas con datos GSC había **99** con
+# queries en posición 5-30 pero todas por debajo de 20 impresiones — 929
+# impresiones que nadie miraba. El caso que lo destapó: /extremoduro/agila está
+# en posición 8,0 para «agila contraportada» con 6 impresiones y la página no
+# menciona la portada ni una vez.
+_MIN_IMPRESSIONS = 3
 
 _STOP = {"de", "la", "el", "los", "las", "y", "en", "del", "que", "a", "un", "una", "por", "con"}
 

@@ -496,15 +496,21 @@ def autolink_corpus(
 # Dominio → nombre visible del medio. La clave es el dominio registrable sin
 # `www.` ni subdominios. Si el dominio no está aquí y `author` no parece nombre
 # de medio fiable, NO se enlaza (mejor no enlazar que enlazar mal).
+#
+# Mondo Sonoro, Efe Eme y Rockdelux están FUERA a propósito (02-08-2026): son la
+# «prensa comercial vetada» de CLAUDE.md, en «Decisiones que NO hay que reabrir»,
+# y este mapa los estaba enlazando activamente — el código contradecía la
+# política declarada. Se pueden seguir CITANDO como fuente en el texto (77 fichas
+# lo hacen y el veto se escribió para el corpus de fan-content, no para las
+# citas), pero no se les manda enlace.
+_MEDIA_VETADOS = {"mondosonoro.com", "efeeme.com", "rockdelux.com"}
+
 _MEDIA_BY_DOMAIN: dict[str, str] = {
-    "mondosonoro.com": "Mondo Sonoro",
     "rocksesion.com": "RockSesión",
-    "efeeme.com": "Efe Eme",
     "elpais.com": "El País",
     "mariskalrock.com": "MariskalRock",
     "jenesaispop.com": "Jenesaispop",
     "publico.es": "Público",
-    "rockdelux.com": "Rockdelux",
     "elmundo.es": "El Mundo",
     "abc.es": "ABC",
     "lavanguardia.com": "La Vanguardia",
