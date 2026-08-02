@@ -80,11 +80,67 @@ class Album(Base):
     # en el día exacto del lanzamiento.
     release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     release_date_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Procedencia de la portada. Sin esto no se puede responder «¿de dónde salió
+    # y con qué licencia?», que es lo que pide docs/legal-audit.md §3.5 — y lo
+    # que habría cazado la portada de «Rock transgresivo» colada como la de
+    # «Tú en tu casa…». `cover_license` NULL = no consultada, nunca supuesta.
+    cover_mbid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cover_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cover_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     artist: Mapped[Artist] = relationship(back_populates="albums")
     songs: Mapped[list["Song"]] = relationship(
         back_populates="album", cascade="all, delete-orphan"
     )
+    tracks: Mapped[list["AlbumTrack"]] = relationship(
+        back_populates="album", cascade="all, delete-orphan",
+        order_by="AlbumTrack.disc, AlbumTrack.position",
+    )
+
+
+class AlbumTrack(Base):
+    """Tracklist REFERENCIAL de un disco que no es de estudio.
+
+    Existe porque la relación canción↔disco es N:M y `songs.album_id` solo
+    modela 1:N. Sin esto, un directo o un recopilatorio obligaba a duplicar la
+    fila `Song` — y eso pone en Google dos páginas casi idénticas compitiendo
+    entre sí. Un recopilatorio como «Grandes éxitos y fracasos» tiene aquí sus
+    15 cortes apuntando a la canción original, y no crea ni una página nueva.
+
+    Los discos de estudio NO usan esta tabla: siguen con `songs.album_id`.
+
+    `song_id` puede ser NULL a propósito: si un corte no casa con ninguna
+    canción del catálogo se guarda igual con su título tal cual salió en el
+    disco y se deja sin enlazar. Nunca se adivina a qué canción apunta.
+    """
+
+    __tablename__ = "album_tracks"
+    __table_args__ = (
+        UniqueConstraint("album_id", "disc", "position", name="uq_album_tracks_pos"),
+        Index("ix_album_tracks_song", "song_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    album_id: Mapped[int] = mapped_column(
+        ForeignKey("albums.id", ondelete="CASCADE"), nullable=False
+    )
+    disc: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    # El título TAL COMO aparece en este disco, que no siempre es el del
+    # original («Pepe Botika (¿Dónde están mis amigos?)»).
+    title_as_released: Mapped[str] = mapped_column(String(256), nullable=False)
+    song_id: Mapped[int | None] = mapped_column(
+        ForeignKey("songs.id", ondelete="SET NULL"), nullable=True
+    )
+    # Cómo se resolvió el enlace: exact | alias | manual | None si no casó.
+    match_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    duration_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # MBID de la grabación: distingue una regrabación de la toma original.
+    recording_mbid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_rerecording: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    album: Mapped[Album] = relationship(back_populates="tracks")
+    song: Mapped["Song | None"] = relationship()
 
 
 class Song(Base):

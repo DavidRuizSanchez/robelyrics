@@ -130,7 +130,7 @@ no la de publicación—, lo que lo colocaba erróneamente como debut.
   1998 para retirarlo de la venta; la portada original no está ni en la web oficial del
   grupo, y la imagen que se muestra habitualmente es la de la reedición de DRO de 1994.
 - **Contraportada de la edición de Avispa** (fuente primaria; imagen en
-  `web/public/album-covers/tu-en-tu-casa-nosotros-en-la-hoguera.jpg`, vía Musicoscopio):
+  `web/public/album-covers/_contraportada-tu-en-tu-casa-nosotros-en-la-hoguera.jpg`, vía Musicoscopio):
   tracklist de los 8 temas, producción, Estudios M-20, J.J. Serrano, Iván Camacho,
   diseño de Rafael Gallego y copyright de 1990.
 - «Extremoduro. De Profundis» (Javier Menéndez Flores): maqueta de enero de 1989 en
