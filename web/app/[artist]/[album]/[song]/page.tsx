@@ -233,16 +233,43 @@ export default async function SongPublicPage({
 
         <RelatedSongs songs={detail.related_songs} />
 
+        {/*
+          La letra: el fragmento citado al amparo del art. 32 LPI, con un H2 que
+          nombra la intención con la que se busca («letra de X»). Antes esto era
+          un `<p>` que decía «Fragmento citado» — descriptivo pero mudo: la
+          página no declaraba en ningún sitio que aquí se habla de la letra, y
+          las queries de esa intención se las llevaban otras páginas.
+
+          La letra COMPLETA no se publica en abierto a propósito; vive en la
+          biblioteca, tras registro. El enlace va `nofollow` porque
+          `/biblioteca/` está en Disallow del robots.txt (web/app/robots.ts):
+          no tiene sentido derramar señal hacia una URL que Google no rastrea.
+          Esto no hace rankear para «X letra» —con la caja de letras de Google y
+          Genius delante no es ganable—; convierte impresiones en visitas y
+          visitas en registros, que es lo que sí está en nuestra mano.
+        */}
         {detail.snippet.length > 0 && (
           <section className="mt-16 max-w-[680px] border-l-2 border-accent/40 pl-6 py-2">
-            <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-3">
-              Fragmento citado
-            </p>
+            <h2 className="font-serif text-2xl md:text-[28px] text-ink mb-4 leading-[1.2] tracking-[-0.3px]">
+              Letra de «{detail.title}»
+            </h2>
             <div className="font-serif italic text-[20px] md:text-[22px] text-ink leading-[1.6] space-y-1">
               {detail.snippet.map((line, i) => (
                 <p key={i}>{line}</p>
               ))}
             </div>
+            <p className="mt-5 font-serif text-[17px] md:text-[18px] text-ink-faint leading-[1.6]">
+              La letra completa de «{detail.title}», verso a verso, está en{" "}
+              <Link
+                href={`/biblioteca/${detail.artist.slug}/${detail.album.slug}/${detail.slug}`}
+                rel="nofollow"
+                data-cursor="hover"
+                className="text-accent hover:underline"
+              >
+                la biblioteca
+              </Link>
+              , la zona de lectura del sitio. Hay que registrarse para entrar.
+            </p>
             <p className="mt-4 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint leading-relaxed">
               {detail.snippet_attribution}.{" "}
               {detail.genius_url && (

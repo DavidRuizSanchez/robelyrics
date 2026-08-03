@@ -30,7 +30,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 _SITE = "https://entreinteriores.com"
-_POS_MIN, _POS_MAX = 5.0, 30.0
+# El suelo estaba en 5.0 y escondía el caso más rentable que hay: una página en
+# posición 1-4 que no se lleva el clic. Medido el 03-08-2026 sobre 12 semanas:
+# /robe/mayeutica/interludio acumula 1.246 impresiones y **4 clics**. Ahí no
+# falta posición, falta un title y una description que prometan lo que la página
+# responde — y eso no se arregla regenerando el cuerpo.
+_POS_MIN, _POS_MAX = 1.0, 30.0
 # Suelo de impresiones. Estaba en 20 y dejaba ciego al script en un sitio de
 # nicho: medido el 02-08-2026, de 155 páginas con datos GSC había **99** con
 # queries en posición 5-30 pero todas por debajo de 20 impresiones — 929
