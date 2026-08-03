@@ -310,7 +310,14 @@ def no_loss_verdict(
     exentos = frozenset(exempt_links or ())
 
     v = LossVerdict(ok=False, ratio=round(ratio, 3))
-    v.lost_verses = len(fo.verses - fn.verses)
+    # Una cita no se pierde si su texto SIGUE en el cuerpo nuevo, aunque sea sin
+    # comillas. Muchas de las «citas» son títulos de canción entrecomillados
+    # («Me estoy quitando», «¡Qué sonrisa tan rara!») y el texto nuevo puede
+    # nombrarlos sin comillas o enlazados: eso no es perder nada.
+    cuerpo_nuevo_norm = _norm(n)
+    v.lost_verses = len([
+        x for x in (fo.verses - fn.verses) if x not in cuerpo_nuevo_norm
+    ])
     v.lost_links = len((fo.links - fn.links) - exentos)
     v.lost_years = len(fo.years - fn.years)
 

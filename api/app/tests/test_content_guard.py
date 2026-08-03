@@ -168,3 +168,16 @@ def test_la_comparacion_semantica_no_revienta_con_numpy():
     m = _cosine_matrix([[1.0, 0.0], [0.0, 1.0]], [[1.0, 0.0]])
     assert abs(m[0][0] - 1.0) < 1e-5
     assert abs(m[1][0]) < 1e-5
+
+
+def test_una_cita_que_sigue_en_el_texto_sin_comillas_no_es_perdida():
+    """Muchas «citas» son títulos de canción entrecomillados. Si el texto nuevo
+    los nombra sin comillas, el contenido sigue ahí."""
+    viejo = ORIGINAL
+    nuevo = ORIGINAL.replace(
+        "Robe escribió «Yo soy el que soy» pensando en otra cosa.",
+        "Robe escribió Yo soy el que soy pensando en otra cosa.",
+    )
+    v = no_loss_verdict(viejo, nuevo)
+    assert v.lost_verses == 0
+    assert v.ok, v.reason
