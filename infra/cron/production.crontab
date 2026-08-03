@@ -197,6 +197,14 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 #   python -m scripts.seo.audit_urls --gsc --verbose
 0 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_urls --fix --review >> /var/log/robelyrics-cron.log 2>&1
 
+# 05:10 UTC diario: política de nombre. «Robe Iniesta» no debe persistir en
+# contenido; el trigger `trg_robe_name` (migración robename2026_01) lo impide en
+# la BD, pero este barrido cubre las tablas que aún no tienen trigger y deja
+# rastro en el log si alguna vez vuelve a aparecer. `--fix` NO toca el texto
+# ajeno (transcripciones, titulares de medios, versos, títulos de YouTube): eso
+# se cita, y reescribirlo sería falsear la fuente.
+10 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_name_policy --fix >> /var/log/robelyrics-cron.log 2>&1
+
 # 09:15 UTC diario: digest de "cosas por revisar" al admin. Primero intenta ARREGLAR
 # sola cada errata abierta (mismo motor que el botón «Arreglar» del panel), y solo
 # después mira qué queda. SILENCIO por defecto: compara la firma de lo pendiente con
