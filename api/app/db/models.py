@@ -87,6 +87,15 @@ class Album(Base):
     cover_mbid: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cover_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cover_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # La imagen que se muestra es la CONTRAPORTADA, no la portada. Existe para
+    # «Tú en tu casa, nosotros en la hoguera»: su portada original no circula
+    # —lo que Cover Art Archive da como tal es la de «Rock transgresivo»— y lo
+    # único auténtico que hay del disco es la trasera, donde se lee el tracklist
+    # y «© 1990 AVISPA · Diseño de portada: Rafael Gallego». Enseñarla está bien;
+    # llamarla portada, no: ese fue exactamente el fallo que dejó el disco sin
+    # imagen. El frontend usa esto para escribir el `alt` que toca.
+    cover_is_back: Mapped[bool] = mapped_column(Boolean, default=False,
+                                                server_default="false")
 
     artist: Mapped[Artist] = relationship(back_populates="albums")
     songs: Mapped[list["Song"]] = relationship(

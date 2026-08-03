@@ -130,6 +130,7 @@ export default async function AlbumPublicPage({
             coverUrl={detail.cover_url}
             slug={detail.slug}
             title={detail.title}
+            isBack={detail.cover_is_back}
             variant="lg"
             className="!w-full !h-auto aspect-square"
           />

@@ -72,6 +72,9 @@ class PublicAlbumOut(BaseModel):
     year: int
     kind: str
     cover_url: str | None = None
+    # True cuando lo que hay es la CONTRAPORTADA. El frontend lo necesita para
+    # no rotular como «Portada de X» algo que no lo es.
+    cover_is_back: bool = False
 
 
 class PublicTrackOut(BaseModel):
@@ -730,6 +733,7 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
         year=album.year,
         kind=album.kind,
         cover_url=album.cover_url,
+        cover_is_back=bool(album.cover_is_back),
         artist=PublicArtistOut(
             slug=artist.slug, name=artist.name, active_years=artist.active_years,
         ),

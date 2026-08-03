@@ -230,6 +230,11 @@ export type PublicAlbumDetail = PublicAlbumOut & {
   artist: PublicArtistOut;
   tracks: PublicTrackOut[];
   /**
+   * La imagen que se muestra es la CONTRAPORTADA, no la portada. Solo pasa con
+   * «Tú en tu casa, nosotros en la hoguera», cuya portada original no circula.
+   */
+  cover_is_back?: boolean;
+  /**
    * Ruta real de la ficha, derivada de la BD. Se compara con la URL que sirvió
    * la página: si no casan, se redirige. Es lo que impide servir un 200 con la
    * canción de un disco y el contexto de otro.
