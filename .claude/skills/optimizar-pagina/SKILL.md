@@ -327,6 +327,27 @@ cuando su veredicto es `revise`, y ese tensado puede ser brutal (medido: 6.817 �
 2.514 chars). `generate_deep` **descarta el tensado** si deja la ficha por debajo
 de lo que ya había publicado. La ficha nueva nunca puede ser más pobre que la vieja.
 
+## Lo aprendido optimizando 13 discos (03-08-2026)
+
+- **Pasa `audit_urls` DESPUÉS DE CADA FICHA, no al final del lote.** Nombrar una
+  entidad ambigua en el cuerpo dispara un enlace del autolinker aunque tú no lo
+  pongas: escribir «Avispa» sin enlazar hizo que apuntara a `/grupos/avispa`
+  siendo un sello. Lo arregla `audit_urls --fix`.
+- **Si el rigor no sube, casi siempre es redundancia heredada, no falta de
+  material.** Pedir los `reasons` de `editorial_review` señala el sitio exacto —
+  «del todo ya» dicho dos veces, dos secciones hablando de lo mismo, el sujeto
+  nombrado tres veces. Condensar subió Deltoya de 65 a 85 sin añadir una línea.
+- **Los datos objetivos de una fuente vetada sí valen; su voz crítica no.** La
+  formación de un disco o su sello son hechos verificables en el propio disco.
+  Lo que no se hace es citar a Mondo Sonoro como autoridad.
+- **`--retirar-cita`** existe para poder limpiar prensa vetada: el extractor no
+  distingue una frase de un medio de un verso de Robe, así que sin eso el gate
+  exige conservar justo lo que hay que quitar.
+- **Los scripts del skill viven en el `/tmp` del contenedor y se pierden en cada
+  rebuild.** Si `dump_ficha.py` da «No such file», repónlos con `docker cp`.
+- **Un hueco de «significado» en una ficha de DISCO suele ser falso**: lo llenan
+  queries de canciones sueltas. Eso no se arregla en el álbum.
+
 ## Avisos vivos del proyecto
 
 - **`relink_existing` (cron dominical) rota los enlaces del cuerpo.** Deshace los
