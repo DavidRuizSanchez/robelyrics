@@ -103,6 +103,23 @@ def _over_named(body: str, name: str) -> tuple[bool, int]:
     return (n >= MIN_MENTIONS and n > len(body) / CHARS_PER_MENTION, n)
 
 
+# Referencias genéricas DENTRO de comillas. Una comilla marca un título, así que
+# «esta obra» entrecomillado nunca es correcto: es la sustitución de este script
+# aplicada donde no debía. Pasó en producción — se publicó «La composición de
+# "esta obra" refleja…» y «al igual que "la banda"» — porque `_mask` solo protege
+# lo entrecomillado de 12+ caracteres y los títulos cortos («Pedrá», «Prometeo»)
+# quedaban a merced del LLM.
+_GENERICOS = (r"el disco|el álbum|el album|la banda|el grupo|esta obra|este trabajo|"
+              r"el tema|la canción|la cancion|su debut|esta canción|esta cancion|"
+              r"el conjunto|la obra|este disco|este álbum|este album")
+_GENERICO_ENTRECOMILLADO = re.compile(rf"[«\"’']\s*(?:{_GENERICOS})\s*[»\"’']", re.I)
+
+
+def _genericos_entrecomillados(texto: str) -> list[str]:
+    """Genéricos que han acabado entre comillas, o sea, disfrazados de título."""
+    return [m.group(0) for m in _GENERICO_ENTRECOMILLADO.finditer(texto or "")]
+
+
 _PROMPT = (
     "Esta ficha en markdown repite DEMASIADAS veces el nombre «{name}» ({n} veces), lo "
     "que lee mal y parece keyword-stuffing. Reescríbela VARIANDO las referencias al "
@@ -115,6 +132,9 @@ _PROMPT = (
     "texto debe cubrir EXACTAMENTE lo mismo que el original.\n"
     "- NO pierdas NINGÚN nombre propio ni marcador §V..§/§L..§/§Y..§ (son versos, enlaces "
     "y años: cópialos TAL CUAL en su sitio). NO añadas información nueva.\n"
+    "- NUNCA sustituyas lo que va ENTRE COMILLAS: unas comillas marcan un TÍTULO de "
+    "canción o de disco, y escribir «esta obra» o «la banda» entre comillas convierte "
+    "el título en un sinsentido. Los títulos entrecomillados se copian tal cual.\n"
     "- Mantén el markdown y todos los H2. Español, mismo registro.\n"
     "- Devuelve SOLO el markdown resultante.\n\n"
     "FICHA:\n\"\"\"\n{body}\n\"\"\""
@@ -158,6 +178,15 @@ def _evaluate(subject, kind, name, original, new):
         return res
     if add:
         res["ok"] = False; res["reason"] = f"añade datos: +{len(add)}"
+        return res
+    # Un genérico entre comillas es un título destrozado, no una variación de
+    # estilo. Solo cuenta si lo introduce ESTA pasada: si ya venía en el original
+    # no se bloquea por algo que el script no ha hecho.
+    colados = [g for g in _genericos_entrecomillados(new)
+               if g not in _genericos_entrecomillados(original)]
+    if colados:
+        res["ok"] = False
+        res["reason"] = f"genérico entrecomillado (destroza un título): {colados[:3]}"
         return res
     if len(new) < FLOOR_ABS or ratio < FLOOR_RATIO:
         res["ok"] = False; res["reason"] = f"gutting (ratio {ratio:.2f})"
