@@ -291,6 +291,7 @@ def no_loss_verdict(
     *,
     strict_especulacion: bool = True,
     exempt_links: frozenset[str] | set[str] | None = None,
+    exempt_verses: frozenset[str] | set[str] | None = None,
 ) -> LossVerdict:
     """¿Se puede sustituir `original` por `nuevo` sin perder nada?
 
@@ -303,11 +304,19 @@ def no_loss_verdict(
     API, así que enlazarlos además en la prosa es redundante — y `relink_existing`
     los quita igualmente cada domingo al aplanar a 4 enlaces. Sin esta exención,
     el gate exigía conservar 14 enlaces que el propio sistema borra.
+
+    `exempt_verses` son citas cuya desaparición se busca A PROPÓSITO. El
+    extractor no distingue un verso de Robe de una frase entrecomillada de un
+    medio, así que una ficha que cita a la prensa vetada del proyecto —Mondo
+    Sonoro, Efe Eme, Rockdelux— no se podía limpiar: el gate exigía conservar
+    justo lo que hay que quitar. Quien llama pasa aquí las citas que ha decidido
+    retirar, y responde de esa decisión; todo lo demás sigue bloqueando igual.
     """
     o, n = original or "", nuevo or ""
     ratio = len(n) / max(len(o), 1)
     fo, fn = extract_facts(o), extract_facts(n)
     exentos = frozenset(exempt_links or ())
+    versos_exentos = frozenset(_norm(x) for x in (exempt_verses or ()))
 
     v = LossVerdict(ok=False, ratio=round(ratio, 3))
     # Una cita no se pierde si su texto SIGUE en el cuerpo nuevo, aunque sea sin
@@ -316,7 +325,8 @@ def no_loss_verdict(
     # nombrarlos sin comillas o enlazados: eso no es perder nada.
     cuerpo_nuevo_norm = _norm(n)
     v.lost_verses = len([
-        x for x in (fo.verses - fn.verses) if x not in cuerpo_nuevo_norm
+        x for x in (fo.verses - fn.verses)
+        if x not in cuerpo_nuevo_norm and x not in versos_exentos
     ])
     v.lost_links = len((fo.links - fn.links) - exentos)
     v.lost_years = len(fo.years - fn.years)

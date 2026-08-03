@@ -25,6 +25,12 @@ ap.add_argument("--body", required=True)
 ap.add_argument("--title")
 ap.add_argument("--desc")
 ap.add_argument("--secundarias", default="")
+ap.add_argument("--retirar-cita", action="append", default=[],
+                help="cita que se quita A PROPÓSITO y no debe contar como "
+                     "pérdida. Para limpiar prensa vetada (Mondo Sonoro, Efe "
+                     "Eme, Rockdelux): el extractor no distingue esas frases de "
+                     "un verso de Robe, así que sin esto el gate exige "
+                     "conservar justo lo que hay que quitar. Repetible")
 ap.add_argument("--dry-run", action="store_true")
 args = ap.parse_args()
 tipo, slug = args.asset.split(":", 1)
@@ -44,9 +50,12 @@ propios = {u for u in re.findall(r"\]\((\S+?)\)", c.body_md or "")
            if re.sub(r"^https?://[^/]+", "", u).startswith(f"/{slug}/")
            or f"/{slug}/" in re.sub(r"^https?://[^/]+", "", u)}
 
-v = no_loss_verdict(c.body_md, nuevo, exempt_links=frozenset(propios))
+v = no_loss_verdict(c.body_md, nuevo, exempt_links=frozenset(propios),
+                    exempt_verses=frozenset(args.retirar_cita))
 if propios:
     print(f"exentos {len(propios)} enlace(s) a cortes del propio disco")
+for cita in args.retirar_cita:
+    print(f"cita retirada a propósito: «{cita[:70]}»")
 print("gate no-pérdida:", v.resumen())
 if not v.ok:
     print("ABORTADO: la ficha NO se toca")

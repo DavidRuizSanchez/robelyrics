@@ -181,3 +181,39 @@ def test_una_cita_que_sigue_en_el_texto_sin_comillas_no_es_perdida():
     v = no_loss_verdict(viejo, nuevo)
     assert v.lost_verses == 0
     assert v.ok, v.reason
+
+
+def test_una_cita_de_prensa_vetada_se_puede_retirar_a_proposito():
+    """El extractor no distingue un verso de Robe de una frase de un medio.
+
+    Sin exención, una ficha que cita a Mondo Sonoro —prensa vetada del
+    proyecto— no se podía limpiar: el gate exigía conservar justo lo que hay
+    que quitar. Caso real: la ficha de «Destrozares» lo citaba tres veces.
+    """
+    viejo = ('Según Mondo Sonoro, "la música de una pequeña orquesta liga '
+             'perfectamente con la voz de Robe". El disco salió en 2016.')
+    nuevo = ("El disco salió en 2016 y lo firma una formación nueva, con violín, "
+             "clarinete y piano, que es la que explica cómo suena el conjunto.")
+
+    bloquea = no_loss_verdict(viejo, nuevo)
+    assert not bloquea.ok
+    assert "verso" in (bloquea.reason or "")
+
+    pasa = no_loss_verdict(viejo, nuevo, exempt_verses={
+        "la música de una pequeña orquesta liga perfectamente con la voz de Robe"
+    })
+    assert pasa.ok, pasa.reason
+
+
+def test_la_exencion_de_citas_no_abre_la_mano_con_las_demas():
+    """Eximir una cita concreta no puede dejar pasar la pérdida de otra."""
+    viejo = ('Dice "primera cita larga que hay que conservar entera" y también '
+             '"segunda cita larga que también hay que conservar".')
+    nuevo = "Un texto nuevo que no conserva ninguna de las dos."
+
+    v = no_loss_verdict(viejo, nuevo, exempt_verses={
+        "primera cita larga que hay que conservar entera"
+    })
+
+    assert not v.ok
+    assert v.lost_verses == 1
