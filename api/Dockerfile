@@ -30,11 +30,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Instalación de dependencias en una capa cacheable
+# Instalación de dependencias en una capa cacheable.
+#
+# CON las de desarrollo (pytest, ruff), a diferencia de `Dockerfile.prod`, que
+# sigue con `--no-dev`. Esta imagen es donde se corren los tests: el proyecto no
+# tiene CI, así que `docker compose exec api pytest` es la única red que hay. Y
+# estaba puesta con alfileres: la imagen traía pytest de una capa antigua, no
+# porque el Dockerfile lo instalara, así que el primer rebuild que invalidara la
+# caché dejaba el proyecto sin forma de correr los tests. Pasó el 03-08-2026 al
+# añadir nodejs.
 COPY pyproject.toml uv.lock* ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev || \
-    uv sync --no-install-project --no-dev
+    uv sync --frozen --no-install-project || \
+    uv sync --no-install-project
 
 # El código se monta como bind-mount en docker-compose para hot-reload,
 # pero en build incluimos lo que haya por si se ejecuta sin volumen.
