@@ -46,6 +46,11 @@ LANG_ES = "es"
 MAX_ROUNDS = 6
 MAX_SEEDS_PER_ROUND = 400
 
+# Hashes de peticiones que han fallado en ESTA pasada. Vive en memoria, no en
+# disco: un error no debe sobrevivir al proceso (mañana la API puede responder),
+# pero repetirlo dentro de la misma pasada es tirar dinero.
+_FALLOS_DE_ESTA_PASADA: set[str] = set()
+
 
 @dataclass
 class Asset:
@@ -201,6 +206,14 @@ def _call_labs(
 ) -> tuple[list[dict], str]:
     """Una llamada a Labs, con caché y gasto medido. Devuelve (items, evidence_ref)."""
     params_hash = CacheStore.key("dataforseo", endpoint, payload)
+    # Un fallo NO se cachea en disco a propósito: escribir `{"items": []}`
+    # envenenaría el universo con un vacío que parecería un resultado legítimo y
+    # se arrastraría 30 días. Pero dentro de una misma pasada sí se recuerda, o
+    # el cierre transitivo vuelve a pedir la misma semilla rota una y otra vez.
+    # Medido en la ola 1: 294 de 1.144 llamadas pagadas (26%) devolvieron «sin
+    # respuesta», y cada reintento cuesta dinero y cupo.
+    if params_hash in _FALLOS_DE_ESTA_PASADA:
+        return [], params_hash
     cached = cache.get("dataforseo", endpoint, payload)
     if cached is not None:
         ledger.record(
@@ -213,6 +226,7 @@ def _call_labs(
     ledger.gate(est_cost_usd=forecast_cost(family, est_results))
     task = dfs._post(endpoint, [payload])
     if not task:
+        _FALLOS_DE_ESTA_PASADA.add(params_hash)
         ledger.record(
             provider="dataforseo", endpoint=endpoint, params_hash=params_hash,
             params=payload, asset=asset, round_no=round_no, seed=seed,
@@ -302,12 +316,19 @@ def close_universe(
     cache: CacheStore,
     ledger: SpendLedger,
     max_rounds: int = MAX_ROUNDS,
+    max_seeds_per_round: int = MAX_SEEDS_PER_ROUND,
     on_progress: Any = None,
 ) -> tuple[dict[str, KwRow], list[dict]]:
     """Cierre transitivo del universo de keywords de un asset.
 
     Devuelve (universo, trazas_por_ronda). El universo incluye las off-topic
     marcadas: se exportan aparte, no se tiran.
+
+    `max_seeds_per_round` es el freno de gasto y conviene bajarlo cuando la ola
+    es grande: cada semilla son dos llamadas de pago. En la ola 1 el tope de 400
+    se alcanzó en las rondas 3 y 4 de casi todos los discos, o sea que el cierre
+    **se truncó por tope, no por convergencia** — y ahí es donde se fue el
+    dinero.
     """
     universe: dict[str, KwRow] = {}
     consulted: set[str] = set()
@@ -315,7 +336,7 @@ def close_universe(
     rounds: list[dict] = []
 
     for round_no in range(1, max_rounds + 1):
-        pending = [s for s in frontier if kw_norm(s) not in consulted][:MAX_SEEDS_PER_ROUND]
+        pending = [s for s in frontier if kw_norm(s) not in consulted][:max_seeds_per_round]
         if not pending:
             break
 

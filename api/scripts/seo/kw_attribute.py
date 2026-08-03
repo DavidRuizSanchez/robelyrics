@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -78,15 +79,24 @@ def build_index() -> tuple[list[tuple[str, dict]], dict[str, dict]]:
                            .join(Artist, Album.artist_id == Artist.id)).all()
         for song, album, artist in srows:
             norm = kw_norm(strip_title_suffix(song.title or ""))
-            # Los títulos de una sola palabra corta («Salir», «Puta», «Ama») no
-            # atribuyen: casarían con media lengua. Caen al disco o al hub.
-            if not norm or (len(norm) < 8 and len(norm.split()) == 1):
+            if not norm:
                 continue
+            # Los títulos de una sola palabra corta («Salir», «Puta», «Ama»)
+            # casarían con media lengua, así que NO atribuyen por sí solos —
+            # pero descartarlos del todo era peor: dejaba a esas canciones sin
+            # una sola keyword propia, y son 8 del catálogo (puta, salir, mama,
+            # golfa, tomás, decidí, pedrá, sucede). Ahora entran exigiendo que la
+            # keyword nombre además al artista: «extremoduro puta» es suya,
+            # «puta» a secas no.
+            requiere_marca = len(norm) < 8 and len(norm.split()) == 1
             entradas.append((norm, {
                 "owner_type": "song", "owner_slug": song.slug,
                 "owner_title": song.title, "artist_slug": artist.slug,
                 "owner_url": f"/{artist.slug}/{album.slug}/{song.slug}",
                 "album_slug": album.slug,
+                "requiere_marca": requiere_marca,
+                "marca": kw_norm(artist.name or artist.slug),
+                "artista_slug_norm": kw_norm(artist.slug),
             }))
 
         # Más largo primero: el título más específico gana.
@@ -96,11 +106,60 @@ def build_index() -> tuple[list[tuple[str, dict]], dict[str, dict]]:
         db.close()
 
 
+def _menciona_marca(norm: str, info: dict) -> bool:
+    marca = info.get("marca") or ""
+    slug = info.get("artista_slug_norm") or ""
+    return bool((marca and marca in norm) or (slug and slug in norm))
+
+
+def _desempatar(norm: str, candidatos: list[dict]) -> dict:
+    """Varias versiones de la MISMA canción casan con el título. ¿De cuál es?
+
+    `strip_title_suffix` colapsa «Jesucristo García (Rock Transgresivo)» y
+    «Jesucristo García (En Directo)» al mismo texto que la de estudio, así que
+    las tres compiten por cada keyword. Antes ganaba la primera de la lista —un
+    accidente del orden de inserción— y las otras se quedaban a cero PARA
+    SIEMPRE: por eso `song__jesucristo-garcia` no tenía CSV y sí lo tenía la
+    versión con sufijo.
+
+    El desempate mira lo que la propia keyword dice: si nombra el directo, es de
+    la versión en vivo; si nombra un disco, es la de ese disco; si no dice nada,
+    se queda con la de estudio (la que no lleva sufijo en el slug), que es la que
+    la gente busca por defecto.
+    """
+    if len(candidatos) == 1:
+        return candidatos[0]
+    quiere_directo = bool(re.search(r"\ben directo\b|\bdirecto\b|\bvivo\b", norm))
+    en_vivo = [c for c in candidatos if "en-directo" in c["owner_slug"]]
+    if quiere_directo and en_vivo:
+        return en_vivo[0]
+    # La keyword nombra un disco concreto → esa versión.
+    for c in candidatos:
+        album = kw_norm(strip_title_suffix(c.get("album_slug", "").replace("-", " ")))
+        if album and album in norm:
+            return c
+    # Sin señal en la keyword: gana el slug más corto, que es el que no lleva
+    # sufijo de desambiguación («jesucristo-garcia» antes que
+    # «jesucristo-garcia-rock-transgresivo»). Es un criterio neutro y estable —
+    # no depende del orden de inserción— y deja la keyword genérica en la ficha
+    # con el nombre más limpio, que es la que la gente busca.
+    de_estudio = [c for c in candidatos if "en-directo" not in c["owner_slug"]]
+    return sorted(de_estudio or candidatos, key=lambda c: len(c["owner_slug"]))[0]
+
+
 def dueno(keyword: str, entradas, hubs) -> tuple[dict, str]:
     norm = kw_norm(keyword)
-    for titulo, info in entradas:
-        if titulo in norm:
-            return info, titulo
+    for titulo, _ in entradas:
+        if titulo not in norm:
+            continue
+        # Todas las entradas con ESTE título compiten: son versiones del mismo
+        # tema. Se recogen todas antes de decidir, en vez de coger la primera.
+        candidatos = [i for t, i in entradas if t == titulo]
+        elegibles = [c for c in candidatos
+                     if not c.get("requiere_marca") or _menciona_marca(norm, c)]
+        if not elegibles:
+            continue        # título corto sin marca: no es suyo, sigue buscando
+        return _desempatar(norm, elegibles), titulo
     # Sin título: es del hub de la marca que mencione.
     for slug, hub in hubs.items():
         if slug in norm or kw_norm(hub["owner_title"]) in norm:

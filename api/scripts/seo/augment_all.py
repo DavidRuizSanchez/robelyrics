@@ -66,7 +66,12 @@ _CURATED: dict[tuple[str, str], list[dict]] = {
 def main() -> None:
     ap = argparse.ArgumentParser(description="Augmentación sin pérdida con guarda.")
     ap.add_argument("--entity-type", choices=list(_MODELS))
-    ap.add_argument("--slugs", help="lista separada por comas")
+    ap.add_argument("--slugs", help="lista separada por comas. OJO con las "
+                                    "canciones: la unicidad de `songs` es "
+                                    "(album_id, slug), así que un slug puede "
+                                    "existir en dos discos. Para esas, --ids")
+    ap.add_argument("--ids", help="ids de entidad separados por comas. Es la vía "
+                                  "correcta para canciones homónimas")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--discover-web", action="store_true",
                     help="descubre eventos recientes por web (figuras clave)")
@@ -82,6 +87,8 @@ def main() -> None:
     client = OpenAI(api_key=get_settings().openai_api_key)
     types = [args.entity_type] if args.entity_type else list(_MODELS)
     only = {s.strip() for s in args.slugs.split(",")} if args.slugs else None
+    only_ids = ({int(i) for i in args.ids.split(",") if i.strip()}
+                if args.ids else None)
 
     with SessionLocal() as db:
         corpus_index = build_corpus_index(db)
@@ -89,17 +96,25 @@ def main() -> None:
         targets = []
         # Ya aumentados (generated_by empieza por "augment-") → se saltan para no
         # doble-aumentar, salvo --force.
+        #
+        # El set va por (entity_type, entity_id), NO por slug. Con slug, dos
+        # canciones homónimas de discos distintos —«Jesucristo García» está en
+        # tres— se pisaban: aumentar una marcaba la otra como hecha y se la
+        # saltaba para siempre, en silencio. `augment_deep` sí resolvía por
+        # entity_id; el filtro de aquí era el que mentía.
         done = set()
         if not args.force:
-            for et2, slug2 in db.query(SeoContent.entity_type, SeoContent.slug).filter(
+            for et2, eid2 in db.query(SeoContent.entity_type, SeoContent.entity_id).filter(
                 SeoContent.generated_by.like("augment-%")
             ).all():
-                done.add((et2, slug2))
+                done.add((et2, eid2))
         for et in types:
             for ent in db.query(_MODELS[et]).order_by(_MODELS[et].slug).all():
+                if only_ids is not None and ent.id not in only_ids:
+                    continue
                 if only and ent.slug not in only:
                     continue
-                if (et, ent.slug) in done:
+                if (et, ent.id) in done:
                     continue
                 targets.append((et, ent))
         if args.limit:

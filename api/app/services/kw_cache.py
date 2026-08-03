@@ -134,10 +134,45 @@ class SpendLedger:
     max_spend_usd: float
     max_ahrefs_units: int
     max_calls_per_day: int = 1000
+    rehidratar: bool = True
     _spent_usd: float = 0.0
     _spent_units: int = 0
     _calls: int = 0
     _rows: list[dict] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Recupera lo YA gastado en este run de `costs.jsonl`.
+
+        Sin esto los contadores arrancaban a cero en cada proceso y el tope era
+        decorativo: una ola troceada en cinco tandas con `--max-spend 40` podía
+        gastar $200 sin que nada saltara, porque cada tanda se creía la primera.
+        El ledger se append-ea a disco, así que la cuenta real estaba ahí desde
+        el principio; solo faltaba leerla.
+
+        Las filas servidas de caché no suman: no costaron nada.
+        """
+        if not self.rehidratar:
+            return
+        ledger_path = self.paths.ledger_path
+        if not ledger_path.exists():
+            return
+        gasto, unidades, llamadas = 0.0, 0, 0
+        for linea in ledger_path.read_text(encoding="utf-8").splitlines():
+            if not linea.strip():
+                continue
+            try:
+                fila = json.loads(linea)
+            except json.JSONDecodeError:
+                continue          # una línea a medias no invalida la cuenta
+            if fila.get("from_cache"):
+                continue
+            gasto += float(fila.get("cost_usd") or 0)
+            unidades += int(fila.get("units") or 0)
+            llamadas += 1
+        self._spent_usd, self._spent_units, self._calls = gasto, unidades, llamadas
+        if llamadas:
+            print(f"[ledger] este run ya llevaba ${gasto:.4f} en {llamadas} "
+                  f"llamadas: el tope de ${self.max_spend_usd:.2f} cuenta desde ahí")
 
     def gate(self, *, est_cost_usd: float = 0.0, est_units: int = 0) -> None:
         if self._spent_usd + est_cost_usd > self.max_spend_usd:

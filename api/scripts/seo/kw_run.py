@@ -141,7 +141,16 @@ def main() -> int:
     ap.add_argument("--max-ahrefs-units", type=int, default=350_000)
     ap.add_argument("--max-calls", type=int, default=1000)
     ap.add_argument("--max-rounds", type=int, default=6)
+    ap.add_argument("--max-seeds-per-round", type=int, default=None,
+                    help="techo de semillas por ronda (default: la constante de "
+                         "kw_universe, 400). ES EL GOBERNADOR DEL GASTO: una "
+                         "ronda con 400 semillas son 800 llamadas. Medido en la "
+                         "ola 1, tres discos se llevaron $8,50 de los $11,38 "
+                         "justo por esto")
     ap.add_argument("--no-enrich", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="rehacer también los assets que ya tienen CSV en "
+                         "by-asset/ (por defecto se saltan para poder reanudar)")
     args = ap.parse_args()
 
     kinds = {k.strip() for k in args.assets.split(",") if k.strip()}
@@ -189,24 +198,44 @@ def main() -> int:
     #                            ojo humano antes de usarse.
     #   offtopic.csv           → lo que no pertenece. Se guarda para poder
     #                            auditar la guarda, no se tira.
-    master_fh = master_path.open("w", newline="", encoding="utf-8")
-    rev_fh = revisar_path.open("w", newline="", encoding="utf-8")
-    off_fh = offtopic_path.open("w", newline="", encoding="utf-8")
+    #
+    # Se abren en APPEND, no en "w". Una ola grande no cabe en un solo
+    # lanzamiento —el tope de gasto la corta, o se trocea a propósito— y con "w"
+    # la segunda tanda truncaba los tres ficheros y dejaba dentro solo sus
+    # propios assets: `kw_merge` fusionaba entonces un universo mutilado sin que
+    # nada avisara. La cabecera se escribe solo si el fichero está vacío.
+    master_fh = master_path.open("a", newline="", encoding="utf-8")
+    rev_fh = revisar_path.open("a", newline="", encoding="utf-8")
+    off_fh = offtopic_path.open("a", newline="", encoding="utf-8")
     master = csv.DictWriter(master_fh, fieldnames=CSV_FIELDS)
     revw = csv.DictWriter(rev_fh, fieldnames=CSV_FIELDS)
     offw = csv.DictWriter(off_fh, fieldnames=CSV_FIELDS)
-    master.writeheader()
-    revw.writeheader()
-    offw.writeheader()
+    for path_, writer_ in ((master_path, master), (revisar_path, revw),
+                           (offtopic_path, offw)):
+        if path_.stat().st_size == 0:
+            writer_.writeheader()
 
     stopped = None
     try:
         for idx, asset in enumerate(assets, 1):
+            destino = by_asset_dir / f"{asset.asset_type}__{asset.slug}.csv"
+            # Reanudar: lo ya cerrado no se vuelve a recorrer. Las respuestas
+            # están en caché y no costarían dinero, pero sí tiempo, y sobre todo
+            # los errores «sin respuesta» NO se cachean: reprocesarlos vuelve a
+            # pagarlos y consume el cupo diario de llamadas.
+            if destino.exists() and not args.force:
+                print(f"\n[{idx}/{len(assets)}] {asset.ref} — ya estaba, se salta "
+                      f"(--force para rehacerlo)")
+                continue
             print(f"\n[{idx}/{len(assets)}] {asset.ref} — «{asset.title}»")
             try:
+                kwargs_cierre = {}
+                if args.max_seeds_per_round:
+                    kwargs_cierre["max_seeds_per_round"] = args.max_seeds_per_round
                 universe, rounds = close_universe(
                     asset, vocab=vocab, cache=cache, ledger=ledger,
                     max_rounds=args.max_rounds, on_progress=progress,
+                    **kwargs_cierre,
                 )
             except BudgetExceeded as exc:
                 stopped = str(exc)
@@ -227,9 +256,7 @@ def main() -> int:
             )
             drop = [r for r in rows if r.off_topic]
 
-            with (by_asset_dir / f"{asset.asset_type}__{asset.slug}.csv").open(
-                "w", newline="", encoding="utf-8"
-            ) as fh:
+            with destino.open("w", newline="", encoding="utf-8") as fh:
                 w = csv.DictWriter(fh, fieldnames=CSV_FIELDS)
                 w.writeheader()
                 for r in keep:
@@ -259,6 +286,22 @@ def main() -> int:
         master_fh.close()
         rev_fh.close()
         off_fh.close()
+
+    # `master.csv` se reconstruye desde `by-asset/`, que es la fuente de verdad
+    # por asset (cada uno se reescribe entero al procesarlo). Así el fichero que
+    # consume `kw_merge` queda coherente pase lo que pase: tandas sucesivas,
+    # cortes por presupuesto o un `--force` que reprocese algo ya hecho.
+    filas_master = 0
+    with master_path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        for csv_asset in sorted(by_asset_dir.glob("*.csv")):
+            with csv_asset.open(encoding="utf-8") as src:
+                for fila in csv.DictReader(src):
+                    w.writerow(fila)
+                    filas_master += 1
+    print(f"master.csv reconstruido desde by-asset/: {filas_master} filas de "
+          f"{len(list(by_asset_dir.glob('*.csv')))} assets")
 
     summary = ledger.summary()
     manifest = {
