@@ -138,3 +138,33 @@ def test_anclaje_factual_distingue_dato_de_adorno():
     assert not anclaje_factual(
         "La portada puede interpretarse como una metáfora de la libertad.", material
     )
+
+
+def test_el_ano_de_una_cita_no_es_un_dato_del_sujeto():
+    """«[Fuente: Mondo Sonoro 2021]» es la fecha de la cita, no del disco.
+    Contarla hacía que el gate rechazara regeneraciones por perder un año que
+    nunca fue un hecho sobre el sujeto."""
+    con_cita = ORIGINAL + "\nAlgo más [Fuente: Mondo Sonoro 2021].\n"
+    sin_cita = ORIGINAL + "\nAlgo más, contado de otra manera.\n"
+    assert "2021" not in extract_facts(con_cita).years
+    v = no_loss_verdict(con_cita, sin_cita)
+    assert v.ok, v.reason
+
+
+def test_los_headings_de_navegacion_no_son_temas():
+    """«Otros discos relacionados» lo pone la plantilla, no dice nada del sujeto,
+    y su ausencia bloqueaba regeneraciones buenas."""
+    md = ORIGINAL + "\n## Otros discos relacionados\n\nVer más.\n## En el diario\n\nPosts.\n"
+    temas = extract_topics(md)
+    assert "Otros discos relacionados" not in temas
+    assert "En el diario" not in temas
+    assert "El legado" in temas
+
+
+def test_la_comparacion_semantica_no_revienta_con_numpy():
+    """`array or 1` lanzaba «truth value is ambiguous» y tiraba en silencio la
+    comparación a la rama léxica."""
+    from app.services.content_guard import _cosine_matrix
+    m = _cosine_matrix([[1.0, 0.0], [0.0, 1.0]], [[1.0, 0.0]])
+    assert abs(m[0][0] - 1.0) < 1e-5
+    assert abs(m[1][0]) < 1e-5

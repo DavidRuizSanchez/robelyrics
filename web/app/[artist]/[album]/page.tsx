@@ -154,22 +154,58 @@ export default async function AlbumPublicPage({
             Canciones
           </h2>
           <ol className="space-y-1">
-            {detail.tracks.map((t, i) => (
-              <li key={t.slug}>
-                <Link
-                  href={`/${artistSlug}/${albumSlug}/${t.slug}`}
-                  data-cursor="hover"
-                  className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
-                >
-                  <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right">
-                    {t.track_number ?? i + 1}
-                  </span>
-                  <span className="font-serif text-[18px] md:text-[20px] flex-1 text-ink group-hover:text-accent transition-colors">
-                    {t.title}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {detail.tracks.map((t, i) => {
+              // En directos y recopilatorios el corte NO vive en este disco: la
+              // API manda `path` con la ruta de la grabación original. Componer
+              // aquí `/${artistSlug}/${albumSlug}/${t.slug}` daría un 404.
+              const href = t.path ?? `/${artistSlug}/${albumSlug}/${t.slug}`;
+              const numero = (
+                <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right shrink-0">
+                  {t.track_number ?? i + 1}
+                </span>
+              );
+              const titulo = (
+                <span className="font-serif text-[18px] md:text-[20px] text-ink group-hover:text-accent transition-colors">
+                  {t.title}
+                </span>
+              );
+              const origen = t.from_album ? (
+                <span className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+                  {t.is_rerecording ? "regrabación · " : ""}
+                  {t.from_album}
+                  {t.from_year ? ` (${t.from_year})` : ""}
+                </span>
+              ) : null;
+
+              // Un corte sin enlazar se muestra igual, pero sin link: no se
+              // adivina a qué canción apunta.
+              if (!t.path && t.from_album === null && t.slug === "") {
+                return (
+                  <li key={`${i}-sin-enlace`}>
+                    <div className="flex items-baseline gap-4 py-3 px-4 -mx-4">
+                      {numero}
+                      <span className="flex-1">{titulo}</span>
+                    </div>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={t.slug || `${i}`}>
+                  <Link
+                    href={href}
+                    data-cursor="hover"
+                    className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
+                  >
+                    {numero}
+                    <span className="flex-1 flex flex-col gap-0.5">
+                      {titulo}
+                      {origen}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ol>
         </section>
 

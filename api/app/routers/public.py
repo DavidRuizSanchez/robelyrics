@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     Album,
+    AlbumTrack,
     Artist,
     Concept,
     Line,
@@ -80,6 +81,15 @@ class PublicTrackOut(BaseModel):
     youtube_id: str | None = None
     duration_sec: int | None = None
     youtube_duration_sec: int | None = None
+    # Los tres campos siguientes solo vienen en discos que NO son de estudio
+    # (directos, recopilatorios, singles). Su tracklist es referencial: el corte
+    # apunta a la canción original, que vive en otro disco, así que hace falta
+    # la ruta completa — el slug suelto no basta porque `songs.slug` solo es
+    # único dentro de su álbum.
+    path: str | None = None
+    from_album: str | None = None
+    from_year: int | None = None
+    is_rerecording: bool | None = None
 
 
 class PublicArtistMember(BaseModel):
@@ -680,6 +690,37 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
         .all()
     )
     artist = album.artist
+
+    # Discos que no son de estudio: el tracklist es referencial y cada corte
+    # enlaza a la grabación original en su disco. No hay filas `Song` propias
+    # porque duplicarlas pondría dos páginas casi idénticas compitiendo.
+    tracks_ref: list[PublicTrackOut] = []
+    if not songs and album.kind not in ("studio", "ep"):
+        filas = (
+            db.query(AlbumTrack, Song, Album, Artist)
+            .outerjoin(Song, AlbumTrack.song_id == Song.id)
+            .outerjoin(Album, Song.album_id == Album.id)
+            .outerjoin(Artist, Album.artist_id == Artist.id)
+            .filter(AlbumTrack.album_id == album.id)
+            .order_by(AlbumTrack.disc, AlbumTrack.position)
+            .all()
+        )
+        for tr, song, alb, art in filas:
+            tracks_ref.append(PublicTrackOut(
+                slug=song.slug if song else "",
+                title=tr.title_as_released,
+                track_number=tr.position,
+                youtube_id=song.youtube_id if song else None,
+                duration_sec=tr.duration_sec or (song.duration_sec if song else None),
+                youtube_duration_sec=song.youtube_duration_sec if song else None,
+                # Un corte sin enlazar se muestra igual, pero sin link: nunca se
+                # adivina a qué canción apunta.
+                path=(f"/{art.slug}/{alb.slug}/{song.slug}"
+                      if song and alb and art else None),
+                from_album=alb.title if alb else None,
+                from_year=alb.year if alb else None,
+                is_rerecording=tr.is_rerecording,
+            ))
     seo = _try_get_seo(db, "album", album.id)
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
@@ -694,7 +735,7 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
         ),
         canonical_path=f"/{artist.slug}/{album.slug}",
         release_date=album.release_date.isoformat() if album.release_date else None,
-        tracks=[
+        tracks=tracks_ref or [
             PublicTrackOut(
                 slug=s.slug,
                 title=s.title,

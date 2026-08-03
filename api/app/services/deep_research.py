@@ -27,7 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    Album, Artist, Band, BandMembership, Concept, Person, Place, Song, Theme,
+    Album, AlbumTrack, Artist, Band, BandMembership, Concept, Person, Place,
+    Song, Theme,
 )
 from scripts.seo.common import (
     fetch_sources_for_entity, format_sources_block,
@@ -165,6 +166,55 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
     elif entity_type == "album":
         art = db.get(Artist, entity.artist_id)
         facts.append(f"«{entity.title}» ({art.name if art else ''}, {entity.year}), tipo {entity.kind}.")
+        if entity.release_date:
+            facts.append(f"Fecha de publicación: {entity.release_date.isoformat()}.")
+
+        # El tracklist REAL. Sin esto el motor escribía sobre un disco cuyo
+        # contenido no conocía, que es justo la puerta por la que se cuelan
+        # canciones inventadas.
+        if entity.kind in ("studio", "ep"):
+            titulos = db.execute(
+                select(Song.title).where(Song.album_id == entity.id)
+                .order_by(Song.track_number)
+            ).scalars().all()
+            if titulos:
+                facts.append(
+                    f"Tracklist ({len(titulos)} cortes): "
+                    + "; ".join(f"{i}. {t}" for i, t in enumerate(titulos, 1)) + "."
+                )
+        else:
+            # Directos, recopilatorios y singles no tienen filas `Song` propias:
+            # su tracklist es referencial y apunta a la grabación original.
+            filas = db.execute(
+                select(AlbumTrack, Song, Album)
+                .outerjoin(Song, AlbumTrack.song_id == Song.id)
+                .outerjoin(Album, Song.album_id == Album.id)
+                .where(AlbumTrack.album_id == entity.id)
+                .order_by(AlbumTrack.disc, AlbumTrack.position)
+            ).all()
+            if filas:
+                partes = []
+                for tr, song, alb in filas:
+                    origen = f" [de «{alb.title}», {alb.year}]" if alb else ""
+                    partes.append(f"{tr.position}. {tr.title_as_released}{origen}")
+                facts.append(
+                    f"Tracklist ({len(filas)} cortes), con el disco de origen de "
+                    f"cada tema: " + "; ".join(partes) + "."
+                )
+                rerec = [tr for tr, _, _ in filas if tr.is_rerecording]
+                if rerec:
+                    facts.append(
+                        f"{len(rerec)} de estos cortes son REGRABACIONES hechas "
+                        "para este disco, no las tomas originales: "
+                        + ", ".join(f"«{t.title_as_released}»" for t in rerec[:10]) + "."
+                    )
+                facts.append(
+                    "Este disco no aporta canciones nuevas al catálogo: sus temas "
+                    "ya existen en los discos de origen citados arriba."
+                    if not rerec else
+                    "Los temas ya existían; lo que aporta este disco son versiones "
+                    "distintas de ellos."
+                )
     elif entity_type == "song":
         al = getattr(entity, "album", None)
         art = getattr(al, "artist", None) if al else None

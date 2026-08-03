@@ -83,10 +83,38 @@ def embed_batch(client: OpenAI, texts: list[str]) -> list[list[float]]:
     return [d.embedding for d in resp.data]
 
 
+def indexed_source_ids(qdrant: QdrantClient) -> set[int]:
+    """`source_id` que ya tienen al menos un chunk en la colección.
+
+    Sin esto el script re-embebe las 695 fuentes enteras cada vez que se corre,
+    y por eso no se corría: las 330 transcripciones de YouTube y las 16
+    entrevistas que entraron después de la última pasada llevaban meses sin
+    indexar — invisibles para el retrieval semántico y, con ellas, la mitad del
+    corpus. Es la causa de que el motor escriba genérico.
+    """
+    vistos: set[int] = set()
+    offset = None
+    while True:
+        puntos, offset = qdrant.scroll(
+            collection_name=COLLECTION, limit=1000, offset=offset,
+            with_payload=["source_id"], with_vectors=False,
+        )
+        for p in puntos:
+            sid = (p.payload or {}).get("source_id")
+            if isinstance(sid, int):
+                vistos.add(sid)
+        if offset is None:
+            break
+    return vistos
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--only-missing", action="store_true",
+                        help="salta las fuentes que ya tienen chunks indexados")
+    parser.add_argument("--kinds", help="limitar a estos kind (coma)")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -103,9 +131,24 @@ def main() -> None:
     pending_chunks: list[dict[str, Any]] = []
     total_sources = 0
 
+    ya_indexadas: set[int] = set()
+    if args.only_missing:
+        ya_indexadas = indexed_source_ids(qdrant)
+        log(f"{len(ya_indexadas)} fuentes ya indexadas (se saltan)")
+
+    kinds = {k.strip() for k in (args.kinds or "").split(",") if k.strip()}
+
     with get_session() as db:
-        sources = db.query(InterpretationSource).filter(InterpretationSource.content_clean.isnot(None)).all()
+        q = db.query(InterpretationSource).filter(
+            InterpretationSource.content_clean.isnot(None)
+        )
+        if kinds:
+            q = q.filter(InterpretationSource.kind.in_(kinds))
+        sources = q.all()
         log(f"{len(sources)} fuentes con contenido")
+        if ya_indexadas:
+            sources = [s for s in sources if s.id not in ya_indexadas]
+            log(f"{len(sources)} pendientes de indexar")
 
         for src in sources:
             chunks = chunk_text(src.content_clean or "")

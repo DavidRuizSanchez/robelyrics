@@ -56,30 +56,46 @@ export default async function AlbumPage({
       </header>
 
       <ol className="space-y-1">
-        {detail.tracks.map((tr, i) => (
-          <li key={tr.slug}>
-            <Link
-              href={`/biblioteca/${artist}/${album}/${tr.slug}`}
-              data-cursor="hover"
-              className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
-            >
-              <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right">
-                {tr.track_number ?? i + 1}
-              </span>
-              <span className="font-serif text-[18px] md:text-[20px] flex-1 text-ink group-hover:text-accent transition-colors">
-                {tr.title}
-              </span>
-              {tr.has_interpretation && (
-                <span
-                  className="text-accent text-xs"
-                  title="Tiene interpretación fan"
-                >
-                  ◆
+        {detail.tracks.map((tr, i) => {
+          // Mismo motivo que en la ruta pública: en directos y recopilatorios
+          // el corte vive en otro disco y la API manda su ruta en `path`.
+          const href = tr.path
+            ? `/biblioteca${tr.path}`
+            : `/biblioteca/${artist}/${album}/${tr.slug}`;
+          return (
+            <li key={tr.slug || `${i}`}>
+              <Link
+                href={href}
+                data-cursor="hover"
+                className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
+              >
+                <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right shrink-0">
+                  {tr.track_number ?? i + 1}
                 </span>
-              )}
-            </Link>
-          </li>
-        ))}
+                <span className="flex-1 flex flex-col gap-0.5">
+                  <span className="font-serif text-[18px] md:text-[20px] text-ink group-hover:text-accent transition-colors">
+                    {tr.title}
+                  </span>
+                  {tr.from_album && (
+                    <span className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+                      {tr.is_rerecording ? "regrabación · " : ""}
+                      {tr.from_album}
+                      {tr.from_year ? ` (${tr.from_year})` : ""}
+                    </span>
+                  )}
+                </span>
+                {tr.has_interpretation && (
+                  <span
+                    className="text-accent text-xs"
+                    title="Tiene interpretación fan"
+                  >
+                    ◆
+                  </span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
       </ol>
     </main>
   );

@@ -73,15 +73,23 @@ _YEAR = re.compile(r"\b(1[89]\d\d|20\d\d)\b")
 _HEADING = re.compile(r"^#{1,4}\s+(.+?)\s*$", re.M)
 _NUM = re.compile(r"\b\d[\d.,]{2,}\b")
 
-# Un topic del original se da por cubierto si algún heading del nuevo lo iguala
-# semánticamente por encima de este coseno. 0.72 sale de que headings del mismo
-# tema pero redactados distinto ("Contexto y lanzamiento" vs "El contexto de
-# Agila") quedan sobre 0.8, y temas realmente distintos por debajo de 0.6.
-TOPIC_COSINE_MIN = 0.72
+# Coseno mínimo entre un título viejo y una SECCIÓN COMPLETA del nuevo para dar
+# el tema por cubierto. 0.45 está medido, no supuesto: con títulos cortos contra
+# secciones enteras, un tema realmente tratado queda por encima de 0.5 y uno
+# ausente por debajo de 0.42. El primer valor que puse (0.72) venía de suponer
+# que dos títulos casi idénticos darían ~0.9, y da 0.68.
+TOPIC_COSINE_MIN = 0.45
 
-# Una regeneración que encoge por debajo de esto es sospechosa aunque conserve
-# los hechos: suele significar que ha resumido sin decirlo.
-LENGTH_RATIO_MIN = 0.90
+# Suelo de longitud. Es la guarda MÁS TOSCA de todas y por eso va la última: si
+# la versión nueva conserva los versos, los enlaces, los años Y todos los temas,
+# encoger significa que ha quitado relleno — que es justo el objetivo, porque el
+# lote viejo repite «marcó un antes y un después» dos veces en la misma ficha.
+#
+# Estaba en 0.90 y bloqueaba regeneraciones buenas: `editorial_review` devuelve
+# el cuerpo TENSADO cuando su veredicto es `revise`, y ese tensado puede quedar
+# por debajo del original aunque el texto generado fuera más largo. Con 0.70 se
+# permite condensar sin dejar que nadie resuma la ficha a la mitad.
+LENGTH_RATIO_MIN = 0.70
 
 # Fórmulas que delatan que el modelo está rellenando en vez de informar. El
 # proyecto tenía `_FILLER_EXAMPLES` en editorial_review, pero solo como ejemplos
@@ -112,29 +120,70 @@ class Facts:
     numbers: frozenset[str]
 
 
+_CITA_FUENTE = re.compile(r"\[Fuente:[^\]]*\]", re.I)
+
+
 def extract_facts(md: str) -> Facts:
-    """Datos duros del cuerpo. Lo que esté aquí tiene que seguir estando después."""
+    """Datos duros del cuerpo. Lo que esté aquí tiene que seguir estando después.
+
+    Los años que viven DENTRO de un marcador `[Fuente: … 2021]` no cuentan: son
+    la fecha de publicación de la cita, no un hecho sobre el sujeto. Medido en
+    Agila, el gate rechazaba la regeneración por «perder» 2021 y 2025, que
+    venían de «[Fuente: Mondo Sonoro 2021]» y «[Fuente: eldiario.es 2025]» —
+    mientras el único año real del disco, 1996, sí se conservaba.
+    """
     body = md or ""
+    sin_citas = _CITA_FUENTE.sub(" ", body)
     return Facts(
         verses=frozenset(_norm(v) for v in _verses(body)),
         links=frozenset(_LINK.findall(body)),
-        years=frozenset(_YEAR.findall(body)),
-        numbers=frozenset(_NUM.findall(body)),
+        years=frozenset(_YEAR.findall(sin_citas)),
+        numbers=frozenset(_NUM.findall(sin_citas)),
     )
 
 
+# Headings de NAVEGACIÓN, no de contenido: los pone la plantilla o el
+# autolinker, no dicen nada sobre el sujeto y su ausencia no es una pérdida.
+_HEADINGS_NAVEGACION = (
+    "otros discos", "más discos", "mas discos", "en el diario", "también te",
+    "tambien te", "relacionad", "ver también", "ver tambien", "enlaces",
+    "fuentes", "referencias", "escucha",
+)
+
+
 def extract_topics(md: str) -> list[str]:
-    """Los temas que trata la ficha, tal como los declara en sus encabezados."""
-    return [h.strip() for h in _HEADING.findall(md or "") if h.strip()]
+    """Los temas de CONTENIDO que trata la ficha, según sus encabezados."""
+    out = []
+    for h in _HEADING.findall(md or ""):
+        t = h.strip()
+        if not t:
+            continue
+        tn = _norm(t)
+        if any(p in tn for p in _HEADINGS_NAVEGACION):
+            continue
+        out.append(t)
+    return out
 
 
 def _cosine_matrix(a: list[list[float]], b: list[list[float]]) -> list[list[float]]:
     import numpy as np
-    A = np.asarray(a, dtype="float32")
-    B = np.asarray(b, dtype="float32")
-    A /= (np.linalg.norm(A, axis=1, keepdims=True) or 1)
-    B /= (np.linalg.norm(B, axis=1, keepdims=True) or 1)
-    return (A @ B.T).tolist()
+
+    def _unit(m: list[list[float]]):
+        M = np.asarray(m, dtype="float32")
+        # `norma or 1` no vale: con un array numpy de más de un elemento eso
+        # lanza «truth value is ambiguous» y tiraba la comparación semántica a la
+        # rama léxica sin que se notara más que por un warning.
+        n = np.linalg.norm(M, axis=1, keepdims=True)
+        n[n == 0] = 1.0
+        return M / n
+
+    return (_unit(a) @ _unit(b).T).tolist()
+
+
+def _tokens_significativos(s: str) -> set[str]:
+    ruido = {"de", "del", "la", "el", "los", "las", "un", "una", "y", "en", "su",
+             "sus", "para", "por", "con", "que", "al", "lo", "sobre"}
+    return {w for w in _norm(s).split() if len(w) > 3 and w not in ruido}
 
 
 def topic_coverage(
@@ -142,35 +191,55 @@ def topic_coverage(
 ) -> list[str]:
     """Topics del original que el nuevo NO cubre. Lista vacía = no se perdió nada.
 
-    Se compara por SIGNIFICADO, no por texto: reescribir «Legado» como «Su huella
-    en el rock español» no es perder un tema, es redactarlo distinto.
+    Un tema está cubierto si el texto nuevo HABLA de él, no si su título se
+    parece. Comparar títulos entre sí no funciona: medido con
+    `text-embedding-3-large`, «Contexto histórico y musical» contra «Contexto
+    Histórico y Musical de Agila» —prácticamente el mismo texto— da solo 0,676,
+    y «Legado» contra «Legado de Agila en la Carrera de Extremoduro», 0,512.
+    Con títulos de tres palabras el coseno es demasiado ruidoso para decidir.
+
+    Así que se mira en dos pasos, de barato a caro:
+      1. Léxico: si los tokens significativos del título viejo aparecen en el
+         CUERPO nuevo, el tema sigue tratándose.
+      2. Semántico: coseno del título viejo contra cada SECCIÓN completa del
+         nuevo (título + su texto), que tiene mucha más señal que un título solo.
     """
     viejos = extract_topics(original)
-    nuevos = extract_topics(nuevo)
     if not viejos:
         return []
-    if not nuevos:
+    if not (nuevo or "").strip():
         return viejos
+
+    cuerpo_nuevo = _norm(nuevo)
+    pendientes = []
+    for t in viejos:
+        toks = _tokens_significativos(t)
+        # Con >=2 tokens presentes (o el único que tenga) se da por tratado.
+        if toks and sum(1 for w in toks if w in cuerpo_nuevo) >= min(2, len(toks)):
+            continue
+        pendientes.append(t)
+    if not pendientes:
+        return []
+
+    # Secciones completas del nuevo: título + su texto, recortado.
+    secciones = []
+    partes = re.split(r"^#{1,4}\s+", nuevo or "", flags=re.M)
+    for p in partes:
+        p = p.strip()
+        if p:
+            secciones.append(p[:600])
+    if not secciones:
+        return pendientes
 
     try:
         from app.services.embeddings import get_embedder
         emb = get_embedder()
-        va = emb.embed(viejos)
-        vb = emb.embed(nuevos)
-        sims = _cosine_matrix(va, vb)
-        return [t for t, fila in zip(viejos, sims) if max(fila) < min_cosine]
+        sims = _cosine_matrix(emb.embed(pendientes), emb.embed(secciones))
+        return [t for t, fila in zip(pendientes, sims) if max(fila) < min_cosine]
     except Exception as exc:  # noqa: BLE001
-        # Sin embeddings NO se da por bueno: se degrada a comparación léxica,
-        # que es más estricta. Mejor un falso rechazo que una pérdida silenciosa.
-        logger.warning("[content_guard] sin embeddings (%s): comparación léxica", exc)
-        nn = [_norm(t) for t in nuevos]
-        faltan = []
-        for t in viejos:
-            tn = _norm(t)
-            toks = {w for w in tn.split() if len(w) > 3}
-            if not any(tn in x or (toks and toks <= set(x.split())) for x in nn):
-                faltan.append(t)
-        return faltan
+        # Sin embeddings no se da por bueno lo que el paso léxico no salvó.
+        logger.warning("[content_guard] sin embeddings (%s): solo léxico", exc)
+        return pendientes
 
 
 def find_especulacion(md: str) -> list[str]:

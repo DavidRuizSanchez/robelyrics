@@ -458,8 +458,17 @@ def generate_for_entity(
         v = editorial_review(body, kind=entity_type, subject=dossier.subject,
                              allowed_terms=allowed_terms)
         if v.verdict == "revise" and v.tightened_body_md:
-            body = v.tightened_body_md
-            log(f"  rigor: tensado (score {v.score})")
+            # El tensado puede ser MUY agresivo: medido en Agila, dejó 6.943
+            # chars en 2.514 (−64%). Si el resultado cae por debajo de lo que ya
+            # había publicado, se descarta el tensado y se conserva el cuerpo
+            # generado: la ficha nueva nunca debe ser más pobre que la vieja.
+            if cuerpo_previo and len(v.tightened_body_md) < len(cuerpo_previo):
+                log(f"  rigor: tensado DESCARTADO ({len(body)}→"
+                    f"{len(v.tightened_body_md)} quedaría por debajo del original "
+                    f"de {len(cuerpo_previo)}); se conserva el cuerpo generado")
+            else:
+                body = v.tightened_body_md
+                log(f"  rigor: tensado (score {v.score})")
         elif v.verdict == "reject":
             publish = False
             log(f"  rigor RECHAZA (score {v.score}): {'; '.join(v.reasons)} → queda BORRADOR")

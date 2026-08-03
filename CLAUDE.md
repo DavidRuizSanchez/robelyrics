@@ -245,6 +245,33 @@ El test que existía no cazó nada de esto porque su mock de `upload_video` acep
 `None` tan campante: un mock más permisivo que la realidad no prueba el camino que
 dice probar.
 
+## Un directo no duplica sus canciones
+
+Los discos que **no** son de estudio (`kind` en `live | compilation | single`) no
+tienen filas `Song` propias: su tracklist vive en **`album_tracks`** y cada corte
+apunta con `song_id` a la grabación **original** de estudio. La relación
+canción↔disco es N:M y `songs.album_id` solo modela 1:N; sin esa tabla había que
+duplicar la canción, y eso pone en Google dos páginas casi idénticas compitiendo.
+
+Se vio con números al dar de alta los dos «Grandes éxitos y fracasos» (01-08-2026):
+33 cortes de los que **29 ya estaban publicados**. Con `album_tracks` los dos
+discos suman 2 páginas de álbum y **cero** páginas de canción.
+
+- Poblarlo: `python -m scripts.seed_album_tracks --album-slug X` (tracklist de
+  MusicBrainz). Casa por título exacto → alias sin sufijo `(...)` → catálogo del
+  otro artista (Robe toca temas de Extremoduro en sus directos, `exact_cross`) →
+  aproximado con ratio ≥0.85 **y** longitudes parecidas. El freno de longitud no
+  es cosmético: sin él «Extremaydura» casaba dentro de «Villancico del Rey de
+  Extremadura». Lo que no casa se guarda **sin enlazar**; nunca se adivina.
+- `is_rerecording` se marca comparando el MBID de grabación con el del original.
+  Es el dato que acredita que un recopilatorio aporta material y no es relleno de
+  sello: 10/15 en el Episodio primero, 14/18 en el segundo, 9/9 en el directo.
+- La API manda `path`, `from_album`, `from_year` e `is_rerecording` por corte. El
+  frontend **debe** usar `path`: componer la ruta con el álbum actual da 404.
+  Va en las dos plantillas, pública y `/biblioteca` (paridad).
+- `deep_research._hard_facts` inyecta el tracklist real con su disco de origen.
+  Sin eso el motor escribía sobre un disco cuyo contenido no conocía.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

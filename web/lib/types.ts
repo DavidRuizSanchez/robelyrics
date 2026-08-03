@@ -20,6 +20,14 @@ export type Track = {
   track_number: number | null;
   has_interpretation: boolean;
   youtube_id?: string | null;
+  // Solo en discos que no son de estudio (directos, recopilatorios, singles):
+  // el tracklist es referencial y el corte apunta a la grabación original, que
+  // vive en otro disco. Sin `path`, componer la ruta con el álbum actual daría
+  // un 404. `path` es null cuando el corte no casó con ninguna canción.
+  path?: string | null;
+  from_album?: string | null;
+  from_year?: number | null;
+  is_rerecording?: boolean | null;
 };
 
 export type AlbumDetail = Album & {
@@ -169,6 +177,14 @@ export type PublicTrackOut = {
   youtube_id: string | null;
   duration_sec: number | null;
   youtube_duration_sec: number | null;
+  // Solo en discos que no son de estudio (directos, recopilatorios, singles):
+  // el tracklist es referencial y el corte apunta a la grabación original, que
+  // vive en OTRO disco. Sin `path`, componer la ruta con el álbum actual da un
+  // 404. Es null cuando el corte no casó con ninguna canción del catálogo.
+  path?: string | null;
+  from_album?: string | null;
+  from_year?: number | null;
+  is_rerecording?: boolean | null;
 };
 
 export type PublicArtistMember = {
