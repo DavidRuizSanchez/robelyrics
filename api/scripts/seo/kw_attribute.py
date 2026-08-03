@@ -112,7 +112,36 @@ def _menciona_marca(norm: str, info: dict) -> bool:
     return bool((marca and marca in norm) or (slug and slug in norm))
 
 
-def _desempatar(norm: str, candidatos: list[dict]) -> dict:
+def cargar_traccion() -> dict[str, tuple[int, float]]:
+    """Por URL: (impresiones, mejor posición) de las últimas 12 semanas.
+
+    Es el árbitro para decidir qué versión de una canción se queda la keyword
+    genérica. Un criterio de escritorio («la de estudio», «la del slug corto»)
+    puede contradecir lo que Google ya está haciendo; esto no.
+    """
+    for ruta in (Path("/app/data/gsc_page_queries.json"),
+                 Path(__file__).resolve().parents[3] / "data" / "gsc_page_queries.json"):
+        if not ruta.exists():
+            continue
+        try:
+            data = json.loads(ruta.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        out = {}
+        for url, queries in (data.get("pages") or {}).items():
+            if not queries:
+                continue
+            out[url.rstrip("/")] = (
+                sum(int(q.get("impressions", 0)) for q in queries),
+                min((float(q["position"]) for q in queries if q.get("position")),
+                    default=999.0),
+            )
+        return out
+    return {}
+
+
+def _desempatar(norm: str, candidatos: list[dict],
+                traccion: dict[str, tuple[int, float]] | None = None) -> dict:
     """Varias versiones de la MISMA canción casan con el título. ¿De cuál es?
 
     `strip_title_suffix` colapsa «Jesucristo García (Rock Transgresivo)» y
@@ -138,6 +167,21 @@ def _desempatar(norm: str, candidatos: list[dict]) -> dict:
         album = kw_norm(strip_title_suffix(c.get("album_slug", "").replace("-", " ")))
         if album and album in norm:
             return c
+    # Keyword genérica: se la queda la versión que Google YA posiciona mejor.
+    # Medido el 03-08-2026 con las tres «Jesucristo García»: las tres competían
+    # por «jesucristo garcía significado» —el directo en pos 9,1, el debut en
+    # 6,9— y la de Rock Transgresivo no tenía ni una impresión. Repartirlas por
+    # un criterio de escritorio habría contradicho el dato.
+    if traccion:
+        con_datos = [(traccion.get(c["owner_url"].rstrip("/")), c) for c in candidatos]
+        con_datos = [(t, c) for t, c in con_datos if t]
+        if con_datos:
+            # Manda el VOLUMEN que ya recibe, no la posición: una página con 7
+            # impresiones en la posición 9 tiene más tracción real que otra con
+            # 1 en la posición 6, y es sobre la primera donde el trabajo rinde.
+            # La posición solo desempata.
+            con_datos.sort(key=lambda par: (-par[0][0], par[0][1]))
+            return con_datos[0][1]
     # Sin señal en la keyword: gana el slug más corto, que es el que no lleva
     # sufijo de desambiguación («jesucristo-garcia» antes que
     # «jesucristo-garcia-rock-transgresivo»). Es un criterio neutro y estable —
@@ -147,7 +191,7 @@ def _desempatar(norm: str, candidatos: list[dict]) -> dict:
     return sorted(de_estudio or candidatos, key=lambda c: len(c["owner_slug"]))[0]
 
 
-def dueno(keyword: str, entradas, hubs) -> tuple[dict, str]:
+def dueno(keyword: str, entradas, hubs, traccion=None) -> tuple[dict, str]:
     norm = kw_norm(keyword)
     for titulo, _ in entradas:
         if titulo not in norm:
@@ -159,7 +203,7 @@ def dueno(keyword: str, entradas, hubs) -> tuple[dict, str]:
                      if not c.get("requiere_marca") or _menciona_marca(norm, c)]
         if not elegibles:
             continue        # título corto sin marca: no es suyo, sigue buscando
-        return _desempatar(norm, elegibles), titulo
+        return _desempatar(norm, elegibles, traccion), titulo
     # Sin título: es del hub de la marca que mencione.
     for slug, hub in hubs.items():
         if slug in norm or kw_norm(hub["owner_title"]) in norm:
@@ -195,9 +239,17 @@ def main() -> int:
     print(f"Universo deduplicado: {len(universo)} keywords únicas "
           f"(de {sum(1 for _ in csv.DictReader(src.open(encoding='utf-8')))} filas).")
 
+    traccion = cargar_traccion()
+    if traccion:
+        print(f"Tracción real de GSC cargada: {len(traccion)} URLs con datos. "
+              "Desempata qué versión de una canción se queda lo genérico.")
+    else:
+        print("Sin datos de GSC: el desempate entre versiones caerá al slug más "
+              "corto. Refresca con scripts.seo.gsc_fetch_page_queries.")
+
     por_owner: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for r in universo.values():
-        info, titulo = dueno(r["keyword"], entradas, hubs)
+        info, titulo = dueno(r["keyword"], entradas, hubs, traccion)
         fila = {
             "owner_type": info["owner_type"], "owner_slug": info["owner_slug"],
             "owner_title": info["owner_title"], "owner_url": info["owner_url"],
