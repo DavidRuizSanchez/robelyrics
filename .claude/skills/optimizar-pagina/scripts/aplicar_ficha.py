@@ -7,7 +7,10 @@
 Aborta si el gate de no-pérdida rechaza. Guarda copia del cuerpo anterior en
 /tmp/<slug>_backup.md antes de escribir.
 """
-import argparse, os, sys
+import argparse
+import os
+import re
+import sys
 sys.path.insert(0, "/app")
 os.environ["SEO_KEEP_PUBLISHED"] = "1"   # la página no se cae mientras se aplica
 from sqlalchemy import select, update
@@ -33,7 +36,17 @@ ent = db.execute(select(MODELO).where(MODELO.slug == slug)).scalar_one()
 c = db.execute(select(SeoContent).where(
     SeoContent.entity_type == tipo, SeoContent.entity_id == ent.id)).scalar_one()
 
-v = no_loss_verdict(c.body_md, nuevo)
+# Los cortes del propio disco NO cuentan como pérdida: la plantilla ya pinta la
+# sección «Canciones» con el tracklist entero enlazado (web/app/[artist]/[album]/
+# page.tsx), así que repetirlo en la prosa lo duplica en pantalla. Es el mismo
+# criterio que `content_guard` documenta y el que aplica `relink_existing`.
+propios = {u for u in re.findall(r"\]\((\S+?)\)", c.body_md or "")
+           if re.sub(r"^https?://[^/]+", "", u).startswith(f"/{slug}/")
+           or f"/{slug}/" in re.sub(r"^https?://[^/]+", "", u)}
+
+v = no_loss_verdict(c.body_md, nuevo, exempt_links=frozenset(propios))
+if propios:
+    print(f"exentos {len(propios)} enlace(s) a cortes del propio disco")
 print("gate no-pérdida:", v.resumen())
 if not v.ok:
     print("ABORTADO: la ficha NO se toca")

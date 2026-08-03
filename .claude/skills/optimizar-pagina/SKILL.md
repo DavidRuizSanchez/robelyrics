@@ -165,6 +165,14 @@ para el significado del título y dos para la portada.
   recogía.
 - **El orden se puede cambiar**: en Agila, «qué significa» abre el artículo
   porque es la pregunta más básica y tiene demanda propia.
+- **El tracklist NO se escribe en el cuerpo.** La plantilla ya pinta una sección
+  «Canciones» con todos los cortes enlazados
+  (`web/app/[artist]/[album]/page.tsx`), así que una lista numerada en el
+  markdown lo saca **dos veces en pantalla**. Medido el 03-08-2026: se publicó
+  así en tres fichas y hubo que corregirlo. Los cortes se citan en prosa cuando
+  aportan algo (de dónde viene ese corte, por qué está ahí), nunca como lista.
+  La temática «Tracklist y canciones» del diagnóstico ya sale **cubierta** por el
+  componente aunque el cuerpo no la mencione.
 - `meta_title` ≤ 60 y `meta_description` ≤ 155, con la keyword al principio y
   diciendo lo que la página responde de verdad.
 - **Ni un dato del original se cae.** Si condensas redundancia (en Agila, el
@@ -321,10 +329,19 @@ de lo que ya había publicado. La ficha nueva nunca puede ser más pobre que la 
 
 ## Avisos vivos del proyecto
 
-- **`relink_existing` (cron dominical) se come el tracklist.** Deshace todos los
-  enlaces markdown y re-enlaza con `max_links=4`. Las fichas de álbum llevan uno
-  por corte (Agila tiene 14) → **cada domingo pierden ~10 enlaces internos**. Es
-  un bug independiente de este skill, pero afecta a lo que optimices.
+- **`relink_existing` (cron dominical) rota los enlaces del cuerpo.** Deshace los
+  enlaces y re-enlaza con `max_links=4`. Que se lleve los cortes del disco **no
+  es un bug**: el componente de tracklist los sigue sirviendo (por eso
+  `content_guard` los exime y por eso no van en el cuerpo). Lo que **sí** era un
+  bug, corregido el 03-08-2026: desnudaba también los enlaces que el autolinker
+  no puede reponer —el índice del corpus solo tiene
+  album/artist/band/concept/person/place/song/theme—, así que `/sellos/warner` y
+  `/libros/de-profundis` se borraban cada domingo para siempre. Ahora solo se
+  desnuda lo que está en el índice.
+- **Con el tope de 4, una ficha larga no puede lucir todos sus enlaces.** Medido
+  en las 5 fichas optimizadas: Agila pasa de 6 a 4 cada domingo y Canciones
+  prohibidas cambia cuáles son. Es la regla editorial del Moat, no un fallo; pero
+  tenlo en cuenta antes de contar enlaces como logro.
 - **Citas a prensa vetada.** Algunas fichas viejas citan Mondo Sonoro o
   Rockdelux, que están en el veto de prensa comercial del proyecto. Si aparecen
   al revisar un cuerpo, señalarlo.
