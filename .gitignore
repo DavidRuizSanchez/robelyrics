@@ -66,3 +66,6 @@ RobeLyrics.zip
 # ----- Auditorías SEO locales (crawls, GSC, Ahrefs) -----
 seo-audit/
 api/kw_out/
+
+# copia de trabajo que deja `docker cp` del skill optimizar-pagina en el bind mount
+api/skill_diagnose.py

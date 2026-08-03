@@ -62,11 +62,26 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Fetch de queries por URL desde GSC.")
     ap.add_argument("--weeks", type=int, default=12)
     ap.add_argument("--out", default=None, help="ruta de salida (default data/gsc_page_queries.json)")
+    ap.add_argument("--permitir-vacio", action="store_true",
+                    help="escribir aunque GSC no devuelva ninguna página (solo para un sitio "
+                         "recién dado de alta, que todavía no tiene datos)")
     args = ap.parse_args()
 
     data = build_page_queries(args.weeks)
     if not data:
         return
+    # Un volcado sin páginas NO se escribe: cuando el token caduca, GSC devuelve
+    # cero filas y este job sobreescribía el JSON bueno con `"pages": {}` — y el
+    # rsync se lo llevaba a prod. El fichero anterior es dato real y viejo; el
+    # vacío no es dato ninguno. Salir con error corta la cadena del .sh.
+    if not data.get("pages") and not args.permitir_vacio:
+        logger.error(
+            "GSC no ha devuelto NINGUNA página. No se escribe nada para no machacar "
+            "el último volcado bueno. Causa habitual: el refresh_token caducó o fue "
+            "revocado (mira si arriba hay un WARNING '[gsc] no se pudo refrescar el "
+            "token'). Re-autoriza con: python -m scripts.seo.gsc_reauth"
+        )
+        raise SystemExit(1)
     data_dir = Path(args.out).parent if args.out else (
         Path(__file__).resolve().parents[2] / "data"
     )

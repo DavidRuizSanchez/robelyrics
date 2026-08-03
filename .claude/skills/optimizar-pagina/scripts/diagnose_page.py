@@ -244,6 +244,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--asset", required=True, help="tipo:slug — p.ej. album:agila")
     ap.add_argument("--run", help="run de kw_out (default: el más reciente)")
+    ap.add_argument("--body-file",
+                    help="medir la cobertura contra este cuerpo en vez del de la BD. "
+                         "La BD local está desfasada respecto a prod: sin esto, el "
+                         "diagnóstico marca como hueco lo que la página publicada ya cubre")
     ap.add_argument("--incluir", action="append", default=[],
                     help="incluir una familia excluida por defecto (compra|merch|descarga)")
     ap.add_argument("--json", action="store_true")
@@ -278,6 +282,10 @@ def main() -> int:
             )
         ).scalar_one_or_none()
         body = (seo.body_md if seo else "") or ""
+        origen_body = "BD local"
+        if args.body_file:
+            body = Path(args.body_file).read_text(encoding="utf-8")
+            origen_body = args.body_file
 
         kws = cargar_keywords(run, asset_type, slug)
         gsc, gsc_periodo = cargar_gsc(url_path)
@@ -354,6 +362,7 @@ def main() -> int:
         print(f"  contenido: {salida['palabras']} palabras · "
               f"{'publicado' if salida['publicado'] else 'BORRADOR'} · "
               f"target_kw: {salida['target_keyword'] or '— (sin asignar)'}")
+        print(f"  cuerpo medido: {origen_body}")
         if not salida["meta_title"]:
             print("  ⚠️  meta_title VACÍO")
         print(f"  research:  {salida['keywords_totales']} keywords · "
