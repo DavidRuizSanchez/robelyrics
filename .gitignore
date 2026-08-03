@@ -55,7 +55,13 @@ data/cache/
 
 # ----- Assets del rediseño (no se commitean al repo) -----
 RobeLyrics.zip
-.claude/
+# Config local de Claude Code (settings.local.json y demás), PERO los skills
+# del proyecto sí se versionan: son método de trabajo, no ajustes personales.
+# Ojo: git no puede re-incluir nada dentro de un directorio excluido entero,
+# así que hay que excluir el CONTENIDO (.claude/*) y no el directorio.
+.claude/*
+!.claude/skills/
+
 
 # ----- Auditorías SEO locales (crawls, GSC, Ahrefs) -----
 seo-audit/
