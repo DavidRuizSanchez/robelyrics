@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from datetime import date, datetime, timezone
@@ -156,6 +157,26 @@ def pendientes(db: Session, max_intentos: int = 3) -> list[VideoClip]:
 # --------------------------------------------------------------------------- #
 # Descarga y montaje — SOLO en la máquina local (IP residencial)
 # --------------------------------------------------------------------------- #
+def runtime_js_para_ytdlp() -> dict:
+    """Le dice a yt-dlp qué intérprete de JavaScript usar, si hay alguno.
+
+    YouTube firma las URLs de vídeo con un desafío que hay que resolver
+    ejecutando JavaScript. Sin intérprete, yt-dlp devuelve URLs que caducan y la
+    descarga muere con un **403** — que ffmpeg reporta como «exited with code 8»,
+    un mensaje que no dice nada de la causa real. Pasó el 03-08-2026 con el clip
+    de `a3gZ65Zh3aQ`, y el aviso estaba en el log: «No supported JavaScript
+    runtime could be found».
+
+    yt-dlp solo habilita `deno` por defecto. Aquí se le ofrece lo que haya en la
+    máquina; si no hay nada, se devuelve vacío y se comporta como antes, porque
+    forzar un runtime inexistente daría un error peor y más confuso.
+    """
+    for nombre in ("deno", "node", "bun"):
+        if shutil.which(nombre):
+            return {"js_runtimes": {nombre: {}}}
+    return {}
+
+
 def _ffmpeg(args: list[str]) -> None:
     proc = subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", *args],
@@ -200,6 +221,7 @@ def descargar_y_recortar(
                 None, [(start_s, end_s)]
             ),
             "force_keyframes_at_cuts": True,
+            **runtime_js_para_ytdlp(),
         }
         with yt_dlp.YoutubeDL(opciones) as ydl:
             info = ydl.extract_info(url, download=True)

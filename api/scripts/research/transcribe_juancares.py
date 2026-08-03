@@ -98,12 +98,24 @@ def export_json(out_path: str) -> int:
     return len(data)
 
 
+def _flags_runtime_js() -> list[str]:
+    """El intérprete de JavaScript que haya, para que yt-dlp firme las URLs."""
+    import shutil
+    for nombre in ("deno", "node", "bun"):
+        if shutil.which(nombre):
+            return ["--js-runtimes", nombre]
+    return []
+
+
 def download_audio(video_id: str, tmpdir: str) -> str | None:
     url = f"https://www.youtube.com/watch?v={video_id}"
     out_tmpl = os.path.join(tmpdir, "audio.%(ext)s")
     subprocess.run(
+        # `--js-runtimes`: YouTube firma las URLs con un desafío en JavaScript y
+        # sin intérprete la descarga acaba en 403. yt-dlp solo habilita `deno`
+        # por defecto; aquí se le ofrece lo que haya instalado.
         ["yt-dlp", "-f", "bestaudio", "--no-playlist", "--quiet", "--no-warnings",
-         "-o", out_tmpl, url],
+         *_flags_runtime_js(), "-o", out_tmpl, url],
         check=True,
     )
     files = [f for f in os.listdir(tmpdir) if f.startswith("audio.")]
