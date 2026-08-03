@@ -292,6 +292,7 @@ def no_loss_verdict(
     strict_especulacion: bool = True,
     exempt_links: frozenset[str] | set[str] | None = None,
     exempt_verses: frozenset[str] | set[str] | None = None,
+    exempt_years: frozenset[str] | set[str] | None = None,
 ) -> LossVerdict:
     """¿Se puede sustituir `original` por `nuevo` sin perder nada?
 
@@ -311,12 +312,21 @@ def no_loss_verdict(
     Sonoro, Efe Eme, Rockdelux— no se podía limpiar: el gate exigía conservar
     justo lo que hay que quitar. Quien llama pasa aquí las citas que ha decidido
     retirar, y responde de esa decisión; todo lo demás sigue bloqueando igual.
+
+    `exempt_years` son años que se retiran porque eran FALSOS. El gate no puede
+    saberlo: para él un año es un dato y perderlo bloquea. Caso real: «Rock
+    Transgresivo» se publicó en 1994 y 1989 es la fecha de la MAQUETA, pero 32
+    fichas generadas antes de corregir el catálogo lo citaban como el año del
+    disco. Sustituir 1989 por 1994 se leía como «pierde 1 año del original» y
+    dejaba el dato falso en producción. Quien llama declara aquí el año que
+    retira a sabiendas; los demás siguen bloqueando.
     """
     o, n = original or "", nuevo or ""
     ratio = len(n) / max(len(o), 1)
     fo, fn = extract_facts(o), extract_facts(n)
     exentos = frozenset(exempt_links or ())
     versos_exentos = frozenset(_norm(x) for x in (exempt_verses or ()))
+    anios_exentos = frozenset(str(x) for x in (exempt_years or ()))
 
     v = LossVerdict(ok=False, ratio=round(ratio, 3))
     # Una cita no se pierde si su texto SIGUE en el cuerpo nuevo, aunque sea sin
@@ -329,7 +339,7 @@ def no_loss_verdict(
         if x not in cuerpo_nuevo_norm and x not in versos_exentos
     ])
     v.lost_links = len((fo.links - fn.links) - exentos)
-    v.lost_years = len(fo.years - fn.years)
+    v.lost_years = len((fo.years - fn.years) - anios_exentos)
 
     if v.lost_verses:
         v.reason = f"pierde {v.lost_verses} verso(s) citado(s)"

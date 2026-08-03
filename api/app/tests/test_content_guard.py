@@ -217,3 +217,33 @@ def test_la_exencion_de_citas_no_abre_la_mano_con_las_demas():
 
     assert not v.ok
     assert v.lost_verses == 1
+
+
+def test_un_ano_falso_se_puede_corregir_a_proposito():
+    """Sustituir un año MAL por el bueno no es perder un dato.
+
+    Caso real: «Rock Transgresivo» salió en 1994 y 1989 es la fecha de la
+    maqueta, pero 32 fichas generadas antes de corregir el catálogo lo citaban
+    como el año del disco. El gate leía el cambio como «pierde 1 año del
+    original» y dejaba el dato falso publicado.
+    """
+    viejo = 'En "Decidí", del álbum *Rock Transgresivo* (1989), el mar simboliza la lucha.'
+    nuevo = 'En "Decidí", del álbum *Rock Transgresivo* (1994), el mar simboliza la lucha.'
+
+    bloquea = no_loss_verdict(viejo, nuevo)
+    assert not bloquea.ok
+    assert "año" in (bloquea.reason or "")
+
+    pasa = no_loss_verdict(viejo, nuevo, exempt_years={"1989"})
+    assert pasa.ok, pasa.reason
+
+
+def test_la_exencion_de_anos_no_abre_la_mano_con_los_demas():
+    """Eximir 1989 no puede dejar colar la pérdida de otro año."""
+    viejo = "Se grabó en 1989 y se publicó en 1994, con gira en 1995."
+    nuevo = "Se publicó en 1994."
+
+    v = no_loss_verdict(viejo, nuevo, exempt_years={"1989"})
+
+    assert not v.ok
+    assert v.lost_years == 1  # 1995 sigue contando
