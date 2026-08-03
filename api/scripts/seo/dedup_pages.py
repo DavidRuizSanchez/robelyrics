@@ -229,7 +229,12 @@ def main() -> None:
                 sc = db.get(SeoContent, r["id"])
                 sc.body_md = r["deduped"]
                 sc.generated_at = datetime.now(timezone.utc)
-                sc.generated_by = "dedup-" + (sc.generated_by or "")
+                # Marca de procedencia, no un historial: anteponer el prefijo cada
+                # vez daba «dedup-dedup-dedup-dedup-dedup-gpt-4o» y a la quinta
+                # pasada reventaba el VARCHAR(32) con StringDataRightTruncation,
+                # abortando el lote entero a mitad.
+                previo = (sc.generated_by or "").removeprefix("dedup-")
+                sc.generated_by = f"dedup-{previo}"[:32]
                 db.commit()
                 applied += 1
                 logger.info("  ✓ %s/%s: %s", r["type"], r["slug"], r["reason"])
