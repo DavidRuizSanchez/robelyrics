@@ -104,6 +104,32 @@ def _wikipedia_page_image(
     return None
 
 
+def _recorta_por_frase(texto: str, maximo: int) -> str:
+    """Recorta sin partir una frase, y nunca a mitad de palabra.
+
+    Un `texto[:500]` a pelo puede cambiar lo que el texto DICE. Pasó de verdad:
+    la bio de Uoho se cortó en «…la banda Inconscientes, su etapa como vocalista
+    principa», y la frase entera era «…su etapa como vocalista principal EN SU
+    BREVE PROYECTO SOLISTA UOHO». Ese recorte convirtió un dato correcto en uno
+    falso —que era el cantante de Inconscientes, cuando lo era Jon Calvo— y así
+    salió publicado en Instagram, donde un seguidor tuvo que corregirlo.
+
+    Se corta en el último final de frase que quepa. Si no hay ninguno, en el
+    último espacio, con puntos suspensivos para que se vea que sigue.
+    """
+    t = " ".join((texto or "").split())
+    if len(t) <= maximo:
+        return t
+    corte = t[:maximo]
+    # Último cierre de frase real: puntuación seguida de espacio.
+    fin = max(corte.rfind(". "), corte.rfind("! "), corte.rfind("? "),
+              corte.rfind("… "))
+    if fin > maximo * 0.5:          # que no deje un resto ridículo
+        return corte[:fin + 1].strip()
+    hueco = corte.rfind(" ")
+    return (corte[:hueco].rstrip(" ,;:") + "…") if hueco > 0 else corte
+
+
 def _wikipedia_extract(client: httpx.Client, wikipedia_url: str) -> str | None:
     """Devuelve el primer párrafo de la página ES (1-2 frases)."""
     if "/wiki/" not in wikipedia_url:
@@ -463,7 +489,7 @@ def main() -> None:
                         try:
                             extract = _wikipedia_extract(http, person.wikipedia_url)
                             if extract:
-                                person.bio_short = extract[:500]
+                                person.bio_short = _recorta_por_frase(extract, 500)
                         except httpx.HTTPError as e:
                             logger.warning("  wikipedia extract failed: %s", e)
 
