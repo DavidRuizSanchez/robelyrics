@@ -295,7 +295,11 @@ def main() -> None:
                 sc = db.get(SeoContent, r["id"])
                 sc.body_md = r["new"]
                 sc.generated_at = datetime.now(timezone.utc)
-                sc.generated_by = "derepeat-" + (sc.generated_by or "")
+                # Marca de procedencia, no historial: anteponer el prefijo en cada
+                # pasada acaba desbordando el VARCHAR(32) y abortando el lote a
+                # mitad. Mismo fallo que tenía `dedup_pages`.
+                previo = (sc.generated_by or "").removeprefix("derepeat-")
+                sc.generated_by = f"derepeat-{previo}"[:32]
                 db.commit(); ok += 1
                 logger.info("  ✓ %s/%s: %s", r["type"], r["slug"], r["reason"])
         logger.info("De-repetición: %d aplicadas · %d saltadas · de %d", ok, skip, len(results))
