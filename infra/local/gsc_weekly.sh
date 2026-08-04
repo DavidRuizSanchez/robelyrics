@@ -27,15 +27,32 @@ if ! mkdir "$LOCKDIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT INT TERM
 
+# Un fallo aquí se quedaba en /tmp/entreinteriores-gsc-weekly.log, que no lee
+# nadie: el job moría en silencio y los datos de GSC se quedaban congelados sin
+# que se notara. Como esto corre en la Mac, el aviso va al centro de
+# notificaciones, que es donde sí se ve.
+avisar() {
+  echo "[gsc-weekly] AVISO: $1"
+  osascript -e "display notification \"$1\" with title \"RobeLyrics · GSC\" sound name \"Basso\"" \
+    >/dev/null 2>&1 || true
+}
+
 if [ ! -f "$TOKEN" ]; then
-  echo "[gsc-weekly] sin token en $TOKEN; salgo"; exit 0
+  avisar "No hay token en $TOKEN. Recréalo: python -m scripts.seo.gsc_reauth"
+  exit 1
 fi
 
 cd "$REPO" || exit 0
 
 echo "[gsc-weekly $(date -u +%F\ %H:%M)] fetch GSC (12 semanas)…"
-PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.gsc_fetch_page_queries \
-  --weeks 12 --out "$REPO/data/gsc_page_queries.json" || { echo "fetch falló"; exit 1; }
+if ! PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.gsc_fetch_page_queries \
+     --weeks 12 --out "$REPO/data/gsc_page_queries.json"; then
+  # Causa casi segura: `invalid_grant`. El token caduca a los SIETE DÍAS mientras
+  # la app OAuth siga en modo *Testing* en Cloud Console. Publicarla quita el
+  # límite y esto deja de pasar; renovar a mano solo compra otra semana.
+  avisar "El fetch de GSC falló (token caducado?). Arréglalo con: python -m scripts.seo.gsc_reauth · Definitivo: publica la app OAuth en Cloud Console y deja de caducar cada 7 días."
+  exit 1
+fi
 
 echo "[gsc-weekly] rsync del JSON a prod…"
 rsync -az "$REPO/data/gsc_page_queries.json" "$REPO/data/gsc_queries.json" \
