@@ -11,7 +11,8 @@ import argparse, json, sys
 sys.path.insert(0, "/app")
 from sqlalchemy import select
 from app.db.session import SessionLocal
-from app.db.models import Album, Artist, SeoContent, Song
+from app.db.models import (Album, Artist, Band, Concept, Person, Place,  # noqa: F401
+                           SeoContent, Song, Theme)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--asset", required=True, help="tipo:slug")
@@ -19,7 +20,8 @@ a = ap.parse_args()
 tipo, slug = a.asset.split(":", 1)
 
 db = SessionLocal()
-MODELO = {"album": Album, "song": Song, "artist": Artist}[tipo]
+MODELO = {"album": Album, "song": Song, "artist": Artist, "person": Person,
+          "place": Place, "theme": Theme, "concept": Concept, "band": Band}[tipo]
 ent = db.execute(select(MODELO).where(MODELO.slug == slug)).scalar_one()
 c = db.execute(select(SeoContent).where(
     SeoContent.entity_type == tipo, SeoContent.entity_id == ent.id)).scalar_one()

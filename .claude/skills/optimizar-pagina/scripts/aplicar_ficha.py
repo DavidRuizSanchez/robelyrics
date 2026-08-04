@@ -15,7 +15,8 @@ sys.path.insert(0, "/app")
 os.environ["SEO_KEEP_PUBLISHED"] = "1"   # la página no se cae mientras se aplica
 from sqlalchemy import select, update
 from app.db.session import SessionLocal
-from app.db.models import Album, Artist, SeoContent, Song
+from app.db.models import (Album, Artist, Band, Concept, Person, Place,  # noqa: F401
+                           SeoContent, Song, Theme)
 from app.services.content_guard import find_especulacion, no_loss_verdict
 from scripts.seo.common import upsert_seo_content
 
@@ -37,7 +38,8 @@ tipo, slug = args.asset.split(":", 1)
 
 nuevo = open(args.body, encoding="utf-8").read()
 db = SessionLocal()
-MODELO = {"album": Album, "song": Song, "artist": Artist}[tipo]
+MODELO = {"album": Album, "song": Song, "artist": Artist, "person": Person,
+          "place": Place, "theme": Theme, "concept": Concept, "band": Band}[tipo]
 ent = db.execute(select(MODELO).where(MODELO.slug == slug)).scalar_one()
 c = db.execute(select(SeoContent).where(
     SeoContent.entity_type == tipo, SeoContent.entity_id == ent.id)).scalar_one()
