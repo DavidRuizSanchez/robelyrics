@@ -12,7 +12,11 @@ from datetime import datetime, timedelta, timezone
 from app.db.models import ErrataReport, NotificationDigest
 from scripts import notify_review as nr
 
-_NOW = datetime(2026, 7, 27, 9, 15, tzinfo=timezone.utc)
+# Anclado al reloj real, no a una fecha escrita a mano: `_should_send` compara
+# `sent_at` contra `datetime.now()`, así que con un _NOW fijo el test empezaba a
+# fallar solo al pasar DIGEST_REMINDER_DAYS de la fecha en que se escribió (se vio
+# el 04-09-2026: el digest "de ayer" tenía 39 días y disparaba el recordatorio).
+_NOW = datetime.now(timezone.utc)
 
 
 class _DB:
