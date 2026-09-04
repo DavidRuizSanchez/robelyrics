@@ -1,0 +1,22 @@
+# Rotación del log del cron de Entre Interiores.
+#
+# No existía: el fichero llevaba desde el arranque acumulando (8,4 MB el
+# 04-09-2026) y es donde acaba TODO —agregador, blog, Instagram, auditorías—,
+# así que crece a ritmo constante y nadie lo purga.
+#
+# Instalar en el host:
+#   sudo cp infra/logrotate/robelyrics /etc/logrotate.d/robelyrics
+#   sudo logrotate -d /etc/logrotate.d/robelyrics   # comprobar en seco
+#
+# `copytruncate` porque los procesos del cron escriben con >> y no hay ningún
+# demonio al que mandarle un HUP para que reabra el fichero.
+/var/log/robelyrics-cron.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su root root
+}
