@@ -1,9 +1,10 @@
-"""Detección de vídeos nuevos para ingerir al corpus (Juancares + entrevistas).
+"""Detección de vídeos nuevos para ingerir al corpus (canales + entrevistas).
 
 Corre en el SERVER (cron cada 3 días). NO descarga ni transcribe nada (la IP del
 datacenter dispara el antibot de YouTube): solo DETECTA y AVISA.
 
-  1. Lista los uploads de @juancaraes (YouTube Data API) → target=corpus.
+  1. Lista los uploads de cada canal con `ingest: true` en data/sources.yaml
+     (YouTube Data API) → target=corpus.
   2. Siembra las entrevistas de Robe de data/robe_interviews.yaml (medium=video)
      → target=robe_voice, kind=robe_interview|about_robe según author_is_robe.
   3. Deduplica contra lo ya encolado y lo ya ingerido (interpretation_sources).
@@ -12,11 +13,19 @@ datacenter dispara el antibot de YouTube): solo DETECTA y AVISA.
      marca el batch como `approved`. A partir de ahí, el daemon local de la Mac
      (IP residencial) los transcribe y empuja a prod.
 
+Un canal puede no ser monotemático. @juancaraes lo es (`relevance: all`), pero
+@tesonica sube sobre todo metal y solo una parte va de Extremoduro, así que lleva
+`relevance: catalog` y pasa por `app.services.youtube_relevance`: se encola lo que
+menciona a Robe/Extremoduro o un título del catálogo. El MOTIVO de cada match va
+en el email, que es donde se aprueba de verdad.
+
 Uso:
     python -m scripts.youtube.detect_uploads
     python -m scripts.youtube.detect_uploads --dry-run        # no inserta, no envía
     python -m scripts.youtube.detect_uploads --limit 5        # tope de uploads (smoke)
-    python -m scripts.youtube.detect_uploads --no-juancares   # solo entrevistas yaml
+    python -m scripts.youtube.detect_uploads --only-channel @tesonica
+    python -m scripts.youtube.detect_uploads --skip-channel @juancaraes
+    python -m scripts.youtube.detect_uploads --no-interviews  # solo canales
 """
 from __future__ import annotations
 
@@ -30,7 +39,8 @@ import yaml
 
 from app.config import get_settings
 from app.db.models import InterpretationSource, YouTubeIngestQueue
-from scripts.research.common import DATA_DIR, get_session
+from app.services.youtube_relevance import build_vocab, is_relevant
+from scripts.research.common import DATA_DIR, get_session, load_sources_yaml
 from scripts.research.fetch_youtube import (
     get_uploads_playlist,
     list_videos,
@@ -41,8 +51,6 @@ from scripts.research.fetch_youtube import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-HANDLE = "juancaraes"
-JUANCARES_AUTHOR = "Juancares"
 # kinds que viven en el corpus por video_id (para dedup contra lo ya ingerido).
 INGESTED_KINDS = ("youtube_transcript", "robe_interview", "about_robe")
 
@@ -71,33 +79,67 @@ def _queued_ids(db) -> set[str]:
     return {vid for (vid,) in rows}
 
 
-def _juancares_candidates(limit: int | None) -> list[dict]:
-    """Uploads de @juancaraes → filas target=corpus."""
+def _ingest_channels() -> list[dict]:
+    """Canales de data/sources.yaml marcados con `ingest: true`."""
+    entries = load_sources_yaml().get("youtube") or []
+    return [e for e in entries if isinstance(e, dict) and e.get("ingest")]
+
+
+def _handle_of(cfg: dict) -> str:
+    """Handle sin la arroba (lo que espera resolve_channel_id)."""
+    return (cfg.get("handle") or cfg.get("name") or "").lstrip("@")
+
+
+def _channel_candidates(cfg: dict, limit: int | None, vocab) -> list[dict]:
+    """Uploads de un canal → filas target=corpus, filtradas según `relevance`.
+
+    El dict lleva una clave `reasons` que NO es columna del modelo: la consume el
+    email y `main` la retira antes de construir la fila.
+    """
+    handle = _handle_of(cfg)
     settings = get_settings()
     if not settings.youtube_api_key:
-        logger.warning("YOUTUBE_API_KEY no configurada: salto Juancares")
+        logger.warning("YOUTUBE_API_KEY no configurada: salto @%s", handle)
         return []
     with httpx.Client(timeout=30) as c:
-        cid = resolve_channel_id(c, settings.youtube_api_key, HANDLE)
+        cid = resolve_channel_id(c, settings.youtube_api_key, handle)
         if not cid:
-            logger.warning("canal @%s no resuelto", HANDLE)
+            logger.warning("canal @%s no resuelto", handle)
             return []
         pl = get_uploads_playlist(c, settings.youtube_api_key, cid)
         if not pl:
             return []
         videos = list_videos(c, settings.youtube_api_key, pl, limit=limit)
+
+    filtra = (cfg.get("relevance") or "all") != "all"
+    use_desc = bool(cfg.get("match_description"))
+    author = cfg.get("ingest_author") or cfg.get("name") or handle
+
     out = []
     for v in videos:
+        reasons: list[str] = []
+        if filtra:
+            ok, reasons = is_relevant(
+                v.get("title"), v.get("description"),
+                vocab=vocab, use_description=use_desc,
+            )
+            if not ok:
+                continue
         out.append({
             "video_id": v["video_id"],
             "url": f"https://www.youtube.com/watch?v={v['video_id']}",
             "title": v.get("title"),
-            "channel": HANDLE,
+            "channel": handle,
             "target": "corpus",
             "kind": "youtube_transcript",
-            "author": JUANCARES_AUTHOR,
+            "author": author,
             "published_at": parse_iso(v.get("published_at")),
+            "reasons": reasons,
         })
+    logger.info(
+        "@%s: %d uploads · %d relevantes%s",
+        handle, len(videos), len(out), "" if filtra else " (sin filtro)",
+    )
     return out
 
 
@@ -125,11 +167,14 @@ def _robe_interview_candidates() -> list[dict]:
             "kind": "robe_interview" if is_robe else "about_robe",
             "author": entry.get("author"),
             "published_at": None,
+            "reasons": ["inventario robe_interviews.yaml"],
         })
     return out
 
 
-def _send_email(new_rows: list[YouTubeIngestQueue]) -> None:
+def _send_email(
+    new_rows: list[YouTubeIngestQueue], reasons_by_vid: dict[str, list[str]] | None = None
+) -> None:
     from app.services.auth import create_youtube_ingest_token
     from app.services.email import EmailError, send_email
 
@@ -142,15 +187,32 @@ def _send_email(new_rows: list[YouTubeIngestQueue]) -> None:
     token = create_youtube_ingest_token([r.id for r in new_rows])
     approve_url = f"{site}/api/public/youtube-ingest?token={token}"
 
-    corpus = [r for r in new_rows if r.target == "corpus"]
+    reasons_by_vid = reasons_by_vid or {}
     voice = [r for r in new_rows if r.target == "robe_voice"]
+    # El corpus se agrupa por canal: con varios canales barriéndose, saber de quién
+    # es cada vídeo es lo que permite decidir si aprobarlo.
+    corpus_by_channel: dict[str, list[YouTubeIngestQueue]] = {}
+    for r in new_rows:
+        if r.target == "corpus":
+            corpus_by_channel.setdefault(r.channel or "?", []).append(r)
+
+    def _why(r: YouTubeIngestQueue) -> str:
+        """Motivo del match, en pequeño y bajo el título."""
+        rs = reasons_by_vid.get(r.video_id) or []
+        if not rs:
+            return ""
+        txt = " · ".join(rs[:2])
+        return (
+            f'<div style="font-family:\'Courier New\',monospace;font-size:10px;'
+            f'color:rgba(237,228,211,0.45);margin:2px 0 0;">{txt}</div>'
+        )
 
     def _section(titulo: str, rows: list[YouTubeIngestQueue]) -> str:
         if not rows:
             return ""
         lis = "".join(
             f'<li style="margin:0 0 8px;font-family:Georgia,serif;font-size:15px;'
-            f'color:#ede4d3;">{(r.title or r.video_id)}</li>'
+            f'color:#ede4d3;">{(r.title or r.video_id)}{_why(r)}</li>'
             for r in rows
         )
         return (
@@ -176,7 +238,7 @@ def _send_email(new_rows: list[YouTubeIngestQueue]) -> None:
       Con un click los apruebas. Tu Mac los descargará, transcribirá y subirá sola
       (IP residencial). Nada se descarga desde el servidor.
     </p>
-    {_section("Juancares (corpus)", corpus)}
+    {"".join(_section(f"@{ch} (corpus)", rows) for ch, rows in sorted(corpus_by_channel.items()))}
     {_section("Entrevistas de Robe (voz)", voice)}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
       <a href="{approve_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
@@ -187,11 +249,17 @@ def _send_email(new_rows: list[YouTubeIngestQueue]) -> None:
 </body>
 </html>"""
     text_lines = [f"{n} vídeos nuevos para ingerir.", ""]
-    for label, rows in (("JUANCARES", corpus), ("ENTREVISTAS DE ROBE", voice)):
+    secciones = [(f"@{ch}", rows) for ch, rows in sorted(corpus_by_channel.items())]
+    secciones.append(("ENTREVISTAS DE ROBE", voice))
+    for label, rows in secciones:
         if not rows:
             continue
         text_lines.append(f"== {label} ({len(rows)}) ==")
-        text_lines += [f"· {(r.title or r.video_id)}" for r in rows]
+        for r in rows:
+            text_lines.append(f"· {(r.title or r.video_id)}")
+            rs = reasons_by_vid.get(r.video_id) or []
+            if rs:
+                text_lines.append(f"    ↳ {' · '.join(rs[:2])}")
         text_lines.append("")
     text_lines.append(f"Aprobar e ingerir: {approve_url}")
     try:
@@ -209,14 +277,40 @@ def _send_email(new_rows: list[YouTubeIngestQueue]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true", help="No inserta ni envía email.")
-    ap.add_argument("--limit", type=int, default=None, help="Tope de uploads Juancares.")
-    ap.add_argument("--no-juancares", action="store_true", help="Solo entrevistas yaml.")
-    ap.add_argument("--no-interviews", action="store_true", help="Solo Juancares.")
+    ap.add_argument("--limit", type=int, default=None, help="Tope de uploads por canal.")
+    ap.add_argument("--only-channel", default=None, help="Solo este handle (p.ej. @tesonica).")
+    ap.add_argument("--skip-channel", action="append", default=[], help="Excluir handle (repetible).")
+    ap.add_argument("--no-channels", action="store_true", help="Solo entrevistas yaml.")
+    ap.add_argument("--no-interviews", action="store_true", help="Solo canales.")
+    # Alias históricos: el cron y la documentación vieja los usan.
+    ap.add_argument("--no-juancares", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
 
+    skip = {h.lstrip("@") for h in args.skip_channel}
+    if args.no_juancares:
+        skip.add("juancaraes")
+    only = args.only_channel.lstrip("@") if args.only_channel else None
+
     candidates: list[dict] = []
-    if not args.no_juancares:
-        candidates += _juancares_candidates(args.limit)
+    if not args.no_channels:
+        channels = [
+            cfg for cfg in _ingest_channels()
+            if _handle_of(cfg) not in skip and (only is None or _handle_of(cfg) == only)
+        ]
+        if not channels:
+            logger.warning("ningún canal con ingest: true que barrer")
+        # El vocabulario del filtro se deriva de la BD una sola vez por pasada.
+        needs_vocab = any((cfg.get("relevance") or "all") != "all" for cfg in channels)
+        vocab = None
+        if needs_vocab:
+            with get_session() as db:
+                vocab = build_vocab(db)
+            logger.info(
+                "vocabulario de relevancia: %d títulos distintivos · %d cortos",
+                len(vocab.distinctive), len(vocab.short),
+            )
+        for cfg in channels:
+            candidates += _channel_candidates(cfg, args.limit, vocab)
     if not args.no_interviews:
         candidates += _robe_interview_candidates()
 
@@ -241,10 +335,23 @@ def main() -> None:
             return
         if args.dry_run:
             for c in fresh:
-                logger.info("  + [%s/%s] %s", c["target"], c["kind"], (c["title"] or c["video_id"]))
+                logger.info(
+                    "  + [%s/%s · @%s] %s",
+                    c["target"], c["kind"], c.get("channel") or "?",
+                    (c["title"] or c["video_id"]),
+                )
+                for r in (c.get("reasons") or [])[:3]:
+                    logger.info("        ↳ %s", r)
             return
 
-        new_rows = [YouTubeIngestQueue(status="detected", **c) for c in fresh]
+        # `reasons` es contexto para el email, no una columna del modelo.
+        reasons_by_vid = {c["video_id"]: (c.get("reasons") or []) for c in fresh}
+        new_rows = [
+            YouTubeIngestQueue(
+                status="detected", **{k: v for k, v in c.items() if k != "reasons"}
+            )
+            for c in fresh
+        ]
         db.add_all(new_rows)
         db.flush()  # asigna ids antes de firmar el token
         ids = [r.id for r in new_rows]
@@ -257,7 +364,7 @@ def main() -> None:
             .filter(YouTubeIngestQueue.id.in_(ids))
             .all()
         )
-        _send_email(rows)
+        _send_email(rows, reasons_by_vid)
 
 
 if __name__ == "__main__":

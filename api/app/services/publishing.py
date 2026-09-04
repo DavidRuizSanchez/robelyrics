@@ -200,6 +200,15 @@ def propose_for_review(
             new_body, build_corpus_index(db), max_links=4,
             link_stats=load_link_stats(),
         )
+        # Después del autolink, no antes: el autolink también mete URLs (esas,
+        # construidas desde la BD, pasan limpias) y lo que hay que cazar son las
+        # que se inventó el LLM al escribir el cuerpo.
+        from app.services.url_resolver import guard_internal_links
+
+        _links = guard_internal_links(db, new_body)
+        if _links.changed:
+            logger.info("Post %s: enlaces internos → %s", post.id, _links.summary())
+            new_body = _links.body_md
         if new_body != post.body_md:
             post.body_md = new_body
             logger.info("Post %s: headings normalizados + autolink corpus", post.id)
@@ -346,6 +355,21 @@ def auto_publish_post(
                 db.flush()
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish embed-youtube falló: %s", exc)
+
+    # Gate de ENLACES INTERNOS (universal, NO bloqueante): una ruta inventada por
+    # el LLM se reapunta a la real o se desenlaza. Va aquí, en el tronco común de
+    # TODOS los caminos de publicación (efeméride, manual, cron), que es donde
+    # están el resto de cortafuegos. Los cuatro que ya había miran el TEXTO;
+    # este es el único que mira la URL.
+    if post.body_md:
+        from app.services.url_resolver import guard_internal_links
+
+        _links = guard_internal_links(db, post.body_md)
+        if _links.changed:
+            logger.info("auto_publish: enlaces del post %s → %s",
+                        post.id, _links.summary())
+            post.body_md = _links.body_md
+            db.flush()
 
     # Gate de RIGOR editorial (universal, BLOQUEANTE): si la pieza es genérica o
     # pura paja y no se puede salvar tensando, NO se publica → revisión humana.

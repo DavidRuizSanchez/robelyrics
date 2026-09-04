@@ -20,6 +20,14 @@ export type Track = {
   track_number: number | null;
   has_interpretation: boolean;
   youtube_id?: string | null;
+  // Solo en discos que no son de estudio (directos, recopilatorios, singles):
+  // el tracklist es referencial y el corte apunta a la grabación original, que
+  // vive en otro disco. Sin `path`, componer la ruta con el álbum actual daría
+  // un 404. `path` es null cuando el corte no casó con ninguna canción.
+  path?: string | null;
+  from_album?: string | null;
+  from_year?: number | null;
+  is_rerecording?: boolean | null;
 };
 
 export type AlbumDetail = Album & {
@@ -169,6 +177,14 @@ export type PublicTrackOut = {
   youtube_id: string | null;
   duration_sec: number | null;
   youtube_duration_sec: number | null;
+  // Solo en discos que no son de estudio (directos, recopilatorios, singles):
+  // el tracklist es referencial y el corte apunta a la grabación original, que
+  // vive en OTRO disco. Sin `path`, componer la ruta con el álbum actual da un
+  // 404. Es null cuando el corte no casó con ninguna canción del catálogo.
+  path?: string | null;
+  from_album?: string | null;
+  from_year?: number | null;
+  is_rerecording?: boolean | null;
 };
 
 export type PublicArtistMember = {
@@ -213,6 +229,17 @@ export type PublicArtistDetail = PublicArtistOut & {
 export type PublicAlbumDetail = PublicAlbumOut & {
   artist: PublicArtistOut;
   tracks: PublicTrackOut[];
+  /**
+   * La imagen que se muestra es la CONTRAPORTADA, no la portada. Solo pasa con
+   * «Tú en tu casa, nosotros en la hoguera», cuya portada original no circula.
+   */
+  cover_is_back?: boolean;
+  /**
+   * Ruta real de la ficha, derivada de la BD. Se compara con la URL que sirvió
+   * la página: si no casan, se redirige. Es lo que impide servir un 200 con la
+   * canción de un disco y el contexto de otro.
+   */
+  canonical_path: string;
   release_date: string | null;
   seo_body: string | null;
   seo_meta_title: string | null;
@@ -254,6 +281,8 @@ export type PublicSongDetail = {
   track_number: number | null;
   artist: PublicArtistOut;
   album: PublicAlbumOut;
+  /** Ver `PublicAlbumDetail.canonical_path`. */
+  canonical_path: string;
   /** Cover propia de la canción si tiene single/clip con artwork distinto. */
   cover_url: string | null;
   snippet: string[];

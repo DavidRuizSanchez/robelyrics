@@ -253,6 +253,22 @@ class CatalogIndex:
         return sorted(pool, key=lambda r: r.album_year)[0]
 
 
+def _base_song_title(title: str) -> str:
+    """«Emparedado (Rock Transgresivo)» → «Emparedado».
+
+    Quita SOLO un sufijo final entre paréntesis, que es como el catálogo
+    distingue la misma canción en distintos discos. Los títulos cuyo paréntesis
+    forma parte del nombre («Coda Flamenca (Otra Realidad)») también se indexan
+    por su base, lo cual es inofensivo: se añade una entrada más al índice, y
+    ambas siguen resolviendo al mismo disco.
+    """
+    t = (title or "").strip()
+    if not t.endswith(")") or "(" not in t:
+        return t
+    base = t.rpartition("(")[0].strip()
+    return base or t
+
+
 def build_catalog_index(db: Session) -> CatalogIndex:
     """Construye el índice canción/álbum/libro desde BD. Una sola pasada."""
     from app.db.models import Album, Artist, Book, Song
@@ -272,6 +288,16 @@ def build_catalog_index(db: Session) -> CatalogIndex:
             original_album_slug=orig_slug, original_year=orig_year,
         )
         songs.setdefault(_norm(song_title), []).append(ref)
+        # Una misma canción vive en varios discos y el catálogo las distingue con
+        # un sufijo entre paréntesis: «Emparedado (Rock Transgresivo)»,
+        # «Deltoya (En Directo)». Sin indexar TAMBIÉN por el título base, buscar
+        # «Emparedado» solo encontraba una de sus apariciones, y afirmar que está
+        # en el disco de la otra se refutaba como si fuese falso — corrigiendo un
+        # texto correcto. Afecta a 32 de las 152 filas de canción (los dos discos
+        # gemelos de 1990/1994 y las versiones en directo del «Iros todos…»).
+        base = _norm(_base_song_title(song_title))
+        if base and base != _norm(song_title):
+            songs.setdefault(base, []).append(ref)
 
     albums: dict[str, int] = {}
     album_titles: set[str] = set()

@@ -27,7 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    Album, Artist, Band, BandMembership, Concept, Person, Place, Song, Theme,
+    Album, AlbumTrack, Artist, Band, BandMembership, Concept, Person, Place,
+    Song, Theme,
 )
 from scripts.seo.common import (
     fetch_sources_for_entity, format_sources_block,
@@ -165,6 +166,55 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
     elif entity_type == "album":
         art = db.get(Artist, entity.artist_id)
         facts.append(f"«{entity.title}» ({art.name if art else ''}, {entity.year}), tipo {entity.kind}.")
+        if entity.release_date:
+            facts.append(f"Fecha de publicación: {entity.release_date.isoformat()}.")
+
+        # El tracklist REAL. Sin esto el motor escribía sobre un disco cuyo
+        # contenido no conocía, que es justo la puerta por la que se cuelan
+        # canciones inventadas.
+        if entity.kind in ("studio", "ep"):
+            titulos = db.execute(
+                select(Song.title).where(Song.album_id == entity.id)
+                .order_by(Song.track_number)
+            ).scalars().all()
+            if titulos:
+                facts.append(
+                    f"Tracklist ({len(titulos)} cortes): "
+                    + "; ".join(f"{i}. {t}" for i, t in enumerate(titulos, 1)) + "."
+                )
+        else:
+            # Directos, recopilatorios y singles no tienen filas `Song` propias:
+            # su tracklist es referencial y apunta a la grabación original.
+            filas = db.execute(
+                select(AlbumTrack, Song, Album)
+                .outerjoin(Song, AlbumTrack.song_id == Song.id)
+                .outerjoin(Album, Song.album_id == Album.id)
+                .where(AlbumTrack.album_id == entity.id)
+                .order_by(AlbumTrack.disc, AlbumTrack.position)
+            ).all()
+            if filas:
+                partes = []
+                for tr, song, alb in filas:
+                    origen = f" [de «{alb.title}», {alb.year}]" if alb else ""
+                    partes.append(f"{tr.position}. {tr.title_as_released}{origen}")
+                facts.append(
+                    f"Tracklist ({len(filas)} cortes), con el disco de origen de "
+                    f"cada tema: " + "; ".join(partes) + "."
+                )
+                rerec = [tr for tr, _, _ in filas if tr.is_rerecording]
+                if rerec:
+                    facts.append(
+                        f"{len(rerec)} de estos cortes son REGRABACIONES hechas "
+                        "para este disco, no las tomas originales: "
+                        + ", ".join(f"«{t.title_as_released}»" for t in rerec[:10]) + "."
+                    )
+                facts.append(
+                    "Este disco no aporta canciones nuevas al catálogo: sus temas "
+                    "ya existen en los discos de origen citados arriba."
+                    if not rerec else
+                    "Los temas ya existían; lo que aporta este disco son versiones "
+                    "distintas de ellos."
+                )
     elif entity_type == "song":
         al = getattr(entity, "album", None)
         art = getattr(al, "artist", None) if al else None
@@ -204,6 +254,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     b_connsrc: list[str] = []
     b_voice: list[str] = []
     b_namesrc: list[str] = []
+    b_semantic: list[str] = []
     b_affinity: list[str] = []
 
     def _source_head(kind: str, title: str, ext: str) -> str:
@@ -373,6 +424,30 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             allowed.add(ext)
         n_sources += 1
 
+    # 4b) Corpus por SIGNIFICADO. El paso 4 exige que la fuente NOMBRE a la entidad;
+    #     esto trae lo que habla del asunto sin nombrarlo, y sobre todo desatasca las
+    #     fuentes que no están ligadas a ninguna canción (más de la mitad del corpus),
+    #     que hasta ahora estaban vectorizadas y no salían por ningún camino.
+    if qvec is not None:
+        try:
+            from app.services.retrieval import search_interpretations_passages
+            ya_vistas = {b.split("\n", 1)[0] for b in b_namesrc}
+            for p in search_interpretations_passages(db, qvec, k=6):
+                frag = (p.get("fragmento") or "").strip()[:_PER_SOURCE]
+                if len(frag) < 120:
+                    continue
+                url = (p.get("url") or "").strip()
+                ext = url if (url.startswith("http") and "entreinteriores.com" not in url) else ""
+                head = _source_head(p.get("kind") or "fuente", p.get("title") or "", ext)
+                if head in ya_vistas:  # ya vino por nombre en el paso 4
+                    continue
+                b_semantic.append(f"{head}\n{frag}")
+                if ext:
+                    allowed.add(ext)
+                n_sources += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[deep] corpus semántico falló: %s", exc)
+
     # 5) Afinidad semántica: canciones cercanas SIN arista real. NO se afirman como
     #    conexión factual (la Fase 4.5 las verifica); van con disclaimer explícito.
     if qvec is not None:
@@ -427,7 +502,7 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
         except Exception as exc:  # noqa: BLE001
             logger.warning("[deep] web_context persona falló: %s", exc)
 
-    richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice)
+    richness = len(b_graph) + len(b_connsrc) + len(b_namesrc) + len(b_voice) + len(b_semantic)
     if entity_type in ("place", "theme", "concept", "person", "band") and richness < 5:
         try:
             from app.services.web_verify import verify_connection
@@ -451,7 +526,8 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
             logger.warning("[deep] verificación externa falló: %s", exc)
 
     # Orden de prioridad (lo más débil al final → es lo primero que cae al capar).
-    blocks = (b_lyrics + b_deprof + b_verified + b_verses + b_graph + b_connsrc + b_voice + b_namesrc + b_affinity)
+    blocks = (b_lyrics + b_deprof + b_verified + b_verses + b_graph + b_connsrc + b_voice
+              + b_namesrc + b_semantic + b_affinity)
 
     # Capa al contexto.
     material, total = [], 0

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import InstagramPlanner from "./InstagramPlanner";
+import ClipsPanel from "./ClipsPanel";
 
 export type IGItem = {
   id: number;
@@ -11,7 +12,20 @@ export type IGItem = {
   position: number;
   status: string;
   content_type: string;
+  /**
+   * IMAGE | CAROUSEL | REELS | CLIP | PRODUCT.
+   *
+   * Los tres primeros son formas de contar un tema y los reparte
+   * `scheduling.repartir_formatos`. CLIP (vídeo de otro canal) y PRODUCT (pieza
+   * que enseña la web) NO: son un tema en sí, nacen con su propio post y el
+   * repartidor no los toca.
+   */
+  media_type: string;
+  /** Nº de piezas (diapositivas de un carrusel). */
+  media_count: number;
   publish_on: string | null;
+  /** Programación exacta (ISO, UTC). Si está, el item no entra en el goteo. */
+  publish_at: string | null;
   title: string;
   category: string | null;
   summary: string | null;
@@ -119,6 +133,12 @@ export default async function InstagramAdminPage() {
         queue={queue}
         candidates={candidates}
         account={account}
+      />
+
+      <ClipsPanel
+        asignables={queue
+          .filter((it) => it.status !== "published" && it.status !== "discarded")
+          .map((it) => ({ id: it.id, title: it.title }))}
       />
     </main>
   );

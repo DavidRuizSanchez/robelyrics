@@ -50,6 +50,24 @@ def similarity(a: str, b: str) -> float:
 
 
 # ─── descarga audio con yt-dlp ──────────────────────────────────────────── #
+def _flags_runtime_js() -> list[str]:
+    """`--js-runtimes` con el intérprete que haya en la máquina, si hay alguno.
+
+    YouTube firma las URLs con un desafío en JavaScript. Sin intérprete, yt-dlp
+    entrega URLs que devuelven **403** y la descarga muere con un error que no
+    menciona la causa (con ffmpeg de por medio, «exited with code 8»). yt-dlp
+    solo habilita `deno` por defecto, y esta máquina tiene `node`.
+
+    Si no hay ninguno se devuelve lista vacía: mejor el comportamiento de antes
+    que un flag apuntando a un binario que no existe.
+    """
+    import shutil
+    for nombre in ("deno", "node", "bun"):
+        if shutil.which(nombre):
+            return ["--js-runtimes", nombre]
+    return []
+
+
 def download_audio(video_id: str, dest: Path, quality: str = "5") -> bool:
     """Descarga el audio del video como mp3. Devuelve True si OK.
 
@@ -70,6 +88,7 @@ def download_audio(video_id: str, dest: Path, quality: str = "5") -> bool:
                 "--no-playlist",
                 "--quiet",
                 "--no-warnings",
+                *_flags_runtime_js(),
                 url,
             ],
             check=True,

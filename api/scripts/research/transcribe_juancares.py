@@ -98,16 +98,56 @@ def export_json(out_path: str) -> int:
     return len(data)
 
 
+def _flags_runtime_js() -> list[str]:
+    """El intérprete de JavaScript que haya, para que yt-dlp firme las URLs."""
+    import shutil
+    for nombre in ("deno", "node", "bun"):
+        if shutil.which(nombre):
+            return ["--js-runtimes", nombre]
+    return []
+
+
 def download_audio(video_id: str, tmpdir: str) -> str | None:
     url = f"https://www.youtube.com/watch?v={video_id}"
     out_tmpl = os.path.join(tmpdir, "audio.%(ext)s")
     subprocess.run(
+        # `--js-runtimes`: YouTube firma las URLs con un desafío en JavaScript y
+        # sin intérprete la descarga acaba en 403. yt-dlp solo habilita `deno`
+        # por defecto; aquí se le ofrece lo que haya instalado.
         ["yt-dlp", "-f", "bestaudio", "--no-playlist", "--quiet", "--no-warnings",
-         "-o", out_tmpl, url],
+         *_flags_runtime_js(), "-o", out_tmpl, url],
         check=True,
     )
     files = [f for f in os.listdir(tmpdir) if f.startswith("audio.")]
     return os.path.join(tmpdir, files[0]) if files else None
+
+
+def audio_duration_s(path: str) -> float | None:
+    """Duración del audio en segundos (ffprobe). None si no se puede leer."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            check=True, capture_output=True, text=True,
+        )
+        return float((out.stdout or "").strip())
+    except (subprocess.CalledProcessError, ValueError, OSError):
+        return None
+
+
+def min_chars_for(duration_s: float | None, *, ceiling: int = 100, floor: int = 25) -> int:
+    """Suelo de caracteres que debe tener una transcripción para considerarla buena.
+
+    El guard existe para detectar descargas mudas o transcripciones truncadas, pero
+    con un valor FIJO castiga lo que simplemente es corto: el tráiler `U5CmVvHaRuU`
+    de Juancares agotó sus 3 intentos con «transcripción demasiado corta», y de los
+    vídeos de @tesonica que entran al corpus casi la mitad son shorts de menos de
+    90 s. Escalamos a ~2 caracteres por segundo de audio (habla lenta) sin pasar del
+    tope histórico: un vídeo largo sigue exigiendo 100, un short de 40 s pide 80.
+    """
+    if not duration_s or duration_s <= 0:
+        return ceiling  # sin duración fiable, el criterio de siempre
+    return max(floor, min(ceiling, int(duration_s * 2)))
 
 
 def split_audio(src: str, tmpdir: str) -> list[str]:
@@ -171,10 +211,14 @@ def main() -> None:
                 audio = download_audio(vid, td)
                 if not audio:
                     raise RuntimeError("yt-dlp no devolvió audio")
+                dur = audio_duration_s(audio)
                 chunks = split_audio(audio, td)
                 text = clean_text(transcribe(client, chunks))
-            if len(text) < 100:
-                raise RuntimeError("transcripción demasiado corta")
+            floor = min_chars_for(dur)
+            if len(text) < floor:
+                raise RuntimeError(
+                    f"transcripción demasiado corta ({len(text)} chars < {floor})"
+                )
             url = f"https://www.youtube.com/watch?v={vid}"
             with get_session() as db:
                 upsert_source(

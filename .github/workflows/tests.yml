@@ -1,0 +1,124 @@
+name: tests
+
+# Hasta ahora NADA corría en las PRs: el único workflow era `security.yml`
+# (Trivy, en push a main), así que pytest solo se ejecutaba si alguien se
+# acordaba de lanzarlo en local. El 03-08-2026 entraron cinco commits que tocaban
+# guardas de contenido y una migración; justo lo que conviene tener cubierto.
+#
+# Los tests NO necesitan servicios: 383 pasan en un contenedor limpio con
+# variables de entorno de pega (los que tocan BD la mockean). Por eso no hay
+# postgres ni qdrant aquí — levantarlos sería lento y no probaría nada más.
+#
+# La imagen es la de DESARROLLO (`api/Dockerfile`), que es la que trae pytest;
+# `Dockerfile.prod` no lo incluye a propósito.
+
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen de desarrollo
+        run: docker build -t robelyrics-api:ci ./api
+
+      - name: pytest
+        # Variables de pega: la config se valida al importar, pero ningún test
+        # abre conexión de verdad.
+        run: |
+          docker run --rm \
+            -e DATABASE_URL="postgresql+psycopg://u:p@localhost:5432/x" \
+            -e QDRANT_URL="http://localhost:6333" \
+            -e OPENAI_API_KEY="sk-test" \
+            -e GENIUS_TOKEN="x" \
+            -e JWT_SECRET="test-secret" \
+            -e ADMIN_EMAIL="a@b.c" \
+            -e ADMIN_PASSWORD="x" \
+            -w /app robelyrics-api:ci \
+            python -m pytest -q
+
+  alembic:
+    name: migraciones coherentes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dos fallos que ya han pasado en este repo: IDs de revisión hex repetidos
+      # (colisión real) y más de una cabeza tras un merge. Ambos son baratos de
+      # detectar leyendo los ficheros, sin levantar la BD.
+      - name: Sin IDs de revisión duplicados y una sola cabeza
+        run: |
+          cd api/alembic/versions
+          dups=$(grep -h '^revision' *.py | sed "s/.*= *//" | tr -d "'\"" | sort | uniq -d)
+          if [ -n "$dups" ]; then
+            echo "::error::IDs de revisión duplicados:"; echo "$dups"; exit 1
+          fi
+          revs=$(grep -h '^revision' *.py | sed "s/.*= *//" | tr -d "'\"" | sort)
+          downs=$(grep -h '^down_revision' *.py | sed "s/.*= *//" | tr -d "'\"" \
+                  | grep -v '^None$' | sort)
+          heads=$(comm -23 <(echo "$revs") <(echo "$downs"))
+          n=$(echo "$heads" | grep -c . || true)
+          if [ "$n" -ne 1 ]; then
+            echo "::error::se esperaba 1 cabeza y hay $n:"; echo "$heads"; exit 1
+          fi
+          echo "✓ $(echo "$revs" | wc -l) migraciones · cabeza: $heads"
+
+  ruff:
+    name: ruff (bloquea solo en ficheros nuevos)
+    runs-on: ubuntu-latest
+    # El repo arrastra ~600 avisos de ruff, así que hacerlo bloqueante de golpe
+    # tumbaría todas las PRs. La regla es: **lo NUEVO entra limpio**, y tocar un
+    # fichero viejo no te obliga a sanearlo entero — solo lo avisa. Así la deuda
+    # se drena cuando se pisa, sin bloquear a nadie por herencia.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: --version
+
+      - name: Ficheros del cambio
+        id: diff
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "sin base con la que comparar"
+            { echo "nuevos="; echo "tocados="; } >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          nuevos=$(git diff --name-only --diff-filter=A "$base" HEAD -- 'api/**/*.py' | tr '\n' ' ')
+          tocados=$(git diff --name-only --diff-filter=MR "$base" HEAD -- 'api/**/*.py' | tr '\n' ' ')
+          echo "nuevos=$nuevos" >> "$GITHUB_OUTPUT"
+          echo "tocados=$tocados" >> "$GITHUB_OUTPUT"
+          echo "nuevos: ${nuevos:-(ninguno)}"
+          echo "tocados: ${tocados:-(ninguno)}"
+
+      # Bloquea en `push`, donde la base es el commit anterior y «lo nuevo» es de
+      # verdad lo que acabas de escribir. En una `pull_request` la base es main, y
+      # como `feat/build-production` es una rama de larga vida, «lo nuevo» son 68
+      # ficheros de todo su historial: ahí el check no dice nada útil y solo
+      # informa. La garantía —el código nuevo entra limpio— la da igualmente el
+      # push, que ocurre en cada commit.
+      - name: ruff en ficheros NUEVOS (bloquea en push, informa en PR)
+        if: steps.diff.outputs.nuevos != ''
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: cd api && ruff check $(echo "${{ steps.diff.outputs.nuevos }}" | sed 's|api/||g')
+
+      - name: ruff en ficheros modificados (solo aviso)
+        if: steps.diff.outputs.tocados != ''
+        continue-on-error: true
+        run: cd api && ruff check $(echo "${{ steps.diff.outputs.tocados }}" | sed 's|api/||g')

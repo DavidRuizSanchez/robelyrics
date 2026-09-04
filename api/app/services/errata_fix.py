@@ -457,11 +457,89 @@ def _fix_image(db, errata: ErrataReport) -> FixOutcome:
     )
 
 
+def _fix_internal_url(db, errata: ErrataReport) -> FixOutcome:
+    """Errata de enlace interno: la abre `audit_urls` cuando una ruta del site no
+    lleva a lo que dice.
+
+    Se vuelve a resolver con los datos de AHORA, y eso cierra sola la mayoría:
+    muchos enlaces «fantasma» dejaron de serlo cuando la ficha que faltaba se dio
+    de alta (a `/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera` le pasó justo
+    eso). Si sigue rota y no hay destino que proponer, se desenlaza — y ese es el
+    paso que la auditoría no da sola: pulsar «Arreglar» ES la decisión humana.
+    """
+    from app.db.models import Post, SeoContent
+    from app.services import url_resolver as ur
+
+    # field = "url:link_cross:seo:/extremoduro/pedra" (las rutas no llevan «:»)
+    trozos = (errata.field or "").split(":", 3)
+    if len(trozos) != 4 or trozos[0] != "url":
+        return FixOutcome("not_supported", "No sé a qué enlace se refiere esta errata.")
+    _, check, origen, ruta = trozos
+
+    cat = ur.DbCatalog(db)
+    res = ur.resolve_path(cat, ruta)
+
+    if origen not in ("seo", "post"):
+        # No sale de un cuerpo: es un aviso sobre el catálogo, el sitemap o lo que
+        # Google indexó. Se cierra sola si el motivo ya no se da.
+        if res.is_ok and check != "dup_entity_slug":
+            _close(errata, f"«{ruta}» ya resuelve bien.")
+            return FixOutcome(
+                "applied", f"Cerrada: «{ruta}» ya lleva a donde debe.", closed=True,
+            )
+        return FixOutcome(
+            "no_consensus",
+            f"«{ruta}» sigue sin cuadrar ({res.reason}). Esto no se arregla "
+            "reescribiendo un enlace: hay que tocar el catálogo.",
+        )
+
+    if res.is_ok:
+        _close(errata, f"«{ruta}» ya resuelve bien; el enlace no estaba roto.")
+        return FixOutcome(
+            "applied", f"Cerrada: «{ruta}» ya existe y lleva a lo que dice.", closed=True,
+        )
+
+    fila = db.get(SeoContent if origen == "seo" else Post, errata.target_id)
+    if fila is None:
+        return FixOutcome("not_supported", "Ya no existe el contenido que lo enlazaba.")
+
+    if res.status == "redirect" and res.canonical_path:
+        nuevo = ur._reenlazar(fila.body_md, ruta, res.canonical_path)
+        if nuevo == fila.body_md:
+            _close(errata, f"El enlace a «{ruta}» ya no está en el cuerpo.")
+            return FixOutcome(
+                "applied", f"Cerrada: «{ruta}» ya no se enlaza ahí.", closed=True,
+            )
+        fila.body_md = nuevo
+        _close(errata, f"Enlace reapuntado: {ruta} → {res.canonical_path}")
+        return FixOutcome(
+            "applied",
+            f"Enlace corregido: «{ruta}» ahora apunta a «{res.canonical_path}».",
+            applied=True, closed=True,
+        )
+
+    nuevo = ur._desenlazar(fila.body_md, ruta)
+    if nuevo == fila.body_md:
+        _close(errata, f"El enlace a «{ruta}» ya no está en el cuerpo.")
+        return FixOutcome(
+            "applied", f"Cerrada: «{ruta}» ya no se enlaza ahí.", closed=True,
+        )
+    fila.body_md = nuevo
+    _close(errata, f"Enlace fantasma desenlazado a petición del admin: {ruta}")
+    return FixOutcome(
+        "applied",
+        f"«{ruta}» no lleva a ningún sitio ({res.reason}): se ha quitado el enlace "
+        "y el texto se queda como estaba.",
+        applied=True, closed=True,
+    )
+
+
 _HANDLERS = {
     "song_lyrics": _fix_lyrics,
     "authorship": _fix_authorship,
     "catalog": _fix_catalog,
     "image": _fix_image,
+    "internal_url": _fix_internal_url,
 }
 
 

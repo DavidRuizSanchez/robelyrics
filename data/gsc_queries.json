@@ -2,44 +2,56 @@
  {
   "query": "entre interiores",
   "clicks": 5,
-  "impressions": 703,
-  "position": 7.2
+  "impressions": 829,
+  "position": 7.9
  },
  {
   "query": "miguel colino",
-  "clicks": 3,
-  "impressions": 479,
+  "clicks": 5,
+  "impressions": 704,
   "position": 5.4
  },
  {
   "query": "letras de roberto iniesta interludio",
-  "clicks": 1,
-  "impressions": 325,
-  "position": 8.0
+  "clicks": 2,
+  "impressions": 374,
+  "position": 3.0
  },
  {
   "query": "woody amores",
-  "clicks": 14,
-  "impressions": 242,
-  "position": 6.3
- },
- {
-  "query": "miembros de barricada",
-  "clicks": 0,
-  "impressions": 214,
-  "position": 6.9
+  "clicks": 25,
+  "impressions": 342,
+  "position": 5.9
  },
  {
   "query": "david lerman",
-  "clicks": 4,
-  "impressions": 201,
-  "position": 8.5
+  "clicks": 7,
+  "impressions": 341,
+  "position": 8.0
  },
  {
   "query": "interludio robe",
   "clicks": 0,
-  "impressions": 176,
-  "position": 9.5
+  "impressions": 340,
+  "position": 9.0
+ },
+ {
+  "query": "miembros de barricada",
+  "clicks": 0,
+  "impressions": 268,
+  "position": 6.9
+ },
+ {
+  "query": "barricada grupo",
+  "clicks": 0,
+  "impressions": 248,
+  "position": 9.1
+ },
+ {
+  "query": "deltoya significado",
+  "clicks": 0,
+  "impressions": 221,
+  "position": 9.7
  },
  {
   "query": "alen ayerdi",
@@ -48,16 +60,22 @@
   "position": 9.8
  },
  {
-  "query": "barricada grupo",
+  "query": "de donde es extremoduro",
   "clicks": 0,
-  "impressions": 161,
+  "impressions": 152,
   "position": 9.3
  },
  {
-  "query": "deltoya significado",
-  "clicks": 0,
-  "impressions": 161,
-  "position": 10.1
+  "query": "dejo las ventanas sin cerrar y la puerta abierta",
+  "clicks": 1,
+  "impressions": 150,
+  "position": 8.2
+ },
+ {
+  "query": "grupo barricada",
+  "clicks": 1,
+  "impressions": 147,
+  "position": 9.7
  },
  {
   "query": "josé ignacio cantera",
@@ -66,40 +84,82 @@
   "position": 7.7
  },
  {
-  "query": "barricada",
-  "clicks": 0,
-  "impressions": 101,
-  "position": 13.3
- },
- {
-  "query": "grupo barricada",
+  "query": "miembros de extremoduro",
   "clicks": 1,
-  "impressions": 92,
-  "position": 10.8
+  "impressions": 139,
+  "position": 10.6
  },
  {
   "query": "barricada banda",
   "clicks": 1,
-  "impressions": 91,
-  "position": 9.2
+  "impressions": 131,
+  "position": 9.1
  },
  {
-  "query": "de donde es extremoduro",
-  "clicks": 0,
-  "impressions": 85,
-  "position": 10.0
+  "query": "barricada",
+  "clicks": 1,
+  "impressions": 130,
+  "position": 13.3
  },
  {
   "query": "letras de roberto iniesta puta humanidad",
   "clicks": 0,
-  "impressions": 79,
-  "position": 8.2
+  "impressions": 100,
+  "position": 7.9
  },
  {
   "query": "dejo las ventanas sin cerrar",
   "clicks": 0,
-  "impressions": 75,
-  "position": 7.9
+  "impressions": 95,
+  "position": 7.8
+ },
+ {
+  "query": "iñaki milindris setién",
+  "clicks": 2,
+  "impressions": 92,
+  "position": 2.9
+ },
+ {
+  "query": "interludio robe letra",
+  "clicks": 0,
+  "impressions": 90,
+  "position": 8.6
+ },
+ {
+  "query": "guerrero robe",
+  "clicks": 1,
+  "impressions": 88,
+  "position": 2.5
+ },
+ {
+  "query": "grupos parecidos a extremoduro",
+  "clicks": 1,
+  "impressions": 87,
+  "position": 5.6
+ },
+ {
+  "query": "extremoduro entre interiores",
+  "clicks": 0,
+  "impressions": 81,
+  "position": 10.0
+ },
+ {
+  "query": "letras de extremoduro entre interiores",
+  "clicks": 0,
+  "impressions": 79,
+  "position": 11.3
+ },
+ {
+  "query": "extremoduro alberto \"capi\" gil",
+  "clicks": 0,
+  "impressions": 79,
+  "position": 6.2
+ },
+ {
+  "query": "iñaki setien",
+  "clicks": 15,
+  "impressions": 76,
+  "position": 3.0
  },
  {
   "query": "\"mierda de filosofía\" \"carlitos pérez\"",
@@ -108,52 +168,190 @@
   "position": 2.3
  },
  {
+  "query": "extremoduro de donde son",
+  "clicks": 0,
+  "impressions": 75,
+  "position": 10.5
+ },
+ {
   "query": "kutxi romero",
   "clicks": 0,
   "impressions": 75,
   "position": 15.0
  },
  {
-  "query": "dejo las ventanas sin cerrar y la puerta abierta",
+  "query": "amapola extremoduro",
   "clicks": 1,
-  "impressions": 60,
-  "position": 9.3
+  "impressions": 64,
+  "position": 9.5
+ },
+ {
+  "query": "extremoduro integrantes",
+  "clicks": 0,
+  "impressions": 63,
+  "position": 8.7
  },
  {
   "query": "guerrero robe significado",
   "clicks": 0,
-  "impressions": 59,
-  "position": 8.2
+  "impressions": 61,
+  "position": 3.0
  },
  {
-  "query": "grupos parecidos a extremoduro",
+  "query": "de donde son extremoduro",
+  "clicks": 0,
+  "impressions": 61,
+  "position": 13.4
+ },
+ {
+  "query": "de donde es robe",
+  "clicks": 0,
+  "impressions": 60,
+  "position": 10.7
+ },
+ {
+  "query": "robe discografia",
+  "clicks": 0,
+  "impressions": 59,
+  "position": 9.5
+ },
+ {
+  "query": "barricada wikipedia",
+  "clicks": 0,
+  "impressions": 59,
+  "position": 8.1
+ },
+ {
+  "query": "donde se rompen las olas robe significado",
   "clicks": 0,
   "impressions": 58,
   "position": 6.0
  },
  {
-  "query": "extremoduro alberto \"capi\" gil",
+  "query": "llegar al olimpo y robar el fuego",
+  "clicks": 0,
+  "impressions": 57,
+  "position": 2.0
+ },
+ {
+  "query": "rock transgresivo",
   "clicks": 0,
   "impressions": 55,
-  "position": 6.2
+  "position": 14.3
  },
  {
-  "query": "iñaki milindris setién",
-  "clicks": 1,
-  "impressions": 52,
-  "position": 3.7
- },
- {
-  "query": "interludio robe letra",
+  "query": "dejo la ventana sin cerrar",
   "clicks": 0,
-  "impressions": 51,
-  "position": 9.2
+  "impressions": 54,
+  "position": 7.3
+ },
+ {
+  "query": "jesucristo garcía significado",
+  "clicks": 1,
+  "impressions": 54,
+  "position": 7.3
+ },
+ {
+  "query": "letras de extremoduro su culo es miel",
+  "clicks": 0,
+  "impressions": 54,
+  "position": 6.3
+ },
+ {
+  "query": "interludio robe significado",
+  "clicks": 0,
+  "impressions": 53,
+  "position": 4.4
+ },
+ {
+  "query": "ara malikian extremoduro",
+  "clicks": 2,
+  "impressions": 52,
+  "position": 6.2
  },
  {
   "query": "roberto iniesta interludio",
   "clicks": 0,
+  "impressions": 52,
+  "position": 8.2
+ },
+ {
+  "query": "barricada de donde son",
+  "clicks": 1,
+  "impressions": 52,
+  "position": 5.6
+ },
+ {
+  "query": "muxik",
+  "clicks": 1,
+  "impressions": 52,
+  "position": 8.1
+ },
+ {
+  "query": "entre interiores extremoduro",
+  "clicks": 0,
+  "impressions": 50,
+  "position": 10.2
+ },
+ {
+  "query": "por encima del bien y del mal robe significado",
+  "clicks": 0,
+  "impressions": 48,
+  "position": 9.6
+ },
+ {
+  "query": "de donde era robe",
+  "clicks": 0,
+  "impressions": 48,
+  "position": 11.3
+ },
+ {
+  "query": "interludio",
+  "clicks": 0,
+  "impressions": 47,
+  "position": 15.7
+ },
+ {
+  "query": "frases de robe",
+  "clicks": 1,
   "impressions": 45,
-  "position": 8.4
+  "position": 7.7
+ },
+ {
+  "query": "dejo la ventana sin cerrar y la puerta abierta",
+  "clicks": 0,
+  "impressions": 45,
+  "position": 7.9
+ },
+ {
+  "query": "barricada grupo musical",
+  "clicks": 0,
+  "impressions": 45,
+  "position": 10.1
+ },
+ {
+  "query": "bajista extremoduro",
+  "clicks": 0,
+  "impressions": 44,
+  "position": 7.6
+ },
+ {
+  "query": "cartas desde gaia",
+  "clicks": 0,
+  "impressions": 44,
+  "position": 8.1
+ },
+ {
+  "query": "barricada miembros",
+  "clicks": 0,
+  "impressions": 43,
+  "position": 6.6
+ },
+ {
+  "query": "los niños de los ojos rojos componentes",
+  "clicks": 1,
+  "impressions": 43,
+  "position": 8.0
  },
  {
   "query": "\"segundo movimiento: mierda de filosofía\" \"carlitos pérez\"",
@@ -162,28 +360,70 @@
   "position": 2.6
  },
  {
-  "query": "miembros de extremoduro",
+  "query": "entre interiores extremoduro significado",
   "clicks": 0,
   "impressions": 42,
+  "position": 4.9
+ },
+ {
+  "query": "discografia robe",
+  "clicks": 1,
+  "impressions": 40,
+  "position": 9.6
+ },
+ {
+  "query": "guerrero robe letra",
+  "clicks": 1,
+  "impressions": 40,
+  "position": 3.0
+ },
+ {
+  "query": "rock transgresivo genero",
+  "clicks": 0,
+  "impressions": 40,
+  "position": 5.3
+ },
+ {
+  "query": "grupos similares a extremoduro",
+  "clicks": 0,
+  "impressions": 39,
+  "position": 6.1
+ },
+ {
+  "query": "integrantes de extremoduro",
+  "clicks": 0,
+  "impressions": 38,
+  "position": 8.7
+ },
+ {
+  "query": "rock transgresivo significado",
+  "clicks": 0,
+  "impressions": 38,
+  "position": 6.7
+ },
+ {
+  "query": "amapola robe",
+  "clicks": 2,
+  "impressions": 36,
+  "position": 8.7
+ },
+ {
+  "query": "alfredo piedrafita wikipedia",
+  "clicks": 0,
+  "impressions": 36,
   "position": 10.7
  },
  {
-  "query": "barricada wikipedia",
+  "query": "integrantes extremoduro",
   "clicks": 0,
-  "impressions": 39,
-  "position": 8.5
- },
- {
-  "query": "iñaki setien",
-  "clicks": 8,
   "impressions": 36,
-  "position": 4.3
+  "position": 9.3
  },
  {
-  "query": "barricada de donde son",
+  "query": "extremoduro amapola",
   "clicks": 1,
   "impressions": 35,
-  "position": 5.9
+  "position": 9.0
  },
  {
   "query": "\"mayéutica\" \"carlitos pérez\" violín",
@@ -192,88 +432,88 @@
   "position": 5.2
  },
  {
-  "query": "interludio robe significado",
-  "clicks": 0,
+  "query": "robe interludio",
+  "clicks": 1,
   "impressions": 34,
-  "position": 4.6
+  "position": 7.8
  },
  {
-  "query": "extremoduro entre interiores",
+  "query": "robe iniesta discografia",
   "clicks": 0,
   "impressions": 33,
-  "position": 11.5
- },
- {
-  "query": "barricada grupo musical",
-  "clicks": 0,
-  "impressions": 33,
-  "position": 10.4
- },
- {
-  "query": "muxik",
-  "clicks": 1,
-  "impressions": 33,
-  "position": 8.0
- },
- {
-  "query": "ara malikian extremoduro",
-  "clicks": 1,
-  "impressions": 32,
-  "position": 6.6
- },
- {
-  "query": "entre interiores extremoduro significado",
-  "clicks": 0,
-  "impressions": 31,
-  "position": 4.9
- },
- {
-  "query": "los niños de los ojos rojos componentes",
-  "clicks": 1,
-  "impressions": 31,
-  "position": 8.5
+  "position": 11.0
  },
  {
   "query": "pepe botika quien es",
   "clicks": 1,
-  "impressions": 31,
-  "position": 7.8
+  "impressions": 33,
+  "position": 7.7
  },
  {
-  "query": "jesucristo garcía significado",
+  "query": "extremoduro rock transgresivo",
+  "clicks": 0,
+  "impressions": 33,
+  "position": 24.3
+ },
+ {
+  "query": "donde nacio robe",
+  "clicks": 0,
+  "impressions": 33,
+  "position": 10.2
+ },
+ {
+  "query": "entre interiores significado",
+  "clicks": 0,
+  "impressions": 32,
+  "position": 4.7
+ },
+ {
+  "query": "extremoduro donde estan mis amigos",
+  "clicks": 0,
+  "impressions": 32,
+  "position": 23.4
+ },
+ {
+  "query": "letras de roberto iniesta cartas desde gaia",
+  "clicks": 0,
+  "impressions": 32,
+  "position": 7.4
+ },
+ {
+  "query": "del tiempo perdido robe significado",
+  "clicks": 0,
+  "impressions": 31,
+  "position": 8.3
+ },
+ {
+  "query": "bajista de extremoduro",
+  "clicks": 0,
+  "impressions": 30,
+  "position": 8.0
+ },
+ {
+  "query": "carlitos perez robe",
+  "clicks": 4,
+  "impressions": 30,
+  "position": 6.1
+ },
+ {
+  "query": "robe guerrero",
+  "clicks": 0,
+  "impressions": 30,
+  "position": 2.4
+ },
+ {
+  "query": "frases extremoduro",
+  "clicks": 0,
+  "impressions": 29,
+  "position": 10.6
+ },
+ {
+  "query": "frases robe",
   "clicks": 1,
-  "impressions": 31,
-  "position": 9.1
- },
- {
-  "query": "por encima del bien y del mal robe significado",
-  "clicks": 0,
-  "impressions": 31,
-  "position": 9.5
- },
- {
-  "query": "de donde es robe",
-  "clicks": 0,
-  "impressions": 31,
-  "position": 11.0
- },
- {
-  "query": "dejo la ventana sin cerrar",
-  "clicks": 0,
-  "impressions": 30,
-  "position": 7.5
- },
- {
-  "query": "extremoduro de donde son",
-  "clicks": 0,
-  "impressions": 30,
-  "position": 11.1
- },
- {
-  "query": "grupos similares a extremoduro",
-  "clicks": 0,
-  "impressions": 30,
-  "position": 6.3
+  "impressions": 29,
+  "position": 4.0
  },
  {
   "query": "cantera extremoduro",
@@ -282,10 +522,34 @@
   "position": 7.6
  },
  {
-  "query": "de donde son extremoduro",
+  "query": "de donde era extremoduro",
   "clicks": 0,
   "impressions": 29,
-  "position": 15.5
+  "position": 7.9
+ },
+ {
+  "query": "que es el rock transgresivo",
+  "clicks": 0,
+  "impressions": 29,
+  "position": 7.3
+ },
+ {
+  "query": "robe de donde es",
+  "clicks": 0,
+  "impressions": 29,
+  "position": 10.8
+ },
+ {
+  "query": "discografia robe iniesta",
+  "clicks": 0,
+  "impressions": 28,
+  "position": 9.9
+ },
+ {
+  "query": "extremoduro de donde es",
+  "clicks": 0,
+  "impressions": 28,
+  "position": 10.1
  },
  {
   "query": "extremoduro esclarecido",
@@ -294,40 +558,70 @@
   "position": 11.0
  },
  {
-  "query": "rock transgresivo",
-  "clicks": 0,
-  "impressions": 28,
-  "position": 18.0
- },
- {
-  "query": "rock transgresivo genero",
-  "clicks": 0,
-  "impressions": 27,
-  "position": 5.2
- },
- {
   "query": "letras de roberto iniesta destrozares",
   "clicks": 0,
-  "impressions": 27,
-  "position": 10.3
+  "impressions": 28,
+  "position": 10.0
  },
  {
-  "query": "dejo la ventana sin cerrar y la puerta abierta",
+  "query": "puta humanidad",
   "clicks": 0,
-  "impressions": 26,
-  "position": 8.5
+  "impressions": 28,
+  "position": 11.7
  },
  {
-  "query": "extremoduro rock transgresivo",
-  "clicks": 0,
-  "impressions": 26,
-  "position": 26.5
- },
- {
-  "query": "frases de robe",
+  "query": "componentes de extremoduro",
   "clicks": 1,
+  "impressions": 27,
+  "position": 9.6
+ },
+ {
+  "query": "mi espíritu imperecedero significado",
+  "clicks": 0,
+  "impressions": 27,
+  "position": 8.4
+ },
+ {
+  "query": "discos robe",
+  "clicks": 0,
+  "impressions": 26,
+  "position": 8.1
+ },
+ {
+  "query": "que significa deltoya",
+  "clicks": 0,
+  "impressions": 26,
+  "position": 8.0
+ },
+ {
+  "query": "puta humanidad robe",
+  "clicks": 0,
+  "impressions": 26,
+  "position": 12.2
+ },
+ {
+  "query": "entre interiores letra",
+  "clicks": 0,
   "impressions": 25,
-  "position": 8.2
+  "position": 13.8
+ },
+ {
+  "query": "robe discos",
+  "clicks": 0,
+  "impressions": 25,
+  "position": 8.1
+ },
+ {
+  "query": "barricada wiki",
+  "clicks": 0,
+  "impressions": 25,
+  "position": 7.0
+ },
+ {
+  "query": "rock transgresivo extremoduro",
+  "clicks": 0,
+  "impressions": 25,
+  "position": 19.6
  },
  {
   "query": "jon calvo",
@@ -336,28 +630,34 @@
   "position": 7.4
  },
  {
-  "query": "entre interiores extremoduro",
+  "query": "interludio extremoduro",
   "clicks": 0,
   "impressions": 24,
-  "position": 10.7
+  "position": 6.9
  },
  {
-  "query": "bajista extremoduro",
+  "query": "interludio letra",
   "clicks": 0,
   "impressions": 24,
-  "position": 7.9
+  "position": 10.1
  },
  {
-  "query": "donde se rompen las olas robe significado",
+  "query": "entrando cruzado",
   "clicks": 0,
-  "impressions": 24,
-  "position": 6.0
+  "impressions": 23,
+  "position": 27.9
  },
  {
-  "query": "extremoduro donde estan mis amigos",
+  "query": "miguel colino extremoduro",
+  "clicks": 1,
+  "impressions": 23,
+  "position": 5.1
+ },
+ {
+  "query": "grupo musical barricada",
   "clicks": 0,
-  "impressions": 24,
-  "position": 25.0
+  "impressions": 23,
+  "position": 12.0
  },
  {
   "query": "\"mierda de filosofía\" violín robe",
@@ -366,16 +666,34 @@
   "position": 7.3
  },
  {
-  "query": "frases extremoduro",
+  "query": "cuantas canciones tiene extremoduro",
   "clicks": 0,
-  "impressions": 22,
-  "position": 10.6
+  "impressions": 23,
+  "position": 7.0
  },
  {
-  "query": "rock transgresivo significado",
+  "query": "takedown de contenido infractor",
+  "clicks": 0,
+  "impressions": 23,
+  "position": 28.4
+ },
+ {
+  "query": "extremoduro miembros",
   "clicks": 0,
   "impressions": 22,
-  "position": 6.6
+  "position": 11.5
+ },
+ {
+  "query": "su culo es miel letra",
+  "clicks": 0,
+  "impressions": 22,
+  "position": 5.7
+ },
+ {
+  "query": "discos de robe",
+  "clicks": 0,
+  "impressions": 21,
+  "position": 9.9
  },
  {
   "query": "locura transitoria significado",
@@ -384,16 +702,10 @@
   "position": 8.0
  },
  {
-  "query": "carlitos perez robe",
-  "clicks": 1,
-  "impressions": 21,
-  "position": 6.9
- },
- {
-  "query": "de donde era robe",
+  "query": "evaristo, el rey de la baraja significado",
   "clicks": 0,
   "impressions": 21,
-  "position": 11.7
+  "position": 7.0
  },
  {
   "query": "mikel irazoki",
@@ -402,40 +714,94 @@
   "position": 6.6
  },
  {
-  "query": "amapola robe",
-  "clicks": 1,
+  "query": "alfredo piedrafita",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 3.2
+ },
+ {
+  "query": "los niños de los ojos rojos integrantes",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 8.7
+ },
+ {
+  "query": "letra guerrero robe",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 2.8
+ },
+ {
+  "query": "destrozares significado",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 10.7
+ },
+ {
+  "query": "agila",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 37.5
+ },
+ {
+  "query": "para todos los publicos",
+  "clicks": 0,
+  "impressions": 20,
+  "position": 19.3
+ },
+ {
+  "query": "discos de robe en solitario",
+  "clicks": 0,
   "impressions": 19,
-  "position": 9.2
+  "position": 6.4
  },
  {
-  "query": "letras de extremoduro entre interiores",
+  "query": "discografía robe",
   "clicks": 0,
-  "impressions": 18,
-  "position": 12.5
- },
- {
-  "query": "entrando cruzado",
-  "clicks": 0,
-  "impressions": 18,
-  "position": 25.9
- },
- {
-  "query": "miguel colino extremoduro",
-  "clicks": 1,
-  "impressions": 18,
-  "position": 4.9
- },
- {
-  "query": "barricada wiki",
-  "clicks": 0,
-  "impressions": 18,
-  "position": 7.7
+  "impressions": 19,
+  "position": 9.4
  },
  {
   "query": "jose ignacio cantera",
   "clicks": 1,
-  "impressions": 18,
+  "impressions": 19,
   "position": 13.9
+ },
+ {
+  "query": "jesucristo garcía letra significado",
+  "clicks": 1,
+  "impressions": 19,
+  "position": 6.2
+ },
+ {
+  "query": "somos unos animales",
+  "clicks": 0,
+  "impressions": 19,
+  "position": 36.7
+ },
+ {
+  "query": "ojalá que se llame amapola significado",
+  "clicks": 0,
+  "impressions": 18,
+  "position": 6.3
+ },
+ {
+  "query": "letra interludio robe",
+  "clicks": 0,
+  "impressions": 18,
+  "position": 8.0
+ },
+ {
+  "query": "roberto iniesta lo que aletea en nuestras cabezas",
+  "clicks": 0,
+  "impressions": 18,
+  "position": 19.4
+ },
+ {
+  "query": "extremoduro somos unos animales",
+  "clicks": 0,
+  "impressions": 18,
+  "position": 32.6
  },
  {
   "query": "extremoduro jorge \"el moja\"",
@@ -444,28 +810,10 @@
   "position": 5.4
  },
  {
-  "query": "entre interiores letra",
+  "query": "componentes de barricada",
   "clicks": 0,
   "impressions": 17,
-  "position": 14.4
- },
- {
-  "query": "bajista de extremoduro",
-  "clicks": 0,
-  "impressions": 17,
-  "position": 8.0
- },
- {
-  "query": "grupo musical barricada",
-  "clicks": 0,
-  "impressions": 17,
-  "position": 12.6
- },
- {
-  "query": "interludio",
-  "clicks": 0,
-  "impressions": 17,
-  "position": 19.4
+  "position": 10.2
  },
  {
   "query": "contra todos robe significado",
@@ -474,22 +822,16 @@
   "position": 9.8
  },
  {
-  "query": "de donde era extremoduro",
+  "query": "cartas desde gaia letra",
   "clicks": 0,
   "impressions": 17,
-  "position": 8.3
+  "position": 8.8
  },
  {
-  "query": "rock transgresivo extremoduro",
+  "query": "discografía robe iniesta",
   "clicks": 0,
-  "impressions": 17,
-  "position": 21.8
- },
- {
-  "query": "frases robe",
-  "clicks": 1,
   "impressions": 16,
-  "position": 5.3
+  "position": 9.9
  },
  {
   "query": "diego garay",
@@ -498,34 +840,34 @@
   "position": 8.6
  },
  {
+  "query": "roberto iniesta lo que aletea en nuestras cabezas canciones",
+  "clicks": 0,
+  "impressions": 16,
+  "position": 12.7
+ },
+ {
   "query": "\"carlitos pérez\" \"mierda de filosofía\"",
   "clicks": 0,
   "impressions": 16,
   "position": 2.7
  },
  {
-  "query": "entre interiores significado",
-  "clicks": 0,
+  "query": "evaristo el rey de la baraja significado",
+  "clicks": 1,
   "impressions": 16,
-  "position": 4.7
+  "position": 5.0
  },
  {
-  "query": "extremoduro de donde es",
+  "query": "discos de extremoduro por orden",
   "clicks": 0,
   "impressions": 16,
-  "position": 9.8
+  "position": 11.7
  },
  {
-  "query": "agila",
+  "query": "de dónde es el grupo extremoduro",
   "clicks": 0,
   "impressions": 16,
-  "position": 39.4
- },
- {
-  "query": "extremoduro somos unos animales",
-  "clicks": 0,
-  "impressions": 16,
-  "position": 34.2
+  "position": 12.9
  },
  {
   "query": "de donde son reincidentes",
@@ -534,16 +876,34 @@
   "position": 8.6
  },
  {
+  "query": "destrozares letra",
+  "clicks": 0,
+  "impressions": 16,
+  "position": 6.5
+ },
+ {
+  "query": "barricada componentes",
+  "clicks": 0,
+  "impressions": 15,
+  "position": 10.1
+ },
+ {
   "query": "de donde es barricada",
   "clicks": 0,
   "impressions": 15,
   "position": 7.1
  },
  {
-  "query": "roberto iniesta lo que aletea en nuestras cabezas",
+  "query": "la barricada",
   "clicks": 0,
   "impressions": 15,
-  "position": 19.9
+  "position": 18.8
+ },
+ {
+  "query": "su culo es miel",
+  "clicks": 0,
+  "impressions": 15,
+  "position": 8.5
  },
  {
   "query": "mi voluntad extremoduro",
@@ -552,46 +912,46 @@
   "position": 10.1
  },
  {
-  "query": "barricada miembros",
+  "query": "somos unos animales extremoduro",
   "clicks": 0,
-  "impressions": 14,
-  "position": 6.7
+  "impressions": 15,
+  "position": 30.5
  },
  {
-  "query": "componentes de barricada",
+  "query": "robe iniesta destrozares",
   "clicks": 0,
-  "impressions": 14,
-  "position": 12.0
+  "impressions": 15,
+  "position": 20.1
  },
  {
-  "query": "del tiempo perdido robe significado",
+  "query": "frases robe iniesta amor",
   "clicks": 0,
   "impressions": 14,
-  "position": 9.0
+  "position": 5.4
  },
  {
-  "query": "interludio extremoduro",
-  "clicks": 0,
+  "query": "sol de invierno extremoduro significado",
+  "clicks": 1,
   "impressions": 14,
-  "position": 7.3
+  "position": 8.1
  },
  {
-  "query": "robe interludio",
+  "query": "cantante barricada",
   "clicks": 0,
   "impressions": 14,
-  "position": 7.7
+  "position": 21.1
  },
  {
-  "query": "que es el rock transgresivo",
+  "query": "tu en tu casa nosotros en la hoguera",
   "clicks": 0,
   "impressions": 14,
-  "position": 8.9
+  "position": 12.6
  },
  {
-  "query": "somos unos animales",
+  "query": "extrechinato y tu",
   "clicks": 0,
   "impressions": 14,
-  "position": 38.4
+  "position": 9.4
  },
  {
   "query": "ñu grupo",
@@ -600,28 +960,34 @@
   "position": 11.8
  },
  {
-  "query": "donde nacio robe",
+  "query": "roberto iniesta cartas desde gaia",
   "clicks": 0,
   "impressions": 14,
-  "position": 10.5
+  "position": 7.2
  },
  {
-  "query": "amapola extremoduro",
+  "query": "david lerman robe",
   "clicks": 0,
   "impressions": 13,
-  "position": 8.7
+  "position": 6.1
  },
  {
-  "query": "ojalá que se llame amapola significado",
+  "query": "la ley innata significado",
   "clicks": 0,
   "impressions": 13,
-  "position": 6.2
+  "position": 34.5
  },
  {
-  "query": "barricada componentes",
+  "query": "barricada rock",
   "clicks": 0,
   "impressions": 13,
-  "position": 10.1
+  "position": 13.5
+ },
+ {
+  "query": "niños ojos rojos",
+  "clicks": 0,
+  "impressions": 13,
+  "position": 36.4
  },
  {
   "query": "bateria extremoduro",
@@ -630,46 +996,46 @@
   "position": 9.6
  },
  {
-  "query": "evaristo, el rey de la baraja significado",
+  "query": "canciones de roberto iniesta lo que aletea en nuestras cabezas",
   "clicks": 0,
   "impressions": 13,
-  "position": 7.0
+  "position": 12.8
  },
  {
-  "query": "extremoduro integrantes",
+  "query": "extremoduro es de extremadura",
   "clicks": 0,
   "impressions": 13,
-  "position": 8.7
+  "position": 9.3
  },
  {
-  "query": "para todos los publicos",
+  "query": "extremoduro para todos los públicos",
   "clicks": 0,
   "impressions": 13,
-  "position": 17.6
+  "position": 22.6
  },
  {
-  "query": "extrechinato y tu",
+  "query": "transgresivo",
   "clicks": 0,
   "impressions": 13,
-  "position": 9.9
+  "position": 21.7
  },
  {
-  "query": "puta humanidad",
+  "query": "letras de extremoduro amor castúo",
   "clicks": 0,
   "impressions": 13,
-  "position": 11.5
+  "position": 9.8
  },
  {
-  "query": "sol de invierno extremoduro significado",
-  "clicks": 1,
+  "query": "robe que es",
+  "clicks": 0,
+  "impressions": 13,
+  "position": 8.3
+ },
+ {
+  "query": "robe guerrero letra",
+  "clicks": 0,
   "impressions": 12,
-  "position": 8.2
- },
- {
-  "query": "alfredo piedrafita wikipedia",
-  "clicks": 0,
-  "impressions": 12,
-  "position": 11.2
+  "position": 3.2
  },
  {
   "query": "uoho",
@@ -684,16 +1050,16 @@
   "position": 12.6
  },
  {
-  "query": "somos unos animales extremoduro",
-  "clicks": 0,
-  "impressions": 12,
-  "position": 32.8
- },
- {
   "query": "reincidentes de donde son",
   "clicks": 0,
   "impressions": 12,
   "position": 9.2
+ },
+ {
+  "query": "takedown de contenido infractor mexico",
+  "clicks": 0,
+  "impressions": 12,
+  "position": 53.2
  },
  {
   "query": "de donde es kutxi romero",
@@ -702,16 +1068,22 @@
   "position": 10.8
  },
  {
-  "query": "la barricada",
+  "query": "roberto iniesta destrozares",
   "clicks": 0,
-  "impressions": 11,
-  "position": 20.5
+  "impressions": 12,
+  "position": 14.0
  },
  {
-  "query": "carabanchel la modelo herrera de la mancha",
+  "query": "del tiempo perdido - robe significado",
+  "clicks": 0,
+  "impressions": 12,
+  "position": 7.0
+ },
+ {
+  "query": "robe frases",
   "clicks": 0,
   "impressions": 11,
-  "position": 11.6
+  "position": 7.4
  },
  {
   "query": "ara malikian",
@@ -720,16 +1092,46 @@
   "position": 38.0
  },
  {
+  "query": "carabanchel la modelo herrera de la mancha",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 11.6
+ },
+ {
+  "query": "miembros extremoduro",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 10.2
+ },
+ {
   "query": "cantera bateria",
   "clicks": 0,
   "impressions": 11,
   "position": 7.6
  },
  {
-  "query": "letra interludio robe",
+  "query": "extremoduro ballenas significado",
   "clicks": 0,
   "impressions": 11,
-  "position": 8.5
+  "position": 1.0
+ },
+ {
+  "query": "agila significado",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 27.2
+ },
+ {
+  "query": "manolo chinato",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 2.0
+ },
+ {
+  "query": "letras de extremoduro la vereda de la puerta de atrás",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 2.0
  },
  {
   "query": "bulo grupo musical",
@@ -744,10 +1146,40 @@
   "position": 12.1
  },
  {
-  "query": "guerrero robe",
+  "query": "roberto iniesta bienvenidos al temporal",
   "clicks": 0,
   "impressions": 11,
-  "position": 3.5
+  "position": 8.4
+ },
+ {
+  "query": "robe destrozares",
+  "clicks": 0,
+  "impressions": 11,
+  "position": 17.7
+ },
+ {
+  "query": "dave lerman",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 7.6
+ },
+ {
+  "query": "componentes extremoduro",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 4.0
+ },
+ {
+  "query": "portadas discos robe",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 6.0
+ },
+ {
+  "query": "deltoya",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 12.6
  },
  {
   "query": "barricada integrantes",
@@ -756,16 +1188,46 @@
   "position": 7.1
  },
  {
-  "query": "canciones de roberto iniesta lo que aletea en nuestras cabezas",
+  "query": "extremoduro componentes",
   "clicks": 0,
   "impressions": 10,
-  "position": 13.1
+  "position": 38.4
  },
  {
-  "query": "interludio letra",
+  "query": "como buen guerrero letra",
   "clicks": 0,
   "impressions": 10,
-  "position": 10.1
+  "position": 3.1
+ },
+ {
+  "query": "destrozares robe",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 27.2
+ },
+ {
+  "query": "letras de extremoduro ama, ama, ama y ensancha el alma",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 2.0
+ },
+ {
+  "query": "donde estan mis amigos",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 17.7
+ },
+ {
+  "query": "extremoduro material defectuoso canciones",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 23.1
+ },
+ {
+  "query": "amor castúo significado",
+  "clicks": 0,
+  "impressions": 10,
+  "position": 4.6
  },
  {
   "query": "miembros de los enemigos",
@@ -774,40 +1236,64 @@
   "position": 9.8
  },
  {
-  "query": "mi espíritu imperecedero significado",
-  "clicks": 0,
-  "impressions": 10,
-  "position": 9.3
- },
- {
-  "query": "barricada rock",
+  "query": "entre barrotes",
   "clicks": 0,
   "impressions": 9,
-  "position": 12.7
+  "position": 69.8
  },
  {
-  "query": "integrantes extremoduro",
+  "query": "entre interiores acordes",
   "clicks": 0,
   "impressions": 9,
-  "position": 8.6
+  "position": 14.3
  },
  {
-  "query": "extremoduro para todos los públicos",
+  "query": "robe albumes",
   "clicks": 0,
   "impressions": 9,
-  "position": 23.1
+  "position": 7.9
+ },
+ {
+  "query": "robe discos en solitario",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 10.6
+ },
+ {
+  "query": "ley innata",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 28.0
+ },
+ {
+  "query": "cancion guerrero robe",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 2.4
+ },
+ {
+  "query": "en cada batalla nunca me he rendido",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 3.2
+ },
+ {
+  "query": "guerrero de robe",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 2.7
+ },
+ {
+  "query": "portadas discos extremoduro",
+  "clicks": 0,
+  "impressions": 9,
+  "position": 12.0
  },
  {
   "query": "letras de extremoduro mi voluntad",
   "clicks": 0,
   "impressions": 9,
   "position": 11.4
- },
- {
-  "query": "transgresivo",
-  "clicks": 0,
-  "impressions": 9,
-  "position": 23.8
  },
  {
   "query": "grupo bulo",
@@ -840,22 +1326,10 @@
   "position": 26.2
  },
  {
-  "query": "manolo chinato",
+  "query": "robe de donde era",
   "clicks": 0,
   "impressions": 9,
-  "position": 12.3
- },
- {
-  "query": "robe de donde es",
-  "clicks": 0,
-  "impressions": 9,
-  "position": 10.7
- },
- {
-  "query": "robe iniesta destrozares",
-  "clicks": 0,
-  "impressions": 9,
-  "position": 20.8
+  "position": 10.9
  },
  {
   "query": "woody robe",
@@ -864,16 +1338,64 @@
   "position": 9.1
  },
  {
+  "query": "frases robe amor",
+  "clicks": 2,
+  "impressions": 8,
+  "position": 4.7
+ },
+ {
   "query": "jaime moreno rebrote",
   "clicks": 2,
   "impressions": 8,
   "position": 5.0
  },
  {
-  "query": "niños ojos rojos",
+  "query": "robe iniesta discos",
   "clicks": 0,
   "impressions": 8,
-  "position": 41.0
+  "position": 12.6
+ },
+ {
+  "query": "discografia de robe iniesta",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 13.0
+ },
+ {
+  "query": "barricada que es",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 44.1
+ },
+ {
+  "query": "que es barricada",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 39.4
+ },
+ {
+  "query": "robe lo que aletea en nuestras cabezas",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 33.1
+ },
+ {
+  "query": "guerrero letra robe",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 4.1
+ },
+ {
+  "query": "yo no robe del olimpo este fuego mi amor",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 2.1
+ },
+ {
+  "query": "letras de extremoduro jesucristo garcía significado",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 8.5
  },
  {
   "query": "ininteligible robe significado",
@@ -882,16 +1404,22 @@
   "position": 28.0
  },
  {
-  "query": "destrozares robe",
+  "query": "que genero es extremoduro",
   "clicks": 0,
   "impressions": 8,
-  "position": 27.2
+  "position": 10.4
  },
  {
-  "query": "de dónde es el grupo extremoduro",
+  "query": "letras de extremoduro decidí significado",
   "clicks": 0,
   "impressions": 8,
-  "position": 14.8
+  "position": 4.6
+ },
+ {
+  "query": "extremaydura letra significado",
+  "clicks": 0,
+  "impressions": 8,
+  "position": 9.3
  },
  {
   "query": "miembros de extrechinato y tú",
@@ -918,22 +1446,22 @@
   "position": 11.8
  },
  {
-  "query": "roberto iniesta destrozares",
+  "query": "roberto iniesta bienvenidos al temporal canciones",
   "clicks": 0,
   "impressions": 8,
-  "position": 14.0
+  "position": 10.9
  },
  {
-  "query": "entre barrotes",
+  "query": "letra destrozares robe",
   "clicks": 0,
-  "impressions": 7,
-  "position": 69.1
+  "impressions": 8,
+  "position": 6.8
  },
  {
-  "query": "entre interiores acordes",
+  "query": "david lerman wikipedia",
   "clicks": 0,
   "impressions": 7,
-  "position": 15.2
+  "position": 11.0
  },
  {
   "query": "viajando por el interior",
@@ -942,22 +1470,28 @@
   "position": 1.0
  },
  {
-  "query": "david lerman robe",
-  "clicks": 0,
-  "impressions": 7,
-  "position": 9.4
- },
- {
-  "query": "robe frases",
-  "clicks": 0,
-  "impressions": 7,
-  "position": 7.1
- },
- {
   "query": "la amapola",
   "clicks": 0,
   "impressions": 7,
   "position": 25.6
+ },
+ {
+  "query": "robe significado",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 11.0
+ },
+ {
+  "query": "roberto iniesta discografia",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 13.2
+ },
+ {
+  "query": "cantante de barricada",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 32.0
  },
  {
   "query": "componentes barricada",
@@ -966,10 +1500,22 @@
   "position": 8.7
  },
  {
+  "query": "niños de los ojos rojos",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 49.1
+ },
+ {
   "query": "pepe botica",
   "clicks": 0,
   "impressions": 7,
   "position": 20.1
+ },
+ {
+  "query": "alvaro rodriguez barroso",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 12.8
  },
  {
   "query": "batería de extremoduro",
@@ -978,34 +1524,46 @@
   "position": 11.0
  },
  {
-  "query": "evaristo el rey de la baraja significado",
+  "query": "lo que aletea en nuestras cabezas",
   "clicks": 1,
   "impressions": 7,
-  "position": 5.0
+  "position": 37.4
  },
  {
-  "query": "jesucristo garcía letra significado",
-  "clicks": 1,
-  "impressions": 7,
-  "position": 8.2
- },
- {
-  "query": "extremoduro miembros",
+  "query": "nada que perder robe significado",
   "clicks": 0,
   "impressions": 7,
-  "position": 15.0
+  "position": 27.3
  },
  {
-  "query": "la ley innata significado",
+  "query": "guerrero cancion robe",
   "clicks": 0,
   "impressions": 7,
-  "position": 40.0
+  "position": 2.0
  },
  {
-  "query": "ley innata",
+  "query": "robe mi pequeña historia",
   "clicks": 0,
   "impressions": 7,
-  "position": 35.4
+  "position": 28.8
+ },
+ {
+  "query": "primer disco extremoduro nombres",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 24.0
+ },
+ {
+  "query": "cuantos discos tiene extremoduro",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 9.6
+ },
+ {
+  "query": "romperas",
+  "clicks": 0,
+  "impressions": 7,
+  "position": 7.4
  },
  {
   "query": "batería de marea",
@@ -1026,22 +1584,10 @@
   "position": 28.4
  },
  {
-  "query": "robe destrozares",
+  "query": "y rozar contigo robe significado",
   "clicks": 0,
   "impressions": 7,
-  "position": 15.5
- },
- {
-  "query": "puta humanidad robe",
-  "clicks": 0,
-  "impressions": 7,
-  "position": 12.6
- },
- {
-  "query": "llegar al olimpo y robar el fuego",
-  "clicks": 0,
-  "impressions": 7,
-  "position": 3.6
+  "position": 1.0
  },
  {
   "query": "woody amores robe",
@@ -1050,40 +1596,64 @@
   "position": 6.7
  },
  {
-  "query": "dave lerman",
-  "clicks": 0,
-  "impressions": 6,
-  "position": 7.8
- },
- {
-  "query": "componentes extremoduro",
-  "clicks": 0,
-  "impressions": 6,
-  "position": 4.0
- },
- {
   "query": "frases de amor extremoduro",
   "clicks": 0,
   "impressions": 6,
   "position": 3.7
  },
  {
-  "query": "frases robe iniesta amor",
+  "query": "simbolo extremoduro",
   "clicks": 0,
   "impressions": 6,
-  "position": 5.8
+  "position": 8.8
  },
  {
-  "query": "extremoduro amapola",
+  "query": "ara malikian edad",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 48.7
+ },
+ {
+  "query": "dejo las canciones sin final",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 8.0
+ },
+ {
+  "query": "letra mayeutica",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 8.3
+ },
+ {
+  "query": "discos de robe iniesta",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 9.0
+ },
+ {
+  "query": "discos robe iniesta",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 10.2
+ },
+ {
+  "query": "discografía de robe",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 1.0
+ },
+ {
+  "query": "deltoya portada",
   "clicks": 1,
   "impressions": 6,
-  "position": 8.5
+  "position": 8.3
  },
  {
-  "query": "cantante barricada",
+  "query": "grupo parecido a extremoduro",
   "clicks": 0,
   "impressions": 6,
-  "position": 22.8
+  "position": 7.5
  },
  {
   "query": "de donde son barricada",
@@ -1098,46 +1668,70 @@
   "position": 5.8
  },
  {
-  "query": "alvaro rodriguez barroso",
+  "query": "foro de barricada",
   "clicks": 0,
   "impressions": 6,
-  "position": 12.8
+  "position": 31.8
  },
  {
-  "query": "lo que aletea en nuestras cabezas",
-  "clicks": 1,
-  "impressions": 6,
-  "position": 39.5
- },
- {
-  "query": "dejo las canciones sin final",
+  "query": "fotos de barricada",
   "clicks": 0,
   "impressions": 6,
-  "position": 8.0
+  "position": 26.2
  },
  {
-  "query": "letras de extremoduro jesucristo garcía significado",
+  "query": "los niños de los ojos rojos",
   "clicks": 0,
   "impressions": 6,
-  "position": 8.5
+  "position": 32.8
  },
  {
-  "query": "extremoduro ballenas significado",
+  "query": "como buen guerrero",
   "clicks": 0,
   "impressions": 6,
-  "position": 1.0
+  "position": 2.3
  },
  {
-  "query": "robe significado",
+  "query": "letra de guerrero robe",
   "clicks": 0,
   "impressions": 6,
-  "position": 35.5
+  "position": 2.0
  },
  {
-  "query": "destrozares significado",
+  "query": "jesucristo garcia letra",
   "clicks": 0,
   "impressions": 6,
-  "position": 10.7
+  "position": 3.0
+ },
+ {
+  "query": "donde se rompen las olas significado",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 5.0
+ },
+ {
+  "query": "discografía extremoduro orden cronologico",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 9.4
+ },
+ {
+  "query": "ultimo disco extremoduro",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 2.7
+ },
+ {
+  "query": "extremoduro biografia",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 41.8
+ },
+ {
+  "query": "extremoduro origen",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 13.8
  },
  {
   "query": "agila contraportada",
@@ -1146,28 +1740,28 @@
   "position": 8.0
  },
  {
-  "query": "agila significado",
+  "query": "extremoduro dónde están mis amigos",
   "clicks": 0,
   "impressions": 6,
-  "position": 20.2
+  "position": 16.8
  },
  {
-  "query": "deltoya",
+  "query": "jesucristo garcia",
   "clicks": 0,
   "impressions": 6,
-  "position": 17.8
+  "position": 14.5
+ },
+ {
+  "query": "letras de extremoduro jesucristo garcía",
+  "clicks": 0,
+  "impressions": 6,
+  "position": 2.0
  },
  {
   "query": "para todos los publicos extremoduro",
   "clicks": 0,
   "impressions": 6,
   "position": 20.3
- },
- {
-  "query": "grupo parecido a extremoduro",
-  "clicks": 0,
-  "impressions": 6,
-  "position": 7.5
  },
  {
   "query": "fito y fitipaldis estilo musical",
@@ -1224,28 +1818,58 @@
   "position": 10.2
  },
  {
-  "query": "robe de donde era",
-  "clicks": 0,
-  "impressions": 6,
-  "position": 11.2
- },
- {
-  "query": "destrozares letra",
-  "clicks": 0,
-  "impressions": 6,
-  "position": 6.0
- },
- {
   "query": "robe \"por encima del bien y del mal\" canción",
   "clicks": 0,
   "impressions": 6,
   "position": 11.3
  },
  {
+  "query": "si",
+  "clicks": 1,
+  "impressions": 5,
+  "position": 1.0
+ },
+ {
+  "query": "frases amor extremoduro",
+  "clicks": 2,
+  "impressions": 5,
+  "position": 4.8
+ },
+ {
+  "query": "frases de robe iniesta",
+  "clicks": 1,
+  "impressions": 5,
+  "position": 5.4
+ },
+ {
   "query": "extremoduro frases",
   "clicks": 0,
   "impressions": 5,
   "position": 10.2
+ },
+ {
+  "query": "frases de amor de extremoduro",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 4.2
+ },
+ {
+  "query": "frases robe extremoduro",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 7.6
+ },
+ {
+  "query": "robe iniesta disco",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 19.6
+ },
+ {
+  "query": "que es deltoya",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 6.8
  },
  {
   "query": "locura transitoria extremoduro significado",
@@ -1260,10 +1884,10 @@
   "position": 6.6
  },
  {
-  "query": "que es barricada",
+  "query": "barricada cantante",
   "clicks": 0,
   "impressions": 5,
-  "position": 39.0
+  "position": 23.2
  },
  {
   "query": "álvaro rodríguez barroso",
@@ -1278,16 +1902,46 @@
   "position": 9.0
  },
  {
-  "query": "robe lo que aletea en nuestras cabezas",
+  "query": "guerrero extremoduro letra",
   "clicks": 0,
   "impressions": 5,
-  "position": 38.2
+  "position": 5.4
  },
  {
-  "query": "nada que perder robe significado",
+  "query": "robe iniesta guerrero",
   "clicks": 0,
   "impressions": 5,
-  "position": 26.5
+  "position": 2.2
+ },
+ {
+  "query": "letra jesucristo garcía",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 3.0
+ },
+ {
+  "query": "que genero es fito y fitipaldis",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 6.0
+ },
+ {
+  "query": "que tipo de musica es fito y fitipaldis",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 7.0
+ },
+ {
+  "query": "fito y fitipaldis genero musical",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 7.0
+ },
+ {
+  "query": "extremoduro primer disco",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 26.0
  },
  {
   "query": "extremoduro blogspot",
@@ -1296,40 +1950,28 @@
   "position": 75.8
  },
  {
-  "query": "extremoduro componentes",
+  "query": "su culo es miel extremoduro",
   "clicks": 0,
   "impressions": 5,
-  "position": 12.0
- },
- {
-  "query": "componentes de extremoduro",
-  "clicks": 0,
-  "impressions": 5,
-  "position": 9.7
- },
- {
-  "query": "extremoduro es de extremadura",
-  "clicks": 0,
-  "impressions": 5,
-  "position": 9.3
- },
- {
-  "query": "que significa deltoya",
-  "clicks": 0,
-  "impressions": 5,
-  "position": 6.6
- },
- {
-  "query": "donde estan mis amigos",
-  "clicks": 0,
-  "impressions": 5,
-  "position": 20.8
+  "position": 11.0
  },
  {
   "query": "iros todos a tomar extremoduro año",
   "clicks": 0,
   "impressions": 5,
   "position": 7.2
+ },
+ {
+  "query": "canciones de extremoduro material defectuoso",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 26.0
+ },
+ {
+  "query": "letras de extremoduro romperás",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 6.0
  },
  {
   "query": "bulo banda de rock",
@@ -1392,10 +2034,22 @@
   "position": 6.8
  },
  {
+  "query": "los robe grupo",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 9.0
+ },
+ {
   "query": "destrozares canciones para el final de los tiempos",
   "clicks": 0,
   "impressions": 5,
   "position": 22.2
+ },
+ {
+  "query": "destrozares robe letra",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 6.0
  },
  {
   "query": "cartas desde gaia significado",
@@ -1404,10 +2058,22 @@
   "position": 7.3
  },
  {
+  "query": "destrozares",
+  "clicks": 0,
+  "impressions": 5,
+  "position": 18.0
+ },
+ {
   "query": "guitarrista robe",
   "clicks": 0,
   "impressions": 4,
   "position": 9.8
+ },
+ {
+  "query": "woody amores wikipedia",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 5.2
  },
  {
   "query": "milindris",
@@ -1416,40 +2082,34 @@
   "position": 5.8
  },
  {
-  "query": "frases robe amor",
-  "clicks": 1,
-  "impressions": 4,
-  "position": 5.0
- },
- {
-  "query": "frases de amor de extremoduro",
+  "query": "frases de robe extremoduro",
   "clicks": 0,
   "impressions": 4,
-  "position": 4.5
+  "position": 6.2
  },
  {
-  "query": "barricada que es",
+  "query": "letras de roberto iniesta primer movimiento: después de la catarsis",
   "clicks": 0,
   "impressions": 4,
-  "position": 46.5
+  "position": 2.0
  },
  {
-  "query": "fotos de barricada",
+  "query": "amapolas extremoduro",
   "clicks": 0,
   "impressions": 4,
-  "position": 28.0
+  "position": 9.5
  },
  {
-  "query": "niños de los ojos rojos",
+  "query": "robe amapola",
   "clicks": 0,
   "impressions": 4,
-  "position": 57.0
+  "position": 8.0
  },
  {
-  "query": "ara malikian edad",
+  "query": "ara malikian wikipedia",
   "clicks": 0,
   "impressions": 4,
-  "position": 50.0
+  "position": 20.5
  },
  {
   "query": "malikian violinista",
@@ -1458,10 +2118,64 @@
   "position": 36.0
  },
  {
-  "query": "roberto iniesta lo que aletea en nuestras cabezas canciones",
+  "query": "rosendo",
   "clicks": 0,
   "impressions": 4,
-  "position": 16.0
+  "position": 10.8
+ },
+ {
+  "query": "cuántos discos tiene robe en solitario",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 6.0
+ },
+ {
+  "query": "discografía de robe iniesta",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 8.5
+ },
+ {
+  "query": "ultimo disco de robe",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 25.8
+ },
+ {
+  "query": "ley innata extremoduro significado",
+  "clicks": 1,
+  "impressions": 4,
+  "position": 31.5
+ },
+ {
+  "query": "que es la ley innata",
+  "clicks": 1,
+  "impressions": 4,
+  "position": 41.2
+ },
+ {
+  "query": "ley innata cicerón significado",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 36.5
+ },
+ {
+  "query": "barricada definicion",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 33.5
+ },
+ {
+  "query": "fotos barricada",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 30.2
+ },
+ {
+  "query": "musicos de robe",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 8.3
  },
  {
   "query": "un suspiro acompasado significado",
@@ -1470,10 +2184,58 @@
   "position": 43.0
  },
  {
-  "query": "jesucristo garcia letra",
+  "query": "como buen guerrero robe",
   "clicks": 0,
   "impressions": 4,
-  "position": 5.0
+  "position": 3.2
+ },
+ {
+  "query": "guerrero extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 2.8
+ },
+ {
+  "query": "soy evaristo el rey de la baraja significado",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 1.0
+ },
+ {
+  "query": "ballenas robe",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 13.2
+ },
+ {
+  "query": "la canción más triste robe significado",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 1.0
+ },
+ {
+  "query": "primer disco de extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 24.5
+ },
+ {
+  "query": "disco extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 8.5
+ },
+ {
+  "query": "discografia completa extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 58.0
+ },
+ {
+  "query": "de dónde es extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 11.0
  },
  {
   "query": "contraportada agila",
@@ -1494,10 +2256,34 @@
   "position": 23.0
  },
  {
+  "query": "so payaso",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 2.5
+ },
+ {
   "query": "extremoduro enemigo",
   "clicks": 0,
   "impressions": 4,
   "position": 20.8
+ },
+ {
+  "query": "golfa letra",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 7.8
+ },
+ {
+  "query": "extremoduro su culo es miel",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 10.8
+ },
+ {
+  "query": "donde estan mis amigos extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 19.5
  },
  {
   "query": "letras de extremoduro bribriblibli (en el más sucio rincón de mi negro corazón)",
@@ -1506,31 +2292,13 @@
   "position": 12.0
  },
  {
-  "query": "letras de extremoduro jesucristo garcía",
+  "query": "lletra de la cançó de extremoduro jesucristo garcía",
   "clicks": 0,
   "impressions": 4,
-  "position": 30.5
- },
- {
-  "query": "ley innata cicerón significado",
-  "clicks": 0,
-  "impressions": 4,
-  "position": 36.5
- },
- {
-  "query": "canciones de extremoduro material defectuoso",
-  "clicks": 0,
-  "impressions": 4,
-  "position": 28.5
+  "position": 4.0
  },
  {
   "query": "extremoduro material defectuoso",
-  "clicks": 0,
-  "impressions": 4,
-  "position": 30.2
- },
- {
-  "query": "extremoduro material defectuoso canciones",
   "clicks": 0,
   "impressions": 4,
   "position": 30.2
@@ -1540,6 +2308,24 @@
   "clicks": 0,
   "impressions": 4,
   "position": 29.0
+ },
+ {
+  "query": "desarraigo letra",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 6.0
+ },
+ {
+  "query": "portada rock transgresivo",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 13.5
+ },
+ {
+  "query": "emparedado extremoduro",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 9.2
  },
  {
   "query": "yo minoria absoluta",
@@ -1560,12 +2346,6 @@
   "position": 10.8
  },
  {
-  "query": "fito y fitipaldis genero musical",
-  "clicks": 0,
-  "impressions": 4,
-  "position": 9.2
- },
- {
   "query": "leño discografia",
   "clicks": 0,
   "impressions": 4,
@@ -1582,6 +2362,12 @@
   "clicks": 0,
   "impressions": 4,
   "position": 30.5
+ },
+ {
+  "query": "y en badajoz",
+  "clicks": 0,
+  "impressions": 4,
+  "position": 6.8
  },
  {
   "query": "la casa de iñaki",
@@ -1608,16 +2394,10 @@
   "position": 37.8
  },
  {
-  "query": "cartas desde gaia",
+  "query": "roberto iniesta destrozares, canciones para el final de los tiempos",
   "clicks": 0,
   "impressions": 4,
-  "position": 16.5
- },
- {
-  "query": "letras de roberto iniesta cartas desde gaia",
-  "clicks": 0,
-  "impressions": 4,
-  "position": 12.8
+  "position": 12.0
  },
  {
   "query": "mayéutica robe significado",
@@ -1626,16 +2406,22 @@
   "position": 31.3
  },
  {
-  "query": "woody amores wikipedia",
+  "query": "woody guitarra",
   "clicks": 0,
   "impressions": 3,
-  "position": 5.0
+  "position": 8.7
  },
  {
-  "query": "david lerman wikipedia",
+  "query": "david robe",
   "clicks": 0,
   "impressions": 3,
-  "position": 11.7
+  "position": 7.3
+ },
+ {
+  "query": "letra entre interiores",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 13.5
  },
  {
   "query": "mikel kolino",
@@ -1644,46 +2430,16 @@
   "position": 30.0
  },
  {
-  "query": "jaime moreno cantante",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 10.7
- },
- {
   "query": "robe iniesta frases",
   "clicks": 0,
   "impressions": 3,
   "position": 6.7
  },
  {
-  "query": "amapolas extremoduro",
+  "query": "frases de canciones de robe",
   "clicks": 0,
   "impressions": 3,
-  "position": 9.3
- },
- {
-  "query": "barrikada",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 38.7
- },
- {
-  "query": "foro de barricada",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 33.7
- },
- {
-  "query": "los dogos plasencia",
-  "clicks": 1,
-  "impressions": 3,
-  "position": 5.0
- },
- {
-  "query": "los niños de los ojos rojos",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 39.0
+  "position": 5.5
  },
  {
   "query": "ara malikian joven",
@@ -1692,22 +2448,16 @@
   "position": 26.3
  },
  {
-  "query": "ara malikian wikipedia",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 23.7
- },
- {
   "query": "de donde es ara malikian",
   "clicks": 0,
   "impressions": 3,
   "position": 48.0
  },
  {
-  "query": "lo que aletea en nuestras cabezas canciones",
+  "query": "jaime moreno cantante",
   "clicks": 0,
   "impressions": 3,
-  "position": 21.0
+  "position": 10.7
  },
  {
   "query": "dejo la puerta abierta por si decides volver robe",
@@ -1716,10 +2466,10 @@
   "position": 9.3
  },
  {
-  "query": "letra mayeutica",
+  "query": "mayeutica letra completa",
   "clicks": 0,
   "impressions": 3,
-  "position": 8.7
+  "position": 8.3
  },
  {
   "query": "roberto iniesta interludio lyrics",
@@ -1728,106 +2478,46 @@
   "position": 6.0
  },
  {
-  "query": "soy evaristo el rey de la baraja significado",
+  "query": "rosendo grupo musical",
   "clicks": 0,
   "impressions": 3,
-  "position": 3.5
+  "position": 9.7
  },
  {
-  "query": "el ladron de toallas",
+  "query": "disco robe",
   "clicks": 0,
   "impressions": 3,
-  "position": 58.7
+  "position": 13.0
  },
  {
-  "query": "robe mi pequeña historia",
+  "query": "disco robe iniesta",
   "clicks": 0,
   "impressions": 3,
-  "position": 33.0
+  "position": 25.7
  },
  {
-  "query": "letras disco",
+  "query": "discos robe en solitario",
   "clicks": 0,
   "impressions": 3,
-  "position": 33.0
+  "position": 10.0
  },
  {
-  "query": "ballenas robe",
+  "query": "robe discografía",
   "clicks": 0,
   "impressions": 3,
-  "position": 12.3
+  "position": 10.0
  },
  {
-  "query": "tu corazón extremoduro significado",
+  "query": "un madero mil lapiceros",
   "clicks": 0,
   "impressions": 3,
-  "position": 9.3
+  "position": 37.0
  },
  {
-  "query": "significado si te vas extremoduro",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 54.0
- },
- {
-  "query": "robe iniesta discografia",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 48.3
- },
- {
-  "query": "primer disco de extremoduro año",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 33.5
- },
- {
-  "query": "extremoduro biografia",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 52.7
- },
- {
-  "query": "que genero es extremoduro",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 10.7
- },
- {
-  "query": "esclarecido",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 16.3
- },
- {
-  "query": "deltoya portada",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 8.0
- },
- {
-  "query": "extremoduro dónde están mis amigos",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 19.7
- },
- {
-  "query": "extremoduro ¿dónde están mis amigos?",
+  "query": "la ley innata",
   "clicks": 0,
   "impressions": 3,
   "position": 23.7
- },
- {
-  "query": "extremoduro jesucristo garcia letra",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 34.0
- },
- {
-  "query": "jesucristo garcia",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 26.7
  },
  {
   "query": "la ley innata extremoduro significado",
@@ -1848,10 +2538,202 @@
   "position": 25.7
  },
  {
-  "query": "desarraigo letra",
+  "query": "locura transitoria letra",
   "clicks": 0,
   "impressions": 3,
-  "position": 6.3
+  "position": 3.7
+ },
+ {
+  "query": "grupos parecidos a marea",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 12.7
+ },
+ {
+  "query": "barricada significado",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 55.7
+ },
+ {
+  "query": "barricadas significado",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 50.3
+ },
+ {
+  "query": "barrikada",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 38.7
+ },
+ {
+  "query": "que es una barricada",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 58.0
+ },
+ {
+  "query": "los dogos plasencia",
+  "clicks": 1,
+  "impressions": 3,
+  "position": 5.0
+ },
+ {
+  "query": "robé el refugio del fin del mundo",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 5.0
+ },
+ {
+  "query": "lo que aletea en nuestras cabezas canciones",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 21.0
+ },
+ {
+  "query": "como buen guerrero extremoduro",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 3.0
+ },
+ {
+  "query": "como buen guerrero solo tengo miedo",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 3.0
+ },
+ {
+  "query": "como un buen guerrero robe",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 2.0
+ },
+ {
+  "query": "letra robe guerrero",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 2.3
+ },
+ {
+  "query": "el ladron de toallas",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 58.7
+ },
+ {
+  "query": "bajista de fito y fitipaldis",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 9.0
+ },
+ {
+  "query": "letras disco",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 33.0
+ },
+ {
+  "query": "tu corazón extremoduro significado",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 9.3
+ },
+ {
+  "query": "significado si te vas extremoduro",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 54.0
+ },
+ {
+  "query": "primer disco de extremoduro año",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 33.5
+ },
+ {
+  "query": "discos de extremoduro en orden",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 10.0
+ },
+ {
+  "query": "discos extremoduro orden",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 11.0
+ },
+ {
+  "query": "extremoduro discografia completa",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 57.7
+ },
+ {
+  "query": "extremoduro discografía",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 50.7
+ },
+ {
+  "query": "ultimo disco de extremoduro",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 19.0
+ },
+ {
+  "query": "extremoduro genero",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 39.0
+ },
+ {
+  "query": "extremoduro historia",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 35.0
+ },
+ {
+  "query": "extremoduro plasencia",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 15.7
+ },
+ {
+  "query": "esclarecido",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 16.3
+ },
+ {
+  "query": "donde están mis amigos",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 23.7
+ },
+ {
+  "query": "extremoduro dónde están mis amigos canciones",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 34.0
+ },
+ {
+  "query": "extremoduro ¿dónde están mis amigos?",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 23.7
+ },
+ {
+  "query": "mis amigos donde estan",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 2.7
+ },
+ {
+  "query": "extremoduro jesucristo garcia letra",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 34.0
  },
  {
   "query": "extremoduro si te vas significado canción",
@@ -1860,16 +2742,46 @@
   "position": 11.0
  },
  {
+  "query": "para todos los públicos",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 13.3
+ },
+ {
   "query": "mi voluntad",
   "clicks": 0,
   "impressions": 3,
   "position": 14.0
  },
  {
-  "query": "portada rock transgresivo",
+  "query": "extremaydura letra",
   "clicks": 0,
   "impressions": 3,
-  "position": 14.3
+  "position": 10.5
+ },
+ {
+  "query": "arrebato extremoduro",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 8.7
+ },
+ {
+  "query": "decidí significado",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 7.7
+ },
+ {
+  "query": "letra la hoguera extremoduro",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 9.0
+ },
+ {
+  "query": "romperas extremoduro letra",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 9.7
  },
  {
   "query": "bulo banda",
@@ -1882,12 +2794,6 @@
   "clicks": 0,
   "impressions": 3,
   "position": 10.7
- },
- {
-  "query": "que tipo de musica es fito y fitipaldis",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 10.3
  },
  {
   "query": "la fuga reinosa",
@@ -1914,22 +2820,16 @@
   "position": 8.0
  },
  {
+  "query": "notice and takedown marcas",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 73.7
+ },
+ {
   "query": "roberto iniesta el viaje intimo de la locura",
   "clicks": 0,
   "impressions": 3,
   "position": 52.3
- },
- {
-  "query": "integrantes de extremoduro",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 8.0
- },
- {
-  "query": "miembros extremoduro",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 10.0
  },
  {
   "query": "alen marea",
@@ -1962,34 +2862,22 @@
   "position": 31.7
  },
  {
+  "query": "robe grupo musical",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 10.3
+ },
+ {
   "query": "robe nacimiento",
   "clicks": 0,
   "impressions": 3,
   "position": 9.3
  },
  {
-  "query": "robe que es",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 8.0
- },
- {
-  "query": "roberto iniesta destrozares, canciones para el final de los tiempos",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 12.0
- },
- {
   "query": "destrozares robe iniesta",
   "clicks": 0,
   "impressions": 3,
   "position": 18.0
- },
- {
-  "query": "destrozares robe letra",
-  "clicks": 0,
-  "impressions": 3,
-  "position": 6.0
  },
  {
   "query": "roberto iniesta del tiempo perdido",
@@ -2004,10 +2892,22 @@
   "position": 9.3
  },
  {
+  "query": "mayéutica disco",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 40.3
+ },
+ {
   "query": "dro east west",
   "clicks": 0,
   "impressions": 3,
   "position": 11.3
+ },
+ {
+  "query": "el poder del arte robe significado",
+  "clicks": 0,
+  "impressions": 3,
+  "position": 23.7
  },
  {
   "query": "letras de roberto iniesta viajando por el interior",
@@ -2016,16 +2916,16 @@
   "position": 10.3
  },
  {
-  "query": "woody guitarra",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 9.5
- },
- {
   "query": "extremoduro guitarrista",
   "clicks": 0,
   "impressions": 2,
   "position": 18.0
+ },
+ {
+  "query": "lerman",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 9.0
  },
  {
   "query": "entre bastidores",
@@ -2040,52 +2940,16 @@
   "position": 23.0
  },
  {
-  "query": "quiero decirte en silencio que sobran palabras que faltan momentos",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 29.0
- },
- {
-  "query": "letra entre interiores",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 14.0
- },
- {
-  "query": "lerman",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 9.0
- },
- {
-  "query": "cantante de rebrote",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 8.0
- },
- {
-  "query": "jaime moreno cantante rebrote",
+  "query": "segunda",
   "clicks": 0,
   "impressions": 2,
   "position": 7.0
- },
- {
-  "query": "frases amor extremoduro",
-  "clicks": 1,
-  "impressions": 2,
-  "position": 6.0
  },
  {
   "query": "frases de extremoduro de amor",
   "clicks": 1,
   "impressions": 2,
   "position": 3.5
- },
- {
-  "query": "frases de robe iniesta",
-  "clicks": 1,
-  "impressions": 2,
-  "position": 9.5
  },
  {
   "query": "frase de robe",
@@ -2106,16 +2970,22 @@
   "position": 8.0
  },
  {
-  "query": "frases robe extremoduro",
+  "query": "frases robe iniesta",
   "clicks": 0,
   "impressions": 2,
   "position": 8.5
  },
  {
-  "query": "frases robe iniesta",
+  "query": "mejores frases de robe",
   "clicks": 0,
   "impressions": 2,
-  "position": 8.5
+  "position": 27.0
+ },
+ {
+  "query": "letras de robe iniesta",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 4.0
  },
  {
   "query": "amapola roja significado",
@@ -2130,82 +3000,16 @@
   "position": 73.0
  },
  {
-  "query": "simbolo extremoduro",
+  "query": "significado de las amapolas",
   "clicks": 0,
   "impressions": 2,
-  "position": 10.0
+  "position": 44.0
  },
  {
-  "query": "locura transitoria que es",
+  "query": "buitre no come alpiste significado",
   "clicks": 0,
   "impressions": 2,
-  "position": 7.5
- },
- {
-  "query": "alfredo piedrafita",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 3.0
- },
- {
-  "query": "barricada 25 años",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 47.5
- },
- {
-  "query": "barricada cantante",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 28.5
- },
- {
-  "query": "barricada definicion",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 33.5
- },
- {
-  "query": "barricada significado",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 52.0
- },
- {
-  "query": "cantante de barricada",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 50.0
- },
- {
-  "query": "fotos barricada",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 32.0
- },
- {
-  "query": "cómo se llama el cantante de barricada",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 34.0
- },
- {
-  "query": "los dogos",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 5.5
- },
- {
-  "query": "pepe botika",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 18.0
- },
- {
-  "query": "quien es pepe botika",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 8.5
+  "position": 12.0
  },
  {
   "query": "ara malikian donde vive",
@@ -2250,6 +3054,192 @@
   "position": 21.0
  },
  {
+  "query": "cantante de rebrote",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 8.0
+ },
+ {
+  "query": "jaime moreno cantante rebrote",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 7.0
+ },
+ {
+  "query": "letra interludio",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 7.5
+ },
+ {
+  "query": "y dejo las canciones sin final",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 7.5
+ },
+ {
+  "query": "de robe",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 4.0
+ },
+ {
+  "query": "rosendo robe",
+  "clicks": 1,
+  "impressions": 2,
+  "position": 3.0
+ },
+ {
+  "query": "rosendo y robe",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 7.5
+ },
+ {
+  "query": "albumes robe",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 6.5
+ },
+ {
+  "query": "disco de robe iniesta",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 14.0
+ },
+ {
+  "query": "robe albums",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 10.0
+ },
+ {
+  "query": "robe iniesta albums",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 9.0
+ },
+ {
+  "query": "álbumes de roberto iniesta",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 8.5
+ },
+ {
+  "query": "deltoya album",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 23.5
+ },
+ {
+  "query": "sí",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 2.0
+ },
+ {
+  "query": "extremoduro 2008",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 31.5
+ },
+ {
+  "query": "extremoduro la ley innata canciones",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 25.0
+ },
+ {
+  "query": "la ley innata portada",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 18.0
+ },
+ {
+  "query": "portada ley innata",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 19.0
+ },
+ {
+  "query": "que dice la portada de la ley innata",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.0
+ },
+ {
+  "query": "más",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 4.0
+ },
+ {
+  "query": "locura transitoria que es",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 7.5
+ },
+ {
+  "query": "grupos afines",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 6.0
+ },
+ {
+  "query": "grupos parecidos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 10.0
+ },
+ {
+  "query": "barricada 25 años",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 47.5
+ },
+ {
+  "query": "barricada band",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 6.0
+ },
+ {
+  "query": "barricada y extremoduro",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 5.5
+ },
+ {
+  "query": "foro barricada",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 27.5
+ },
+ {
+  "query": "cómo se llama el cantante de barricada",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 34.0
+ },
+ {
+  "query": "los dogos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 5.5
+ },
+ {
+  "query": "pepe botika",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 18.0
+ },
+ {
+  "query": "quien es pepe botika",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 8.5
+ },
+ {
   "query": "bateria de extremoduro",
   "clicks": 0,
   "impressions": 2,
@@ -2268,16 +3258,46 @@
   "position": 29.0
  },
  {
-  "query": "mayeutica letra completa",
+  "query": "robe iniesta lo que aletea en nuestras cabezas",
   "clicks": 0,
   "impressions": 2,
-  "position": 9.0
+  "position": 18.5
  },
  {
-  "query": "y dejo las canciones sin final",
+  "query": "cancion llegar al olimpo y robar el fuego",
   "clicks": 0,
   "impressions": 2,
-  "position": 7.5
+  "position": 3.5
+ },
+ {
+  "query": "como buen guerrero puedo dar la talla",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 2.0
+ },
+ {
+  "query": "como buen guerrero robe letra",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 3.0
+ },
+ {
+  "query": "extremoduro como buen guerrero",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 2.0
+ },
+ {
+  "query": "letra cancion guerrero robe",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 2.5
+ },
+ {
+  "query": "letra como buen guerrero",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 3.0
  },
  {
   "query": "prometeo extremoduro significado",
@@ -2286,10 +3306,16 @@
   "position": 6.5
  },
  {
-  "query": "robe iniesta letras",
+  "query": "jesucristo garcía letra",
   "clicks": 0,
   "impressions": 2,
-  "position": 35.0
+  "position": 4.0
+ },
+ {
+  "query": "letra de jesucristo garcia",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 3.0
  },
  {
   "query": "de manera urgente",
@@ -2328,28 +3354,52 @@
   "position": 25.5
  },
  {
-  "query": "la canción más triste robe significado",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 8.5
- },
- {
   "query": "salir extremoduro significado",
   "clicks": 0,
   "impressions": 2,
   "position": 47.0
  },
  {
-  "query": "donde se rompen las olas significado",
+  "query": "album extremoduro",
   "clicks": 0,
   "impressions": 2,
-  "position": 5.0
+  "position": 35.0
  },
  {
-  "query": "roberto iniesta discografia",
+  "query": "discografia extremoduro",
   "clicks": 0,
   "impressions": 2,
-  "position": 34.0
+  "position": 22.0
+ },
+ {
+  "query": "discografía extremoduro por orden",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 12.0
+ },
+ {
+  "query": "extremoduro discografía completa",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 31.5
+ },
+ {
+  "query": "extremoduro discos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 33.5
+ },
+ {
+  "query": "extremoduro portadas discos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 16.0
+ },
+ {
+  "query": "extremoduro wiki",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 38.0
  },
  {
   "query": "cuando empezo extremoduro",
@@ -2358,28 +3408,16 @@
   "position": 15.5
  },
  {
-  "query": "extremoduro genero",
+  "query": "historia de extremoduro",
   "clicks": 0,
   "impressions": 2,
-  "position": 54.0
+  "position": 15.0
  },
  {
-  "query": "extremoduro historia",
+  "query": "quien es extremoduro",
   "clicks": 0,
   "impressions": 2,
-  "position": 44.5
- },
- {
-  "query": "extremoduro origen",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 21.5
- },
- {
-  "query": "extremoduro plasencia",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 16.0
+  "position": 12.0
  },
  {
   "query": "agila extremoduro",
@@ -2424,40 +3462,28 @@
   "position": 62.5
  },
  {
-  "query": "golfa letra",
+  "query": "letras de extremoduro ama ama ama y ensancha el alma",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 2.0
+ },
+ {
+  "query": "ama ama y ensancha el alma letra",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 3.0
+ },
+ {
+  "query": "historias prohibidas extremoduro significado",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 1.0
+ },
+ {
+  "query": "deltoya letra",
   "clicks": 0,
   "impressions": 2,
   "position": 8.5
- },
- {
-  "query": "que es deltoya",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 6.0
- },
- {
-  "query": "un madero mil lapiceros",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 35.0
- },
- {
-  "query": "donde estan mis amigos extremoduro",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 21.0
- },
- {
-  "query": "donde están mis amigos",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 27.0
- },
- {
-  "query": "extremoduro dónde están mis amigos canciones",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 42.0
  },
  {
   "query": "extremoduro jesucristo garcía",
@@ -2472,34 +3498,28 @@
   "position": 32.0
  },
  {
-  "query": "extremoduro 2008",
+  "query": "letras de extremoduro segundo movimiento: lo de fuera",
   "clicks": 0,
   "impressions": 2,
-  "position": 31.5
+  "position": 2.0
  },
  {
-  "query": "la ley innata",
+  "query": "material defectuoso canciones",
   "clicks": 0,
   "impressions": 2,
-  "position": 20.0
+  "position": 21.5
  },
  {
-  "query": "la ley innata portada",
+  "query": "si te vas letra",
   "clicks": 0,
   "impressions": 2,
-  "position": 18.0
+  "position": 9.0
  },
  {
-  "query": "portada ley innata",
+  "query": "si te vas me quedo en esta calle sin salida letra",
   "clicks": 0,
   "impressions": 2,
-  "position": 19.0
- },
- {
-  "query": "que es la ley innata",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 51.0
+  "position": 1.0
  },
  {
   "query": "extremoduro para todos los públicos canciones",
@@ -2514,10 +3534,64 @@
   "position": 11.5
  },
  {
-  "query": "grupos afines",
+  "query": "romperas letra",
   "clicks": 0,
   "impressions": 2,
   "position": 6.0
+ },
+ {
+  "query": "tú en tu casa nosotros en la hoguera",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.5
+ },
+ {
+  "query": "amor castuo letra",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.0
+ },
+ {
+  "query": "emparedado extremoduro letra",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.0
+ },
+ {
+  "query": "extremoduro emparedado",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 13.0
+ },
+ {
+  "query": "la hoguera extremoduro",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.5
+ },
+ {
+  "query": "la hoguera significado",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 9.5
+ },
+ {
+  "query": "letra romperas extremoduro",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 10.0
+ },
+ {
+  "query": "extremoduro yo, minoría absoluta canciones",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 14.0
+ },
+ {
+  "query": "extremoduro luce la oscuridad",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 9.0
  },
  {
   "query": "de donde es fito y fitipaldis",
@@ -2530,12 +3604,6 @@
   "clicks": 0,
   "impressions": 2,
   "position": 29.0
- },
- {
-  "query": "que genero es fito y fitipaldis",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 8.5
  },
  {
   "query": "inconscientes (banda)",
@@ -2614,12 +3682,6 @@
   "clicks": 0,
   "impressions": 2,
   "position": 15.5
- },
- {
-  "query": "extremaydura letra significado",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 11.0
  },
  {
   "query": "en monfragüe buitres negros",
@@ -2724,6 +3786,42 @@
   "position": 18.5
  },
  {
+  "query": "chinato poeta",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 10.0
+ },
+ {
+  "query": "hay videos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 1.0
+ },
+ {
+  "query": "dónde nació robe iniesta",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.5
+ },
+ {
+  "query": "robe musicos",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 13.0
+ },
+ {
+  "query": "robe.es",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 16.5
+ },
+ {
+  "query": "bienvenidos al temporal",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 51.5
+ },
+ {
   "query": "roberto iniesta destrozares, canciones para el final de los tiempos canciones",
   "clicks": 0,
   "impressions": 2,
@@ -2736,16 +3834,10 @@
   "position": 15.0
  },
  {
-  "query": "cartas desde gaia letra",
+  "query": "significado cancion",
   "clicks": 0,
   "impressions": 2,
-  "position": 13.0
- },
- {
-  "query": "roberto iniesta cartas desde gaia",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 6.0
+  "position": 1.0
  },
  {
   "query": "del tiempo perdido",
@@ -2760,37 +3852,7 @@
   "position": 10.5
  },
  {
-  "query": "como buen guerrero robe",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 2.5
- },
- {
-  "query": "en cada batalla nunca me he rendido",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 4.5
- },
- {
-  "query": "guerrero extremoduro",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 2.5
- },
- {
-  "query": "guerrero robe letra",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 3.5
- },
- {
-  "query": "robe guerrero",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 3.0
- },
- {
-  "query": "letra como buen guerrero",
+  "query": "y rozar contigo letra",
   "clicks": 0,
   "impressions": 2,
   "position": 3.0
@@ -2806,12 +3868,6 @@
   "clicks": 0,
   "impressions": 2,
   "position": 41.0
- },
- {
-  "query": "mayéutica disco",
-  "clicks": 0,
-  "impressions": 2,
-  "position": 56.0
  },
  {
   "query": "coda feliz robe",
@@ -2838,10 +3894,10 @@
   "position": 46.5
  },
  {
-  "query": "el poder del arte robe significado",
+  "query": "letras de roberto iniesta ...y rozar contigo",
   "clicks": 0,
   "impressions": 2,
-  "position": 30.0
+  "position": 2.5
  },
  {
   "query": "\"por mis asquerosos pensamientos\"",
@@ -2851,6 +3907,12 @@
  },
  {
   "query": "a fuego extremoduro significado",
+  "clicks": 0,
+  "impressions": 2,
+  "position": 11.0
+ },
+ {
+  "query": "olimpo extremoduro",
   "clicks": 0,
   "impressions": 2,
   "position": 11.0
@@ -2886,6 +3948,24 @@
   "position": 7.0
  },
  {
+  "query": "bas lerman",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 17.0
+ },
+ {
+  "query": "de su hermano",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
+  "query": "grupo robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
   "query": "busco una paz negociada con mis sentimientos",
   "clicks": 0,
   "impressions": 1,
@@ -2898,10 +3978,58 @@
   "position": 55.0
  },
  {
-  "query": "david robe",
+  "query": "que más significa",
   "clicks": 0,
   "impressions": 1,
-  "position": 8.0
+  "position": 1.0
+ },
+ {
+  "query": "quiero decirte en silencio que sobran palabras que faltan momentos",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 22.0
+ },
+ {
+  "query": "colino",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
+  "query": "dime de dónde es",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
+  "query": "si explicame eso",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 7.0
+ },
+ {
+  "query": "si origen",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "carlos perez cantante",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "la primera",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
+ },
+ {
+  "query": "ahora es cuando robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
  },
  {
   "query": "frases bonitas de extremoduro",
@@ -2910,10 +4038,16 @@
   "position": 10.0
  },
  {
-  "query": "frases de canciones de robe",
+  "query": "frases canciones robe",
   "clicks": 0,
   "impressions": 1,
-  "position": 6.0
+  "position": 4.0
+ },
+ {
+  "query": "frases extremoduro amor",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
  },
  {
   "query": "las mejores frases de robe iniesta",
@@ -2922,10 +4056,52 @@
   "position": 10.0
  },
  {
-  "query": "mejores frases de robe",
+  "query": "letras de extremoduro golfa",
   "clicks": 0,
   "impressions": 1,
-  "position": 26.0
+  "position": 2.0
+ },
+ {
+  "query": "letras de roberto iniesta puntos suspensivos",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "letras de roberto iniesta segundo movimiento: mierda de filosofía",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "poemas de robe iniesta",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
+  "query": "ama ama y ensancha el alma significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 63.0
+ },
+ {
+  "query": "amapola",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
+  "query": "hay más",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
+  "query": "ojala que se llame amapola",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
  },
  {
   "query": "ojala que se llame amapola significado",
@@ -2934,10 +4110,16 @@
   "position": 7.0
  },
  {
-  "query": "robe amapola",
+  "query": "ojalá que se llame amapola",
   "clicks": 0,
   "impressions": 1,
-  "position": 6.0
+  "position": 2.0
+ },
+ {
+  "query": "que significado tiene la amapola",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
  },
  {
   "query": "robe iniesta amapola",
@@ -2946,76 +4128,10 @@
   "position": 10.0
  },
  {
-  "query": "significado de las amapolas",
+  "query": "si por favor",
   "clicks": 0,
   "impressions": 1,
-  "position": 56.0
- },
- {
-  "query": "barricad",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 42.0
- },
- {
-  "query": "barricada band",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 1.0
- },
- {
-  "query": "barricada ideologia",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 18.0
- },
- {
-  "query": "barricadas significado",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 42.0
- },
- {
-  "query": "barricafa",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 13.0
- },
- {
-  "query": "barricida",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 1.0
- },
- {
-  "query": "grupos navarros de los 80",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 1.0
- },
- {
-  "query": "primer disco de barricada",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 11.0
- },
- {
-  "query": "que es una barricada",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 59.0
- },
- {
-  "query": "que significa barricada",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 53.0
- },
- {
-  "query": "historia real",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 8.0
+  "position": 2.0
  },
  {
   "query": "ara malikian biografia",
@@ -3040,6 +4156,12 @@
   "clicks": 0,
   "impressions": 1,
   "position": 33.0
+ },
+ {
+  "query": "colaboraciones",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
  },
  {
   "query": "quien es ara malikian",
@@ -3072,12 +4194,6 @@
   "position": 43.0
  },
  {
-  "query": "robe iniesta lo que aletea en nuestras cabezas",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 13.0
- },
- {
   "query": "interludio acordes",
   "clicks": 0,
   "impressions": 1,
@@ -3090,22 +4206,382 @@
   "position": 17.0
  },
  {
+  "query": "interludio robe acordes",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 19.0
+ },
+ {
   "query": "interludio significado",
   "clicks": 0,
   "impressions": 1,
   "position": 57.0
  },
  {
-  "query": "letra interludio",
+  "query": "mayeutica letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
+ },
+ {
+  "query": "que se joda voy all in",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "que significa la canción",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "grupo de rosendo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
+ },
+ {
+  "query": "robe y rosendo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
+ },
+ {
+  "query": "rosendo cantante español",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 16.0
+ },
+ {
+  "query": "con el viento",
+  "clicks": 1,
+  "impressions": 1,
+  "position": 7.0
+ },
+ {
+  "query": "portada disco robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 14.0
+ },
+ {
+  "query": "robe album",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 19.0
+ },
+ {
+  "query": "robe wiki",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 21.0
+ },
+ {
+  "query": "ultimo disco de robe iniesta",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 37.0
+ },
+ {
+  "query": "ultimo disco robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 18.0
+ },
+ {
+  "query": "último disco de robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 36.0
+ },
+ {
+  "query": "del ya",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 8.0
+ },
+ {
+  "query": "deltoya disco",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 18.0
+ },
+ {
+  "query": "dime los significados",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
+  "query": "disco deltoya",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 32.0
+ },
+ {
+  "query": "dj deltoya",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
+ },
+ {
+  "query": "dro studio",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 28.0
+ },
+ {
+  "query": "extremoduro deltoya letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "venga vale",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
+ },
+ {
+  "query": "candlelight la ley innata",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
+ },
+ {
+  "query": "existe de hecho jueces una ley no escrita sino innata",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 51.0
+ },
+ {
+  "query": "extremoduro ley",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 36.0
+ },
+ {
+  "query": "innata que es",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 59.0
+ },
+ {
+  "query": "ley innata ciceron",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 30.0
+ },
+ {
+  "query": "extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
+ },
+ {
+  "query": "grupos tributo a extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
+ },
+ {
+  "query": "tributo a extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "alfredo barricada",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "barricad",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 42.0
+ },
+ {
+  "query": "barricada blanco y negro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "barricada discografia",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 34.0
+ },
+ {
+  "query": "barricada ideologia",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 18.0
+ },
+ {
+  "query": "barricada logo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 25.0
+ },
+ {
+  "query": "barricafa",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 13.0
+ },
+ {
+  "query": "barricida",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
+ },
+ {
+  "query": "el boni barricada",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "el trompo barricada",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
+  "query": "grupos navarros de los 80",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
+ },
+ {
+  "query": "los apandadores",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "primer disco de barricada",
   "clicks": 0,
   "impressions": 1,
   "position": 11.0
  },
  {
-  "query": "mayeutica letra",
+  "query": "que significa barricada",
   "clicks": 0,
   "impressions": 1,
-  "position": 9.0
+  "position": 53.0
+ },
+ {
+  "query": "varricada",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 14.0
+ },
+ {
+  "query": "historia real",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 8.0
+ },
+ {
+  "query": "musicos robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 73.0
+ },
+ {
+  "query": "how old was he",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "canción guerrero de robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "canción guerrero robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "extremoduro guerrero",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "extremoduro guerrero letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "guerrero robe lyrics",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "letra como buen guerrero robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "letra de guerrero de robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "letra guerrero",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "porque si la pierdo para que quiero estar vivo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
+  "query": "przetłumacz prosze",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
+ },
+ {
+  "query": "robe iniesta como buen guerrero",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "robe llegar al olimpo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "roberto iniesta guerrero letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "y soñar que acaricio su pelo",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
  },
  {
   "query": "extremoduro dios",
@@ -3192,64 +4668,82 @@
   "position": 10.0
  },
  {
-  "query": "buitre no come alpiste significado",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 12.0
- },
- {
-  "query": "cuantas canciones tiene extremoduro",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 44.0
- },
- {
-  "query": "discografia de robe iniesta",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 50.0
- },
- {
-  "query": "discografia robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 44.0
- },
- {
-  "query": "discografia robe iniesta",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 50.0
- },
- {
-  "query": "discografía de robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 1.0
- },
- {
-  "query": "discografía robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 45.0
- },
- {
-  "query": "discos de robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 50.0
- },
- {
-  "query": "discos robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 47.0
- },
- {
   "query": "extremoduro 20 años discografía completa",
   "clicks": 0,
   "impressions": 1,
   "position": 40.0
+ },
+ {
+  "query": "extremoduro robe mi pequeña historia",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 29.0
+ },
+ {
+  "query": "album de extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "discos extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 38.0
+ },
+ {
+  "query": "extremoduro 20 años. discografía completa",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 37.0
+ },
+ {
+  "query": "extremoduro album",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 41.0
+ },
+ {
+  "query": "extremoduro albums",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 34.0
+ },
+ {
+  "query": "extremoduro disco",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 26.0
+ },
+ {
+  "query": "extremoduro lista",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 42.0
+ },
+ {
+  "query": "extremoduro recopilatorio",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 31.0
+ },
+ {
+  "query": "extremoduro wikipedia",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 44.0
+ },
+ {
+  "query": "mejores discos de extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 54.0
+ },
+ {
+  "query": "recopilatorio extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 45.0
  },
  {
   "query": "algun bar",
@@ -3264,22 +4758,34 @@
   "position": 41.0
  },
  {
+  "query": "de dónde son",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 11.0
+ },
+ {
   "query": "de que año es extremoduro",
   "clicks": 0,
   "impressions": 1,
   "position": 13.0
  },
  {
+  "query": "extremoduro genero musical",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 12.0
+ },
+ {
+  "query": "extremoduro que genero es",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
+ },
+ {
   "query": "guitarrista extremoduro",
   "clicks": 0,
   "impressions": 1,
   "position": 11.0
- },
- {
-  "query": "historia de extremoduro",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 15.0
  },
  {
   "query": "plasencia extremoduro",
@@ -3294,22 +4800,16 @@
   "position": 16.0
  },
  {
-  "query": "quien es extremoduro",
+  "query": "robe extremoduro joven",
   "clicks": 0,
   "impressions": 1,
-  "position": 12.0
+  "position": 21.0
  },
  {
   "query": "robert plasencia",
   "clicks": 0,
   "impressions": 1,
   "position": 24.0
- },
- {
-  "query": "sí",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 2.0
  },
  {
   "query": "agila canciones",
@@ -3354,7 +4854,13 @@
   "position": 11.0
  },
  {
-  "query": "so payaso",
+  "query": "robe luna",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "letra de so payaso de extremoduro",
   "clicks": 0,
   "impressions": 1,
   "position": 2.0
@@ -3384,34 +4890,34 @@
   "position": 8.0
  },
  {
-  "query": "deltoya disco",
+  "query": "extremoduro golfa letra",
   "clicks": 0,
   "impressions": 1,
-  "position": 18.0
+  "position": 8.0
  },
  {
-  "query": "dime los significados",
+  "query": "golfa extremoduro significado",
   "clicks": 0,
   "impressions": 1,
-  "position": 6.0
+  "position": 1.0
  },
  {
-  "query": "disco deltoya",
+  "query": "letra de golfa",
   "clicks": 0,
   "impressions": 1,
-  "position": 32.0
+  "position": 4.0
  },
  {
-  "query": "dj deltoya",
+  "query": "letra ama ama y ensancha el alma",
   "clicks": 0,
   "impressions": 1,
-  "position": 9.0
+  "position": 3.0
  },
  {
-  "query": "dro studio",
+  "query": "dónde están mis amigos",
   "clicks": 0,
   "impressions": 1,
-  "position": 28.0
+  "position": 17.0
  },
  {
   "query": "extremoduro myspace",
@@ -3426,10 +4932,10 @@
   "position": 6.0
  },
  {
-  "query": "historias prohibidas extremoduro significado",
+  "query": "¿dónde están mis amigos?",
   "clicks": 0,
   "impressions": 1,
-  "position": 1.0
+  "position": 18.0
  },
  {
   "query": "iros todos a tomar por culo",
@@ -3438,88 +4944,40 @@
   "position": 19.0
  },
  {
+  "query": "letra de acero extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 11.0
+ },
+ {
+  "query": "extremoduro jesucristo garcía letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
+  "query": "extremoduro jesucristo garcía lyrics",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
   "query": "jesucristo garcia año",
   "clicks": 0,
   "impressions": 1,
   "position": 19.0
  },
  {
-  "query": "jesucristo garcía letra",
+  "query": "letras de extremoduro cuarto movimiento: la realidad",
   "clicks": 0,
   "impressions": 1,
-  "position": 34.0
+  "position": 2.0
  },
  {
-  "query": "letra de jesucristo garcia",
+  "query": "dulce introduccion al caos",
   "clicks": 0,
   "impressions": 1,
-  "position": 34.0
- },
- {
-  "query": "lletra de la cançó de extremoduro jesucristo garcía",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 10.0
- },
- {
-  "query": "candlelight la ley innata",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 5.0
- },
- {
-  "query": "existe de hecho jueces una ley no escrita sino innata",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 51.0
- },
- {
-  "query": "extremoduro la ley innata canciones",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 23.0
- },
- {
-  "query": "extremoduro ley",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 36.0
- },
- {
-  "query": "innata que es",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 59.0
- },
- {
-  "query": "ley innata ciceron",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 30.0
- },
- {
-  "query": "ley innata extremoduro significado",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 73.0
- },
- {
-  "query": "más",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 4.0
- },
- {
-  "query": "que dice la portada de la ley innata",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 12.0
- },
- {
-  "query": "si",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 4.0
+  "position": 2.0
  },
  {
   "query": "la ley innata letra significado",
@@ -3540,10 +4998,10 @@
   "position": 2.0
  },
  {
-  "query": "material defectuoso canciones",
+  "query": "material defectuoso extremoduro",
   "clicks": 0,
   "impressions": 1,
-  "position": 25.0
+  "position": 13.0
  },
  {
   "query": "si te vas extremoduro año",
@@ -3552,13 +5010,25 @@
   "position": 46.0
  },
  {
-  "query": "extremoduro para todos los publicos",
+  "query": "desarraigo letra extremoduro",
   "clicks": 0,
   "impressions": 1,
-  "position": 38.0
+  "position": 10.0
  },
  {
-  "query": "para todos los públicos",
+  "query": "extremoduro si te vas letras significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
+ },
+ {
+  "query": "es para todos los públicos",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 13.0
+ },
+ {
+  "query": "extremoduro para todos los publicos",
   "clicks": 0,
   "impressions": 1,
   "position": 38.0
@@ -3568,6 +5038,12 @@
   "clicks": 0,
   "impressions": 1,
   "position": 45.0
+ },
+ {
+  "query": "todos los públicos",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
  },
  {
   "query": "canciones de extremoduro rock transgresivo",
@@ -3588,10 +5064,10 @@
   "position": 9.0
  },
  {
-  "query": "primer disco de extremoduro",
+  "query": "primer disco extremoduro",
   "clicks": 0,
   "impressions": 1,
-  "position": 22.0
+  "position": 20.0
  },
  {
   "query": "rock transgresivo canciones",
@@ -3624,10 +5100,58 @@
   "position": 2.0
  },
  {
-  "query": "extremoduro yo, minoría absoluta canciones",
+  "query": "tú en tu casa, nosotros en la hoguera",
   "clicks": 0,
   "impressions": 1,
-  "position": 25.0
+  "position": 12.0
+ },
+ {
+  "query": "extremoduro arrebato",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 11.0
+ },
+ {
+  "query": "letras de extremoduro arrebato",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 12.0
+ },
+ {
+  "query": "decidi significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 8.0
+ },
+ {
+  "query": "extremoduro la hoguera",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 12.0
+ },
+ {
+  "query": "la hoguera extremoduro letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 8.0
+ },
+ {
+  "query": "letra standby extremoduro significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 41.0
+ },
+ {
+  "query": "romperas extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 5.0
+ },
+ {
+  "query": "romperás",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 12.0
  },
  {
   "query": "yo minoria absoluta canciones",
@@ -3642,22 +5166,40 @@
   "position": 34.0
  },
  {
+  "query": "yo, minoria absoluta",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 20.0
+ },
+ {
+  "query": "letra vereda de la puerta de atras",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "que me entierren con la pizza por fuera letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
+  "query": "vereda de la puerta de atras significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 1.0
+ },
+ {
   "query": "puta extremoduro significado",
   "clicks": 0,
   "impressions": 1,
   "position": 11.0
  },
  {
-  "query": "grupos parecidos a marea",
+  "query": "robe standby",
   "clicks": 0,
   "impressions": 1,
-  "position": 15.0
- },
- {
-  "query": "tributo a extremoduro",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 3.0
+  "position": 9.0
  },
  {
   "query": "canciones de extrechinato y tú",
@@ -4122,18 +5664,6 @@
   "position": 11.0
  },
  {
-  "query": "musicos de robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 73.0
- },
- {
-  "query": "musicos robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 73.0
- },
- {
   "query": "alén ayerdi",
   "clicks": 0,
   "impressions": 1,
@@ -4152,10 +5682,22 @@
   "position": 45.0
  },
  {
+  "query": "alberto \"capi\" gil",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
+ },
+ {
   "query": "alberto capi gil",
   "clicks": 0,
   "impressions": 1,
   "position": 7.0
+ },
+ {
+  "query": "carlos \"el sucio\"",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
  },
  {
   "query": "cuántos años tiene el drogas",
@@ -4350,12 +5892,6 @@
   "position": 28.0
  },
  {
-  "query": "chinato poeta",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 19.0
- },
- {
   "query": "manuel muñoz sanchez",
   "clicks": 0,
   "impressions": 1,
@@ -4416,10 +5952,40 @@
   "position": 8.0
  },
  {
+  "query": "y en la canción?",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 3.0
+ },
+ {
   "query": "de donde era robe de extremoduro",
   "clicks": 0,
   "impressions": 1,
   "position": 11.0
+ },
+ {
+  "query": "de donde era robe iniesta",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 11.0
+ },
+ {
+  "query": "de donde es robe de extremoduro",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 9.0
+ },
+ {
+  "query": "de donde es robe iniesta",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 23.0
+ },
+ {
+  "query": "donde vive robe",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 30.0
  },
  {
   "query": "quien es robe iniesta",
@@ -4440,10 +6006,22 @@
   "position": 17.0
  },
  {
+  "query": "robe joven",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
+ },
+ {
   "query": "robe quien es",
   "clicks": 0,
   "impressions": 1,
   "position": 17.0
+ },
+ {
+  "query": "robe bienvenidos al temporal",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 51.0
  },
  {
   "query": "\"mayéutica\" \"carlitos pérez\" violin",
@@ -4464,10 +6042,16 @@
   "position": 16.0
  },
  {
-  "query": "del tiempo perdido - robe significado",
+  "query": "gaia robe",
   "clicks": 0,
   "impressions": 1,
-  "position": 7.0
+  "position": 6.0
+ },
+ {
+  "query": "letra destrozares",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 12.0
  },
  {
   "query": "el tiempo perdido robe",
@@ -4476,16 +6060,10 @@
   "position": 19.0
  },
  {
-  "query": "destrozares",
+  "query": "letras de roberto iniesta la canción más triste",
   "clicks": 0,
   "impressions": 1,
-  "position": 25.0
- },
- {
-  "query": "letra destrozares robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 11.0
+  "position": 3.0
  },
  {
   "query": "puntos suspensivos robe significado",
@@ -4500,25 +6078,19 @@
   "position": 9.0
  },
  {
-  "query": "como buen guerrero extremoduro",
+  "query": "letra contra todos robe",
   "clicks": 0,
   "impressions": 1,
-  "position": 4.0
+  "position": 3.0
  },
  {
-  "query": "como buen guerrero letra",
+  "query": "robe un suspiro acompasado",
   "clicks": 0,
   "impressions": 1,
-  "position": 6.0
+  "position": 3.0
  },
  {
-  "query": "como un buen guerrero robe",
-  "clicks": 0,
-  "impressions": 1,
-  "position": 2.0
- },
- {
-  "query": "yo no robe del olimpo este fuego mi amor",
+  "query": "roberto iniesta un suspiro acompasado",
   "clicks": 0,
   "impressions": 1,
   "position": 2.0
@@ -4534,6 +6106,12 @@
   "clicks": 0,
   "impressions": 1,
   "position": 28.0
+ },
+ {
+  "query": "portada mayeutica",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 6.0
  },
  {
   "query": "robe iniesta mayeutica",
@@ -4554,10 +6132,28 @@
   "position": 41.0
  },
  {
-  "query": "de robe",
+  "query": "ininteligible robe",
   "clicks": 0,
   "impressions": 1,
-  "position": 10.0
+  "position": 7.0
+ },
+ {
+  "query": "qué dice la letra?",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 15.0
+ },
+ {
+  "query": "la letra",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
+ },
+ {
+  "query": "letra completa",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 2.0
  },
  {
   "query": "discos radiactivos organizados",
@@ -4572,6 +6168,12 @@
   "position": 13.0
  },
  {
+  "query": "david ruiz sanchez",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 8.0
+ },
+ {
   "query": "quién ha hecho",
   "clicks": 0,
   "impressions": 1,
@@ -4584,10 +6186,22 @@
   "position": 59.0
  },
  {
+  "query": "nana cruel",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 4.0
+ },
+ {
   "query": "si te vas robe significado",
   "clicks": 0,
   "impressions": 1,
   "position": 59.0
+ },
+ {
+  "query": "viajando por el interior robe significado",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 10.0
  },
  {
   "query": "significado de la canción",
@@ -4596,16 +6210,22 @@
   "position": 4.0
  },
  {
-  "query": "letras de robe iniesta",
+  "query": "espiritu imperecedero significado",
   "clicks": 0,
   "impressions": 1,
-  "position": 38.0
+  "position": 9.0
  },
  {
   "query": "letras de roberto iniesta el poder del arte",
   "clicks": 0,
   "impressions": 1,
   "position": 45.0
+ },
+ {
+  "query": "robe iniesta letras",
+  "clicks": 0,
+  "impressions": 1,
+  "position": 36.0
  },
  {
   "query": "robe letras",

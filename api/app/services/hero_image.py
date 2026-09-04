@@ -87,7 +87,16 @@ def _entity_image(db: Session, etype: str, slug: str) -> dict[str, Any] | None:
         return None
 
     if etype == "MusicComposition":
-        s = db.query(Song).filter(Song.slug == slug).first()
+        # El slug de canción solo es único dentro del disco: con `.first()`, una
+        # homónima devolvía la portada del disco equivocado. Con varias, manda la
+        # de estudio; si sigue habiendo empate, mejor sin portada que con otra.
+        from app.services.url_resolver import is_live_version
+
+        _cands = db.query(Song).filter(Song.slug == slug).order_by(Song.id).all()
+        s = _cands[0] if len(_cands) == 1 else None
+        if s is None and _cands:
+            _estudio = [c for c in _cands if not is_live_version(c.slug, c.title)]
+            s = _estudio[0] if len(_estudio) == 1 else None
         if s:
             cover = s.cover_url or (s.album.cover_url if s.album else None)
             if cover:

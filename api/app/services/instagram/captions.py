@@ -4,32 +4,53 @@ Filosofía editorial:
   - El post COMENTA la noticia como contenido propio de Entre Interiores.
   - NO se menciona el medio del que salió la noticia ni se enlaza a él: la
     actualidad se cuenta con voz propia (el comentario lo genera `editorial`).
-  - El cierre invita a seguir en Entre Interiores ("link en la bio"), porque
-    Instagram no permite enlaces clicables en el caption.
-  - Cada post cierra con un verso de Robe/Extremoduro afín al tema.
+  - Cada post cierra con una PREGUNTA abierta: el caption abre conversación, no
+    la termina.
   - La atribución de la foto (licencias CC) va al FINAL del todo, discreta, para
     no ensuciar la imagen ni el cuerpo pero cumplir la licencia.
+
+ESTRUCTURA (reescrita en jul-2026 tras medir los 40 posts anteriores):
+
+    {gancho}          ← lo ÚNICO que se ve en el feed. Distinto en cada post.
+    {cuerpo}          ← una frase por línea, o nada si la imagen ya se basta
+    {pregunta}
+    {CTA}             ← solo cuando el post empuja a la web
+    {hashtags}        ← 5-7, no 14
+    🕯️ Día N sin Robe ← firma de SERIE al final, ya no cabecera
+
+Lo que se rompió a propósito: antes el 100% de los posts abría con el contador
+memorial y seguía con una etiqueta de categoría en mayúsculas. Como Instagram
+solo muestra la primera línea antes del «… más», ningún seguidor llegaba a ver
+de qué iba el post. El contador sigue estando —importa para el proyecto— pero
+como firma al pie, donde no cuesta la única línea visible.
 """
 from __future__ import annotations
 
-import hashlib
 import re
 import unicodedata
 
 from sqlalchemy.orm import Session
 
-from app.services.instagram import config, robe_quote
+from app.services.instagram import captions_moldes, config, robe_quote
 
-CATEGORY_EMOJI = {
-    "Conciertos": "🎤", "Música": "🎸", "Colaboraciones": "🤝",
-    "Grupos amigos": "🔥", "Cultura": "📖", "Efemérides": "📅",
-    "Curiosidades": "💡", "Actualidad": "📰", "Blog": "📝",
-}
-
+# Solo TRES fijos. Antes eran 7 y salían en los 40 posts seguidos, con lo que la
+# mitad de los hashtags no decía nada del contenido concreto.
+#
+# «#RobeIniesta» estaba aquí y se ha retirado: el proyecto tiene la regla dura de
+# no usar nunca ese nombre (es «Robe» o «Roberto Iniesta»), y en el benchmark del
+# nicho un seguidor lo dice explícitamente en comentarios — «Robe o Roberto
+# Iniesta. No quería que le llamasen Robe Iniesta». Si se quisiera recuperar por
+# alcance de búsqueda, es añadir una línea aquí.
 BASE_HASHTAGS = [
-    "#Extremoduro", "#RobeIniesta", "#Robe", "#RockEspañol",
-    "#EntreInteriores", "#Plasencia", "#RockTransgresivo",
+    "#Extremoduro", "#Robe", "#EntreInteriores",
 ]
+
+# Hashtag de la serie memorial, que acompaña al contador del pie.
+SERIE_HASHTAG = "#DíasSinRobe"
+
+# Tope de hashtags. El benchmark del nicho se mueve entre 4 y 7; nosotros
+# veníamos de 10-14.
+MAX_HASHTAGS = 7
 
 CATEGORY_HASHTAGS = {
     "Conciertos": ["#Concierto", "#Gira", "#EnDirecto"],
@@ -62,24 +83,9 @@ ENTITY_HASHTAGS = {
     "plasencia": "#Plasencia",
     "caceres": "#Cáceres",
     "extremadura": "#Extremadura",
-    "iniesta": "#RobeIniesta",
+    # Nunca «#RobeIniesta»: la regla del proyecto es «Robe» o «Roberto Iniesta».
+    "iniesta": "#RobertoIniesta",
 }
-
-# Llamadas a la acción: invitan a seguir en Entre Interiores (link en la bio).
-# Tono FESTIVO: para temas neutros o celebratorios.
-PLAYFUL_CTAS = [
-    "Lo típico de esto y mucho más sobre Robe y Extremoduro, en Entre Interiores. 🔗 Link en la bio.",
-    "En Entre Interiores lo contamos a fondo: las letras, las historias y todo el universo de Robe. 🔗 Link en la bio.",
-    "Esto y todo el universo Extremoduro, en Entre Interiores. Tienes el enlace en la bio. 🔗",
-    "¿Quieres más? El universo de Robe y Extremoduro al completo, en Entre Interiores. 🔗 Link en la bio.",
-]
-
-# Tono SOBRIO: para temas luctuosos o conmemorativos. Sin efusividad.
-SOBER_CTAS = [
-    "Toda su obra sigue viva en Entre Interiores: las letras, las historias y el universo de Robe y Extremoduro. 🔗 Link en la bio.",
-    "Recorre su legado en Entre Interiores: las letras, las historias, su universo entero. 🔗 Link en la bio.",
-]
-
 
 def _norm(s: str) -> str:
     s = "".join(
@@ -117,31 +123,96 @@ def _es_post_de_blog(topic: dict) -> bool:
     return topic.get("category") == "Blog" or "Blog" in (topic.get("source") or "")
 
 
+# Tipos cuyo contenido YA va escrito en la imagen (el verso o la cita son el
+# titular de la tarjeta). Repetirlo en el caption era redundante: aquí el texto
+# se queda en la atribución y el caption se mantiene corto, como hacen las
+# cuentas del nicho con sus posts de verso.
+IMAGEN_SE_BASTA = ("quote", "robe_quote")
+
+
+def _ctx_moldes(topic: dict) -> dict:
+    """Campos reales disponibles para rellenar los moldes.
+
+    Solo entra lo que tiene dato: un molde al que le falte un campo se descarta
+    en `captions_moldes`, en vez de imprimirse con un hueco.
+    """
+    ctx = dict(topic.get("corpus") or {})
+    headline = (topic.get("headline") or topic.get("title") or "").strip()
+    if headline:
+        ctx["headline"] = headline
+    # "Hace 12 años: «Agila»" → years=12. Lo calculó `evergreen` con la fecha
+    # real del aniversario, así que se reutiliza en vez de recalcularlo a ojo.
+    m = re.search(r"[Hh]ace\s+(\d+)\s+años", topic.get("title") or "")
+    if m:
+        ctx["years"] = m.group(1)
+    if headline:
+        # Para moldes que encajan el titular dentro de una frase.
+        ctx["headline_min"] = headline[0].lower() + headline[1:]
+        # Igual, pero ya rematado: el molde no puede añadir el punto a ciegas
+        # porque el titular puede ser una pregunta y salía «…en Plasencia?.».
+        minusculo = ctx["headline_min"].rstrip()
+        ctx["headline_frase"] = (
+            minusculo if minusculo.endswith((".", "?", "!", "…")) else f"{minusculo}."
+        )
+    return ctx
+
+
+def _atribucion(ctx: dict) -> str:
+    """«Canción» · Artista · Disco (año), reconstruida desde el corpus AHORA.
+
+    No se reutiliza el `summary` del item: es un snapshot de cuando se encoló y
+    envejece mal. Un caso real lo demostró en producción — un post preparado
+    antes de corregir el catálogo seguía diciendo «Rock Transgresivo (1989)»
+    cuando el disco es de 1994 (1989 era la fecha de la maqueta). El molde, que
+    sí lee la BD, decía 1994 en la misma pieza: el post se contradecía solo.
+
+    Regla del proyecto: cada dato se re-deriva de su fuente canónica en el
+    momento de usarlo, nunca se arrastra de un texto anterior.
+    """
+    song, artist, album = ctx.get("song"), ctx.get("artist"), ctx.get("album")
+    if not (song and album):
+        return ""
+    partes = [f"«{song}»"]
+    if artist:
+        partes.append(str(artist))
+    anio = f" ({ctx['year']})" if ctx.get("year") else ""
+    partes.append(f"{album}{anio}")
+    return " · ".join(partes)
+
+
 def build(db: Session, topic: dict) -> str:
     """Construye el caption final del post."""
+    content_type = topic.get("content_type") or "news"
     category = topic.get("category", "Actualidad")
-    tone = topic.get("tone") or "neutral"
-    emoji = CATEGORY_EMOJI.get(category, "📰")
-    # En tono sobrio nunca el emoji de fuego: desentona en un homenaje.
-    if tone == "sober" and emoji == "🔥":
-        emoji = "🎵"
+    tono = topic.get("tone") or "neutral"
     title = (topic.get("title") or "").strip()
     es_blog = _es_post_de_blog(topic)
+    # Semilla de la rotación determinista: el mismo post da siempre el mismo
+    # molde, así que re-preparar desde el panel no cambia el texto por sorpresa.
+    key = topic.get("content_key") or title
+    ctx = _ctx_moldes(topic)
 
-    # Cuerpo: comentario editorial reescrito (noticias) o el extracto propio
-    # (posts del blog). Nunca se cita ningún medio externo.
-    body = (topic.get("caption_body") or "").strip()
-    if not body:
-        summary = (topic.get("summary") or "").strip()
-        body = f"{title}\n\n{summary}".strip() if summary else title
+    # 1) GANCHO — la única línea que se ve en el feed antes del «… más».
+    lines = [captions_moldes.hook(content_type, ctx, key) or title]
 
-    # Apertura memorial fija en todos los posts.
-    lines = [f"🕯️ Día {config.dias_sin_robe()} sin Robe", "",
-             f"{emoji} {category.upper()}", "", body]
+    # 2) CUERPO. Bimodal a propósito: en los posts donde la imagen ya lleva el
+    #    texto, aquí solo va la atribución; en los demás, el cuerpo largo pero
+    #    troceado a una frase por línea (que es como respiran los captions que
+    #    funcionan en este nicho).
+    if content_type in IMAGEN_SE_BASTA:
+        body = _atribucion(ctx) or (topic.get("summary") or "").strip()
+        if body:
+            lines += ["", body]
+    else:
+        body = (topic.get("caption_body") or "").strip()
+        if not body:
+            body = (topic.get("summary") or "").strip()
+        if body:
+            lines += ["", captions_moldes.one_sentence_per_line(body)]
 
-    # Verso de Robe/Extremoduro afín al tema. Se reutiliza el ya calculado en
-    # `publisher.prepare` (para que coincida con el de la imagen); si no, se
-    # busca aquí (buscador semántico in-process).
+    # 3) Verso afín al tema (solo noticias/blog: en evergreen el verso YA es el
+    #    contenido). Se reutiliza el calculado en `publisher.prepare` para que
+    #    coincida con el de la imagen.
     verse = topic.get("verse")
     if verse is None:
         verse = robe_quote.find_verse(db, f"{title}. {body}")
@@ -153,21 +224,27 @@ def build(db: Session, topic: dict) -> str:
             attribution += f" ({verse['year']})"
         lines += ["", f"🎵 «{verse['line']}»", f"   — {attribution}"]
 
-    # Enlace SOLO cuando la fuente es nuestra: un artículo del blog. En IG no
-    # hay enlaces clicables → se remite a la bio.
-    if es_blog and topic.get("url"):
+    # 4) PREGUNTA de cierre: abre conversación. Se omite en tono sobrio, donde
+    #    una pregunta de ese corte desentona (homenajes, fallecimientos).
+    if tono != "sober":
+        pregunta = captions_moldes.question(content_type, ctx, key)
+        if pregunta:
+            lines += ["", pregunta]
+
+    # 5) CTA solo cuando el post empuja de verdad a la web. Antes iba en todos y
+    #    se leía repetido; ninguna de las cuentas del benchmark lo usa siempre.
+    if content_type == "product":
+        cuerpo_extra = (topic.get("detalle") or "").strip()
+        if cuerpo_extra:
+            lines += ["", captions_moldes.one_sentence_per_line(cuerpo_extra)]
+        # A /registro, NUNCA a la ruta privada: rebotaría al login y dejaría al
+        # visitante en la puerta.
+        lines += ["", (topic.get("cta") or
+                       "Está en Entre Interiores. Cuenta gratis. 🔗 Link en la bio.")]
+    elif es_blog and topic.get("url"):
         lines += ["", "📝 El artículo completo está en el blog (link en la bio)."]
 
-    # Gancho hacia Entre Interiores, según el tono (rotación determinista).
-    ctas = SOBER_CTAS if tone == "sober" else PLAYFUL_CTAS
-    idx = int(hashlib.md5(title.encode()).hexdigest(), 16) % len(ctas)
-    lines += ["", ctas[idx]]
-
-    # Hashtags. Orden: específicos del contenido PRIMERO (lo concreto de este
-    # post: #MilongasExtremas, etc.), luego categoría y base genérica.
-    #   - topic['hashtags']: los que generó el LLM (nombres propios citados).
-    #   - el sujeto de la foto (image_query) hashtagificado.
-    #   - entidades del universo detectadas + la canción del verso.
+    # 6) Hashtags: primero los concretos de este post, luego categoría y marca.
     subject_tag = _hashtagify(topic.get("image_query") or "")
     llm_tags = [t for t in (topic.get("hashtags") or []) if t and t.startswith("#")]
     content_tags = (
@@ -175,18 +252,27 @@ def build(db: Session, topic: dict) -> str:
         + ([subject_tag] if subject_tag else [])
         + _specific_hashtags(title, body)
     )
-    hashtags = content_tags + CATEGORY_HASHTAGS.get(category, []) + BASE_HASHTAGS
+    # Los de categoría se limitan a 2: son los más genéricos (#Música #Disco
+    # #Rock salían en todos los posts musicales) y con el tope de 7 se comían el
+    # sitio de los que sí dicen algo del contenido.
+    hashtags = (
+        content_tags + CATEGORY_HASHTAGS.get(category, [])[:2] + BASE_HASHTAGS
+    )
     seen: list[str] = []
     seen_norm: set[str] = set()
     for h in hashtags:
-        key = _norm(h)
-        if key and key not in seen_norm:
-            seen_norm.add(key)
+        norm_key = _norm(h)
+        if norm_key and norm_key not in seen_norm:
+            seen_norm.add(norm_key)
             seen.append(h)
-    lines += ["", " ".join(seen[:14])]
+    lines += ["", " ".join(seen[:MAX_HASHTAGS])]
 
-    # Atribución de la foto al FINAL del todo (discreta), si es foto con
-    # licencia CC. Cumple la licencia sin ensuciar imagen ni cuerpo.
+    # 7) Firma de serie al pie: el contador memorial deja de robar la primera
+    #    línea, pero sigue en todos los posts.
+    lines += ["", f"🕯️ Día {config.dias_sin_robe()} sin Robe · {SERIE_HASHTAG}"]
+
+    # 8) Atribución de la foto al FINAL del todo (discreta), si es foto con
+    #    licencia CC. Cumple la licencia sin ensuciar imagen ni cuerpo.
     credit = (topic.get("image_credit") or "").strip()
     if credit:
         lines += ["", f"📷 {credit}"]

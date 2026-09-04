@@ -359,6 +359,39 @@ def generate_for_entity(
         )
 
     coverage = _coverage_hint(entity_type)
+
+    # Lo que la ficha ANTERIOR ya decía y no se puede perder. Sin esto, el gate
+    # de no-pérdida rechazaba la regeneración una y otra vez (medido en Agila:
+    # se dejaba 6 versos citados por el camino) y el lote entero se quedaba sin
+    # regenerar. Prevenir es mejor que rechazar: se le dan al motor las citas y
+    # los temas del original como material obligatorio, y el gate queda de red.
+    cuerpo_previo = db.execute(
+        select(SeoContent.body_md).where(
+            SeoContent.entity_type == entity_type, SeoContent.entity_id == entity.id
+        )
+    ).scalar_one_or_none()
+    if cuerpo_previo and cuerpo_previo.strip():
+        from app.services.content_guard import _VERSE, extract_topics
+        versos = [m.strip() for m in _VERSE.findall(cuerpo_previo)
+                  if len(m.strip()) >= 12][:12]
+        temas = extract_topics(cuerpo_previo)[:8]
+        if versos or temas:
+            partes = []
+            if versos:
+                partes.append(
+                    "CITAS TEXTUALES QUE LA VERSIÓN ANTERIOR YA RECOGÍA. Consérvalas "
+                    "LITERALES (mismas comillas, mismas palabras) en la sección que "
+                    "les corresponda; no las parafrasees ni las quites:\n"
+                    + "\n".join(f'- «{v}»' for v in versos)
+                )
+            if temas:
+                partes.append(
+                    "TEMAS QUE LA VERSIÓN ANTERIOR YA TRATABA. El artículo nuevo debe "
+                    "seguir cubriéndolos (con otro título si mejora, pero sin "
+                    "abandonarlos):\n" + "\n".join(f"- {t}" for t in temas)
+                )
+            coverage = (coverage + "\n\n" + "\n\n".join(partes)).strip()
+
     log(f"generando DEEP: {entity_type}/{dossier.subject}")
     outline = _outline(client, dossier.subject, kw_block, dossier.hard_facts, dossier.material, coverage)
     if not outline:
@@ -425,13 +458,52 @@ def generate_for_entity(
         v = editorial_review(body, kind=entity_type, subject=dossier.subject,
                              allowed_terms=allowed_terms)
         if v.verdict == "revise" and v.tightened_body_md:
-            body = v.tightened_body_md
-            log(f"  rigor: tensado (score {v.score})")
+            # El tensado puede ser MUY agresivo: medido en Agila, dejó 6.943
+            # chars en 2.514 (−64%). Si el resultado cae por debajo de lo que ya
+            # había publicado, se descarta el tensado y se conserva el cuerpo
+            # generado: la ficha nueva nunca debe ser más pobre que la vieja.
+            if cuerpo_previo and len(v.tightened_body_md) < len(cuerpo_previo):
+                log(f"  rigor: tensado DESCARTADO ({len(body)}→"
+                    f"{len(v.tightened_body_md)} quedaría por debajo del original "
+                    f"de {len(cuerpo_previo)}); se conserva el cuerpo generado")
+            else:
+                body = v.tightened_body_md
+                log(f"  rigor: tensado (score {v.score})")
         elif v.verdict == "reject":
             publish = False
             log(f"  rigor RECHAZA (score {v.score}): {'; '.join(v.reasons)} → queda BORRADOR")
     except Exception as exc:  # noqa: BLE001
         log(f"  rigor falló: {exc}", "warn")
+
+    # Gate de NO-PÉRDIDA: si ya había una ficha, la nueva no puede dejarse por el
+    # camino ni un verso, ni un enlace, ni un año, ni un TEMA de los que trataba.
+    # Regenerar de cero es «un dado que pierde información» (por eso existe
+    # augment_deep); esto es lo que hace que el dado no se tire a ciegas.
+    # Se salta con SEO_ALLOW_LOSS=1 para un caso puntual y consciente.
+    if os.environ.get("SEO_ALLOW_LOSS") != "1":
+        anterior = db.execute(
+            select(SeoContent.body_md).where(
+                SeoContent.entity_type == entity_type, SeoContent.entity_id == entity.id
+            )
+        ).scalar_one_or_none()
+        if anterior and anterior.strip():
+            from app.services.content_guard import no_loss_verdict
+            # Los cortes del propio disco no cuentan como pérdida: la página los
+            # sigue listando en su componente de tracklist.
+            exentos: set[str] = set()
+            if entity_type == "album":
+                art = getattr(entity, "artist", None)
+                if art:
+                    exentos = {
+                        f"/{art.slug}/{entity.slug}/{s.slug}"
+                        for s in db.execute(
+                            select(Song).where(Song.album_id == entity.id)
+                        ).scalars()
+                    }
+            veredicto = no_loss_verdict(anterior, body, exempt_links=exentos)
+            if not veredicto.ok:
+                log(f"  NO-PÉRDIDA rechaza: {veredicto.reason} → la ficha NO se toca", "warn")
+                return False
 
     meta = _meta(client, dossier.subject, target_keyword, body)
     schema = {

@@ -24,7 +24,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -1277,7 +1277,11 @@ def admin_subscribers_delete(
 # --------------------------------------------------------------------------- #
 from datetime import date as _date, timedelta as _timedelta  # noqa: E402
 
-from app.db.models import ContentProposal as _Proposal  # noqa: E402
+from app.db.models import (  # noqa: E402
+    ContentProposal as _Proposal,
+    UrlIngestJob as _IngestJob,
+)
+from app.services import url_ingest  # noqa: E402
 from app.services.publishing import (  # noqa: E402
     EVENT_LEAD_DAYS,
     PUBLISH_SLOT_DAYS,
@@ -1342,10 +1346,17 @@ class ProposalFromUrlIn(BaseModel):
     programa desde el mismo panel. Con `rewrite` (por defecto) pasa por la
     misma investigación + voz editorial + verificación factual que las
     noticias del cron; sin él, guarda el texto scrapeado tal cual.
+
+    `body_text` es la salida para los medios que bloquean la descarga desde el
+    server (WAF que responde 406/403 a cualquier UA que no sea navegador, muros
+    de pago, artículos montados por JS): el admin abre el artículo, copia el
+    texto y lo pega. Si viene, se usa en vez de descargar — el resto del
+    pipeline (voz editorial, fact-check, dedup) corre igual.
     """
 
     url: str
     topic: str | None = None  # pista del tema (si el título no basta)
+    body_text: str | None = None  # texto pegado a mano si el scrape no puede
     rewrite: bool = True       # voz editorial + investigación + fact-check
     force: bool = False        # salta el dedup por tema (no el de URL exacta)
 
@@ -1355,11 +1366,44 @@ class ProposalFromUrlIn(BaseModel):
         return _validate_external_url(v)
 
 
-class ProposalFromUrlOut(BaseModel):
-    proposal_id: int
-    title: str
-    rewritten: bool
+class UrlIngestJobOut(BaseModel):
+    """Estado de un alta manual. El trabajo tarda minutos y corre en segundo
+    plano, así que el panel pregunta por él hasta que deja de estar `running`."""
+
+    id: int
+    status: str  # running | done | rejected | failed
+    url: str
+    # done
+    proposal_id: int | None = None
+    title: str | None = None
+    rewritten: bool = False
     warning: str | None = None
+    # rejected (veredicto del editor jefe)
+    score: int | None = None
+    reasons: list[str] = []
+    boosted: bool = False
+    # failed
+    error: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
+def _job_to_out(j: "_IngestJob") -> UrlIngestJobOut:
+    return UrlIngestJobOut(
+        id=j.id,
+        status=j.status,
+        url=j.url,
+        proposal_id=j.proposal_id,
+        title=j.title,
+        rewritten=bool(j.rewritten),
+        warning=j.warning,
+        score=j.score,
+        reasons=list(j.reasons or []),
+        boosted=bool(j.boosted),
+        error=j.error,
+        created_at=j.created_at,
+        finished_at=j.finished_at,
+    )
 
 
 class TitleCandidate(BaseModel):
@@ -1907,186 +1951,87 @@ def admin_proposal_set_title(
     )
 
 
-def _scrape_article(url: str) -> tuple[str, str]:
-    """Descarga una URL y devuelve (título, texto del artículo).
-
-    Reutiliza el extractor de `fetch_blogs`. La validación SSRF la hace ya el
-    schema (`_validate_external_url`). Lanza HTTPException si no hay contenido
-    aprovechable."""
-    try:
-        with httpx.Client(timeout=20, follow_redirects=True) as client:
-            r = client.get(url, headers=HEADERS)
-        if r.status_code != 200:
-            raise HTTPException(status_code=400, detail=f"la URL devolvió {r.status_code}")
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=400, detail=f"error al descargar la URL: {e}") from e
-
-    text = extract_article_text(r.text)
-    if not text or len(text) < 200:
-        raise HTTPException(
-            status_code=400,
-            detail="no se ha podido extraer un cuerpo aprovechable (<200 chars)",
-        )
-
-    title = ""
-    soup = BeautifulSoup(r.text, "html.parser")
-    if soup.title and soup.title.string:
-        title = soup.title.string.strip()
-    if not title and soup.h1:
-        title = soup.h1.get_text(strip=True)
-    return title[:240], text
-
-
-@router.post("/proposals/from-url", response_model=ProposalFromUrlOut)
+@router.post(
+    "/proposals/from-url", response_model=UrlIngestJobOut, status_code=202
+)
 @limiter.limit("20/hour")
 def admin_proposal_from_url(
     request: Request,
     body: ProposalFromUrlIn,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
-) -> ProposalFromUrlOut:
-    """Crea una propuesta de blog (`kind='news'`) a partir de una URL pegada a
-    mano. Con `rewrite` pasa por la misma investigación + voz editorial +
-    verificación factual que el consumidor de noticias; sin él, guarda el texto
-    scrapeado. Entra como `proposed` para revisarla en el panel."""
-    from app.services.content_dedup import (
-        NEWS_RECENCY_DAYS,
-        content_key_for,
-        is_duplicate,
+) -> UrlIngestJobOut:
+    """ENCOLA el alta de una propuesta desde una URL y responde al momento (202).
+
+    El trabajo real (investigación + voz editorial + verificación + gate de rigor)
+    tarda de 2 a 4 minutos y Cloudflare corta a los 100 s, así que no cabe en la
+    petición: lo ejecuta el servidor en segundo plano —sobrevive a cerrar la
+    pestaña— y el panel consulta el estado con `GET /admin/ingest-jobs`.
+    """
+    job = _IngestJob(
+        url=body.url,
+        topic=body.topic,
+        body_text=body.body_text,
+        rewrite=body.rewrite,
+        force=body.force,
+        status="running",
     )
-
-    title_scraped, text = _scrape_article(body.url)
-
-    # Dedup duro por URL exacta: si ya existe propuesta de esa fuente, no repetir.
-    existing = (
-        db.query(_Proposal.id)
-        .filter(_Proposal.source_url == body.url)
-        .first()
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=f"ya existe una propuesta (#{existing[0]}) con esa URL",
-        )
-
-    warning: str | None = None
-    entities: list = []
-    hero_pkg: dict | None = None
-    event_date = None
-    video = None
-
-    if body.rewrite:
-        from app.services.news_research import research_and_write
-
-        matched = (body.topic or title_scraped or "Robe Extremoduro").strip()
-        try:
-            rw = research_and_write(
-                db=db,
-                headline=title_scraped or matched,
-                source_excerpt=text,
-                matched_term=matched,
-                today=_date.today(),
-            )
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(
-                status_code=502, detail=f"la reescritura editorial falló: {exc}"
-            ) from exc
-
-        if not rw.get("is_relevant", True) or not rw.get("title"):
-            # El clasificador no la ve del universo Robe. No se descarta (el admin
-            # la subió a propósito): se guarda en crudo con un aviso para revisión.
-            warning = (
-                "el clasificador no la ve claramente del universo Robe/Extremoduro; "
-                "se ha guardado el texto sin reescribir — revísala con cuidado"
-            )
-            title = title_scraped or matched
-            body_md = f"{text}\n"
-            excerpt = text[:200]
-            meta_title = title[:60]
-            meta_description = text[:155]
-        else:
-            title = rw["title"][:240]
-            body_md = rw["body_md"]
-            excerpt = (rw.get("excerpt") or "")[:200]
-            meta_title = (rw.get("meta_title") or "")[:60]
-            meta_description = (rw.get("meta_description") or "")[:155]
-            event_date = rw.get("event_date")  # date o None (solo si explícita)
-            video = rw.get("video")  # {youtube_id,...} o None
-            entities = [
-                e for e in (rw.get("entities") or [])
-                if isinstance(e, dict) and e.get("name")
-            ]
-            hero_pkg = rw.get("hero")  # paquete coherente {url,alt,...} o None
-            if hero_pkg:
-                try:
-                    from app.services.instagram import cloudinary_upload
-                    hosted = cloudinary_upload.upload(
-                        hero_pkg["url"], folder="entreinteriores-art"
-                    )
-                    hero_pkg = {**hero_pkg, "url": hosted,
-                                "source": hero_pkg.get("source") or hero_pkg["url"]}
-                except Exception:  # noqa: BLE001 — la foto es opcional
-                    hero_pkg = None
-    else:
-        if not title_scraped:
-            raise HTTPException(
-                status_code=400,
-                detail="no se pudo extraer un título; activa la reescritura editorial",
-            )
-        title = title_scraped
-        body_md = f"{text}\n"
-        excerpt = text[:200]
-        meta_title = title[:60]
-        meta_description = text[:155]
-
-    # Dedup por evento/tema (otra fuente del mismo hecho), salvo `force`.
-    ckey = content_key_for("news", title=title)
-    if not body.force and is_duplicate(db, ckey, recency_days=NEWS_RECENCY_DAYS):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "ya hay una propuesta o post reciente del mismo tema; "
-                "marca 'forzar' si quieres crearla igualmente"
-            ),
-        )
-
-    # Fecha sugerida: si hay evento futuro, publicar con antelación (event−3 días).
-    from app.services.publishing import recommended_from_event
-    recommended_date = recommended_from_event(event_date, _date.today())
-
-    proposal = _Proposal(
-        kind="news",
-        title=title,
-        angle="Subida manual desde URL",
-        body_md=body_md,
-        excerpt=excerpt,
-        meta_title=meta_title,
-        meta_description=meta_description,
-        # source_url para referencia interna; source_name=None (no acreditamos al
-        # medio: la investigación/reescritura es nuestra, igual que en scrape_news).
-        source_url=body.url,
-        source_name=None,
-        hero_image_url=(hero_pkg or {}).get("url"),
-        hero_image_alt=(hero_pkg or {}).get("alt"),
-        hero_image_attribution=(hero_pkg or {}).get("attribution"),
-        hero_image_license=(hero_pkg or {}).get("license"),
-        hero_image_source_url=(hero_pkg or {}).get("source"),
-        entities=entities,
-        content_key=ckey,
-        event_date=event_date,
-        recommended_date=recommended_date,
-        video=video,
-        status="proposed",
-    )
-    db.add(proposal)
+    db.add(job)
     db.commit()
-    db.refresh(proposal)
-    return ProposalFromUrlOut(
-        proposal_id=proposal.id,
-        title=title,
-        rewritten=bool(body.rewrite and warning is None),
-        warning=warning,
+    db.refresh(job)
+    background.add_task(url_ingest.run_job, job.id)
+    return _job_to_out(job)
+
+
+@router.get("/ingest-jobs", response_model=list[UrlIngestJobOut])
+def admin_ingest_jobs(
+    limit: int = 5,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[UrlIngestJobOut]:
+    """Últimos trabajos de alta manual. El panel lo consulta al cargar para
+    recuperar lo que quedó corriendo cuando se cerró la pestaña."""
+    # Huérfanos: el trabajo vive en el proceso de la API, así que un reinicio (un
+    # deploy, sin ir más lejos) lo mata sin que nadie lo marque. Sin esto el panel
+    # se quedaría girando para siempre. El techo real medido son ~4,5 min.
+    stale = (
+        db.query(_IngestJob)
+        .filter(
+            _IngestJob.status == "running",
+            _IngestJob.created_at < datetime.now(timezone.utc) - _timedelta(minutes=15),
+        )
+        .all()
     )
+    for j in stale:
+        j.status = "failed"
+        j.error = (
+            "el trabajo se perdió (probablemente un reinicio del servidor); "
+            "vuelve a intentarlo"
+        )
+        j.finished_at = datetime.now(timezone.utc)
+    if stale:
+        db.commit()
+
+    rows = (
+        db.query(_IngestJob)
+        .order_by(_IngestJob.id.desc())
+        .limit(max(1, min(limit, 20)))
+        .all()
+    )
+    return [_job_to_out(j) for j in rows]
+
+
+@router.get("/ingest-jobs/{job_id}", response_model=UrlIngestJobOut)
+def admin_ingest_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> UrlIngestJobOut:
+    job = db.get(_IngestJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="trabajo no encontrado")
+    return _job_to_out(job)
 
 
 # --------------------------------------------------------------------------- #
@@ -2103,6 +2048,7 @@ from app.db.models import (  # noqa: E402
 from app.services.instagram import (  # noqa: E402
     graph_api as _ig_graph,
     publisher as _ig_publisher,
+    scheduling as _ig_scheduling,
 )
 
 
@@ -2113,7 +2059,10 @@ class AdminIGItem(BaseModel):
     position: int = 0
     status: str
     content_type: str = "news"
+    media_type: str = "IMAGE"
+    media_count: int = 1
     publish_on: str | None = None
+    publish_at: datetime | None = None
     title: str
     category: str | None = None
     summary: str | None = None
@@ -2129,11 +2078,27 @@ class AdminIGItem(BaseModel):
     published_at: datetime | None = None
 
 
+class AdminIGMedia(BaseModel):
+    """Una pieza de media del post, para la previsualización del panel.
+
+    Sin bytes: se sirven por `/media/{position}`. Diez diapositivas en base64
+    serían ~5 MB por petición de detalle, y un vídeo mucho más.
+    """
+    position: int
+    kind: str = "image"
+    role: str | None = None
+    url: str | None = None
+    duration_s: float | None = None
+    has_local: bool = False
+
+
 class AdminIGItemDetail(AdminIGItem):
     caption: str | None = None
     # Imagen preparada, codificada en base64 para previsualizarla en el
     # panel sin tener que exponer el fichero local del contenedor.
+    # Solo se rellena en posts de una pieza; el resto va por `media`.
     image_b64: str | None = None
+    media: list[AdminIGMedia] = []
 
 
 class AdminIGNewsCandidate(BaseModel):
@@ -2180,12 +2145,25 @@ class AdminIGUpdateIn(BaseModel):
     caption: str | None = None
     title: str | None = None
     summary: str | None = None
+    # Programación exacta. Para DESprogramar (devolver el item al goteo) hay que
+    # mandar `clear_publish_at: true`: un None aquí significa "no tocar".
+    publish_at: datetime | None = None
+    clear_publish_at: bool = False
+    # Formato: IMAGE | CAROUSEL | REELS. Cambiarlo exige re-preparar.
+    media_type: str | None = None
 
 
 class AdminIGAccount(BaseModel):
+    # `ok` es solo LECTURA: que el token valga y la cuenta se pueda leer. Ojo,
+    # no implica que se pueda publicar — con la cuenta restringida en agosto de
+    # 2026 los GET seguían respondiendo y el panel enseñaba verde mientras el
+    # feed llevaba once días parado. Eso lo dice `puede_publicar`.
     ok: bool
     message: str
     username: str | None = None
+    puede_publicar: bool = True
+    bloqueo_motivo: str | None = None
+    bloqueo_desde: datetime | None = None
 
 
 def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
@@ -2196,7 +2174,10 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         position=it.position,
         status=it.status,
         content_type=getattr(it, "content_type", None) or "news",
+        media_type=getattr(it, "media_type", None) or "IMAGE",
+        media_count=len(getattr(it, "media", []) or []) or 1,
         publish_on=it.publish_on.isoformat() if getattr(it, "publish_on", None) else None,
+        publish_at=getattr(it, "publish_at", None),
         title=it.title,
         category=it.category,
         summary=it.summary,
@@ -2232,14 +2213,65 @@ def admin_ig_queue_list(
 
 
 def _ig_detail_model(it: _IGItem) -> AdminIGItemDetail:
-    """Modelo de detalle con la imagen preparada en base64 (si el fichero
-    local sigue existiendo) para previsualizarla sin exponer el path."""
+    """Modelo de detalle para el panel.
+
+    La primera imagen sigue yendo en base64 por compatibilidad, pero SOLO si el
+    post es de una pieza y no es vídeo: un carrusel de 10 serían ~5 MB por
+    petición y un MP4 bastante más. El resto se sirve por `/media/{position}`.
+    """
     base = _ig_item_to_model(it)
+    piezas = sorted(getattr(it, "media", []) or [], key=lambda m: m.position)
+
     image_b64 = None
-    if it.image_path and _os.path.exists(it.image_path):
+    solo_una_imagen = len(piezas) <= 1 and not any(m.kind == "video" for m in piezas)
+    if solo_una_imagen and it.image_path and _os.path.exists(it.image_path):
         with open(it.image_path, "rb") as f:
             image_b64 = _b64.b64encode(f.read()).decode("ascii")
-    return AdminIGItemDetail(**base.model_dump(), caption=it.caption, image_b64=image_b64)
+
+    return AdminIGItemDetail(
+        **base.model_dump(),
+        caption=it.caption,
+        image_b64=image_b64,
+        media=[
+            AdminIGMedia(
+                position=m.position, kind=m.kind, role=m.role, url=m.url,
+                duration_s=m.duration_s,
+                has_local=bool(m.local_path and _os.path.exists(m.local_path)),
+            )
+            for m in piezas
+        ],
+    )
+
+
+@router.get("/instagram/queue/{item_id}/media/{position}")
+def admin_ig_media_bytes(
+    item_id: int,
+    position: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Sirve una pieza de media (imagen o vídeo) para previsualizarla.
+
+    Prioriza el fichero local recién generado; si ya no está en `/tmp` (que es
+    efímero) pero se subió a Cloudinary, redirige allí.
+    """
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    it = db.get(_IGItem, item_id)
+    if it is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    pieza = next(
+        (m for m in (getattr(it, "media", []) or []) if m.position == position), None
+    )
+    if pieza is None:
+        raise HTTPException(status_code=404, detail="media not found")
+
+    if pieza.local_path and _os.path.exists(pieza.local_path):
+        tipo = "video/mp4" if pieza.kind == "video" else "image/jpeg"
+        return FileResponse(pieza.local_path, media_type=tipo)
+    if pieza.url:
+        return RedirectResponse(pieza.url)
+    raise HTTPException(status_code=404, detail="media sin fichero ni URL")
 
 
 @router.get("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)
@@ -2262,7 +2294,8 @@ def admin_ig_update(
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGItemDetail:
     """Edita a mano el contenido de un item de la cola (caption, título,
-    resumen) antes de publicarlo. No se puede editar uno ya publicado."""
+    resumen) y su programación, antes de publicarlo. No se puede editar uno ya
+    publicado."""
     it = db.get(_IGItem, item_id)
     if it is None:
         raise HTTPException(status_code=404, detail="item not found")
@@ -2274,6 +2307,28 @@ def admin_ig_update(
         it.title = payload.title[:300]
     if payload.summary is not None:
         it.summary = payload.summary
+    if payload.media_type is not None:
+        if payload.media_type not in ("IMAGE", "CAROUSEL", "REELS", "CLIP", "PRODUCT"):
+            raise HTTPException(status_code=400, detail="formato no válido")
+        if payload.media_type != it.media_type:
+            # Cambiar de formato invalida el material: hay que rehacerlo. Sin
+            # esto el post se quedaba con las piezas del formato anterior y la
+            # etiqueta mentía — un «carrusel · 1», que no existe. Es lo mismo
+            # que ya hacía `scheduling.repartir_formatos`, y aquí faltaba.
+            it.media.clear()
+            it.image_path = None
+            it.status = "pending"
+        it.media_type = payload.media_type
+        # Elegido por una persona: el repartidor automático ya no lo toca.
+        it.media_locked = True
+    if payload.clear_publish_at:
+        it.publish_at = None          # vuelve al goteo normal
+    elif payload.publish_at is not None:
+        programado = payload.publish_at
+        # Sin zona horaria se interpreta como UTC, que es como corre el cron.
+        if programado.tzinfo is None:
+            programado = programado.replace(tzinfo=timezone.utc)
+        it.publish_at = programado
     db.commit()
     db.refresh(it)
     return _ig_detail_model(it)
@@ -2447,7 +2502,9 @@ def admin_ig_publish(
         raise HTTPException(status_code=404, detail="item not found")
     if it.status == "published":
         raise HTTPException(status_code=409, detail="ya está publicado")
-    _ig_publisher.publish(db, it, dry_run=payload.dry_run)
+    # `force`: el cortacircuitos para al cron, no a una persona que le da al
+    # botón — es la forma de comprobar si Meta ya nos deja publicar.
+    _ig_publisher.publish(db, it, dry_run=payload.dry_run, force=True)
     return _ig_item_to_model(it)
 
 
@@ -2505,6 +2562,351 @@ def admin_ig_interleave(
     return [_ig_item_to_model(it) for it in interleaved]
 
 
+class AdminIGAutoScheduleIn(BaseModel):
+    weeks: int = 4          # ventana: próximas N semanas
+    dry_run: bool = False   # calcular y devolver el reparto sin escribirlo
+
+
+class AdminIGAutoScheduleResult(BaseModel):
+    scheduled: list[dict] = []   # [{id, title, when}]
+    skipped: list[dict] = []     # [{id, title, reason}]
+    weekly_cap: int = 0
+    slots: list[str] = []
+
+
+@router.post(
+    "/instagram/queue/auto-schedule", response_model=AdminIGAutoScheduleResult
+)
+def admin_ig_auto_schedule(
+    payload: AdminIGAutoScheduleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGAutoScheduleResult:
+    """Reparte los posts aprobados y sin fecha por las próximas `weeks` semanas.
+
+    Intercala tipos de contenido y respeta el techo semanal que impone el
+    cuentagotas, así que no puede saltarse la cadencia acordada. Con
+    `dry_run=true` devuelve el reparto propuesto sin tocar nada.
+    """
+    asignaciones, descartes = _ig_scheduling.plan(db, weeks=payload.weeks)
+    if not payload.dry_run:
+        _ig_scheduling.apply_plan(db, asignaciones)
+    return AdminIGAutoScheduleResult(
+        scheduled=[
+            {"id": it.id, "title": it.title[:80], "when": cuando.isoformat()}
+            for it, cuando in asignaciones
+        ],
+        skipped=descartes,
+        weekly_cap=_ig_scheduling.cap_semanal(),
+        slots=[h.strftime("%H:%M") for h in _ig_scheduling.slots_diarios()],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Clips de vídeo de terceros
+# --------------------------------------------------------------------------- #
+class AdminClipIn(BaseModel):
+    url: str
+    start_s: float = 0.0
+    end_s: float
+    subtitle: str | None = None
+
+
+class AdminClipOut(BaseModel):
+    id: int
+    video_id: str
+    url: str
+    video_title: str | None = None
+    channel_title: str | None = None
+    channel_url: str | None = None
+    start_s: float
+    end_s: float
+    subtitle: str | None = None
+    status: str
+    url_cdn: str | None = None
+    duration_s: float | None = None
+    error: str | None = None
+    requested_by: str | None = None
+    ig_media_id: str | None = None
+    queue_item_id: int | None = None
+    retired_at: datetime | None = None
+    retired_reason: str | None = None
+    created_at: datetime
+
+
+class AdminClipRetireIn(BaseModel):
+    reason: str
+
+
+def _clip_model(c) -> AdminClipOut:
+    return AdminClipOut(
+        id=c.id, video_id=c.video_id, url=c.url, video_title=c.video_title,
+        channel_title=c.channel_title, channel_url=c.channel_url,
+        start_s=c.start_s, end_s=c.end_s, subtitle=c.subtitle, status=c.status,
+        url_cdn=c.url_cdn, duration_s=c.duration_s, error=c.error,
+        requested_by=c.requested_by, ig_media_id=c.ig_media_id,
+        queue_item_id=c.queue_item_id,
+        retired_at=c.retired_at, retired_reason=c.retired_reason,
+        created_at=c.created_at,
+    )
+
+
+@router.get("/instagram/clips", response_model=list[AdminClipOut])
+def admin_clips_list(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[AdminClipOut]:
+    """Todos los clips con su procedencia. Es el registro que se consulta si
+    llega una reclamación."""
+    from app.db.models import VideoClip
+
+    rows = (
+        db.query(VideoClip)
+        .order_by(VideoClip.created_at.desc())
+        .limit(min(limit, 500))
+        .all()
+    )
+    return [_clip_model(c) for c in rows]
+
+
+@router.post("/instagram/clips", response_model=AdminClipOut)
+def admin_clips_create(
+    payload: AdminClipIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Pide un clip de YouTube. La descarga la hace el daemon de la Mac: la IP
+    del servidor está bloqueada por YouTube."""
+    from app.services.instagram import video_clips as _vc
+
+    try:
+        clip = _vc.solicitar(
+            db, url=payload.url, start_s=payload.start_s, end_s=payload.end_s,
+            subtitle=payload.subtitle, requested_by=admin.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _clip_model(clip)
+
+
+@router.post("/instagram/clips/{clip_id}/retire", response_model=AdminClipOut)
+def admin_clips_retire(
+    clip_id: int,
+    payload: AdminClipRetireIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Retira un clip: borra el post de Instagram y el fichero de Cloudinary.
+
+    Es la válvula que hace asumible publicar sin pedir permiso previo — permite
+    responder a una reclamación en minutos.
+    """
+    from app.db.models import VideoClip
+    from app.services.instagram import video_clips as _vc
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    ok, msg = _vc.retire(db, clip, payload.reason)
+    db.refresh(clip)
+    if not ok:
+        logger.warning("[clip] retirada parcial de %s: %s", clip_id, msg)
+    return _clip_model(clip)
+
+
+class AdminClipAssignIn(BaseModel):
+    queue_item_id: int | None = None   # None = desasignar
+
+
+@router.post("/instagram/clips/{clip_id}/assign", response_model=AdminClipOut)
+def admin_clips_assign(
+    clip_id: int,
+    payload: AdminClipAssignIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminClipOut:
+    """Reasigna el clip a OTRA publicación de la cola (o lo desasigna).
+
+    Ya no es el camino normal: al pedir un clip se crea su propia publicación,
+    con el clip como tema. Esto queda como válvula para moverlo de sitio, y el
+    post destino pasa a `pending` para que haya que re-prepararlo.
+    """
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    if clip.status == "retired":
+        raise HTTPException(status_code=409, detail="el clip está retirado")
+
+    if payload.queue_item_id is None:
+        clip.queue_item_id = None
+        db.commit()
+        db.refresh(clip)
+        return _clip_model(clip)
+
+    item = db.get(_IGItem, payload.queue_item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="publicación no encontrada")
+    if item.status == "published":
+        raise HTTPException(status_code=409, detail="esa publicación ya salió")
+
+    clip.queue_item_id = item.id
+    # CLIP, no REELS: un reel es vídeo PROPIO y va mudo (la música tiene
+    # derechos); un clip es de otro canal y lleva su sonido y su atribución
+    # quemada. Poner REELS aquí obligaba a que `prepare` lo corrigiera después.
+    item.media_type = "CLIP"
+    item.media_locked = True      # lo ha decidido una persona
+    item.status = "pending"
+    item.image_path = None
+    item.media.clear()
+    db.commit()
+    db.refresh(clip)
+    return _clip_model(clip)
+
+
+@router.post("/instagram/queue/generate-product", response_model=AdminIGBulkResult)
+def admin_ig_generate_product(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Crea posts PROPIOS que enseñan la web y los encola.
+
+    Cada post es una consulta real («¿Qué es la libertad para Robe?»), no la
+    funcionalidad en abstracto, y la pieza se compone preguntando a la API DE
+    VERDAD. Son posts independientes: ya no se le cuelga el formato encima a una
+    noticia que iba de otra cosa.
+
+    Cantidad acotada por la cuota semanal (≈10% del feed): esto es el gancho de
+    registro, no un folleto.
+    """
+    from app.services.instagram import evergreen as _ev
+    from app.services.instagram import scheduling as _sched
+
+    result = AdminIGBulkResult()
+    usados = _ev.used_content_keys(db)
+    cupo = _sched.cupo_libre(db, "product")
+    if cupo <= 0:
+        result.failed.append({
+            "id": 0,
+            "error": "ya hay posts de «la web» suficientes para las próximas "
+                     "semanas (cuota ~10% del feed)",
+        })
+        return result
+
+    candidatos = _ev.gen_product(db, count=cupo, used=usados)
+    if not candidatos:
+        result.failed.append({
+            "id": 0,
+            "error": "sin consultas nuevas con las que enseñar la web "
+                     "(ya han salido todas las del registro y el corpus)",
+        })
+        return result
+
+    pos = db.query(func.coalesce(func.max(_IGItem.position), -1)).scalar() or -1
+    for i, cand in enumerate(candidatos, start=1):
+        it = _IGItem(
+            day=_date.today(), slot=2, position=pos + i,
+            content_type=cand["content_type"], content_key=cand["content_key"],
+            title=cand["title"][:300], category=cand.get("category"),
+            summary=cand.get("summary"), source_name=cand.get("source_name"),
+            # Sin esto se quedaban en IMAGE y `prepare` los mandaba a la rama
+            # genérica en vez de a `_prepare_product`: salía arte IA cualquiera
+            # en lugar de la pieza que enseña la funcionalidad. `media_locked`
+            # los protege del repartidor de formatos.
+            media_type="PRODUCT", media_locked=True,
+            status="proposed",
+        )
+        db.add(it)
+        db.commit()
+        db.refresh(it)
+        try:
+            _ig_publisher.prepare(db, it)
+            result.ok.append(it.id)
+        except Exception as exc:  # noqa: BLE001
+            it.status = "failed"
+            it.error = f"prepare: {exc}"
+            db.commit()
+            result.failed.append({"id": it.id, "error": str(exc)[:200]})
+    return result
+
+
+
+class AdminIGShuffleIn(BaseModel):
+    # Cambiar la semilla da otro reparto; con la misma, el resultado se repite.
+    seed: int = 0
+    # Por defecto solo toca los programados; con False, toda la cola activa.
+    only_scheduled: bool = True
+
+
+class AdminIGShuffleResult(BaseModel):
+    changed: list[dict] = []   # [{id, title, antes, ahora}]
+    mix: list[str] = []        # la mezcla objetivo desplegada
+
+
+@router.post("/instagram/queue/shuffle-formats", response_model=AdminIGShuffleResult)
+def admin_ig_shuffle_formats(
+    payload: AdminIGShuffleIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGShuffleResult:
+    """Reparte formatos variados (foto / carrusel / reel) entre los posts.
+
+    Evita que el feed salga monótono. NO toca los que tienen el formato elegido
+    a mano (`media_locked`). Los que cambian de formato vuelven a `pending` y hay
+    que re-prepararlos, porque el material hay que regenerarlo.
+    """
+    cambios = _ig_scheduling.repartir_formatos(
+        db, semilla=payload.seed, solo_programados=payload.only_scheduled
+    )
+    return AdminIGShuffleResult(
+        changed=cambios, mix=_ig_scheduling.mezcla_formatos()
+    )
+
+
+class AdminIGBulkPrepareIn(BaseModel):
+    # Sin ids, prepara TODO lo que esté pendiente y sin material.
+    ids: list[int] | None = None
+    limit: int = 20
+
+
+@router.post("/instagram/queue/bulk-prepare", response_model=AdminIGBulkResult)
+def admin_ig_bulk_prepare(
+    payload: AdminIGBulkPrepareIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminIGBulkResult:
+    """Genera el material de los posts que se quedaron sin él.
+
+    Hace falta porque el repartidor de formatos deja en `pending` y sin
+    material todo lo que cambia de formato (las diapositivas de un carrusel no
+    valen para un reel). Sin esto habría que entrar post por post.
+
+    `limit` acota el coste: generar un reel o un carrusel no es gratis.
+    """
+    q = db.query(_IGItem).filter(_IGItem.status.in_(("pending", "prepared")))
+    if payload.ids:
+        q = q.filter(_IGItem.id.in_(payload.ids))
+    else:
+        q = q.filter(_IGItem.caption.is_(None) | (_IGItem.image_path.is_(None)))
+    items = q.order_by(_IGItem.position, _IGItem.id).limit(
+        max(1, min(payload.limit, 50))
+    ).all()
+
+    result = AdminIGBulkResult()
+    for it in items:
+        try:
+            _ig_publisher.prepare(db, it)
+            result.ok.append(it.id)
+        except Exception as exc:  # noqa: BLE001
+            it.status = "failed"
+            it.error = f"prepare: {exc}"
+            db.commit()
+            result.failed.append({"id": it.id, "error": str(exc)[:200]})
+    return result
+
+
 @router.post("/instagram/queue/bulk-approve", response_model=AdminIGBulkResult)
 def admin_ig_bulk_approve(
     payload: AdminIGBulkIn,
@@ -2528,7 +2930,11 @@ def admin_ig_bulk_approve(
         it.status = "pending"
         db.commit()
         try:
-            _ig_publisher.prepare(db, it)
+            # Si ya venía preparado (lo hace `prepare_daily` para que la vista
+            # previa del panel sea real), no se regenera: `prepare` cuesta una
+            # llamada a OpenAI y perdería cualquier edición del caption.
+            if not it.caption or not it.image_path:
+                _ig_publisher.prepare(db, it)
             result.ok.append(item_id)
         except Exception as exc:  # noqa: BLE001
             it.status = "failed"
@@ -2565,16 +2971,26 @@ def admin_ig_bulk_discard(
 
 @router.get("/instagram/account", response_model=AdminIGAccount)
 def admin_ig_account(
+    db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGAccount:
-    """Verifica token + que la cuenta IG sea realmente alcanzable.
+    """Estado real de la cuenta: si se puede LEER y si se puede PUBLICAR.
 
     No basta con que el token tenga scope: si el enlace IG↔Página se rompe,
-    `token_is_valid()` sigue dando verde pero no se puede publicar. Aquí se
-    hace una lectura real de la cuenta y se refleja el estado de verdad.
+    `token_is_valid()` sigue dando verde pero no se puede publicar. Y hay un
+    caso peor —la cuenta restringida por Meta— que NINGÚN GET detecta: el IG
+    Graph API no expone Account Quality, así que las lecturas responden con
+    normalidad mientras la publicación está bloqueada. Eso solo se sabe por los
+    fallos recientes de la cola, y es lo que trae `puede_publicar`.
     """
     ok, msg, username = _ig_graph.connection_is_healthy()
-    return AdminIGAccount(ok=ok, message=msg, username=username)
+    bloqueado, motivo, desde = _ig_publisher.publicacion_bloqueada(db)
+    return AdminIGAccount(
+        ok=ok, message=msg, username=username,
+        puede_publicar=not bloqueado,
+        bloqueo_motivo=motivo,
+        bloqueo_desde=desde,
+    )
 
 
 # --------------------------------------------------------------------------- #

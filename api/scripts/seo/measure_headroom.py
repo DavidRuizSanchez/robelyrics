@@ -99,14 +99,23 @@ def _richness(db, etype: str, ent) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--max-chars", type=int, default=3500,
-                    help="solo evalúa páginas por debajo de esto")
+                    help="solo evalúa páginas por debajo de esto. OJO: con el "
+                         "default se cae fuera media plantilla — la mediana de "
+                         "ficha de canción ronda los 3.400-3.800c. Para un "
+                         "censo completo, --max-chars 12000")
     ap.add_argument("--rich", type=float, default=0.45,
                     help="richness mínima para marcar como expandible")
+    ap.add_argument("--entity-type", help="acotar a un tipo (song, album…)")
+    ap.add_argument("--csv", help="volcar TODAS las filas evaluadas aquí. Sin "
+                                  "esto solo se imprime un top 30, que no sirve "
+                                  "como worklist de 153 fichas")
     args = ap.parse_args()
 
     rows = []
     with SessionLocal() as db:
         for sc in db.query(SeoContent).all():
+            if args.entity_type and sc.entity_type != args.entity_type:
+                continue
             ln = len(sc.body_md or "")
             if ln >= args.max_chars:
                 continue
@@ -120,6 +129,14 @@ def main() -> None:
             rows.append((sc.entity_type, sc.slug, ln, round(r, 2), target, expandible))
 
     rows.sort(key=lambda x: (-x[5], -x[3]))
+    if args.csv:
+        import csv as _csv
+        with open(args.csv, "w", encoding="utf-8", newline="") as fh:
+            wr = _csv.writer(fh)
+            wr.writerow(["entity_type", "slug", "chars", "richness", "target",
+                         "expandible"])
+            wr.writerows(rows)
+        logger.info("escrito %s (%d filas)", args.csv, len(rows))
     exp = [r for r in rows if r[5]]
     by_type = {}
     for r in exp:

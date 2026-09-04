@@ -51,8 +51,10 @@ def _collect_targets(db, only: str | None, limit: int | None):
         for (slug,) in db.query(Album.slug).order_by(Album.id).all():
             targets.append(("album", slug))
     if only in (None, "song"):
-        for (slug,) in db.query(Song.slug).order_by(Song.id).all():
-            targets.append(("song", slug))
+        # Por id, no por slug: dos canciones homónimas en discos distintos
+        # habrían regenerado dos veces la misma ficha y ninguna la otra.
+        for (song_id,) in db.query(Song.id).order_by(Song.id).all():
+            targets.append(("song", song_id))
     if only in (None, "person"):
         for (slug,) in db.query(Person.slug).order_by(Person.id).all():
             targets.append(("person", slug))

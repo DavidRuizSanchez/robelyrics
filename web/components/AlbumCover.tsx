@@ -24,20 +24,29 @@ export default function AlbumCover({
   title,
   variant = "md",
   className = "",
+  isBack = false,
 }: {
   coverUrl?: string | null;
   slug: string;
   title?: string;
   variant?: Variant;
   className?: string;
+  /**
+   * La imagen es la CONTRAPORTADA, no la portada. Pasa con «Tú en tu casa,
+   * nosotros en la hoguera»: su portada original no circula y lo único
+   * auténtico que hay es la trasera. Enseñarla está bien; rotularla «Portada
+   * de…» no, y ese fue justo el fallo que dejó al disco sin imagen.
+   */
+  isBack?: boolean;
 }) {
   const { px, sunSize } = SIZE_MAP[variant];
 
   if (coverUrl) {
+    const que = isBack ? "Contraportada" : "Portada";
     return (
       <img
         src={coverUrl}
-        alt={title ? `Portada de ${title}` : "Portada"}
+        alt={title ? `${que} de ${title}` : que}
         width={px}
         height={px}
         className={`block rounded shadow-[0_8px_20px_rgba(0,0,0,0.4)] object-cover ${className}`}

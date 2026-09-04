@@ -13,12 +13,21 @@
 # ------------------------------------------------------------
 # YouTube — canales especialistas / fan
 # ------------------------------------------------------------
+# Los canales con `ingest: true` los barre scripts.youtube.detect_uploads cada
+# 3 días. `relevance` decide qué uploads se encolan:
+#   all      → todos (canal 100% temático).
+#   catalog  → solo los que mencionan Robe/Extremoduro o un título del catálogo
+#              (ver app.services.youtube_relevance). Con `match_description: true`
+#              la descripción también cuenta, no solo el título.
 youtube:
   - name: "juancaraes"
     url: "https://www.youtube.com/c/juancaraes"
     handle: "@juancaraes"
     status: active
     since: 2008
+    ingest: true
+    ingest_author: "Juancares"
+    relevance: all
     relevant_videos_estimate: 50  # estimado (serie "Historia de Extremoduro" supera los 25 capítulos)
     content_type: "biografía + análisis disco por disco + análisis canción por canción"
     notes: |
@@ -29,6 +38,27 @@ youtube:
       ej. "Si te vas"). También tiene podcast en Spotify con los mismos
       contenidos. Multi-plataforma (FB, IG, Twitter, TikTok).
     podcast_alt_url: "https://creators.spotify.com/pod/profile/juancaraes"
+    priority: high
+
+  - name: "tesonica"
+    url: "https://www.youtube.com/@tesonica/videos"
+    handle: "@tesonica"
+    status: active
+    ingest: true
+    ingest_author: "Tesônica"
+    relevance: catalog
+    match_description: true
+    content_type: "análisis musicológico (armonía, motivos conductores, estructura)"
+    notes: |
+      Chelista que analiza música con herramientas de conservatorio. Su serie
+      "LA LEY INNATA — Análisis exhaustivo" (12 capítulos + análisis por
+      movimiento) es el único material del corpus que entra en la armonía y los
+      motivos conductores del disco. También la serie "Pedrá: ¿por qué ese
+      nombre?" y piezas cortas cruzando Extremoduro con Bach, Lorca, Machado,
+      Miguel Hernández, Chinato o Galdós.
+      El canal NO es monotemático: la mayoría de sus uploads son de metal
+      (SOAD, Apocalyptica, Tarja), ergonomía del violonchelo y vídeos
+      personales. De ahí `relevance: catalog`.
     priority: high
 
   # NOTA: el usuario mencionó "El Primo del Aguilar" como canal/figura,

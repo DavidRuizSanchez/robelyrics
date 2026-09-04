@@ -1,0 +1,56 @@
+# Funcionalidades de la web que se enseñan en Instagram.
+#
+# Casi todo lo bueno del sitio vive detrás del login (`/biblioteca/*`), así que
+# estos posts son el gancho de registro: la pieza enseña QUÉ hay dentro y el CTA
+# manda a /registro, nunca a la ruta privada (que rebotaría al login).
+#
+# Dos formas de tener la pieza:
+#   - `generada`: la compone `product_shots.generar()` consultando la API de
+#     verdad (pregunta real al consultorio, versos reales del buscador).
+#   - `captura`: una captura de pantalla puesta a mano en data/product_shots/,
+#     para lo que no se puede recomponer honestamente — el karaoke o las listas
+#     venden la interacción, y eso hay que verlo de verdad.
+#
+# Si no hay ninguna de las dos, el generador salta la entrada en vez de publicar
+# un post sin la imagen que lo justifica.
+#
+# Cuota: como mucho 1 de cada 6 publicaciones, para no volverse un folleto.
+
+funcionalidades:
+  - slug: pregúntale-al-viento
+    title: Pregúntale al viento
+    claim: Le preguntas lo que quieras y te responde con su voz, sacada de lo que dijo de verdad.
+    detalle: |
+      No es un chatbot que se lo inventa.
+      Cada respuesta se apoya en entrevistas, textos y letras reales.
+      Cuando de algo no dejó dicho nada, lo dice.
+    generada: consultorio.jpg
+    captura: consultorio.png
+    cta: Está en Entre Interiores. Cuenta gratis.
+
+  - slug: como-lo-diria-robe
+    title: Como lo diría Robe
+    claim: Cuéntale cómo te sientes y te devuelve el verso que lo dice.
+    detalle: |
+      Buscas «se acabó lo bonito» y te saca «se acabaron las flores de papel».
+      No busca palabras: busca lo que quieres decir.
+    generada: buscador-semantico.jpg
+    captura: buscador-semantico.png
+    cta: Está en Entre Interiores. Cuenta gratis.
+
+  - slug: karaoke
+    title: La letra pegada al directo
+    claim: La letra se ilumina verso a verso mientras suena el vídeo.
+    detalle: |
+      144 canciones con su letra sincronizada.
+      Para leerlas mientras suenan, que es como se entienden.
+    captura: karaoke.png
+    cta: Está en Entre Interiores. Cuenta gratis.
+
+  - slug: listas-por-mood
+    title: Dime cómo te sientes y te monto la lista
+    claim: Escribes «necesito desahogarme a gritos» y te sale la lista.
+    detalle: |
+      No por álbum ni por año: por lo que te pasa por dentro.
+    captura: listas-mood.png
+    cta: Está en Entre Interiores. Cuenta gratis.

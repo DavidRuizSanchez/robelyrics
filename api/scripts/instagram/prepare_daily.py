@@ -2,7 +2,15 @@
 
 Selecciona los temas del día desde `news_items`, encola los posts de noticias
 y difunde los artículos nuevos del blog. Deja todo preparado (imagen + caption)
-para que `publish_next` solo tenga que publicar.
+para que solo haya que aprobarlo y publicarlo.
+
+IMPORTANTE: desde jul-2026 los items nacen en estado `proposed`, NO `pending`
+(`config.estado_inicial()`). Antes las noticias entraban directas a la cola de
+publicación y salían sin que nadie las hubiera visto; ahora todo pasa por el
+panel (/biblioteca/admin/instagram), donde se previsualiza como se verá en el
+feed, se aprueba y opcionalmente se programa a una hora concreta. Se sigue
+generando imagen y caption aquí para que esa previsualización sea la real.
+Con `IG_AUTO_APPROVE=true` se vuelve al automatismo anterior.
 
 Pensado para correr una vez al día (cron, p.ej. 08:00).
 
@@ -71,7 +79,7 @@ def _enqueue_news(db, today: date, prepare: bool) -> int:
             summary=tema.get("summary"),
             source_name=tema.get("source"),
             source_url=tema.get("url") or None,
-            status="pending",
+            status=config.estado_inicial(),
         )
         db.add(item)
         db.commit()
@@ -121,7 +129,7 @@ def _enqueue_blog(db, today: date, prepare: bool) -> int:
             summary=post.excerpt,
             source_name="Entre Interiores · Blog",
             source_url=f"{config.SITE_URL}/blog/{post.slug}",
-            status="pending",
+            status=config.estado_inicial(),
         )
         db.add(item)
         db.commit()

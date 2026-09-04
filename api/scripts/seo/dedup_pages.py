@@ -156,9 +156,19 @@ def _targets(db, entity_type, slugs):
         q = q.filter(SeoContent.entity_type.in_(SEO_TYPES))
     rows = []
     only = {s.strip() for s in slugs.split(",")} if slugs else None
+    vistos: dict[str, int] = {}
     for sc in q.all():
         if only and sc.slug not in only:
             continue
+        if only:
+            # Un slug de cancion se repite entre discos: si pides uno y salen
+            # dos fichas, no estas de-duplicando lo que crees.
+            vistos[sc.slug] = vistos.get(sc.slug, 0) + 1
+            if vistos[sc.slug] > 1:
+                logger.warning(
+                    "«%s» corresponde a mas de una ficha (%s#%s); acota con "
+                    "--entity-type", sc.slug, sc.entity_type, sc.entity_id,
+                )
         body = sc.body_md or ""
         if not only and len(body) < MIN_CHARS_TO_DEDUP:
             continue  # thin: nada que de-duplicar (salvo que se pida explícito por slug)
@@ -219,7 +229,12 @@ def main() -> None:
                 sc = db.get(SeoContent, r["id"])
                 sc.body_md = r["deduped"]
                 sc.generated_at = datetime.now(timezone.utc)
-                sc.generated_by = "dedup-" + (sc.generated_by or "")
+                # Marca de procedencia, no un historial: anteponer el prefijo cada
+                # vez daba «dedup-dedup-dedup-dedup-dedup-gpt-4o» y a la quinta
+                # pasada reventaba el VARCHAR(32) con StringDataRightTruncation,
+                # abortando el lote entero a mitad.
+                previo = (sc.generated_by or "").removeprefix("dedup-")
+                sc.generated_by = f"dedup-{previo}"[:32]
                 db.commit()
                 applied += 1
                 logger.info("  ✓ %s/%s: %s", r["type"], r["slug"], r["reason"])

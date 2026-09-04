@@ -30,8 +30,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 _SITE = "https://entreinteriores.com"
-_POS_MIN, _POS_MAX = 5.0, 30.0
-_MIN_IMPRESSIONS = 20
+# El suelo estaba en 5.0 y escondía el caso más rentable que hay: una página en
+# posición 1-4 que no se lleva el clic. Medido el 03-08-2026 sobre 12 semanas:
+# /robe/mayeutica/interludio acumula 1.246 impresiones y **4 clics**. Ahí no
+# falta posición, falta un title y una description que prometan lo que la página
+# responde — y eso no se arregla regenerando el cuerpo.
+_POS_MIN, _POS_MAX = 1.0, 30.0
+# Suelo de impresiones. Estaba en 20 y dejaba ciego al script en un sitio de
+# nicho: medido el 02-08-2026, de 155 páginas con datos GSC había **99** con
+# queries en posición 5-30 pero todas por debajo de 20 impresiones — 929
+# impresiones que nadie miraba. El caso que lo destapó: /extremoduro/agila está
+# en posición 8,0 para «agila contraportada» con 6 impresiones y la página no
+# menciona la portada ni una vez.
+_MIN_IMPRESSIONS = 3
 
 _STOP = {"de", "la", "el", "los", "las", "y", "en", "del", "que", "a", "un", "una", "por", "con"}
 
@@ -45,26 +56,30 @@ def _norm(s: str) -> set[str]:
     return {t for t in re.findall(r"[a-z0-9]+", s) if t not in _STOP and len(t) > 1}
 
 
-def _resolve_entity(path: str) -> tuple[str, str] | None:
-    """URL path → (entity_type, slug) para regenerate_deep. None si no aplica."""
+def _resolve_entity(db, path: str) -> tuple[str, int] | None:
+    """URL path → (entity_type, entity_id) para regenerate_deep.
+
+    Devuelve el ID, no el slug: pasar el slug hacía que las keywords de GSC de
+    UNA página se aplicaran a TODAS las entidades homónimas, porque
+    `regenerate_deep --slugs` itera por slug. Resolver con `url_resolver` además
+    descarta las rutas que ya no llevan a ningún sitio.
+    """
+    from app.services import url_resolver as ur
+
     parts = [p for p in path.strip("/").split("/") if p]
-    if not parts:
-        return None
-    if parts[0] in _SECTION_TYPE and len(parts) == 2:
-        return _SECTION_TYPE[parts[0]], parts[1]
-    if parts[0] in ("blog", "libros", "sellos"):
+    if not parts or parts[0] in ("blog", "libros", "sellos"):
         return None  # blog/libros/sellos tienen su propio flujo
-    # catálogo: /artist, /artist/album, /artist/album/song
-    if len(parts) == 1:
-        return "artist", parts[0]
-    if len(parts) == 2:
-        return "album", parts[1]
-    if len(parts) == 3:
-        return "song", parts[2]
-    return None
+
+    res = ur.resolve_path(ur.DbCatalog(db), path)
+    if res.status != "ok" or res.entity_id is None:
+        return None
+    if res.entity_type not in ("artist", "album", "song", "person", "band",
+                               "theme", "place", "concept"):
+        return None
+    return res.entity_type, res.entity_id
 
 
-def opportunities(pages: dict) -> list[dict]:
+def opportunities(db, pages: dict) -> list[dict]:
     """Por URL, las queries striking-distance con ángulo informacional nuevo."""
     out = []
     for path, qs in pages.items():
@@ -82,7 +97,7 @@ def opportunities(pages: dict) -> list[dict]:
                 "path": path,
                 "queries": opp,
                 "score": sum(q["impressions"] for q in opp),
-                "entity": _resolve_entity(path),
+                "entity": _resolve_entity(db, path),
             })
     out.sort(key=lambda x: -x["score"])
     return out
@@ -126,7 +141,10 @@ def main() -> None:
     pages = _load_pages()
     if not pages:
         return
-    opps = opportunities(pages)
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        opps = opportunities(db, pages)
     logger.info("URLs con oportunidad striking-distance informacional: %d", len(opps))
     for o in opps[:15]:
         logger.info("  %s (%d imp) · %s", o["path"], o["score"],
@@ -146,12 +164,13 @@ def main() -> None:
             ent = o["entity"]
             if not ent:
                 continue
-            etype, slug = ent
-            logger.info("  APLICANDO: regenerando %s/%s por %d queries GSC",
-                        etype, slug, len(o["queries"]))
+            etype, eid = ent
+            logger.info("  APLICANDO: regenerando %s#%s (%s) por %d queries GSC",
+                        etype, eid, o["path"], len(o["queries"]))
             env = {**os.environ, "SEO_KEEP_PUBLISHED": "1"}
             subprocess.run(
-                ["python", "-m", "scripts.seo.regenerate_deep", "--entity-type", etype, "--slugs", slug],
+                ["python", "-m", "scripts.seo.regenerate_deep",
+                 "--entity-type", etype, "--ids", str(eid)],
                 check=False, env=env,
             )
             applied += 1

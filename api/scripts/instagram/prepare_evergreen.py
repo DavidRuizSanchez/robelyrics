@@ -87,6 +87,12 @@ def main() -> None:
                 summary=cand.get("summary"),
                 source_name=cand.get("source_name"),
                 source_url=cand.get("source_url") or None,
+                # Los posts que enseñan la web traen su formato puesto: sin esto
+                # se quedaban en IMAGE y `prepare` los mandaba a la rama genérica
+                # (arte IA cualquiera) en vez de componer la pieza. `media_locked`
+                # los protege del repartidor de formatos.
+                media_type="PRODUCT" if cand["content_type"] == "product" else "IMAGE",
+                media_locked=cand["content_type"] == "product",
                 status="proposed",
             )
             db.add(item)

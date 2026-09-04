@@ -29,11 +29,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Album, Artist, InstagramQueueItem, Line, Person, Song
-from app.services.instagram import config
 
 logger = logging.getLogger(__name__)
 
-EVERGREEN_TYPES = ("quote", "ephemeris", "anecdote", "robe_quote")
+EVERGREEN_TYPES = ("quote", "ephemeris", "anecdote", "robe_quote", "product")
 
 # Horizonte para generar efemérides con fecha fija (`publish_on`): se proponen
 # con antelación y SOLO se publican su día exacto, así que la ventana es amplia.
@@ -302,12 +301,91 @@ def gen_robe_quotes(db: Session, count: int, used: set[str]) -> list[dict]:
     return out
 
 
+def gen_product(db: Session, count: int, used: set[str]) -> list[dict]:
+    """Posts que ENSEÑAN la web (data/instagram_product.yaml).
+
+    Casi todo lo bueno del sitio vive tras el login, así que estos posts son el
+    gancho de registro: el CTA manda a /registro, no a la ruta privada (que
+    rebotaría al login y dejaría al visitante en la puerta).
+
+    **El TEMA es la consulta**, no la funcionalidad: «¿Qué es la libertad para
+    Robe?» y no «Pregúntale al viento». Sale del corpus real
+    (`product_topics`): lo que la gente ha preguntado o buscado de verdad, y de
+    reserva las taxonomías extraídas de las letras. Antes el título era el de la
+    ficha, así que los cuatro posts se llamaban igual y no decían nada.
+
+    Se reparte entre funcionalidades en vez de agotar una: si no, salían cuatro
+    del consultorio seguidos.
+    """
+    from app.services.instagram import product_topics
+
+    path = _data_path("instagram_product.yaml")
+    if not path:
+        logger.warning("[evergreen] instagram_product.yaml no encontrado")
+        return []
+    data = yaml.safe_load(open(path, encoding="utf-8")) or {}
+    fichas = {
+        (f.get("slug") or "").strip(): f
+        for f in (data.get("funcionalidades") or []) if (f.get("slug") or "").strip()
+    }
+
+    # Solo las que se pueden recomponer con datos reales. El karaoke vende la
+    # interacción y esa no se recompone honestamente: se queda fuera.
+    recomponibles = [s for s in fichas if s in product_topics.FUENTES]
+    random.shuffle(recomponibles)
+
+    ya_usadas = {
+        k.removeprefix("product:").partition(":")[2] for k in used
+        if k.startswith("product:")
+    }
+
+    colas = {
+        slug: product_topics.consultas_para(db, slug, excluir=ya_usadas)
+        for slug in recomponibles
+    }
+
+    out: list[dict] = []
+    # Round-robin: una de cada funcionalidad antes de repetir ninguna.
+    while len(out) < count and any(colas.values()):
+        for slug in recomponibles:
+            if len(out) >= count:
+                break
+            if not colas.get(slug):
+                continue
+            consulta = colas[slug].pop(0)
+            key = f"product:{slug}:{product_topics.consulta_id(consulta)}"
+            if key in used:
+                continue
+            f = fichas[slug]
+            out.append({
+                "content_type": "product",
+                "content_key": key,
+                "title": consulta,
+                "category": "Cultura",
+                "summary": (f.get("claim") or "").strip(),
+                "detalle": (f.get("detalle") or "").strip(),
+                "image_kind": "photo",
+                "cta": f.get("cta") or "",
+                "source_name": "Entre Interiores",
+                "source_url": None,
+            })
+            used.add(key)
+    if not out:
+        logger.info("[evergreen] sin consultas nuevas con las que enseñar la web")
+    return out
+
+
 # Reparto por defecto del lote semanal (tipo → cuántos proponer).
 DEFAULT_MIX = {
     "quote": 6,
     "ephemeris": 4,
     "anecdote": 4,
     "robe_quote": 3,
+    # Cuota corta a propósito: ~10% del feed enseña la web. Más que eso convierte
+    # la cuenta en un folleto. El tope de verdad lo pone
+    # `scheduling.CUOTA_POR_TIPO`, que reparte al programar; esto solo evita
+    # generar de más.
+    "product": 1,
 }
 
 _GENERATORS = {
@@ -315,6 +393,7 @@ _GENERATORS = {
     "ephemeris": gen_ephemerides,
     "anecdote": gen_anecdotes,
     "robe_quote": gen_robe_quotes,
+    "product": gen_product,
 }
 
 

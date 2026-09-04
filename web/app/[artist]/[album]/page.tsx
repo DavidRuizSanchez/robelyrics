@@ -9,8 +9,9 @@ import RelatedPosts from "@/components/RelatedPosts";
 import MoreFromArtist from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, redirectTargetOf } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { SITE_URL } from "@/lib/site";
 import {
   breadcrumbListNode,
   buildGraph,
@@ -20,25 +21,15 @@ import {
   musicGroupNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import { resolveSlug } from "@/lib/slug-resolver";
 import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
 
-async function tryResolveAlbum(
-  artistSlug: string,
-  pedido: string,
-): Promise<string | null> {
-  try {
-    const artist = await apiFetch<PublicArtistDetail>(
-      `/public/artists/${artistSlug}`,
-      { authenticated: false },
-    );
-    return resolveSlug(
-      pedido,
-      artist.albums.map((a) => a.slug),
-    );
-  } catch {
-    return null;
-  }
+/**
+ * El artista viaja a la API: `albums.slug` solo es único dentro del artista, así
+ * que pedirlo suelto hacía que `/robe/la-ley-innata` (disco de Extremoduro)
+ * devolviera 200 con la ficha buena colgando de un artista que no es.
+ */
+function albumPath(artist: string, album: string): string {
+  return `/public/albums/${artist}/${album}`;
 }
 
 export async function generateMetadata({
@@ -46,15 +37,16 @@ export async function generateMetadata({
 }: {
   params: Promise<{ artist: string; album: string }>;
 }) {
-  const { album } = await params;
+  const { artist, album } = await params;
   try {
-    const detail = await apiFetch<PublicAlbumDetail>(`/public/albums/${album}`, {
+    const detail = await apiFetch<PublicAlbumDetail>(albumPath(artist, album), {
       authenticated: false,
     });
     if (!detail.seo_body) return {};
     return {
       title: detail.seo_meta_title || `${detail.title} · ${detail.artist.name}`,
       description: detail.seo_meta_description || "",
+      alternates: { canonical: `${SITE_URL}${detail.canonical_path}` },
       openGraph: {
         title: detail.seo_meta_title || detail.title,
         description: detail.seo_meta_description || "",
@@ -74,25 +66,32 @@ export default async function AlbumPublicPage({
   const { artist, album } = await params;
   let detail: PublicAlbumDetail;
   try {
-    detail = await apiFetch<PublicAlbumDetail>(`/public/albums/${album}`, {
+    detail = await apiFetch<PublicAlbumDetail>(albumPath(artist, album), {
       authenticated: false,
     });
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
-      const matched = await tryResolveAlbum(artist, album);
-      if (matched) permanentRedirect(`/${artist}/${matched}`);
-      notFound();
-    }
-    throw e;
+    const destino = redirectTargetOf(e);
+    if (destino) permanentRedirect(destino);
+    notFound();
   }
   if (!detail.seo_body) notFound();
+
+  // Segundo cerrojo: la ruta servida tiene que ser la canónica. Ver la página
+  // de canción, donde este mismo descuido servía el disco equivocado con un 200.
+  if (detail.canonical_path !== `/${artist}/${album}`) {
+    permanentRedirect(detail.canonical_path);
+  }
+
+  // De aquí en adelante todo sale de `detail`, no de `params`.
+  const artistSlug = detail.artist.slug;
+  const albumSlug = detail.slug;
 
   // Cargamos el artista para los álbumes hermanos (bloque "Más discos de…").
   // Si falla, simplemente no renderizamos el bloque.
   let artistDetail: PublicArtistDetail | null = null;
   try {
     artistDetail = await apiFetch<PublicArtistDetail>(
-      `/public/artists/${artist}`,
+      `/public/artists/${artistSlug}`,
       { authenticated: false },
     );
   } catch {
@@ -117,10 +116,10 @@ export default async function AlbumPublicPage({
           className="mb-6"
           items={[
             { label: "Entre Interiores", href: "/" },
-            { label: detail.artist.name, href: `/${artist}` },
+            { label: detail.artist.name, href: `/${artistSlug}` },
             {
               label: detail.title,
-              href: `/${artist}/${album}`,
+              href: `/${artistSlug}/${albumSlug}`,
               meta: `(${detail.year})`,
             },
           ]}
@@ -131,6 +130,7 @@ export default async function AlbumPublicPage({
             coverUrl={detail.cover_url}
             slug={detail.slug}
             title={detail.title}
+            isBack={detail.cover_is_back}
             variant="lg"
             className="!w-full !h-auto aspect-square"
           />
@@ -155,31 +155,67 @@ export default async function AlbumPublicPage({
             Canciones
           </h2>
           <ol className="space-y-1">
-            {detail.tracks.map((t, i) => (
-              <li key={t.slug}>
-                <Link
-                  href={`/${artist}/${album}/${t.slug}`}
-                  data-cursor="hover"
-                  className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
-                >
-                  <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right">
-                    {t.track_number ?? i + 1}
-                  </span>
-                  <span className="font-serif text-[18px] md:text-[20px] flex-1 text-ink group-hover:text-accent transition-colors">
-                    {t.title}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {detail.tracks.map((t, i) => {
+              // En directos y recopilatorios el corte NO vive en este disco: la
+              // API manda `path` con la ruta de la grabación original. Componer
+              // aquí `/${artistSlug}/${albumSlug}/${t.slug}` daría un 404.
+              const href = t.path ?? `/${artistSlug}/${albumSlug}/${t.slug}`;
+              const numero = (
+                <span className="font-mono text-[11px] text-ink-faint tabular-nums w-8 text-right shrink-0">
+                  {t.track_number ?? i + 1}
+                </span>
+              );
+              const titulo = (
+                <span className="font-serif text-[18px] md:text-[20px] text-ink group-hover:text-accent transition-colors">
+                  {t.title}
+                </span>
+              );
+              const origen = t.from_album ? (
+                <span className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+                  {t.is_rerecording ? "regrabación · " : ""}
+                  {t.from_album}
+                  {t.from_year ? ` (${t.from_year})` : ""}
+                </span>
+              ) : null;
+
+              // Un corte sin enlazar se muestra igual, pero sin link: no se
+              // adivina a qué canción apunta.
+              if (!t.path && t.from_album === null && t.slug === "") {
+                return (
+                  <li key={`${i}-sin-enlace`}>
+                    <div className="flex items-baseline gap-4 py-3 px-4 -mx-4">
+                      {numero}
+                      <span className="flex-1">{titulo}</span>
+                    </div>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={t.slug || `${i}`}>
+                  <Link
+                    href={href}
+                    data-cursor="hover"
+                    className="group flex items-baseline gap-4 py-3 px-4 -mx-4 hover:bg-paper transition-colors"
+                  >
+                    {numero}
+                    <span className="flex-1 flex flex-col gap-0.5">
+                      {titulo}
+                      {origen}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ol>
         </section>
 
         {artistDetail && (
           <MoreFromArtist
-            artistSlug={artist}
+            artistSlug={artistSlug}
             artistName={detail.artist.name}
             albums={artistDetail.albums}
-            currentAlbumSlug={album}
+            currentAlbumSlug={albumSlug}
           />
         )}
 
@@ -190,8 +226,8 @@ export default async function AlbumPublicPage({
               buildGraph([
                 {
                   ...musicAlbumNode({
-                    slug: album,
-                    artistSlug: artist,
+                    slug: albumSlug,
+                    artistSlug: artistSlug,
                     title: detail.title,
                     year: detail.year,
                     coverUrl: detail.cover_url,
@@ -205,25 +241,25 @@ export default async function AlbumPublicPage({
                     : {}),
                 },
                 // Nodo mínimo del artista para conectar @id
-                musicGroupNode({ slug: artist, name: detail.artist.name }),
+                musicGroupNode({ slug: artistSlug, name: detail.artist.name }),
                 webPageNode({
-                  path: `/${artist}/${album}`,
+                  path: `/${artistSlug}/${albumSlug}`,
                   name: detail.title,
                   type: "ItemPage",
                   description: detail.seo_meta_description,
-                  mainEntityId: canonical.musicAlbum(artist, album),
+                  mainEntityId: canonical.musicAlbum(artistSlug, albumSlug),
                 }),
-                breadcrumbListNode(`/${artist}/${album}`, [
+                breadcrumbListNode(`/${artistSlug}/${albumSlug}`, [
                   { name: "Entre Interiores", item: "/" },
-                  { name: detail.artist.name, item: `/${artist}` },
-                  { name: detail.title, item: `/${artist}/${album}` },
+                  { name: detail.artist.name, item: `/${artistSlug}` },
+                  { name: detail.title, item: `/${artistSlug}/${albumSlug}` },
                 ]),
               ]),
             ),
           }}
         />
 
-        <RelatedPosts entityType="album" slug={album} />
+        <RelatedPosts entityType="album" slug={albumSlug} />
       </main>
       <PublicFooter />
       </div>

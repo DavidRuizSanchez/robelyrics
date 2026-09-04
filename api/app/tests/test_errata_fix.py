@@ -78,7 +78,18 @@ def test_tipo_editorial_no_es_verificable():
 
 
 def test_tipos_verificables_tienen_handler():
-    assert set(ef._HANDLERS) == {"song_lyrics", "authorship", "catalog", "image"}
+    assert set(ef._HANDLERS) == {
+        "song_lyrics", "authorship", "catalog", "image", "internal_url",
+    }
+
+
+def test_errata_de_url_con_field_ilegible_no_finge_arreglo():
+    """Sin saber a qué enlace se refiere, se dice; no se toca ningún cuerpo."""
+    out = ef._fix_internal_url(
+        _FakeDB(), _errata(target_type="internal_url", field="chorrada")
+    )
+    assert out.action == "not_supported"
+    assert out.applied is False
 
 
 def test_excepcion_no_rompe_la_cola():

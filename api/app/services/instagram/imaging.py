@@ -126,17 +126,29 @@ def _wrap(draw, text, font, max_width) -> list[str]:
     return lines
 
 
-def _fit_headline(draw, text, max_width, max_height, max_lines):
-    """Mayor tamaño de Cormorant SemiBold con el que el titular cabe en la caja."""
-    for size in range(96, 47, -4):
+def _fit_text(draw, text, max_width, max_height, max_lines, sizes):
+    """Mayor cuerpo de `sizes` con el que el texto cabe en la caja.
+
+    Generalización de `_fit_headline` para poder usar rangos distintos: en
+    vertical (reels) un verso a cuerpo 96 se salía de caja por los lados.
+    """
+    sizes = list(sizes)
+    for size in sizes:
         font = _cormorant(size, weight=600)
         lines = _wrap(draw, text, font, max_width)
         line_h = int(size * 1.06)
         if len(lines) <= max_lines and len(lines) * line_h <= max_height:
             return font, lines, line_h
-    font = _cormorant(48, weight=600)
+    # Ni con el cuerpo más pequeño cabe: se recorta por líneas.
+    menor = sizes[-1]
+    font = _cormorant(menor, weight=600)
     lines = _wrap(draw, text, font, max_width)[:max_lines]
-    return font, lines, 52
+    return font, lines, int(menor * 1.08)
+
+
+def _fit_headline(draw, text, max_width, max_height, max_lines):
+    """Mayor tamaño de Cormorant SemiBold con el que el titular cabe en la caja."""
+    return _fit_text(draw, text, max_width, max_height, max_lines, range(96, 47, -4))
 
 
 # --------------------------------------------------------------------------- #

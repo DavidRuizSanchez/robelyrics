@@ -99,6 +99,30 @@ artists:
         kind: studio
         slug: para-todos-los-publicos
 
+      - title: "Grandes éxitos y fracasos: Episodio primero"
+        year: 2004
+        kind: compilation
+        slug: grandes-exitos-y-fracasos-episodio-primero
+        release_date: 2004-05-03
+        # Alta del barrido de discografía (01-08-2026). NO es la mitad de un
+        # doble: Episodio primero y segundo son dos lanzamientos separados por
+        # seis meses. Entra porque APORTA MATERIAL: cotejando los MBID de
+        # grabación contra los originales, 6 de las 8 pistas cotejables son
+        # tomas DISTINTAS — son regrabaciones, no un recopilatorio de sello.
+        # Verificado: MusicBrainz release-group 03d1bbae-f590-3078-adbd-c41ae67fae4c
+        # (Official, DRO, 15 pistas).
+        # Su tracklist vive en `album_tracks` y enlaza a las canciones
+        # originales: no crea páginas de canción propias (anti-canibalización).
+
+      - title: "Grandes éxitos y fracasos: Episodio segundo"
+        year: 2004
+        kind: compilation
+        slug: grandes-exitos-y-fracasos-episodio-segundo
+        release_date: 2004-11-15
+        # Mismo caso: 10 de 13 pistas cotejables son grabaciones distintas.
+        # MusicBrainz release-group 96ca722e-0c7f-3f8a-9a04-ac0e99d3390a
+        # (Official, DRO, 18 pistas).
+
   - slug: robe
     name: Robe Iniesta
     active_years: "2014-presente"
@@ -126,15 +150,33 @@ artists:
         slug: se-nos-lleva-el-aire
         release_date: 2023-12-15
 
+      - title: "Bienvenidos al temporal"
+        year: 2018
+        kind: live
+        slug: bienvenidos-al-temporal
+        release_date: 2018-11-30
+        # Alta del barrido de discografía (01-08-2026). Directo de la gira de
+        # «Destrozares», 9 cortes. Entra porque un directo son grabaciones
+        # propias por definición. Verificado: MusicBrainz (Official,
+        # El Dromedario Records, 9 pistas).
+        # Tracklist en `album_tracks` enlazando a las canciones de estudio.
+
 # ============================================================
 # Notas de operación
 # ============================================================
 # 1. El script ingest.py debe usar `slug` como clave estable. Si
 #    cambia el título por algún motivo, el slug NO debe cambiar.
-# 2. Para cada album.kind == "live" o "compilation", el ingest debe
-#    decidir si reusa songs ya existentes (mismo título + artista) o
-#    crea duplicados. Decisión por defecto: crear filas nuevas (la
-#    versión en directo puede tener letra ligeramente distinta).
+# 2. Para album.kind in (live, compilation, single): NO se crean filas
+#    `Song` nuevas. El tracklist vive en la tabla `album_tracks` y cada
+#    corte enlaza a la canción ORIGINAL de estudio.
+#    (Esta nota decía lo contrario —"crear filas nuevas"— hasta el
+#    01-08-2026. Duplicar la canción pone en Google dos páginas casi
+#    idénticas compitiendo entre sí: dar de alta los dos «Grandes éxitos
+#    y fracasos» habría creado 33 páginas de canción, y 29 de esos cortes
+#    ya estaban publicados. Es la misma cautela que ya defendía
+#    infra/CATALOG_AUDIT_2D.md:66-69 para «Por la boca vive el pez».)
+#    Un corte que no case con ninguna canción del catálogo se guarda con
+#    su título tal cual y se deja SIN enlazar: no se adivina.
 # 3. Excluido del corpus por decisión del usuario:
 #    - Extrechinato y tú (2000)
 #    - Iniciativa Sexual Yacumamba (proyecto de Iñaki, no Robe)

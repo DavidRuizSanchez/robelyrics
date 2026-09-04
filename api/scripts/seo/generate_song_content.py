@@ -117,11 +117,33 @@ Devuelve JSON con `body_md` (artículo completo en markdown), `meta_title`
 """
 
 
-def generate_for_song(client: OpenAI, db, song_slug: str, *, force: bool) -> bool:
-    song = db.query(Song).filter(Song.slug == song_slug).first()
+def resolve_song(db, ref: int | str) -> Song | None:
+    """La canción a partir de su id o de su slug.
+
+    Por id siempre; por slug solo si es inequívoco. `songs.slug` únicamente es
+    único DENTRO del álbum (`uq_songs_album_slug`), así que con un `.first()` se
+    podía escribir el artículo de un disco sobre la fila de otro — y eso sí
+    queda corrupto en BD, no solo mal renderizado.
+    """
+    if isinstance(ref, int):
+        return db.get(Song, ref)
+    candidatos = db.query(Song).filter(Song.slug == ref).order_by(Song.id).all()
+    if not candidatos:
+        log(f"canción '{ref}' no encontrada", "err")
+        return None
+    if len(candidatos) > 1:
+        donde = ", ".join(f"{s.album.artist.slug}/{s.album.slug}" for s in candidatos)
+        log(f"'{ref}' es el slug de {len(candidatos)} canciones ({donde}); "
+            "pasa --album-slug para acotar", "err")
+        return None
+    return candidatos[0]
+
+
+def generate_for_song(client: OpenAI, db, song_ref: int | str, *, force: bool) -> bool:
+    song = resolve_song(db, song_ref)
     if not song:
-        log(f"canción '{song_slug}' no encontrada", "err")
         return False
+    song_slug = song.slug
     album = song.album
     artist = album.artist
     sources = fetch_sources_for_song(db, song.id)
@@ -198,28 +220,34 @@ def main() -> None:
     client = OpenAI(api_key=settings.openai_api_key)
 
     with get_session() as db:
-        slugs: list[str] = []
+        # Se trabaja con IDS, no con slugs: `--album-slug X` sacaba los slugs de
+        # ese disco y luego los resolvía GLOBALMENTE, así que podía acabar
+        # generando para la canción homónima de otro disco.
+        ids: list[int] = []
         if args.song_slug:
-            slugs = [args.song_slug]
+            song = resolve_song(db, args.song_slug)
+            if not song:
+                return
+            ids = [song.id]
         elif args.album_slug:
             album = db.query(Album).filter(Album.slug == args.album_slug).first()
             if not album:
                 log(f"álbum '{args.album_slug}' no encontrado", "err")
                 return
-            slugs = [s.slug for s in album.songs]
+            ids = [s.id for s in album.songs]
         elif args.all:
-            slugs = [s for (s,) in db.query(Song.slug).order_by(Song.id).all()]
+            ids = [i for (i,) in db.query(Song.id).order_by(Song.id).all()]
         else:
             log("debes pasar --song-slug, --album-slug o --all", "err")
             return
 
-    log(f"canciones a generar: {len(slugs)}")
+    log(f"canciones a generar: {len(ids)}")
     n_ok = 0
-    for slug in slugs:
+    for song_id in ids:
         with get_session() as db:
-            if generate_for_song(client, db, slug, force=args.force):
+            if generate_for_song(client, db, song_id, force=args.force):
                 n_ok += 1
-    log(f"generadas: {n_ok}/{len(slugs)}", "ok")
+    log(f"generadas: {n_ok}/{len(ids)}", "ok")
 
 
 if __name__ == "__main__":

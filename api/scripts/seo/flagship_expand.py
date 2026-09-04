@@ -153,6 +153,9 @@ def main() -> None:
     ap.add_argument("--sample", action="store_true")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--slugs", required=True)
+    ap.add_argument("--entity-type", default=None,
+                    help="acota a un tipo; sin esto, un slug repetido entre tipos "
+                         "(o entre discos) arrastra fichas que no son")
     args = ap.parse_args()
 
     client = OpenAI(api_key=get_settings().openai_api_key)
@@ -160,7 +163,16 @@ def main() -> None:
     with SessionLocal() as db:
         corpus_index = build_corpus_index(db)
         link_stats = load_link_stats()
-        targets = db.query(SeoContent).filter(SeoContent.slug.in_(slugs)).all()
+        _q = db.query(SeoContent).filter(SeoContent.slug.in_(slugs))
+        if args.entity_type:
+            _q = _q.filter(SeoContent.entity_type == args.entity_type)
+        targets = _q.all()
+        if len(targets) > len(slugs):
+            logger.warning(
+                "%d fichas para %d slug(s): hay slugs repetidos. Acota con "
+                "--entity-type o revisa que sean las que quieres.",
+                len(targets), len(slugs),
+            )
         applied = skip = 0
         for sc in targets:
             model = _MODEL.get(sc.entity_type)

@@ -739,6 +739,8 @@ export default function BlogPlanner({
 function Meta({ p }: { p: ProposalItem }) {
   return (
     <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
+      {/* El id, visible: es lo que cita el aviso de duplicado del alta manual. */}
+      <span className="text-ink-dim">#{p.id}</span> ·{" "}
       {KIND_LABEL[p.kind] ?? p.kind}
       {p.is_longtail && <span className="text-accent"> · long-tail</span>}
       {p.has_video && <span className="text-accent"> · 🎬 vídeo</span>}

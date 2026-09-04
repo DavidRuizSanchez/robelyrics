@@ -114,12 +114,48 @@ def _write_recent_section(client, subject, events, existing_heads, hard, prior):
     return body.strip(), vids
 
 
-def _corpus_gap_section(client, subject, current, dossier, existing_heads, prior):
+def _relevant_material(material: str, hint: str | None, cap: int = 12000) -> str:
+    """Trozo del material que se le enseña al detector de huecos.
+
+    Sin pista se manda el principio, que es lo que se hacía siempre. El problema:
+    en Agila el dossier son 70.000 chars y el dato que faltaba —quién dibujó la
+    portada— vivía más allá del corte, así que el detector concluía «sin material
+    verificado» teniendo el material delante.
+
+    Con pista se priorizan los fragmentos que la mencionan. No se inventa nada:
+    solo cambia QUÉ parte del corpus real ve el detector.
+    """
+    if not hint or len(material) <= cap:
+        return material[:cap]
+    import re as _re
+    palabras = [w for w in _re.split(r"\W+", hint.lower()) if len(w) > 4]
+    if not palabras:
+        return material[:cap]
+    bloques = material.split("\n\n----\n\n")
+    con_hit, resto = [], []
+    for b in bloques:
+        bl = b.lower()
+        (con_hit if any(w in bl for w in palabras) else resto).append(b)
+    fuera = "\n\n----\n\n".join(con_hit + resto)
+    return fuera[:cap]
+
+
+def _corpus_gap_section(client, subject, current, dossier, existing_heads, prior,
+                        gap_hint: str | None = None):
+    pista = (
+        f"\n\nPISTA: hay demanda de búsqueda real sobre «{gap_hint}» y la página no "
+        "lo cubre. Si —y SOLO si— el material respalda hechos concretos sobre eso, "
+        "priorízalo. Si el material no lo respalda, devuelve gaps vacío: no lo "
+        "inventes ni lo rellenes con generalidades.\n"
+        if gap_hint else ""
+    )
     gap = _chat(
         client,
         f"Texto ACTUAL sobre {subject} (es el suelo, NO lo reescribas):\n"
         f'"""{current[:6000]}"""\n\n'
-        f'MATERIAL DEL CORPUS (única fuente de hechos):\n"""{dossier.material[:12000]}"""\n\n'
+        "MATERIAL DEL CORPUS (única fuente de hechos):\n"
+        f'"""{_relevant_material(dossier.material, gap_hint)}"""'
+        f"{pista}\n\n"
         "Lista SOLO hechos/ángulos VERACES del material que NO estén ya cubiertos en el "
         "texto y merezcan una sección nueva con sustancia (fechas, obras, colaboraciones, "
         "hechos concretos). NADA que ya esté en el texto. Máximo 1. Devuelve JSON "
@@ -148,14 +184,22 @@ def augment_entity(
     discover_web: bool = False,
     corpus_index=None,
     link_stats=None,
+    gap_hint: str | None = None,
 ) -> dict | None:
     """Aumenta la ficha de una entidad SIN persistir. Devuelve dict con before/after y
     metadatos, o None si no había SeoContent que aumentar."""
     from app.db.models import SeoContent
 
+    # Por `entity_id`, no por slug: `seo_content.slug` es una copia denormalizada
+    # y con dos entidades homónimas se aumentaba la ficha equivocada. Si esto
+    # empieza a devolver None donde antes «encontraba» algo, es la corrección
+    # haciendo su trabajo: lo que encontraba era de otro.
     sc = (
         db.query(SeoContent)
-        .filter(SeoContent.entity_type == entity_type, SeoContent.slug == entity.slug)
+        .filter(
+            SeoContent.entity_type == entity_type,
+            SeoContent.entity_id == entity.id,
+        )
         .first()
     )
     if not sc or not (sc.body_md or "").strip():
@@ -186,7 +230,8 @@ def augment_entity(
             videos += vids; prior = prior + "\n\n" + sec
 
     gap_body, gap_head = _corpus_gap_section(client, subject, current, dossier,
-                                             existing_heads + added_heads, prior)
+                                             existing_heads + added_heads, prior,
+                                             gap_hint=gap_hint)
     if gap_body:
         added.append(gap_body); added_heads.append(gap_head or "Más"); prior = prior + "\n\n" + gap_body
 

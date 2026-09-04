@@ -52,13 +52,19 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # después del agregador. También difunde los artículos nuevos del blog.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
-# Publica el siguiente post pendiente. 3 posts al día (08,14,20 UTC). SIN
-# --force: respeta el cuentagotas (intervalo mínimo entre publicaciones), así
-# no drena la cola hasta el relleno repetido cuando escasea la actualidad.
-# OJO: el cron va en UTC y NO soporta CRON_TZ → horas en UTC para Madrid en
-# VERANO (CEST=UTC+2): 08,14,20 → 10,16,22 Madrid. Al pasar a CET (UTC+1) el
-# 26-oct-2026, cambiar a '0 9,15,21 * * *'.
-0 8,14,20 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
+# Publica lo que toque. Dispara CADA 15 MINUTOS, pero NO publica cada 15 min:
+# quien manda es el cuentagotas de `config.STEADY_INTERVAL_H` (15 h → ~11 posts
+# por semana). Los disparos frecuentes son para que un post programado a mano
+# desde el panel (`publish_at`, fecha y hora) salga a su hora y no en el
+# siguiente slot de 6 horas.
+#
+# Antes eran 3 disparos al día (08,14,20 UTC) con intervalo de 5 h, lo que daba
+# 21,5 posts/semana medidos. Si alguna vez se vuelve a horas fijas, hay que
+# revisar STEADY_INTERVAL_H o el ritmo se dispara.
+#
+# Efecto colateral bueno: al no depender de horas fijas, este cron ya NO hay que
+# tocarlo en el cambio a CET del 26-oct-2026.
+*/15 * * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.publish_next >> /var/log/robelyrics-cron.log 2>&1
 
 # Lote semanal de contenido EVERGREEN (frases, efemérides, anécdotas, citas).
 # Lunes 07:45 UTC. Encola propuestas en estado `proposed` (sin publicar); el
@@ -67,6 +73,20 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
 # Email semanal de propuestas evergreen al admin. Lunes 09:50 UTC.
 50 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_evergreen >> /var/log/robelyrics-cron.log 2>&1
+
+# 09:20 UTC diario: ¿sigue publicando Instagram? Avisa por correo si Meta nos
+# está bloqueando, si llevamos IG_ALERT_STALE_H (48 h) sin publicar TENIENDO
+# cola, o si hay posts que agotaron sus intentos.
+#
+# Existe porque en agosto de 2026 la cuenta se restringió y estuvo ONCE DÍAS
+# parada en silencio: `publish_next` sale con exit 1 al fallar, pero ese código
+# se lo traga el cron y acaba en un log que no lee nadie. Va aparte del digest
+# de las 09:15 a propósito — aquel no manda nada si no hay erratas ni posts por
+# revisar, así que una caída de IG en semana tranquila quedaría silenciada.
+#
+# Silencio por defecto: firma en `notification_digests` con la sequía por tramos
+# (2/4/7/14/30 días), recordatorio cada 3 días.
+20 9 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_health >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)
@@ -151,7 +171,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Incluye embed_lyrics + embed_full_lyrics (red de seguridad de frescura: si una
 # letra cambió fuera del orquestador `freshness`, aquí se re-embebe igualmente para
 # que buscador/consultorio/listas por mood no queden leyendo la letra vieja).
-30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings ) >> /var/log/robelyrics-cron.log 2>&1
+# `audit_corpus` cierra el bloque: `audit_embeddings` cuenta puntos por colección,
+# pero no dice si el material SE PUEDE RECUPERAR. Vectorizar no es servir — 420 de
+# las 731 fuentes estaban indexadas y eran irrecuperables porque el único camino de
+# lectura pedía song_ids y ellas no están ligadas a ninguna canción. Esto lo vigila.
+30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings && $DC exec -T api python -m scripts.audit_corpus ) >> /var/log/robelyrics-cron.log 2>&1
 
 # 03:50 UTC: barrido del Motor de Consenso de Verificación (MCV). Re-verifica los
 # overrides pendientes (letras/autoría/catálogo) contra sus fuentes y aplica lo que
@@ -174,6 +198,26 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Cloudinary; --review abre errata por cada foto dudosa (nunca borra: los metadatos de Commons
 # son irregulares y a Leiva lo escriben «Leyva»). Llega al digest de las 09:15.
 40 4 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_images --fix --review >> /var/log/robelyrics-cron.log 2>&1
+
+# 05:00 UTC diario: auditoría de COHERENCIA DE URLs. Un enlace inventado por el LLM
+# a un disco que no era (/extremoduro/pedra/ama-...) hacía que la página sirviera un
+# 200 con el artículo de una canción y el tracklist, el prev/next y el JSON-LD de OTRO
+# disco. Ningún guard lo miraba: los cuatro que hay revisan el CUERPO, ninguno la URL.
+# --fix reapunta el enlace a su ruta real y sincroniza los slugs de seo_content;
+# --review abre errata por lo que no sabe resolver. NO borra nada, y los fantasmas
+# solo se desenlazan a mano (--unlink) o desde el botón «Arreglar» del panel.
+# Va después de las fichas (04:20) y las imágenes (04:40), y antes del digest (09:15).
+# El cruce con GSC (--gsc) NO va aquí: el token vive solo en la Mac. Pasada manual:
+#   python -m scripts.seo.audit_urls --gsc --verbose
+0 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_urls --fix --review >> /var/log/robelyrics-cron.log 2>&1
+
+# 05:10 UTC diario: política de nombre. «Robe Iniesta» no debe persistir en
+# contenido; el trigger `trg_robe_name` (migración robename2026_01) lo impide en
+# la BD, pero este barrido cubre las tablas que aún no tienen trigger y deja
+# rastro en el log si alguna vez vuelve a aparecer. `--fix` NO toca el texto
+# ajeno (transcripciones, titulares de medios, versos, títulos de YouTube): eso
+# se cita, y reescribirlo sería falsear la fuente.
+10 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_name_policy --fix >> /var/log/robelyrics-cron.log 2>&1
 
 # 09:15 UTC diario: digest de "cosas por revisar" al admin. Primero intenta ARREGLAR
 # sola cada errata abierta (mismo motor que el botón «Arreglar» del panel), y solo

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-const VALID_ACTIONS = new Set(["approve", "discard"]);
+const VALID_ACTIONS = new Set(["approve", "discard", "prepare"]);
 
 // Proxy POST → /admin/instagram/queue/bulk-{action}. Body: { ids: number[] }.
 export async function POST(

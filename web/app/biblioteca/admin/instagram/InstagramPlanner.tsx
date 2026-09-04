@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { IGAccount, IGItem, IGNewsCandidate } from "./page";
+import InstagramPreview, { type PreviewMedia } from "./InstagramPreview";
+import ProgramarPost from "./ProgramarPost";
 
 const STATUS_LABEL: Record<string, string> = {
   proposed: "Propuesta",
@@ -62,10 +64,21 @@ export default function InstagramPlanner({
       .filter((it) => UPCOMING_STATUSES.has(it.status) && !it.publish_on)
       .sort((a, b) => a.position - b.position || a.id - b.id),
   );
-  // Efemérides con fecha fija (aniversarios, cumpleaños): se publican su día.
+  // Con momento fijado: efemérides (día del aniversario) y posts programados a
+  // mano con fecha y hora. Ninguno entra en el goteo.
   const pinned = queue
-    .filter((it) => UPCOMING_STATUSES.has(it.status) && it.publish_on)
-    .sort((a, b) => (a.publish_on || "").localeCompare(b.publish_on || ""));
+    .filter(
+      (it) => UPCOMING_STATUSES.has(it.status) && (it.publish_on || it.publish_at),
+    )
+    .sort((a, b) =>
+      (a.publish_on || a.publish_at || "").localeCompare(
+        b.publish_on || b.publish_at || "",
+      ),
+    );
+  // Programaciones cambiadas en esta sesión, para reflejarlas sin recargar.
+  const [schedules, setSchedules] = useState<Record<number, string | null>>({});
+  const scheduleOf = (it: IGItem) =>
+    it.id in schedules ? schedules[it.id] : it.publish_at;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   // Ver/editar el contenido de un item (clic en el título lo despliega).
@@ -74,6 +87,7 @@ export default function InstagramPlanner({
     caption: string | null;
     image_b64: string | null;
     image_url: string | null;
+    media?: PreviewMedia[];
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [draftCaption, setDraftCaption] = useState("");
@@ -170,6 +184,151 @@ export default function InstagramPlanner({
     call("POST", "/biblioteca/admin/instagram/api/queue/interleave");
   }
 
+  // --- Generar posts que enseñan la web ---
+  // Las piezas se componen consultando la API de verdad, así que cada vez que
+  // se pulsa salen con una pregunta y unos versos nuevos.
+  async function generateProduct() {
+    if (
+      !window.confirm(
+        "¿Generar publicaciones que enseñen la web?\n\n" +
+          "Se consulta el consultorio y el buscador de verdad para componer las " +
+          "piezas con contenido real, y entran en la cola como propuestas.",
+      )
+    )
+      return;
+    await call(
+      "POST",
+      "/biblioteca/admin/instagram/api/queue/generate-product",
+    );
+  }
+
+  // --- Preparar en bloque lo que se quedó sin material ---
+  // Hace falta porque «variar formatos» limpia el material de todo lo que
+  // cambia de tipo: las diapositivas de un carrusel no sirven para un reel.
+  async function bulkPrepare() {
+    const sinMaterial = upcoming.filter((it) => !it.is_prepared).length;
+    if (sinMaterial === 0) {
+      window.alert("Todo lo de la cola ya tiene su material generado.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `${sinMaterial} publicaci\u00f3n(es) sin material. ¿Generarlo ahora?\n\n` +
+          "Los reels y carruseles tardan un rato y tienen coste. Se hacen hasta 20 por tanda.",
+      )
+    )
+      return;
+    await call("POST", "/biblioteca/admin/instagram/api/queue/bulk/prepare", {
+      limit: 20,
+    });
+  }
+
+  // --- Variar formatos: que el feed no salga todo del mismo tipo ---
+  async function shuffleFormats() {
+    // Semilla distinta en cada pulsación: volver a darle da otro reparto.
+    const seed = Math.floor(Date.now() / 1000) % 9973;
+    setBusy("shuffle");
+    try {
+      const res = await fetch(
+        "/biblioteca/admin/instagram/api/queue/shuffle-formats",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seed, only_scheduled: false }),
+        },
+      ).then((r) => r.json());
+      if (res.error) throw new Error(res.error);
+
+      const n = res.changed?.length ?? 0;
+      if (n === 0) {
+        window.alert(
+          `Ya estaban repartidos según la mezcla (${res.mix?.join(" · ")}).`,
+        );
+        return;
+      }
+      const ETIQUETA: Record<string, string> = {
+        IMAGE: "foto", CAROUSEL: "carrusel", REELS: "reel",
+      };
+      const muestra = res.changed
+        .slice(0, 8)
+        .map(
+          (c: { title: string; antes: string; ahora: string }) =>
+            `· ${ETIQUETA[c.antes] ?? c.antes} → ${ETIQUETA[c.ahora] ?? c.ahora}  ${c.title}`,
+        )
+        .join("\n");
+      const cola = n > 8 ? `\n… y ${n - 8} más` : "";
+      window.alert(
+        `${n} publicaciones cambian de formato:\n\n${muestra}${cola}\n\n` +
+          "Vuelven a «pendiente»: hay que re-prepararlas para regenerar el material.",
+      );
+      window.location.reload();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "no se pudo repartir");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // --- Autoprogramar: reparte lo aprobado por las próximas semanas ---
+  async function autoSchedule() {
+    setBusy("auto-schedule");
+    try {
+      // Primero en seco, para enseñar el reparto ANTES de escribir nada.
+      const previa = await fetch(
+        "/biblioteca/admin/instagram/api/queue/auto-schedule",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weeks: 4, dry_run: true }),
+        },
+      ).then((r) => r.json());
+
+      if (previa.error) throw new Error(previa.error);
+      const n = previa.scheduled?.length ?? 0;
+      if (n === 0) {
+        window.alert(
+          previa.skipped?.length
+            ? `Nada que programar. ${previa.skipped.length} sin hueco (tope ${previa.weekly_cap}/semana).`
+            : "No hay posts aprobados sin fecha que programar.",
+        );
+        return;
+      }
+      const muestra = previa.scheduled
+        .slice(0, 6)
+        .map(
+          (s: { title: string; when: string }) =>
+            `· ${new Date(s.when).toLocaleString("es-ES", {
+              weekday: "short", day: "numeric", month: "short",
+              hour: "2-digit", minute: "2-digit",
+            })} — ${s.title}`,
+        )
+        .join("\n");
+      const cola =
+        previa.scheduled.length > 6
+          ? `\n… y ${previa.scheduled.length - 6} más`
+          : "";
+      const fuera = previa.skipped?.length
+        ? `\n\n${previa.skipped.length} se quedan fuera por falta de hueco.`
+        : "";
+      const ok = window.confirm(
+        `Se van a programar ${n} posts (máx. ${previa.weekly_cap}/semana, ` +
+          `en los slots ${previa.slots?.join(" y ")}):\n\n${muestra}${cola}${fuera}` +
+          `\n\n¿Confirmas?`,
+      );
+      if (!ok) return;
+
+      await call(
+        "POST",
+        "/biblioteca/admin/instagram/api/queue/auto-schedule",
+        { weeks: 4 },
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "no se pudo autoprogramar");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // --- Drag-and-drop de la cola de publicación ---
   function onDragStart(index: number) {
     setDragIndex(index);
@@ -234,6 +393,9 @@ export default function InstagramPlanner({
         caption: data.caption ?? null,
         image_b64: data.image_b64 ?? null,
         image_url: data.image_url ?? null,
+        // Sin esto la preview nunca recibía las piezas, y un reel se veía como
+        // «vídeo por generar» aunque estuviera generado y servido bien.
+        media: data.media ?? [],
       });
       setDraftCaption(data.caption ?? "");
     } catch (e) {
@@ -318,6 +480,25 @@ export default function InstagramPlanner({
           >
             {STATUS_LABEL[it.status] ?? it.status}
           </span>
+          {it.media_type && it.media_type !== "IMAGE" && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-divider text-ink-dim px-1.5 py-0.5">
+              {it.media_type === "CAROUSEL"
+                ? `▣ carrusel · ${it.media_count}`
+                : it.media_type === "CLIP"
+                  ? "🎬 clip externo"
+                  : it.media_type === "PRODUCT"
+                    ? "✦ la web"
+                    : "▶ reel"}
+            </span>
+          )}
+          {scheduleOf(it) && (
+            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-accent/60 text-accent px-1.5 py-0.5">
+              🕒{" "}
+              {new Date(scheduleOf(it) as string).toLocaleString("es-ES", {
+                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+              })}
+            </span>
+          )}
           {it.is_prepared && (
             <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
               imagen ✓
@@ -360,29 +541,26 @@ export default function InstagramPlanner({
                 cargando…
               </p>
             ) : (
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Previsualización de la imagen preparada */}
-                <div className="shrink-0">
-                  {detail?.image_b64 ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={`data:image/jpeg;base64,${detail.image_b64}`}
-                      alt="Previsualización del post"
-                      className="w-44 h-44 object-cover border border-divider"
-                    />
-                  ) : detail?.image_url ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={detail.image_url}
-                      alt="Previsualización del post"
-                      className="w-44 h-44 object-cover border border-divider"
-                    />
-                  ) : (
-                    <div className="w-44 h-44 border border-divider flex items-center justify-center text-center font-mono text-[9px] tracking-[1px] uppercase text-ink-faint p-2">
-                      sin imagen · pulsa "re-preparar"
-                    </div>
-                  )}
-                </div>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Vista previa fiel al feed: imagen + caption con su corte
+                    real. Es donde se ve si la primera línea dice algo. */}
+                <InstagramPreview
+                  imageSrc={
+                    detail?.image_b64
+                      ? `data:image/jpeg;base64,${detail.image_b64}`
+                      : detail?.image_url ?? null
+                  }
+                  caption={
+                    it.status === "published"
+                      ? detail?.caption ?? ""
+                      : draftCaption
+                  }
+                  media={detail?.media ?? []}
+                  mediaSrc={(pos) =>
+                    `/biblioteca/admin/instagram/api/queue/${it.id}/media/${pos}`
+                  }
+                  formatoPedido={it.media_type}
+                />
 
                 {/* Editor del caption */}
                 <div className="flex-1 min-w-0">
@@ -427,6 +605,64 @@ export default function InstagramPlanner({
                         Ojo: "re-preparar" regenera el caption y la imagen desde
                         cero (pierde esta edición). Edita justo antes de publicar.
                       </p>
+
+                      <div className="mt-4 pt-4 border-t border-divider">
+                        <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+                          formato
+                        </label>
+                        {/*
+                          Un post de clip o de «la web» NO cambia de formato: su
+                          formato ES su tema. Ofrecerlo en el desplegable dejaba
+                          convertir una noticia en «clip externo» y el post se
+                          quedaba esperando un vídeo que nunca iba a tener.
+                        */}
+                        {it.content_type === "clip" || it.content_type === "product" ? (
+                          <p className="mt-1 font-mono text-[10px] text-ink-dim">
+                            {it.content_type === "clip"
+                              ? "🎬 Clip externo. El vídeo es el tema de este post, así que el formato no se cambia."
+                              : "✦ Funcionalidad de la web. La consulta es el tema de este post, así que el formato no se cambia."}
+                          </p>
+                        ) : (
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <select
+                            value={it.media_type || "IMAGE"}
+                            disabled={busy !== null}
+                            onChange={async (e) => {
+                              const nuevo = e.target.value;
+                              await fetch(
+                                `/biblioteca/admin/instagram/api/queue/${it.id}`,
+                                {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ media_type: nuevo }),
+                                },
+                              );
+                              window.location.reload();
+                            }}
+                            className="bg-transparent border border-divider focus:border-accent outline-none text-ink text-xs font-mono px-2 py-1.5"
+                          >
+                            <option value="IMAGE">Foto única</option>
+                            <option value="CAROUSEL">Carrusel</option>
+                            <option value="REELS">Reel · verso animado</option>
+                          </select>
+                          <span className="font-mono text-[9px] text-ink-faint">
+                            al cambiarlo hay que «re-preparar»
+                          </span>
+                        </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-divider">
+                        <ProgramarPost
+                          itemId={it.id}
+                          publishAt={scheduleOf(it)}
+                          publishOn={it.publish_on}
+                          disabled={busy !== null}
+                          onSaved={(nuevo) =>
+                            setSchedules((prev) => ({ ...prev, [it.id]: nuevo }))
+                          }
+                        />
+                      </div>
                     </>
                   )}
                 </div>
@@ -573,9 +809,50 @@ export default function InstagramPlanner({
             >
               ⇄ alternar tipos de publicación
             </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={autoSchedule}
+              data-cursor="hover"
+              title="Reparte los posts aprobados por las próximas 4 semanas, intercalando tipos y respetando el tope semanal"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+            >
+              🗓 autoprogramar
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={generateProduct}
+              data-cursor="hover"
+              title="Compone piezas del consultorio y del buscador con contenido real y las encola"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+            >
+              ✦ enseñar la web
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={bulkPrepare}
+              data-cursor="hover"
+              title="Genera imagen, carrusel o vídeo de todo lo que esté pendiente y sin material"
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+            >
+              ⚙ generar material
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={shuffleFormats}
+              data-cursor="hover"
+              title="Reparte formatos variados (foto / carrusel / reel) para que el feed no salga monótono. Respeta los que hayas elegido a mano."
+              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+            >
+              🎲 variar formatos
+            </button>
           </div>
           <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Goteo de 3/día. Arrastra para reordenar; el de arriba se publica antes.
+            Goteo de ~11 a la semana. Arrastra para reordenar; el de arriba se
+            publica antes. «Autoprogramar» les pone fecha y hora concretas.
           </p>
           <ul className="divide-y divide-divider">
             {upcoming.map((it, index) => (

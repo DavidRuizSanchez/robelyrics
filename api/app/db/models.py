@@ -80,11 +80,76 @@ class Album(Base):
     # en el día exacto del lanzamiento.
     release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     release_date_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Procedencia de la portada. Sin esto no se puede responder «¿de dónde salió
+    # y con qué licencia?», que es lo que pide docs/legal-audit.md §3.5 — y lo
+    # que habría cazado la portada de «Rock transgresivo» colada como la de
+    # «Tú en tu casa…». `cover_license` NULL = no consultada, nunca supuesta.
+    cover_mbid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cover_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cover_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # La imagen que se muestra es la CONTRAPORTADA, no la portada. Existe para
+    # «Tú en tu casa, nosotros en la hoguera»: su portada original no circula
+    # —lo que Cover Art Archive da como tal es la de «Rock transgresivo»— y lo
+    # único auténtico que hay del disco es la trasera, donde se lee el tracklist
+    # y «© 1990 AVISPA · Diseño de portada: Rafael Gallego». Enseñarla está bien;
+    # llamarla portada, no: ese fue exactamente el fallo que dejó el disco sin
+    # imagen. El frontend usa esto para escribir el `alt` que toca.
+    cover_is_back: Mapped[bool] = mapped_column(Boolean, default=False,
+                                                server_default="false")
 
     artist: Mapped[Artist] = relationship(back_populates="albums")
     songs: Mapped[list["Song"]] = relationship(
         back_populates="album", cascade="all, delete-orphan"
     )
+    tracks: Mapped[list["AlbumTrack"]] = relationship(
+        back_populates="album", cascade="all, delete-orphan",
+        order_by="AlbumTrack.disc, AlbumTrack.position",
+    )
+
+
+class AlbumTrack(Base):
+    """Tracklist REFERENCIAL de un disco que no es de estudio.
+
+    Existe porque la relación canción↔disco es N:M y `songs.album_id` solo
+    modela 1:N. Sin esto, un directo o un recopilatorio obligaba a duplicar la
+    fila `Song` — y eso pone en Google dos páginas casi idénticas compitiendo
+    entre sí. Un recopilatorio como «Grandes éxitos y fracasos» tiene aquí sus
+    15 cortes apuntando a la canción original, y no crea ni una página nueva.
+
+    Los discos de estudio NO usan esta tabla: siguen con `songs.album_id`.
+
+    `song_id` puede ser NULL a propósito: si un corte no casa con ninguna
+    canción del catálogo se guarda igual con su título tal cual salió en el
+    disco y se deja sin enlazar. Nunca se adivina a qué canción apunta.
+    """
+
+    __tablename__ = "album_tracks"
+    __table_args__ = (
+        UniqueConstraint("album_id", "disc", "position", name="uq_album_tracks_pos"),
+        Index("ix_album_tracks_song", "song_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    album_id: Mapped[int] = mapped_column(
+        ForeignKey("albums.id", ondelete="CASCADE"), nullable=False
+    )
+    disc: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    # El título TAL COMO aparece en este disco, que no siempre es el del
+    # original («Pepe Botika (¿Dónde están mis amigos?)»).
+    title_as_released: Mapped[str] = mapped_column(String(256), nullable=False)
+    song_id: Mapped[int | None] = mapped_column(
+        ForeignKey("songs.id", ondelete="SET NULL"), nullable=True
+    )
+    # Cómo se resolvió el enlace: exact | alias | manual | None si no casó.
+    match_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    duration_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # MBID de la grabación: distingue una regrabación de la toma original.
+    recording_mbid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_rerecording: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    album: Mapped[Album] = relationship(back_populates="tracks")
+    song: Mapped["Song | None"] = relationship()
 
 
 class Song(Base):
@@ -1289,6 +1354,12 @@ class InstagramQueueItem(Base):
             "'failed', 'discarded')",
             name="ck_instagram_queue_status",
         ),
+        # Declarado aquí además de en la migración: sin esto el CHECK solo existía
+        # en Postgres, y los tests (SQLite) daban por buenos formatos inventados.
+        CheckConstraint(
+            "media_type IN ('IMAGE', 'CAROUSEL', 'REELS', 'CLIP', 'PRODUCT')",
+            name="ck_instagram_queue_media_type",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -1305,8 +1376,10 @@ class InstagramQueueItem(Base):
     position: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, index=True
     )
-    # Tipo de contenido: news | blog | quote | ephemeris | anecdote | robe_quote.
-    # Distingue la actualidad (news/blog) del evergreen anclado al corpus.
+    # Tipo de contenido: news | blog | quote | ephemeris | anecdote | robe_quote |
+    # clip | product. Distingue la actualidad (news/blog) del evergreen anclado al
+    # corpus, y ambos de los que traen su propio tema (`clip` es un vídeo concreto,
+    # `product` una consulta concreta a la web).
     content_type: Mapped[str] = mapped_column(
         String(24), nullable=False, default="news"
     )
@@ -1318,6 +1391,12 @@ class InstagramQueueItem(Base):
     # disco, cumpleaños): si está, el item SOLO se publica ese día exacto y NO
     # entra en el goteo normal. NULL = evergreen normal (cuentagotas).
     publish_on: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    # Programación EXACTA hecha a mano desde el panel (fecha + hora). Convive con
+    # `publish_on`, que es de día suelto y lo pone el generador de efemérides:
+    # aquí el admin decide el momento. Si está, el item no entra en el goteo.
+    publish_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     # Snapshot del tema (sobrevive aunque se borre la noticia / el post).
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))
@@ -1325,6 +1404,24 @@ class InstagramQueueItem(Base):
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)
+    # Formato del post. Los cinco son lo mismo desde la cola: formas que puede
+    # tomar una publicación.
+    #   IMAGE    · una foto
+    #   CAROUSEL · 2-10 diapositivas
+    #   REELS    · vídeo propio (verso animado, sin audio)
+    #   CLIP     · fragmento de vídeo de otro canal, con su sonido
+    #   PRODUCT  · pieza que enseña una funcionalidad de la web
+    media_type: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="IMAGE"
+    )
+    # True si el formato lo eligió una PERSONA en el panel. El repartidor
+    # automático de formatos no toca los bloqueados.
+    media_locked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    # Espejo de la diapositiva 0. Se conservan aunque el post sea un carrusel:
+    # así el camino de foto única sigue intacto y la previsualización del panel
+    # no depende de la tabla hija.
     image_url: Mapped[str | None] = mapped_column(String(700))
     image_path: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(
@@ -1332,10 +1429,145 @@ class InstagramQueueItem(Base):
     )
     ig_media_id: Mapped[str | None] = mapped_column(String(64))
     error: Mapped[str | None] = mapped_column(Text)
+    # Intentos de publicación gastados. Un `failed` NO era el final de nada por
+    # decisión, sino porque `due_pinned`/`next_pending` filtran por
+    # pending/prepared: un fallo transitorio (Cloudinary, un timeout de Meta)
+    # mataba el post para siempre sin reintento posible. Con esto vuelve a la
+    # cola hasta `MAX_PUBLISH_ATTEMPTS`, y solo los fallos que son culpa del item
+    # gastan intento (una caída global de la conexión, no).
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Cuándo se intentó por última vez, y con qué código falló ("25/2207050").
+    # Juntas hacen dos cosas: espaciar los reintentos (`RETRY_COOLDOWN_H`, sin
+    # ellas el cron quemaba los 3 intentos en 45 minutos) y permitir deducir de
+    # la propia cola si Meta nos está bloqueando ahora mismo, sin un flag que
+    # alguien tenga que acordarse de apagar (`publisher.publicacion_bloqueada`).
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(24))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    media: Mapped[list["InstagramQueueMedia"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="InstagramQueueMedia.position",
+        lazy="selectin",
+    )
+
+
+class InstagramQueueMedia(Base):
+    """Una pieza de media (imagen o vídeo) de un post de Instagram.
+
+    Un post de foto única tiene exactamente una fila (posición 0); un carrusel,
+    entre 2 y 10. Se modela como tabla hija y no como JSONB porque el panel
+    reordena y regenera diapositivas sueltas mientras el cron puede estar
+    leyendo: con un array habría que reescribirlo entero en cada cambio.
+    """
+
+    __tablename__ = "instagram_queue_media"
+    __table_args__ = (
+        CheckConstraint("kind IN ('image','video')", name="ck_iqm_kind"),
+        # En Postgres esta restricción se crea DEFERRABLE INITIALLY DEFERRED (ver
+        # la migración igmedia2026_01): reordenar N diapositivas colisiona a
+        # mitad del bucle si se comprueba fila a fila. Aquí no se declara porque
+        # SQLite —que es lo que usan los tests— no entiende DEFERRABLE.
+        UniqueConstraint(
+            "item_id", "position", name="uq_instagram_queue_media_item_pos"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("instagram_queue.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="image")
+    # Layout que la generó: cover | verse | fact | list | timeline | closing.
+    role: Mapped[str | None] = mapped_column(String(16))
+    local_path: Mapped[str | None] = mapped_column(String(500))
+    url: Mapped[str | None] = mapped_column(String(700))
+    # Permite limpiar en Cloudinary lo que quede huérfano de un carrusel fallido.
+    cloudinary_public_id: Mapped[str | None] = mapped_column(String(200))
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    cover_url: Mapped[str | None] = mapped_column(String(700))
+    ig_container_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    item: Mapped["InstagramQueueItem"] = relationship(back_populates="media")
+
+
+class VideoClip(Base):
+    """Un fragmento de vídeo de YouTube usado en una publicación de Instagram.
+
+    La decisión editorial es publicar clips de canales ajenos sin pedir permiso
+    previo y atender las reclamaciones si llegan. Esta tabla es lo que hace eso
+    sostenible: guarda DE DÓNDE salió cada clip (vídeo, canal, tramo exacto),
+    quién lo aprobó y en qué publicación acabó, de modo que ante un aviso se
+    puede responder en minutos y retirarlo con un botón.
+
+    Mismo ciclo que `YoutubeIngestQueue`, y por la misma razón: la IP del
+    servidor está bloqueada por YouTube, así que la descarga la hace un daemon
+    en la Mac y empuja el resultado por HTTP.
+
+    Estados: requested → downloading → ready → published → retired | failed.
+    """
+
+    __tablename__ = "video_clips"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('requested','downloading','ready','published',"
+            "'retired','failed')",
+            name="ck_video_clips_status",
+        ),
+        CheckConstraint("end_s > start_s", name="ck_video_clips_tramo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # --- Procedencia: lo que se enseña si alguien reclama ---
+    video_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    video_title: Mapped[str | None] = mapped_column(String(500))
+    channel_title: Mapped[str | None] = mapped_column(String(200))
+    channel_url: Mapped[str | None] = mapped_column(String(500))
+    # --- Tramo utilizado ---
+    start_s: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    end_s: Mapped[float] = mapped_column(Float, nullable=False)
+    subtitle: Mapped[str | None] = mapped_column(Text)
+    # --- Ciclo de vida ---
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="requested", index=True
+    )
+    local_path: Mapped[str | None] = mapped_column(String(500))
+    url_cdn: Mapped[str | None] = mapped_column(String(700))
+    cloudinary_public_id: Mapped[str | None] = mapped_column(String(200))
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    # --- Trazabilidad ---
+    requested_by: Mapped[str | None] = mapped_column(String(200))
+    queue_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("instagram_queue.id", ondelete="SET NULL")
+    )
+    ig_media_id: Mapped[str | None] = mapped_column(String(64))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    @property
+    def atribucion(self) -> str:
+        """Texto de crédito que va SIEMPRE con el clip, en la pieza y el caption."""
+        canal = (self.channel_title or "").strip()
+        return f"🎬 Vídeo: {canal}" if canal else "🎬 Vídeo de YouTube"
+
 
 
 # --- Listas de reproducción (zona privada) ---------------------------------
@@ -1614,6 +1846,61 @@ class YouTubeIngestQueue(Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class UrlIngestJob(Base):
+    """Alta manual de una noticia desde una URL, ejecutada en SEGUNDO PLANO.
+
+    El motor tarda de 2 a 4 minutos (planifica, investiga, escribe sección a
+    sección verificando cada una y, si el gate de rigor la rechaza, reintenta con
+    investigación reforzada). Cloudflare corta cualquier petición a los 100 s: por
+    HTTP síncrono el admin recibía un `524` y NUNCA llegaba a ver el resultado —
+    ni la propuesta creada ni las razones del rechazo—, aunque el servidor hubiera
+    terminado bien. Medido en prod: 264,8 s de punta a punta.
+
+    Ahora la petición solo encola. El trabajo lo ejecuta el servidor, así que
+    sobrevive a cerrar la pestaña, y el estado vive en BD (no en memoria) porque
+    uvicorn corre con varios workers y el polling puede caer en otro distinto.
+
+    `status`: running → done | rejected | failed
+      - `done`     → `proposal_id` apunta a la propuesta creada.
+      - `rejected` → el editor jefe la tumbó; `score` y `reasons` explican por qué.
+      - `failed`   → se rompió algo; `error` lo cuenta.
+    """
+
+    __tablename__ = "url_ingest_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'done', 'rejected', 'failed')",
+            name="ck_url_ingest_jobs_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # La petición, tal cual, para poder reintentarla sin volver a pegar el texto.
+    url: Mapped[str] = mapped_column(String(1000), nullable=False, index=True)
+    topic: Mapped[str | None] = mapped_column(String(240))
+    body_text: Mapped[str | None] = mapped_column(Text)
+    rewrite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    force: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="running", index=True
+    )
+    proposal_id: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(String(240))
+    rewritten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    warning: Mapped[str | None] = mapped_column(Text)
+    # Veredicto del gate cuando rechaza (para pintarlo en el panel).
+    score: Mapped[int | None] = mapped_column(Integer)
+    reasons: Mapped[list | None] = mapped_column(JSONB)
+    boosted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------- #

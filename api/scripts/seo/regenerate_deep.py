@@ -54,7 +54,13 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=None,
                     help="tope de entidades a procesar (para sondeos)")
     ap.add_argument("--slugs", default=None,
-                    help="solo estos slugs (separados por coma); para muestras dirigidas")
+                    help="solo estos slugs (separados por coma); para muestras dirigidas. "
+                         "OJO: un slug de canción se repite entre discos, así que esto "
+                         "puede coger más de una entidad — usa --ids si quieres una sola")
+    ap.add_argument("--ids", default=None,
+                    help="solo estas entidades por id (separadas por coma). Es lo que usa "
+                         "`gsc_optimize --apply`: con --slugs, las keywords de UNA página "
+                         "se aplicaban a todas sus homónimas")
     ap.add_argument("--publish", action="store_true",
                     help="fuerza published=True (normalmente basta SEO_KEEP_PUBLISHED=1)")
     ap.add_argument("--no-keywords", action="store_true",
@@ -88,11 +94,17 @@ def main() -> None:
                 kw_done.add((et, eid))
 
         only_slugs = {s.strip() for s in args.slugs.split(",")} if args.slugs else None
+        only_ids = (
+            {int(i) for i in args.ids.split(",") if i.strip().isdigit()}
+            if args.ids else None
+        )
         targets: list[tuple[str, object]] = []
         for et in types:
             model = _MODELS[et]
             for ent in db.execute(select(model).order_by(model.slug)).scalars().all():
                 if (et, ent.slug) in _EXCLUDE:
+                    continue
+                if only_ids is not None and ent.id not in only_ids:
                     continue
                 if only_slugs and ent.slug not in only_slugs:
                     continue

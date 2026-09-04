@@ -13,13 +13,12 @@ real lo hace el Pipeline 1 semanal (embed_interpretations / embed_robe_voice).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.models import YouTubeIngestQueue
@@ -29,6 +28,9 @@ router = APIRouter(prefix="/ingest/youtube", tags=["ingest"])
 
 # Reintentos automáticos de un vídeo que falló (yt-dlp/Whisper transitorio).
 MAX_ATTEMPTS = 3
+# Un `processing` más viejo que esto se considera abandonado y vuelve a la cola
+# (el daemon o el api se cayeron entre el claim y el complete).
+STALE_CLAIM_MINUTES = 30
 
 # quality_score por defecto según el kind (alineado con import_interview_transcripts).
 _DEFAULT_QUALITY = {
@@ -65,7 +67,12 @@ class PendingItem(BaseModel):
 
 
 class CompleteIn(BaseModel):
-    content_clean: str = Field(min_length=100)
+    # Suelo ABSOLUTO, solo contra payloads vacíos o basura. El criterio fino lo
+    # aplica el daemon con `min_chars_for`, que es quien conoce la duración del
+    # audio: aquí había un 100 fijo que rechazaba con un 422 opaco cualquier pieza
+    # legítimamente corta (un tráiler de 40 s, o los shorts de @tesonica), y el
+    # daemon lo registraba como fallo genérico sin decir que venía del servidor.
+    content_clean: str = Field(min_length=25)
     title: str | None = None
     published_at: datetime | None = None
     quality_score: float | None = None
@@ -86,9 +93,18 @@ class OkOut(BaseModel):
     dependencies=[Depends(require_ingest_key)],
 )
 def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
-    """Vídeos listos para que el daemon los transcriba: los `approved` y los
-    `failed` con margen de reintento (< MAX_ATTEMPTS), por si el fallo fue
-    transitorio (yt-dlp/Whisper)."""
+    """Vídeos listos para que el daemon los transcriba: los `approved`, los `failed`
+    con margen de reintento (< MAX_ATTEMPTS) por si el fallo fue transitorio
+    (yt-dlp/Whisper), y los `processing` con el claim RANCIO.
+
+    Ese tercer caso existe porque un claim no expiraba: si el daemon muere entre
+    `claim` y `complete` —o si el api se reinicia justo entonces y el daemon recibe
+    502— el vídeo se quedaba en `processing` para siempre, invisible para esta lista
+    y por tanto sin reintento posible. Pasó en un rebuild: `ejYQ6I0Ef44` quedó
+    colgado. Media hora es de sobra para el vídeo más largo del corpus (35 min de
+    audio se transcriben en minutos), así que pasado ese plazo se asume abandonado.
+    """
+    stale = datetime.now(UTC) - timedelta(minutes=STALE_CLAIM_MINUTES)
     return (
         db.query(YouTubeIngestQueue)
         .filter(
@@ -97,6 +113,11 @@ def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
                 and_(
                     YouTubeIngestQueue.status == "failed",
                     YouTubeIngestQueue.attempts < MAX_ATTEMPTS,
+                ),
+                and_(
+                    YouTubeIngestQueue.status == "processing",
+                    YouTubeIngestQueue.attempts < MAX_ATTEMPTS,
+                    YouTubeIngestQueue.updated_at < stale,
                 ),
             )
         )
@@ -160,7 +181,7 @@ def complete(
     )
     row.status = "done"
     row.error = None
-    row.done_at = datetime.now(timezone.utc)
+    row.done_at = datetime.now(UTC)
     db.commit()
     return OkOut(status=row.status)
 
@@ -172,10 +193,143 @@ def complete(
 )
 def fail(item_id: int, payload: FailIn, db: Session = Depends(get_db)) -> OkOut:
     """El daemon reporta un fallo (yt-dlp/Whisper). Suma intento y marca failed;
-    el daemon reintenta `failed`/`approved` en la siguiente pasada."""
+    el daemon reintenta `failed`/`approved` en la siguiente pasada.
+
+    Un item YA COMPLETADO no se degrada. Con dos pasadas solapadas —el launchd cada
+    15 min y una lanzada a mano— la segunda recibe un 409 al reclamar lo que la
+    primera ya terminó, y reportaba ese 409 como fallo: el item quedaba `failed` con
+    su `done_at` sellado, y el daemon lo volvía a descargar y transcribir, pagando
+    Whisper por algo que ya estaba en el corpus.
+    """
     row = _get_or_404(db, item_id)
-    row.status = "failed"
     row.error = payload.error[:2000]
     row.attempts = (row.attempts or 0) + 1
+    if row.status != "done":
+        row.status = "failed"
     db.commit()
     return OkOut(status=row.status)
+
+
+# =========================================================================== #
+# Clips de vídeo para Instagram
+# =========================================================================== #
+# Mismo reparto de trabajo que las transcripciones y por el mismo motivo: la IP
+# del servidor está bloqueada por YouTube, así que descarga el daemon de la Mac
+# y sube el resultado ya recortado y con la atribución quemada.
+
+clips_router = APIRouter(prefix="/ingest/clips", tags=["ingest"])
+
+
+class ClipPending(BaseModel):
+    id: int
+    url: str
+    video_id: str
+    start_s: float
+    end_s: float
+    subtitle: str | None = None
+    channel_title: str | None = None
+    attempts: int
+
+
+class ClipComplete(BaseModel):
+    """Lo que manda el daemon cuando ya ha subido el clip a Cloudinary."""
+    url_cdn: str
+    cloudinary_public_id: str | None = None
+    duration_s: float | None = None
+    video_title: str | None = None
+    channel_title: str | None = None
+    channel_url: str | None = None
+
+
+@clips_router.get("/pending", response_model=list[ClipPending])
+def clips_pending(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> list[ClipPending]:
+    """Clips que quedan por descargar."""
+    from app.services.instagram import video_clips as _vc
+
+    return [
+        ClipPending(
+            id=c.id, url=c.url, video_id=c.video_id, start_s=c.start_s,
+            end_s=c.end_s, subtitle=c.subtitle, channel_title=c.channel_title,
+            attempts=c.attempts,
+        )
+        for c in _vc.pendientes(db, max_intentos=MAX_ATTEMPTS)
+    ]
+
+
+@clips_router.post("/{clip_id}/claim")
+def clips_claim(
+    clip_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    """Marca el clip como en descarga, para que dos daemons no lo dupliquen."""
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.status = "downloading"
+    clip.attempts += 1
+    db.commit()
+    return {"ok": True, "attempts": clip.attempts}
+
+
+@clips_router.post("/{clip_id}/complete")
+def clips_complete(
+    clip_id: int,
+    payload: ClipComplete,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    """El clip ya está en Cloudinary: se guarda su URL y su procedencia."""
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.url_cdn = payload.url_cdn
+    clip.cloudinary_public_id = payload.cloudinary_public_id
+    clip.duration_s = payload.duration_s
+    # La procedencia real la sabe quien descargó, no quien pidió el clip.
+    clip.video_title = payload.video_title or clip.video_title
+    clip.channel_title = payload.channel_title or clip.channel_title
+    clip.channel_url = payload.channel_url or clip.channel_url
+    clip.status = "ready"
+    clip.error = None
+
+    # La publicación del clip se creó al pedirlo, con el tema que escribió el
+    # admin. Ahora se le añade la procedencia REAL, que hasta la descarga no se
+    # conocía: es lo que acredita de dónde sale el vídeo y va en el caption.
+    if clip.queue_item_id:
+        from app.db.models import InstagramQueueItem
+
+        item = db.get(InstagramQueueItem, clip.queue_item_id)
+        if item is not None and item.status != "published":
+            item.source_name = clip.channel_title or item.source_name
+            item.source_url = clip.channel_url or clip.url or item.source_url
+            if not (item.summary or "").strip() and clip.video_title:
+                item.summary = clip.video_title[:500]
+
+    db.commit()
+    return {"ok": True, "status": clip.status}
+
+
+@clips_router.post("/{clip_id}/fail")
+def clips_fail(
+    clip_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_ingest_key),
+) -> dict:
+    from app.db.models import VideoClip
+
+    clip = db.get(VideoClip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="clip no encontrado")
+    clip.status = "failed"
+    clip.error = str(payload.get("error", ""))[:2000]
+    db.commit()
+    return {"ok": True, "attempts": clip.attempts}

@@ -56,6 +56,99 @@ def search_robe_voice(
         )
     return out
 
+def search_interpretations_passages(
+    db: Session,
+    query_vec: list[float],
+    *,
+    k: int = 8,
+    score_threshold: float = 0.35,
+    exclude_kinds: Iterable[str] = ("youtube_comment",),
+    max_chars: int = 1200,
+) -> list[dict[str, Any]]:
+    """Pasajes de fan-content semánticamente cercanos a la query, CON su texto.
+
+    `search_interpretations_for_song_ids` lee la misma colección pero solo devuelve
+    `payload.song_ids` para boostear el ranking; si una fuente no está ligada a
+    ninguna canción, su hit se descarta y el material no sale por ningún sitio.
+    Medido en producción: 420 de las 731 fuentes del corpus estaban en ese caso
+    —141 transcripciones de YouTube y las 110 anotaciones de Genius entre ellas—,
+    vectorizadas pero irrecuperables. Esta función es su camino de salida: recupera
+    por SIGNIFICADO y devuelve el pasaje, sin depender del enlace a canción.
+
+    El texto no vive en Qdrant a propósito (`embed_interpretations` lo excluye del
+    payload), pero sí guarda `chunk_index`, así que el pasaje se rehidrata gratis:
+    se relee `content_clean` de la BD y se vuelve a trocear con el MISMO
+    `chunk_text` que se usó al indexar. Si el contenido cambió después del embed y
+    el índice queda fuera de rango, se cae al primer trozo — el re-embed nocturno
+    (bloque de 03:30) realinea solo.
+    """
+    from app.db.models import InterpretationSource
+    from scripts.research.embed_interpretations import chunk_text
+
+    qdrant = get_qdrant()
+    try:
+        resp = qdrant.query_points(
+            collection_name=INTERPRETATIONS_COLLECTION,
+            query=query_vec,
+            limit=k * 3,  # margen: se colapsa a 1 pasaje por fuente
+            score_threshold=score_threshold,
+        )
+    except Exception:  # noqa: BLE001
+        return []
+
+    # `vectorize_consensus` comparte esta colección y marca sus puntos con
+    # `source_id` NEGATIVO (-song_id) porque no son fuentes: son los consensos ya
+    # destilados, que llegan a los generadores por su propio camino
+    # (`fetch_distilled_for_song`). Se descartan aquí para no gastar huecos del top-k
+    # en algo que luego no se podría rehidratar de `interpretation_sources`.
+    excluded = set(exclude_kinds or ()) | {"fan_consensus"}
+    # Mejor hit por fuente, preservando el orden por score que ya trae Qdrant.
+    best: dict[int, dict[str, Any]] = {}
+    for r in resp.points:
+        p = r.payload or {}
+        if (p.get("kind") or "") in excluded:
+            continue
+        try:
+            sid = int(p["source_id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if sid < 0:  # cinturón, por si algún payload viejo no trae `kind`
+            continue
+        if sid in best:
+            continue
+        best[sid] = {
+            "source_id": sid,
+            "chunk_index": int(p.get("chunk_index") or 0),
+            "kind": p.get("kind") or "fuente",
+            "title": p.get("title") or "",
+            "author": p.get("author") or "",
+            "url": p.get("url") or "",
+            "score": float(r.score),
+        }
+        if len(best) >= k:
+            break
+    if not best:
+        return []
+
+    rows = (
+        db.query(InterpretationSource.id, InterpretationSource.content_clean)
+        .filter(InterpretationSource.id.in_(list(best)))
+        .all()
+    )
+    texto = {i: c for i, c in rows}
+
+    out: list[dict[str, Any]] = []
+    for sid, meta in best.items():
+        full = texto.get(sid) or ""
+        if not full.strip():
+            continue
+        chunks = chunk_text(full)
+        idx = meta["chunk_index"]
+        frag = (chunks[idx] if 0 <= idx < len(chunks) else (chunks[0] if chunks else full))
+        out.append({**meta, "fragmento": frag.strip()[:max_chars]})
+    return out
+
+
 # Boost factor aplicado al score RRF de un hit cuando su song_id aparece
 # en las fuentes fan o en la letra completa vectorialmente cercanas a la query.
 INTERPRETATION_BOOST = 1.6

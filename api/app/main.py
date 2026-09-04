@@ -51,6 +51,7 @@ app.include_router(consult_router.router)
 app.include_router(errata_router.router)
 app.include_router(analytics_router.router)
 app.include_router(ingest_router.router)
+app.include_router(ingest_router.clips_router)
 app.include_router(playlists_router.router)
 
 

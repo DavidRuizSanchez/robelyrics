@@ -275,14 +275,25 @@ def tour_context(db: Session, tour: dict[str, Any]) -> str:
         except Exception as exc:  # pragma: no cover - defensivo
             logger.warning("tour_context: lookup álbum %s falló: %s", album_slug, exc)
 
-    # 1. Voz de Robe por RAG sobre robe_voice_v1.
+    # 1. Voz de Robe por RAG sobre robe_voice_v1, más el corpus de terceros
+    #    (fan-content, prensa, transcripciones) por significado: es material que
+    #    el consenso destilado por canción no alcanza cuando la gira no casa con
+    #    un disco concreto.
     voice_block = ""
+    corpus_block = ""
     try:
         from app.services.embeddings import get_embedder
-        from app.services.retrieval import search_robe_voice
+        from app.services.retrieval import (
+            search_interpretations_passages,
+            search_robe_voice,
+        )
 
         qvec = get_embedder().embed_one(f"{title}. {base_ctx}")
         voice_block = _format_voice_block(search_robe_voice(qvec, k=6))
+        corpus_block = "\n".join(
+            f"[{p['kind']} · {p['title'] or p['author'] or 'fuente'}] {p['fragmento']}"
+            for p in search_interpretations_passages(db, qvec, k=4)
+        )
     except Exception as exc:  # pragma: no cover - defensivo
         logger.warning("tour_context: RAG voz de Robe falló: %s", exc)
 
@@ -306,4 +317,6 @@ def tour_context(db: Session, tour: dict[str, Any]) -> str:
         ("LO QUE DIJO ROBE (entrevistas/citas suyas — parafrasea, no cites literal)", voice_block[:1100]),
         ("HECHOS VERIFICADOS DE LOS LIBROS", refs[:700]),
         ("EL DISCO Y SU RECEPCIÓN", album_block[:500]),
+        ("ANÁLISIS DE TERCEROS EN EL CORPUS (fondo; NO son declaraciones de Robe)",
+         corpus_block[:900]),
     ])

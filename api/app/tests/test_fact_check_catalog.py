@@ -80,3 +80,75 @@ def test_disco_en_directo_no_refuta():
     body = ('"Ama, ama y ensancha el alma", del disco Iros todos a tomar por culo, '
             'en directo.')
     assert fc.extract_catalog_claims(body, idx) == []
+
+
+# --------------------------------------------------------------------------- #
+# Regresión: canciones homónimas en varios discos (los dos discos gemelos)
+# --------------------------------------------------------------------------- #
+# El catálogo distingue la misma canción en distintos discos con un sufijo entre
+# paréntesis: «Emparedado» (Tú en tu casa…, 1990) y «Emparedado (Rock
+# Transgresivo)» (Rock Transgresivo, 1994). Como el índice solo guardaba el
+# título literal, preguntar por «Emparedado» encontraba una sola de las dos
+# apariciones y decir que está en el otro disco se refutaba como si fuese falso.
+# El fact_check llegó a reescribir un texto CORRECTO dejándolo contradictorio:
+#   «Jesucristo García (Tú en tu casa…)» · Extremoduro · Rock Transgresivo (1994)
+# Afectaba a 32 de las 152 filas de canción del catálogo.
+
+def _index_gemelos() -> fc.CatalogIndex:
+    def n(t):
+        return fc._norm(t)
+    ref_1990 = fc._SongRef("Tú en tu casa, nosotros en la hoguera", 1990,
+                           "Extremoduro", "studio")
+    ref_1994 = fc._SongRef("Rock Transgresivo", 1994, "Extremoduro", "studio")
+    songs = {
+        n("Emparedado"): [ref_1990, ref_1994],          # base: ambas apariciones
+        n("Emparedado (Rock Transgresivo)"): [ref_1994],
+    }
+    titulos = {n("Tú en tu casa, nosotros en la hoguera"), n("Rock Transgresivo"),
+               n("Deltoya")}
+    return fc.CatalogIndex(
+        songs=songs,
+        albums={n("Tú en tu casa, nosotros en la hoguera"): 1990,
+                n("Rock Transgresivo"): 1994, n("Deltoya"): 1992},
+        album_titles=titulos,
+        album_kind={t: "studio" for t in titulos},
+        album_url={},
+        album_display={n("Tú en tu casa, nosotros en la hoguera"):
+                       "Tú en tu casa, nosotros en la hoguera",
+                       n("Rock Transgresivo"): "Rock Transgresivo",
+                       n("Deltoya"): "Deltoya"},
+        book_titles=set(),
+    )
+
+
+def test_base_song_title_recorta_solo_el_sufijo():
+    assert fc._base_song_title("Emparedado (Rock Transgresivo)") == "Emparedado"
+    assert fc._base_song_title("Deltoya (En Directo)") == "Deltoya"
+    assert fc._base_song_title("So Payaso") == "So Payaso"
+    assert fc._base_song_title("") == ""
+
+
+def test_cancion_gemela_no_se_refuta_en_ninguno_de_sus_dos_discos():
+    idx = _index_gemelos()
+    for album in ("Rock Transgresivo", "Tú en tu casa, nosotros en la hoguera"):
+        claim = fc.Claim(
+            text=f"«Emparedado» pertenece al disco «{album}».",
+            type="song_album", quote="", subject="Emparedado", object=album,
+            risk="high",
+        )
+        v = fc._resolve_db(idx, claim)
+        assert v is None or v.status == "confirmed", (
+            f"«Emparedado» SÍ está en «{album}», no puede refutarse: {v}"
+        )
+
+
+def test_disco_ajeno_si_se_sigue_refutando():
+    """El arreglo no puede desactivar la protección de verdad."""
+    idx = _index_gemelos()
+    claim = fc.Claim(
+        text="«Emparedado» pertenece al disco «Deltoya».",
+        type="song_album", quote="", subject="Emparedado", object="Deltoya",
+        risk="high",
+    )
+    v = fc._resolve_db(idx, claim)
+    assert v is not None and v.status == "refuted"

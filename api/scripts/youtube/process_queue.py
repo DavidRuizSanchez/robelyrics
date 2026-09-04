@@ -33,7 +33,9 @@ from openai import OpenAI
 from app.config import get_settings
 from scripts.research.common import clean_text
 from scripts.research.transcribe_juancares import (
+    audio_duration_s,
     download_audio,
+    min_chars_for,
     split_audio,
     transcribe,
 )
@@ -41,7 +43,7 @@ from scripts.research.transcribe_juancares import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-MIN_CHARS = 100  # transcripción más corta = sospechosa (igual que transcribe_juancares)
+MIN_CHARS = 100  # tope del suelo; el real lo escala min_chars_for() con la duración
 
 
 def _base_and_headers() -> tuple[str, dict]:
@@ -76,15 +78,28 @@ def main() -> None:
             vid = it["video_id"]
             title = it.get("title") or vid
             try:
-                http.post(f"{base}/ingest/youtube/{item_id}/claim").raise_for_status()
+                claim = http.post(f"{base}/ingest/youtube/{item_id}/claim")
+                if claim.status_code == 409:
+                    # Otra pasada se lo llevó (el launchd dispara cada 15 min y una
+                    # manual puede solaparse). No es un fallo nuestro y no se reporta
+                    # como tal: se salta y ya.
+                    logger.info("[·] %s lo está haciendo otra pasada: %s",
+                                vid, claim.json().get("detail", "")[:60])
+                    continue
+                claim.raise_for_status()
                 with tempfile.TemporaryDirectory() as td:
                     audio = download_audio(vid, td)
                     if not audio:
                         raise RuntimeError("yt-dlp no devolvió audio")
+                    dur = audio_duration_s(audio)
                     chunks = split_audio(audio, td)
                     text = clean_text(transcribe(openai, chunks)) or ""
-                if len(text) < MIN_CHARS:
-                    raise RuntimeError("transcripción demasiado corta")
+                floor = min_chars_for(dur, ceiling=MIN_CHARS)
+                if len(text) < floor:
+                    raise RuntimeError(
+                        f"transcripción demasiado corta ({len(text)} chars < {floor} "
+                        f"para {dur and round(dur)}s de audio)"
+                    )
                 resp = http.post(
                     f"{base}/ingest/youtube/{item_id}/complete",
                     json={"content_clean": text, "title": it.get("title")},
@@ -95,6 +110,11 @@ def main() -> None:
             except Exception as e:  # noqa: BLE001
                 n_fail += 1
                 msg = f"{type(e).__name__}: {e}"
+                # Un 4xx de prod trae el motivo REAL en el cuerpo; sin esto, un
+                # rechazo de validación se registraba como «422» a secas y había que
+                # ir a leer el router para saber qué campo lo había tumbado.
+                if isinstance(e, httpx.HTTPStatusError):
+                    msg += f" · respuesta: {e.response.text[:300]}"
                 logger.warning("[✗] %s: %s", vid, msg)
                 try:
                     http.post(

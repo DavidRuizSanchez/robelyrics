@@ -56,19 +56,56 @@ def search_release_group(
     client: httpx.Client, artist: str, title: str
 ) -> str | None:
     """Devuelve el mbid del primer release-group que matchee.
-    Estrategias en orden: artist+title exacto, alias del artista, solo title."""
+
+    TODAS las consultas llevan artista. Aquí había un tercer intento con
+    `releasegroup:"{title}"` **sin filtrar por artista**, justificado en que «el
+    catálogo es pequeño». Es el mismo patrón de buscar-por-nombre-y-asignar que
+    coló tocino ucraniano como «Salo» y a Fito Páez como Fito Cabrales; en
+    portadas ya produjo su propio caso (la de «Rock transgresivo» servida como la
+    de «Tú en tu casa…», ver data/reference/). Sin artista no se asigna: se deja
+    sin portada y se reporta.
+    """
     queries = [f'artist:"{artist}" AND releasegroup:"{title}"']
-    # Aliases comunes del artista
+    # Aliases del artista: en MusicBrainz el solista figura como «Robe», no como
+    # «Robe Iniesta», que es lo que guarda nuestra BD.
     if "Robe" in artist:
         queries.append(f'artist:"Robe" AND releasegroup:"{title}"')
         queries.append(f'artist:"Roberto Iniesta" AND releasegroup:"{title}"')
-    # Fallback: solo título (riesgo de match falso, pero el catálogo es pequeño)
-    queries.append(f'releasegroup:"{title}"')
 
-    for q in queries:
+    for i, q in enumerate(queries):
+        # MusicBrainz limita a 1 req/s y responde 503 si te pasas; `_mb_query`
+        # convierte ese 503 en lista vacía, así que sin esta pausa las consultas
+        # de alias se descartaban en silencio y parecía que el disco no existía.
+        # Es lo que dejaba sin portada a «Bienvenidos al temporal», y lo que
+        # hacía parecer necesario el fallback sin artista.
+        if i:
+            time.sleep(1.1)
         items = _mb_query(client, q)
         if items:
             return items[0].get("id")
+    return None
+
+
+def fetch_license(client: httpx.Client, mbid: str) -> str | None:
+    """Licencia que declara el uploader en CAA para la imagen frontal.
+
+    Es el dato que `docs/legal-audit.md` §3.5 pide registrar. Si CAA no la
+    declara se devuelve None y la columna queda NULL — no se supone nada.
+    """
+    try:
+        r = client.get(f"{CAA_API}/release-group/{mbid}", follow_redirects=True,
+                       headers=HEADERS, timeout=30)
+        if r.status_code != 200:
+            return None
+        for im in r.json().get("images", []):
+            if im.get("front"):
+                # CAA expone la licencia en `license` (URL de CC) cuando existe.
+                lic = im.get("license")
+                if lic:
+                    return str(lic)[:64]
+                return "sin declarar"
+    except (httpx.HTTPError, ValueError):
+        return None
     return None
 
 
@@ -95,28 +132,58 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Reescribir aunque ya tenga cover")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--album-slug", action="append",
+                        help="limitar a estos slugs (repetible)")
+    parser.add_argument("--only-provenance", action="store_true",
+                        help="no descarga: solo rellena mbid/licencia de las que ya tienen portada")
     args = parser.parse_args()
 
     n_done = 0
     n_skipped = 0
     n_failed = 0
+    n_prov = 0
 
     # Materializar a tuplas para no depender de sesión durante el HTTP
     with get_session() as db:
-        rows = (
-            db.query(Album, Artist)
-            .join(Artist, Album.artist_id == Artist.id)
-            .all()
-        )
+        q = db.query(Album, Artist).join(Artist, Album.artist_id == Artist.id)
+        if args.album_slug:
+            q = q.filter(Album.slug.in_(args.album_slug))
+        rows = q.all()
         items = [
-            (a.id, a.slug, a.title, a.cover_url, ar.name)
+            (a.id, a.slug, a.title, a.cover_url, ar.name, a.cover_mbid)
             for a, ar in rows
         ]
     log(f"álbumes en BD: {len(items)}")
 
     with httpx.Client(timeout=15) as client:
-        for album_id, slug, title, cover_url, artist_name in items:
-            if cover_url and not args.force:
+        for album_id, slug, title, cover_url, artist_name, cover_mbid in items:
+            tiene_portada = bool(cover_url)
+
+            # Modo procedencia: la portada ya está, solo falta saber de dónde
+            # salió y con qué licencia (docs/legal-audit.md §3.5).
+            if args.only_provenance:
+                if not tiene_portada or (cover_mbid and not args.force):
+                    n_skipped += 1
+                    continue
+                log(f"procedencia · {title}")
+                time.sleep(1.0)
+                mbid = search_release_group(client, artist_name, title)
+                if not mbid:
+                    log("  ✗ no encontrado en MusicBrainz", "warn")
+                    n_failed += 1
+                    continue
+                time.sleep(0.5)
+                lic = fetch_license(client, mbid)
+                with get_session() as db:
+                    db.execute(
+                        update(Album).where(Album.id == album_id)
+                        .values(cover_mbid=mbid, cover_license=lic, cover_source="caa")
+                    )
+                n_prov += 1
+                log(f"  ✓ mbid={mbid} · licencia={lic or '—'}")
+                continue
+
+            if tiene_portada and not args.force:
                 n_skipped += 1
                 continue
             if args.limit and n_done >= args.limit:
@@ -126,7 +193,7 @@ def main() -> None:
             time.sleep(1.0)  # Rate limit MB
             mbid = search_release_group(client, artist_name, title)
             if not mbid:
-                log(f"  ✗ no encontrado en MusicBrainz", "warn")
+                log("  ✗ no encontrado en MusicBrainz", "warn")
                 n_failed += 1
                 continue
             log(f"  mbid={mbid}")
@@ -136,18 +203,26 @@ def main() -> None:
             if not ok:
                 n_failed += 1
                 continue
+            time.sleep(0.5)
+            lic = fetch_license(client, mbid)
 
             # UPDATE en su propia sesión
             with get_session() as db:
                 db.execute(
                     update(Album)
                     .where(Album.id == album_id)
-                    .values(cover_url=f"/album-covers/{slug}.jpg")
+                    .values(
+                        cover_url=f"/album-covers/{slug}.jpg",
+                        cover_mbid=mbid,
+                        cover_license=lic,
+                        cover_source="caa",
+                    )
                 )
             n_done += 1
-            log(f"  ✓ → /album-covers/{slug}.jpg")
+            log(f"  ✓ → /album-covers/{slug}.jpg · licencia={lic or '—'}")
 
-    log(f"descargadas: {n_done} · sin match: {n_failed} · skip: {n_skipped}", "ok")
+    log(f"descargadas: {n_done} · procedencia: {n_prov} · "
+        f"sin match: {n_failed} · skip: {n_skipped}", "ok")
 
 
 if __name__ == "__main__":
