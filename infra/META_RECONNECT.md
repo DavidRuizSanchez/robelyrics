@@ -182,3 +182,70 @@ Me pasas los 4 valores y yo:
   el rol del usuario del sistema, deja de funcionar.
 - **App en modo desarrollo** basta para tu propia cuenta; no hace falta App
   Review mientras no publiques en cuentas de terceros.
+
+---
+
+## Cuenta restringida (`code 25 / subcode 2207050`)
+
+**Síntoma**: la web va bien, el panel enseña la cuenta en verde, pero el feed
+lleva días sin moverse y los items de la cola traen
+`{'message': 'User access is restricted', 'code': 25, 'error_subcode': 2207050}`.
+
+**Qué NO es** (comprobado durante el incidente del 24-ago-2026, todo con GETs):
+
+| Comprobación | Resultado con la cuenta restringida |
+|---|---|
+| `debug_token` | `is_valid: true`, sin caducidad, con `instagram_content_publish` |
+| `GET /{ig-id}?fields=username,...` | responde con normalidad |
+| `GET /{ig-id}/content_publishing_limit` | `quota_usage: 0` de 100 |
+| `GET /me/accounts` | el vínculo Página↔IG, intacto |
+
+O sea: **no es el token, ni la cuota, ni el enlace con la Página**. Leer funciona;
+lo único bloqueado es publicar. Y no hay forma de detectarlo con una lectura: el
+IG Graph API no expone Account Quality. La única prueba fiable es intentar crear
+un container.
+
+**Cómo se comprueba a mano** (crea un borrador, NO publica; caduca solo en 24 h):
+
+```bash
+ssh robelyrics
+cd /opt/robelyrics
+TOK=$(grep -m1 '^INSTAGRAM_ACCESS_TOKEN=' .env | cut -d= -f2-)
+IGID=$(grep -m1 '^INSTAGRAM_ACCOUNT_ID=' .env | cut -d= -f2-)
+curl -s -X POST "https://graph.facebook.com/v21.0/$IGID/media" \
+  -d "image_url=https://res.cloudinary.com/demo/image/upload/w_1080,h_1080,c_fill/sample.jpg" \
+  -d "access_token=$TOK"
+```
+
+Si devuelve un `{"id": ...}`, se puede publicar. Si devuelve el 25/2207050, sigue
+restringida.
+
+**Cómo se arregla**: solo a mano, y no desde la app del móvil. Entra en
+<https://www.instagram.com/> **desde el navegador** con `@entreinterioresrobe` y
+completa lo que pida: Configuración → Estado de la cuenta (Account Quality),
+verificación de identidad, fecha de nacimiento o la apelación que haya abierta.
+
+**Qué hace el sistema solo mientras tanto**:
+
+1. `errors.quema_intento` reconoce el 25/2207050 como GLOBAL y **no le gasta
+   intentos a ningún post** (ver la sección de `CLAUDE.md`).
+2. El cortacircuitos (`publisher.publicacion_bloqueada`) para al cron para no
+   subir imágenes a Cloudinary ni crear publicaciones que Meta va a rechazar.
+   Caduca solo cada `IG_BLOCK_WINDOW_H` (6 h) y el siguiente intento real hace
+   de sondeo: en cuanto Meta levante el bloqueo, se reanuda sin tocar nada.
+3. `scripts.instagram.notify_health` (cron 09:20 UTC) manda un correo el primer
+   día, y vuelve a sonar al escalar de tramo (2/4/7/14/30 días).
+
+**Después de que se levante**, para recuperar lo que se quedó sin intentos:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api \
+  python -m scripts.instagram.recover_failed --dry-run
+# revisar el reparto y entonces:
+  ... python -m scripts.instagram.recover_failed --apply --limit 4
+```
+
+Va por tandas a propósito: devolver toda la cola de golpe activa el modo atasco
+(un post cada 10 h → ~17/semana) y reanudar a ese ritmo justo después de una
+restricción es la peor forma de estrenar la cuenta. Es idempotente: se repite
+cuando la cola baje.

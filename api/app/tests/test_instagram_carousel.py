@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.instagram import carousel, graph_api
+from app.services.instagram import carousel, errors, graph_api
 
 
 # --------------------------------------------------------------------------- #
@@ -151,9 +151,24 @@ def test_si_falla_un_hijo_no_se_crea_el_padre(graph):
     respuestas.extend([{"id": "hijo1"}, {"error": {"message": "boom"}}])
     media_id, msg = graph_api.post_carousel(["u1", "u2"], "cap")
     assert media_id is None
-    assert "hijo 2/2" in msg
+    assert "hijo 2/2" in str(msg)
     # Solo se intentaron los dos hijos: ningún POST de padre ni de publicación.
     assert len([r for r in registro if r[0] == "POST"]) == 2
+
+
+def test_el_hijo_que_falla_conserva_el_codigo_de_meta(graph):
+    """Reetiquetar «hijo 1/5» no puede tirar el código: es lo que decide si el
+    fallo es del post o de la cuenta. En agosto de 2026 se perdía justo aquí y
+    los carruseles quemaban intentos por una cuenta restringida."""
+    _, respuestas = graph
+    respuestas.append(
+        {"error": {"message": "User access is restricted", "code": 25,
+                   "error_subcode": 2207050}}
+    )
+    media_id, msg = graph_api.post_carousel(["u1", "u2"], "cap")
+    assert media_id is None
+    assert msg.code == 25 and msg.subcode == 2207050
+    assert not errors.quema_intento(msg)
 
 
 def test_foto_unica_sigue_funcionando_igual(graph):

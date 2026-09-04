@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
@@ -34,6 +34,7 @@ from app.services.instagram import (
     community,
     config,
     editorial,
+    errors,
     graph_api,
     imaging,
     photo_finder,
@@ -495,7 +496,13 @@ def _media_lista(item: InstagramQueueItem) -> bool:
     regenera el carrusel entero.
     """
     if not item.media:
-        return bool(item.image_path and os.path.exists(item.image_path))
+        # `image_url` cuenta igual que el fichero: los items antiguos (previos a
+        # la tabla de media) tienen su imagen en Cloudinary, y `/tmp` se vacía en
+        # cada reinicio. Sin esto, repescar un post viejo regeneraba la imagen
+        # con IA teniéndola ya subida.
+        return bool(item.image_url) or bool(
+            item.image_path and os.path.exists(item.image_path)
+        )
     # Una pieza vale si está en disco O ya subida: los clips de terceros los baja
     # el daemon de la Mac y llegan directamente a Cloudinary, sin pasar por el
     # /tmp del servidor.
@@ -506,7 +513,11 @@ def _media_lista(item: InstagramQueueItem) -> bool:
 
 
 def _marcar_fallo(
-    db: Session, item: InstagramQueueItem, motivo: str, *, quema_intento: bool = True
+    db: Session,
+    item: InstagramQueueItem,
+    motivo,
+    *,
+    quema_intento: bool | None = None,
 ) -> InstagramQueueItem:
     """Deja el item en `failed` con su motivo, gastando o no un intento.
 
@@ -516,19 +527,98 @@ def _marcar_fallo(
     este condenaría a la cola entera por algo que no es suyo. Mismo criterio que
     la cola de ingesta de YouTube, donde un 502 masivo durante un rebuild no
     consume reintentos.
+
+    Con `quema_intento=None` (lo normal) lo decide `errors.quema_intento` leyendo
+    el código que trae Meta. Se sigue admitiendo el booleano explícito para los
+    casos en que el llamador ya sabe de quién es la culpa. Esa distinción existía
+    en el docstring desde julio pero NO en el camino que importaba: el fallo al
+    publicar la hacía siempre a ciegas, y por eso la cuenta restringida de agosto
+    se llevó por delante 47 posts.
     """
     item.status = "failed"
-    item.error = motivo[:2000]
+    item.error = str(motivo)[:2000]
+    item.error_code = getattr(motivo, "etiqueta", None)
+    item.last_attempt_at = datetime.now(timezone.utc)
+    if quema_intento is None:
+        quema_intento = errors.quema_intento(motivo)
     if quema_intento:
         item.attempts = (item.attempts or 0) + 1
     db.commit()
     return item
 
 
+def publicacion_bloqueada(db: Session) -> tuple[bool, str | None, datetime | None]:
+    """¿Nos está bloqueando Meta ahora mismo? Devuelve (bloqueado, motivo, desde).
+
+    El estado no se guarda en ningún sitio: se DEDUCE de los fallos recientes de
+    la propia cola. Así caduca solo —no hay flag que alguien tenga que acordarse
+    de apagar, que es de donde salen los "llevamos tres semanas sin publicar"— y
+    además queda auditable: se ve qué items y qué código lo abrieron.
+
+    Abre por dos caminos:
+      - un `error_code` que sabemos global (25/2207050, 190, cuota...);
+      - una RACHA de `GLOBAL_STREAK` items DISTINTOS fallando en la ventana,
+        aunque no reconozcamos el código. Esto es lo que hace asumible que un
+        código desconocido gaste intento: un global nuevo se caza igual.
+    """
+    desde = datetime.now(timezone.utc) - timedelta(hours=config.BLOCK_WINDOW_H)
+    recientes = db.execute(
+        select(InstagramQueueItem)
+        .where(
+            InstagramQueueItem.status == "failed",
+            InstagramQueueItem.last_attempt_at.is_not(None),
+            InstagramQueueItem.last_attempt_at >= desde,
+        )
+        .order_by(InstagramQueueItem.last_attempt_at.desc())
+    ).scalars().all()
+    if not recientes:
+        return False, None, None
+
+    for it in recientes:
+        if it.error_code and errors.es_global(_error_de(it)):
+            return True, f"{it.error_code} · {it.error or 'sin detalle'}"[:300], _utc(
+                it.last_attempt_at
+            )
+
+    if len({it.id for it in recientes}) >= config.GLOBAL_STREAK:
+        return (
+            True,
+            f"{len(recientes)} posts distintos han fallado en las últimas "
+            f"{config.BLOCK_WINDOW_H} h: la caída no es de ninguno de ellos",
+            _utc(recientes[-1].last_attempt_at),
+        )
+    return False, None, None
+
+
+def _error_de(item: InstagramQueueItem) -> errors.MetaError:
+    """Rehidrata el MetaError de un item ya guardado, para reclasificarlo."""
+    code, _, subcode = (item.error_code or "").partition("/")
+    return errors.MetaError(
+        mensaje=item.error or "",
+        code=int(code) if code.lstrip("-").isdigit() else None,
+        subcode=int(subcode) if subcode.isdigit() else None,
+    )
+
+
+def _utc(dt: datetime | None) -> datetime | None:
+    """SQLite devuelve datetimes sin tzinfo; Postgres con ella."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def publish(
-    db: Session, item: InstagramQueueItem, dry_run: bool = False
+    db: Session,
+    item: InstagramQueueItem,
+    dry_run: bool = False,
+    force: bool = False,
 ) -> InstagramQueueItem:
-    """Publica un item ya preparado (lo prepara si hace falta)."""
+    """Publica un item ya preparado (lo prepara si hace falta).
+
+    `force` se salta el cortacircuitos: lo usa el botón del panel, porque un
+    humano que le da a publicar tiene que poder ver el error real de Meta (y de
+    paso ese intento sirve de sondeo).
+    """
     if not _media_lista(item):
         # Preparar puede fallar por motivos legítimos (un post de clip sin clip
         # enlazado, un carrusel sin material). Eso NO puede tumbar el cron: sin
@@ -560,6 +650,19 @@ def publish(
         # Fallo global, no de este post: no le quema un intento (ver `_marcar_fallo`).
         return _marcar_fallo(db, item, msg, quema_intento=False)
 
+    # Si Meta nos está bloqueando, parar AQUÍ: subir a Cloudinary y crear
+    # containers para que los rechace todos cuesta dinero y no arregla nada. En
+    # agosto de 2026 el cron hizo eso cada 15 minutos durante once días.
+    if not force:
+        bloqueado, motivo_bloqueo, _ = publicacion_bloqueada(db)
+        if bloqueado:
+            logger.warning("[IG] publicación bloqueada por Meta: %s", motivo_bloqueo)
+            # No es culpa de este post: no le quema intento.
+            return _marcar_fallo(
+                db, item, f"publicación bloqueada: {motivo_bloqueo}",
+                quema_intento=False,
+            )
+
     # Subir a Cloudinary (la Graph API exige URLs públicas). Se hace commit de
     # las URLs ANTES de llamar a Meta: si la publicación falla, reintentar no
     # tiene que volver a subir nada.
@@ -584,7 +687,11 @@ def publish(
                     m.duration_s = subido.get("duration")
                 else:
                     m.url = cloudinary_upload.upload(m.local_path)
-        else:  # item antiguo, anterior a la tabla de media
+        elif not item.image_url:  # item antiguo, anterior a la tabla de media
+            # Mismo criterio que el `continue` de arriba: si ya está en el CDN no
+            # se vuelve a subir. Sin el `elif`, un item viejo repescado llamaba a
+            # `upload(None)` —su `/tmp` hacía días que no existía— y moría por un
+            # fichero que no le hacía ninguna falta.
             item.image_url = cloudinary_upload.upload(item.image_path)
     except Exception as exc:  # noqa: BLE001
         logger.error("[IG] subida a Cloudinary falló: %s", exc)
@@ -612,6 +719,7 @@ def publish(
         item.ig_media_id = media_id
         item.published_at = datetime.now(timezone.utc)
         item.error = None
+        item.error_code = None
         item.attempts = 0
         logger.info("[IG] ✅ item %s publicado · media_id=%s", item.id, media_id)
         # Si el post salió de un clip de terceros, se cierra su ficha: así el
@@ -650,12 +758,23 @@ def _publicable():
     selectores de la cola filtraban por pending/prepared, así que un tropiezo
     transitorio —el CDN, un timeout de Meta— borraba el post del calendario para
     siempre y en silencio. Nadie se enteraba hasta echar de menos la publicación.
+
+    Y le conserva los intentos DE VERDAD: reintentar exige que hayan pasado
+    `RETRY_COOLDOWN_H`. El cron dispara cada 15 min y el guard de cadencia solo
+    frena tras un éxito, así que con todo fallando reintentaba 96 veces al día
+    y los 3 intentos se gastaban en 45 minutos — mucho antes de que la alerta
+    diaria pudiera avisar de nada.
     """
+    limite = datetime.now(timezone.utc) - timedelta(hours=config.RETRY_COOLDOWN_H)
     return or_(
         InstagramQueueItem.status.in_(("pending", "prepared")),
         and_(
             InstagramQueueItem.status == "failed",
             InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
+            or_(
+                InstagramQueueItem.last_attempt_at.is_(None),
+                InstagramQueueItem.last_attempt_at <= limite,
+            ),
         ),
     )
 

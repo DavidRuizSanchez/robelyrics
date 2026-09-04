@@ -245,6 +245,64 @@ El test que existía no cazó nada de esto porque su mock de `upload_video` acep
 `None` tan campante: un mock más permisivo que la realidad no prueba el camino que
 dice probar.
 
+## Cuando Meta bloquea, la culpa no es del post
+
+El 24-ago-2026 Instagram dejó de publicar y no se supo hasta el 4 de septiembre.
+Meta había **restringido la cuenta** (`code 25 / subcode 2207050`, «User access is
+restricted»): eso no lo arregla el código, se resuelve entrando a instagram.com
+**desde el navegador** y completando lo que pida Account Quality.
+
+Lo que sí era nuestro es que un bloqueo reversible se llevara por delante 47 posts:
+
+- **El health check daba verde falso.** `connection_is_healthy()` se apoya en un
+  GET, y con la cuenta restringida las LECTURAS siguen funcionando —el IG Graph
+  API no expone Account Quality por ningún endpoint—. Verificado en vivo durante
+  el incidente: `debug_token` válido, perfil legible, cuota 0/100, vínculo
+  Página↔IG intacto. Solo publicar estaba bloqueado. Por eso `puede_publicar` del
+  panel NO sale de un GET, sino de los fallos recientes de la cola.
+- **Se quemaba intento a ciegas.** `publisher` recibía el error de Meta ya
+  serializado a texto por `_create_media`, así que no tenía con qué decidir. Ahora
+  `graph_api` devuelve un `MetaError` con `code`/`subcode` y `errors.quema_intento`
+  reparte: lo GLOBAL (cuenta, token, cuota, caída de Meta) no gasta intento; lo
+  del ITEM (caption largo, aspect ratio, media no descargable) sí. **Un código
+  desconocido SÍ gasta**, a propósito: no gastarlo dejaría la cola parada para
+  siempre detrás del mismo item —`next_pending` ordena por `position` y reelige
+  siempre el primero—, y ese es el fallo silencioso.
+- **El cuentagotas dejó de frenar.** El guard de cadencia compara contra
+  `_hours_since_last_publish`, que crece sin límite si nada se publica: con todo
+  fallando dejaba pasar SIEMPRE, y el cron de cada 15 min intentó 96 veces al día.
+  Los 47 posts se condenaron en día y medio, no en once. Cerrado por tres sitios:
+  `RETRY_COOLDOWN_H` (6 h) en `_publicable()`, `_pending_count` cuenta también los
+  `failed` con intentos, y `due_pinned` ya no gotea encima cuando ninguno salió.
+- **No lo vigilaba nadie.** `publish_next` sale con `exit 1` al fallar, pero ese
+  código se lo traga el cron y acaba en un log de 8 MB. `scripts.instagram.notify_health`
+  (cron 09:20 UTC) avisa por correo. Va aparte del digest de las 09:15 **a
+  propósito**: aquel no manda nada si no hay erratas ni posts por revisar, así que
+  una caída de IG en semana tranquila habría quedado silenciada otra vez.
+
+El cortacircuitos (`publisher.publicacion_bloqueada`) **no guarda ningún flag**: se
+deduce de `last_attempt_at` + `error_code` de la propia cola, así caduca solo y
+nadie tiene que acordarse de apagarlo. Abre con un código global conocido, o por
+RACHA de `GLOBAL_STREAK` items distintos —esa racha es lo que hace asumible que un
+código desconocido gaste intento—. Y no hace falta sondear para saber si se
+levantó: al caducar la ventana, el siguiente intento real hace de sondeo. Son 4
+intentos al día en vez de 96, y como las URLs de Cloudinary están persistidas,
+ninguno vuelve a subir nada.
+
+Para repescar lo condenado: `python -m scripts.instagram.recover_failed --dry-run`.
+Devuelve lo evergreen y **descarta la actualidad**, porque una noticia de hace tres
+semanas publicada hoy engaña sobre cuándo pasó. Limpia `publish_at`/`publish_on`
+vencidos, que no es cosmético: `due_pinned` publica de una tacada todo lo vencido
+sin pasar por el cuentagotas, y repescar con las fechas viejas volcaría la cola
+entera al feed de golpe. Y va por tandas (`--limit`, 4 por defecto) para no pasar
+de `BACKLOG_THRESHOLD` y disparar el modo atasco.
+
+Ojo con dos cosas al tocar esto: el `MetaError` **se pierde en cuanto alguien
+escriba `f"...{msg}..."`** en el camino —por eso `post_carousel` reetiqueta con
+`_prefijar`, y hay un test que lo vigila—, y `notify_health` no puede fiarse de
+`published_at` a secas: si no se publicó nunca es `NULL` y una instalación nueva
+se quedaría muda para siempre.
+
 ## Un directo no duplica sus canciones
 
 Los discos que **no** son de estudio (`kind` en `live | compilation | single`) no

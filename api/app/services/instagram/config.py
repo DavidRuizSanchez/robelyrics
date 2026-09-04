@@ -64,6 +64,33 @@ STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "15"))
 # tiene la culpa y no se le quema un intento.
 MAX_PUBLISH_ATTEMPTS = int(os.getenv("IG_MAX_PUBLISH_ATTEMPTS", "3"))
 
+# Cuánto espera un post que falló antes de volver a intentarlo. Sin esto, el
+# cron (cada 15 min) quemaba los 3 intentos en 45 minutos: en agosto de 2026 la
+# cuenta se restringió y 47 posts quedaron condenados en día y medio, mucho
+# antes de que ningún humano pudiera enterarse. Con 6 h, tres intentos ocupan
+# medio día y la alerta llega primero.
+RETRY_COOLDOWN_H = int(os.getenv("IG_RETRY_COOLDOWN_H", "6"))
+
+# --- Cortacircuitos de publicación -----------------------------------------
+# Cuando Meta nos bloquea (cuenta restringida, token muerto, cuota agotada) no
+# tiene sentido seguir subiendo imágenes a Cloudinary y creando containers cada
+# 15 minutos. El estado NO se guarda en ningún flag: se deduce de los fallos
+# recientes de la propia cola, así se apaga solo y nadie tiene que acordarse de
+# cerrarlo. BLOCK_WINDOW_H es cuánto dura el corte antes de volver a sondear.
+BLOCK_WINDOW_H = int(os.getenv("IG_BLOCK_WINDOW_H", "6"))
+
+# Cuántos items DISTINTOS tienen que fallar seguidos para dar por hecho que la
+# caída es global aunque no reconozcamos el código. Es la red que hace asumible
+# que un código desconocido gaste intento (ver `errors.quema_intento`).
+GLOBAL_STREAK = int(os.getenv("IG_GLOBAL_STREAK", "3"))
+
+# --- Alerta de salud --------------------------------------------------------
+# Horas sin publicar TENIENDO material antes de avisar por correo. Con
+# STEADY_INTERVAL_H = 15 h, 48 h son tres turnos perdidos: ya no es casualidad.
+# Este es el detector que no depende de clasificar nada — cubre el cron muerto,
+# docker caído, Cloudinary y cualquier bug nuestro futuro.
+ALERT_STALE_H = int(os.getenv("IG_ALERT_STALE_H", "48"))
+
 # --- Aprobación ------------------------------------------------------------
 # Todo el contenido nace `proposed` y NADIE lo publica sin que el admin lo
 # apruebe en /biblioteca/admin/instagram. Antes solo pasaba por ahí el evergreen:

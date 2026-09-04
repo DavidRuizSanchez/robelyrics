@@ -11,10 +11,15 @@ import time
 import httpx
 
 from app.services.instagram import config
+from app.services.instagram.errors import MetaError
 
 logger = logging.getLogger(__name__)
 
 GRAPH = "https://graph.facebook.com/v21.0"
+
+# Lo que devuelven estas funciones como "motivo": texto cuando es cosa nuestra,
+# `MetaError` cuando lo dijo Meta (y entonces trae code/subcode para clasificar).
+Motivo = str | MetaError
 
 
 def account_info() -> dict:
@@ -23,7 +28,15 @@ def account_info() -> dict:
         resp = client.get(
             f"{GRAPH}/{config.INSTAGRAM_ACCOUNT_ID}",
             params={
-                "fields": "username,name,followers_count,media_count",
+                # `content_publishing_limit` es la ÚNICA señal read-only que
+                # detecta un bloqueo global antes de gastar Cloudinary: dice si
+                # se agotó la cuota de 25 posts/24 h. La restricción de cuenta
+                # NO se ve por aquí (ni por ningún GET: el IG Graph API no
+                # expone Account Quality), y por eso hace falta el cortacircuitos.
+                "fields": (
+                    "username,name,followers_count,media_count,"
+                    "content_publishing_limit{config,quota_usage}"
+                ),
                 "access_token": config.INSTAGRAM_ACCESS_TOKEN,
             },
         )
@@ -88,7 +101,7 @@ def connection_is_healthy() -> tuple[bool, str, str | None]:
     return account_is_reachable()
 
 
-def _create_media(**fields: str) -> tuple[str | None, str]:
+def _create_media(**fields: str) -> tuple[str | None, Motivo]:
     """POST a /{ig_id}/media con los campos dados. Devuelve (container_id, msg).
 
     Primitivo común de foto, hijo de carrusel, padre de carrusel y reel: lo único
@@ -103,13 +116,7 @@ def _create_media(**fields: str) -> tuple[str | None, str]:
     if "id" in data:
         return data["id"], "OK"
     logger.error("[IG] Error creando container: %s", data)
-    return None, str(data.get("error", data))
-
-
-def create_container(image_url: str, caption: str) -> str | None:
-    """Paso 1: crea el media container de una FOTO. Devuelve container_id o None."""
-    container, _ = _create_media(image_url=image_url, caption=caption)
-    return container
+    return None, MetaError.desde(data)
 
 
 def _container_status(container_id: str) -> tuple[str, str]:
@@ -132,7 +139,7 @@ def _container_status(container_id: str) -> tuple[str, str]:
 
 def _wait_finished(
     container_id: str, attempts: int = 15, interval: float = 4.0
-) -> tuple[bool, str]:
+) -> tuple[bool, Motivo]:
     """Espera a que un container esté listo para publicar."""
     for _ in range(attempts):
         status, detalle = _container_status(container_id)
@@ -148,7 +155,7 @@ def _wait_finished(
 
 def publish(
     container_id: str, attempts: int = 15, interval: float = 4.0
-) -> tuple[str | None, str]:
+) -> tuple[str | None, Motivo]:
     """Paso 2: publica el container. Devuelve (ig_media_id, mensaje)."""
     listo, msg = _wait_finished(container_id, attempts=attempts, interval=interval)
     if not listo:
@@ -165,17 +172,29 @@ def publish(
     data = resp.json()
     if "id" in data:
         return data["id"], "Publicado"
-    return None, f"Error publicando: {data}"
+    return None, MetaError.desde(data)
 
 
 # --------------------------------------------------------------------------- #
 # Carrusel
 # --------------------------------------------------------------------------- #
+def _prefijar(msg, prefijo: str):
+    """Antepone contexto SIN perder el código de Meta.
+
+    Un `f"hijo {i}/{n}: {msg}"` convierte el MetaError en texto plano y con él
+    se va el 25/2207050 que dice que la cuenta está restringida: el post acaba
+    quemando un intento por un fallo que no era suyo. Pasa siempre por aquí.
+    """
+    if isinstance(msg, MetaError):
+        return msg.con_prefijo(prefijo)
+    return f"{prefijo}: {msg}"
+
+
 MIN_CAROUSEL_ITEMS = 2
 MAX_CAROUSEL_ITEMS = 10
 
 
-def create_carousel_item(media_url: str, is_video: bool = False) -> tuple[str | None, str]:
+def create_carousel_item(media_url: str, is_video: bool = False) -> tuple[str | None, Motivo]:
     """Container HIJO de un carrusel. OJO: los hijos NO llevan caption."""
     campos: dict = {"is_carousel_item": "true"}
     if is_video:
@@ -186,14 +205,14 @@ def create_carousel_item(media_url: str, is_video: bool = False) -> tuple[str | 
     return _create_media(**campos)
 
 
-def create_carousel_container(children: list[str], caption: str) -> tuple[str | None, str]:
+def create_carousel_container(children: list[str], caption: str) -> tuple[str | None, Motivo]:
     """Container PADRE. El caption va SOLO aquí, nunca en los hijos."""
     return _create_media(
         media_type="CAROUSEL", children=",".join(children), caption=caption
     )
 
 
-def post_carousel(media_urls: list[str], caption: str) -> tuple[str | None, str]:
+def post_carousel(media_urls: list[str], caption: str) -> tuple[str | None, Motivo]:
     """Publica un carrusel de 2-10 imágenes. Devuelve (ig_media_id, mensaje).
 
     Si un hijo falla, se aborta sin crear el padre: mejor no publicar que
@@ -208,25 +227,29 @@ def post_carousel(media_urls: list[str], caption: str) -> tuple[str | None, str]
     for i, url in enumerate(media_urls, start=1):
         hijo, msg = create_carousel_item(url)
         if not hijo:
-            return None, f"hijo {i}/{n}: {msg}"
+            return None, _prefijar(msg, f"hijo {i}/{n}")
         # Cada hijo debe estar FINISHED antes de montar el padre; si no, el
         # padre falla con un error genérico imposible de diagnosticar.
         listo, msg = _wait_finished(hijo, attempts=8, interval=2.0)
         if not listo:
-            return None, f"hijo {i}/{n}: {msg}"
+            return None, _prefijar(msg, f"hijo {i}/{n}")
         hijos.append(hijo)
 
     padre, msg = create_carousel_container(hijos, caption)
     if not padre:
-        return None, f"container padre: {msg}"
+        return None, _prefijar(msg, "container padre")
     return publish(padre)
 
 
-def post_photo(image_url: str, caption: str) -> tuple[str | None, str]:
+def post_photo(image_url: str, caption: str) -> tuple[str | None, Motivo]:
     """Publica una foto de principio a fin. Devuelve (ig_media_id, mensaje)."""
-    container = create_container(image_url, caption)
+    container, msg = _create_media(image_url=image_url, caption=caption)
     if not container:
-        return None, "No se pudo crear el container"
+        # Antes esto pasaba por un `create_container` que se comía el motivo y
+        # devolvía "No se pudo crear el container" a secas: el error de Meta que
+        # explicaba POR QUÉ (y con él su código) no llegaba a la BD. Ese wrapper
+        # ya no existe; era su único usuario.
+        return None, msg
     return publish(container)
 
 

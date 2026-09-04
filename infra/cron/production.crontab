@@ -74,6 +74,20 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Email semanal de propuestas evergreen al admin. Lunes 09:50 UTC.
 50 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_evergreen >> /var/log/robelyrics-cron.log 2>&1
 
+# 09:20 UTC diario: ¿sigue publicando Instagram? Avisa por correo si Meta nos
+# está bloqueando, si llevamos IG_ALERT_STALE_H (48 h) sin publicar TENIENDO
+# cola, o si hay posts que agotaron sus intentos.
+#
+# Existe porque en agosto de 2026 la cuenta se restringió y estuvo ONCE DÍAS
+# parada en silencio: `publish_next` sale con exit 1 al fallar, pero ese código
+# se lo traga el cron y acaba en un log que no lee nadie. Va aparte del digest
+# de las 09:15 a propósito — aquel no manda nada si no hay erratas ni posts por
+# revisar, así que una caída de IG en semana tranquila quedaría silenciada.
+#
+# Silencio por defecto: firma en `notification_digests` con la sequía por tramos
+# (2/4/7/14/30 días), recordatorio cada 3 días.
+20 9 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_health >> /var/log/robelyrics-cron.log 2>&1
+
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)
 # ============================================================================

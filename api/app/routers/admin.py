@@ -2154,9 +2154,16 @@ class AdminIGUpdateIn(BaseModel):
 
 
 class AdminIGAccount(BaseModel):
+    # `ok` es solo LECTURA: que el token valga y la cuenta se pueda leer. Ojo,
+    # no implica que se pueda publicar — con la cuenta restringida en agosto de
+    # 2026 los GET seguían respondiendo y el panel enseñaba verde mientras el
+    # feed llevaba once días parado. Eso lo dice `puede_publicar`.
     ok: bool
     message: str
     username: str | None = None
+    puede_publicar: bool = True
+    bloqueo_motivo: str | None = None
+    bloqueo_desde: datetime | None = None
 
 
 def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
@@ -2495,7 +2502,9 @@ def admin_ig_publish(
         raise HTTPException(status_code=404, detail="item not found")
     if it.status == "published":
         raise HTTPException(status_code=409, detail="ya está publicado")
-    _ig_publisher.publish(db, it, dry_run=payload.dry_run)
+    # `force`: el cortacircuitos para al cron, no a una persona que le da al
+    # botón — es la forma de comprobar si Meta ya nos deja publicar.
+    _ig_publisher.publish(db, it, dry_run=payload.dry_run, force=True)
     return _ig_item_to_model(it)
 
 
@@ -2962,16 +2971,26 @@ def admin_ig_bulk_discard(
 
 @router.get("/instagram/account", response_model=AdminIGAccount)
 def admin_ig_account(
+    db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminIGAccount:
-    """Verifica token + que la cuenta IG sea realmente alcanzable.
+    """Estado real de la cuenta: si se puede LEER y si se puede PUBLICAR.
 
     No basta con que el token tenga scope: si el enlace IG↔Página se rompe,
-    `token_is_valid()` sigue dando verde pero no se puede publicar. Aquí se
-    hace una lectura real de la cuenta y se refleja el estado de verdad.
+    `token_is_valid()` sigue dando verde pero no se puede publicar. Y hay un
+    caso peor —la cuenta restringida por Meta— que NINGÚN GET detecta: el IG
+    Graph API no expone Account Quality, así que las lecturas responden con
+    normalidad mientras la publicación está bloqueada. Eso solo se sabe por los
+    fallos recientes de la cola, y es lo que trae `puede_publicar`.
     """
     ok, msg, username = _ig_graph.connection_is_healthy()
-    return AdminIGAccount(ok=ok, message=msg, username=username)
+    bloqueado, motivo, desde = _ig_publisher.publicacion_bloqueada(db)
+    return AdminIGAccount(
+        ok=ok, message=msg, username=username,
+        puede_publicar=not bloqueado,
+        bloqueo_motivo=motivo,
+        bloqueo_desde=desde,
+    )
 
 
 # --------------------------------------------------------------------------- #

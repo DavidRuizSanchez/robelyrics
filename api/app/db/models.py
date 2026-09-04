@@ -1436,6 +1436,13 @@ class InstagramQueueItem(Base):
     # cola hasta `MAX_PUBLISH_ATTEMPTS`, y solo los fallos que son culpa del item
     # gastan intento (una caída global de la conexión, no).
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Cuándo se intentó por última vez, y con qué código falló ("25/2207050").
+    # Juntas hacen dos cosas: espaciar los reintentos (`RETRY_COOLDOWN_H`, sin
+    # ellas el cron quemaba los 3 intentos en 45 minutos) y permitir deducir de
+    # la propia cola si Meta nos está bloqueando ahora mismo, sin un flag que
+    # alguien tenga que acordarse de apagar (`publisher.publicacion_bloqueada`).
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(24))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

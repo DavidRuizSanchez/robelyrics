@@ -172,4 +172,29 @@ def test_un_fallo_global_no_gasta_intento(db):
     for _ in range(5):
         publisher._marcar_fallo(db, it, "token caducado", quema_intento=False)
     assert it.attempts == 0
-    assert [x.id for x in [publisher.next_pending(db)]] == [it.id]
+    # Vuelve a la cola, pero no de inmediato: aunque no le cueste intentos,
+    # reintentar cada 15 minutos es lo que quemó la cola en agosto de 2026.
+    assert publisher.next_pending(db) is None
+    it.last_attempt_at = datetime.now(timezone.utc) - timedelta(
+        hours=config.RETRY_COOLDOWN_H, minutes=1
+    )
+    db.commit()
+    assert publisher.next_pending(db).id == it.id
+
+
+def test_un_fallo_reciente_espera_al_cooldown(db):
+    """El cron dispara cada 15 min y el guard de cadencia solo frena TRAS un
+    éxito: con todo fallando reintentaba 96 veces al día y los 3 intentos se
+    gastaban en 45 minutos, mucho antes de que la alerta diaria avisara."""
+    it = _add(db, status="prepared")
+    publisher._marcar_fallo(db, it, "Cloudinary: lo que sea")
+    assert it.attempts == 1
+    assert publisher.next_pending(db) is None
+    assert publisher.due_pinned(db) == []
+
+
+def test_pasado_el_cooldown_vuelve_a_la_cola(db):
+    it = _add(db, status="failed", attempts=1,
+              last_attempt_at=datetime.now(timezone.utc) - timedelta(
+                  hours=config.RETRY_COOLDOWN_H, minutes=1))
+    assert publisher.next_pending(db).id == it.id

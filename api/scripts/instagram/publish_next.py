@@ -29,10 +29,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 
 def _pending_count(db: Session) -> int:
+    """Cuántos posts esperan turno, para decidir si hay atasco.
+
+    Cuenta también los `failed` que conservan intentos: son cola igual. Mirando
+    solo pending/prepared, una cola de 47 rotos reportaba CERO pendientes, así
+    que el modo atasco no se activaba justo cuando más falta hacía.
+    """
     return db.execute(
-        select(func.count(InstagramQueueItem.id)).where(
-            InstagramQueueItem.status.in_(("pending", "prepared"))
-        )
+        select(func.count(InstagramQueueItem.id)).where(publisher._publicable())
     ).scalar_one()
 
 
@@ -71,6 +75,23 @@ def main() -> None:
     args = parser.parse_args()
 
     with SessionLocal() as db:
+        # ¿Nos está bloqueando Meta? Entonces no se toca nada: cada intento sube
+        # imágenes a Cloudinary y crea containers que van a ser rechazados. Se
+        # sale con 0, no con 1: es una pausa conocida, no un fallo del script.
+        # Quien avisa de esto es `notify_health` (cron 09:20).
+        #
+        # No hace falta sondear aparte para saber si ya se levantó: la ventana
+        # del cortacircuitos caduca sola y el siguiente intento real hace de
+        # sondeo. Son 4 intentos al día en vez de 96, y como las URLs de
+        # Cloudinary ya están persistidas, ninguno vuelve a subir nada.
+        bloqueado, motivo, desde = publisher.publicacion_bloqueada(db)
+        if bloqueado and not args.force:
+            logger.warning(
+                "Publicación bloqueada por Meta desde %s: %s. No se intenta nada.",
+                desde.isoformat() if desde else "?", motivo,
+            )
+            return
+
         # Efemérides cuyo día es HOY (aniversarios, cumpleaños): se publican su
         # día exacto, al margen del cuentagotas. Si hay alguna, se publica y no
         # se gotea también en este run (un movimiento por disparo del cron).
@@ -84,9 +105,14 @@ def main() -> None:
                     logger.error("Error: %s", res.error)
                 else:
                     n_ok += 1
-            if n_ok:
-                logger.info("Publicada(s) %d efeméride(s) de hoy.", n_ok)
-                return
+            # Se sale con o sin éxito: si las de hoy fallaron, gotear encima
+            # solo añade un fallo más a la misma causa (y sube más material a
+            # Cloudinary). Antes solo se salía con n_ok, así que cada disparo del
+            # cron intentaba los vencidos Y uno del goteo.
+            logger.info(
+                "Efemérides de hoy: %d publicada(s) de %d.", n_ok, len(pinned)
+            )
+            return
 
         item = publisher.next_pending(db)
         if item is None:
