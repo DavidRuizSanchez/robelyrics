@@ -15,6 +15,14 @@ from app.services.instagram.errors import MetaError
 
 logger = logging.getLogger(__name__)
 
+# La Graph API pide el token en la QUERY STRING, y httpx registra cada petición
+# con la URL entera: el `INSTAGRAM_ACCESS_TOKEN` acababa en claro en
+# /var/log/robelyrics-cron.log (8,4 MB, cada 15 minutos, y es un token de System
+# User que NO caduca y puede publicar). Cuatro scripts sueltos ya silenciaban
+# httpx a mano; se hace aquí porque es el único sitio por el que pasan todas las
+# llamadas —cron, panel y consola— y así no depende de que nadie se acuerde.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 GRAPH = "https://graph.facebook.com/v21.0"
 
 # Lo que devuelven estas funciones como "motivo": texto cuando es cosa nuestra,
@@ -28,15 +36,13 @@ def account_info() -> dict:
         resp = client.get(
             f"{GRAPH}/{config.INSTAGRAM_ACCOUNT_ID}",
             params={
-                # `content_publishing_limit` es la ÚNICA señal read-only que
-                # detecta un bloqueo global antes de gastar Cloudinary: dice si
-                # se agotó la cuota de 25 posts/24 h. La restricción de cuenta
-                # NO se ve por aquí (ni por ningún GET: el IG Graph API no
-                # expone Account Quality), y por eso hace falta el cortacircuitos.
-                "fields": (
-                    "username,name,followers_count,media_count,"
-                    "content_publishing_limit{config,quota_usage}"
-                ),
+                # NO añadir aquí `content_publishing_limit`: como campo anidado
+                # Meta responde 500 («An unknown error has occurred», code 1) y
+                # tumba el health check entero. Solo existe como edge aparte
+                # (`/{ig-id}/content_publishing_limit`), y no compensa una
+                # petición extra por publicación: la cuota agotada llega como
+                # `9/2207042` y `errors` ya la clasifica como global.
+                "fields": "username,name,followers_count,media_count",
                 "access_token": config.INSTAGRAM_ACCESS_TOKEN,
             },
         )
