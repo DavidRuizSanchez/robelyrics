@@ -1,17 +1,17 @@
 {
  "site": "sc-domain:entreinteriores.com",
  "period": {
-  "start": "2026-05-08",
-  "end": "2026-07-31"
+  "start": "2026-05-15",
+  "end": "2026-08-07"
  },
  "pages": {
   "/personas/woody-amores": [
    {
     "query": "woody amores",
-    "impressions": 297,
-    "clicks": 22,
-    "position": 6.0,
-    "ctr": 0.0741
+    "impressions": 342,
+    "clicks": 25,
+    "position": 5.9,
+    "ctr": 0.0731
    },
    {
     "query": "woody robe",
@@ -36,16 +36,16 @@
    },
    {
     "query": "woody amores wikipedia",
-    "impressions": 3,
+    "impressions": 4,
     "clicks": 0,
-    "position": 5.0,
+    "position": 5.2,
     "ctr": 0.0
    },
    {
     "query": "woody guitarra",
-    "impressions": 2,
+    "impressions": 3,
     "clicks": 0,
-    "position": 9.5,
+    "position": 8.7,
     "ctr": 0.0
    },
    {
@@ -59,17 +59,17 @@
   "/personas/inaki-milindris": [
    {
     "query": "iñaki milindris setién",
-    "impressions": 70,
+    "impressions": 92,
     "clicks": 2,
-    "position": 3.2,
-    "ctr": 0.0286
+    "position": 2.9,
+    "ctr": 0.0217
    },
    {
     "query": "iñaki setien",
-    "impressions": 62,
-    "clicks": 13,
-    "position": 3.1,
-    "ctr": 0.2097
+    "impressions": 76,
+    "clicks": 15,
+    "position": 3.0,
+    "ctr": 0.1974
    },
    {
     "query": "milindris",
@@ -86,40 +86,105 @@
     "ctr": 0.0
    }
   ],
+  "/personas/david-lerman": [
+   {
+    "query": "david lerman",
+    "impressions": 341,
+    "clicks": 7,
+    "position": 8.0,
+    "ctr": 0.0205
+   },
+   {
+    "query": "david lerman robe",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 6.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "dave lerman",
+    "impressions": 10,
+    "clicks": 0,
+    "position": 7.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "david lerman wikipedia",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 11.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "david robe",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 7.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "lerman",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "bas lerman",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 17.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "de su hermano",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupo robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   }
+  ],
   "/": [
    {
     "query": "entre interiores",
-    "impressions": 789,
+    "impressions": 796,
     "clicks": 5,
-    "position": 7.5,
+    "position": 7.9,
     "ctr": 0.0063
    },
    {
     "query": "letras de extremoduro entre interiores",
-    "impressions": 47,
+    "impressions": 72,
     "clicks": 0,
-    "position": 11.2,
+    "position": 11.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro entre interiores",
+    "impressions": 57,
+    "clicks": 0,
+    "position": 10.0,
     "ctr": 0.0
    },
    {
     "query": "entre interiores extremoduro",
-    "impressions": 36,
+    "impressions": 46,
     "clicks": 0,
     "position": 10.2,
     "ctr": 0.0
    },
    {
-    "query": "extremoduro entre interiores",
-    "impressions": 36,
-    "clicks": 0,
-    "position": 10.8,
-    "ctr": 0.0
-   },
-   {
     "query": "entre interiores letra",
-    "impressions": 17,
+    "impressions": 19,
     "clicks": 0,
-    "position": 13.9,
+    "position": 13.8,
     "ctr": 0.0
    },
    {
@@ -131,16 +196,16 @@
    },
    {
     "query": "entre barrotes",
-    "impressions": 8,
+    "impressions": 9,
     "clicks": 0,
-    "position": 70.0,
+    "position": 69.8,
     "ctr": 0.0
    },
    {
     "query": "entre interiores acordes",
-    "impressions": 5,
+    "impressions": 6,
     "clicks": 0,
-    "position": 15.2,
+    "position": 14.3,
     "ctr": 0.0
    },
    {
@@ -193,6 +258,13 @@
     "ctr": 0.0
    },
    {
+    "query": "que más significa",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
     "query": "quiero decirte en silencio que sobran palabras que faltan momentos",
     "impressions": 1,
     "clicks": 0,
@@ -203,31 +275,31 @@
   "/personas/miguel-colino": [
    {
     "query": "miguel colino",
-    "impressions": 596,
+    "impressions": 704,
     "clicks": 5,
     "position": 5.4,
-    "ctr": 0.0084
+    "ctr": 0.0071
    },
    {
     "query": "bajista extremoduro",
-    "impressions": 34,
+    "impressions": 39,
     "clicks": 0,
-    "position": 7.7,
+    "position": 7.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "bajista de extremoduro",
+    "impressions": 28,
+    "clicks": 0,
+    "position": 8.2,
     "ctr": 0.0
    },
    {
     "query": "miguel colino extremoduro",
-    "impressions": 22,
+    "impressions": 23,
     "clicks": 1,
     "position": 5.1,
-    "ctr": 0.0455
-   },
-   {
-    "query": "bajista de extremoduro",
-    "impressions": 22,
-    "clicks": 0,
-    "position": 8.7,
-    "ctr": 0.0
+    "ctr": 0.0435
    },
    {
     "query": "mikel kolino",
@@ -244,71 +316,48 @@
     "ctr": 1.0
    },
    {
+    "query": "colino",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
     "query": "componentes extremoduro",
     "impressions": 1,
     "clicks": 0,
     "position": 4.0,
     "ctr": 0.0
-   }
-  ],
-  "/personas/david-lerman": [
-   {
-    "query": "david lerman",
-    "impressions": 245,
-    "clicks": 4,
-    "position": 8.3,
-    "ctr": 0.0163
    },
    {
-    "query": "dave lerman",
-    "impressions": 9,
-    "clicks": 0,
-    "position": 7.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "david lerman robe",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 9.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "david lerman wikipedia",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 11.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "david robe",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 7.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "lerman",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupo robe",
+    "query": "dime de dónde es",
     "impressions": 1,
     "clicks": 0,
-    "position": 2.0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si explicame eso",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si origen",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
     "ctr": 0.0
    }
   ],
   "/personas/carlitos-perez": [
    {
     "query": "carlitos perez robe",
-    "impressions": 20,
-    "clicks": 3,
-    "position": 6.2,
-    "ctr": 0.15
+    "impressions": 23,
+    "clicks": 4,
+    "position": 6.1,
+    "ctr": 0.1739
    },
    {
     "query": "carlos perez cantante",
@@ -335,10 +384,10 @@
   "/blog/las-frases-de-amor-mas-memorables-de-robe-y-extremoduro": [
    {
     "query": "frases de robe",
-    "impressions": 44,
+    "impressions": 45,
     "clicks": 1,
-    "position": 7.8,
-    "ctr": 0.0227
+    "position": 7.7,
+    "ctr": 0.0222
    },
    {
     "query": "frases extremoduro",
@@ -390,6 +439,13 @@
     "ctr": 0.4
    },
    {
+    "query": "frases de robe iniesta",
+    "impressions": 5,
+    "clicks": 1,
+    "position": 5.4,
+    "ctr": 0.2
+   },
+   {
     "query": "extremoduro frases",
     "impressions": 5,
     "clicks": 0,
@@ -418,6 +474,13 @@
     "ctr": 0.0
    },
    {
+    "query": "letras de roberto iniesta primer movimiento: después de la catarsis",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
     "query": "robe iniesta frases",
     "impressions": 3,
     "clicks": 0,
@@ -429,13 +492,6 @@
     "impressions": 2,
     "clicks": 1,
     "position": 3.5,
-    "ctr": 0.5
-   },
-   {
-    "query": "frases de robe iniesta",
-    "impressions": 2,
-    "clicks": 1,
-    "position": 9.5,
     "ctr": 0.5
    },
    {
@@ -481,6 +537,13 @@
     "ctr": 0.0
    },
    {
+    "query": "ahora es cuando robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
     "query": "frases bonitas de extremoduro",
     "impressions": 1,
     "clicks": 0,
@@ -507,364 +570,77 @@
     "clicks": 0,
     "position": 10.0,
     "ctr": 0.0
-   }
-  ],
-  "/personas/jaime-moreno": [
-   {
-    "query": "jaime moreno rebrote",
-    "impressions": 8,
-    "clicks": 2,
-    "position": 5.0,
-    "ctr": 0.25
    },
    {
-    "query": "jaime moreno cantante",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 10.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "cantante de rebrote",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "jaime moreno cantante rebrote",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 7.0,
-    "ctr": 0.0
-   }
-  ],
-  "/personas/mikel-irazoki": [
-   {
-    "query": "mikel irazoki",
-    "impressions": 20,
-    "clicks": 2,
-    "position": 6.6,
-    "ctr": 0.1
-   },
-   {
-    "query": "bajista de extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 11.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "bajista extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   }
-  ],
-  "/robe/mayeutica/interludio": [
-   {
-    "query": "letras de roberto iniesta interludio",
-    "impressions": 373,
-    "clicks": 2,
-    "position": 7.8,
-    "ctr": 0.0054
-   },
-   {
-    "query": "interludio robe",
-    "impressions": 265,
-    "clicks": 0,
-    "position": 9.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "dejo las ventanas sin cerrar y la puerta abierta",
-    "impressions": 112,
-    "clicks": 1,
-    "position": 8.8,
-    "ctr": 0.0089
-   },
-   {
-    "query": "dejo las ventanas sin cerrar",
-    "impressions": 89,
-    "clicks": 0,
-    "position": 7.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio robe letra",
-    "impressions": 74,
-    "clicks": 0,
-    "position": 8.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "roberto iniesta interludio",
-    "impressions": 52,
-    "clicks": 0,
-    "position": 8.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "dejo la ventana sin cerrar",
-    "impressions": 45,
-    "clicks": 0,
-    "position": 7.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio robe significado",
-    "impressions": 45,
-    "clicks": 0,
-    "position": 4.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio",
-    "impressions": 38,
-    "clicks": 0,
-    "position": 14.9,
-    "ctr": 0.0
-   },
-   {
-    "query": "dejo la ventana sin cerrar y la puerta abierta",
-    "impressions": 35,
-    "clicks": 0,
-    "position": 7.9,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe interludio",
-    "impressions": 27,
-    "clicks": 1,
-    "position": 8.2,
-    "ctr": 0.037
-   },
-   {
-    "query": "interludio extremoduro",
-    "impressions": 21,
-    "clicks": 0,
-    "position": 6.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio letra",
-    "impressions": 19,
-    "clicks": 0,
-    "position": 9.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "letra interludio robe",
-    "impressions": 18,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "dejo las canciones sin final",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "letra mayeutica",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 8.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "dejo la puerta abierta por si decides volver robe",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 9.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "mayeutica letra completa",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 8.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "roberto iniesta interludio lyrics",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "letra interludio",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "y dejo las canciones sin final",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "de robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 4.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio acordes",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 16.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio literario",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 17.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio robe acordes",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 19.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "interludio significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 57.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "mayeutica letra",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "que se joda voy all in",
+    "query": "letras de extremoduro golfa",
     "impressions": 1,
     "clicks": 0,
     "position": 2.0,
     "ctr": 0.0
    },
    {
-    "query": "si",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 1.0,
-    "ctr": 0.0
-   }
-  ],
-  "/blog/robe-frases-iconicas-y-su-significado-profundo": [
-   {
-    "query": "donde se rompen las olas robe significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 8.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "frases robe amor",
-    "impressions": 2,
-    "clicks": 1,
-    "position": 11.0,
-    "ctr": 0.5
-   },
-   {
-    "query": "frases de canciones de robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "frases robe",
+    "query": "letras de robe iniesta",
     "impressions": 1,
     "clicks": 0,
     "position": 4.0,
     "ctr": 0.0
    },
    {
-    "query": "robe significado",
+    "query": "letras de roberto iniesta interludio",
     "impressions": 1,
     "clicks": 0,
-    "position": 11.0,
-    "ctr": 0.0
-   }
-  ],
-  "/blog/rosendo-mercado-pilar-del-rock-espanol-y-su-influencia-en-robe": [
-   {
-    "query": "rosendo robe",
-    "impressions": 2,
-    "clicks": 1,
     "position": 3.0,
-    "ctr": 0.5
+    "ctr": 0.0
    },
    {
-    "query": "rosendo y robe",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   }
-  ],
-  "/conceptos/el-sol-y-la-nube": [
-   {
-    "query": "sol de invierno extremoduro significado",
-    "impressions": 14,
-    "clicks": 1,
-    "position": 8.1,
-    "ctr": 0.0714
-   }
-  ],
-  "/conceptos/el-viento": [
-   {
-    "query": "con el viento",
+    "query": "letras de roberto iniesta puntos suspensivos",
     "impressions": 1,
-    "clicks": 1,
-    "position": 7.0,
-    "ctr": 1.0
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de roberto iniesta segundo movimiento: mierda de filosofía",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "poemas de robe iniesta",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
    }
   ],
   "/conceptos/la-amapola": [
    {
     "query": "amapola extremoduro",
-    "impressions": 47,
-    "clicks": 0,
-    "position": 9.2,
-    "ctr": 0.0
+    "impressions": 64,
+    "clicks": 1,
+    "position": 9.5,
+    "ctr": 0.0156
    },
    {
     "query": "amapola robe",
-    "impressions": 30,
-    "clicks": 1,
-    "position": 8.8,
-    "ctr": 0.0333
+    "impressions": 36,
+    "clicks": 2,
+    "position": 8.7,
+    "ctr": 0.0556
    },
    {
     "query": "extremoduro amapola",
-    "impressions": 21,
+    "impressions": 35,
     "clicks": 1,
-    "position": 8.8,
-    "ctr": 0.0476
+    "position": 9.0,
+    "ctr": 0.0286
    },
    {
     "query": "ojalá que se llame amapola significado",
-    "impressions": 15,
+    "impressions": 18,
     "clicks": 0,
-    "position": 6.2,
+    "position": 6.3,
     "ctr": 0.0
    },
    {
@@ -889,6 +665,13 @@
     "ctr": 0.0
    },
    {
+    "query": "robe amapola",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
     "query": "amapola roja significado",
     "impressions": 2,
     "clicks": 0,
@@ -903,17 +686,24 @@
     "ctr": 0.0
    },
    {
-    "query": "robe amapola",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
     "query": "significado de las amapolas",
     "impressions": 2,
     "clicks": 0,
     "position": 44.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ama ama y ensancha el alma significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 63.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "amapola",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
     "ctr": 0.0
    },
    {
@@ -924,10 +714,31 @@
     "ctr": 0.0
    },
    {
+    "query": "hay más",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ojala que se llame amapola",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
     "query": "ojala que se llame amapola significado",
     "impressions": 1,
     "clicks": 0,
     "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ojalá que se llame amapola",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
@@ -952,836 +763,13 @@
     "ctr": 0.0
    }
   ],
-  "/extremoduro/la-ley-innata": [
-   {
-    "query": "la ley innata significado",
-    "impressions": 11,
-    "clicks": 0,
-    "position": 37.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "ley innata",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 35.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "ley innata cicerón significado",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 36.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "que es la ley innata",
-    "impressions": 3,
-    "clicks": 1,
-    "position": 41.3,
-    "ctr": 0.3333
-   },
-   {
-    "query": "la ley innata extremoduro significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 43.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "ley innata extremoduro significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 39.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "ley innata significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 35.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "portada ley innata significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 25.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro 2008",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 31.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro la ley innata canciones",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 25.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "la ley innata",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 20.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "la ley innata portada",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 18.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "portada ley innata",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 19.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "candlelight la ley innata",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 5.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "existe de hecho jueces una ley no escrita sino innata",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 51.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro ley",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 36.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "innata que es",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 59.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "ley innata ciceron",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 30.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "más",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 4.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "que dice la portada de la ley innata",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 12.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "si",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 4.0,
-    "ctr": 0.0
-   }
-  ],
-  "/extremoduro/para-todos-los-publicos/locura-transitoria": [
-   {
-    "query": "locura transitoria significado",
-    "impressions": 19,
-    "clicks": 1,
-    "position": 8.0,
-    "ctr": 0.0526
-   },
-   {
-    "query": "locura transitoria extremoduro significado",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 9.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "locura transitoria letra",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 3.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "locura transitoria que es",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   }
-  ],
-  "/grupos": [
-   {
-    "query": "grupos parecidos a extremoduro",
-    "impressions": 78,
-    "clicks": 1,
-    "position": 5.7,
-    "ctr": 0.0128
-   },
-   {
-    "query": "grupos similares a extremoduro",
-    "impressions": 37,
-    "clicks": 0,
-    "position": 6.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupo parecido a extremoduro",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupos parecidos a marea",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 12.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupos afines",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupos parecidos",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupos tributo a extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 5.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "más",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 4.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "tributo a extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 3.0,
-    "ctr": 0.0
-   }
-  ],
-  "/grupos/barricada": [
-   {
-    "query": "miembros de barricada",
-    "impressions": 253,
-    "clicks": 0,
-    "position": 7.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada grupo",
-    "impressions": 200,
-    "clicks": 0,
-    "position": 9.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupo barricada",
-    "impressions": 128,
-    "clicks": 1,
-    "position": 9.8,
-    "ctr": 0.0078
-   },
-   {
-    "query": "barricada",
-    "impressions": 120,
-    "clicks": 1,
-    "position": 13.3,
-    "ctr": 0.0083
-   },
-   {
-    "query": "barricada banda",
-    "impressions": 118,
-    "clicks": 1,
-    "position": 9.2,
-    "ctr": 0.0085
-   },
-   {
-    "query": "barricada wikipedia",
-    "impressions": 52,
-    "clicks": 0,
-    "position": 8.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada de donde son",
-    "impressions": 46,
-    "clicks": 1,
-    "position": 5.7,
-    "ctr": 0.0217
-   },
-   {
-    "query": "barricada grupo musical",
-    "impressions": 39,
-    "clicks": 0,
-    "position": 10.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada miembros",
-    "impressions": 38,
-    "clicks": 0,
-    "position": 6.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "alfredo piedrafita wikipedia",
-    "impressions": 28,
-    "clicks": 0,
-    "position": 10.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada wiki",
-    "impressions": 23,
-    "clicks": 0,
-    "position": 7.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupo musical barricada",
-    "impressions": 22,
-    "clicks": 0,
-    "position": 12.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "componentes de barricada",
-    "impressions": 17,
-    "clicks": 0,
-    "position": 10.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "de donde es barricada",
-    "impressions": 15,
-    "clicks": 0,
-    "position": 7.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada componentes",
-    "impressions": 14,
-    "clicks": 0,
-    "position": 10.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "la barricada",
-    "impressions": 14,
-    "clicks": 0,
-    "position": 19.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada rock",
-    "impressions": 13,
-    "clicks": 0,
-    "position": 13.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "cantante barricada",
-    "impressions": 11,
-    "clicks": 0,
-    "position": 21.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada integrantes",
-    "impressions": 10,
-    "clicks": 0,
-    "position": 7.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "componentes barricada",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 8.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "alfredo piedrafita",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 3.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "de donde son barricada",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 6.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "de dónde es el grupo barricada",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 5.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "banda barricada",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 6.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada que es",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 46.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "cantante de barricada",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 25.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "foro de barricada",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 32.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "fotos de barricada",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 26.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "que es barricada",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 39.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada cantante",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 23.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada definicion",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 33.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "fotos barricada",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 30.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "barrikada",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 38.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada 25 años",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 47.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada band",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada significado",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 52.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "foro barricada",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 27.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricad",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 42.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada blanco y negro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 3.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada ideologia",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 18.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricada y extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricadas significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 42.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricafa",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 13.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "barricida",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 1.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "cómo se llama el cantante de barricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 34.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "el trompo barricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 4.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "grupos navarros de los 80",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 1.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "los apandadores",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 2.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "primer disco de barricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 11.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "que es una barricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 59.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "que significa barricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 53.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "varricada",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 14.0,
-    "ctr": 0.0
-   }
-  ],
-  "/grupos/los-dogos": [
-   {
-    "query": "los dogos plasencia",
-    "impressions": 3,
-    "clicks": 1,
-    "position": 5.0,
-    "ctr": 0.3333
-   },
-   {
-    "query": "los dogos",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 5.5,
-    "ctr": 0.0
-   }
-  ],
-  "/grupos/los-ninos-de-los-ojos-rojos": [
-   {
-    "query": "los niños de los ojos rojos componentes",
-    "impressions": 34,
-    "clicks": 1,
-    "position": 8.5,
-    "ctr": 0.0294
-   },
-   {
-    "query": "niños ojos rojos",
-    "impressions": 12,
-    "clicks": 0,
-    "position": 37.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "los niños de los ojos rojos integrantes",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 8.9,
-    "ctr": 0.0
-   },
-   {
-    "query": "niños de los ojos rojos",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 54.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "los niños de los ojos rojos",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 37.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "david lerman wikipedia",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 11.0,
-    "ctr": 0.0
-   }
-  ],
-  "/lugares/la-mancha": [
-   {
-    "query": "pepe botika quien es",
-    "impressions": 33,
-    "clicks": 1,
-    "position": 7.7,
-    "ctr": 0.0303
-   },
-   {
-    "query": "carabanchel la modelo herrera de la mancha",
-    "impressions": 11,
-    "clicks": 0,
-    "position": 11.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "pepe botica",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 20.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "pepe botika",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 18.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "quien es pepe botika",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 8.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "historia real",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   }
-  ],
-  "/personas": [
-   {
-    "query": "miembros de extremoduro",
-    "impressions": 93,
-    "clicks": 0,
-    "position": 10.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro integrantes",
-    "impressions": 40,
-    "clicks": 0,
-    "position": 8.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "integrantes de extremoduro",
-    "impressions": 24,
-    "clicks": 0,
-    "position": 8.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "integrantes extremoduro",
-    "impressions": 22,
-    "clicks": 0,
-    "position": 9.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro miembros",
-    "impressions": 13,
-    "clicks": 0,
-    "position": 12.9,
-    "ctr": 0.0
-   },
-   {
-    "query": "componentes de extremoduro",
-    "impressions": 11,
-    "clicks": 1,
-    "position": 8.9,
-    "ctr": 0.0909
-   },
-   {
-    "query": "miembros extremoduro",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 10.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "entre interiores",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 46.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "entre interiores letra",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 37.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro componentes",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 12.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro entre interiores",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 44.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "musicos de robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 73.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "musicos robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 73.0,
-    "ctr": 0.0
-   }
-  ],
-  "/personas/alvaro-rodriguez-barroso": [
-   {
-    "query": "álvaro rodríguez barroso",
-    "impressions": 5,
-    "clicks": 1,
-    "position": 10.8,
-    "ctr": 0.2
-   },
-   {
-    "query": "alvaro rodriguez barroso",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 12.8,
-    "ctr": 0.0
-   }
-  ],
   "/personas/ara-malikian": [
    {
     "query": "ara malikian extremoduro",
-    "impressions": 40,
-    "clicks": 1,
-    "position": 6.4,
-    "ctr": 0.025
+    "impressions": 52,
+    "clicks": 2,
+    "position": 6.2,
+    "ctr": 0.0385
    },
    {
     "query": "ara malikian",
@@ -1792,9 +780,9 @@
    },
    {
     "query": "ara malikian edad",
-    "impressions": 4,
+    "impressions": 6,
     "clicks": 0,
-    "position": 50.0,
+    "position": 48.7,
     "ctr": 0.0
    },
    {
@@ -1945,6 +933,1631 @@
     "ctr": 0.0
    }
   ],
+  "/personas/jaime-moreno": [
+   {
+    "query": "jaime moreno rebrote",
+    "impressions": 8,
+    "clicks": 2,
+    "position": 5.0,
+    "ctr": 0.25
+   },
+   {
+    "query": "jaime moreno cantante",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 10.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "cantante de rebrote",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "jaime moreno cantante rebrote",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   }
+  ],
+  "/personas/mikel-irazoki": [
+   {
+    "query": "mikel irazoki",
+    "impressions": 20,
+    "clicks": 2,
+    "position": 6.6,
+    "ctr": 0.1
+   },
+   {
+    "query": "bajista de extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "bajista extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   }
+  ],
+  "/robe/mayeutica/interludio": [
+   {
+    "query": "letras de roberto iniesta interludio",
+    "impressions": 373,
+    "clicks": 2,
+    "position": 7.8,
+    "ctr": 0.0054
+   },
+   {
+    "query": "interludio robe",
+    "impressions": 340,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "dejo las ventanas sin cerrar y la puerta abierta",
+    "impressions": 150,
+    "clicks": 1,
+    "position": 8.2,
+    "ctr": 0.0067
+   },
+   {
+    "query": "dejo las ventanas sin cerrar",
+    "impressions": 95,
+    "clicks": 0,
+    "position": 7.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio robe letra",
+    "impressions": 90,
+    "clicks": 0,
+    "position": 8.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "dejo la ventana sin cerrar",
+    "impressions": 54,
+    "clicks": 0,
+    "position": 7.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio robe significado",
+    "impressions": 53,
+    "clicks": 0,
+    "position": 4.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "roberto iniesta interludio",
+    "impressions": 52,
+    "clicks": 0,
+    "position": 8.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio",
+    "impressions": 47,
+    "clicks": 0,
+    "position": 15.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "dejo la ventana sin cerrar y la puerta abierta",
+    "impressions": 45,
+    "clicks": 0,
+    "position": 7.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe interludio",
+    "impressions": 34,
+    "clicks": 1,
+    "position": 7.8,
+    "ctr": 0.0294
+   },
+   {
+    "query": "interludio extremoduro",
+    "impressions": 24,
+    "clicks": 0,
+    "position": 6.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio letra",
+    "impressions": 24,
+    "clicks": 0,
+    "position": 10.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra interludio robe",
+    "impressions": 18,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "dejo las canciones sin final",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra mayeutica",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 8.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "dejo la puerta abierta por si decides volver robe",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "mayeutica letra completa",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 8.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "roberto iniesta interludio lyrics",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra interludio",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "y dejo las canciones sin final",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "de robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio acordes",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 16.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio literario",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 17.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio robe acordes",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 19.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "interludio significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 57.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "mayeutica letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que se joda voy all in",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que significa la canción",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   }
+  ],
+  "/blog/robe-frases-iconicas-y-su-significado-profundo": [
+   {
+    "query": "donde se rompen las olas robe significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "frases robe amor",
+    "impressions": 2,
+    "clicks": 1,
+    "position": 11.0,
+    "ctr": 0.5
+   },
+   {
+    "query": "frases de canciones de robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "frases robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   }
+  ],
+  "/blog/rosendo-mercado-pilar-del-rock-espanol-y-su-influencia-en-robe": [
+   {
+    "query": "rosendo",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 10.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "rosendo grupo musical",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "rosendo robe",
+    "impressions": 2,
+    "clicks": 1,
+    "position": 3.0,
+    "ctr": 0.5
+   },
+   {
+    "query": "rosendo y robe",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupo de rosendo",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe y rosendo",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "rosendo cantante español",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 16.0,
+    "ctr": 0.0
+   }
+  ],
+  "/conceptos/el-sol-y-la-nube": [
+   {
+    "query": "sol de invierno extremoduro significado",
+    "impressions": 14,
+    "clicks": 1,
+    "position": 8.1,
+    "ctr": 0.0714
+   }
+  ],
+  "/conceptos/el-viento": [
+   {
+    "query": "con el viento",
+    "impressions": 1,
+    "clicks": 1,
+    "position": 7.0,
+    "ctr": 1.0
+   }
+  ],
+  "/discografia/robe": [
+   {
+    "query": "robe discografia",
+    "impressions": 59,
+    "clicks": 0,
+    "position": 9.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografia robe",
+    "impressions": 39,
+    "clicks": 1,
+    "position": 9.6,
+    "ctr": 0.0256
+   },
+   {
+    "query": "robe iniesta discografia",
+    "impressions": 30,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografia robe iniesta",
+    "impressions": 27,
+    "clicks": 0,
+    "position": 9.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos robe",
+    "impressions": 25,
+    "clicks": 0,
+    "position": 8.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe discos",
+    "impressions": 25,
+    "clicks": 0,
+    "position": 8.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos de robe",
+    "impressions": 20,
+    "clicks": 0,
+    "position": 9.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos de robe en solitario",
+    "impressions": 19,
+    "clicks": 0,
+    "position": 6.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía robe",
+    "impressions": 18,
+    "clicks": 0,
+    "position": 9.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía robe iniesta",
+    "impressions": 16,
+    "clicks": 0,
+    "position": 9.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "portadas discos robe",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe albumes",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 7.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe discos en solitario",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 10.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe iniesta discos",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 12.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografia de robe iniesta",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos de robe iniesta",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos robe iniesta",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 10.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía de robe",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 8.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe iniesta disco",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 19.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "roberto iniesta discografia",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 13.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "cuántos discos tiene robe en solitario",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía de robe iniesta",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco de robe",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 25.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "disco robe",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "disco robe iniesta",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 25.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos robe en solitario",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe discografía",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "albumes robe",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 6.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "disco de robe iniesta",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 14.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe albums",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe iniesta albums",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "álbumes de roberto iniesta",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "portada disco robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 14.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe album",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 19.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe wiki",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 21.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco de robe iniesta",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 37.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 18.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "último disco de robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 36.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/deltoya": [
+   {
+    "query": "deltoya significado",
+    "impressions": 219,
+    "clicks": 0,
+    "position": 9.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "que significa deltoya",
+    "impressions": 26,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "deltoya",
+    "impressions": 10,
+    "clicks": 0,
+    "position": 12.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "deltoya portada",
+    "impressions": 6,
+    "clicks": 1,
+    "position": 8.3,
+    "ctr": 0.1667
+   },
+   {
+    "query": "que es deltoya",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 6.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "un madero mil lapiceros",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 37.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "deltoya album",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 23.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "del ya",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "deltoya disco",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 18.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "dime los significados",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "disco deltoya",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 32.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "dj deltoya",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "dro studio",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 28.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro deltoya letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "sí",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "venga vale",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/la-ley-innata": [
+   {
+    "query": "la ley innata significado",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 34.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "ley innata",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 28.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ley innata extremoduro significado",
+    "impressions": 4,
+    "clicks": 1,
+    "position": 31.5,
+    "ctr": 0.25
+   },
+   {
+    "query": "que es la ley innata",
+    "impressions": 4,
+    "clicks": 1,
+    "position": 41.2,
+    "ctr": 0.25
+   },
+   {
+    "query": "ley innata cicerón significado",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 36.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "la ley innata",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 23.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "la ley innata extremoduro significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 43.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "ley innata significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 35.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "portada ley innata significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 25.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro 2008",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 31.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro la ley innata canciones",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 25.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "la ley innata portada",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 18.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "portada ley innata",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 19.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que dice la portada de la ley innata",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "candlelight la ley innata",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "existe de hecho jueces una ley no escrita sino innata",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 51.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro ley",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 36.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "innata que es",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 59.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ley innata ciceron",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 30.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "más",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/para-todos-los-publicos/locura-transitoria": [
+   {
+    "query": "locura transitoria significado",
+    "impressions": 19,
+    "clicks": 1,
+    "position": 8.0,
+    "ctr": 0.0526
+   },
+   {
+    "query": "locura transitoria extremoduro significado",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 9.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "locura transitoria letra",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 3.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "locura transitoria que es",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   }
+  ],
+  "/grupos": [
+   {
+    "query": "grupos parecidos a extremoduro",
+    "impressions": 87,
+    "clicks": 1,
+    "position": 5.6,
+    "ctr": 0.0115
+   },
+   {
+    "query": "grupos similares a extremoduro",
+    "impressions": 39,
+    "clicks": 0,
+    "position": 6.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupo parecido a extremoduro",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupos parecidos a marea",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 12.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupos afines",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupos parecidos",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupos tributo a extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "más",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "tributo a extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   }
+  ],
+  "/grupos/barricada": [
+   {
+    "query": "miembros de barricada",
+    "impressions": 268,
+    "clicks": 0,
+    "position": 6.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada grupo",
+    "impressions": 248,
+    "clicks": 0,
+    "position": 9.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupo barricada",
+    "impressions": 147,
+    "clicks": 1,
+    "position": 9.7,
+    "ctr": 0.0068
+   },
+   {
+    "query": "barricada banda",
+    "impressions": 131,
+    "clicks": 1,
+    "position": 9.1,
+    "ctr": 0.0076
+   },
+   {
+    "query": "barricada",
+    "impressions": 130,
+    "clicks": 1,
+    "position": 13.3,
+    "ctr": 0.0077
+   },
+   {
+    "query": "barricada wikipedia",
+    "impressions": 59,
+    "clicks": 0,
+    "position": 8.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada de donde son",
+    "impressions": 52,
+    "clicks": 1,
+    "position": 5.6,
+    "ctr": 0.0192
+   },
+   {
+    "query": "barricada grupo musical",
+    "impressions": 45,
+    "clicks": 0,
+    "position": 10.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada miembros",
+    "impressions": 43,
+    "clicks": 0,
+    "position": 6.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "alfredo piedrafita wikipedia",
+    "impressions": 36,
+    "clicks": 0,
+    "position": 10.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada wiki",
+    "impressions": 25,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupo musical barricada",
+    "impressions": 23,
+    "clicks": 0,
+    "position": 12.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "alfredo piedrafita",
+    "impressions": 20,
+    "clicks": 0,
+    "position": 3.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "componentes de barricada",
+    "impressions": 17,
+    "clicks": 0,
+    "position": 10.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada componentes",
+    "impressions": 15,
+    "clicks": 0,
+    "position": 10.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "de donde es barricada",
+    "impressions": 15,
+    "clicks": 0,
+    "position": 7.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "la barricada",
+    "impressions": 15,
+    "clicks": 0,
+    "position": 18.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "cantante barricada",
+    "impressions": 14,
+    "clicks": 0,
+    "position": 21.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada rock",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 13.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada integrantes",
+    "impressions": 10,
+    "clicks": 0,
+    "position": 7.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada que es",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 44.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "que es barricada",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 39.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "cantante de barricada",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 32.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "componentes barricada",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "de donde son barricada",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 6.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "de dónde es el grupo barricada",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 5.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "foro de barricada",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 31.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "fotos de barricada",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 26.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "banda barricada",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 6.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada cantante",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 23.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada definicion",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 33.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "fotos barricada",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 30.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 55.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricadas significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 50.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "barrikada",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 38.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "que es una barricada",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 58.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada 25 años",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 47.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada band",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada y extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 5.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "foro barricada",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 27.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "alfredo barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricad",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 42.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada blanco y negro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada discografia",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 34.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada ideologia",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 18.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricada logo",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 25.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricafa",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "barricida",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "cómo se llama el cantante de barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 34.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "el boni barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "el trompo barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "grupos navarros de los 80",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "los apandadores",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "primer disco de barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que significa barricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 53.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "varricada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 14.0,
+    "ctr": 0.0
+   }
+  ],
+  "/grupos/los-dogos": [
+   {
+    "query": "los dogos plasencia",
+    "impressions": 3,
+    "clicks": 1,
+    "position": 5.0,
+    "ctr": 0.3333
+   },
+   {
+    "query": "los dogos",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 5.5,
+    "ctr": 0.0
+   }
+  ],
+  "/grupos/los-ninos-de-los-ojos-rojos": [
+   {
+    "query": "los niños de los ojos rojos componentes",
+    "impressions": 43,
+    "clicks": 1,
+    "position": 8.0,
+    "ctr": 0.0233
+   },
+   {
+    "query": "los niños de los ojos rojos integrantes",
+    "impressions": 20,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "niños ojos rojos",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 36.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "niños de los ojos rojos",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 49.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "los niños de los ojos rojos",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 32.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "david lerman wikipedia",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   }
+  ],
+  "/lugares/la-mancha": [
+   {
+    "query": "pepe botika quien es",
+    "impressions": 33,
+    "clicks": 1,
+    "position": 7.7,
+    "ctr": 0.0303
+   },
+   {
+    "query": "carabanchel la modelo herrera de la mancha",
+    "impressions": 11,
+    "clicks": 0,
+    "position": 11.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "pepe botica",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 20.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "pepe botika",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 18.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "quien es pepe botika",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "historia real",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   }
+  ],
+  "/personas": [
+   {
+    "query": "miembros de extremoduro",
+    "impressions": 138,
+    "clicks": 1,
+    "position": 10.6,
+    "ctr": 0.0072
+   },
+   {
+    "query": "extremoduro integrantes",
+    "impressions": 58,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "integrantes de extremoduro",
+    "impressions": 35,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "integrantes extremoduro",
+    "impressions": 33,
+    "clicks": 0,
+    "position": 9.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "componentes de extremoduro",
+    "impressions": 22,
+    "clicks": 1,
+    "position": 9.6,
+    "ctr": 0.0455
+   },
+   {
+    "query": "extremoduro miembros",
+    "impressions": 21,
+    "clicks": 0,
+    "position": 11.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "miembros extremoduro",
+    "impressions": 11,
+    "clicks": 0,
+    "position": 10.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro entre interiores",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 43.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 46.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro componentes",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 40.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "componentes extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 37.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "musicos de robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 73.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "musicos robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 73.0,
+    "ctr": 0.0
+   }
+  ],
+  "/personas/alvaro-rodriguez-barroso": [
+   {
+    "query": "álvaro rodríguez barroso",
+    "impressions": 5,
+    "clicks": 1,
+    "position": 10.8,
+    "ctr": 0.2
+   },
+   {
+    "query": "alvaro rodriguez barroso",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 12.8,
+    "ctr": 0.0
+   }
+  ],
   "/personas/diego-garay": [
    {
     "query": "diego garay",
@@ -2019,42 +2632,56 @@
     "clicks": 1,
     "position": 2.0,
     "ctr": 1.0
+   },
+   {
+    "query": "robé el refugio del fin del mundo",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
    }
   ],
   "/robe/lo-que-aletea-en-nuestras-cabezas": [
    {
     "query": "roberto iniesta lo que aletea en nuestras cabezas",
-    "impressions": 17,
+    "impressions": 18,
     "clicks": 0,
-    "position": 19.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "canciones de roberto iniesta lo que aletea en nuestras cabezas",
-    "impressions": 12,
-    "clicks": 0,
-    "position": 12.9,
+    "position": 19.4,
     "ctr": 0.0
    },
    {
     "query": "roberto iniesta lo que aletea en nuestras cabezas canciones",
-    "impressions": 10,
+    "impressions": 16,
     "clicks": 0,
-    "position": 13.2,
+    "position": 12.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "canciones de roberto iniesta lo que aletea en nuestras cabezas",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 12.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe lo que aletea en nuestras cabezas",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 33.1,
     "ctr": 0.0
    },
    {
     "query": "lo que aletea en nuestras cabezas",
-    "impressions": 6,
+    "impressions": 7,
     "clicks": 1,
-    "position": 39.5,
-    "ctr": 0.1667
+    "position": 37.4,
+    "ctr": 0.1429
    },
    {
-    "query": "robe lo que aletea en nuestras cabezas",
-    "impressions": 6,
+    "query": "nada que perder robe significado",
+    "impressions": 4,
     "clicks": 0,
-    "position": 36.0,
+    "position": 66.5,
     "ctr": 0.0
    },
    {
@@ -2062,13 +2689,6 @@
     "impressions": 4,
     "clicks": 0,
     "position": 43.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "nada que perder robe significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 64.0,
     "ctr": 0.0
    },
    {
@@ -2098,42 +2718,91 @@
     "clicks": 0,
     "position": 18.5,
     "ctr": 0.0
+   },
+   {
+    "query": "how old was he",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
    }
   ],
   "/robe/lo-que-aletea-en-nuestras-cabezas/guerrero": [
    {
     "query": "guerrero robe",
-    "impressions": 59,
+    "impressions": 88,
     "clicks": 1,
-    "position": 2.7,
-    "ctr": 0.0169
+    "position": 2.5,
+    "ctr": 0.0114
    },
    {
     "query": "llegar al olimpo y robar el fuego",
-    "impressions": 42,
+    "impressions": 56,
     "clicks": 0,
-    "position": 3.3,
+    "position": 3.0,
     "ctr": 0.0
    },
    {
     "query": "guerrero robe letra",
-    "impressions": 22,
+    "impressions": 39,
     "clicks": 1,
-    "position": 5.0,
-    "ctr": 0.0455
+    "position": 4.6,
+    "ctr": 0.0256
    },
    {
     "query": "robe guerrero",
-    "impressions": 16,
+    "impressions": 30,
+    "clicks": 0,
+    "position": 2.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra guerrero robe",
+    "impressions": 20,
     "clicks": 0,
     "position": 2.8,
     "ctr": 0.0
    },
    {
-    "query": "letra guerrero robe",
+    "query": "robe guerrero letra",
     "impressions": 12,
     "clicks": 0,
     "position": 3.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "como buen guerrero letra",
+    "impressions": 10,
+    "clicks": 0,
+    "position": 3.1,
+    "ctr": 0.0
+   },
+   {
+    "query": "cancion guerrero robe",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 2.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "en cada batalla nunca me he rendido",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 3.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "guerrero de robe",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 2.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "guerrero letra robe",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 4.1,
     "ctr": 0.0
    },
    {
@@ -2144,17 +2813,10 @@
     "ctr": 0.0
    },
    {
-    "query": "como buen guerrero letra",
+    "query": "guerrero cancion robe",
     "impressions": 7,
     "clicks": 0,
-    "position": 3.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "en cada batalla nunca me he rendido",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 3.6,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
@@ -2165,24 +2827,24 @@
     "ctr": 0.0
    },
    {
-    "query": "guerrero de robe",
+    "query": "letra de guerrero robe",
     "impressions": 6,
     "clicks": 0,
-    "position": 3.0,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
-    "query": "cancion guerrero robe",
+    "query": "guerrero extremoduro letra",
     "impressions": 5,
     "clicks": 0,
-    "position": 2.6,
+    "position": 5.4,
     "ctr": 0.0
    },
    {
-    "query": "guerrero letra robe",
+    "query": "robe iniesta guerrero",
     "impressions": 5,
     "clicks": 0,
-    "position": 3.8,
+    "position": 2.2,
     "ctr": 0.0
    },
    {
@@ -2193,24 +2855,17 @@
     "ctr": 0.0
    },
    {
-    "query": "guerrero cancion robe",
+    "query": "guerrero extremoduro",
     "impressions": 4,
     "clicks": 0,
-    "position": 2.0,
+    "position": 2.8,
     "ctr": 0.0
    },
    {
-    "query": "letra de guerrero robe",
-    "impressions": 4,
+    "query": "como buen guerrero extremoduro",
+    "impressions": 3,
     "clicks": 0,
-    "position": 2.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe guerrero letra",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 4.2,
+    "position": 3.0,
     "ctr": 0.0
    },
    {
@@ -2221,14 +2876,21 @@
     "ctr": 0.0
    },
    {
-    "query": "guerrero extremoduro",
+    "query": "como un buen guerrero robe",
     "impressions": 3,
     "clicks": 0,
-    "position": 2.7,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
-    "query": "como buen guerrero extremoduro",
+    "query": "letra robe guerrero",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 2.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "cancion llegar al olimpo y robar el fuego",
     "impressions": 2,
     "clicks": 0,
     "position": 3.5,
@@ -2249,17 +2911,10 @@
     "ctr": 0.0
    },
    {
-    "query": "como un buen guerrero robe",
+    "query": "extremoduro como buen guerrero",
     "impressions": 2,
     "clicks": 0,
     "position": 2.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "guerrero extremoduro letra",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 3.5,
     "ctr": 0.0
    },
    {
@@ -2270,28 +2925,21 @@
     "ctr": 0.0
    },
    {
-    "query": "letra robe guerrero",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 2.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe iniesta guerrero",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 2.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "cancion llegar al olimpo y robar el fuego",
+    "query": "canción guerrero de robe",
     "impressions": 1,
     "clicks": 0,
     "position": 3.0,
     "ctr": 0.0
    },
    {
-    "query": "extremoduro como buen guerrero",
+    "query": "canción guerrero robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro guerrero",
     "impressions": 1,
     "clicks": 0,
     "position": 2.0,
@@ -2319,6 +2967,20 @@
     "ctr": 0.0
    },
    {
+    "query": "letra como buen guerrero robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra de guerrero de robe",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
     "query": "letra guerrero",
     "impressions": 1,
     "clicks": 0,
@@ -2341,6 +3003,27 @@
    },
    {
     "query": "robe iniesta como buen guerrero",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe llegar al olimpo",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "roberto iniesta guerrero letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "y soñar que acaricio su pelo",
     "impressions": 1,
     "clicks": 0,
     "position": 2.0,
@@ -2387,25 +3070,25 @@
   "/sellos/muxikes": [
    {
     "query": "muxik",
-    "impressions": 42,
+    "impressions": 51,
     "clicks": 1,
-    "position": 8.2,
-    "ctr": 0.0238
+    "position": 8.1,
+    "ctr": 0.0196
    }
   ],
   "/temas/religion": [
    {
     "query": "jesucristo garcía significado",
-    "impressions": 23,
+    "impressions": 24,
     "clicks": 1,
-    "position": 9.6,
-    "ctr": 0.0435
+    "position": 9.7,
+    "ctr": 0.0417
    },
    {
     "query": "evaristo, el rey de la baraja significado",
-    "impressions": 15,
+    "impressions": 16,
     "clicks": 0,
-    "position": 9.0,
+    "position": 8.8,
     "ctr": 0.0
    },
    {
@@ -2437,6 +3120,13 @@
     "ctr": 0.2
    },
    {
+    "query": "letra jesucristo garcía",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
     "query": "prometeo extremoduro significado",
     "impressions": 2,
     "clicks": 1,
@@ -2455,6 +3145,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "jesucristo garcía letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
     "ctr": 0.0
    },
    {
@@ -2482,16 +3179,16 @@
    },
    {
     "query": "entre interiores",
-    "impressions": 8,
+    "impressions": 9,
     "clicks": 0,
-    "position": 26.8,
+    "position": 26.1,
     "ctr": 0.0
    },
    {
     "query": "extremoduro entre interiores",
-    "impressions": 5,
+    "impressions": 8,
     "clicks": 0,
-    "position": 25.2,
+    "position": 24.5,
     "ctr": 0.0
    },
    {
@@ -2499,6 +3196,13 @@
     "impressions": 3,
     "clicks": 0,
     "position": 58.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe mi pequeña historia",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 44.3,
     "ctr": 0.0
    },
    {
@@ -2523,6 +3227,13 @@
     "ctr": 0.0
    },
    {
+    "query": "entre interiores letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 24.0,
+    "ctr": 0.0
+   },
+   {
     "query": "ininteligible robe significado",
     "impressions": 1,
     "clicks": 0,
@@ -2530,17 +3241,17 @@
     "ctr": 0.0
    },
    {
+    "query": "letras de extremoduro entre interiores",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 27.0,
+    "ctr": 0.0
+   },
+   {
     "query": "mr proper grupo musical",
     "impressions": 1,
     "clicks": 0,
     "position": 52.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe mi pequeña historia",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 46.0,
     "ctr": 0.0
    },
    {
@@ -2595,6 +3306,36 @@
     "ctr": 0.0
    }
   ],
+  "/blog/fito-fitipaldis-de-proyecto-paralelo-a-exito-musical": [
+   {
+    "query": "bajista de fito y fitipaldis",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que genero es fito y fitipaldis",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que tipo de musica es fito y fitipaldis",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "fito y fitipaldis genero musical",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   }
+  ],
   "/blog/quince-anos-de-material-defectuoso-sigue-sonando": [
    {
     "query": "robe material",
@@ -2625,16 +3366,16 @@
   "/buscar": [
    {
     "query": "entre interiores",
-    "impressions": 5,
+    "impressions": 7,
     "clicks": 0,
-    "position": 18.0,
+    "position": 18.4,
     "ctr": 0.0
    },
    {
     "query": "entre interiores letra",
-    "impressions": 3,
+    "impressions": 4,
     "clicks": 0,
-    "position": 21.3,
+    "position": 18.5,
     "ctr": 0.0
    },
    {
@@ -2662,16 +3403,16 @@
   "/conceptos": [
    {
     "query": "extremoduro ballenas significado",
-    "impressions": 5,
+    "impressions": 9,
     "clicks": 0,
-    "position": 42.8,
+    "position": 35.2,
     "ctr": 0.0
    },
    {
     "query": "ballenas robe",
-    "impressions": 3,
+    "impressions": 4,
     "clicks": 0,
-    "position": 12.3,
+    "position": 13.2,
     "ctr": 0.0
    },
    {
@@ -2717,7 +3458,7 @@
   "/conceptos/el-espejo": [
    {
     "query": "por encima del bien y del mal robe significado",
-    "impressions": 44,
+    "impressions": 45,
     "clicks": 0,
     "position": 9.6,
     "ctr": 0.0
@@ -2737,33 +3478,33 @@
     "ctr": 0.0
    },
    {
+    "query": "guerrero robe significado",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 52.0,
+    "ctr": 0.0
+   },
+   {
     "query": "robe significado",
     "impressions": 2,
     "clicks": 0,
     "position": 35.5,
     "ctr": 0.0
-   },
-   {
-    "query": "guerrero robe significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 66.0,
-    "ctr": 0.0
    }
   ],
   "/conceptos/el-infierno": [
+   {
+    "query": "la canción más triste robe significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.3,
+    "ctr": 0.0
+   },
    {
     "query": "ininteligible robe significado",
     "impressions": 2,
     "clicks": 0,
     "position": 28.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "la canción más triste robe significado",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 8.5,
     "ctr": 0.0
    }
   ],
@@ -2839,9 +3580,9 @@
   "/conceptos/la-tormenta": [
    {
     "query": "entre interiores significado",
-    "impressions": 13,
+    "impressions": 16,
     "clicks": 0,
-    "position": 7.3,
+    "position": 7.2,
     "ctr": 0.0
    },
    {
@@ -2893,24 +3634,45 @@
   ],
   "/discografia": [
    {
-    "query": "entre interiores",
-    "impressions": 9,
+    "query": "extremoduro entre interiores",
+    "impressions": 11,
     "clicks": 0,
-    "position": 34.9,
+    "position": 35.7,
     "ctr": 0.0
    },
    {
-    "query": "extremoduro entre interiores",
-    "impressions": 8,
+    "query": "entre interiores",
+    "impressions": 10,
     "clicks": 0,
-    "position": 36.8,
+    "position": 34.3,
     "ctr": 0.0
    },
    {
     "query": "letras de extremoduro entre interiores",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 35.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "primer disco extremoduro nombres",
     "impressions": 4,
     "clicks": 0,
-    "position": 36.5,
+    "position": 42.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe mi pequeña historia",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 28.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores acordes",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 39.7,
     "ctr": 0.0
    },
    {
@@ -2932,20 +3694,6 @@
     "impressions": 2,
     "clicks": 0,
     "position": 59.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "entre interiores acordes",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 45.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe mi pequeña historia",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 33.0,
     "ctr": 0.0
    },
    {
@@ -3026,6 +3774,13 @@
     "ctr": 0.0
    },
    {
+    "query": "extremoduro primer disco",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 26.0,
+    "ctr": 0.0
+   },
+   {
     "query": "extremoduro robe mi pequeña historia",
     "impressions": 1,
     "clicks": 0,
@@ -3054,13 +3809,6 @@
     "ctr": 0.0
    },
    {
-    "query": "primer disco extremoduro nombres",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 66.0,
-    "ctr": 0.0
-   },
-   {
     "query": "roberto iniesta discografia",
     "impressions": 1,
     "clicks": 0,
@@ -3071,37 +3819,121 @@
   "/discografia/extremoduro": [
    {
     "query": "cuantas canciones tiene extremoduro",
-    "impressions": 9,
-    "clicks": 0,
-    "position": 7.1,
-    "ctr": 0.0
-   },
-   {
-    "query": "cuantos discos tiene extremoduro",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografía extremoduro orden cronologico",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "disco extremoduro",
-    "impressions": 3,
+    "impressions": 22,
     "clicks": 0,
     "position": 7.0,
     "ctr": 0.0
    },
    {
     "query": "discos de extremoduro por orden",
+    "impressions": 15,
+    "clicks": 0,
+    "position": 11.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "portadas discos extremoduro",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 12.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "cuantos discos tiene extremoduro",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 9.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía extremoduro orden cronologico",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 9.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "disco extremoduro",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografia completa extremoduro",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 58.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos de extremoduro en orden",
     "impressions": 3,
     "clicks": 0,
-    "position": 9.7,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discos extremoduro orden",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro discografia completa",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 57.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro discografía",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 50.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco de extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 19.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 15.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "album extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 35.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "componentes de extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 82.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografia extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 22.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "discografía extremoduro por orden",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 12.0,
     "ctr": 0.0
    },
    {
@@ -3112,24 +3944,52 @@
     "ctr": 0.0
    },
    {
-    "query": "portadas discos extremoduro",
+    "query": "extremoduro discos",
     "impressions": 2,
     "clicks": 0,
-    "position": 14.5,
+    "position": 33.5,
     "ctr": 0.0
    },
    {
-    "query": "discografia extremoduro",
-    "impressions": 1,
+    "query": "extremoduro portadas discos",
+    "impressions": 2,
     "clicks": 0,
-    "position": 8.0,
+    "position": 16.0,
     "ctr": 0.0
    },
    {
-    "query": "discos de extremoduro en orden",
+    "query": "extremoduro primer disco",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 50.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro wiki",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 38.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "integrantes de extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 89.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "primer disco extremoduro nombres",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 76.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "album de extremoduro",
     "impressions": 1,
     "clicks": 0,
-    "position": 10.0,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
@@ -3137,6 +3997,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 38.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 46.0,
     "ctr": 0.0
    },
    {
@@ -3154,24 +4021,24 @@
     "ctr": 0.0
    },
    {
+    "query": "extremoduro albums",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 34.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro componentes",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 98.0,
+    "ctr": 0.0
+   },
+   {
     "query": "extremoduro disco",
     "impressions": 1,
     "clicks": 0,
     "position": 26.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro discografía",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 33.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro discos",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 34.0,
     "ctr": 0.0
    },
    {
@@ -3182,10 +4049,10 @@
     "ctr": 0.0
    },
    {
-    "query": "extremoduro portadas discos",
+    "query": "extremoduro recopilatorio",
     "impressions": 1,
     "clicks": 0,
-    "position": 10.0,
+    "position": 31.0,
     "ctr": 0.0
    },
    {
@@ -3201,254 +4068,105 @@
     "clicks": 0,
     "position": 54.0,
     "ctr": 0.0
-   }
-  ],
-  "/discografia/robe": [
-   {
-    "query": "robe discografia",
-    "impressions": 17,
-    "clicks": 0,
-    "position": 9.5,
-    "ctr": 0.0
    },
    {
-    "query": "discografia robe",
-    "impressions": 13,
-    "clicks": 0,
-    "position": 9.2,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografia robe iniesta",
-    "impressions": 11,
-    "clicks": 0,
-    "position": 10.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "discos robe",
-    "impressions": 8,
-    "clicks": 0,
-    "position": 9.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe iniesta discografia",
-    "impressions": 8,
-    "clicks": 0,
-    "position": 10.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografía robe iniesta",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 9.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "discos de robe",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 9.9,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe discos",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 9.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografía robe",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "discos de robe en solitario",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe albumes",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "cuántos discos tiene robe en solitario",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "discos robe en solitario",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "disco robe",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 12.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografia de robe iniesta",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe albums",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe discos en solitario",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 14.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "discografía de robe",
+    "query": "primer disco de extremoduro",
     "impressions": 1,
     "clicks": 0,
-    "position": 9.0,
+    "position": 34.0,
     "ctr": 0.0
    },
    {
-    "query": "discos de robe iniesta",
+    "query": "recopilatorio extremoduro",
     "impressions": 1,
     "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "portadas discos robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe discografía",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe iniesta disco",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 28.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe iniesta discos",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "robe wiki",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 21.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "ultimo disco de robe iniesta",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 37.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "álbumes de roberto iniesta",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "último disco de robe",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 36.0,
+    "position": 45.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro": [
    {
     "query": "de donde es extremoduro",
-    "impressions": 125,
+    "impressions": 152,
     "clicks": 0,
-    "position": 9.6,
+    "position": 9.3,
     "ctr": 0.0
    },
    {
     "query": "extremoduro de donde son",
-    "impressions": 55,
+    "impressions": 75,
     "clicks": 0,
-    "position": 10.3,
+    "position": 10.5,
     "ctr": 0.0
    },
    {
     "query": "de donde son extremoduro",
-    "impressions": 50,
+    "impressions": 61,
     "clicks": 0,
-    "position": 13.7,
+    "position": 13.4,
     "ctr": 0.0
    },
    {
     "query": "de donde era extremoduro",
-    "impressions": 26,
+    "impressions": 29,
     "clicks": 0,
     "position": 7.9,
     "ctr": 0.0
    },
    {
     "query": "extremoduro de donde es",
-    "impressions": 20,
+    "impressions": 28,
     "clicks": 0,
-    "position": 9.9,
+    "position": 10.1,
     "ctr": 0.0
    },
    {
     "query": "de dónde es el grupo extremoduro",
-    "impressions": 14,
+    "impressions": 16,
     "clicks": 0,
-    "position": 13.3,
+    "position": 12.9,
     "ctr": 0.0
    },
    {
     "query": "extremoduro es de extremadura",
-    "impressions": 6,
+    "impressions": 10,
     "clicks": 0,
-    "position": 9.5,
+    "position": 10.3,
     "ctr": 0.0
    },
    {
     "query": "componentes extremoduro",
-    "impressions": 5,
+    "impressions": 8,
     "clicks": 0,
-    "position": 40.6,
+    "position": 40.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que genero es extremoduro",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 10.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro componentes",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 38.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro biografia",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 41.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro origen",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 13.8,
     "ctr": 0.0
    },
    {
@@ -3459,31 +4177,31 @@
     "ctr": 0.0
    },
    {
-    "query": "extremoduro origen",
+    "query": "extremoduro integrantes",
     "impressions": 5,
     "clicks": 0,
-    "position": 14.4,
+    "position": 32.8,
     "ctr": 0.0
    },
    {
-    "query": "que genero es extremoduro",
-    "impressions": 5,
-    "clicks": 0,
-    "position": 10.4,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro biografia",
+    "query": "de dónde es extremoduro",
     "impressions": 4,
     "clicks": 0,
-    "position": 46.5,
+    "position": 11.0,
     "ctr": 0.0
    },
    {
-    "query": "extremoduro componentes",
-    "impressions": 4,
+    "query": "componentes de extremoduro",
+    "impressions": 3,
     "clicks": 0,
-    "position": 41.2,
+    "position": 44.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro genero",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 39.0,
     "ctr": 0.0
    },
    {
@@ -3494,10 +4212,10 @@
     "ctr": 0.0
    },
    {
-    "query": "extremoduro integrantes",
+    "query": "extremoduro plasencia",
     "impressions": 3,
     "clicks": 0,
-    "position": 33.3,
+    "position": 15.7,
     "ctr": 0.0
    },
    {
@@ -3505,13 +4223,6 @@
     "impressions": 3,
     "clicks": 0,
     "position": 41.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "componentes de extremoduro",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 42.5,
     "ctr": 0.0
    },
    {
@@ -3529,17 +4240,10 @@
     "ctr": 0.0
    },
    {
-    "query": "extremoduro genero",
+    "query": "historia de extremoduro",
     "impressions": 2,
     "clicks": 0,
-    "position": 54.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro plasencia",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 16.0,
+    "position": 15.0,
     "ctr": 0.0
    },
    {
@@ -3571,7 +4275,7 @@
     "ctr": 0.0
    },
    {
-    "query": "de dónde es extremoduro",
+    "query": "de dónde son",
     "impressions": 1,
     "clicks": 0,
     "position": 11.0,
@@ -3589,6 +4293,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 79.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro genero musical",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 12.0,
     "ctr": 0.0
    },
    {
@@ -3620,10 +4331,10 @@
     "ctr": 0.0
    },
    {
-    "query": "historia de extremoduro",
+    "query": "integrantes de extremoduro",
     "impressions": 1,
     "clicks": 0,
-    "position": 15.0,
+    "position": 29.0,
     "ctr": 0.0
    },
    {
@@ -3648,6 +4359,13 @@
     "ctr": 0.0
    },
    {
+    "query": "robe extremoduro joven",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 21.0,
+    "ctr": 0.0
+   },
+   {
     "query": "robert plasencia",
     "impressions": 1,
     "clicks": 0,
@@ -3665,16 +4383,16 @@
   "/extremoduro/agila": [
    {
     "query": "agila",
-    "impressions": 19,
+    "impressions": 20,
     "clicks": 0,
     "position": 37.5,
     "ctr": 0.0
    },
    {
     "query": "agila significado",
-    "impressions": 7,
+    "impressions": 11,
     "clicks": 0,
-    "position": 22.3,
+    "position": 27.2,
     "ctr": 0.0
    },
    {
@@ -3977,16 +4695,23 @@
   "/extremoduro/canciones-prohibidas/su-culo-es-miel": [
    {
     "query": "letras de extremoduro su culo es miel",
-    "impressions": 27,
+    "impressions": 54,
     "clicks": 0,
-    "position": 6.6,
+    "position": 6.3,
     "ctr": 0.0
    },
    {
     "query": "su culo es miel letra",
-    "impressions": 10,
+    "impressions": 22,
     "clicks": 0,
-    "position": 5.2,
+    "position": 5.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "su culo es miel",
+    "impressions": 15,
+    "clicks": 0,
+    "position": 8.5,
     "ctr": 0.0
    },
    {
@@ -3997,117 +4722,47 @@
     "ctr": 0.0
    },
    {
-    "query": "su culo es miel",
+    "query": "extremoduro su culo es miel",
     "impressions": 4,
     "clicks": 0,
-    "position": 9.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "extremoduro su culo es miel",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 10.0,
+    "position": 10.8,
     "ctr": 0.0
    }
   ],
-  "/extremoduro/deltoya": [
+  "/extremoduro/deltoya/ama-ama-ama-y-ensancha-el-alma": [
    {
-    "query": "deltoya significado",
-    "impressions": 190,
+    "query": "letras de extremoduro ama, ama, ama y ensancha el alma",
+    "impressions": 8,
     "clicks": 0,
-    "position": 10.0,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
-    "query": "que significa deltoya",
-    "impressions": 16,
-    "clicks": 0,
-    "position": 8.6,
-    "ctr": 0.0
-   },
-   {
-    "query": "deltoya",
-    "impressions": 6,
-    "clicks": 0,
-    "position": 17.8,
-    "ctr": 0.0
-   },
-   {
-    "query": "deltoya portada",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "un madero mil lapiceros",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 37.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "deltoya album",
+    "query": "letras de extremoduro ama ama ama y ensancha el alma",
     "impressions": 2,
     "clicks": 0,
-    "position": 23.5,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
-    "query": "que es deltoya",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "del ya",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "deltoya disco",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 18.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "dime los significados",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 6.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "disco deltoya",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 32.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "dj deltoya",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "dro studio",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 28.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "sí",
+    "query": "ama ama y ensancha el alma letra",
     "impressions": 1,
     "clicks": 0,
     "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra ama ama y ensancha el alma",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "manolo chinato",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
     "ctr": 0.0
    }
   ],
@@ -4123,23 +4778,37 @@
   "/extremoduro/donde-estan-mis-amigos": [
    {
     "query": "extremoduro donde estan mis amigos",
-    "impressions": 26,
+    "impressions": 32,
     "clicks": 0,
-    "position": 24.3,
+    "position": 23.4,
     "ctr": 0.0
    },
    {
     "query": "donde estan mis amigos",
-    "impressions": 7,
+    "impressions": 10,
     "clicks": 0,
-    "position": 19.9,
+    "position": 17.7,
     "ctr": 0.0
    },
    {
     "query": "extremoduro dónde están mis amigos",
-    "impressions": 5,
+    "impressions": 6,
     "clicks": 0,
-    "position": 17.4,
+    "position": 16.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "donde estan mis amigos extremoduro",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 19.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "donde están mis amigos",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 23.7,
     "ctr": 0.0
    },
    {
@@ -4157,17 +4826,17 @@
     "ctr": 0.0
    },
    {
-    "query": "donde estan mis amigos extremoduro",
-    "impressions": 2,
+    "query": "mis amigos donde estan",
+    "impressions": 3,
     "clicks": 0,
-    "position": 21.0,
+    "position": 2.7,
     "ctr": 0.0
    },
    {
-    "query": "donde están mis amigos",
-    "impressions": 2,
+    "query": "dónde están mis amigos",
+    "impressions": 1,
     "clicks": 0,
-    "position": 27.0,
+    "position": 17.0,
     "ctr": 0.0
    },
    {
@@ -4182,6 +4851,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "¿dónde están mis amigos?",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 18.0,
     "ctr": 0.0
    }
   ],
@@ -4212,6 +4888,24 @@
     "ctr": 0.0
    }
   ],
+  "/extremoduro/grandes-exitos-y-fracasos-episodio-primero": [
+   {
+    "query": "extremoduro primer disco",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 50.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/grandes-exitos-y-fracasos-episodio-segundo": [
+   {
+    "query": "deltoya significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 31.0,
+    "ctr": 0.0
+   }
+  ],
   "/extremoduro/iros-todos-a-tomar-por-culo": [
    {
     "query": "iros todos a tomar extremoduro año",
@@ -4228,6 +4922,29 @@
     "ctr": 0.0
    }
   ],
+  "/extremoduro/iros-todos-a-tomar-por-culo/ama-ama-ama-y-ensancha-el-alma-en-directo": [
+   {
+    "query": "letras de extremoduro ama, ama, ama y ensancha el alma",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "ama ama y ensancha el alma letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "manolo chinato",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   }
+  ],
   "/extremoduro/iros-todos-a-tomar-por-culo/de-acero-en-directo": [
    {
     "query": "letra de acero extremoduro",
@@ -4240,9 +4957,9 @@
   "/extremoduro/iros-todos-a-tomar-por-culo/deltoya-en-directo": [
    {
     "query": "deltoya letra",
-    "impressions": 1,
+    "impressions": 2,
     "clicks": 0,
-    "position": 9.0,
+    "position": 8.5,
     "ctr": 0.0
    }
   ],
@@ -4273,6 +4990,13 @@
     "impressions": 4,
     "clicks": 0,
     "position": 30.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "lletra de la cançó de extremoduro jesucristo garcía",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 4.0,
     "ctr": 0.0
    },
    {
@@ -4332,6 +5056,20 @@
     "ctr": 0.0
    },
    {
+    "query": "extremoduro jesucristo garcía letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro jesucristo garcía lyrics",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
     "query": "jesucristo garcia año",
     "impressions": 1,
     "clicks": 0,
@@ -4358,37 +5096,48 @@
     "clicks": 0,
     "position": 3.0,
     "ctr": 0.0
-   },
-   {
-    "query": "lletra de la cançó de extremoduro jesucristo garcía",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
    }
   ],
-  "/extremoduro/la-ley-innata/segundo-movimiento-lo-de-fuera": [
+  "/extremoduro/la-ley-innata/cuarto-movimiento-la-realidad": [
    {
-    "query": "la ley innata letra significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 7.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "letras de extremoduro segundo movimiento: lo de fuera",
+    "query": "letras de extremoduro cuarto movimiento: la realidad",
     "impressions": 1,
     "clicks": 0,
     "position": 2.0,
     "ctr": 0.0
    }
   ],
+  "/extremoduro/la-ley-innata/dulce-introduccion-al-caos": [
+   {
+    "query": "dulce introduccion al caos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/la-ley-innata/segundo-movimiento-lo-de-fuera": [
+   {
+    "query": "letras de extremoduro segundo movimiento: lo de fuera",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "la ley innata letra significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   }
+  ],
   "/extremoduro/material-defectuoso": [
    {
     "query": "extremoduro material defectuoso canciones",
-    "impressions": 6,
+    "impressions": 10,
     "clicks": 0,
-    "position": 26.7,
+    "position": 23.1,
     "ctr": 0.0
    },
    {
@@ -4471,21 +5220,42 @@
     "clicks": 0,
     "position": 11.0,
     "ctr": 0.0
+   },
+   {
+    "query": "si te vas letra",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si te vas me quedo en esta calle sin salida letra",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro si te vas letras significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
    }
   ],
   "/extremoduro/para-todos-los-publicos": [
    {
     "query": "para todos los publicos",
-    "impressions": 16,
+    "impressions": 20,
     "clicks": 0,
-    "position": 21.1,
+    "position": 19.3,
     "ctr": 0.0
    },
    {
     "query": "extremoduro para todos los públicos",
-    "impressions": 12,
+    "impressions": 13,
     "clicks": 0,
-    "position": 23.6,
+    "position": 22.6,
     "ctr": 0.0
    },
    {
@@ -4500,6 +5270,13 @@
     "impressions": 3,
     "clicks": 0,
     "position": 13.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "ultimo disco extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 2.7,
     "ctr": 0.0
    },
    {
@@ -4524,6 +5301,13 @@
     "ctr": 0.0
    },
    {
+    "query": "es para todos los públicos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   },
+   {
     "query": "extremoduro para todos los publicos",
     "impressions": 1,
     "clicks": 0,
@@ -4535,6 +5319,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 45.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "todos los públicos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
     "ctr": 0.0
    },
    {
@@ -4608,51 +5399,51 @@
   "/extremoduro/rock-transgresivo": [
    {
     "query": "rock transgresivo",
-    "impressions": 37,
+    "impressions": 55,
     "clicks": 0,
-    "position": 16.3,
+    "position": 14.3,
     "ctr": 0.0
    },
    {
     "query": "rock transgresivo genero",
-    "impressions": 37,
+    "impressions": 40,
     "clicks": 0,
     "position": 5.3,
     "ctr": 0.0
    },
    {
-    "query": "extremoduro rock transgresivo",
-    "impressions": 31,
-    "clicks": 0,
-    "position": 24.9,
-    "ctr": 0.0
-   },
-   {
     "query": "rock transgresivo significado",
-    "impressions": 30,
+    "impressions": 38,
     "clicks": 0,
-    "position": 6.9,
+    "position": 6.7,
     "ctr": 0.0
    },
    {
-    "query": "rock transgresivo extremoduro",
-    "impressions": 22,
+    "query": "extremoduro rock transgresivo",
+    "impressions": 33,
     "clicks": 0,
-    "position": 20.1,
+    "position": 24.3,
     "ctr": 0.0
    },
    {
     "query": "que es el rock transgresivo",
-    "impressions": 21,
+    "impressions": 29,
     "clicks": 0,
-    "position": 8.4,
+    "position": 7.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "rock transgresivo extremoduro",
+    "impressions": 25,
+    "clicks": 0,
+    "position": 19.6,
     "ctr": 0.0
    },
    {
     "query": "transgresivo",
-    "impressions": 11,
+    "impressions": 13,
     "clicks": 0,
-    "position": 23.1,
+    "position": 21.7,
     "ctr": 0.0
    },
    {
@@ -4705,6 +5496,13 @@
     "ctr": 0.0
    },
    {
+    "query": "primer disco extremoduro nombres",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 24.0,
+    "ctr": 0.0
+   },
+   {
     "query": "rock transgresivo canciones",
     "impressions": 1,
     "clicks": 0,
@@ -4719,9 +5517,25 @@
     "ctr": 0.0
    }
   ],
+  "/extremoduro/rock-transgresivo/extremaydura-rock-transgresivo": [
+   {
+    "query": "extremaydura letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   }
+  ],
   "/extremoduro/rock-transgresivo/romperas-rock-transgresivo": [
    {
     "query": "letras de extremoduro romperás",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "romperas letra",
     "impressions": 1,
     "clicks": 0,
     "position": 6.0,
@@ -4745,9 +5559,9 @@
    },
    {
     "query": "somos unos animales extremoduro",
-    "impressions": 14,
+    "impressions": 15,
     "clicks": 0,
-    "position": 31.3,
+    "position": 30.5,
     "ctr": 0.0
    },
    {
@@ -4777,137 +5591,138 @@
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera": [
    {
     "query": "tu en tu casa nosotros en la hoguera",
-    "impressions": 5,
+    "impressions": 14,
     "clicks": 0,
-    "position": 10.8,
+    "position": 12.6,
     "ctr": 0.0
    },
    {
     "query": "tú en tu casa nosotros en la hoguera",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 11.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "tú en tu casa, nosotros en la hoguera",
     "impressions": 1,
     "clicks": 0,
-    "position": 13.0,
+    "position": 12.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/amor-castuo": [
    {
     "query": "letras de extremoduro amor castúo",
-    "impressions": 5,
+    "impressions": 13,
     "clicks": 0,
     "position": 9.8,
     "ctr": 0.0
    },
    {
-    "query": "amor castuo letra",
-    "impressions": 1,
+    "query": "amor castúo significado",
+    "impressions": 9,
     "clicks": 0,
-    "position": 11.0,
+    "position": 4.6,
     "ctr": 0.0
    },
    {
-    "query": "amor castúo significado",
-    "impressions": 1,
+    "query": "amor castuo letra",
+    "impressions": 2,
     "clicks": 0,
-    "position": 4.0,
+    "position": 11.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/arrebato": [
    {
     "query": "arrebato extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores extremoduro significado",
     "impressions": 1,
     "clicks": 0,
     "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro arrebato",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de extremoduro arrebato",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 12.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/decidi": [
    {
     "query": "letras de extremoduro decidí significado",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 4.6,
+    "ctr": 0.0
+   },
+   {
+    "query": "decidí significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 7.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "decidi significado",
     "impressions": 1,
     "clicks": 0,
-    "position": 5.0,
+    "position": 8.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/emparedado": [
    {
-    "query": "extremoduro emparedado",
-    "impressions": 1,
+    "query": "emparedado extremoduro",
+    "impressions": 4,
     "clicks": 0,
-    "position": 17.0,
+    "position": 9.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "emparedado extremoduro letra",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro emparedado",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 13.0,
     "ctr": 0.0
    }
   ],
   "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/extremaydura": [
    {
     "query": "extremaydura letra significado",
-    "impressions": 3,
+    "impressions": 6,
     "clicks": 0,
-    "position": 10.0,
-    "ctr": 0.0
-   }
-  ],
-  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/jesucristo-garcia": [
-   {
-    "query": "jesucristo garcía significado",
-    "impressions": 9,
-    "clicks": 0,
-    "position": 6.9,
+    "position": 9.3,
     "ctr": 0.0
    },
    {
-    "query": "jesucristo garcía letra significado",
-    "impressions": 4,
-    "clicks": 0,
-    "position": 7.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "evaristo el rey de la baraja significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 7.0,
-    "ctr": 0.0
-   }
-  ],
-  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/la-hoguera": [
-   {
-    "query": "la hoguera extremoduro letra",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "la hoguera significado",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 12.0,
-    "ctr": 0.0
-   },
-   {
-    "query": "letra la hoguera extremoduro",
-    "impressions": 1,
-    "clicks": 0,
-    "position": 9.0,
-    "ctr": 0.0
-   }
-  ],
-  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/romperas": [
-   {
-    "query": "letras de extremoduro romperás",
+    "query": "extremaydura letra",
     "impressions": 2,
     "clicks": 0,
-    "position": 9.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "romperas",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 9.0,
+    "position": 10.5,
     "ctr": 0.0
    },
    {
@@ -4916,12 +5731,165 @@
     "clicks": 0,
     "position": 10.0,
     "ctr": 0.0
+   }
+  ],
+  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/jesucristo-garcia": [
+   {
+    "query": "jesucristo garcía significado",
+    "impressions": 20,
+    "clicks": 0,
+    "position": 7.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "jesucristo garcía letra significado",
+    "impressions": 12,
+    "clicks": 0,
+    "position": 6.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "evaristo el rey de la baraja significado",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 10.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "evaristo, el rey de la baraja significado",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 8.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de extremoduro jesucristo garcía",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "jesucristo garcia letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra jesucristo garcía",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "soy evaristo el rey de la baraja significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/la-hoguera": [
+   {
+    "query": "entre interiores extremoduro significado",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra la hoguera extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "la hoguera extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 11.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "la hoguera significado",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 9.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "extremoduro la hoguera",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 12.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "la hoguera extremoduro letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   }
+  ],
+  "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/romperas": [
+   {
+    "query": "romperas",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 7.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de extremoduro romperás",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "entre interiores significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
    },
    {
     "query": "romperas extremoduro letra",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 9.7,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra romperas extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra standby extremoduro significado",
     "impressions": 1,
     "clicks": 0,
-    "position": 9.0,
+    "position": 41.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "romperas extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "romperas letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
     "ctr": 0.0
    },
    {
@@ -4942,9 +5910,9 @@
    },
    {
     "query": "extremoduro yo, minoría absoluta canciones",
-    "impressions": 1,
+    "impressions": 2,
     "clicks": 0,
-    "position": 25.0,
+    "position": 14.0,
     "ctr": 0.0
    },
    {
@@ -4978,10 +5946,38 @@
   ],
   "/extremoduro/yo-minoria-absoluta/la-vereda-de-la-puerta-de-atras": [
    {
+    "query": "letras de extremoduro la vereda de la puerta de atrás",
+    "impressions": 11,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
     "query": "la vereda de la puerta de atrás significado canción extremoduro",
     "impressions": 4,
     "clicks": 0,
     "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letra vereda de la puerta de atras",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "que me entierren con la pizza por fuera letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "vereda de la puerta de atras significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
     "ctr": 0.0
    }
   ],
@@ -5764,16 +6760,23 @@
   "/legal/takedown": [
    {
     "query": "takedown de contenido infractor",
-    "impressions": 18,
+    "impressions": 23,
     "clicks": 0,
-    "position": 24.9,
+    "position": 28.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "takedown de contenido infractor mexico",
+    "impressions": 12,
+    "clicks": 0,
+    "position": 53.2,
     "ctr": 0.0
    },
    {
     "query": "notice and takedown marcas",
-    "impressions": 2,
+    "impressions": 3,
     "clicks": 0,
-    "position": 69.0,
+    "position": 73.7,
     "ctr": 0.0
    }
   ],
@@ -5921,9 +6924,9 @@
   "/lugares/badajoz": [
    {
     "query": "y en badajoz",
-    "impressions": 3,
+    "impressions": 4,
     "clicks": 0,
-    "position": 6.3,
+    "position": 6.8,
     "ctr": 0.0
    }
   ],
@@ -6040,9 +7043,16 @@
   "/personas/capi-gil": [
    {
     "query": "extremoduro alberto \"capi\" gil",
-    "impressions": 69,
+    "impressions": 79,
     "clicks": 0,
-    "position": 6.1,
+    "position": 6.2,
+    "ctr": 0.0
+   },
+   {
+    "query": "alberto \"capi\" gil",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
     "ctr": 0.0
    },
    {
@@ -6066,6 +7076,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 33.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "carlos \"el sucio\"",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
     "ctr": 0.0
    }
   ],
@@ -6638,9 +7655,9 @@
    },
    {
     "query": "chinato poeta",
-    "impressions": 1,
+    "impressions": 2,
     "clicks": 0,
-    "position": 19.0,
+    "position": 10.0,
     "ctr": 0.0
    },
    {
@@ -6698,6 +7715,13 @@
     "impressions": 6,
     "clicks": 0,
     "position": 9.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "hay videos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
     "ctr": 0.0
    },
    {
@@ -6761,6 +7785,15 @@
     "ctr": 0.0
    }
   ],
+  "/personas/tomas-rodriguez": [
+   {
+    "query": "y en la canción?",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   }
+  ],
   "/personas/uge-ortiz": [
    {
     "query": "eugenio ortiz uge",
@@ -6780,21 +7813,21 @@
   "/robe": [
    {
     "query": "de donde es robe",
-    "impressions": 59,
+    "impressions": 60,
     "clicks": 0,
     "position": 10.7,
     "ctr": 0.0
    },
    {
     "query": "de donde era robe",
-    "impressions": 43,
+    "impressions": 48,
     "clicks": 0,
     "position": 11.3,
     "ctr": 0.0
    },
    {
     "query": "donde nacio robe",
-    "impressions": 32,
+    "impressions": 33,
     "clicks": 0,
     "position": 10.2,
     "ctr": 0.0
@@ -6807,10 +7840,24 @@
     "ctr": 0.0
    },
    {
+    "query": "robe que es",
+    "impressions": 13,
+    "clicks": 0,
+    "position": 8.3,
+    "ctr": 0.0
+   },
+   {
     "query": "robe de donde era",
     "impressions": 9,
     "clicks": 0,
     "position": 10.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "los robe grupo",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 9.0,
     "ctr": 0.0
    },
    {
@@ -6821,6 +7868,20 @@
     "ctr": 0.0
    },
    {
+    "query": "musicos de robe",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 8.3,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe grupo musical",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 10.3,
+    "ctr": 0.0
+   },
+   {
     "query": "robe nacimiento",
     "impressions": 3,
     "clicks": 0,
@@ -6828,17 +7889,24 @@
     "ctr": 0.0
    },
    {
-    "query": "robe que es",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 8.0,
-    "ctr": 0.0
-   },
-   {
     "query": "dónde nació robe iniesta",
     "impressions": 2,
     "clicks": 0,
     "position": 11.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe musicos",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe.es",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 16.5,
     "ctr": 0.0
    },
    {
@@ -6916,6 +7984,36 @@
     "impressions": 1,
     "clicks": 0,
     "position": 34.0,
+    "ctr": 0.0
+   }
+  ],
+  "/robe/bienvenidos-al-temporal": [
+   {
+    "query": "roberto iniesta bienvenidos al temporal",
+    "impressions": 11,
+    "clicks": 0,
+    "position": 8.4,
+    "ctr": 0.0
+   },
+   {
+    "query": "roberto iniesta bienvenidos al temporal canciones",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 10.9,
+    "ctr": 0.0
+   },
+   {
+    "query": "bienvenidos al temporal",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 51.5,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe bienvenidos al temporal",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 51.0,
     "ctr": 0.0
    }
   ],
@@ -7057,44 +8155,44 @@
   "/robe/destrozares/cartas-desde-gaia": [
    {
     "query": "cartas desde gaia",
-    "impressions": 27,
+    "impressions": 44,
     "clicks": 0,
-    "position": 8.5,
+    "position": 8.1,
     "ctr": 0.0
    },
    {
     "query": "letras de roberto iniesta cartas desde gaia",
-    "impressions": 21,
+    "impressions": 32,
     "clicks": 0,
-    "position": 7.8,
+    "position": 7.4,
     "ctr": 0.0
    },
    {
     "query": "cartas desde gaia letra",
-    "impressions": 10,
+    "impressions": 17,
     "clicks": 0,
-    "position": 8.7,
+    "position": 8.8,
     "ctr": 0.0
    },
    {
     "query": "roberto iniesta cartas desde gaia",
-    "impressions": 10,
+    "impressions": 14,
     "clicks": 0,
-    "position": 7.3,
-    "ctr": 0.0
-   },
-   {
-    "query": "destrozares letra",
-    "impressions": 7,
-    "clicks": 0,
-    "position": 11.0,
+    "position": 7.2,
     "ctr": 0.0
    },
    {
     "query": "destrozares significado",
-    "impressions": 7,
+    "impressions": 13,
     "clicks": 0,
-    "position": 11.7,
+    "position": 11.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "destrozares letra",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 11.0,
     "ctr": 0.0
    },
    {
@@ -7112,6 +8210,13 @@
     "ctr": 0.0
    },
    {
+    "query": "por encima del bien y del mal robe significado",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 10.3,
+    "ctr": 0.0
+   },
+   {
     "query": "destrozares robe letra",
     "impressions": 2,
     "clicks": 0,
@@ -7119,10 +8224,10 @@
     "ctr": 0.0
    },
    {
-    "query": "por encima del bien y del mal robe significado",
+    "query": "donde se rompen las olas robe significado",
     "impressions": 2,
     "clicks": 0,
-    "position": 10.5,
+    "position": 10.0,
     "ctr": 0.0
    },
    {
@@ -7137,6 +8242,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 12.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de roberto iniesta destrozares",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
     "ctr": 0.0
    },
    {
@@ -7201,9 +8313,9 @@
   "/robe/destrozares/destrozares": [
    {
     "query": "destrozares letra",
-    "impressions": 1,
+    "impressions": 2,
     "clicks": 0,
-    "position": 6.0,
+    "position": 6.5,
     "ctr": 0.0
    },
    {
@@ -7228,12 +8340,35 @@
     "ctr": 0.0
    }
   ],
+  "/robe/destrozares/hoy-al-mundo-renuncio": [
+   {
+    "query": "robé el refugio del fin del mundo",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 13.0,
+    "ctr": 0.0
+   }
+  ],
   "/robe/destrozares/la-cancion-mas-triste": [
+   {
+    "query": "guerrero robe letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
    {
     "query": "la canción más triste robe significado",
     "impressions": 1,
     "clicks": 0,
     "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "letras de roberto iniesta la canción más triste",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
     "ctr": 0.0
    }
   ],
@@ -7263,7 +8398,7 @@
    },
    {
     "query": "donde se rompen las olas robe significado",
-    "impressions": 38,
+    "impressions": 52,
     "clicks": 0,
     "position": 8.4,
     "ctr": 0.0
@@ -7284,30 +8419,37 @@
    },
    {
     "query": "puta humanidad robe",
-    "impressions": 21,
+    "impressions": 26,
     "clicks": 0,
-    "position": 12.3,
+    "position": 12.2,
     "ctr": 0.0
    },
    {
     "query": "del tiempo perdido robe significado",
-    "impressions": 19,
+    "impressions": 22,
     "clicks": 0,
-    "position": 8.0,
+    "position": 8.3,
     "ctr": 0.0
    },
    {
     "query": "del tiempo perdido - robe significado",
-    "impressions": 8,
+    "impressions": 11,
     "clicks": 0,
     "position": 10.2,
     "ctr": 0.0
    },
    {
     "query": "robe iniesta destrozares",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 26.8,
+    "ctr": 0.0
+   },
+   {
+    "query": "robe destrozares",
     "impressions": 6,
     "clicks": 0,
-    "position": 27.2,
+    "position": 17.7,
     "ctr": 0.0
    },
    {
@@ -7339,6 +8481,13 @@
     "ctr": 0.0
    },
    {
+    "query": "destrozares robe",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 28.5,
+    "ctr": 0.0
+   },
+   {
     "query": "letra destrozares robe",
     "impressions": 4,
     "clicks": 0,
@@ -7346,10 +8495,10 @@
     "ctr": 0.0
    },
    {
-    "query": "robe destrozares",
+    "query": "nada que perder robe significado",
     "impressions": 3,
     "clicks": 0,
-    "position": 16.7,
+    "position": 27.3,
     "ctr": 0.0
    },
    {
@@ -7367,24 +8516,10 @@
     "ctr": 0.0
    },
    {
-    "query": "destrozares robe",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 28.5,
-    "ctr": 0.0
-   },
-   {
     "query": "destrozares significado",
     "impressions": 2,
     "clicks": 0,
     "position": 14.5,
-    "ctr": 0.0
-   },
-   {
-    "query": "nada que perder robe significado",
-    "impressions": 2,
-    "clicks": 0,
-    "position": 26.5,
     "ctr": 0.0
    },
    {
@@ -7455,6 +8590,22 @@
     "ctr": 0.0
    }
   ],
+  "/robe/lo-que-aletea-en-nuestras-cabezas/y-rozar-contigo": [
+   {
+    "query": "y rozar contigo robe significado",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "y rozar contigo letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   }
+  ],
   "/robe/mayeutica": [
    {
     "query": "\"carlitos pérez\" robe mayéutica",
@@ -7513,6 +8664,13 @@
     "ctr": 0.0
    },
    {
+    "query": "portada mayeutica",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
     "query": "robe iniesta mayeutica",
     "impressions": 1,
     "clicks": 0,
@@ -7563,6 +8721,13 @@
     "impressions": 1,
     "clicks": 0,
     "position": 41.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "si",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
     "ctr": 0.0
    },
    {
@@ -7651,6 +8816,13 @@
     "ctr": 0.0
    },
    {
+    "query": "hay videos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
     "query": "quién ha hecho",
     "impressions": 1,
     "clicks": 0,
@@ -7713,6 +8885,13 @@
     "ctr": 0.0
    },
    {
+    "query": "amor castúo significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
     "query": "guerrero robe significado",
     "impressions": 1,
     "clicks": 0,
@@ -7724,6 +8903,20 @@
     "impressions": 1,
     "clicks": 0,
     "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "nana cruel",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "y rozar contigo letra",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
     "ctr": 0.0
    }
   ],
@@ -7738,17 +8931,17 @@
   ],
   "/temas/arte": [
    {
+    "query": "entre interiores significado",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
     "query": "el poder del arte robe significado",
     "impressions": 3,
     "clicks": 0,
     "position": 23.7,
-    "ctr": 0.0
-   },
-   {
-    "query": "entre interiores significado",
-    "impressions": 3,
-    "clicks": 0,
-    "position": 7.0,
     "ctr": 0.0
    },
    {
@@ -7785,6 +8978,13 @@
     "clicks": 0,
     "position": 59.0,
     "ctr": 0.0
+   },
+   {
+    "query": "viajando por el interior robe significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
    }
   ],
   "/temas/esperanza": [
@@ -7819,6 +9019,13 @@
     "ctr": 0.0
    },
    {
+    "query": "olimpo extremoduro",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
     "query": "letra como buen guerrero",
     "impressions": 1,
     "clicks": 0,
@@ -7836,7 +9043,7 @@
   "/temas/muerte": [
    {
     "query": "mi espíritu imperecedero significado",
-    "impressions": 25,
+    "impressions": 27,
     "clicks": 0,
     "position": 8.4,
     "ctr": 0.0
@@ -7846,6 +9053,13 @@
     "impressions": 2,
     "clicks": 0,
     "position": 15.0,
+    "ctr": 0.0
+   },
+   {
+    "query": "espiritu imperecedero significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
     "ctr": 0.0
    }
   ],
