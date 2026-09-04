@@ -45,15 +45,27 @@ FRESHNESS_DAYS = int(os.getenv("IG_FRESHNESS_DAYS", "7"))
 # decide de verdad: con disparos frecuentes, un post programado a las 19:40 sale
 # a las 19:45 y no en el siguiente slot de 6 horas.
 #
-# El intervalo se subió de 5h a 15h en jul-2026. Con el cron antiguo (3 disparos
-# al día) salían 21,5 posts/semana medidos, tres al día de contenido plantillero;
-# el objetivo ahora son 10-12 semanales bien trabajados:
-#     24 × 7 / 15 h ≈ 11,2 posts/semana
-# OJO al tocarlo: como el cron dispara cada 15 min, este número es lo ÚNICO que
-# limita el ritmo. Bajarlo a 5 devolvería casi 34 posts/semana.
-BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "4"))
+# El intervalo se subió de 5h a 15h en jul-2026 para bajar de 21,5 a ~11 posts
+# semanales... y NO bajó: medido el 04-09-2026, las siete semanas siguientes
+# dieron 17, 20, 20, 20, 21, 21 y 21 posts. El cambio no sirvió de nada porque
+# quien mandaba no era STEADY sino BACKLOG:
+#
+#   con el umbral en 4, la cola (que se movía entre 5 y 13) estaba SIEMPRE por
+#   encima, así que el modo atasco era el estado permanente y el intervalo de
+#   15 h no se aplicaba casi nunca. 24/10 = 2,4 posts al día = 16,8 a la semana,
+#   más lo que sale por `due_pinned` al margen del cuentagotas ≈ 20.
+#
+# Arreglado subiendo el umbral para que el atasco vuelva a ser excepcional (la
+# cola normal cabe por debajo) y ajustando el régimen a 12 h:
+#     24 × 7 / 12 h = 14 posts/semana, más los fijados ≈ 15.
+#
+# OJO al tocarlo: como el cron dispara cada 15 min, estos números son lo ÚNICO
+# que limita el ritmo. Y no basta con mirar STEADY: si la cola supera el umbral,
+# el que manda es BACKLOG. Para saber a qué ritmo se publica DE VERDAD hay que
+# contar los publicados por semana, no leer esta constante.
+BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "15"))
 BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "10"))
-STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "15"))
+STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "12"))
 
 # --- Reintentos de publicación --------------------------------------------
 # Cuántas veces se reintenta un post que falló al publicar. Un fallo transitorio

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import InstagramQueueItem, InstagramQueueMedia, VideoClip
 from app.services.instagram import config, publisher
+from scripts.instagram import publish_next
 
 
 @pytest.fixture()
@@ -120,13 +121,36 @@ def test_proposed_no_se_publica(db):
 # --------------------------------------------------------------------------- #
 # Cadencia: con el cron cada 15 min, el guard es el único límite
 # --------------------------------------------------------------------------- #
-def test_la_cadencia_da_entre_10_y_12_posts_por_semana(monkeypatch):
+def test_la_cadencia_de_regimen_ronda_los_14_por_semana(monkeypatch):
     monkeypatch.delenv("IG_STEADY_INTERVAL_H", raising=False)
     importlib.reload(config)
     por_semana = 24 * 7 / config.STEADY_INTERVAL_H
-    assert 10 <= por_semana <= 12, (
+    assert 13 <= por_semana <= 16, (
         f"{por_semana:.1f} posts/semana con STEADY={config.STEADY_INTERVAL_H}h; "
-        "el objetivo acordado son 10-12"
+        "el objetivo acordado son ~15 contando los fijados"
+    )
+
+
+def test_el_modo_atasco_no_puede_ser_el_estado_normal(monkeypatch, db):
+    """Lo que la versión anterior de este test NO miraba, y por eso no cazó nada.
+
+    Comprobaba solo la constante STEADY y se quedaba en verde mientras el ritmo
+    REAL era el doble: con el umbral en 4 y una cola que se movía entre 5 y 13,
+    el modo atasco estaba permanentemente activo y quien mandaba era BACKLOG.
+    Julio subió STEADY de 5 h a 15 h y las siete semanas siguientes siguieron
+    dando 20-21 posts. El umbral tiene que quedar por encima de una cola normal.
+    """
+    monkeypatch.delenv("IG_BACKLOG_THRESHOLD", raising=False)
+    importlib.reload(config)
+    cola_normal = 13  # el máximo medido en prod entre jul y ago de 2026
+    assert config.BACKLOG_THRESHOLD > cola_normal, (
+        f"con el umbral en {config.BACKLOG_THRESHOLD} una cola normal de "
+        f"{cola_normal} ya activa el modo atasco, y entonces STEADY no pinta nada"
+    )
+    for cola in (0, 1, cola_normal):
+        assert publish_next._interval_hours(cola) == config.STEADY_INTERVAL_H
+    assert publish_next._interval_hours(config.BACKLOG_THRESHOLD + 1) == (
+        config.BACKLOG_INTERVAL_H
     )
 
 

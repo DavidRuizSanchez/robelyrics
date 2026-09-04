@@ -191,6 +191,16 @@ Me pasas los 4 valores y yo:
 lleva días sin moverse y los items de la cola traen
 `{'message': 'User access is restricted', 'code': 25, 'error_subcode': 2207050}`.
 
+**Qué lo provoca** (caso real del 24-ago-2026): un **inicio de sesión desde una
+ubicación inusual**. El titular estaba de vacaciones y entró a la cuenta desde
+Pontevedra; Meta lo tomó por acceso sospechoso y restringió la cuenta. No tuvo
+nada que ver con el ritmo de publicación ni con la API. Se resolvió entrando a
+la cuenta y confirmando «he sido yo».
+
+Así que lo PRIMERO que hay que mirar ante un 25/2207050 es si alguien accedió
+hace poco desde otro sitio (viaje, VPN, móvil nuevo). Es lo más probable y se
+arregla en dos clics.
+
 **Qué NO es** (comprobado durante el incidente del 24-ago-2026, todo con GETs):
 
 | Comprobación | Resultado con la cuenta restringida |

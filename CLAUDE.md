@@ -250,7 +250,10 @@ dice probar.
 El 24-ago-2026 Instagram dejó de publicar y no se supo hasta el 4 de septiembre.
 Meta había **restringido la cuenta** (`code 25 / subcode 2207050`, «User access is
 restricted»): eso no lo arregla el código, se resuelve entrando a instagram.com
-**desde el navegador** y completando lo que pida Account Quality.
+**desde el navegador** y confirmando lo que pida. La causa fue un inicio de
+sesión desde una ubicación inusual (el titular, de vacaciones en Pontevedra) —
+no el ritmo de publicación ni la API. Ante un 25/2207050, mirar eso primero
+(ver `infra/META_RECONNECT.md`).
 
 Lo que sí era nuestro es que un bloqueo reversible se llevara por delante 47 posts:
 
