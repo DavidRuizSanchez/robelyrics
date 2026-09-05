@@ -131,6 +131,31 @@ def test_sin_material_vuelve_como_pending(db):
     assert it.status == "pending"
 
 
+def test_el_hueco_descuenta_lo_que_ya_espera_turno(db):
+    """El límite por defecto no puede ser el TOPE, tiene que ser el HUECO.
+
+    Con el umbral en 15 y 11 posts ya en cola solo caben 4: repescar 15 la
+    dejaría en 26 y en modo atasco, que es justo lo que se quiere evitar.
+    """
+    assert rf.hueco_en_la_cola(db) == config.BACKLOG_THRESHOLD
+    for i in range(3):
+        _condenado(db, status="prepared", attempts=0, position=i)
+    assert rf.hueco_en_la_cola(db) == config.BACKLOG_THRESHOLD - 3
+
+
+def test_con_la_cola_llena_no_se_repesca_nada(db):
+    for i in range(config.BACKLOG_THRESHOLD + 2):
+        _condenado(db, status="prepared", attempts=0, position=i)
+    assert rf.hueco_en_la_cola(db) == 0
+
+
+def test_los_condenados_no_cuentan_como_hueco_ocupado(db):
+    """Un post sin intentos está FUERA de la cola: no ocupa sitio."""
+    for i in range(5):
+        _condenado(db, position=i)
+    assert rf.hueco_en_la_cola(db) == config.BACKLOG_THRESHOLD
+
+
 def test_solo_se_miran_los_que_agotaron_intentos(db):
     """Los que aún conservan intentos vuelven solos; tocarlos sería colarse."""
     _condenado(db, attempts=config.MAX_PUBLISH_ATTEMPTS - 1)

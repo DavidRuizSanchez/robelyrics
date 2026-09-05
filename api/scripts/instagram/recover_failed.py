@@ -50,6 +50,20 @@ def caduco(item: InstagramQueueItem, hoy: date) -> bool:
     return False
 
 
+def hueco_en_la_cola(db) -> int:
+    """Cuántos caben sin disparar el modo atasco.
+
+    El límite NO puede ser `BACKLOG_THRESHOLD` a secas —que es lo que ponía
+    antes—, porque eso ignora lo que YA espera turno: con 11 en cola y el umbral
+    en 15, repescar 15 la dejaría en 26 y en modo atasco, justo lo que el texto
+    de ayuda decía evitar. Lo que importa es el hueco, no el tope.
+    """
+    en_cola = db.execute(
+        select(func.count(InstagramQueueItem.id)).where(publisher._publicable())
+    ).scalar_one()
+    return max(0, config.BACKLOG_THRESHOLD - int(en_cola))
+
+
 def _condenados(db) -> list[InstagramQueueItem]:
     return db.execute(
         select(InstagramQueueItem)
@@ -83,12 +97,14 @@ def main() -> None:
     ap.add_argument("--apply", action="store_true", help="escribe de verdad")
     ap.add_argument("--dry-run", action="store_true", help="solo enseña qué haría")
     ap.add_argument(
-        "--limit", type=int, default=config.BACKLOG_THRESHOLD,
+        "--limit", type=int, default=None,
         help=(
-            "cuántos evergreen devolver a la cola en esta pasada. Por encima de "
-            f"{config.BACKLOG_THRESHOLD} se activa el modo atasco "
-            f"({config.BACKLOG_INTERVAL_H} h entre posts) y el ritmo se dispara; "
-            "el script es idempotente, así que se repite cuando la cola baje."
+            "cuántos evergreen devolver en esta pasada. Por defecto, los que "
+            f"quepan sin pasar de {config.BACKLOG_THRESHOLD} en cola, que es "
+            f"cuando se activa el modo atasco ({config.BACKLOG_INTERVAL_H} h "
+            "entre posts en vez de "
+            f"{config.STEADY_INTERVAL_H}) y el ritmo se dispara. El script es "
+            "idempotente: se repite cuando la cola baje."
         ),
     )
     ap.add_argument("--solo-descartar", action="store_true",
@@ -120,8 +136,9 @@ def main() -> None:
                 "  DESCARTAR  #%s [%s · %s] %s",
                 it.id, it.content_type, it.day, (it.title or "")[:60],
             )
+        limite = args.limit if args.limit is not None else hueco_en_la_cola(db)
         a_repescar = recuperables if (args.todos or args.solo_descartar) else \
-            recuperables[: max(0, args.limit)]
+            recuperables[: max(0, limite)]
         if args.solo_descartar:
             a_repescar = []
         for it in a_repescar:
@@ -132,8 +149,9 @@ def main() -> None:
         pendientes = len(recuperables) - len(a_repescar)
         if pendientes > 0:
             logger.info(
-                "  (%d recuperable(s) se quedan para otra pasada: --limit %d)",
-                pendientes, args.limit,
+                "  (%d recuperable(s) se quedan para otra pasada: caben %d sin "
+                "pasar de %d en cola)",
+                pendientes, limite, config.BACKLOG_THRESHOLD,
             )
 
         if not args.apply:
