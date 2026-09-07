@@ -175,7 +175,7 @@ def main() -> None:
         db.refresh(post)
         # Crea como pending_review. El email consolidado se envía desde
         # ensure_weekly_minimum o desde el endpoint de notify-pending.
-        result = propose_for_review(db, post, notify=False)
+        result = propose_for_review(db, post)
         logger.info("Resultado publishing: %s", result)
 
 

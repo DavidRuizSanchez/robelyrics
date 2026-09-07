@@ -127,3 +127,24 @@ def test_solo_entran_los_pendientes(db, correo):
     publishing._notify_admin_review(db, nuevo)
 
     assert correo["titulos"] == ["El de hoy"]
+
+
+# --------------------------------------------------------------------------- #
+# El aviso de LOTE: sin post que lo dispare
+# --------------------------------------------------------------------------- #
+def test_el_aviso_de_lote_no_necesita_un_post_concreto(db, correo):
+    """Los scripts que crean varios de golpe (giras, mínimo semanal) avisan UNA
+    vez al terminar: el correo ya es consolidado, así que uno por pieza serían
+    ocho correos casi idénticos. Sin disparador, manda la antigüedad."""
+    _post(db, "El más viejo", dias_de_antiguedad=90)
+    _post(db, "El de en medio", dias_de_antiguedad=30)
+    _post(db, "El más nuevo", dias_de_antiguedad=1)
+
+    publishing.notify_review_queue(db)
+
+    assert correo["titulos"] == ["El más viejo", "El de en medio", "El más nuevo"]
+
+
+def test_sin_nada_pendiente_no_se_manda_nada(db, correo):
+    publishing.notify_review_queue(db)
+    assert "titulos" not in correo

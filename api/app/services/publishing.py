@@ -18,6 +18,9 @@ API:
 - `flush_scheduled_due(db)` → cron diario que promueve `scheduled` a
   `published` (legacy del flujo anterior con cap móvil; mantenido por si
   queda algún post encolado).
+- `notify_review_queue(db, post=None)` → avisa al admin de la cola de
+  revisión. Sin `post`, para los scripts que crean en LOTE y avisan una
+  sola vez al terminar.
 - `backfill_candidates(db, today)` → propuestas ADELANTABLES para tapar el
   hueco de un día que se quedó sin post (lo atemporal: ni efemérides ni
   eventos). La usa `materialize_proposals` cuando un gate tumba la del día.
@@ -262,16 +265,19 @@ def propose_for_review(
     db.refresh(post)
 
     if notify:
-        _notify_admin_review(db, post)
+        notify_review_queue(db, post)
 
     return {"action": "pending_review", "post_id": post.id, "scheduled_for": None}
 
 
-def _notify_admin_review(db: Session, post: Post) -> None:
-    """Manda un email al admin con TODOS los posts pending_review (incluido
-    el que se acaba de crear), con botones aprobar/rechazar firmados.
-    Si falla, log warning pero no aborta (el post queda en pending_review
-    igualmente)."""
+def notify_review_queue(db: Session, post: Post | None = None) -> None:
+    """Avisa al admin de la cola de revisión, con botones aprobar/rechazar.
+
+    `post` es el que dispara el aviso y va el primero de la lista. Puede ser None:
+    lo usan los scripts que crean posts EN LOTE, que avisan UNA vez al terminar en
+    vez de mandar un correo por pieza (el correo ya es consolidado, así que ocho
+    llamadas seguidas eran ocho correos casi idénticos). Si falla, log warning y
+    ya: el post se queda en pending_review igualmente."""
     admin_email = os.environ.get("ADMIN_EMAIL")
     if not admin_email:
         logger.info("ADMIN_EMAIL no configurado, salto notify admin review")
@@ -299,7 +305,7 @@ def _notify_admin_review(db: Session, post: Post) -> None:
     )
     if not todos:
         return
-    todos.sort(key=lambda x: (x.id != post.id, x.created_at))
+    todos.sort(key=lambda x: (post is None or x.id != post.id, x.created_at))
     pendings = todos[:MAX_REVIEW_EMAIL_ITEMS]
     restantes = len(todos) - len(pendings)
 
@@ -343,6 +349,10 @@ def _notify_admin_review(db: Session, post: Post) -> None:
                     len(pendings), len(todos))
     except EmailError as exc:
         logger.warning("Admin review email failed: %s", exc)
+
+
+# Nombre anterior, conservado porque los tests y los scripts viejos lo usan.
+_notify_admin_review = notify_review_queue
 
 
 def auto_publish_post(

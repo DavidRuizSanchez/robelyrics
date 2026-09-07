@@ -178,7 +178,7 @@ def main() -> None:
         db.add(post)
         db.commit()
         db.refresh(post)
-        result = propose_for_review(db, post, notify=False)
+        result = propose_for_review(db, post)
         logger.info("Resultado: %s", result)
 
 

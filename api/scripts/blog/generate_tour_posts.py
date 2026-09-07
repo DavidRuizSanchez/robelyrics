@@ -21,7 +21,7 @@ from sqlalchemy import select
 from app.db.models import Album, Artist, Post, Song
 from app.db.session import SessionLocal
 from app.services.content_generator import generate_seo_article
-from app.services.publishing import propose_for_review
+from app.services.publishing import notify_review_queue, propose_for_review
 from scripts.blog.context_builder import tour_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -244,8 +244,9 @@ def main() -> None:
             db.add(post)
             db.commit()
             db.refresh(post)
-            # notify=False: generamos varios de golpe; el admin los revisa en
-            # /biblioteca/admin/posts sin recibir 8 emails.
+            # Sin aviso AQUÍ: se generan varios de golpe y el correo ya es
+            # consolidado, así que uno por pieza serían ocho correos casi
+            # idénticos. Se avisa una sola vez al terminar el lote.
             propose_for_review(db, post, notify=False)
             logger.info("✓ post de gira en pending_review: %s", t["slug"])
             created += 1
@@ -254,6 +255,11 @@ def main() -> None:
         "Giras: %d posts creados · %d ya existían · %d fallos",
         created, skipped, failed,
     )
+    if created:
+        # El aviso del lote: sin esto, lo creado aquí no le llegaba al admin por
+        # ningún sitio y se quedaba meses en la cola sin que nadie lo supiera.
+        with SessionLocal() as db:
+            notify_review_queue(db)
 
 
 if __name__ == "__main__":

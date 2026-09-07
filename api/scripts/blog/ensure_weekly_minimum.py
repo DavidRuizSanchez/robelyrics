@@ -281,7 +281,7 @@ def main() -> None:
     # SIEMPRE: si hay pendings sin revisar, manda email consolidado al admin
     # (1 email/día). Idempotente respecto al contenido del mail.
     if not args.dry_run:
-        from app.services.publishing import _notify_admin_review
+        from app.services.publishing import notify_review_queue
         with SessionLocal() as db:
             latest = (
                 db.query(Post)
@@ -290,7 +290,7 @@ def main() -> None:
                 .first()
             )
             if latest is not None:
-                _notify_admin_review(db, latest)
+                notify_review_queue(db, latest)
                 logger.info("Email consolidado enviado al admin")
             else:
                 logger.info("Sin pendings, no envío email")
