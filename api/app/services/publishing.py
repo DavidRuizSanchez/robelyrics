@@ -48,6 +48,10 @@ PUBLISH_SLOT_DAYS = [1, 3, 5, 0]
 # Kinds que ignoran el cap porque tienen fecha calendario obligatoria.
 CAP_EXEMPT_KINDS = {"anniversary", "album-anniversary"}
 
+# Cuántas fichas con botones caben en el correo de revisión sin que sea un
+# ladrillo. Lo que no cabe se nombra al pie: nunca desaparece en silencio.
+MAX_REVIEW_EMAIL_ITEMS = 15
+
 # Antelación mínima (días) para publicar una noticia de un evento ANTES de que
 # ocurra. Una pieza "a futuro" debe salir con margen, no el mismo día.
 EVENT_LEAD_DAYS = 3
@@ -283,15 +287,21 @@ def _notify_admin_review(db: Session, post: Post) -> None:
         send_email,
     )
 
-    pendings = (
+    # Los que llevan MÁS esperando, primero. Antes iba `desc()` con tope de 10 y
+    # el efecto era un embudo que se atascaba solo: pasada la decena, los del
+    # fondo no volvían a aparecer en ningún correo y solo eran alcanzables desde
+    # el panel. El post que dispara este aviso va el primero, que es la novedad.
+    todos = (
         db.query(Post)
         .filter(Post.status == "pending_review")
-        .order_by(Post.created_at.desc())
-        .limit(10)
+        .order_by(Post.created_at.asc())
         .all()
     )
-    if not pendings:
+    if not todos:
         return
+    todos.sort(key=lambda x: (x.id != post.id, x.created_at))
+    pendings = todos[:MAX_REVIEW_EMAIL_ITEMS]
+    restantes = len(todos) - len(pendings)
 
     kind_label = {
         "editorial": "Editorial",
@@ -317,15 +327,20 @@ def _notify_admin_review(db: Session, post: Post) -> None:
             "admin_url": f"{site_url}/biblioteca/admin/blog",
         })
 
-    html, text = render_admin_review_email(items, admin_panel_url)
+    nota = ""
+    if restantes:
+        nota = (f"Y {restantes} más esperando desde hace más tiempo. "
+                "Están todas en el panel.")
+    html, text = render_admin_review_email(items, admin_panel_url, nota)
     subject = (
         f"📰 Una entrada para revisar — «{pendings[0].title}»"
-        if len(pendings) == 1
-        else f"📰 {len(pendings)} entradas para revisar en Entre Interiores"
+        if len(todos) == 1
+        else f"📰 {len(todos)} entradas para revisar en Entre Interiores"
     )
     try:
         send_email(to=admin_email, subject=subject, html=html, text=text)
-        logger.info("Admin review email enviado (%d pendings)", len(pendings))
+        logger.info("Admin review email enviado (%d de %d pendings)",
+                    len(pendings), len(todos))
     except EmailError as exc:
         logger.warning("Admin review email failed: %s", exc)
 

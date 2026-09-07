@@ -375,6 +375,7 @@ def render_newsletter_invite_email(confirm_url: str) -> tuple[str, str]:
 def render_admin_review_email(
     posts: list[dict],
     admin_panel_url: str,
+    nota_final: str = "",
 ) -> tuple[str, str]:
     """Email al admin con la lista de posts pending_review y botones
     aprobar/rechazar directos (one-click, JWT-firmados).
@@ -382,6 +383,8 @@ def render_admin_review_email(
     Cada item en `posts` debe tener: title, kind_label, excerpt (opcional),
     source_name (opcional), source_url (opcional), approve_url, reject_url,
     admin_url (vista detalle).
+
+    `nota_final`: aviso al pie, para cuando la cola no cabe entera en el correo.
     """
     site_url = _site_url()
 
@@ -431,6 +434,13 @@ def render_admin_review_email(
             f"  ver: {p['admin_url']}\n"
         )
 
+    nota_html = (
+        f'<p style="font-family:\'Courier New\',monospace;font-size:11px;'
+        f'color:rgba(237,228,211,0.55);margin:24px 0 0;text-align:center;">'
+        f'{nota_final}</p>'
+        if nota_final else ""
+    )
+
     n = len(posts)
     headline = (
         "Una entrada para revisar"
@@ -454,6 +464,7 @@ def render_admin_review_email(
       antes de publicar. Nada se manda a los suscriptores hasta que apruebes.
     </p>
     {items_html}
+    {nota_html}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
       <a href="{admin_panel_url}" style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#a83a3a;text-decoration:none;">
         ver todos los pendientes →
@@ -466,6 +477,7 @@ def render_admin_review_email(
     text = (
         f"{headline} en Entre Interiores:\n\n"
         + "\n".join(items_text)
+        + (f"\n{nota_final}\n" if nota_final else "")
         + f"\n\nPanel admin: {admin_panel_url}\n"
         f"Web: {site_url}\n"
     )

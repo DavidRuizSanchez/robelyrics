@@ -2206,7 +2206,24 @@ def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
                 status_code=409,
             )
         from app.services.publishing import auto_publish_post  # lazy
-        auto_publish_post(db, post)
+
+        # Mismos flags que el botón del panel: quien pulsa ya ha leído la pieza y
+        # decide él, así que los gates que la mandaron a revisión no se repiten
+        # (la devolverían a la cola en bucle). El de citas de letra sí corre: no
+        # es evadible. Y el resultado se COMPRUEBA: antes se respondía
+        # "✓ Publicado" pasara lo que pasara, así que un bloqueo se leía como un
+        # éxito y el post seguía sin salir.
+        resultado = auto_publish_post(db, post, factcheck=False, rigor=False)
+        if resultado["action"] != "published":
+            return HTMLResponse(
+                _render_admin_action_page(
+                    f"«{post.title}» NO se ha publicado: el guard de citas de "
+                    "letra la bloquea (verso sin letra verificable en el corpus). "
+                    "Ábrela en el panel para corregir la cita.",
+                    success=False,
+                ),
+                status_code=409,
+            )
         return HTMLResponse(
             _render_admin_action_page(
                 f"✓ Publicado: «{post.title}»", success=True,

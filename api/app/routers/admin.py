@@ -1007,15 +1007,33 @@ def admin_post_publish(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminPostListItem:
-    """Publica el post (status='published', published_at=now). El cron de
-    newsletter recogerá esta entrada en su próximo run y la enviará a los
-    suscriptores."""
+    """Publica el post. El cron de newsletter recogerá esta entrada en su próximo
+    run y la enviará a los suscriptores.
+
+    Va por el TRONCO COMÚN de publicación, no cambiando el estado a mano: así
+    pasan los enlaces internos, el hero, el guard de citas y —sobre todo— el
+    `revalidate` de Next. Sin él, el post tardaba hasta 10 minutos en aparecer en
+    la web (`revalidate = 600` en el front) y el botón parecía no hacer nada,
+    mientras que el mismo botón desde el email salía al instante.
+
+    `factcheck` y `rigor` van en False a propósito: el admin ya ha leído la pieza
+    y decide él; repetir aquí los gates que la mandaron a revisión la devolvería
+    a la cola en bucle. La VERACIDAD de las citas de letra no es evadible y sigue
+    corriendo dentro de `auto_publish_post`.
+    """
     p = db.query(_Post).filter(_Post.id == post_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="post not found")
-    p.status = "published"
-    if p.published_at is None:
-        p.published_at = _dt.now(_tz.utc)
+    from app.services.publishing import auto_publish_post  # lazy: evita el ciclo
+
+    resultado = auto_publish_post(db, p, factcheck=False, rigor=False)
+    if resultado["action"] != "published":
+        raise HTTPException(
+            status_code=409,
+            detail=("No se ha publicado: el guard de citas de letra lo bloquea "
+                    "(verso sin letra verificable en el corpus). Corrige la cita "
+                    "y vuelve a intentarlo."),
+        )
     p.approved_by = _admin.id
     db.commit()
     return AdminPostListItem(
