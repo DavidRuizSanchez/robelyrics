@@ -50,7 +50,11 @@ def motor(monkeypatch):
                         lambda *a, **kw: estado["seccion"])
     monkeypatch.setattr(ap, "normalize_headings", lambda b: b)
     monkeypatch.setattr(ap, "strip_ai_tells", lambda b: b)
-    monkeypatch.setattr(ap, "autolink_corpus", lambda b, *a, **kw: b)
+    # OJO: en producción el enlazado SÍ toca el cuerpo entero (le mete enlaces
+    # markdown), así que un mock identidad sería más permisivo que la realidad y
+    # dejaría pasar un contrato que allí no se cumple. Se simula que modifica.
+    monkeypatch.setattr(ap, "autolink_corpus",
+                        lambda b, *a, **kw: b.replace("hechos", "[hechos](/x)"))
 
     def _review(body, *, kind, subject, allowed_terms=None, **kw):
         es_original = body.strip() == CUERPO.strip()
@@ -64,13 +68,19 @@ def motor(monkeypatch):
 
 
 def test_lo_que_ya_decia_no_se_pierde(motor):
-    """El contrato entero: el cuerpo original sigue ahí, entero, y la pieza crece."""
+    """El contrato entero: lo que ya decía sigue ahí y la pieza crece.
+
+    No se exige el original LITERAL porque el enlazado interno reescribe menciones
+    en enlaces; lo que no puede pasar es que desaparezca contenido ni que encoja.
+    """
     res = ap.augmentar(None, None, _Post(), corpus_index=None, link_stats=None)
     assert res["noop"] is False
-    assert CUERPO.strip() in res["after"]        # íntegro, no reescrito
-    assert res["after"].startswith(CUERPO.strip())
-    assert res["after_len"] > res["before_len"]
-    assert "Material verificado" in res["after"]
+    assert "Lo que ya decía" in res["after"]                    # su encabezado sigue
+    assert "comprobables" in res["after"]                       # y su prosa
+    assert res["after"].index("Lo que ya decía") < res["after"].index("Lo nuevo")
+    assert res["after_len"] > res["before_len"]                 # nunca encoge
+    assert "Material verificado" in res["after"]                # y lo nuevo entró
+    assert res["added"].startswith("## Lo nuevo")               # la sección, aparte
 
 
 def test_si_no_mejora_se_tira_la_ampliacion(motor):

@@ -102,7 +102,7 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats) -> di
         "post_id": post.id, "subject": subject, "noop": False,
         "before": current, "after": after,
         "before_len": len(current), "after_len": len(after),
-        "heading": gap_head, "before_score": v_before.score,
+        "added": gap_body, "heading": gap_head, "before_score": v_before.score,
         "after_score": v_after.score, "verdict": v_after.verdict,
     }
 
@@ -152,7 +152,7 @@ def main() -> None:
                 # Sin --apply esto es una MUESTRA para validar a ojo: se enseña
                 # tal cual lo añadido, que es lo único que cambia.
                 print("\n----- LO QUE AÑADE -----")
-                print(res["after"][len(res["before"]):].strip())
+                print(res["added"].strip())
                 print("----- fin -----\n")
             if args.apply:
                 post.body_md = res["after"]
