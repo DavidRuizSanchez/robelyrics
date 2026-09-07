@@ -10,9 +10,17 @@ Cron diario. Para cada `ContentProposal` con status='scheduled' y
      saneados y enlazados) y lo publica vía `auto_publish_post`.
   3. Marca la propuesta como `used` con `post_id`.
 
+REPESCA DEL HUECO: si la propuesta del día muere en un gate (rigor, caducidad,
+cita no veraz…), el día se quedaba SIN publicación y nadie lo repescaba. Ahora
+se adelanta la siguiente propuesta ADELANTABLE de la cola —solo lo atemporal:
+nunca una efeméride ni una noticia con `event_date`, que tienen su día atado—
+hasta `BACKFILL_MAX` intentos. El tope es lo que impide que un día con el juez
+duro se lleve por delante media cola.
+
 Uso:
     python -m scripts.blog.materialize_proposals
     python -m scripts.blog.materialize_proposals --dry-run
+    python -m scripts.blog.materialize_proposals --no-backfill
 """
 from __future__ import annotations
 
@@ -20,7 +28,7 @@ import argparse
 import logging
 import re
 import unicodedata
-from datetime import date
+from datetime import UTC, date, datetime, time
 
 from sqlalchemy import select
 
@@ -30,10 +38,15 @@ from app.services.draft_generator import generate_proposal_draft
 from app.services.editorial_review import review as editorial_review
 from app.services.fact_check import check_body, correct_body
 from app.services.focus_check import check_focus
-from app.services.publishing import auto_publish_post, propose_for_review
+from app.services.publishing import auto_publish_post, backfill_candidates, propose_for_review
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+
+# Cuántas propuestas se prueban como máximo para tapar el hueco de un día. Cada
+# intento fallido DESCARTA su propuesta, así que el tope es el freno: sin él, un
+# día con el gate exigente vaciaría la cola entera de una sentada.
+BACKFILL_MAX = 3
 
 
 def _notify_admin(subject: str, text: str) -> None:
@@ -131,219 +144,351 @@ def _unique_slug(db, base: str) -> str:
     return slug
 
 
+def _materialize_one(db, p: ContentProposal, today) -> str:
+    """Pasa UNA propuesta por toda la cascada de gates y, si los supera, la publica.
+
+    Devuelve qué pasó con ella:
+      'published'  → salió a la web.
+      'review'     → se creó el Post pero espera al humano (hay email con botón).
+      'discarded'  → murió en un gate; el hueco del día queda por tapar.
+      'skipped'    → no se pudo ni intentar (sin borrador generable).
+    """
+    # 0. CADUCIDAD: si el evento de la noticia ya pasó, reconvertir a
+    #    crónica (si hay material) o cancelar (no publicar nada obsoleto).
+    caducada = bool(p.event_date and p.event_date < today)
+    if caducada and _handle_expired(db, p, today, dry_run=False) == "cancelled":
+        return "discarded"
+
+    # 1. Asegurar borrador (normalmente ya hecho al aprobar).
+    if not p.body_md:
+        logger.info("  sin borrador, generando ahora (red de seguridad)")
+        if not generate_proposal_draft(db, p):
+            logger.error("  no se pudo generar body para propuesta %s", p.id)
+            return "skipped"
+
+    # 1·pre. GUARD DE POLÍTICA NUEVA: nada que no haya pasado por el pipeline
+    #   actual (scoring de engagement + motor profundo) se publica. La señal
+    #   es `quality_tier`: si falta, la propuesta se generó con el motor viejo
+    #   (one-shot flaco → "paja"). Se REGENERA antes de los gates. Las noticias
+    #   conservan el cuerpo del scraper (no hay entidad que profundizar): solo
+    #   se les backfillea el score. El override del admin lo salta.
+    if not p.force_publish and p.quality_tier is None:
+        logger.info("  ⚠ sin quality_tier (motor viejo) → regeneración con pipeline nuevo")
+        if p.kind != "news":
+            p.body_md = None  # fuerza cuerpo por el motor profundo
+        if not generate_proposal_draft(db, p):
+            _notify_admin(
+                f"⏸ No publicada (regen falló): {p.title}",
+                f"La propuesta #{p.id} no tenía quality_tier (motor viejo) y la "
+                "regeneración con el pipeline nuevo falló. NO se publica; requiere "
+                "revisión manual para no sacar contenido flojo.",
+            )
+            logger.info("  ✗ regen falló → no se publica (propuesta #%s)", p.id)
+            return "discarded"
+        logger.info("  ↪ regenerada (tier %s)", p.quality_tier)
+
+    # 1b. GATE DE FOCO: nada se publica desviado del tema (relleno sobre
+    #     el lugar/sede/contexto ajeno). Si se puede recortar limpio, se
+    #     recorta; si no, va a revisión humana.
+    review_focus = False
+    subject = (p.target_keyword or p.title or "").strip()
+    freport = check_focus(p.body_md, subject)
+    if not freport.ok:
+        if freport.trimmed_body_md:
+            p.body_md = freport.trimmed_body_md
+            db.commit()
+            logger.info("  foco: recortado (score %d, deriva: %s)",
+                        freport.score, ", ".join(freport.drift_headings) or "—")
+        else:
+            review_focus = True
+            logger.info("  foco BAJO (score %d) sin recorte limpio → revisión",
+                        freport.score)
+
+    # 1c. GATE DE RIGOR EDITORIAL: nada genérico/relleno se publica. Si se
+    #     puede tensar, se tensa; si es flojo sin remedio (faltan HECHOS),
+    #     se DESCARTA y se avisa (no se publica y punto). El override del
+    #     admin (`force_publish`) lo salta — publica bajo su criterio.
+    if p.force_publish:
+        review_focus = False  # el admin fuerza: no bloquear por calidad
+        logger.info("  ⚡ force_publish: se salta el gate de calidad")
+    else:
+        when = None
+        if p.event_date:
+            when = "past" if p.event_date < today else "future"
+        verdict = editorial_review(p.body_md, kind=p.kind, subject=subject,
+                                   event_when=when)
+        if verdict.verdict == "reject":
+            p.status = "discarded"
+            db.commit()
+            _notify_admin(
+                f"🗑 Descartada por rigor: {p.title}",
+                f"La propuesta #{p.id} no llega al listón editorial (score "
+                f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
+                "No se publica por falta de sustancia/especificidad.",
+            )
+            logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
+                        verdict.score, "; ".join(verdict.reasons))
+            return "discarded"
+        if verdict.verdict == "revise" and verdict.tightened_body_md:
+            p.body_md = verdict.tightened_body_md
+            db.commit()
+            logger.info("  rigor: tensado (score %d)", verdict.score)
+
+    # 1d. Medios: embebe vídeos referenciados como enlace (URL desnuda).
+    from app.services.text_sanitizer import embed_youtube_links
+    embedded = embed_youtube_links(p.body_md)
+    if embedded and embedded != p.body_md:
+        p.body_md = embedded
+        db.commit()
+
+    # 2. Crear el Post copiando el borrador ya saneado/enlazado.
+    slug = _unique_slug(db, _slugify(p.title))
+    post = Post(
+        slug=slug,
+        kind=p.kind,
+        status="draft",
+        title=p.title[:240],
+        excerpt=p.excerpt,
+        body_md=p.body_md,
+        meta_title=p.meta_title[:60] if p.meta_title else None,
+        meta_description=p.meta_description[:155] if p.meta_description else None,
+        target_keyword=p.target_keyword,
+        target_keyword_slug=p.target_keyword_slug,
+        content_key=p.content_key,
+        source_url=p.source_url,
+        source_name=p.source_name,
+        hero_image_url=p.hero_image_url,
+        hero_image_alt=p.hero_image_alt,
+        hero_image_attribution=p.hero_image_attribution,
+        hero_image_license=p.hero_image_license,
+        hero_image_source_url=p.hero_image_source_url,
+        entities=p.entities or [],
+        event_date=p.event_date,
+        video=p.video,
+        videos=p.videos,
+        engagement_score=p.engagement_score,
+        quality_tier=p.quality_tier,
+        force_publish=p.force_publish,
+    )
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+
+    # 3. GATE FACTUAL antes de publicar. Auto-corrige las contradicciones
+    #    canónicas de BD (canción↔álbum↔año); si la verificación web
+    #    detecta algo dudoso (to_review), el post NO se auto-publica: va a
+    #    revisión humana. Solo lo que pasa LIMPIO se publica solo.
+    report = check_body(db, post.body_md, use_web=True)
+    skipped: list = []
+    if report.autofixes:
+        fixed, skipped = correct_body(db, post.body_md, report)
+        if fixed and fixed != post.body_md:
+            post.body_md = fixed
+            db.commit()
+            db.refresh(post)
+            logger.info("  fact-check: %d hecho(s) corregido(s) contra BD",
+                        len(report.autofixes) - len(skipped))
+
+    # 3b. GATE DE CITAS DE LETRA (determinista, BLOQUEANTE, NO evadible ni
+    #     con force_publish): un verso inventado o una cita de una canción
+    #     sin letra verificable en el corpus NO se publica JAMÁS. La zona
+    #     gris (coincidencia parcial / posible misatribución) va a revisión.
+    from app.services.lyric_guard import check_lyrics
+    lyric_report = check_lyrics(db, post.body_md)
+    if lyric_report.blocking:
+        db.delete(post)
+        p.status = "discarded"
+        db.commit()
+        detalle = "; ".join(f"«{v.quote[:60]}» → {v.reason}"
+                            for v in lyric_report.blocking)
+        _notify_admin(
+            f"🗑 Descartada por CITA NO VERAZ: {p.title}",
+            f"La propuesta #{p.id} cita versos que no existen en la letra real "
+            f"(o de una canción sin letra verificable): {detalle}. No se publica "
+            "(regla de veracidad, no evadible ni con force_publish).",
+        )
+        logger.info("  ✗ DESCARTADA por citas no veraces: %s", detalle)
+        return "discarded"
+
+    # A revisión humana si la web detecta algo dudoso (to_review), si algún
+    # hecho refutado no se pudo corregir limpio (skipped → reformular), si
+    # una cita de letra queda en zona gris, o si el gate de FOCO marcó deriva.
+    # La VERACIDAD (datos + citas) NO es evadible por force_publish: siempre
+    # va a revisión humana. force_publish solo salta rigor/foco (gustos).
+    needs_review = report.to_review + skipped
+    lyric_review = lyric_report.to_review
+    if needs_review or lyric_review or review_focus:
+        for v in needs_review:
+            logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
+        for v in lyric_review:
+            logger.info("  cita REVISAR: «%s» · %s", v.quote[:50], v.reason)
+        if review_focus:
+            logger.info("  foco REVISAR: deriva no recortable")
+        propose_for_review(db, post)
+        p.status = "used"
+        p.post_id = post.id
+        db.commit()
+        logger.info("  ⚠ a revisión humana (%d dato(s), %d cita(s)%s): /blog/%s",
+                    len(needs_review), len(lyric_review),
+                    ", +foco" if review_focus else "", slug)
+        return "review"
+
+    # 4. Limpio → publicar (revalidate de Next; el email es el digest dominical).
+    #    factcheck=False y rigor=False: los gates de arriba ya verificaron
+    #    (capa web + foco + rigor editorial); no repetir.
+    auto_publish_post(db, post, factcheck=False, rigor=False)
+    p.status = "used"
+    p.post_id = post.id
+    db.commit()
+    logger.info("  ✓ publicado como /blog/%s", slug)
+    return "published"
+
+
+def _cola_de_aprobacion(db) -> str:
+    """Coletilla con lo que espera un clic. Un día sin post casi nunca es solo el
+    de hoy: si hay piezas en `pending_review`, el post del día está a un botón.
+    """
+    n = db.query(Post.id).filter(Post.status == "pending_review").count()
+    if not n:
+        return ""
+    return (f"\n\nOjo: hay {n} post(s) esperando tu aprobación en "
+            "/biblioteca/admin/blog. Aprobar uno tapa el día al instante.")
+
+
+def _backfill(db, today, caidas: list[ContentProposal]) -> str:
+    """Tapa el hueco del día adelantando la siguiente propuesta ADELANTABLE.
+
+    Solo se llama cuando lo programado para hoy murió del todo. Cada candidato
+    pasa por los MISMOS gates: si también lo tumban, se descarta igual que en su
+    día y se prueba el siguiente, hasta `BACKFILL_MAX`. Devuelve el resultado del
+    que cubrió el hueco, o 'none' si el día se queda sin post.
+    """
+    perdidas = "; ".join(f"«{c.title}» (#{c.id})" for c in caidas)
+    candidatos = backfill_candidates(db, today, limit=BACKFILL_MAX)
+    if not candidatos:
+        logger.info("Repesca: no hay ninguna propuesta adelantable en la cola")
+        _notify_admin(
+            "⚠️ Hoy no se publica (sin recambio en la cola)",
+            f"Lo programado para hoy se cayó: {perdidas}. No queda ninguna propuesta "
+            "ADELANTABLE con la que taparlo (las que hay son efemérides o tienen "
+            "fecha de evento, y esas no se adelantan). Hoy el blog no publica."
+            + _cola_de_aprobacion(db),
+        )
+        return "none"
+
+    logger.info("Repesca: %d candidato(s) adelantable(s)", len(candidatos))
+    probados: list[str] = []
+    for cand in candidatos:
+        origen = cand.scheduled_for
+        logger.info("[%s] %s (programada %s → ADELANTADA a hoy)",
+                    cand.kind, cand.title, origen)
+        # La fecha se mueve ANTES de materializar: así queda la traza del día en
+        # que salió de verdad. Su hueco futuro se queda libre; recolocarlo es
+        # cosa del panel, no de este cron.
+        cand.scheduled_for = today
+        db.commit()
+        resultado = _materialize_one(db, cand, today)
+        probados.append(f"«{cand.title}» (#{cand.id}, era del {origen}) → {resultado}")
+        if resultado in ("published", "review"):
+            _notify_admin(
+                f"✅ Hueco cubierto: se adelantó «{cand.title}»",
+                f"Lo programado para hoy se cayó: {perdidas}.\n\n"
+                f"En su lugar se ha adelantado «{cand.title}» (#{cand.id}), que estaba "
+                f"programada para el {origen}. Resultado: {resultado}"
+                + ("  (esperando tu aprobación)." if resultado == "review" else "  (publicada).")
+                + f"\n\nSu hueco del {origen} queda libre en el calendario."
+                + (_cola_de_aprobacion(db) if resultado == "review" else ""),
+            )
+            return resultado
+
+    detalle = "\n".join(f"- {t}" for t in probados)
+    logger.info("Repesca agotada: %d candidato(s) probado(s), ninguno pasó", len(probados))
+    _notify_admin(
+        f"⚠️ Hoy no se publica ({len(probados)} recambio(s) probado(s))",
+        f"Lo programado para hoy se cayó: {perdidas}.\n\n"
+        f"Se intentó taparlo con {len(probados)} propuesta(s) de la cola y ninguna "
+        f"pasó los gates:\n{detalle}\n\nTope por run: {BACKFILL_MAX}."
+        + _cola_de_aprobacion(db),
+    )
+    return "none"
+
+
+def _publicado_hoy(db, today) -> bool:
+    """¿Ha salido YA algún post hoy, por el camino que sea?
+
+    El cron de efemérides (`publish_anniversary`) publica por su cuenta, y una
+    segunda pasada de este mismo script tampoco debe sumar. Sin esto, la repesca
+    podría poner un segundo post encima del que ya salió.
+    """
+    inicio = datetime.combine(today, time.min, tzinfo=UTC)
+    return (
+        db.query(Post.id)
+        .filter(Post.status == "published")
+        .filter(Post.published_at >= inicio)
+        .first()
+        is not None
+    )
+
+
+def run(db, today, *, dry_run: bool = False, backfill: bool = True) -> dict:
+    """Materializa lo programado para hoy y, si el día se queda sin post, repesca.
+
+    Separado de `main()` para poder probarlo con una sesión de test.
+    """
+    due = (
+        db.query(ContentProposal)
+        .filter(ContentProposal.status == "scheduled")
+        .filter(ContentProposal.scheduled_for.isnot(None))
+        .filter(ContentProposal.scheduled_for <= today)
+        .order_by(ContentProposal.scheduled_for)
+        .all()
+    )
+    logger.info("Propuestas a materializar hoy: %d", len(due))
+
+    if dry_run:
+        for p in due:
+            logger.info("[%s] %s (programada %s)", p.kind, p.title, p.scheduled_for)
+            if p.event_date and p.event_date < today:
+                logger.info("  ⏰ [dry-run] evento caducado (%s)", p.event_date)
+        if backfill:
+            for cand in backfill_candidates(db, today, limit=BACKFILL_MAX):
+                logger.info("  [dry-run] recambio disponible: [%s] %s (del %s)",
+                            cand.kind, cand.title, cand.scheduled_for)
+        return {"due": len(due), "dry_run": True}
+
+    caidas: list[ContentProposal] = []
+    cubierto = False
+    for p in due:
+        logger.info("[%s] %s (programada %s)", p.kind, p.title, p.scheduled_for)
+        resultado = _materialize_one(db, p, today)
+        if resultado in ("published", "review"):
+            cubierto = True
+        else:
+            caidas.append(p)
+
+    # REPESCA: el día solo se tapa si NADA salió y algo se cayó. Si lo de hoy está
+    # esperando aprobación humana, no se adelanta nada: el post existe y sacar otro
+    # encima publicaría dos. Si hoy no tocaba publicar, tampoco se inventa un día.
+    repesca = "off"
+    if backfill and not cubierto and caidas:
+        if _publicado_hoy(db, today):
+            logger.info("Repesca: hoy ya hay un post publicado por otra vía, no se adelanta nada")
+            repesca = "ya_publicado"
+        else:
+            repesca = _backfill(db, today, caidas)
+
+    return {"due": len(due), "caidas": len(caidas), "cubierto": cubierto, "repesca": repesca}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--no-backfill", action="store_true",
+                        help="no adelantar nada si el post del día se cae")
     args = parser.parse_args()
 
-    today = date.today()
     with SessionLocal() as db:
-        due = (
-            db.query(ContentProposal)
-            .filter(ContentProposal.status == "scheduled")
-            .filter(ContentProposal.scheduled_for.isnot(None))
-            .filter(ContentProposal.scheduled_for <= today)
-            .order_by(ContentProposal.scheduled_for)
-            .all()
-        )
-        logger.info("Propuestas a materializar hoy: %d", len(due))
-
-        for p in due:
-            logger.info("[%s] %s (programada %s)", p.kind, p.title, p.scheduled_for)
-
-            # 0. CADUCIDAD: si el evento de la noticia ya pasó, reconvertir a
-            #    crónica (si hay material) o cancelar (no publicar nada obsoleto).
-            expired = bool(p.event_date and p.event_date < today)
-            if args.dry_run:
-                if expired:
-                    logger.info("  ⏰ [dry-run] evento caducado (%s)", p.event_date)
-                continue
-            if expired:
-                if _handle_expired(db, p, today, dry_run=False) == "cancelled":
-                    continue
-
-            # 1. Asegurar borrador (normalmente ya hecho al aprobar).
-            if not p.body_md:
-                logger.info("  sin borrador, generando ahora (red de seguridad)")
-                if not generate_proposal_draft(db, p):
-                    logger.error("  no se pudo generar body para propuesta %s", p.id)
-                    continue
-
-            # 1·pre. GUARD DE POLÍTICA NUEVA: nada que no haya pasado por el pipeline
-            #   actual (scoring de engagement + motor profundo) se publica. La señal
-            #   es `quality_tier`: si falta, la propuesta se generó con el motor viejo
-            #   (one-shot flaco → "paja"). Se REGENERA antes de los gates. Las noticias
-            #   conservan el cuerpo del scraper (no hay entidad que profundizar): solo
-            #   se les backfillea el score. El override del admin lo salta.
-            if not p.force_publish and p.quality_tier is None:
-                logger.info("  ⚠ sin quality_tier (motor viejo) → regeneración con pipeline nuevo")
-                if p.kind != "news":
-                    p.body_md = None  # fuerza cuerpo por el motor profundo
-                if not generate_proposal_draft(db, p):
-                    _notify_admin(
-                        f"⏸ No publicada (regen falló): {p.title}",
-                        f"La propuesta #{p.id} no tenía quality_tier (motor viejo) y la "
-                        "regeneración con el pipeline nuevo falló. NO se publica; requiere "
-                        "revisión manual para no sacar contenido flojo.",
-                    )
-                    logger.info("  ✗ regen falló → no se publica (propuesta #%s)", p.id)
-                    continue
-                logger.info("  ↪ regenerada (tier %s)", p.quality_tier)
-
-            # 1b. GATE DE FOCO: nada se publica desviado del tema (relleno sobre
-            #     el lugar/sede/contexto ajeno). Si se puede recortar limpio, se
-            #     recorta; si no, va a revisión humana.
-            review_focus = False
-            subject = (p.target_keyword or p.title or "").strip()
-            freport = check_focus(p.body_md, subject)
-            if not freport.ok:
-                if freport.trimmed_body_md:
-                    p.body_md = freport.trimmed_body_md
-                    db.commit()
-                    logger.info("  foco: recortado (score %d, deriva: %s)",
-                                freport.score, ", ".join(freport.drift_headings) or "—")
-                else:
-                    review_focus = True
-                    logger.info("  foco BAJO (score %d) sin recorte limpio → revisión",
-                                freport.score)
-
-            # 1c. GATE DE RIGOR EDITORIAL: nada genérico/relleno se publica. Si se
-            #     puede tensar, se tensa; si es flojo sin remedio (faltan HECHOS),
-            #     se DESCARTA y se avisa (no se publica y punto). El override del
-            #     admin (`force_publish`) lo salta — publica bajo su criterio.
-            if p.force_publish:
-                review_focus = False  # el admin fuerza: no bloquear por calidad
-                logger.info("  ⚡ force_publish: se salta el gate de calidad")
-            else:
-                when = None
-                if p.event_date:
-                    when = "past" if p.event_date < today else "future"
-                verdict = editorial_review(p.body_md, kind=p.kind, subject=subject,
-                                           event_when=when)
-                if verdict.verdict == "reject":
-                    p.status = "discarded"
-                    db.commit()
-                    _notify_admin(
-                        f"🗑 Descartada por rigor: {p.title}",
-                        f"La propuesta #{p.id} no llega al listón editorial (score "
-                        f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
-                        "No se publica por falta de sustancia/especificidad.",
-                    )
-                    logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
-                                verdict.score, "; ".join(verdict.reasons))
-                    continue
-                if verdict.verdict == "revise" and verdict.tightened_body_md:
-                    p.body_md = verdict.tightened_body_md
-                    db.commit()
-                    logger.info("  rigor: tensado (score %d)", verdict.score)
-
-            # 1d. Medios: embebe vídeos referenciados como enlace (URL desnuda).
-            from app.services.text_sanitizer import embed_youtube_links
-            embedded = embed_youtube_links(p.body_md)
-            if embedded and embedded != p.body_md:
-                p.body_md = embedded
-                db.commit()
-
-            # 2. Crear el Post copiando el borrador ya saneado/enlazado.
-            slug = _unique_slug(db, _slugify(p.title))
-            post = Post(
-                slug=slug,
-                kind=p.kind,
-                status="draft",
-                title=p.title[:240],
-                excerpt=p.excerpt,
-                body_md=p.body_md,
-                meta_title=p.meta_title[:60] if p.meta_title else None,
-                meta_description=p.meta_description[:155] if p.meta_description else None,
-                target_keyword=p.target_keyword,
-                target_keyword_slug=p.target_keyword_slug,
-                content_key=p.content_key,
-                source_url=p.source_url,
-                source_name=p.source_name,
-                hero_image_url=p.hero_image_url,
-                hero_image_alt=p.hero_image_alt,
-                hero_image_attribution=p.hero_image_attribution,
-                hero_image_license=p.hero_image_license,
-                hero_image_source_url=p.hero_image_source_url,
-                entities=p.entities or [],
-                event_date=p.event_date,
-                video=p.video,
-                videos=p.videos,
-                engagement_score=p.engagement_score,
-                quality_tier=p.quality_tier,
-                force_publish=p.force_publish,
-            )
-            db.add(post)
-            db.commit()
-            db.refresh(post)
-
-            # 3. GATE FACTUAL antes de publicar. Auto-corrige las contradicciones
-            #    canónicas de BD (canción↔álbum↔año); si la verificación web
-            #    detecta algo dudoso (to_review), el post NO se auto-publica: va a
-            #    revisión humana. Solo lo que pasa LIMPIO se publica solo.
-            report = check_body(db, post.body_md, use_web=True)
-            skipped: list = []
-            if report.autofixes:
-                fixed, skipped = correct_body(db, post.body_md, report)
-                if fixed and fixed != post.body_md:
-                    post.body_md = fixed
-                    db.commit()
-                    db.refresh(post)
-                    logger.info("  fact-check: %d hecho(s) corregido(s) contra BD",
-                                len(report.autofixes) - len(skipped))
-
-            # 3b. GATE DE CITAS DE LETRA (determinista, BLOQUEANTE, NO evadible ni
-            #     con force_publish): un verso inventado o una cita de una canción
-            #     sin letra verificable en el corpus NO se publica JAMÁS. La zona
-            #     gris (coincidencia parcial / posible misatribución) va a revisión.
-            from app.services.lyric_guard import check_lyrics
-            lyric_report = check_lyrics(db, post.body_md)
-            if lyric_report.blocking:
-                db.delete(post)
-                p.status = "discarded"
-                db.commit()
-                detalle = "; ".join(f"«{v.quote[:60]}» → {v.reason}"
-                                    for v in lyric_report.blocking)
-                _notify_admin(
-                    f"🗑 Descartada por CITA NO VERAZ: {p.title}",
-                    f"La propuesta #{p.id} cita versos que no existen en la letra real "
-                    f"(o de una canción sin letra verificable): {detalle}. No se publica "
-                    "(regla de veracidad, no evadible ni con force_publish).",
-                )
-                logger.info("  ✗ DESCARTADA por citas no veraces: %s", detalle)
-                continue
-
-            # A revisión humana si la web detecta algo dudoso (to_review), si algún
-            # hecho refutado no se pudo corregir limpio (skipped → reformular), si
-            # una cita de letra queda en zona gris, o si el gate de FOCO marcó deriva.
-            # La VERACIDAD (datos + citas) NO es evadible por force_publish: siempre
-            # va a revisión humana. force_publish solo salta rigor/foco (gustos).
-            needs_review = report.to_review + skipped
-            lyric_review = lyric_report.to_review
-            if needs_review or lyric_review or review_focus:
-                for v in needs_review:
-                    logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
-                for v in lyric_review:
-                    logger.info("  cita REVISAR: «%s» · %s", v.quote[:50], v.reason)
-                if review_focus:
-                    logger.info("  foco REVISAR: deriva no recortable")
-                propose_for_review(db, post)
-                p.status = "used"
-                p.post_id = post.id
-                db.commit()
-                logger.info("  ⚠ a revisión humana (%d dato(s), %d cita(s)%s): /blog/%s",
-                            len(needs_review), len(lyric_review),
-                            ", +foco" if review_focus else "", slug)
-                continue
-
-            # 4. Limpio → publicar (revalidate de Next; el email es el digest dominical).
-            #    factcheck=False y rigor=False: los gates de arriba ya verificaron
-            #    (capa web + foco + rigor editorial); no repetir.
-            auto_publish_post(db, post, factcheck=False, rigor=False)
-            p.status = "used"
-            p.post_id = post.id
-            db.commit()
-            logger.info("  ✓ publicado como /blog/%s", slug)
+        run(db, date.today(), dry_run=args.dry_run, backfill=not args.no_backfill)
 
 
 if __name__ == "__main__":

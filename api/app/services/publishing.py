@@ -18,6 +18,9 @@ API:
 - `flush_scheduled_due(db)` → cron diario que promueve `scheduled` a
   `published` (legacy del flujo anterior con cap móvil; mantenido por si
   queda algún post encolado).
+- `backfill_candidates(db, today)` → propuestas ADELANTABLES para tapar el
+  hueco de un día que se quedó sin post (lo atemporal: ni efemérides ni
+  eventos). La usa `materialize_proposals` cuando un gate tumba la del día.
 """
 from __future__ import annotations
 
@@ -64,6 +67,42 @@ def recommended_from_event(event_date, today, *, lead_days: int = EVENT_LEAD_DAY
     suggested = event_date - _td(days=lead_days)
     tomorrow = today + _td(days=1)
     return max(suggested, tomorrow)
+
+
+def backfill_candidates(db: Session, today, *, exclude_ids=(), limit: int = 3) -> list:
+    """Propuestas ADELANTABLES para tapar el hueco de un día que se quedó sin post.
+
+    Solo lo ATEMPORAL: programadas a futuro, sin efeméride (`CAP_EXEMPT_KINDS`,
+    que tienen día de calendario obligatorio) y sin `event_date` (una noticia con
+    evento sale con su antelación calculada, `EVENT_LEAD_DAYS`; adelantarla la
+    desvirtúa). Es el mismo «cubo 3» del auto-scheduler del panel.
+
+    Las más próximas primero: se roba el hueco que menos futuro rompe. Adelantar
+    NO gasta cap semanal — mueve una publicación, no la añade, y encima el día
+    de hoy quedó libre al morir su propuesta.
+
+    Se exige `body_md`: adelantar es sacar algo que YA estaba listo. Sin borrador
+    habría que lanzar el motor profundo dentro del cron, que es lo más caro del
+    camino y tarda minutos; eso no es adelantar, es improvisar.
+    """
+    from app.db.models import ContentProposal
+
+    q = (
+        db.query(ContentProposal)
+        .filter(ContentProposal.status == "scheduled")
+        .filter(ContentProposal.scheduled_for.isnot(None))
+        .filter(ContentProposal.scheduled_for > today)
+        .filter(ContentProposal.kind.notin_(CAP_EXEMPT_KINDS))
+        .filter(ContentProposal.event_date.is_(None))
+        .filter(ContentProposal.body_md.isnot(None))
+        # Cinturón extra: una fecha sugerida propia (efeméride que no viaja en el
+        # `kind`) también es fecha atada.
+        .filter(or_(ContentProposal.recommended_date.is_(None),
+                    ContentProposal.recommended_date == today))
+    )
+    if exclude_ids:
+        q = q.filter(ContentProposal.id.notin_(list(exclude_ids)))
+    return q.order_by(ContentProposal.scheduled_for, ContentProposal.id).limit(limit).all()
 
 
 class PublishResult(TypedDict):
