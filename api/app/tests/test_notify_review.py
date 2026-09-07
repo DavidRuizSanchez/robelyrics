@@ -118,3 +118,55 @@ def test_a_las_dos_semanas_se_recuerda_lo_pendiente():
     send, why = nr._should_send(
         _DB(_digest(sig, days_ago=nr.DIGEST_REMINDER_DAYS + 1)), data, sig)
     assert send is True and "recordatorio" in why
+
+
+# --------------------------------------------------------------------------- #
+# El bloque del blog: un número no dice qué hay que mirar
+# --------------------------------------------------------------------------- #
+class _PostFalso:
+    """Lo justo que el render consulta de un post pendiente."""
+
+    def __init__(self, pid: int, titulo: str, dias: int, kind: str = "evergreen"):
+        self.id = pid
+        self.title = titulo
+        self.kind = kind
+        self.created_at = _NOW - timedelta(days=dias)
+
+
+def _datos(posts):
+    return {"erratas": [], "autofixes": [], "watermark": None,
+            "posts": posts, "posts_pending": len(posts), "ahora": _NOW}
+
+
+def test_el_digest_nombra_los_pendientes_y_su_espera():
+    """Antes decía «Blog en revisión (24)» y nada más: con ese correo no había
+    forma de saber que el más viejo llevaba desde mayo."""
+    html = nr._build_html(_datos([
+        _PostFalso(18, "Pedrá en directo (1995)", dias=94),
+        _PostFalso(51, "El vacío existencial", dias=3),
+    ]))
+    assert "Pedrá en directo (1995)" in html
+    assert "esperando 94 días" in html
+    assert "esperando 3 días" in html
+    assert "/biblioteca/admin/posts/18" in html   # enlace directo a la ficha
+
+
+def test_lo_que_lleva_un_mes_se_señala():
+    html = nr._build_html(_datos([_PostFalso(2, "El tributo a Robe", dias=110)]))
+    assert "pudriendo" in html
+
+
+def test_lo_reciente_no_se_señala():
+    html = nr._build_html(_datos([_PostFalso(51, "Recién llegado", dias=2)]))
+    assert "pudriendo" not in html
+
+
+def test_una_cola_larga_se_resume():
+    posts = [_PostFalso(i, f"Post {i}", dias=100 - i) for i in range(20)]
+    html = nr._build_html(_datos(posts))
+    assert f"y {20 - nr._MAX_POSTS_EN_DIGEST} más" in html
+
+
+def test_sin_pendientes_no_hay_bloque_de_blog():
+    html = nr._build_html(_datos([]))
+    assert "Blog en revisión" not in html

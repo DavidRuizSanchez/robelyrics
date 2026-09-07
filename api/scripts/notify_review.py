@@ -64,15 +64,26 @@ def _autofix_open_erratas(db) -> int:
     return closed
 
 
+# Cuántos pendientes se nombran en el digest antes de resumir con «y N más».
+_MAX_POSTS_EN_DIGEST = 12
+
+
 def _gather(db) -> dict:
     erratas = db.execute(
         select(ErrataReport)
         .where(ErrataReport.status.in_(("needs_human", "pending")))
         .order_by(ErrataReport.created_at.desc())
     ).scalars().all()
-    posts_pending = db.execute(
-        select(func.count()).select_from(Post).where(Post.status == "pending_review")
-    ).scalar_one()
+    # Los posts EN SÍ, no solo cuántos: un número no dice qué hay que mirar, y la
+    # cola llegó a acumular 24 piezas —la más vieja de hacía casi cuatro meses—
+    # sin que el aviso diario diera una sola pista de qué eran ni de que llevaban
+    # ahí desde mayo. Los más antiguos primero: son los que se estaban perdiendo.
+    posts = db.execute(
+        select(Post)
+        .where(Post.status == "pending_review")
+        .order_by(Post.created_at.asc())
+    ).scalars().all()
+    posts_pending = len(posts)
     # Auto-correcciones REALES desde el último aviso: `applied_at`, no `checked_at`
     # (que se re-sella cada noche aunque el veredicto sea el mismo de siempre).
     # Con suelo de 7 días: si hace mucho que no se manda nada, no arrastramos
@@ -101,6 +112,8 @@ def _gather(db) -> dict:
     return {
         "erratas": erratas,
         "posts_pending": int(posts_pending),
+        "posts": posts,
+        "ahora": now,
         "autofixes": autofixes,
         "watermark": watermark,
     }
@@ -179,6 +192,20 @@ def _build_html(data: dict) -> str:
 
     if data["posts_pending"]:
         parts.append(f"<h3>Blog en revisión ({data['posts_pending']})</h3>")
+        ahora = data["ahora"]
+        parts.append("<ul>")
+        for post in data["posts"][:_MAX_POSTS_EN_DIGEST]:
+            dias = (ahora - post.created_at).days
+            espera = "hoy" if dias == 0 else f"{dias} día{'s' if dias != 1 else ''}"
+            aviso = " <b>(¡se está pudriendo!)</b>" if dias >= 30 else ""
+            parts.append(
+                f"<li><a href='{_SITE}/biblioteca/admin/posts/{post.id}'>{post.title}</a>"
+                f" <span style='color:#888'>· {post.kind} · esperando {espera}</span>{aviso}</li>"
+            )
+        parts.append("</ul>")
+        resto = data["posts_pending"] - _MAX_POSTS_EN_DIGEST
+        if resto > 0:
+            parts.append(f"<p style='color:#888'>…y {resto} más.</p>")
         parts.append(f"<p><a href='{_SITE}/biblioteca/admin/blog'>→ Revisar el blog</a></p>")
 
     if data["autofixes"]:

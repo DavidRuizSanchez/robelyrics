@@ -100,12 +100,13 @@ export default async function AdminBlogPage() {
           en el calendario decide cuándo publicarlas. Tope de 4 por semana.
         </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-8 text-center">
           <Stat label="por validar" value={stats.proposed} />
           <Stat label="aprobadas" value={stats.approved} />
           <Stat label="programadas" value={stats.scheduled} />
           <Stat label="publicadas" value={stats.used} />
           <Stat label="descartadas" value={stats.discarded} />
+          <Stat label="en revisión" value={pendingPosts.length} />
         </div>
 
         <UrlIngestForm />
@@ -121,10 +122,13 @@ export default async function AdminBlogPage() {
       {pendingPosts.length > 0 && (
         <section className="mt-16">
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Entradas a revisar (editorial manual)
+            Entradas a revisar · esperan tu decisión
           </h2>
           <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Posts creados a mano o por spotlight. Publica, programa o rechaza.
+            Posts ya escritos que un control detuvo antes de publicar (un dato
+            sin confirmar, una cita en zona gris, el tema desviado), más los
+            creados a mano. Nada de esto sale a la web hasta que tú lo digas:
+            publica, programa o rechaza.
           </p>
           <PostListWithActions items={pendingPosts} />
         </section>
