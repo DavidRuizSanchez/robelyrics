@@ -10,6 +10,12 @@ seguro relanzarlo: nunca propone dos veces el mismo verso/efeméride/cita.
 Pensado para correr una vez por semana (cron). Tras correrlo, `notify_evergreen`
 manda el email al admin con el resumen.
 
+NO repone por encima del atasco: si la cola de goteo ya llega a
+`BACKLOG_THRESHOLD`, el mix se recorta al hueco que quede (y a cero si no queda
+ninguno). El evergreen no caduca —lo que no entre hoy entra la semana que viene
+y `content_key` evita repetirlo—, así que seguir generando con la cola llena
+solo entierra lo que ya espera turno. `--sin-limite` se lo salta.
+
 Uso:
     python -m scripts.instagram.prepare_evergreen
     python -m scripts.instagram.prepare_evergreen --dry-run   (no inserta)
@@ -21,11 +27,11 @@ import argparse
 import logging
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.db.models import InstagramQueueItem
 from app.db.session import SessionLocal
-from app.services.instagram import evergreen
+from app.services.instagram import config, evergreen, publisher
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -40,6 +46,61 @@ def _next_position(db) -> int:
     return int(max_pos) + 1
 
 
+# Las efemérides no compiten por el goteo: llevan `publish_on` y salen a su
+# fecha por `due_pinned`. Recortarlas por atasco sería perder el aniversario,
+# que no se puede publicar otro día.
+TIPOS_CON_FECHA_FIJA = ("ephemeris",)
+
+
+def _hueco_de_goteo(db) -> int:
+    """Cuántas propuestas de goteo caben sin empeorar el atasco.
+
+    Medido el 13-sep-2026: entraban 20-23 items por semana y salían 15, así que
+    la cola no bajaba NUNCA de `BACKLOG_THRESHOLD` y los 16 posts condenados en
+    agosto no iban a volver jamás — `recover_failed` decía literalmente "caben 0".
+    El déficit era el evergreen, que es justo lo que NO caduca: lo que no se
+    proponga hoy se propone la semana que viene y `content_key` lo deduplica.
+
+    Es un HUECO, no un tope: vale `umbral − lo que ya hay`. Devolver el umbral a
+    secas volvería a meter 15 sobre los que ya estaban.
+    """
+    en_cola = db.execute(
+        select(func.count(InstagramQueueItem.id)).where(
+            or_(publisher._publicable(), InstagramQueueItem.status == "proposed"),
+            InstagramQueueItem.publish_on.is_(None),
+            InstagramQueueItem.publish_at.is_(None),
+        )
+    ).scalar_one()
+    return max(0, config.BACKLOG_THRESHOLD - int(en_cola))
+
+
+def recortar_al_hueco(mix: dict, hueco: int) -> dict:
+    """Reparte el hueco entre los tipos que gotean, en round-robin.
+
+    Round-robin y no proporcional para que un lote corto no salga entero de un
+    solo tipo: con hueco 2 se prefiere un verso y una anécdota a dos versos.
+    """
+    recortado = {
+        t: n for t, n in mix.items() if t in TIPOS_CON_FECHA_FIJA
+    }
+    gotean = {t: n for t, n in mix.items() if t not in TIPOS_CON_FECHA_FIJA}
+    if sum(gotean.values()) <= hueco:
+        return dict(mix)
+
+    recortado.update({t: 0 for t in gotean})
+    quedan = hueco
+    while quedan > 0:
+        movido = False
+        for tipo, tope in gotean.items():
+            if quedan > 0 and recortado[tipo] < tope:
+                recortado[tipo] += 1
+                quedan -= 1
+                movido = True
+        if not movido:
+            break
+    return recortado
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="No inserta nada.")
@@ -47,6 +108,10 @@ def main() -> None:
     parser.add_argument("--ephemerides", type=int, default=None)
     parser.add_argument("--anecdotes", type=int, default=None)
     parser.add_argument("--robe-quotes", type=int, default=None)
+    parser.add_argument(
+        "--sin-limite", action="store_true",
+        help="Genera el mix entero aunque la cola esté atascada.",
+    )
     args = parser.parse_args()
 
     mix = dict(evergreen.DEFAULT_MIX)
@@ -60,9 +125,19 @@ def main() -> None:
         mix["robe_quote"] = args.robe_quotes
 
     today = date.today()
-    logger.info("Evergreen Instagram · lote · %s · mix=%s", today, mix)
 
     with SessionLocal() as db:
+        if not args.sin_limite:
+            hueco = _hueco_de_goteo(db)
+            pedido = dict(mix)
+            mix = recortar_al_hueco(mix, hueco)
+            if mix != pedido:
+                logger.info(
+                    "Atasco: caben %d propuestas de goteo (umbral %d). "
+                    "Mix recortado de %s a %s.",
+                    hueco, config.BACKLOG_THRESHOLD, pedido, mix,
+                )
+        logger.info("Evergreen Instagram · lote · %s · mix=%s", today, mix)
         batch = evergreen.generate_batch(db, mix=mix)
         if not batch:
             logger.info("No hay candidatos nuevos (todo deduplicado).")
