@@ -34,8 +34,10 @@ from app.services.instagram import config, publisher
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Contenido atado a un momento: si ese momento pasó, ya no se publica.
-TIPOS_DE_ACTUALIDAD = ("news", "blog")
+# Contenido atado a un momento: si ese momento pasó, ya no se publica. La lista
+# vive en `config` porque `publisher.next_pending` la usa para lo contrario:
+# darle prioridad MIENTRAS está a tiempo.
+TIPOS_DE_ACTUALIDAD = config.TIPOS_DE_ACTUALIDAD
 
 
 def caduco(item: InstagramQueueItem, hoy: date) -> bool:

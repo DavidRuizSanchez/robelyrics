@@ -38,6 +38,15 @@ IMAGES_DIR = "/tmp/robelyrics_instagram"  # ficheros intermedios (efímeros)
 # de hechos viejos que un medio reedita con fecha reciente).
 FRESHNESS_DAYS = int(os.getenv("IG_FRESHNESS_DAYS", "7"))
 
+# --- Qué contenido caduca -------------------------------------------------
+# Una noticia atada a un hecho deja de ser publicable cuando pasan los días:
+# sacarla con dos semanas de retraso engaña sobre cuándo ocurrió. Un verso, una
+# anécdota o una cita no caducan: esperan turno sin perder nada.
+#
+# De ahí salen dos reglas que antes vivían separadas: `recover_failed` descarta
+# esto al repescar, y `publisher.next_pending` lo publica ANTES que lo evergreen.
+TIPOS_DE_ACTUALIDAD = ("news", "blog")
+
 # --- Cadencia de publicación (cuentagotas) ---
 # Mientras hay atasco (cola > BACKLOG_THRESHOLD) se publica cada
 # BACKLOG_INTERVAL_H horas para drenarlo; en régimen normal, cada

@@ -12,7 +12,7 @@ import os
 import re
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -796,11 +796,39 @@ def _publicable():
     )
 
 
+def _lo_que_caduca_primero():
+    """La actualidad sale antes que lo evergreen. Es lo único que no espera.
+
+    El 13-sep-2026 se repescaron 16 versos y anécdotas que un bloqueo de Meta
+    condenó en agosto. Al ir al final de la cola ocupaban siete días de
+    calendario, y como `prepare_daily` encola cada noticia nueva detrás de todo
+    (`max(position) + 1`), la actualidad de esa semana habría salido con doce
+    días encima: publicarla así engaña sobre cuándo pasó, que es justo por lo
+    que `recover_failed` descarta las noticias viejas en vez de repescarlas.
+
+    Al revés no se pierde nada: un verso no caduca, espera.
+
+    No sirve ordenar por `slot` —que es lo que el ORDER BY declaraba y no
+    cumplía, porque `position` es única por item y nunca llega a desempatar—:
+    el slot lo asigna `prepare_daily` por hueco del día, no por tipo, y en prod
+    había `news` repartidas entre los slots 0, 1 y 2.
+
+    Dentro de cada grupo sigue mandando `position`, así que el reordenado a mano
+    del panel se respeta. Para adelantar algo por encima de todo está
+    programarlo con `publish_at`, que sale por `due_pinned` al margen del goteo.
+    """
+    return case(
+        (InstagramQueueItem.content_type.in_(config.TIPOS_DE_ACTUALIDAD), 0),
+        else_=1,
+    )
+
+
 def next_pending(db: Session) -> InstagramQueueItem | None:
-    """Siguiente item del GOTEO: orden manual (`position`) primero; luego slot
-    (blog primero), día y antigüedad. Excluye el contenido con momento fijado
-    (`publish_on` de efeméride o `publish_at` programado a mano): ese no gotea,
-    sale a su hora vía `due_pinned`."""
+    """Siguiente item del GOTEO: primero lo que caduca (noticias y blog), y
+    dentro de cada grupo el orden manual (`position`), slot, día y antigüedad.
+    Excluye el contenido con momento fijado (`publish_on` de efeméride o
+    `publish_at` programado a mano): ese no gotea, sale a su hora vía
+    `due_pinned`."""
     # Un post de clip cuyo vídeo aún se está bajando NO cuenta como pendiente:
     # si contara, el goteo lo elegiría cada 15 minutos —siempre es el mismo, va
     # por `position`— y toda la cola se quedaría parada detrás esperándolo.
@@ -821,6 +849,7 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
             or_(InstagramQueueItem.media_type != "CLIP", clip_listo),
         )
         .order_by(
+            _lo_que_caduca_primero(),
             InstagramQueueItem.position,
             InstagramQueueItem.slot,
             InstagramQueueItem.day,
