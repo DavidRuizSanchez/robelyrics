@@ -576,15 +576,32 @@ def publicacion_bloqueada(db: Session) -> tuple[bool, str | None, datetime | Non
 
     for it in recientes:
         if it.error_code and errors.es_global(_error_de(it)):
-            return True, f"{it.error_code} · {it.error or 'sin detalle'}"[:300], _utc(
-                it.last_attempt_at
-            )
+            return True, (
+                f"Meta está bloqueando la publicación: {it.error_code} · "
+                f"{it.error or 'sin detalle'}"
+            )[:300], _utc(it.last_attempt_at)
 
     if len({it.id for it in recientes}) >= config.GLOBAL_STREAK:
+        # El motivo se devuelve YA redactado, y dice lo que se sabe y no más.
+        # Cuando todos los fallos traen el MISMO código y ese código no es de
+        # los globales, acusar a Meta de bloquear la cuenta manda a quien lee el
+        # correo a desbloquear en instagram.com algo que no está bloqueado —
+        # pasó el 13-sep-2026 con un 9004/2207052 (Meta no conseguía bajar las
+        # imágenes de Cloudinary), y la cuenta estaba perfectamente.
+        codigos = {it.error_code for it in recientes if it.error_code}
+        n = len({it.id for it in recientes})
+        if len(codigos) == 1:
+            codigo = next(iter(codigos))
+            return True, (
+                f"{n} posts distintos han fallado con el mismo código "
+                f"{codigo} en las últimas {config.BLOCK_WINDOW_H} h: "
+                f"{recientes[0].error or 'sin detalle'}"
+            )[:300], _utc(recientes[-1].last_attempt_at)
         return (
             True,
-            f"{len(recientes)} posts distintos han fallado en las últimas "
-            f"{config.BLOCK_WINDOW_H} h: la caída no es de ninguno de ellos",
+            f"Meta está bloqueando la publicación: {n} posts distintos han "
+            f"fallado en las últimas {config.BLOCK_WINDOW_H} h: la caída no es "
+            f"de ninguno de ellos",
             _utc(recientes[-1].last_attempt_at),
         )
     return False, None, None

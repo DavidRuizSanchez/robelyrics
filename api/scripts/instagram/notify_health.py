@@ -12,7 +12,9 @@ viene a cerrar. Lo que sí se reutiliza es su maquinaria: `send_email` y la firm
 anti-spam en `notification_digests`.
 
 Cuatro motivos para sonar, de más grave a menos:
-  1. Meta nos está bloqueando ahora mismo (cortacircuitos abierto).
+  1. La publicación está parada ahora mismo (cortacircuitos abierto). El motivo
+     lo redacta `publicacion_bloqueada` y distingue el bloqueo de cuenta de una
+     racha de fallos con el mismo código.
   2. Llevamos ALERT_STALE_H sin publicar TENIENDO material. Este es el detector
      que no depende de reconocer ningún código: cubre el cron muerto, docker
      caído, Cloudinary y cualquier bug futuro.
@@ -125,7 +127,10 @@ def _problemas(data: dict) -> list[str]:
     """Qué está mal, en cristiano. Vacío = todo bien y no hay correo."""
     fuera = []
     if data["bloqueado"]:
-        fuera.append(f"Meta está bloqueando la publicación: {data['motivo']}")
+        # El motivo viene ya redactado desde `publicacion_bloqueada`: dice
+        # "Meta está bloqueando" solo cuando eso es lo que se sabe. Prefijarlo
+        # aquí a ciegas convertía un fallo de descarga en una acusación falsa.
+        fuera.append(data["motivo"])
     if (
         data["horas_sin_publicar"] >= config.ALERT_STALE_H
         and data["publicables"] > 0

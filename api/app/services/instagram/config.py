@@ -83,6 +83,21 @@ MAX_PUBLISH_ATTEMPTS = int(os.getenv("IG_MAX_PUBLISH_ATTEMPTS", "3"))
 # medio día y la alerta llega primero.
 RETRY_COOLDOWN_H = int(os.getenv("IG_RETRY_COOLDOWN_H", "6"))
 
+# --- Reintento de descarga del media ---------------------------------------
+# Cuántas veces se le vuelve a pedir a Meta que baje la MISMA imagen cuando
+# responde 9004/2207052 ("no se ha podido recuperar el contenido de este URI").
+# Va aparte de MAX_PUBLISH_ATTEMPTS: esto pasa DENTRO de un intento, y solo si
+# la URL responde de verdad (se comprueba antes de reintentar). El 13-sep-2026
+# el acierto medido por imagen era ~70%: con 5 diapositivas, un carrusel
+# entero salía 1 de cada 6 veces. Con 4 pasadas el fallo por imagen cae al 1%
+# y el carrusel de 5 sale el 96% de las veces.
+MEDIA_FETCH_RETRIES = int(os.getenv("IG_MEDIA_FETCH_RETRIES", "4"))
+
+# Espera entre pasadas. Meta se recupera en segundos, no en minutos: el
+# container padre de un carrusel caduca a las 24 h, pero el cron dispara cada
+# 15 min y no puede quedarse colgado ahí.
+MEDIA_FETCH_BACKOFF_S = float(os.getenv("IG_MEDIA_FETCH_BACKOFF_S", "4"))
+
 # --- Cortacircuitos de publicación -----------------------------------------
 # Cuando Meta nos bloquea (cuenta restringida, token muerto, cuota agotada) no
 # tiene sentido seguir subiendo imágenes a Cloudinary y creando containers cada

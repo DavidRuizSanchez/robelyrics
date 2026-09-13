@@ -52,6 +52,29 @@ SUBCODIGOS_DEL_ITEM = {
     2207057,  # thumbnail offset fuera de rango
 }
 
+# De entre los del ITEM, estos dicen algo más preciso: Meta no consiguió BAJAR
+# el fichero de nuestra URL, que no es lo mismo que "este fichero está mal".
+#
+# Medido el 13-sep-2026 contra las mismas 5 URLs de Cloudinary, dos vueltas
+# seguidas: 2 OK + 3 fallos, y a la vuelta siguiente las 5 OK. La misma URI, el
+# mismo minuto, resultado distinto — y con Cloudinary sirviendo un 200
+# `image/jpeg` a todo el que se lo pidiera, User-Agent de Facebook incluido. El
+# fallo es del lado de Meta y se pasa reintentando, aunque él mismo se etiquete
+# `is_transient: false`.
+#
+# Sale caro no distinguirlo: un carrusel aborta entero si UN hijo falla, así que
+# con 5 diapositivas y ~70% de acierto por imagen solo salía adelante 1 de cada
+# 6 intentos. Tres carruseles murieron así el 13-sep, y la racha abrió el
+# cortacircuitos acusando a Meta de bloquear una cuenta que estaba sana.
+SUBCODIGOS_DE_DESCARGA = {
+    2207003,  # timeout descargando su media
+    2207052,  # no se pudo descargar el media de la URI
+}
+
+CODIGOS_DE_DESCARGA = {
+    9004,  # su media no se pudo descargar
+}
+
 CODIGOS_GLOBALES = {
     1,    # API desconocida (lado de Meta)
     2,    # servicio de la API caído
@@ -165,6 +188,21 @@ def es_global(motivo) -> bool:
     if motivo.transient:
         return True
     return motivo.code in CODIGOS_GLOBALES or motivo.code in RANGO_PERMISOS
+
+
+def es_fallo_de_descarga(motivo) -> bool:
+    """¿Meta dice que no pudo BAJAR el fichero de nuestra URL?
+
+    Merece reintento inmediato —dentro del mismo intento de publicación— en vez
+    de quemar uno de los tres del post. Quien reintente debe comprobar ANTES que
+    la URL responde de verdad: si está rota, el fallo sí es del item y no hay
+    nada que reintentar.
+    """
+    if not isinstance(motivo, MetaError):
+        return False
+    if motivo.subcode is not None:
+        return motivo.subcode in SUBCODIGOS_DE_DESCARGA
+    return motivo.code in CODIGOS_DE_DESCARGA
 
 
 def quema_intento(motivo) -> bool:

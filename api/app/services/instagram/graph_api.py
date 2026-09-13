@@ -10,7 +10,7 @@ import time
 
 import httpx
 
-from app.services.instagram import config
+from app.services.instagram import config, errors
 from app.services.instagram.errors import MetaError
 
 logger = logging.getLogger(__name__)
@@ -125,6 +125,60 @@ def _create_media(**fields: str) -> tuple[str | None, Motivo]:
     return None, MetaError.desde(data)
 
 
+def _media_alcanzable(url: str) -> bool:
+    """¿Esa URL sirve un fichero de media de verdad, ahora mismo?
+
+    Es lo que separa "Meta no ha podido bajarlo" de "esto está roto". Sin esta
+    comprobación, reintentar sería tapar con esperas una imagen que no existe.
+    """
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+            resp = client.head(url)
+            if resp.status_code >= 400:
+                # No todo el mundo responde a HEAD; se confirma con un GET del
+                # que solo se leen las cabeceras.
+                resp = client.get(url, headers={"Range": "bytes=0-1023"})
+    except httpx.HTTPError as exc:
+        logger.warning("[IG] no se pudo comprobar %s: %s", url, exc)
+        return False
+    if resp.status_code >= 400:
+        return False
+    return resp.headers.get("content-type", "").startswith(("image/", "video/"))
+
+
+def _create_media_reintentando(media_url: str, **fields: str) -> tuple[str | None, Motivo]:
+    """`_create_media`, pero insistiendo cuando Meta no consigue bajar el media.
+
+    Meta falla al descargar de Cloudinary de forma intermitente y lo etiqueta
+    `is_transient: false`, que es mentira: la misma URI que falla en una pasada
+    entra en la siguiente. Como un carrusel aborta entero si un solo hijo falla,
+    ese ~30% de fallo por imagen se multiplicaba hasta tumbar el post completo.
+
+    Solo se reintenta si la URL responde de verdad (`_media_alcanzable`). Si
+    está rota, el fallo SÍ es del item y se devuelve tal cual para que queme su
+    intento: insistir sobre una imagen que no existe deja la cola parada.
+    """
+    motivo: Motivo = "sin intentar"
+    for pasada in range(1, config.MEDIA_FETCH_RETRIES + 1):
+        container, motivo = _create_media(**fields)
+        if container:
+            if pasada > 1:
+                logger.info("[IG] %s entró a la pasada %d", media_url, pasada)
+            return container, motivo
+        if not errors.es_fallo_de_descarga(motivo):
+            return None, motivo
+        if not _media_alcanzable(media_url):
+            logger.warning("[IG] %s no responde: el fallo es del media", media_url)
+            return None, motivo
+        if pasada < config.MEDIA_FETCH_RETRIES:
+            logger.warning(
+                "[IG] Meta no pudo bajar %s (pasada %d/%d); reintentando",
+                media_url, pasada, config.MEDIA_FETCH_RETRIES,
+            )
+            time.sleep(config.MEDIA_FETCH_BACKOFF_S)
+    return None, motivo
+
+
 def _container_status(container_id: str) -> tuple[str, str]:
     """(status_code, detalle). El detalle explica POR QUÉ falló un container.
 
@@ -208,7 +262,7 @@ def create_carousel_item(media_url: str, is_video: bool = False) -> tuple[str | 
         campos["media_type"] = "VIDEO"
     else:
         campos["image_url"] = media_url
-    return _create_media(**campos)
+    return _create_media_reintentando(media_url, **campos)
 
 
 def create_carousel_container(children: list[str], caption: str) -> tuple[str | None, Motivo]:
@@ -249,7 +303,9 @@ def post_carousel(media_urls: list[str], caption: str) -> tuple[str | None, Moti
 
 def post_photo(image_url: str, caption: str) -> tuple[str | None, Motivo]:
     """Publica una foto de principio a fin. Devuelve (ig_media_id, mensaje)."""
-    container, msg = _create_media(image_url=image_url, caption=caption)
+    container, msg = _create_media_reintentando(
+        image_url, image_url=image_url, caption=caption
+    )
     if not container:
         # Antes esto pasaba por un `create_container` que se comía el motivo y
         # devolvía "No se pudo crear el container" a secas: el error de Meta que
@@ -400,7 +456,7 @@ def create_reel_container(
     }
     if cover_url:
         campos["cover_url"] = cover_url
-    return _create_media(**campos)
+    return _create_media_reintentando(video_url, **campos)
 
 
 def post_reel(

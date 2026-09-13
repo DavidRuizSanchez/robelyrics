@@ -70,6 +70,27 @@ def test_una_racha_de_desconocidos_si_bloquea(db):
     assert "distintos" in motivo
 
 
+def test_una_racha_del_mismo_codigo_no_acusa_a_meta_de_bloquear(db):
+    """13-sep-2026: el correo dijo «Meta está bloqueando la publicación» y la
+    cuenta estaba perfectamente. Eran 3 carruseles con el MISMO 9004/2207052
+    (Meta no conseguía bajar las imágenes de Cloudinary). Ese diagnóstico manda
+    a quien lo lee a desbloquear en instagram.com algo que no está bloqueado.
+    """
+    for i in range(config.GLOBAL_STREAK):
+        _fallo(db, code="9004/2207052", position=i,
+               error="Only photo or video can be accepted as media type.")
+    bloqueado, motivo, _ = publisher.publicacion_bloqueada(db)
+    assert bloqueado                       # parar 6 h sigue estando bien
+    assert "9004/2207052" in motivo        # pero se dice QUÉ pasa
+    assert "bloqueando" not in motivo      # y no se acusa a Meta sin saberlo
+
+
+def test_un_bloqueo_de_verdad_si_lo_dice(db):
+    """La otra mitad: cuando el código SÍ es global, hay que nombrarlo."""
+    _fallo(db)
+    assert "bloqueando" in publisher.publicacion_bloqueada(db)[1]
+
+
 def test_por_debajo_de_la_racha_no_bloquea(db):
     for i in range(config.GLOBAL_STREAK - 1):
         _fallo(db, code="424242", position=i)
