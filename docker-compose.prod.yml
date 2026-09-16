@@ -53,12 +53,13 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile.prod
-      # `next build` prerenderiza la home, los listados y el sitemap (ISR) y para
-      # eso tiene que llegar a `api:8000`. Sin esta red el build falla, que es lo
-      # que se quiere: nunca hornear una home vacía. El api tiene que estar
-      # arriba al hacer `build web`.
-      network: robelyrics_robelyrics
       args:
+        # `next build` prerenderiza la home, los listados y el sitemap (ISR) y
+        # tiene que llegar al API. BuildKit no deja usar la red del compose
+        # (`api:8000`), así que en el build se tira del API público. Si no
+        # responde, el build falla, que es lo que se quiere: nunca hornear una
+        # home vacía. En runtime manda `API_INTERNAL_URL` de `environment`.
+        API_INTERNAL_URL: https://entreinteriores.com/api
         NEXT_PUBLIC_API_URL: https://entreinteriores.com/api
         NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
     ports: !reset []

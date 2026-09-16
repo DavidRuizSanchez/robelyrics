@@ -22,6 +22,10 @@ ARG NEXT_PUBLIC_API_URL=https://entreinteriores.com/api
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
+# Solo para el prerender de `next build` (ver docker-compose.prod.yml). No pasa
+# a la etapa runner: en ejecución se usa la red interna.
+ARG API_INTERNAL_URL=
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
