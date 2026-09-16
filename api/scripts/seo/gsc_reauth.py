@@ -14,8 +14,17 @@ a los **7 días** — medido el 03-08-2026, con un token emitido el 22-07 que de
 `invalid_grant: Token has been expired or revoked`. Mientras estuvo revocado, el
 job semanal escribía `"pages": {}` y se lo rsynceaba a prod.
 
-Para que deje de caducar hay que publicar la app (OAuth consent screen →
-*Publish app*). En modo *In production* el refresh_token no expira por tiempo.
+Para que deje de caducar hay que publicar la app (Google Auth Platform → Público →
+*Publicar app*). Se publicó el 17-09-2026: en modo *En producción* el
+refresh_token no expira por tiempo, y la respuesta de Google deja de traer
+`refresh_token_expires_in`. Si vuelve a venir, la app ha vuelto a *Prueba*.
+
+Dos tropiezos del 17-09-2026:
+- La cuenta tiene que ser **davidruizsanchez@gmail.com**, la dueña de la app. Con
+  david@convertix.net Google responde «Acceso bloqueado» (403 access_denied).
+  Por eso la URL lleva `login_hint`.
+- Justo después de publicar, «Ir a … (no seguro)» dio un 500 de Google. Era la
+  propagación: al reintentar la misma URL entró.
 """
 from __future__ import annotations
 
@@ -33,6 +42,7 @@ import httpx
 TOKEN_PATH = Path.home() / ".config" / "entreinteriores" / "gsc-token.json"
 AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URI = "https://oauth2.googleapis.com/token"
+CUENTA = "davidruizsanchez@gmail.com"
 SCOPES_DEFAULT = [
     "https://www.googleapis.com/auth/webmasters.readonly",
     "https://www.googleapis.com/auth/analytics.readonly",
@@ -90,11 +100,13 @@ def main() -> int:
         "scope": " ".join(scopes),
         "access_type": "offline",
         "prompt": "consent",       # obligatorio: sin él Google no reemite refresh_token
+        "login_hint": CUENTA,
         "state": state,
     })
 
-    print("Abriendo el navegador para autorizar…")
-    print(f"Si no se abre solo, pega esta URL:\n\n{url}\n")
+    # flush: lanzado en segundo plano, la URL se quedaba en el búfer y no salía.
+    print(f"Abriendo el navegador para autorizar con {CUENTA}…", flush=True)
+    print(f"Si no se abre solo, pega esta URL:\n\n{url}\n", flush=True)
     webbrowser.open(url)
 
     servidor = HTTPServer(("127.0.0.1", puerto), _Handler)
@@ -141,8 +153,13 @@ def main() -> int:
     print("Compruébalo con:\n"
           "  PYTHONPATH=api python3 -m scripts.seo.gsc_fetch_page_queries --weeks 12 "
           "--out data/gsc_page_queries.json")
-    print("\nY publica la app en Google Cloud Console (OAuth consent screen → "
-          "Publish app) o volverá a caducar en 7 días.")
+    caduca_en = tok.get("refresh_token_expires_in")
+    if caduca_en:
+        print(f"\n⚠️  Este token CADUCA en {int(caduca_en) // 86400} días: la app OAuth está en "
+              "modo Prueba. Publícala (Google Auth Platform → Público → Publicar app) y "
+              "vuelve a correr esto.")
+    else:
+        print("\nEl token no caduca por tiempo (app publicada).")
     return 0
 
 

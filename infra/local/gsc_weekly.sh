@@ -47,10 +47,11 @@ cd "$REPO" || exit 0
 echo "[gsc-weekly $(date -u +%F\ %H:%M)] fetch GSC (12 semanas)…"
 if ! PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.gsc_fetch_page_queries \
      --weeks 12 --out "$REPO/data/gsc_page_queries.json"; then
-  # Causa casi segura: `invalid_grant`. El token caduca a los SIETE DÍAS mientras
-  # la app OAuth siga en modo *Testing* en Cloud Console. Publicarla quita el
-  # límite y esto deja de pasar; renovar a mano solo compra otra semana.
-  avisar "El fetch de GSC falló (token caducado?). Arréglalo con: python -m scripts.seo.gsc_reauth · Definitivo: publica la app OAuth en Cloud Console y deja de caducar cada 7 días."
+  # Hasta el 17-09-2026 la causa era siempre `invalid_grant`: con la app OAuth en
+  # modo *Prueba* el token caducaba a los 7 días. Ya está publicada y no caduca
+  # por tiempo, así que un `invalid_grant` ahora es una revocación (cambio de
+  # contraseña, permisos retirados, 6 meses sin uso) o que la app volvió a Prueba.
+  avisar "El fetch de GSC falló. Si es invalid_grant: python -m scripts.seo.gsc_reauth (con davidruizsanchez@gmail.com). Si el reauth avisa de que el token caduca, la app OAuth ha vuelto a modo Prueba."
   exit 1
 fi
 
