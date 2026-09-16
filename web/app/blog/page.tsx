@@ -37,14 +37,13 @@ function formatDate(iso: string): string {
 }
 
 export default async function BlogPage() {
+  // Sin try/catch a propósito: la página se sirve cacheada (ISR). Si el API
+  // falla al regenerar, Next conserva la versión anterior; tragarse el error
+  // guardaría la lista vacía durante una hora.
   let posts: PublicPostListItem[] = [];
-  try {
-    posts = await apiFetch<PublicPostListItem[]>("/public/posts", {
-      authenticated: false,
-    });
-  } catch {
-    posts = [];
-  }
+  posts = await apiFetch<PublicPostListItem[]>("/public/posts", {
+    authenticated: false,
+  });
 
   const jsonLd = {
     "@context": "https://schema.org",

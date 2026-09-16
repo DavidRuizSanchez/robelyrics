@@ -27,6 +27,13 @@ const SITE_URL =
 
 export const revalidate = 3600;
 
+// Lista vacía = ninguna ficha se genera en el build, pero cada una se cachea
+// en su primera visita (ISR). Sin esto Next 15 renderiza la ruta en CADA
+// petición aunque declare `revalidate`.
+export async function generateStaticParams() {
+  return [];
+}
+
 type Membership = {
   artist_slug: string;
   artist_name: string;

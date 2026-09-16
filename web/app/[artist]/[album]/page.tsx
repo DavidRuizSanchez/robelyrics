@@ -9,7 +9,7 @@ import RelatedPosts from "@/components/RelatedPosts";
 import MoreFromArtist from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
-import { apiFetch, redirectTargetOf } from "@/lib/api";
+import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site";
 import {
@@ -28,6 +28,16 @@ import type { PublicAlbumDetail, PublicArtistDetail } from "@/lib/types";
  * que pedirlo suelto hacía que `/robe/la-ley-innata` (disco de Extremoduro)
  * devolviera 200 con la ficha buena colgando de un artista que no es.
  */
+// Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
+export const revalidate = 3600;
+
+// Lista vacía = ninguna ficha se genera en el build, pero cada una se cachea
+// en su primera visita (ISR). Sin esto Next 15 renderiza la ruta en CADA
+// petición aunque declare `revalidate`.
+export async function generateStaticParams() {
+  return [];
+}
+
 function albumPath(artist: string, album: string): string {
   return `/public/albums/${artist}/${album}`;
 }
@@ -53,8 +63,11 @@ export async function generateMetadata({
         images: detail.cover_url ? [detail.cover_url] : [],
       },
     };
-  } catch {
-    return {};
+  } catch (e) {
+    // Solo un 404 real deja la metadata vacía: con la página cacheada, un fallo
+    // pasajero del API la guardaría sin title ni canonical.
+    if (e instanceof ApiError && e.status === 404) return {};
+    throw e;
   }
 }
 
@@ -72,6 +85,8 @@ export default async function AlbumPublicPage({
   } catch (e) {
     const destino = redirectTargetOf(e);
     if (destino) permanentRedirect(destino);
+    // Un 502 durante un rebuild no es un 404: con ISR ese 404 quedaría cacheado.
+    if (!(e instanceof ApiError && e.status === 404)) throw e;
     notFound();
   }
   if (!detail.seo_body) notFound();
@@ -94,7 +109,8 @@ export default async function AlbumPublicPage({
       `/public/artists/${artistSlug}`,
       { authenticated: false },
     );
-  } catch {
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 404)) throw e;
     artistDetail = null;
   }
 

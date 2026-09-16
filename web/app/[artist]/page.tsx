@@ -25,6 +25,16 @@ import {
 } from "@/lib/schema-graph";
 import type { PublicArtistDetail } from "@/lib/types";
 
+// Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
+export const revalidate = 3600;
+
+// Lista vacía = ninguna ficha se genera en el build, pero cada una se cachea
+// en su primera visita (ISR). Sin esto Next 15 renderiza la ruta en CADA
+// petición aunque declare `revalidate`.
+export async function generateStaticParams() {
+  return [];
+}
+
 const VALID_SLUGS = new Set(["extremoduro", "robe"]);
 
 export async function generateMetadata({
@@ -53,8 +63,11 @@ export async function generateMetadata({
         type: "website",
       },
     };
-  } catch {
-    return {};
+  } catch (e) {
+    // Solo un 404 real deja la metadata vacía: con la página cacheada, un fallo
+    // pasajero del API la guardaría sin title ni canonical.
+    if (e instanceof ApiError && e.status === 404) return {};
+    throw e;
   }
 }
 

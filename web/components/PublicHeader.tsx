@@ -1,8 +1,7 @@
 import Link from "next/link";
 import LogoBomba from "@/components/LogoBomba";
 import InstagramLink from "@/components/InstagramLink";
-import { apiFetch } from "@/lib/api";
-import type { AuthMe } from "@/lib/types";
+import ForSession from "@/components/ForSession";
 
 // Submenú compartido por Extremoduro y Robe. "Historia" es lo único propio de
 // cada artista; el resto (grupos amigos, colegas, sellos, libros) son URLs
@@ -74,17 +73,13 @@ const SearchIcon = (
   </svg>
 );
 
-export default async function PublicHeader() {
-  let me: AuthMe | null = null;
-  try {
-    me = await apiFetch<AuthMe>("/auth/me");
-  } catch {
-    me = null;
-  }
-
+// Sin llamadas al API: la cabecera va en todas las páginas públicas y, si lee
+// la cookie, ninguna se puede cachear. Lo que depende de la sesión (acceder /
+// salir / admin / suscríbete) lo resuelve `ForSession` en el cliente.
+export default function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 relative flex items-center justify-between px-5 md:px-14 py-4 md:py-5 border-b border-divider bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
-      <Link href={me ? "/biblioteca" : "/"} data-cursor="hover" className="flex items-center gap-3" aria-label="Entre Interiores · inicio">
+      <Link href="/" data-cursor="hover" className="flex items-center gap-3" aria-label="Entre Interiores · inicio">
         <LogoBomba size={40} />
         <span className="font-serif text-lg md:text-xl text-ink leading-none tracking-tight">Entre Interiores</span>
       </Link>
@@ -97,21 +92,20 @@ export default async function PublicHeader() {
         <Link href="/biblioteca/consultorio" data-cursor="hover" className="text-accent hover:text-ink transition-colors" title="Pregúntame lo que quieras, que pa' eso sigo en el aire">Pregúntale al viento</Link>
         <Link href="/biblioteca?mode=semantic#search" data-cursor="hover" className="text-accent hover:text-ink transition-colors" title="Dime qué sientes y te busco el verso que lo dice">Como lo diría Robe</Link>
         <Link href="/buscar" data-cursor="hover" className={linkCls} aria-label="Buscar" title="Buscar">{SearchIcon}</Link>
-        {!me && (
-          <Link href="/blog#suscribete" data-cursor="hover" className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-3 py-1.5 transition-colors" title="Suscríbete al diario">Suscríbete</Link>
-        )}
+        <ForSession
+          anon={<Link href="/blog#suscribete" data-cursor="hover" className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-3 py-1.5 transition-colors" title="Suscríbete al diario">Suscríbete</Link>}
+        />
         <Link href="/biblioteca/donar" data-cursor="hover" className={linkCls} title="Echar una mano para que esto siga vivo">Apoyar</Link>
         <InstagramLink size={18} className="text-ink-dim hover:text-accent transition-colors" />
-        {me ? (
-          <>
-            {me.is_admin && <Link href="/biblioteca/admin/sources" data-cursor="hover" className={linkCls}>Admin</Link>}
+        <ForSession
+          anon={<Link href="/login" data-cursor="hover" className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-4 py-2 transition-colors">acceder</Link>}
+          admin={<Link href="/biblioteca/admin/sources" data-cursor="hover" className={linkCls}>Admin</Link>}
+          member={
             <form action="/logout" method="post" className="inline">
               <button type="submit" data-cursor="hover" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button>
             </form>
-          </>
-        ) : (
-          <Link href="/login" data-cursor="hover" className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-4 py-2 transition-colors">acceder</Link>
-        )}
+          }
+        />
       </nav>
 
       {/* === MOBILE === (mismas opciones que desktop, adaptadas a acordeón) */}
@@ -132,18 +126,15 @@ export default async function PublicHeader() {
           <Link href="/biblioteca/consultorio" className="text-accent hover:text-ink transition-colors">Pregúntale al viento</Link>
           <Link href="/biblioteca?mode=semantic#search" className="text-accent hover:text-ink transition-colors">Como lo diría Robe</Link>
           <Link href="/buscar" className={linkCls}>Buscar</Link>
-          {!me && (
-            <Link href="/blog#suscribete" className="text-accent hover:text-ink transition-colors">Suscríbete al diario</Link>
-          )}
+          <ForSession
+            anon={<Link href="/blog#suscribete" className="text-accent hover:text-ink transition-colors">Suscríbete al diario</Link>}
+          />
           <Link href="/biblioteca/donar" className={linkCls}>Apoyar el proyecto</Link>
-          {me ? (
-            <>
-              {me.is_admin && <Link href="/biblioteca/admin/sources" className={linkCls}>Admin</Link>}
-              <form action="/logout" method="post"><button type="submit" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button></form>
-            </>
-          ) : (
-            <Link href="/login" className="text-accent hover:text-ink transition-colors">acceder</Link>
-          )}
+          <ForSession
+            anon={<Link href="/login" className="text-accent hover:text-ink transition-colors">acceder</Link>}
+            admin={<Link href="/biblioteca/admin/sources" className={linkCls}>Admin</Link>}
+            member={<form action="/logout" method="post"><button type="submit" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button></form>}
+          />
           <InstagramLink showHandle className="text-ink-dim hover:text-accent transition-colors pt-2 border-t border-divider/60" />
         </nav>
       </details>

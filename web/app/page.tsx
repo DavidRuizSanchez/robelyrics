@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AlbumCover from "@/components/AlbumCover";
+import ForSession from "@/components/ForSession";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import LogoBomba from "@/components/LogoBomba";
 import PublicFooter from "@/components/PublicFooter";
@@ -20,6 +21,9 @@ export const metadata = {
     "Las canciones de Extremoduro y Robe, disco a disco y verso a verso: lo que de verdad dicen sus letras, contado por alguien que lleva toda la vida con ellas y por la comunidad de fans.",
 };
 
+// Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
+export const revalidate = 3600;
+
 type SitemapEntry = {
   url_path: string;
   last_modified: string;
@@ -28,21 +32,20 @@ type SitemapEntry = {
 
 export default async function PublicLandingPage() {
   // Cargar ambos artistas (Extremoduro y Robe) y la lista de URLs publicadas
-  // para mostrar links reales a lo que ya está vivo. Si algo falla, fallback
-  // suave a CTAs sin grid.
-  const [extremoduro, robe, published, me] = await Promise.all([
+  // para mostrar links reales a lo que ya está vivo. Sin fallback: con la home
+  // cacheada, un fallo del API durante la regeneración guardaría una home sin
+  // discos durante una hora. Si se lanza, Next sigue sirviendo la anterior.
+  const [extremoduro, robe, published] = await Promise.all([
     apiFetch<PublicArtistDetail>("/public/artists/extremoduro", {
       authenticated: false,
-    }).catch(() => null),
+    }),
     apiFetch<PublicArtistDetail>("/public/artists/robe", {
       authenticated: false,
-    }).catch(() => null),
+    }),
     apiFetch<SitemapEntry[]>("/public/sitemap-entries", {
       authenticated: false,
-    }).catch(() => [] as SitemapEntry[]),
-    apiFetch<{ id: number }>("/auth/me").catch(() => null),
+    }),
   ]);
-  const loggedIn = !!me;
 
   // Combinamos discos de ambos artistas etiquetando el artista para construir
   // hrefs correctos (`/{artist}/{album}`). Filtramos por url_path completo
@@ -191,11 +194,13 @@ export default async function PublicLandingPage() {
           >
             pregúntale al viento →
           </Link>
-          {!loggedIn && (
-            <p className="mt-3 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
-              regístrate gratis para preguntar
-            </p>
-          )}
+          <ForSession
+            anon={
+              <p className="mt-3 font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint">
+                regístrate gratis para preguntar
+              </p>
+            }
+          />
         </section>
 
         {/* CTA fan */}
@@ -207,17 +212,31 @@ export default async function PublicLandingPage() {
             Las canciones enteras, el buscador que te entiende y Robe contestándote
           </h2>
           <p className="font-serif italic text-ink-dim text-base md:text-lg max-w-xl mx-auto mb-6">
-            {loggedIn
-              ? "Ya estás dentro y es todo tuyo: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."
-              : "Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."}
+            <ForSession
+              anon="Hazte una cuenta gratis y entra a lo bueno: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."
+              member="Ya estás dentro y es todo tuyo: las 144 canciones con la letra pegada al audio en directo y lo que los fans sacan de cada una, el buscador que te da el verso según lo que sientes y el sitio donde le preguntas a Robe y te responde con su voz."
+            />
           </p>
-          <Link
-            href={loggedIn ? "/biblioteca" : "/registro"}
-            data-cursor="hover"
-            className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
-          >
-            {loggedIn ? "entrar a tu biblioteca" : "crear cuenta gratis"}
-          </Link>
+          <ForSession
+            anon={
+              <Link
+                href="/registro"
+                data-cursor="hover"
+                className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+              >
+                crear cuenta gratis
+              </Link>
+            }
+            member={
+              <Link
+                href="/biblioteca"
+                data-cursor="hover"
+                className="inline-block border border-accent text-accent hover:bg-accent hover:text-white font-mono text-[11px] tracking-[3px] uppercase px-7 py-3.5 transition-colors"
+              >
+                entrar a tu biblioteca
+              </Link>
+            }
+          />
         </section>
 
         <script

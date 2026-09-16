@@ -12,6 +12,8 @@ export default function robots(): MetadataRoute.Robots {
           "/biblioteca/",
           "/login",
           "/logout",
+          // Estado de sesión que pide la cabecera desde el cliente: no es contenido.
+          "/sesion",
           "/api/",
           "/*?_rsc=",
           // SERPs internas de búsqueda: thin content / duplicado del catálogo.

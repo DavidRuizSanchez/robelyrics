@@ -12,7 +12,7 @@ import RelatedSongs from "@/components/RelatedSongs";
 import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
-import { apiFetch, redirectTargetOf } from "@/lib/api";
+import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site";
 import {
@@ -27,6 +27,16 @@ import {
   webPageNode,
 } from "@/lib/schema-graph";
 import type { PublicAlbumDetail, PublicSongDetail } from "@/lib/types";
+
+// Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
+export const revalidate = 3600;
+
+// Lista vacía = ninguna ficha se genera en el build, pero cada una se cachea
+// en su primera visita (ISR). Sin esto Next 15 renderiza la ruta en CADA
+// petición aunque declare `revalidate`.
+export async function generateStaticParams() {
+  return [];
+}
 
 /**
  * Los tres segmentos viajan a la API, que resuelve la canción DENTRO de su
@@ -66,8 +76,11 @@ export async function generateMetadata({
         type: "article",
       },
     };
-  } catch {
-    return {};
+  } catch (e) {
+    // Solo un 404 real deja la metadata vacía: con la página cacheada, un fallo
+    // pasajero del API la guardaría sin title ni canonical.
+    if (e instanceof ApiError && e.status === 404) return {};
+    throw e;
   }
 }
 
@@ -88,6 +101,8 @@ export default async function SongPublicPage({
     // equivocado). Si tiene destino, se manda allí; si no, es un 404 de verdad.
     const destino = redirectTargetOf(e);
     if (destino) permanentRedirect(destino);
+    // Un 502 durante un rebuild no es un 404: con ISR ese 404 quedaría cacheado.
+    if (!(e instanceof ApiError && e.status === 404)) throw e;
     notFound();
   }
   if (!detail.seo_body) notFound();
@@ -113,7 +128,8 @@ export default async function SongPublicPage({
       `/public/albums/${artistSlug}/${albumSlug}`,
       { authenticated: false },
     );
-  } catch {
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 404)) throw e;
     albumDetail = null;
   }
 

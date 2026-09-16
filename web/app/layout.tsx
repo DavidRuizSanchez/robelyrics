@@ -35,11 +35,11 @@ export const metadata: Metadata = {
     "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
 };
 
-// Todo el site se sirve dinámico: las páginas dependen de cookies (sesión) y
-// de fetches al api en runtime. Marcarlo en el layout evita prerenderizar
-// `/_not-found` y `/_error` que dispararían fallos por componentes cliente
-// que se cargan globalmente (InkCursor, ConsentManager).
-export const dynamic = "force-dynamic";
+// NO se marca `force-dynamic` aquí. Estuvo de mayo a septiembre de 2026 y
+// anulaba el `revalidate` de todas las páginas públicas: cada petición
+// re-renderizaba entera y Googlebot medía 571 ms de media en GSC. Lo dinámico
+// (la sesión) vive en /biblioteca, que lo declara en su propio layout, y en
+// `ForSession`, que la pide desde el cliente.
 
 export default async function RootLayout({
   children,

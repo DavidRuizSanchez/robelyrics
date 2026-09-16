@@ -47,14 +47,13 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export default async function LibrosPage() {
+  // Sin try/catch a propósito: la página se sirve cacheada (ISR). Si el API
+  // falla al regenerar, Next conserva la versión anterior; tragarse el error
+  // guardaría la lista vacía durante una hora.
   let items: BookListItem[] = [];
-  try {
-    items = await apiFetch<BookListItem[]>("/public/books", {
-      authenticated: false,
-    });
-  } catch {
-    items = [];
-  }
+  items = await apiFetch<BookListItem[]>("/public/books", {
+    authenticated: false,
+  });
 
   return (
     <>

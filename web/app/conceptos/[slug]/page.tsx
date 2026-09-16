@@ -9,6 +9,13 @@ const SITE_URL =
 
 export const revalidate = 3600;
 
+// Lista vacía = ninguna ficha se genera en el build, pero cada una se cachea
+// en su primera visita (ISR). Sin esto Next 15 renderiza la ruta en CADA
+// petición aunque declare `revalidate`.
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -29,8 +36,11 @@ export async function generateMetadata({
         `Canciones de Extremoduro y Robe donde aparece el símbolo "${d.name}".`,
       alternates: { canonical: `${SITE_URL}/conceptos/${d.slug}` },
     };
-  } catch {
-    return {};
+  } catch (e) {
+    // Solo un 404 real deja la metadata vacía: con la página cacheada, un fallo
+    // pasajero del API la guardaría sin title ni canonical.
+    if (e instanceof ApiError && e.status === 404) return {};
+    throw e;
   }
 }
 

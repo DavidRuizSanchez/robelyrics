@@ -40,7 +40,12 @@ export function redirectTargetOf(e: unknown): string | null {
 }
 
 export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-  const { method = "GET", body, cache = "no-store", authenticated = true } = opts;
+  // Una lectura pública NO fuerza `no-store`: ese flag vuelve dinámica la ruta
+  // entera y anula su `revalidate`. Así estuvo el sitio de mayo a septiembre de
+  // 2026: cada visita de Googlebot re-renderizaba la página (8 en paralelo →
+  // 495 ms de TTFB en 2 vCPU). Lo que lleva sesión sigue sin cachearse nunca.
+  const { method = "GET", body, authenticated = true } = opts;
+  const cache = opts.cache ?? (authenticated ? "no-store" : undefined);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (authenticated) {

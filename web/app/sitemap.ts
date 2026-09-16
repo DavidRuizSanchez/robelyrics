@@ -12,6 +12,11 @@ type PublicSitemapEntry = {
 // Sitemap basado en seo_content.published. Solo se incluyen URLs cuyo
 // artículo SEO está publicado · el resto no existe para crawlers (devuelve
 // 404 desde la plantilla pública).
+//
+// Cacheado una hora (antes se generaba en cada petición: 620 ms). Por eso los
+// fallos del API se lanzan en vez de tragarse: un sitemap parcial se quedaría
+// guardado una hora; lanzando, Next sigue sirviendo el último completo.
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -43,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Detalles de taxonomías y posts publicados.
-  try {
+  {
     const [themes, places, concepts, posts, books] = await Promise.all([
       apiFetch<{ slug: string; song_count: number }[]>("/public/themes", { authenticated: false }),
       apiFetch<{ slug: string; song_count: number }[]>("/public/places", { authenticated: false }),
@@ -71,18 +76,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const book of books) {
       urls.push({ url: `${SITE_URL}/libros/${book.slug}`, lastModified: now, changeFrequency: "monthly", priority: 0.7 });
     }
-  } catch {
-    // Si los endpoints fallan, seguimos con las URLs estáticas + sitemap-entries.
   }
 
-  let entries: PublicSitemapEntry[] = [];
-  try {
-    entries = await apiFetch<PublicSitemapEntry[]>("/public/sitemap-entries", {
-      authenticated: false,
-    });
-  } catch {
-    return urls;
-  }
+  const entries = await apiFetch<PublicSitemapEntry[]>("/public/sitemap-entries", {
+    authenticated: false,
+  });
 
   const priorityFor = (kind: string) =>
     kind === "artist"

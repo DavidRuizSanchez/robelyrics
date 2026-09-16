@@ -42,14 +42,13 @@ function formatYear(iso: string | null): string | null {
 }
 
 export default async function PersonasPage() {
+  // Sin try/catch a propósito: la página se sirve cacheada (ISR). Si el API
+  // falla al regenerar, Next conserva la versión anterior; tragarse el error
+  // guardaría la lista vacía durante una hora.
   let items: PersonListItem[] = [];
-  try {
-    items = await apiFetch<PersonListItem[]>("/public/persons", {
-      authenticated: false,
-    });
-  } catch {
-    items = [];
-  }
+  items = await apiFetch<PersonListItem[]>("/public/persons", {
+    authenticated: false,
+  });
 
   return (
     <>

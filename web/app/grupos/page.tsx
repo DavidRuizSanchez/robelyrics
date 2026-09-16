@@ -36,16 +36,15 @@ type BandListItem = {
 };
 
 export default async function GruposPage() {
+  // Sin try/catch a propósito: la página se sirve cacheada (ISR). Si el API
+  // falla al regenerar, Next conserva la versión anterior; tragarse el error
+  // guardaría la lista vacía durante una hora.
   let items: BandListItem[] = [];
-  try {
-    const all = await apiFetch<BandListItem[]>("/public/bands", {
-      authenticated: false,
-    });
-    // /grupos solo lista bandas; los sellos discográficos viven en /sellos.
-    items = all.filter((b) => b.kind !== "label");
-  } catch {
-    items = [];
-  }
+  const all = await apiFetch<BandListItem[]>("/public/bands", {
+    authenticated: false,
+  });
+  // /grupos solo lista bandas; los sellos discográficos viven en /sellos.
+  items = all.filter((b) => b.kind !== "label");
 
   return (
     <>
