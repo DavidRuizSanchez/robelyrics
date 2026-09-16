@@ -5,6 +5,7 @@ import GlobalErrata from "@/components/GlobalErrata";
 import InkCursor from "@/components/InkCursor";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { buildGraph, siteGraphNodes } from "@/lib/schema-graph";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const spectral = Spectral({
@@ -30,6 +31,10 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
+  // Sin esto Next resuelve las imágenes relativas (las carátulas de
+  // /album-covers) contra http://localhost:3000, y así salían og:image y
+  // twitter:image en las fichas de disco y canción.
+  metadataBase: new URL(SITE_URL),
   title: "Entre Interiores · Cancionero de Robe y Extremoduro",
   description:
     "Disco a disco, canción a canción: el universo de Robe y Extremoduro contado por sus letras y por la comunidad de fans.",
