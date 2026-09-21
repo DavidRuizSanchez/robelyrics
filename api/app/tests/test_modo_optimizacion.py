@@ -188,15 +188,18 @@ def motor(monkeypatch):
     monkeypatch.setattr(ad, "autolink_corpus", lambda body, *a, **kw: body)
     monkeypatch.setattr(ad, "build_corpus_index", lambda db: [])
     monkeypatch.setattr(ad, "load_link_stats", lambda: {})
-    # El «después» se reconoce por el texto, no por los kwargs: si se distinguiera
-    # por `spotlight` —que solo existe en modo optimización— sin modo las dos
-    # llamadas serían idénticas y el test estaría verde sin probar nada.
-    monkeypatch.setattr(
-        "app.services.editorial_review.review",
-        lambda body, **kw: _Verdict(
-            estado["verdict"] if "Lo nuevo" in body else "pass",
-            estado["despues"] if "Lo nuevo" in body else estado["antes"],
-            ["es redundante"]))
+    # Se reconoce la llamada del «después» de las DOS formas en que puede llegar,
+    # porque cada modo pregunta distinto: sin optimización el juez recibe el cuerpo
+    # ya ampliado; con ella recibe el cuerpo publicado y la ampliación aparte (si se
+    # le pasaran los dos juntos vería la sección dos veces y la llamaría redundante,
+    # que es lo que pasó en producción el 22-09-2026).
+    def _juez(body, **kw):
+        es_despues = kw.get("spotlight") is not None or "Lo nuevo" in body
+        return _Verdict(estado["verdict"] if es_despues else "pass",
+                        estado["despues"] if es_despues else estado["antes"],
+                        ["es redundante"])
+
+    monkeypatch.setattr("app.services.editorial_review.review", _juez)
 
     class _Lv:
         def __init__(self, quote):
@@ -280,3 +283,37 @@ def test_una_caida_de_verdad_sigue_contando(motor):
     motor.update({"antes": 65, "despues": 45, "verdict": "pass"})
     res = _aumentar(motor)
     assert res["rigor"]["forzada"] is True
+
+
+# --------------------------------------------------------------------------- #
+# Una sección que no responde lo que promete
+# --------------------------------------------------------------------------- #
+def test_una_seccion_que_admite_no_saberlo_no_se_publica(motor):
+    """Caso real, y publicado: la consulta era «los niños de los ojos rojos
+    integrantes», la sección salió titulada «Los componentes de Los Niños de los Ojos
+    Rojos» y dentro decía «no se detalla los nombres específicos de los miembros».
+
+    Prometer en el encabezado y desdecirse en el cuerpo es peor que no tener la
+    sección: quien buscaba eso entra, lo ve prometido y se va sin respuesta.
+    """
+    motor["seccion"] = ("## Los componentes de la banda\n\nHan cambiado de alineación "
+                        "desde 1999. No se detalla los nombres de los miembros.",
+                        "Los componentes de la banda")
+    res = _aumentar(motor)
+    assert res["noop"] is True
+    assert res["after"] == res["before"]
+
+
+def test_una_seccion_con_datos_reales_si_se_publica(motor):
+    motor["seccion"] = ("## Lo nuevo\n\nRobe cita a Leño, Marea y La Fuga como "
+                        "referencias de aquellos años.", "Lo nuevo")
+    assert _aumentar(motor)["noop"] is False
+
+
+def test_la_guarda_de_confesiones_no_corre_en_la_generacion_nueva(motor):
+    """Solo se aplica en optimización: una ficha nueva puede decir legítimamente que
+    un dato no consta, y ahí no hay una consulta que se esté prometiendo responder."""
+    motor["seccion"] = ("## Lo nuevo\n\nNo se conocen más detalles de aquella "
+                        "grabación, según las fuentes disponibles.", "Lo nuevo")
+    motor.update({"antes": 60, "despues": 70, "verdict": "pass"})
+    assert _aumentar(motor, optimizar=False)["noop"] is False

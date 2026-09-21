@@ -179,9 +179,9 @@ def review(
     _spotlight_block = ""
     if spotlight and spotlight.strip():
         _spotlight_block = (
-            "\n\nAMPLIACIÓN AÑADIDA (es el texto NUEVO que se quiere publicar; el "
-            "ARTÍCULO de arriba puede venir recortado, así que júzgala EN EL CONTEXTO "
-            "de lo anterior, muy en especial por redundancia con lo que ya se decía):"
+            "\n\nAMPLIACIÓN QUE SE QUIERE AÑADIR (NO está todavía en el artículo de "
+            "arriba: es lo que se le sumaría al final). Juzga el conjunto que "
+            "quedaría, y muy en especial si REPITE algo que el artículo ya dice:"
             f"\n\"\"\"{spotlight[:4000]}\"\"\""
         )
 

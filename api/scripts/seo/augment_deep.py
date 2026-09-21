@@ -70,6 +70,26 @@ _YT_LINE = re.compile(
 )
 
 
+# Frases con las que un texto confiesa que no sabe lo que su encabezado promete.
+# Caso real (22-09-2026, publicado): la consulta era «los niños de los ojos rojos
+# integrantes», la sección salió titulada «Los componentes de Los Niños de los Ojos
+# Rojos» y dentro decía «no se detalla los nombres específicos de los miembros». Una
+# sección que promete en el título y se desdice en el cuerpo es PEOR que no tenerla:
+# el lector que buscaba eso entra, lo ve prometido y se va sin respuesta.
+_CONFESIONES = (
+    "no se detalla", "no se especifica", "no hay confirmación", "no hay constancia",
+    "no se conocen", "se desconoce", "no está documentado", "no se menciona",
+    "no se dispone", "no hay información", "no se ha confirmado", "sin confirmación",
+    "no se precisa", "no consta", "no se sabe", "no hay datos",
+)
+
+
+def confiesa_no_saber(seccion: str) -> str | None:
+    """La frase con la que la sección admite no responder, si la hay."""
+    bajo = (seccion or "").lower()
+    return next((f for f in _CONFESIONES if f in bajo), None)
+
+
 def _existing_videos(body_md: str) -> list[str]:
     return _YT_LINE.findall(body_md or "")
 
@@ -321,6 +341,12 @@ def augment_entity(
                                              gap_hint=gap_hint,
                                              material_consulta=material_consulta,
                                              consultas=optimizar.consultas if optimizar else None)
+    if gap_body and optimizar:
+        confesion = confiesa_no_saber(gap_body)
+        if confesion:
+            logger.info("[augment] %s/%s: la sección «%s» admite no saberlo («%s») "
+                        "→ se descarta", entity_type, entity.slug, gap_head, confesion)
+            gap_body = None
     if gap_body:
         added.append(gap_body); added_heads.append(gap_head or "Más"); prior = prior + "\n\n" + gap_body
 
@@ -398,10 +424,21 @@ def augment_entity(
             }
         v_before = editorial_review(current, kind=entity_type, subject=subject,
                                     allowed_terms=allowed, **extra)
-        v = editorial_review(after, kind=entity_type, subject=subject,
-                             allowed_terms=allowed,
-                             spotlight="\n\n".join(added) if optimizar else None,
-                             **extra)
+        if optimizar:
+            # El juez ve el cuerpo PUBLICADO y, aparte, lo que se le quiere añadir.
+            # Pasarle `after` (que ya lleva la sección dentro) más la sección otra vez
+            # por `spotlight` se la enseñaba DOS VECES, y respondía lo previsible: «se
+            # repite casi palabra por palabra en la ampliación». Medido el 22-09-2026
+            # sobre las tres ampliaciones publicadas: cero párrafos duplicados y cero
+            # frases repetidas. El veredicto era un artefacto de cómo se preguntaba.
+            # Así además la comparación es exactamente el delta: el mismo artículo
+            # base, con y sin lo añadido.
+            v = editorial_review(current, kind=entity_type, subject=subject,
+                                 allowed_terms=allowed,
+                                 spotlight="\n\n".join(added), **extra)
+        else:
+            v = editorial_review(after, kind=entity_type, subject=subject,
+                                 allowed_terms=allowed)
         rigor = {"verdict": v.verdict, "score": v.score, "before_score": v_before.score,
                  "reasons": list(v.reasons or [])}
         # La varianza del juez está medida en este repo: tres pasadas sobre el MISMO
