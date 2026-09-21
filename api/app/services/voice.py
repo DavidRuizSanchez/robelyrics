@@ -24,6 +24,8 @@ Personas (registro narrativo):
 """
 from __future__ import annotations
 
+from app.services import robe_facts
+
 # --------------------------------------------------------------------------- #
 # Bloque de VOZ (lo que da el alma). Recalibrado: ahora SE PERMITE la
 # admiración, la primera persona y el registro emocional anclado a lo concreto.
@@ -223,10 +225,17 @@ Devuelves SIEMPRE un objeto JSON exactamente con esta forma:
   "entities": [<lista según el bloque ENTIDADES>]
 }"""
 
-_SAFETY = """\
+# El tono SIGUE siendo esto; lo que se añade es la exigencia. Con solo la regla
+# de tono, un artículo podía recorrer toda la trayectoria de Extremoduro, acabar
+# en 2021 y no decir que Robe había muerto: respetuoso, sí, pero incompleto.
+_SAFETY = (
+    """\
 SOBRE TEMAS SENSIBLES (la muerte de Robe el 10 de diciembre de 2025, familia):
 trátalos con respeto y solo con información pública y asumida, sin morbo. No es
-necrológica fresca: es el universo de Robe contado por quien lo quiere."""
+necrológica fresca: es el universo de Robe contado por quien lo quiere.
+"""
+    + robe_facts.anchor_prompt()
+)
 
 # --------------------------------------------------------------------------- #
 # Consultorio "Pregúntale al viento": responder COMO Robe, SOLO con fundamento.

@@ -34,6 +34,8 @@ from scripts.seo.common import (
     fetch_sources_for_entity, format_sources_block,
 )
 
+from app.services import robe_facts
+
 logger = logging.getLogger(__name__)
 
 _PER_SOURCE = 2800
@@ -75,18 +77,39 @@ def _reference_label(stem: str, text: str) -> str:
     return _REF_LABELS.get(stem, stem.replace("_", " "))
 
 
-def _reference_facts(names: list[str]) -> list[str]:
-    """Párrafos/líneas de data/reference/*.md que mencionan a la entidad."""
-    here = Path(__file__).resolve()
-    candidates = [
-        Path("/app/data/reference"),
-        here.parents[3] / "data" / "reference",
-        here.parents[2] / "data" / "reference",
-    ]
-    ref_dir = next((p for p in candidates if p.exists()), None)
+def _reference_facts(names: list[str], ref_dir: Path | None = None) -> list[str]:
+    """Párrafos/líneas de data/reference/*.md que mencionan a la entidad.
+
+    `ref_dir` solo lo pasan los tests: en producción el directorio se busca.
+    """
+    if ref_dir is None:
+        here = Path(__file__).resolve()
+        candidates = [
+            Path("/app/data/reference"),
+            here.parents[3] / "data" / "reference",
+            here.parents[2] / "data" / "reference",
+        ]
+        ref_dir = next((p for p in candidates if p.exists()), None)
     if not ref_dir:
         return []
-    keys = [_norm(n) for n in names if len(n) >= 5]
+    # El umbral era `len(n) >= 5`, y «Robe» tiene CUATRO letras: la clave del
+    # sujeto central del sitio se descartaba siempre. Medido antes del arreglo:
+    # la entidad Robe recuperaba 3 de 268 líneas de este material, y la del
+    # fallecimiento —que dice «Robe falleció el 10 de diciembre de 2025»— no la
+    # alcanzaba nadie, porque no contiene «Roberto Iniesta» ni «Extremoduro».
+    #
+    # Las claves cortas entran ahora, pero por PALABRA COMPLETA y respetando
+    # mayúsculas sobre la línea original: así «Robe» casa «Robe falleció» y no
+    # casa «probé», «robé» ni «Roberto». Las largas siguen como estaban, sin
+    # acentos y sin distinguir mayúsculas.
+    largas = [_norm(n) for n in names if len(n) >= 5]
+    cortas = [re.compile(rf"\b{re.escape(n)}\b") for n in names if 0 < len(n) < 5]
+
+    def _menciona(linea: str) -> bool:
+        if any(k in _norm(linea) for k in largas):
+            return True
+        return any(rx.search(linea) for rx in cortas)
+
     out: list[str] = []
     for md in sorted(ref_dir.glob("*.md")):
         try:
@@ -95,8 +118,7 @@ def _reference_facts(names: list[str]) -> list[str]:
             continue
         label = _reference_label(md.stem, text)
         for line in text.splitlines():
-            nline = _norm(line)
-            if len(line.strip()) > 40 and any(k in nline for k in keys):
+            if len(line.strip()) > 40 and _menciona(line):
                 out.append(f"[{label}] {line.strip().lstrip('-* ')}")
     return out
 
@@ -127,6 +149,33 @@ def entity_names(db: Session, entity_type: str, entity) -> tuple[str, list[str]]
     return subject, [n for n in names if n]
 
 
+def _obra_del_artista_vinculado(db: Session, person_slug: str, subject: str) -> list[str]:
+    """Discografía del artista que corresponde a esta persona, si la hay."""
+    artist_slug = robe_facts.PERSON_ARTIST_LINKS.get(person_slug or "")
+    if not artist_slug:
+        return []
+    discos = [d for d in robe_facts.discography(db) if d.artist_slug == artist_slug]
+    if not discos:
+        return []
+    listado = ", ".join(f"{d.title} ({d.year})" for d in discos)
+    return [f"Discografía de {subject} como {artist_slug}: {listado}."]
+
+
+def _fallecimientos_de_miembros(db: Session, band_id: int) -> list[str]:
+    """Miembros de la banda que constan fallecidos, con su fecha."""
+    filas = db.execute(
+        select(Person)
+        .join(BandMembership, BandMembership.person_id == Person.id)
+        .where(BandMembership.artist_id == band_id, Person.death_date.is_not(None))
+    ).scalars().all()
+    out = []
+    for p in filas:
+        quien = p.stage_name or p.full_name
+        if quien:
+            out.append(f"{quien} falleció el {p.death_date.isoformat()}.")
+    return out
+
+
 def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
     facts: list[str] = []
     if entity_type == "person":
@@ -152,17 +201,34 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
         facts.insert(0, " ".join(bits))
         if entity.bio_short:
             facts.append(entity.bio_short.strip())
+        # La persona y el artista son dos entidades distintas y cada una tenía la
+        # mitad de la historia: esta sabía CUÁNDO murió pero no QUÉ publicó, y la
+        # otra al revés. Así salía un texto que recorría su obra y no decía que
+        # había muerto, o que hablaba de su muerte sin nombrar sus discos.
+        facts.extend(_obra_del_artista_vinculado(db, entity.slug, subject))
     elif entity_type == "band":
         bits = [f"{subject} ({entity.kind})."]
         if entity.founded_year:
             bits.append(f"Fundación: {entity.founded_year}.")
         if entity.dissolved_year:
-            bits.append(f"Disolución: {entity.dissolved_year}.")
+            # `dissolved_year` solo guarda el año; para Extremoduro la fecha
+            # exacta está documentada y es la que hay que contar.
+            if (entity.slug == "extremoduro"
+                    and entity.dissolved_year == robe_facts.EXTREMODURO_DISSOLUTION_DATE.year):
+                bits.append(
+                    f"Disolución: {robe_facts.EXTREMODURO_DISSOLUTION_DATE.isoformat()}."
+                )
+            else:
+                bits.append(f"Disolución: {entity.dissolved_year}.")
         if entity.related_note:
             bits.append(entity.related_note)
         facts.append(" ".join(bits))
         if entity.bio_short:
             facts.append(entity.bio_short.strip())
+        # Que una banda se disolviera no es el final de la historia si su líder ha
+        # muerto: un repaso a Extremoduro que acabe en 2021 suena a que la vida
+        # siguió, y no siguió.
+        facts.extend(_fallecimientos_de_miembros(db, entity.id))
     elif entity_type == "album":
         art = db.get(Artist, entity.artist_id)
         facts.append(f"«{entity.title}» ({art.name if art else ''}, {entity.year}), tipo {entity.kind}.")
@@ -244,6 +310,14 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
     """Ensambla TODO el corpus relevante sobre la entidad."""
     subject, names = entity_names(db, entity_type, entity)
     hard = _hard_facts(db, entity_type, entity, subject)
+
+    # Si el sujeto es Robe o Extremoduro, los hechos que no se pueden omitir van
+    # DELANTE y en `hard`, que no está capado. Metidos entre las referencias se
+    # caían por el tope de 40 líneas justo cuando más falta hacían.
+    if getattr(entity, "slug", None) in robe_facts.PERIMETER_SLUGS:
+        obligatorios = robe_facts.must_facts_lines(db)
+        if obligatorios:
+            hard = "\n".join(obligatorios) + ("\n" + hard if hard else "")
 
     allowed: set[str] = set()
     n_sources = 0

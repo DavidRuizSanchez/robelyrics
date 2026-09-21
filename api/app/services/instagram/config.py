@@ -7,9 +7,11 @@ los posts pero no los publica.
 import os
 from datetime import date
 
+from app.services import robe_facts
+
 # Robe falleció el 10 de diciembre de 2025. Caption e imagen abren con
-# el contador memorial "Día X sin Robe".
-ROBE_DEATH = date(2025, 12, 10)
+# el contador memorial "Día X sin Robe". La fecha sale de `robe_facts`.
+ROBE_DEATH = robe_facts.DEATH_DATE
 
 
 def dias_sin_robe() -> int:

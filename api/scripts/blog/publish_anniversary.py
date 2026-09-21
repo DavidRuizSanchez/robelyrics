@@ -33,10 +33,12 @@ from app.services.wikimedia import search_image
 from scripts.blog.context_builder import artist_context
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+from app.services import robe_facts
+
 logger = logging.getLogger(__name__)
 
-BIRTH_DATE = date(1962, 5, 16)
-DEATH_DATE: date | None = date(2025, 12, 10)
+BIRTH_DATE = robe_facts.BIRTH_DATE
+DEATH_DATE: date | None = robe_facts.DEATH_DATE
 
 ROBE_NAME = "Robe Iniesta"
 

@@ -28,6 +28,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.services import robe_facts
+
 logger = logging.getLogger(__name__)
 
 MODEL = "gpt-4o"
@@ -171,10 +173,14 @@ def review(
         "Extremoduro querría leer de verdad: concretas, de primera mano, con datos "
         "específicos y una mirada diferencial. RECHAZAS sin piedad el relleno, la "
         "redundancia y lo genérico. Devuelves SOLO JSON.\n"
-        "CONTEXTO FACTUAL (no lo penalices como error): Roberto Iniesta 'Robe', líder "
-        "de Extremoduro, FALLECIÓ en diciembre de 2025; un texto que hable de él en "
-        "pasado o mencione su muerte es CORRECTO, no un fallo. Extremoduro se disolvió "
-        "en 2018 y Robe siguió en solitario. No bajes la nota por estos hechos."
+        # Sale de `robe_facts`, no escrito a mano: aquí ponía que Extremoduro se
+        # disolvió «en 2018» cuando la fuente del propio repo dice 18-12-2019, así
+        # que el editor jefe llevaba tiempo juzgando artículos con un dato falso
+        # en su contexto. Y antes solo decía «no penalices que lo mencione», que
+        # evita el error de tiempo verbal pero no exige contar lo que hay que
+        # contar: por eso pasó un recorrido por toda la trayectoria que terminaba
+        # en 2021 sin decir que Robe había muerto.
+        + robe_facts.anchor_for_editor()
     )
     user = (
         f"TIPO: {kind}. PROTAGONISTA: «{subject}».\n"

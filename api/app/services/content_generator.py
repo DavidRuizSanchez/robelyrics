@@ -34,6 +34,7 @@ from typing import Any
 
 from openai import OpenAI, OpenAIError
 
+from app.services import robe_facts
 from app.services.voice import build_system_prompt
 
 logger = logging.getLogger(__name__)
@@ -41,9 +42,11 @@ logger = logging.getLogger(__name__)
 MODEL = "gpt-4o"
 
 # La fecha del fallecimiento de Robe es referencia explícita en el system
-# prompt para que el LLM sepa el marco temporal/emocional.
-ROBE_BIRTH_DATE = date(1962, 5, 16)
-ROBE_DEATH_DATE = date(2025, 12, 10)
+# prompt para que el LLM sepa el marco temporal/emocional. Sale de `robe_facts`:
+# estaba escrita a mano en cuatro sitios y bastaba con que uno se quedara viejo
+# para que el sitio se contradijera a sí mismo.
+ROBE_BIRTH_DATE = robe_facts.BIRTH_DATE
+ROBE_DEATH_DATE = robe_facts.DEATH_DATE
 
 # Voz única del sitio (1ª persona admiradora). Ver app/services/voice.py.
 SYSTEM_PROMPT = build_system_prompt(family="blog")

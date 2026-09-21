@@ -23,12 +23,23 @@ from openai import OpenAI
 from sqlalchemy import select, update
 
 from app.db.models import (
-    Album, Artist, Band, Concept, Person, Place, SeoContent, Song, Theme,
+    Album,
+    Artist,
+    Band,
+    Concept,
+    Person,
+    Place,
+    SeoContent,
+    Song,
+    Theme,
 )
 from app.db.session import SessionLocal
+from app.services import robe_facts
 from app.services.deep_research import gather_entity_dossier
 from app.services.entity_resolver import (
-    autolink_corpus, build_corpus_index, load_link_stats,
+    autolink_corpus,
+    build_corpus_index,
+    load_link_stats,
 )
 from app.services.text_sanitizer import strip_ai_tells
 from scripts.seo.common import MODEL, apply_catalog_check, log, upsert_seo_content
@@ -52,7 +63,7 @@ _SYS = (
     "instancia'. Si no hay material para algo, NO lo rellenas: mejor corto y con "
     "chicha que largo y vacío. NUNCA inventas (ni vivencias en primera persona). "
     "NUNCA repites una frase, un dato ni el mismo encuadre dos veces (no vuelvas a "
-    "presentar al sujeto en cada sección). Robe falleció en diciembre de 2025. "
+    "presentar al sujeto en cada sección). " + robe_facts.anchor_prompt() + " "
     "Refiérete a él como 'Robe' (o 'Roberto Iniesta'), NUNCA 'Robe Iniesta'. No "
     "uses la raya larga.\n"
     "NOMBRA SIEMPRE LAS ENTIDADES (regla dura): cuando menciones una persona, "

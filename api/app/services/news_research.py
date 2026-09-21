@@ -21,6 +21,7 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
+from app.services import robe_facts
 from app.services.content_generator import _call
 from app.services.instagram import web_image
 
@@ -348,7 +349,7 @@ _WRITE_SYS = (
     "tercera persona cálida (sin 'yo' vivencial). Refiérete a él como 'Robe' o "
     "'Roberto Iniesta', NUNCA 'Robe Iniesta' (no le gustaba). NUNCA mencionas ni acreditas "
     "al medio del que sale la noticia (ni 'según', ni 'vía', ni el nombre del "
-    "medio): la investigación es nuestra. ROBE FALLECIÓ: enmárcalo en pasado. "
+    "medio): la investigación es nuestra. " + robe_facts.anchor_prompt() + " "
     "REGLA CRÍTICA: no inventes datos; usa solo lo que aparezca en el material. "
     "FECHAS Y NÚMEROS: no afirmes fechas, años ni números de edición ('3ª "
     "edición', 'Premios 2023') que NO aparezcan explícitamente en el material; "
@@ -709,7 +710,10 @@ def research_and_write(
         from openai import OpenAI
 
         from scripts.seo.generate_deep import (
-            _outline, _polish, _verify_section, _write_section,
+            _outline,
+            _polish,
+            _verify_section,
+            _write_section,
         )
 
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])

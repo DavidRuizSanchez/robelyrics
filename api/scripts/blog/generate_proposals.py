@@ -37,10 +37,12 @@ from app.services.content_dedup import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+from app.services import robe_facts
+
 logger = logging.getLogger(__name__)
 
-ROBE_BIRTH = (5, 16)
-ROBE_DEATH = (12, 10)
+ROBE_BIRTH = (robe_facts.BIRTH_DATE.month, robe_facts.BIRTH_DATE.day)
+ROBE_DEATH = (robe_facts.DEATH_DATE.month, robe_facts.DEATH_DATE.day)
 
 
 def _norm(s: str) -> str:
