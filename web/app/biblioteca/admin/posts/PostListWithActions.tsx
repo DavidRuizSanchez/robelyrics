@@ -15,6 +15,8 @@ type AdminPostItem = {
   created_at: string;
   published_at: string | null;
   scheduled_for: string | null;
+  days_waiting?: number;
+  stale?: boolean;
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -40,6 +42,9 @@ function formatDate(iso: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    // En UTC a propósito: el SSR corre en UTC y el navegador en hora local, así
+    // que sin fijarla la misma fecha se pintaba distinta en cada lado.
+    timeZone: "UTC",
   });
 }
 
@@ -92,6 +97,17 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                   {p.published_at && ` · publicado ${formatDate(p.published_at)}`}
                   {p.status === "scheduled" && p.scheduled_for &&
                     ` · programado ${formatDate(p.scheduled_for)}`}
+                  {/* Los mismos días que dice el correo diario, para poder
+                      emparejar «esperando 124 días» con esta fila. */}
+                  {!!p.days_waiting && ` · esperando ${p.days_waiting} día${p.days_waiting === 1 ? "" : "s"}`}
+                  {p.stale && (
+                    <span className="text-accent"> · ⚠ se está pudriendo</span>
+                  )}
+                  {/* Fecha que quedó de una programación anterior: no publica
+                      nada (solo los `scheduled` entran al cron) pero confunde. */}
+                  {p.status !== "scheduled" && p.scheduled_for && (
+                    <span className="text-ink-faint"> · fecha huérfana {formatDate(p.scheduled_for)}</span>
+                  )}
                 </p>
                 <Link
                   href={`/biblioteca/admin/posts/${p.id}`}

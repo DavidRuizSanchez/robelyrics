@@ -49,11 +49,15 @@ export default function BlogPlanner({
   approved,
   scheduled,
   discarded,
+  discardedTotal,
 }: {
   proposed: ProposalItem[];
   approved: ProposalItem[];
   scheduled: ProposalItem[];
   discarded: ProposalItem[];
+  // Total real en BD: `discarded` llega acotado para no pintar 320 filas, así
+  // que el número que se enseña no puede salir de `discarded.length`.
+  discardedTotal?: number;
 }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
@@ -274,7 +278,7 @@ export default function BlogPlanner({
       <section>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-            1 · Por validar · {proposedF.length}
+            1 · Ideas por validar · {proposedF.length}
           </h2>
           {proposedF.length > 0 && (
             <button
@@ -289,7 +293,7 @@ export default function BlogPlanner({
           )}
         </div>
         <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Revisa y aprueba (o rechaza). Lo aprobado pasa al calendario de abajo.
+          Revisa y aprueba (o rechaza) el TEMA. Lo aprobado pasa al calendario de abajo y se escribe al llegar su fecha.
         </p>
         {proposedF.length === 0 ? (
           <p className="font-serif italic text-ink-faint">
@@ -511,7 +515,7 @@ export default function BlogPlanner({
       <section>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-            2 · Calendario · {approvedF.length} sin fecha · {scheduledF.length} programadas
+            2 · Calendario de ideas · {approvedF.length} sin fecha · {scheduledF.length} programadas
           </h2>
           <div className="flex items-center gap-2">
             <label className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
@@ -696,10 +700,18 @@ export default function BlogPlanner({
       {/* ========== Descartadas ========== */}
       {discardedF.length > 0 && (
         <section>
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-1">
-            Descartadas · {discardedF.length}
-          </h2>
-          <p className="font-serif italic text-ink-dim text-sm mb-5">
+          {/* Plegada: son cientos y se pintaban enteras, empujando fuera de la
+              vista todo lo que venía detrás. Es una papelera, no una cola. */}
+          <details>
+            <summary
+              data-cursor="hover"
+              className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint cursor-pointer"
+            >
+              Ideas descartadas · {discardedTotal ?? discardedF.length}
+              {(discardedTotal ?? 0) > discardedF.length &&
+                ` (se muestran las ${discardedF.length} más recientes)`}
+            </summary>
+          <p className="font-serif italic text-ink-dim text-sm mt-2 mb-5">
             Rechazadas. Puedes recuperarlas y vuelven a “por validar”.
           </p>
           <ul className="divide-y divide-divider">
@@ -730,6 +742,7 @@ export default function BlogPlanner({
               </li>
             ))}
           </ul>
+          </details>
         </section>
       )}
     </div>

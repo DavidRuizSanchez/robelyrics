@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import BlogPlanner from "./BlogPlanner";
 import UrlIngestForm from "./UrlIngestForm";
-import PostListWithActions from "../posts/PostListWithActions";
+import PostQueues, { agruparPorEstado } from "./PostQueues";
 
 export type ProposalKeyword = {
   keyword: string;
@@ -46,7 +46,7 @@ type ProposalStats = {
   by_kind: Record<string, Record<string, number>>;
 };
 
-type AdminPostItem = {
+export type AdminPostItem = {
   id: number;
   slug: string;
   kind: string;
@@ -58,6 +58,8 @@ type AdminPostItem = {
   created_at: string;
   published_at: string | null;
   scheduled_for: string | null;
+  days_waiting: number;
+  stale: boolean;
 };
 
 export const metadata = {
@@ -76,15 +78,23 @@ export default async function AdminBlogPage() {
   }
   if (!me!.is_admin) redirect("/biblioteca");
 
-  const [proposed, approved, scheduled, discarded, stats, pendingPosts] =
+  const [proposed, approved, scheduled, discarded, stats, allPosts] =
     await Promise.all([
       apiFetch<ProposalItem[]>("/admin/proposals?status=proposed"),
       apiFetch<ProposalItem[]>("/admin/proposals?status=approved"),
       apiFetch<ProposalItem[]>("/admin/proposals?status=scheduled"),
-      apiFetch<ProposalItem[]>("/admin/proposals?status=discarded"),
+      // Acotadas: son 320 y se pintaban TODAS, unos 25.000 px de papelera por
+      // delante de lo que sí esperaba decisión. El contador de la cabecera sigue
+      // saliendo de /stats, así que la cifra que se muestra no miente.
+      apiFetch<ProposalItem[]>("/admin/proposals?status=discarded&limit=40"),
       apiFetch<ProposalStats>("/admin/proposals/stats"),
-      apiFetch<AdminPostItem[]>("/admin/posts?status=pending_review"),
+      // Todos los estados de una sola llamada: son ~60 filas sin `body_md`. Si
+      // algún día las publicadas pasan de ~150, esa cola pedirá su paginación.
+      apiFetch<AdminPostItem[]>("/admin/posts?status=all"),
     ]);
+
+  const porEstado = agruparPorEstado(allPosts);
+  const nPost = (estado: string) => (porEstado[estado] ?? []).length;
 
   return (
     <main className="px-5 md:px-14 py-8 md:py-10 max-w-[1100px] mx-auto">
@@ -96,54 +106,90 @@ export default async function AdminBlogPage() {
           Blog · flujo editorial
         </h1>
         <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
-          Un solo sitio: valida las propuestas (aprobar o rechazar), y luego
-          en el calendario decide cuándo publicarlas. Tope de 4 por semana.
+          Dos colas distintas: las <b>entradas</b> son textos ya escritos que
+          esperan tu decisión; las <b>ideas</b> son temas aún sin escribir. Tope
+          de 4 publicaciones por semana.
         </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-8 text-center">
-          <Stat label="por validar" value={stats.proposed} />
-          <Stat label="aprobadas" value={stats.approved} />
-          <Stat label="programadas" value={stats.scheduled} />
-          <Stat label="publicadas" value={stats.used} />
-          <Stat label="descartadas" value={stats.discarded} />
-          <Stat label="en revisión" value={pendingPosts.length} />
+        {/* Dos filas etiquetadas, no seis contadores seguidos: «por validar 0»
+            (ideas) y «en revisión 13» (entradas) parecían lo mismo, así que un
+            0 arriba se leía como «no hay nada que hacer» teniendo 13 abajo. */}
+        <div className="mt-8">
+          <p className="font-mono text-[9px] tracking-[3px] uppercase text-accent mb-2">
+            entradas · textos escritos
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <Stat label="esperan decisión" value={nPost("pending_review")} href="#entradas-revision" />
+            <Stat label="programadas" value={nPost("scheduled")} href="#entradas-programadas" />
+            <Stat label="publicadas" value={nPost("published")} />
+            <Stat label="rechazadas" value={nPost("rejected")} href="#entradas-rechazadas" />
+          </div>
+          <p className="font-mono text-[9px] tracking-[3px] uppercase text-ink-faint mt-6 mb-2">
+            ideas · temas sin escribir
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <Stat label="por validar" value={stats.proposed} href="#ideas" />
+            <Stat label="aprobadas" value={stats.approved} href="#ideas" />
+            <Stat label="programadas" value={stats.scheduled} href="#ideas" />
+            <Stat label="descartadas" value={stats.discarded} href="#ideas" />
+          </div>
         </div>
 
         <UrlIngestForm />
       </header>
 
-      <BlogPlanner
-        proposed={proposed}
-        approved={approved}
-        scheduled={scheduled}
-        discarded={discarded}
-      />
+      {/* Primero lo que espera decisión; las ideas, después. Al revés, las
+          entradas quedaban al fondo detrás de 320 descartadas. */}
+      <PostQueues posts={allPosts} />
 
-      {pendingPosts.length > 0 && (
-        <section className="mt-16">
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Entradas a revisar · esperan tu decisión
-          </h2>
-          <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Posts ya escritos que un control detuvo antes de publicar (un dato
-            sin confirmar, una cita en zona gris, el tema desviado), más los
-            creados a mano. Nada de esto sale a la web hasta que tú lo digas:
-            publica, programa o rechaza.
-          </p>
-          <PostListWithActions items={pendingPosts} />
-        </section>
-      )}
+      <section id="ideas" className="mt-16 scroll-mt-8">
+        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-1">
+          Ideas · temas sin escribir
+        </h2>
+        <p className="font-serif italic text-ink-dim text-sm mb-8">
+          El banco de temas. Aquí no hay nada escrito todavía: validas la idea y
+          eliges cuándo se convierte en entrada.
+        </p>
+        <BlogPlanner
+          proposed={proposed}
+          approved={approved}
+          scheduled={scheduled}
+          discarded={discarded}
+          discardedTotal={stats.discarded}
+        />
+      </section>
     </main>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border border-divider py-4">
+function Stat({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: number;
+  href?: string;
+}) {
+  const cuerpo = (
+    <>
       <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
         {label}
       </p>
       <p className="font-serif text-3xl text-ink mt-1">{value}</p>
-    </div>
+    </>
+  );
+  // Con ancla, el contador LLEVA a su cola: el salto de la cabecera a la
+  // sección era todo el problema cuando la página mide varias pantallas.
+  return href ? (
+    <a
+      href={href}
+      data-cursor="hover"
+      className="block border border-divider hover:border-accent py-4 transition-colors"
+    >
+      {cuerpo}
+    </a>
+  ) : (
+    <div className="border border-divider py-4">{cuerpo}</div>
   );
 }
