@@ -193,7 +193,27 @@ def _diff_cuerpo(o) -> str:
         f'<div style="font-family:Georgia,serif;font-size:14px;line-height:1.6;'
         f'color:rgba(237,228,211,0.85);background:rgba(237,228,211,0.03);'
         f'padding:14px;margin:8px 0 0;white-space:pre-wrap;">{_html.escape(nuevo[:2200])}</div>'
+        + _avisos(o)
     )
+
+
+def _avisos(o) -> str:
+    """Lo que las guardas dejan pasar pero conviene mirar antes de publicar.
+
+    «Es un resumen, no una promesa» no se puede bloquear —una description correcta
+    puede serlo— pero es exactamente la crítica que hizo que este criterio
+    existiera, así que tiene que estar delante de quien aprueba.
+    """
+    avisos = (o.draft_notes or {}).get("avisos") or []
+    if not avisos:
+        return ""
+    lis = "".join(
+        f'<li style="font-family:Georgia,serif;font-size:13px;'
+        f'color:rgba(237,228,211,0.55);margin:0 0 3px;">{_html.escape(a)}</li>'
+        for a in avisos
+    )
+    return (f'<ul style="list-style:none;padding:0;margin:8px 0 0;'
+            f'border-left:2px solid rgba(168,58,58,0.4);padding-left:10px;">{lis}</ul>')
 
 
 def _diff_meta(o) -> str:
@@ -212,7 +232,7 @@ def _diff_meta(o) -> str:
             f'<span style="font-family:{_MONO};font-size:10px;color:rgba(237,228,211,0.4);">{len(despues)}c</span></div>'
             f"</div>"
         )
-    return "".join(filas)
+    return "".join(filas) + _avisos(o)
 
 
 def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:

@@ -25,6 +25,7 @@ from app.db.models import Album
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
+from app.services import seo_style
     call_llm,
     fetch_distilled_for_album,
     fetch_sources_for_album,
@@ -95,8 +96,7 @@ IMPORTANTE:
   omite la frase.
 - NO inventes datos.
 
-Devuelve JSON con `body_md`, `meta_title` (≤60 chars con título disco +
-artista), `meta_description` (≤160 chars resumiendo el álbum),
+Devuelve JSON con `body_md`, {seo_style.PROMPT_META_SHORT} y
 `entities` (según system prompt).
 """
 

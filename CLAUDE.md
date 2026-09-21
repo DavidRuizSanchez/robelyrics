@@ -306,6 +306,50 @@ escriba `f"...{msg}..."`** en el camino —por eso `post_carousel` reetiqueta co
 `published_at` a secas: si no se publicó nunca es `NULL` y una instalación nueva
 se quedaría muda para siempre.
 
+## El title representa la página; la description busca el clic
+
+Criterio de David (22-09-2026), después de rechazar el primer borrador del circuito:
+
+- **El title representa el contenido de la página.** Se optimiza para el término
+  principal y, si además se puede hilar otro, bien; **si no se puede, no se fuerza**.
+  Nunca se cambia el sentido de un title para colocar una keyword. El borrador que lo
+  destapó proponía «Miembros y origen de Barricada: El Drogas y Piedrafita» para una
+  página que va del grupo, no de sus miembros.
+- **La description no es un elemento de ranking: es lo que capta el clic.** Promete lo
+  que se va a encontrar; no resume. «Barricada, grupo musical de Pamplona. Miembros
+  clave: … Influencia en bandas como Extremoduro» son tres sintagmas sin un verbo.
+- Lo que él escribiría: `Barricada: miembros, historia y legado del grupo de rock
+  español` y «Conoce todos los datos de este grupo mítico de rock español y su
+  relación con Extremoduro: miembros, historia y legado».
+
+Todo eso vive en **`app/services/seo_style.py`**, que es la ÚNICA fuente: antes había
+catorce caminos escribiendo un title con cinco prompts distintos y tres longitudes de
+description en circulación (155, 158 y 160), así que cambiar el criterio exigía
+acordarse de catorce sitios. Los dos textos de David están congelados como fixture en
+`app/tests/test_seo_style.py`: **si alguien toca una guarda y su texto deja de pasar,
+la guarda está mal, no el texto.**
+
+La causa raíz no era el modelo: **se lo ordenaba el motor**. En cinco sitios el prompt
+pedía la keyword «al INICIO del meta_title», y el `target_keyword` de Barricada es
+literalmente `Barricada grupo`. Ahora el término se **cubre**, no se pega: el title de
+David cubre `Barricada grupo` entero sin contenerlo.
+
+Cuatro cosas que conviene no deshacer:
+
+- **Ya no se trunca en ningún sitio.** El `[:60]` partía palabras («…amor y libe») y
+  es la razón por la que existía `optimize_meta`. Medido: al title de David, de **64
+  caracteres**, le quitaba «español». Los topes son dos — `TITLE_TARGET` (60, lo que
+  se pide) y `TITLE_HARD_MAX` (65, lo que se rechaza) — y si no cabe limpio se deja
+  vacío y lo cubre la plantilla. Su description, de 119, tampoco llegaba al mínimo de
+  125 que exigía el prompt: **las constantes contradecían el criterio**.
+- **La anti-invención mira cifras y nombres propios, no todas las palabras.** Su
+  primera versión tumbó la description de David por «todos», «datos» y «mítico».
+- **`letra` NO está en la lista de genéricos vetados.** «Barricada grupo» se veta,
+  «Desarraigo letra: …» no: son 99 fichas y es como se busca.
+- **Lo que no se puede verificar va al prompt, no a una guarda.** La description
+  publicada de Barricada tiene verbos, cabe y cita el diferencial, y aun así es un
+  resumen. Eso es un **aviso** que viaja al correo y al panel, nunca un bloqueo.
+
 ## Lo que Google dice que falta no siempre es contenido
 
 El correo de los lunes llevaba meses siendo **solo un informe**: listaba URLs en

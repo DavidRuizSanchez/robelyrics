@@ -24,6 +24,8 @@ Personas (registro narrativo):
 """
 from __future__ import annotations
 
+from app.services import seo_style
+
 from app.services import robe_facts
 
 # --------------------------------------------------------------------------- #
@@ -195,24 +197,20 @@ miembros conocidos. NO incluyas entidades genéricas ("rock", "música",
 # --------------------------------------------------------------------------- #
 # SEO ligero (común; la familia blog añade title/excerpt en la salida).
 # --------------------------------------------------------------------------- #
-_RULES_SEO = """\
-SEO — con naturalidad, sin keyword-stuffing:
-- meta_title ≤60 caracteres, con la entidad principal AL INICIO (ej. "Robe
-  Iniesta: …", "Agila de Extremoduro: …"). Sin "Entre Interiores" (lo añade la
-  plantilla). EN TERCERA PERSONA y sin "yo": el meta es para buscadores.
-- meta_description ≤155 caracteres, una frase con la entidad + el ángulo
-  concreto. Sin signos de exclamación.
-- En el cuerpo usa los términos por los que busca la gente con naturalidad;
-  varía con sinónimos ("la banda", "el grupo extremeño", "el placentino")."""
+# El criterio del title y la description vive en `seo_style`, no aquí: antes
+# estaba escrito a mano en cinco prompts distintos y con tres longitudes de
+# description en circulación, así que cambiarlo exigía acordarse de catorce sitios.
+_RULES_SEO = (
+    seo_style.PROMPT_META_RULES
+    + """
 
-_OUTPUT_SEO = """\
-Devuelves SIEMPRE un objeto JSON exactamente con esta forma:
-{
-  "body_md": "<artículo en markdown, sin H1, con H2/H3 concretos>",
-  "meta_title": "<≤60 chars, entidad al inicio, 3ª persona>",
-  "meta_description": "<≤155 chars, entidad + ángulo>",
-  "entities": [<lista según el bloque ENTIDADES>]
-}"""
+Sin "Entre Interiores" en el title (lo añade la plantilla). En TERCERA PERSONA y
+sin "yo": el meta es para buscadores.
+En el cuerpo usa los términos por los que busca la gente con naturalidad; varía con
+sinónimos ("la banda", "el grupo extremeño", "el placentino")."""
+)
+
+_OUTPUT_SEO = seo_style.output_json_block()
 
 _OUTPUT_BLOG = """\
 Devuelves SIEMPRE un objeto JSON exactamente con esta forma:

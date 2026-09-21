@@ -25,6 +25,7 @@ from app.db.models import Concept, Place, SeoContent, Song, Theme
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import call_llm, tone_quotes_for, upsert_seo_content
+from app.services import seo_style
 
 SITE_URL = "https://entreinteriores.com"
 
@@ -158,8 +159,8 @@ plantilla):
 
 Cierra con una frase seca, sin moraleja.
 
-Devuelve JSON con `body_md`, `meta_title` (≤60 chars, con «{row.name}» al
-inicio), `meta_description` (≤155 chars) y `entities` (según system prompt).
+Devuelve JSON con `body_md`, {seo_style.PROMPT_META_SHORT} y `entities`
+(según system prompt).
 """
 
 

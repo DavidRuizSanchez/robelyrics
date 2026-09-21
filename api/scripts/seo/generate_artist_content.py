@@ -22,6 +22,7 @@ from app.db.models import Album, Artist
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
+from app.services import seo_style
     call_llm,
     fetch_distilled_for_artist,
     fetch_sources_for_artist,
@@ -89,8 +90,8 @@ debe incluir «{artist.name}» y un término de proyecto/discografía (p.ej. «d
 «discos», «canciones»); `meta_description` (≤160 chars) resume la banda y su discografía,
 sin biografía personal.
 
-Devuelve JSON con `body_md`, `meta_title` (≤60 chars), `meta_description`
-(≤160 chars), `entities` (según system prompt).
+Devuelve JSON con `body_md`, {seo_style.PROMPT_META_SHORT} y
+`entities` (según system prompt).
 """
 
 

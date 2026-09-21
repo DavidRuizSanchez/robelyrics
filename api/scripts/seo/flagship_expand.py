@@ -34,6 +34,7 @@ from app.config import get_settings
 from app.db.models import (
     Album, Artist, Band, Concept, Person, Place, SeoContent, Song, Theme,
 )
+from app.services import seo_style
 from app.db.session import SessionLocal
 from app.services.deep_research import gather_entity_dossier
 from app.services.editorial_review import review as editorial_review
@@ -201,10 +202,13 @@ def main() -> None:
                     "old_body_b64": base64.b64encode(old.encode()).decode()}))
                 meta = _meta(client, subject, None, final)
                 sc.body_md = final
-                if meta.get("meta_title"):
-                    sc.meta_title = meta["meta_title"][:60]
-                if meta.get("meta_description"):
-                    sc.meta_description = meta["meta_description"][:155]
+                # Sin truncar: un title cortado a mitad de palabra es peor que el
+                # que ya había. Si no cabe limpio, se conserva el anterior.
+                nt, nd = seo_style.meta_limpio(meta, subject=subject, body=final)
+                if nt:
+                    sc.meta_title = nt
+                if nd:
+                    sc.meta_description = nd
                 sc.generated_at = datetime.now(timezone.utc)
                 sc.generated_by = "flagship-" + (sc.generated_by or "")
                 db.commit(); applied += 1

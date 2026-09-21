@@ -46,9 +46,10 @@ from __future__ import annotations
 
 import logging
 import re
-import unicodedata
 from datetime import UTC, datetime
 from typing import Any
+
+from app.services import seo_style
 
 logger = logging.getLogger(__name__)
 
@@ -60,56 +61,19 @@ MIN_QUERY_IMPRESSIONS = 3
 # la cabeza de una persona: una cola de cientos de filas es una cola invisible.
 MIN_OPPORTUNITY_IMPRESSIONS = 25
 
-_STOP = {
-    "de", "la", "el", "los", "las", "y", "en", "del", "que", "a", "un", "una",
-    "por", "con", "para", "su", "sus", "es", "al", "lo", "se", "como", "o",
-}
-
-# Palabras con las que se BUSCA, no cosas que una página pueda cubrir. Sin esta
-# lista, «letras de extremoduro desarraigo» salía como hueco de contenido en una
-# página que tiene la letra entera: el cuerpo dice «letra», en singular, y el
-# cotejo por tokens no la encontraba. Lo mismo con quien remata la consulta con
-# «wikipedia» o «youtube»: eso no es un ángulo que escribir.
-_MODIFICADORES = {
-    "letra", "letras", "lyrics", "wikipedia", "wiki", "youtube", "video",
-    "videos", "cancion", "canciones", "tema", "temas", "musica", "grupo",
-    "banda", "descargar", "escuchar", "completa", "completo", "online",
-}
-
-# Prefijo con el que se compara un token contra el texto. En español la flexión
-# vive al final («miembro»/«miembros», «canta»/«cantaba»), así que comparar por
-# los primeros caracteres evita falsos huecos sin abrir la mano de más.
-_PREFIJO = 5
-
-
-def flatten(texto: str | None) -> str:
-    """Texto sin acentos, sin markdown y con un solo espacio: el terreno de cotejo."""
-    s = unicodedata.normalize("NFD", (texto or "").lower())
-    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-    return " " + re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", s)).strip() + " "
-
-
-def content_tokens(query: str) -> list[str]:
-    """Tokens de la consulta que representan CONTENIDO (fuera stopwords y modificadores)."""
-    return [
-        t
-        for t in re.findall(r"[a-z0-9]+", flatten(query))
-        if t not in _STOP and t not in _MODIFICADORES and len(t) > 1
-    ]
-
-
-def _token_en(texto_plano: str, token: str) -> bool:
-    if f" {token} " in texto_plano or f" {token}" in texto_plano:
-        return True
-    if len(token) > _PREFIJO:
-        return bool(re.search(r" " + re.escape(token[:_PREFIJO]) + r"[a-z0-9]*", texto_plano))
-    return False
-
-
-def cubre(texto_plano: str, query: str) -> bool:
-    """¿Este texto responde a la consulta? Todos sus tokens de contenido presentes."""
-    toks = content_tokens(query)
-    return bool(toks) and all(_token_en(texto_plano, t) for t in toks)
+# Las primitivas de texto y el criterio editorial viven en `seo_style`, que es la
+# única fuente y no depende de nada. Se re-exportan con el nombre de aquí porque
+# este módulo era su casa hasta el 22-09-2026.
+_STOP = seo_style._STOP
+_MODIFICADORES = seo_style._MODIFICADORES
+_PREFIJO = seo_style._PREFIJO
+flatten = seo_style.flatten
+content_tokens = seo_style.content_tokens
+_token_en = seo_style._token_en
+cubre = seo_style.cubre
+_tokens_permitidos = seo_style.tokens_permitidos
+verify_no_invention = seo_style.verify_no_invention
+spanish_case = seo_style.spanish_case
 
 
 def classify_queries(
@@ -220,142 +184,115 @@ def detect(db, pages: dict, *, period: str | None = None,
 # --------------------------------------------------------------------------- #
 # Fase 1 — preparar el borrador (NO publica)
 # --------------------------------------------------------------------------- #
-def _tokens_permitidos(*textos: str | None) -> set[str]:
-    permitidos: set[str] = set()
-    for t in textos:
-        for tok in re.findall(r"[a-z0-9]+", flatten(t)):
-            permitidos.add(tok[:_PREFIJO] if len(tok) > _PREFIJO else tok)
-    return permitidos
-
-
-def verify_no_invention(propuesta: str, permitidos: set[str]) -> list[str]:
-    """Datos de la propuesta que no salen de ninguna fuente autorizada.
-
-    Guarda determinista, porque a un LLM al que se le pide «no inventes» le sale
-    bien casi siempre, y ese «casi», en una web pública, es un dato falso
-    publicado (la bio de Uoho recortada a mitad de frase lo fue).
-
-    Vigila lo que de verdad se ha inventado alguna vez aquí: **cifras** (el año
-    falso de Rock Transgresivo estuvo en 24 fichas) y **nombres propios** (Fito
-    Páez por Fito Cabrales, un homónimo mexicano). El vocabulario común no, y eso
-    no es dejadez: la primera versión de esta guarda tumbó una description
-    correcta por la palabra «cuenta», y una guarda que rechaza lo bueno acaba
-    apagada. Comparar por mayúsculas exige el texto SIN normalizar, así que se
-    recorre la propuesta tal cual llega.
-    """
-    fuera = []
-    frases = re.split(r"(?<=[.!?:;])\s+|\n", propuesta)
-    for frase in frases:
-        palabras = re.findall(r"[\wÁÉÍÓÚÜÑáéíóúüñ'’-]+", frase)
-        for i, palabra in enumerate(palabras):
-            limpia = palabra.strip("'’-")
-            if not limpia:
-                continue
-            es_cifra = any(c.isdigit() for c in limpia)
-            # La primera palabra de la frase va en mayúscula por ortografía, no por
-            # ser un nombre propio: mirarla daría un falso positivo en cada frase.
-            es_propio = i > 0 and limpia[:1].isupper() and not limpia.isupper()
-            if not (es_cifra or es_propio):
-                continue
-            tok = re.sub(r"[^a-z0-9]", "", flatten(limpia))
-            if not tok:
-                continue
-            clave = tok[:_PREFIJO] if len(tok) > _PREFIJO else tok
-            if clave not in permitidos:
-                fuera.append(limpia)
-    return fuera
-
-
-def spanish_case(texto: str, fuentes: str) -> str:
-    """Devuelve el texto con capitalización española.
-
-    GPT escribe los títulos en Title Case inglés («Significado y Canciones
-    Clave»), que en español chirría y delata la máquina. Se baja a minúscula toda
-    palabra capitalizada que no abra frase, no vaya tras dos puntos y no aparezca
-    también capitalizada en el contenido real: así los nombres propios («Agila»,
-    «So Payaso», «Extremoduro») se quedan como están, porque de ahí salieron.
-    """
-    palabras = texto.split(" ")
-    salida = []
-    abre_frase = True
-    for w in palabras:
-        nucleo = w.strip(".,;:!?«»\"'()")
-        if (not abre_frase and nucleo and nucleo[:1].isupper() and not nucleo.isupper()
-                and nucleo not in fuentes):
-            w = w.replace(nucleo, nucleo[0].lower() + nucleo[1:], 1)
-        abre_frase = w.endswith((":", ".", "!", "?"))
-        salida.append(w)
-    return " ".join(salida)
-
-
 def propose_meta(client, *, subject: str, body_md: str, meta_title: str | None,
-                 meta_description: str | None, queries: list[dict]) -> dict:
+                 meta_description: str | None, queries: list[dict],
+                 entity_type: str = "", target_keyword: str | None = None,
+                 reintento: bool = True) -> dict:
     """Title y description nuevos, dirigidos por las consultas que la página YA responde.
 
-    Devuelve `{"title": …, "description": …, "rechazos": [...]}`; las claves que no
-    superen las guardas simplemente no vienen.
-    """
-    from scripts.seo.optimize_meta import DESC_MAX, DESC_MIN, TITLE_MAX, _clean_to_len
+    El criterio —y las guardas que lo verifican— viven en `seo_style`. Aquí solo se
+    pide, se comprueba y, si los avisos dicen que se puede hacer mejor, se pide UNA
+    vez más con la pista puesta. Devuelve `{"title": …, "description": …,
+    "rechazos": [...], "avisos": [...]}`; lo que no supera las guardas no viene.
 
+    Lo que esto NO hace, a propósito: forzar el término principal. Si no cabe
+    natural en un title que represente la página, se queda fuera y se anota. Es la
+    regla que se saltó el borrador que abría con «Miembros y origen de Barricada»
+    para una página que va del grupo.
+    """
     consultas = [q.get("query", "") for q in queries[:6] if q.get("query")]
     lista = "; ".join(f"«{c}»" for c in consultas)
-    permitidos = _tokens_permitidos(body_md, meta_title, meta_description,
-                                    " ".join(consultas), subject)
-    out: dict[str, Any] = {"rechazos": []}
+    permitidos = seo_style.tokens_permitidos(body_md, meta_title, meta_description,
+                                             " ".join(consultas), subject)
+    fuentes = f"{body_md} {subject} {meta_title or ''}"
+    out: dict[str, Any] = {"rechazos": [], "avisos": []}
 
-    prompt = (
-        f"Página sobre «{subject}». Su contenido YA responde a estas búsquedas reales "
-        f"de Google, pero su title y su description no las mencionan, así que el "
-        f"usuario no hace clic: {lista}.\n\n"
-        f"TITLE ACTUAL: {meta_title or '(vacío)'}\n"
-        f"DESCRIPTION ACTUAL: {meta_description or '(vacío)'}\n\n"
-        f"CONTENIDO REAL DE LA PÁGINA (única fuente de hechos):\n\"\"\"\n{body_md[:3000]}\n\"\"\"\n\n"
-        f"Reescribe los dos para que prometan lo que la página responde:\n"
-        f"- title: máximo {TITLE_MAX} caracteres, en español, sin cortar palabras y con "
-        f"capitalización española (solo mayúscula inicial y en nombres propios).\n"
-        f"- description: entre {DESC_MIN} y {DESC_MAX} caracteres.\n"
-        "Incorpora de forma natural los términos de esas búsquedas. USA SOLO lo que "
-        "aparece en el contenido: no inventes datos, fechas, cifras ni nombres. "
-        'Devuelve JSON {"title": "...", "description": "..."}.'
-    )
-    from scripts.seo.generate_deep import _chat
+    def _pedir(pista: str = "") -> dict:
+        prompt = (
+            f"Página sobre «{subject}». Su contenido YA responde a estas búsquedas "
+            f"reales de Google, pero su title y su description no las mencionan, así "
+            f"que el usuario no hace clic: {lista}.\n\n"
+            f"TITLE ACTUAL: {meta_title or '(vacío)'}\n"
+            f"DESCRIPTION ACTUAL: {meta_description or '(vacío)'}\n\n"
+            f"CONTENIDO REAL DE LA PÁGINA (única fuente de hechos):\n"
+            f'"""\n{body_md[:3000]}\n"""\n\n'
+            f"{seo_style.PROMPT_META_RULES}\n\n{seo_style.EJEMPLOS_ORO}\n\n"
+            f"Reescríbelos para que la página prometa lo que responde, SIN cambiar de "
+            f"qué va. USA SOLO lo que aparece en el contenido: no inventes datos, "
+            f"fechas, cifras ni nombres.{pista}\n"
+            'Devuelve JSON {"title": "...", "description": "..."}.'
+        )
+        from scripts.seo.generate_deep import _chat
 
-    try:
-        data = _chat(client, prompt, max_tokens=300)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[seo-opp] propose_meta falló para %s: %s", subject, exc)
-        return out
-    if not isinstance(data, dict):
-        return out
+        try:
+            data = _chat(client, prompt, max_tokens=400)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[seo-opp] propose_meta falló para %s: %s", subject, exc)
+            return {}
+        return data if isinstance(data, dict) else {}
 
-    fuentes_literales = f"{body_md} {meta_title or ''} {meta_description or ''}"
-    nuevo_title = _clean_to_len((data.get("title") or "").strip().strip('"'), TITLE_MAX)
-    nuevo_title = spanish_case(nuevo_title, fuentes_literales)
-    nueva_desc = re.sub(r"\s+", " ", (data.get("description") or "").strip().strip('"'))
-    nueva_desc = spanish_case(_clean_to_len(nueva_desc, DESC_MAX), fuentes_literales)
+    def _evaluar(data: dict) -> tuple[str | None, str | None, list[str], list[str]]:
+        motivos, avisos = [], []
+        t = seo_style.spanish_case((data.get("title") or "").strip().strip('"'), fuentes)
+        d = re.sub(r"\s+", " ", (data.get("description") or "").strip().strip('"'))
+        d = seo_style.spanish_case(d, fuentes)
 
-    if nuevo_title and nuevo_title != (meta_title or ""):
-        fuera = verify_no_invention(nuevo_title, permitidos)
-        if fuera:
-            out["rechazos"].append(f"title descartado: datos sin respaldo en la página ({', '.join(fuera[:5])})")
-        elif len(nuevo_title) < 20:
-            out["rechazos"].append("title descartado: demasiado corto")
-        else:
-            out["title"] = nuevo_title
-    if nueva_desc and nueva_desc != (meta_description or ""):
-        fuera = verify_no_invention(nueva_desc, permitidos)
-        if fuera:
-            out["rechazos"].append(f"description descartada: datos sin respaldo en la página ({', '.join(fuera[:5])})")
-        elif not (DESC_MIN - 10 <= len(nueva_desc) <= DESC_MAX):
-            out["rechazos"].append(f"description descartada: {len(nueva_desc)} caracteres")
-        else:
-            out["description"] = nueva_desc
+        titulo_ok = None
+        if t and t != (meta_title or ""):
+            fuera = seo_style.verify_no_invention(t, permitidos)
+            v = seo_style.title_verdict(t, body_md=body_md, subject=subject,
+                                        entity_type=entity_type, anterior=meta_title,
+                                        target_keyword=target_keyword)
+            if fuera:
+                motivos.append(f"title descartado: datos sin respaldo ({', '.join(fuera[:4])})")
+            elif not v.ok:
+                motivos += [f"title descartado: {m}" for m in v.motivos]
+            else:
+                titulo_ok = t
+                avisos += v.avisos
+
+        desc_ok = None
+        if d and d != (meta_description or ""):
+            v = seo_style.desc_verdict(d, title=titulo_ok or meta_title or "",
+                                       body_md=body_md, entity_type=entity_type,
+                                       anterior=meta_description)
+            if not v.ok:
+                motivos += [f"description descartada: {m}" for m in v.motivos]
+            else:
+                desc_ok = d
+                avisos += v.avisos
+        return titulo_ok, desc_ok, motivos, avisos
+
+    titulo, desc, motivos, avisos = _evaluar(_pedir())
+
+    # Un reintento, con lo que falló puesto delante. Potenciar es dar MÁS criterio,
+    # nunca aflojar el listón: las guardas son las mismas en la segunda pasada.
+    if reintento and (motivos or avisos) and not (titulo and desc and not avisos):
+        pista = "\n\nEN TU PRIMER INTENTO FALLÓ ESTO, corrígelo:\n- " + "\n- ".join(
+            (motivos + avisos)[:5]
+        )
+        t2, d2, m2, a2 = _evaluar(_pedir(pista))
+        # Se queda lo mejor de las dos pasadas, no lo último.
+        if t2 and (not titulo or (avisos and not a2)):
+            titulo, avisos = t2, a2
+        if d2 and not desc:
+            desc = d2
+        motivos = m2 if (t2 or d2) else motivos
+
+    if titulo:
+        out["title"] = titulo
+    if desc:
+        out["description"] = desc
+    out["rechazos"] = motivos
+    out["avisos"] = avisos
 
     # Si el texto nuevo sigue sin mencionar lo que se buscaba, no aporta nada.
     if "title" in out or "description" in out:
-        meta_nueva = flatten(f"{out.get('title', meta_title or '')} "
-                             f"{out.get('description', meta_description or '')}")
-        if not any(cubre(meta_nueva, c) for c in consultas):
+        meta_nueva = seo_style.flatten(
+            f"{out.get('title', meta_title or '')} "
+            f"{out.get('description', meta_description or '')}"
+        )
+        if not any(seo_style.cubre(meta_nueva, c) for c in consultas):
             out["rechazos"].append("propuesta descartada: sigue sin cubrir ninguna consulta")
             out.pop("title", None)
             out.pop("description", None)
@@ -420,11 +357,15 @@ def prepare_draft(db, opp) -> str:
             prop = propose_meta(
                 client, subject=subject, body_md=sc.body_md,
                 meta_title=sc.meta_title, meta_description=sc.meta_description,
-                queries=opp.queries or [],
+                queries=opp.queries or [], entity_type=opp.entity_type,
+                target_keyword=sc.target_keyword,
             )
             opp.draft_title = prop.get("title")
             opp.draft_description = prop.get("description")
-            opp.draft_notes = {"rechazos": prop.get("rechazos") or []}
+            # Los avisos viajan al correo y al panel: no bloquean, pero son
+            # exactamente lo que una persona querría mirar antes de publicar.
+            opp.draft_notes = {"rechazos": prop.get("rechazos") or [],
+                               "avisos": prop.get("avisos") or []}
             if not opp.draft_title and not opp.draft_description:
                 opp.status = "noop"
                 opp.error = "; ".join(prop.get("rechazos") or []) or "sin propuesta válida"

@@ -28,14 +28,18 @@ from openai import OpenAI
 from app.config import get_settings
 from app.db.models import SeoContent
 from app.db.session import SessionLocal
+from app.services import seo_style
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 SEO_TYPES = ("song", "album", "band", "person", "place", "theme", "concept", "artist")
-DESC_MIN, DESC_MAX = 125, 158
+# Las longitudes y el recorte salen de `seo_style`, que es la única fuente del
+# criterio. Se re-exportan porque hay código que las importa de aquí desde antes.
+DESC_MIN, DESC_MAX = seo_style.DESC_TARGET[0], seo_style.DESC_HARD_MAX
 DESC_SHORT = 110          # por debajo de esto, se expande
-TITLE_MAX = 60
+TITLE_MAX = seo_style.TITLE_HARD_MAX
+_clean_to_len = seo_style.clean_to_len
 
 
 def _client() -> OpenAI:
@@ -53,15 +57,6 @@ def _clean_subject(meta_title: str, slug: str) -> str:
     return name or slug.replace("-", " ")
 
 
-def _clean_to_len(text: str, max_len: int) -> str:
-    """Recorta a max_len sin cortar palabra (última palabra completa)."""
-    text = text.strip().strip('"').strip()
-    if len(text) <= max_len:
-        return text
-    cut = text[:max_len]
-    if " " in cut:
-        cut = cut[:cut.rfind(" ")]
-    return cut.rstrip(" ,;:-–—")
 
 
 def _gen_desc(client: OpenAI, subject: str, body: str) -> str | None:

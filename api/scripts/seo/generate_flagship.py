@@ -22,6 +22,7 @@ from openai import OpenAI
 from sqlalchemy import select
 
 from app.db.models import Album, Artist, InterpretationSource, Person
+from app.services import seo_style
 from app.db.session import SessionLocal
 from scripts.seo.common import (
     MODEL,
@@ -378,10 +379,11 @@ def main() -> None:
             "name": subject,
             "url": f"https://entreinteriores.com/{artist.slug}",
         }
+        _meta_title_fl, _meta_desc_fl = seo_style.meta_limpio(meta, subject=subject, body=body)
         upsert_seo_content(
             db, entity_type="artist", entity_id=artist.id, slug=artist.slug,
-            body_md=body, meta_title=(meta.get("meta_title") or "")[:60],
-            meta_description=(meta.get("meta_description") or "")[:155],
+            body_md=body, meta_title=_meta_title_fl,
+            meta_description=_meta_desc_fl,
             schema_jsonld=schema, entities=[], force=True,
         )
         db.commit()  # upsert_seo_content NO commitea; el caller debe hacerlo.

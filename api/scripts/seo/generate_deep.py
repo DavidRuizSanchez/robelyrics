@@ -34,7 +34,7 @@ from app.db.models import (
     Theme,
 )
 from app.db.session import SessionLocal
-from app.services import robe_facts
+from app.services import robe_facts, seo_style
 from app.services.deep_research import gather_entity_dossier
 from app.services.entity_resolver import (
     autolink_corpus,
@@ -323,14 +323,27 @@ def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
 
 
 def _meta(client: OpenAI, subject: str, target_kw: str | None, body: str) -> dict:
-    kw = f" La keyword objetivo es '{target_kw}', colócala al inicio del título." if target_kw else ""
+    """Title y description de una ficha, con el criterio único de `seo_style`.
+
+    Antes pedía la keyword «al inicio del título». Con `target_keyword` =
+    «Barricada grupo» eso produce «Barricada grupo: historia y legado…», que no es
+    español: el término se CUBRE, no se pega.
+    """
+    kw = (
+        f"\nTÉRMINO PRINCIPAL: «{target_kw}». El title debe CUBRIRLO con naturalidad "
+        "(sus palabras, en orden natural); no lo pegues literal ni lo fuerces al "
+        "principio. Si no cabe natural, no se fuerza."
+        if target_kw else ""
+    )
     return _chat(
         client,
-        f"Para este artículo sobre {subject}, devuelve JSON con meta_title "
-        f"(<=60 chars, '{subject}' al inicio, 3a persona){kw} y meta_description "
-        f"(<=155 chars, una frase con el ángulo).\n\n{body[:1800]}",
-        max_tokens=250,
+        f"Para este artículo sobre {subject}, devuelve JSON con meta_title y "
+        f"meta_description, en 3ª persona.\n\n{seo_style.PROMPT_META_RULES}\n\n"
+        f"{seo_style.EJEMPLOS_ORO}\n{kw}\n\nARTÍCULO:\n{body[:1800]}",
+        max_tokens=300,
     )
+
+
 
 
 def generate_for_entity(
@@ -523,10 +536,12 @@ def generate_for_entity(
                   "place": "Place"}.get(entity_type, "Thing"),
         "name": dossier.subject,
     }
+    _meta_title, _meta_desc = seo_style.meta_limpio(
+        meta, subject=dossier.subject, body=body
+    )
     upsert_seo_content(
         db, entity_type=entity_type, entity_id=entity.id, slug=entity.slug,
-        body_md=body, meta_title=(meta.get("meta_title") or "")[:60],
-        meta_description=(meta.get("meta_description") or "")[:155],
+        body_md=body, meta_title=_meta_title, meta_description=_meta_desc,
         schema_jsonld=schema, entities=[], force=True,
     )
     # Persiste KW objetivo + outline + cobertura (campos del motor profundo).

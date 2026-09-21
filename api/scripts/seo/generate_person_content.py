@@ -25,6 +25,7 @@ from app.db.models import Album, Artist, BandMembership, Person
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
+from app.services import seo_style
     call_llm,
     fetch_sources_for_entity,
     format_sources_block,
@@ -153,8 +154,10 @@ munición sobre CÓMO y DÓNDE cita Robe a {name} —canción, verso, contexto�
 úsalo, contrasta, no copies literal):
 {fan_block}
 
-KW OBJETIVO: «{kw}». Colócala al INICIO del meta_title, en la meta_description y
-en el primer párrafo, con naturalidad. KWs secundarias: Robe, Extremoduro y las
+TÉRMINO PRINCIPAL: «{kw}». El meta_title tiene que CUBRIRLO (sus palabras, en
+orden natural), no pegarlo literal ni ponerlo a la fuerza al principio: «Barricada
+grupo» está mal escrito, «Barricada: … del grupo de rock español» lo cubre y se lee.
+Si no cabe con naturalidad, NO SE FUERZA. Úsalo también en el primer párrafo. KWs secundarias: Robe, Extremoduro y las
 canciones donde aparece la figura.
 
 ESTRUCTURA OBLIGATORIA (encabezados H2 concretos, EN ESTE ORDEN):
@@ -181,7 +184,7 @@ IMPORTANTE:
 - NO INVENTES datos: ni canciones, ni versos, ni declaraciones de Robe.
 - NO escribas links markdown a mano. El sistema linkifica los nombres detectados.
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 
@@ -237,7 +240,7 @@ IMPORTANTE:
 - NO uses placeholders entre corchetes en el texto final.
 - NO escribas links markdown a mano. El sistema linkifica solo.
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 
@@ -299,8 +302,10 @@ QUÉ DICEN LAS FUENTES (libros, entrevistas, prensa, fan-content que mencionan a
 BANDAS EN NUESTRO SITIO (se enlazan a su página local; menciónalas por nombre):
 {band_list}
 
-KW OBJETIVO: «{kw}». Colócala al INICIO del meta_title, en la meta_description y
-en el primer párrafo, con naturalidad. KWs secundarias: sus instrumentos y los
+TÉRMINO PRINCIPAL: «{kw}». El meta_title tiene que CUBRIRLO (sus palabras, en
+orden natural), no pegarlo literal ni ponerlo a la fuerza al principio: «Barricada
+grupo» está mal escrito, «Barricada: … del grupo de rock español» lo cubre y se lee.
+Si no cabe con naturalidad, NO SE FUERZA. Úsalo también en el primer párrafo. KWs secundarias: sus instrumentos y los
 nombres concretos de sus bandas y discos.
 
 FOCO: el protagonista es {name}, no Robe. Robe y {band} son el contexto que
@@ -337,7 +342,7 @@ IMPORTANTE:
 - NO INVENTES datos. Si no consta fecha, instrumento, productor, etc., omítelo.
 - NO escribas links markdown a mano. El sistema linkifica los nombres detectados.
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 

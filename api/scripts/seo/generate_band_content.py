@@ -28,6 +28,7 @@ from app.db.models import Band
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
+from app.services import seo_style
     call_llm,
     fetch_sources_for_entity,
     format_sources_block,
@@ -125,7 +126,7 @@ IMPORTANTE:
 - NO escribas links markdown a mano. El sistema linkifica solo.
 - Menciona "Extremoduro" y "Robe" en texto plano cuando aplique (se enlazan solos).
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 
@@ -172,7 +173,7 @@ IMPORTANTE:
 - NO escribas links markdown a mano. El sistema linkifica solo.
 - Menciona "Extremoduro" y "Robe" en texto plano cuando aplique (se enlazan solos).
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 
@@ -207,8 +208,9 @@ QUÉ DICEN LAS FUENTES (fan-content / prensa que mencionan al sello; matices y
 hechos, contrasta, no copies literal):
 {fan_block}
 
-KW OBJETIVO: «{band.name}». Al inicio del meta_title, en la meta_description y
-en el primer párrafo. KWs secundarias: sus artistas, sus discos, Extremoduro.
+TÉRMINO PRINCIPAL: «{band.name}». El meta_title tiene que CUBRIRLO con
+naturalidad, no pegarlo en crudo ni forzarlo al principio; si no cabe natural, NO SE
+FUERZA. Úsalo también en el primer párrafo. Términos secundarios: sus artistas, sus discos, Extremoduro.
 
 ESTRUCTURA OBLIGATORIA (encabezados H2, EN ESTE ORDEN):
 
@@ -235,7 +237,7 @@ IMPORTANTE:
 - NO INVENTES datos. Si no conoces una fecha, un artista o un disco, omítelo.
 - NO escribas links markdown a mano. El sistema linkifica las entidades.
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 
@@ -279,8 +281,9 @@ QUÉ DICEN LAS FUENTES (fan-content / prensa que mencionan al grupo; matices y
 hechos, contrasta, no copies literal):
 {fan_block}
 
-KW OBJETIVO: «{band.name}». Al inicio del meta_title, en la meta_description y
-en el primer párrafo. KWs secundarias: sus discos, sus integrantes, Extremoduro.
+TÉRMINO PRINCIPAL: «{band.name}». El meta_title tiene que CUBRIRLO con
+naturalidad, no pegarlo en crudo ni forzarlo al principio; si no cabe natural, NO SE
+FUERZA. Úsalo también en el primer párrafo. Términos secundarios: sus discos, sus integrantes, Extremoduro.
 
 ESTRUCTURA OBLIGATORIA (encabezados H2, EN ESTE ORDEN):
 
@@ -310,7 +313,7 @@ IMPORTANTE:
 - NO INVENTES datos. Si no conoces una fecha o un disco, omítelo.
 - NO escribas links markdown a mano. El sistema linkifica las entidades.
 
-Devuelve JSON con body_md, meta_title (≤60), meta_description (≤160),
+Devuelve JSON con body_md, {seo_style.PROMPT_META_SHORT} y
 entities (array según el system prompt).
 """
 

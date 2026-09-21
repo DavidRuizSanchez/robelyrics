@@ -25,7 +25,12 @@ export type Opportunity = {
   draft_title: string | null;
   draft_description: string | null;
   draft_body: string | null;
-  draft_notes: { added_headings?: string[]; rigor?: Record<string, unknown>; rechazos?: string[] } | null;
+  draft_notes: {
+    added_headings?: string[];
+    rigor?: Record<string, unknown>;
+    rechazos?: string[];
+    avisos?: string[];
+  } | null;
   error: string | null;
   attempts: number;
 };
@@ -172,6 +177,17 @@ export default function OpportunityRow({ item }: { item: Opportunity }) {
         </div>
       )}
 
+      {/* Los avisos no bloquean, pero son lo que hay que mirar antes de publicar:
+          «es un resumen, no una promesa» es la crítica que originó este criterio. */}
+      {(item.draft_notes?.avisos?.length ?? 0) > 0 && (
+        <ul className="mt-2 border-l-2 border-accent/40 pl-3 space-y-0.5">
+          {item.draft_notes!.avisos!.map((a) => (
+            <li key={a} className="font-serif text-[13px] text-ink-dim">
+              {a}
+            </li>
+          ))}
+        </ul>
+      )}
       {item.error && (
         <p className="font-mono text-[10px] text-accent mt-2">{item.error}</p>
       )}

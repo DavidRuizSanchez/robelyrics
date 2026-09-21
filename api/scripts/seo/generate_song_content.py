@@ -25,6 +25,7 @@ from app.db.models import Album, Artist, Song
 from app.services.voice import build_system_prompt
 from scripts.research.common import get_session, log
 from scripts.seo.common import (
+from app.services import seo_style
     call_llm,
     fetch_distilled_for_song,
     fetch_sources_for_song,
@@ -112,8 +113,7 @@ NO INVENTES datos. Si no sabes algo concreto, omítelo.
 NO uses placeholders del tipo [título], <slug>, etc.
 
 Devuelve JSON con `body_md` (artículo completo en markdown), `meta_title`
-(≤60 chars, con el nombre de la canción al inicio), `meta_description`
-(≤160 chars, ángulo concreto) y `entities` (según system prompt).
+{seo_style.PROMPT_META_SHORT} y `entities` (según system prompt).
 """
 
 
