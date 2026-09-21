@@ -485,6 +485,37 @@ def auto_publish_post(
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish lyric-guard falló: %s", exc)
 
+    # Gate de COMPLETITUD sobre Robe (universal, determinista, NO bloqueante).
+    # Un texto puede estar impecable de forma y engañar por lo que calla: el caso
+    # que lo motiva recorría la discografía entera de Extremoduro, contaba la
+    # disolución y «Mayéutica» (2021), y no decía que Robe había muerto en
+    # diciembre de 2025. El gate de rigor le dio el visto bueno porque mide
+    # densidad, no cobertura.
+    #
+    # Va aquí y no dentro del juez LLM a propósito: una omisión se ve con reglas,
+    # y el juez tiene varianza (tres pasadas sobre el mismo texto dieron revise,
+    # reject y reject). Y NO rechaza: enruta a revisión, igual que el guard de
+    # citas. Retener una pieza cuesta una decisión tuya; publicar un texto que
+    # deja creer que Robe sigue vivo cuesta bastante más.
+    if post.body_md:
+        try:
+            from app.services.sensitive_topics import revisar as revisar_sensible
+            rep = revisar_sensible(
+                db, kind=post.kind,
+                subject=(post.target_keyword or post.title or "").strip(),
+                body_md=post.body_md,
+            )
+            if rep.necesita_revision:
+                logger.warning("auto_publish: COMPLETITUD frena post %s → revisión (%s)",
+                               post.id, "; ".join(rep.motivos))
+                return propose_for_review(db, post)
+            if rep.hay_erratas:
+                # Datos que corregir, no motivo para retener la pieza.
+                logger.info("auto_publish: post %s publica con erratas de datos: %s",
+                            post.id, "; ".join(rep.motivos))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("auto_publish completitud falló: %s", exc)
+
     # Gate de RELEVANCIA de la IMAGEN hero (universal): una foto que no muestra al
     # sujeto NO llega a producción. Cortafuegos común a TODOS los caminos, incluidos
     # los que fijan el hero fuera de build_unique_hero (efeméride, scrape_news, admin
