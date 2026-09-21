@@ -4,9 +4,9 @@ Lista TODAS las propuestas en estado `proposed`, agrupadas:
   - ACTUALIDAD: noticias, efemérides de Robe, aniversarios de discos.
   - REPOSITORIO: evergreens y spotlights (fondo de armario).
 
-No lleva botones de acción: el admin programa desde la pestaña
-/biblioteca/admin/calendario (tope 2/semana). El email es un aviso +
-enlace al calendario.
+No lleva botones de acción: el admin programa desde el panel unificado
+/biblioteca/admin/blog (tope `WEEKLY_CAP`/semana). El email es un aviso +
+enlace a ese panel. Ojo: /biblioteca/admin/calendario es un redirect.
 
 Cron: lunes, después del scraper.
 
@@ -22,6 +22,7 @@ import os
 
 from app.db.models import ContentProposal
 from app.db.session import SessionLocal
+from app.services.publishing import WEEKLY_CAP
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -96,14 +97,14 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
       {n} propuesta{'s' if n != 1 else ''} esperando en el banco
     </h1>
     <p style="font-family:Georgia,serif;font-style:italic;color:rgba(237,228,211,0.6);font-size:14px;margin:0 0 8px;line-height:1.6;">
-      Entra al calendario y programa las que quieras. Máximo 2 por semana.
+      Entra al panel del blog y programa las que quieras. Máximo {WEEKLY_CAP} por semana.
       Lo que no programes se queda en el banco para más adelante.
     </p>
     {_section("Actualidad", actualidad)}
     {_section("Repositorio de fondo", repositorio)}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
       <a href="{admin_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
-        abrir el calendario
+        abrir el panel del blog
       </a>
     </div>
   </div>

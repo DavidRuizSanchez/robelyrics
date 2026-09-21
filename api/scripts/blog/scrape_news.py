@@ -13,7 +13,7 @@ Workflow:
     cron lunes 09:00 → lee news_items sin consumir (policy blog+ig) →
     por noticia: match de términos + rewrite editorial + imagen Wikimedia →
     inserta ContentProposal(kind='news') y marca la noticia como consumida →
-    el admin la programa desde /biblioteca/admin/calendario.
+    el admin la programa desde /biblioteca/admin/blog.
 
 Uso:
     python -m scripts.blog.scrape_news
@@ -134,7 +134,7 @@ def _notify_admin(summary: dict) -> None:
                 to=admin_email,
                 subject=f"📰 Consumidor blog · {summary['proposed']} propuestas nuevas",
                 html=f"<pre style='font-family:monospace'>{text}\n\n"
-                f"<a href='{site_url}/biblioteca/admin/calendario'>Calendario</a></pre>",
+                f"<a href='{site_url}/biblioteca/admin/blog'>Panel del blog</a></pre>",
                 text=text,
             )
             return

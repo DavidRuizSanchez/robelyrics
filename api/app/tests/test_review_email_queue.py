@@ -14,6 +14,7 @@ de desaparecer en silencio.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import JSON, MetaData, Text, create_engine
@@ -148,3 +149,30 @@ def test_el_aviso_de_lote_no_necesita_un_post_concreto(db, correo):
 def test_sin_nada_pendiente_no_se_manda_nada(db, correo):
     publishing.notify_review_queue(db)
     assert "titulos" not in correo
+
+
+def test_proponer_para_revision_borra_la_fecha_de_programacion(db, monkeypatch):
+    """Una entrada que vuelve a revisión no conserva su antigua fecha.
+
+    Se vio en producción el 21-09-2026: la entrada #51 estaba en `pending_review`
+    con `scheduled_for` del 16 de septiembre, ya pasado. Esa fecha no publica nada
+    (`flush_scheduled_due` solo mira las `scheduled`), pero el panel la pintaba
+    como «programado el 16 de sep», así que parecía que iba a salir sola. El
+    desprogramado manual ya limpiaba el campo; este camino se había quedado atrás.
+    """
+    # El autolink del corpus consulta el catálogo entero, que esta fixture no
+    # monta: aquí lo que se prueba es el estado, no el enlazado.
+    monkeypatch.setattr("app.services.entity_resolver.build_corpus_index",
+                        lambda _db: {})
+    monkeypatch.setattr("app.services.url_resolver.guard_internal_links",
+                        lambda _db, body: SimpleNamespace(changed=False, body_md=body))
+
+    p = _post(db, "Volvió de la cola", dias_de_antiguedad=3)
+    p.status = "scheduled"
+    p.scheduled_for = AHORA - timedelta(days=5)
+    db.commit()
+
+    publishing.propose_for_review(db, p, notify=False)
+
+    assert p.status == "pending_review"
+    assert p.scheduled_for is None

@@ -917,7 +917,7 @@ class Post(Base):
 
     `status`:
       draft → pending_review → approved → scheduled → published (o rejected).
-      `scheduled` significa "esperando hueco" cuando el cap de 2/sem ya está
+      `scheduled` significa "esperando hueco" cuando el cap de `WEEKLY_CAP`/sem ya está
       ocupado; el cron `flush_scheduled_due` lo promueve a `published` cuando
       llega su `scheduled_for`.
     Solo las publicadas se muestran en /blog y entran al sitemap.
@@ -1179,7 +1179,7 @@ class ContentProposal(Base):
     El cron `generate_proposals` crea propuestas ligeras (sin body) de todo
     el catálogo; el scraper crea propuestas `kind='news'` con body ya hecho.
     El admin las valida (aprobar/rechazar) y las programa desde la pestaña
-    /biblioteca/admin/blog, máximo 3 por semana. Al llegar la fecha, el
+    /biblioteca/admin/blog, máximo `WEEKLY_CAP` por semana. Al llegar la fecha, el
     materializador genera el body si falta y crea el `Post`.
 
     `status`: proposed → approved → scheduled → used (o discarded).

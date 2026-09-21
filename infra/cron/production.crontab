@@ -17,7 +17,7 @@
 #   2. scrape_news (lunes)        → propuestas de blog desde news_items.
 #   3. generate_proposals (lunes) → efemérides próximas + evergreens.
 #   4. notify_proposals (lunes)   → email al admin con todo el banco.
-#   5. El admin programa desde /biblioteca/admin/calendario (máx 2/semana).
+#   5. El admin programa desde /biblioteca/admin/blog (máx 4/semana, WEEKLY_CAP).
 #   6. materialize_proposals (diario) → al llegar la fecha, genera el body,
 #      crea el Post, lo publica y dispara la newsletter.
 #
