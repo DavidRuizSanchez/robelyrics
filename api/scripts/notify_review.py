@@ -36,6 +36,7 @@ from app.db.models import ErrataReport, NotificationDigest, Post, VerificationRe
 from app.db.session import SessionLocal
 from app.services.email import send_email
 from app.services.publishing import REVIEW_ROT_DAYS
+from app.services.triage import duplicado_de
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -111,10 +112,28 @@ def _gather(db) -> dict:
         select(func.max(VerificationRecord.applied_at))
         .where(VerificationRecord.auto_applied.is_(True))
     ).scalar_one()
+    # Qué entrada duplica algo ya publicado. Es el único veredicto del triage que
+    # no se deduce mirando el título en una lista, y sale gratis: comparar títulos
+    # es determinista y no gasta una sola llamada al LLM. Decirle a alguien que
+    # tiene 13 entradas esperando no le dice qué hacer con ellas; decirle que tres
+    # ya están publicadas, sí.
+    publicados = db.execute(
+        select(Post).where(Post.status == "published")
+    ).scalars().all()
+    vistos = list(publicados)
+    duplicados: dict[int, tuple[str, float]] = {}
+    for post in posts:  # de más antiguo a más nuevo: entre dos gemelos manda el viejo
+        dup = duplicado_de(post, vistos)
+        if dup:
+            otro, ratio = dup
+            duplicados[post.id] = (otro.title, ratio)
+        vistos.append(post)
+
     return {
         "erratas": erratas,
         "posts_pending": int(posts_pending),
         "posts": posts,
+        "duplicados": duplicados,
         "ahora": now,
         "autofixes": autofixes,
         "watermark": watermark,
@@ -204,9 +223,16 @@ def _build_html(data: dict) -> str:
             dias = (ahora - post.created_at).days
             espera = "hoy" if dias == 0 else f"{dias} día{'s' if dias != 1 else ''}"
             aviso = " <b>(¡se está pudriendo!)</b>" if dias >= REVIEW_ROT_DAYS else ""
+            dup = data.get("duplicados", {}).get(post.id)
+            nota_dup = ""
+            if dup:
+                otro, ratio = dup
+                nota_dup = (f"<br><span style='color:#a83a3a'>· ya publicaste algo "
+                            f"casi igual: «{otro}» ({int(ratio * 100)}%)</span>")
             parts.append(
                 f"<li><a href='{_SITE}/biblioteca/admin/posts/{post.id}'>{post.title}</a>"
-                f" <span style='color:#888'>· {post.kind} · esperando {espera}</span>{aviso}</li>"
+                f" <span style='color:#888'>· {post.kind} · esperando {espera}</span>"
+                f"{aviso}{nota_dup}</li>"
             )
         parts.append("</ul>")
         resto = data["posts_pending"] - _MAX_POSTS_EN_DIGEST

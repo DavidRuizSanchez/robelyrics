@@ -23,57 +23,14 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import re
-import unicodedata
 from datetime import UTC, datetime
-from difflib import SequenceMatcher
 
 from app.db.models import Post
 from app.db.session import SessionLocal
 
-# Por encima de esto, dos títulos compiten por la misma búsqueda. MEDIDO contra
-# la cola real del 07-09-2026, no elegido a ojo:
-#   0.74  «La Evolución Musical de Extremoduro a Través de los Años»
-#         vs «La Evolución Musical de Extremoduro: Un Viaje Transgresivo»
-#   0.63  ídem vs «Extremoduro: La Evolución del Rock Transgresivo» (publicado)
-#   0.64  «Robe: De Chapista a Ícono» vs «Robe: De Dosis Letal a la Leyenda»
-#   0.53  «La Hoguera» vs «Pedrá en directo (1995)»  ← temas distintos
-# Los tres primeros canibalizan; el cuarto no. El corte va entre 0.53 y 0.63.
-# Se elige el lado generoso a propósito: esto SEÑALA para que mires, no borra.
-UMBRAL_PARECIDO = 0.60
-
-# Palabras que aparecen en casi todos los títulos del sitio y que, si cuentan,
-# hacen que todo se parezca a todo.
-VACIAS = {"de", "del", "la", "el", "los", "las", "un", "una", "y", "en", "a",
-          "robe", "extremoduro", "su", "sus", "al", "por", "con"}
-
-
-def _normaliza(titulo: str) -> str:
-    sin_tildes = "".join(
-        c for c in unicodedata.normalize("NFKD", titulo.lower())
-        if not unicodedata.combining(c)
-    )
-    palabras = [p for p in re.findall(r"[a-z0-9]+", sin_tildes) if p not in VACIAS]
-    return " ".join(palabras)
-
-
-def _parecido(a: str, b: str) -> float:
-    return SequenceMatcher(None, _normaliza(a), _normaliza(b)).ratio()
-
-
-def _duplicado_de(post: Post, otros: list[Post]) -> tuple[Post, float] | None:
-    """El post publicado (o el pendiente más antiguo) que ya cubre este tema."""
-    mejor: tuple[Post, float] | None = None
-    for otro in otros:
-        if otro.id == post.id:
-            continue
-        if (post.target_keyword_slug and
-                post.target_keyword_slug == otro.target_keyword_slug):
-            return otro, 1.0
-        ratio = _parecido(post.title, otro.title)
-        if ratio >= UMBRAL_PARECIDO and (mejor is None or ratio > mejor[1]):
-            mejor = (otro, ratio)
-    return mejor
+# La detección de duplicados la comparte con el aviso diario: si se copiara
+# aquí, los dos dirían cosas distintas en cuanto alguien moviera el umbral.
+from app.services.triage import duplicado_de
 
 
 def main() -> None:
@@ -104,7 +61,7 @@ def main() -> None:
             palabras = len((p.body_md or "").split())
             motivos: list[str] = []
 
-            dup = _duplicado_de(p, vistos)
+            dup = duplicado_de(p, vistos)
             citas = check_lyrics(db, p.body_md or "")
             hechos = check_body(db, p.body_md or "", use_web=False)
 

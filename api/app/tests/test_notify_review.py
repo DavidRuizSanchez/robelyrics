@@ -192,3 +192,51 @@ def test_una_cola_larga_se_resume():
 def test_sin_pendientes_no_hay_bloque_de_blog():
     html = nr._build_html(_datos([]))
     assert "Blog en revisión" not in html
+
+
+# --- El HTML del aviso ------------------------------------------------------ #
+def _post_falso(pid: int, titulo: str, dias: int):
+    from app.db.models import Post as _P
+    return _P(id=pid, title=titulo, kind="evergreen",
+              created_at=_NOW - timedelta(days=dias))
+
+
+def _datos_html(posts, duplicados=None) -> dict:
+    return {
+        "erratas": [], "posts": posts, "posts_pending": len(posts),
+        "duplicados": duplicados or {}, "ahora": _NOW,
+        "autofixes": [], "watermark": None,
+    }
+
+
+def test_el_aviso_nombra_las_entradas_y_sus_dias():
+    html = nr._build_html(_datos_html([_post_falso(2, "El tributo a Robe", 124)]))
+    assert "El tributo a Robe" in html
+    assert "124 días" in html
+
+
+def test_el_aviso_marca_lo_que_lleva_demasiado_esperando():
+    html = nr._build_html(_datos_html([_post_falso(2, "Vieja", nr.REVIEW_ROT_DAYS)]))
+    assert "pudriendo" in html
+
+
+def test_lo_recien_llegado_no_se_marca_como_podrido():
+    html = nr._build_html(_datos_html([_post_falso(9, "De hoy", 0)]))
+    assert "pudriendo" not in html
+    assert "hoy" in html
+
+
+def test_el_aviso_senala_lo_que_ya_esta_publicado():
+    """Saber que hay 13 esperando no dice qué hacer con ellas; saber que tres ya
+    están publicadas, sí. Caso real: la #58 era un calco de la #45."""
+    posts = [_post_falso(58, "Extremoduro: La Evolución del Rock Transgresivo", 0)]
+    html = nr._build_html(
+        _datos_html(posts, {58: ("Extremoduro: La Evolución del Rock", 1.0)})
+    )
+    assert "ya publicaste algo casi igual" in html
+    assert "Extremoduro: La Evolución del Rock" in html
+
+
+def test_sin_duplicados_el_aviso_no_acusa_a_nadie():
+    html = nr._build_html(_datos_html([_post_falso(2, "Única", 5)]))
+    assert "ya publicaste" not in html
