@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.db.models import ErrataReport, NotificationDigest
+from app.db.models import ErrataReport, NotificationDigest, Post
 from scripts import notify_review as nr
 
 # Anclado al reloj real, no a una fecha escrita a mano: `_should_send` compara
@@ -35,10 +35,17 @@ class _DB:
         return _R()
 
 
-def _data(errata_ids=(1,), posts=0, watermark=_NOW - timedelta(days=3)) -> dict:
+def _data(errata_ids=(1,), posts=0, post_ids=None, watermark=_NOW - timedelta(days=3)) -> dict:
+    """`posts` es cuántos hay; `post_ids` permite fijar CUÁLES (la firma usa los ids).
+
+    Si no se dicen los ids se inventan correlativos, que es lo que hacía el helper
+    cuando la firma solo miraba el contador.
+    """
+    ids = list(post_ids) if post_ids is not None else list(range(1, posts + 1))
     return {
         "erratas": [ErrataReport(id=i, target_type="catalog", status="needs_human") for i in errata_ids],
-        "posts_pending": posts,
+        "posts": [Post(id=i) for i in ids],
+        "posts_pending": len(ids),
         "autofixes": [],
         "watermark": watermark,
     }
@@ -73,9 +80,24 @@ def test_la_firma_cambia_con_posts_nuevos_por_revisar():
     assert nr._signature(_data(posts=16)) != nr._signature(_data(posts=17))
 
 
+def test_la_firma_cambia_si_la_cola_es_OTRA_aunque_midan_igual():
+    """El fallo que se comía el aviso: apruebas una entrada y entra otra el mismo
+    día. El contador sigue diciendo 13, así que con `p:13` la firma no se movía y
+    el digest se callaba DIGEST_REMINDER_DAYS enteros teniendo trabajo delante."""
+    ayer = _data(post_ids=(2, 3, 5))
+    hoy = _data(post_ids=(2, 3, 9))
+    assert len(ayer["posts"]) == len(hoy["posts"])
+    assert nr._signature(ayer) != nr._signature(hoy)
+
+
+def test_la_firma_no_depende_del_orden_de_la_cola():
+    """Ordenar por id evita que un `ORDER BY` distinto dispare un correo falso."""
+    assert nr._signature(_data(post_ids=(5, 2, 3))) == nr._signature(_data(post_ids=(2, 3, 5)))
+
+
 # --- Decisión de envío ------------------------------------------------------ #
 def test_sin_nada_pendiente_no_se_manda_nada():
-    vacio = {"erratas": [], "posts_pending": 0, "autofixes": [], "watermark": None}
+    vacio = {"erratas": [], "posts": [], "posts_pending": 0, "autofixes": [], "watermark": None}
     send, why = nr._should_send(_DB(), vacio, nr._signature(vacio))
     assert send is False and "nada pendiente" in why
 
@@ -84,7 +106,7 @@ def test_una_autocorreccion_sola_no_justifica_un_correo():
     """Si el sistema se lo ha arreglado todo él, no hay nada que pedirle al humano:
     la corrección queda en el feed de auditoría, no en la bandeja de entrada."""
     solo_autofix = {
-        "erratas": [], "posts_pending": 0,
+        "erratas": [], "posts": [], "posts_pending": 0,
         "autofixes": [object()], "watermark": _NOW,
     }
     send, why = nr._should_send(_DB(), solo_autofix, nr._signature(solo_autofix))

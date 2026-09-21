@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -34,11 +35,12 @@ from app.config import get_settings
 from app.db.models import ErrataReport, NotificationDigest, Post, VerificationRecord
 from app.db.session import SessionLocal
 from app.services.email import send_email
+from app.services.publishing import REVIEW_ROT_DAYS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-_SITE = "https://entreinteriores.com"
+_SITE = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
 _KIND = "review"
 
 # Cada cuánto se re-avisa de algo pendiente que no ha cambiado.
@@ -136,7 +138,11 @@ def _signature(data: dict) -> str:
     wm = data.get("watermark")
     parts = [
         "e:" + ",".join(str(e.id) for e in data["erratas"]),
-        f"p:{data['posts_pending']}",
+        # Los IDS, no el contador: con `p:13` la firma no se movía si se aprobaba
+        # una entrada y entraba otra el mismo día, así que el correo se callaba
+        # DIGEST_REMINDER_DAYS enteros teniendo una cola distinta delante. Las
+        # erratas (arriba) ya lo hacían bien; esto se había quedado atrás.
+        "p:" + ",".join(str(x.id) for x in sorted(data["posts"], key=lambda x: x.id)),
         "a:" + (wm.isoformat() if wm else "-"),
     ]
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:64]
@@ -197,7 +203,7 @@ def _build_html(data: dict) -> str:
         for post in data["posts"][:_MAX_POSTS_EN_DIGEST]:
             dias = (ahora - post.created_at).days
             espera = "hoy" if dias == 0 else f"{dias} día{'s' if dias != 1 else ''}"
-            aviso = " <b>(¡se está pudriendo!)</b>" if dias >= 30 else ""
+            aviso = " <b>(¡se está pudriendo!)</b>" if dias >= REVIEW_ROT_DAYS else ""
             parts.append(
                 f"<li><a href='{_SITE}/biblioteca/admin/posts/{post.id}'>{post.title}</a>"
                 f" <span style='color:#888'>· {post.kind} · esperando {espera}</span>{aviso}</li>"
