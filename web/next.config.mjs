@@ -48,11 +48,24 @@ const nextConfig = {
       "muxikes",
       "la-gran-belleza-records",
     ];
-    return labelSlugs.map((slug) => ({
-      source: `/grupos/${slug}`,
-      destination: `/sellos/${slug}`,
-      permanent: true,
-    }));
+    // Posts retirados que tenían un gemelo publicado: la URL vieja manda su
+    // autoridad a la que se queda, en vez de dar 404. `statusCode: 301` y
+    // `permanent` son excluyentes en Next; los sellos se quedan con `permanent`
+    // (308) porque ya estaban así y cambiarlo no aporta nada.
+    const postRedirects = [
+      {
+        source: "/blog/extremoduro-la-evolucion-del-rock-transgresivo-en-espana-2",
+        destination: "/blog/extremoduro-la-evolucion-del-rock-transgresivo-en-espana",
+      },
+    ];
+    return [
+      ...labelSlugs.map((slug) => ({
+        source: `/grupos/${slug}`,
+        destination: `/sellos/${slug}`,
+        permanent: true,
+      })),
+      ...postRedirects.map((r) => ({ ...r, statusCode: 301 })),
+    ];
   },
   // Marca como noindex las requests de prefetch RSC. Aplicamos por dos vías
   // (query param ?_rsc= y cabecera RSC: 1) porque Googlebot/otros bots pueden
