@@ -306,6 +306,50 @@ escriba `f"...{msg}..."`** en el camino —por eso `post_carousel` reetiqueta co
 `published_at` a secas: si no se publicó nunca es `NULL` y una instalación nueva
 se quedaría muda para siempre.
 
+## Optimizar una ficha no es escribir una nueva
+
+Todas las oportunidades de CUERPO se tiraban para atrás. Reproducidos los rechazos,
+**el gate tenía razón**: el motor escribía «La Conexión Filosófica de Interludio» o
+«lucha interna, resistencia emocional». Aflojar el listón habría publicado eso.
+
+El fallo estaba antes: **el motor no buscaba lo que la gente pregunta**. No existía
+ni una búsqueda por CONSULTA en todo el camino —`gather_entity_dossier` ni siquiera
+acepta una— y el corpus tenía guardado lo que respondía de verdad: para «ama ama y
+ensancha el alma significado», una anotación de Genius que explica la estrofa y una
+entrevista a **Manolillo Chinato**, el autor del poema.
+
+`ModoOptimizacion` (en `augment_deep`) lo construye **solo** `prepare_draft`. La
+generación de fichas nuevas no se entera: allí nadie mira antes de publicar.
+
+- **`corpus_for_queries`** busca por la consulta. Umbral 0.45 y dos filtros que el
+  parecido no cubre: la prensa vetada seguía indexada (Rockdelux entró a 0.56) y un
+  vecino semántico que no menciona nada de lo que se preguntaba no lo responde (un
+  corte de Radio Nacional puntuaba más que Chinato). **El material ajeno se cita
+  atribuido** — «una anotación de Genius sostiene…» — nunca como voz de Robe.
+- **Se dejó de penalizar el crecimiento**, que estaba en el código y no en la
+  calidad: el linter contaba repeticiones en absoluto, el juez leía 9.000 caracteres
+  y lo añadido va al final (podía puntuar sin haberlo leído, con el aviso del linter
+  empeorado por lo que no veía) y la comparación era `<` estricto contra un juez cuya
+  varianza está medida aquí. Ahora hay `spotlight`, densidad y tolerancia.
+- **La válvula**: lo que el editor jefe rechaza sale igual con el veredicto colgado,
+  al correo y al panel, y decide una persona viendo el antes/después. En el correo
+  **«publicar todos» NO se las lleva**: cada una necesita su clic, o la válvula sería
+  auto-publicación por descuido.
+
+**Abre el juicio sobre si merece leerse, no sobre si es verdad.** Siguen bloqueando
+la verificación factual, la no-invención, la no-pérdida y los versos: `lyric_guard`,
+que no corría sobre las fichas SEO, corre aquí y cazó un verso inventado en la
+primera pasada. Y **mide el DELTA**: su primera versión condenaba a Interludio para
+siempre por una cita del libreto ya publicada que no es un verso.
+
+Resultado de la primera tanda real: de 0 borradores a **3 de 6**, y los 3 que no
+salen es por no tener material o por citar un verso que no existe.
+
+Ojo con el clasificador: `classify_queries` recibe ahora los **alias** de la BD
+(`nombre_alias_index`). Sin ellos, una página que dice «Robe» no cubría «Roberto
+Iniesta» y se pedía contenido que ya estaba — 2 de 15 oportunidades, una con 316
+impresiones sobre una ficha que tiene la letra entera.
+
 ## El title representa la página; la description busca el clic
 
 Criterio de David (22-09-2026), después de rechazar el primer borrador del circuito:
