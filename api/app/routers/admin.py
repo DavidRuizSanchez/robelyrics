@@ -918,6 +918,12 @@ class AdminPostListItem(BaseModel):
     created_at: datetime
     published_at: datetime | None = None
     scheduled_for: datetime | None = None
+    # Cuánto lleva esperando una decisión, y si ya se pasó de vueltas. Los calcula
+    # la API y no el frontend para que el panel y el correo diario usen el MISMO
+    # umbral (`REVIEW_ROT_DAYS`): con el número escrito a mano en TypeScript, el
+    # día que se moviera la constante los dos dejarían de coincidir en silencio.
+    days_waiting: int = 0
+    stale: bool = False
 
 
 class AdminPostDetailOut(AdminPostListItem):
@@ -935,6 +941,35 @@ class AdminPostUpdateIn(BaseModel):
     meta_description: str | None = None
 
 
+def _post_to_item(post: _Post) -> AdminPostListItem:
+    """Fila de post para el panel, con los días que lleva esperando.
+
+    Existe para que las seis respuestas que devuelven un post (listar, publicar,
+    rechazar, despublicar, programar, desprogramar) salgan IGUALES. Cuando cada
+    una se construía a mano, la de listar era la única que mandaba
+    `scheduled_for`, así que una entrada programada perdía su fecha en cuanto se
+    tocaba desde el panel.
+    """
+    from app.services.publishing import REVIEW_ROT_DAYS
+
+    # Los días solo significan algo mientras la entrada espera una decisión: en
+    # una publicada medirían su antigüedad, que no es una tarea pendiente.
+    days = 0
+    if post.status in ("pending_review", "draft") and post.created_at:
+        created = post.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        days = max(0, (datetime.now(timezone.utc) - created).days)
+    return AdminPostListItem(
+        id=post.id, slug=post.slug, kind=post.kind, status=post.status,
+        title=post.title, excerpt=post.excerpt,
+        source_url=post.source_url, source_name=post.source_name,
+        created_at=post.created_at, published_at=post.published_at,
+        scheduled_for=post.scheduled_for,
+        days_waiting=days, stale=days >= REVIEW_ROT_DAYS,
+    )
+
+
 @router.get("/posts", response_model=list[AdminPostListItem])
 def admin_posts_list(
     status: str | None = None,
@@ -946,16 +981,7 @@ def admin_posts_list(
         q = q.filter(_Post.status == status)
     q = q.order_by(_Post.created_at.desc())
     rows = q.all()
-    return [
-        AdminPostListItem(
-            id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-            title=p.title, excerpt=p.excerpt,
-            source_url=p.source_url, source_name=p.source_name,
-            created_at=p.created_at, published_at=p.published_at,
-            scheduled_for=p.scheduled_for,
-        )
-        for p in rows
-    ]
+    return [_post_to_item(p) for p in rows]
 
 
 @router.get("/posts/{post_id}", response_model=AdminPostDetailOut)
@@ -1036,12 +1062,7 @@ def admin_post_publish(
         )
     p.approved_by = _admin.id
     db.commit()
-    return AdminPostListItem(
-        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-        title=p.title, excerpt=p.excerpt,
-        source_url=p.source_url, source_name=p.source_name,
-        created_at=p.created_at, published_at=p.published_at,
-    )
+    return _post_to_item(p)
 
 
 @router.post("/posts/{post_id}/reject", response_model=AdminPostListItem)
@@ -1056,12 +1077,7 @@ def admin_post_reject(
     p.status = "rejected"
     p.approved_by = _admin.id
     db.commit()
-    return AdminPostListItem(
-        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-        title=p.title, excerpt=p.excerpt,
-        source_url=p.source_url, source_name=p.source_name,
-        created_at=p.created_at, published_at=p.published_at,
-    )
+    return _post_to_item(p)
 
 
 @router.post("/posts/{post_id}/unpublish", response_model=AdminPostListItem)
@@ -1075,12 +1091,7 @@ def admin_post_unpublish(
         raise HTTPException(status_code=404, detail="post not found")
     p.status = "approved"  # vuelve a aprobado pero no publicado
     db.commit()
-    return AdminPostListItem(
-        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-        title=p.title, excerpt=p.excerpt,
-        source_url=p.source_url, source_name=p.source_name,
-        created_at=p.created_at, published_at=p.published_at,
-    )
+    return _post_to_item(p)
 
 
 class AdminPostScheduleIn(BaseModel):
@@ -1115,12 +1126,7 @@ def admin_post_schedule(
     p.scheduled_for = when
     p.approved_by = _admin.id
     db.commit()
-    return AdminPostListItem(
-        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-        title=p.title, excerpt=p.excerpt,
-        source_url=p.source_url, source_name=p.source_name,
-        created_at=p.created_at, published_at=p.published_at,
-    )
+    return _post_to_item(p)
 
 
 @router.post("/posts/{post_id}/unschedule", response_model=AdminPostListItem)
@@ -1136,12 +1142,7 @@ def admin_post_unschedule(
     p.status = "pending_review"
     p.scheduled_for = None
     db.commit()
-    return AdminPostListItem(
-        id=p.id, slug=p.slug, kind=p.kind, status=p.status,
-        title=p.title, excerpt=p.excerpt,
-        source_url=p.source_url, source_name=p.source_name,
-        created_at=p.created_at, published_at=p.published_at,
-    )
+    return _post_to_item(p)
 
 
 # --------------------------------------------------------------------------- #

@@ -51,6 +51,13 @@ PUBLISH_SLOT_DAYS = [1, 3, 5, 0]
 # Kinds que ignoran el cap porque tienen fecha calendario obligatoria.
 CAP_EXEMPT_KINDS = {"anniversary", "album-anniversary"}
 
+# A partir de cuántos días esperando en `pending_review` una entrada se considera
+# que «se está pudriendo». Vive aquí, y no en el script del digest ni en el
+# frontend, porque lo consumen los tres: el correo diario lo usa para el aviso y
+# la API lo sirve al panel (`stale`) para que ambos digan LO MISMO. Duplicarlo en
+# TypeScript era la forma segura de que dejaran de coincidir sin que nadie lo viera.
+REVIEW_ROT_DAYS = 30
+
 # Cuántas fichas con botones caben en el correo de revisión sin que sea un
 # ladrillo. Lo que no cabe se nombra al pie: nunca desaparece en silencio.
 MAX_REVIEW_EMAIL_ITEMS = 15
@@ -261,6 +268,11 @@ def propose_for_review(
 
     if post.status != "pending_review":
         post.status = "pending_review"
+    # Y se le quita la fecha: si venía de `scheduled`, esa fecha ya no programa
+    # nada (`flush_scheduled_due` solo mira los `scheduled`) pero el panel la
+    # seguía pintando como si el post fuera a salir ese día. El desprogramado
+    # manual del panel ya lo hacía; este camino se había quedado atrás.
+    post.scheduled_for = None
     db.commit()
     db.refresh(post)
 
