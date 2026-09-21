@@ -183,3 +183,26 @@ def test_citar_un_par_de_discos_no_es_recorrer_una_trayectoria():
 
     assert not st.es_trayectoria(kind="song", subject="Extremoduro", body_md=cuerpo,
                                  titulos_catalogo=CATALOGO, entity_slug="so-payaso")
+
+
+def test_un_titular_con_legado_no_convierte_un_analisis_en_una_biografia():
+    """Tercera calibración, revisando a mano los 11 posts marcados: salieron un
+    análisis de «Ama, ama, ama», otro de «La ley innata» y una noticia sobre una
+    banda que versiona a Extremoduro. Los tres llevaban un titular con «legado» o
+    «evolución» y ninguno recorría nada. Un encabezado así solo cuenta si además
+    el texto abarca varios discos."""
+    analisis = ("## El Manifiesto del Amor y su legado\n\n«Ama, ama, ama y ensancha "
+                "el alma», del disco Deltoya (1992), es una de las canciones más "
+                "icónicas. Robe desafía las normas sociales.")
+
+    assert not st.es_trayectoria(kind="evergreen", subject="Extremoduro",
+                                 body_md=analisis, titulos_catalogo=CATALOGO)
+
+
+def test_un_recorrido_de_verdad_sigue_disparando():
+    """La otra mitad: cuatro discos ya es enumerar obra, con titular o sin él."""
+    recorrido = ("Deltoya (1992), Pedrá (1995), Agila (1996) y La ley innata "
+                 "(2008) marcan las etapas de la banda.")
+
+    assert st.es_trayectoria(kind="evergreen", subject="Extremoduro",
+                             body_md=recorrido, titulos_catalogo=CATALOGO)

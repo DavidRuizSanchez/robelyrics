@@ -135,18 +135,19 @@ def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
     if not en_perimetro(subject, body_md, entity_slug):
         return False
     cuerpo = body_md or ""
-    # «Tres años distintos» era demasiado laxo: cualquier ficha biográfica los
-    # tiene, y con esa regla se marcaban 240 de 352 piezas. Lo que delata un
-    # RECORRIDO es titularlo («trayectoria», «legado», «discografía») o enumerar
-    # obra de verdad, no citar un par de fechas.
-    if _ENCABEZADO_TRAYECTORIA.search(cuerpo):
-        return True
+    citados = 0
     if titulos_catalogo:
         n = _norm(cuerpo)
         citados = sum(1 for t in titulos_catalogo if _norm(t) in n)
-        if citados >= 4:
-            return True
-    return False
+
+    # Enumerar obra de verdad es la señal fuerte, y va sola.
+    if citados >= 4:
+        return True
+    # Un encabezado con «legado», «evolución» o «historia» NO basta por sí solo:
+    # revisando los 11 marcados salieron un análisis de «Ama, ama, ama», otro de
+    # «La ley innata» y una noticia sobre una versión, todos con un titular así y
+    # ninguno recorriendo nada. Vale solo si además el texto abarca varios discos.
+    return bool(_ENCABEZADO_TRAYECTORIA.search(cuerpo) and citados >= 2)
 
 
 def discos_no_citados(db, body_md: str, *, minimo_para_exigir: int = 4) -> list[str]:

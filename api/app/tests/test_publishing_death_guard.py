@@ -49,10 +49,34 @@ def rutas(monkeypatch):
     return visto
 
 
+class _Album:
+    def __init__(self, title, year):
+        self.title, self.year, self.kind = title, year, "studio"
+
+
+class _DB:
+    """Catálogo mínimo. En producción SIEMPRE hay BD detrás: sin ella el
+    detector no puede contar discos y se queda callado, que es el lado seguro."""
+
+    _CATALOGO = [("Deltoya", 1992), ("Pedrá", 1995), ("Agila", 1996),
+                 ("La ley innata", 2008), ("Mayéutica", 2021),
+                 ("Se nos lleva el aire", 2023)]
+
+    def execute(self, _s):
+        filas = [(_Album(t, y), "extremoduro") for t, y in self._CATALOGO]
+
+        class _R:
+            def all(self_inner):
+                return filas
+
+        return _R()
+
+
 def _corre_guard(post, db=None):
     """Ejecuta solo el tramo del guard, con el mismo código que usa publishing."""
     from app.services.sensitive_topics import revisar
-    return revisar(db, kind=post.kind, subject=post.title, body_md=post.body_md)
+    return revisar(db or _DB(), kind=post.kind, subject=post.title,
+                   body_md=post.body_md)
 
 
 def test_el_texto_que_calla_la_muerte_va_a_revision(rutas):
