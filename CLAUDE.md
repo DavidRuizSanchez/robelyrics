@@ -306,6 +306,52 @@ escriba `f"...{msg}..."`** en el camino —por eso `post_carousel` reetiqueta co
 `published_at` a secas: si no se publicó nunca es `NULL` y una instalación nueva
 se quedaría muda para siempre.
 
+## Lo que Google dice que falta no siempre es contenido
+
+El correo de los lunes llevaba meses siendo **solo un informe**: listaba URLs en
+*striking distance* y remataba pidiendo ejecutar `gsc_optimize --apply` a mano.
+Nadie lo ejecutaba, y el `--apply` además regeneraba el cuerpo entero incluso
+cuando lo que fallaba era el title. Ese `--apply` está **retirado**.
+
+Lo que decide la acción ya no es la posición, es **medir qué cubre la página**.
+Medido el 21-09-2026 contra lo publicado, las tres URLs que el informe ponía
+arriba ya tenían el title y la description impecables —la de `interludio` abre su
+description con el verso «Dejo las ventanas sin cerrar…» y se lleva 0 clics—: no
+les falta contenido, les falta posición. Por consulta con impresiones reales:
+
+| dónde está respondida | acción | consultas | impresiones |
+|---|---|---|---|
+| en ningún sitio | `body` → `augment_entity --gap-hint` | 131 | 3.087 |
+| en el cuerpo, no en la metadata | `meta` → `propose_meta` | 183 | 4.185 |
+| en el cuerpo **y** en la metadata | ninguna: es posición | 266 | 12.176 |
+
+El tercer grupo es el más grande y es el único sin acción honesta posible.
+**Sale del circuito, pero se cuenta en el correo**: callarlo haría parecer que el
+sitio tiene menos margen del que tiene.
+
+`seo_opportunities` sostiene la aprobación en **dos fases** (`detected → approved
+→ drafted → applied`): el primer clic autoriza a PREPARAR y el segundo a
+PUBLICAR, con un correo de antes/después en medio. Los dos clics viajan en tokens
+JWT distintos (`action` dentro del token), así que reenviar el primer correo no
+puede publicar nada. La cola se ve en `/biblioteca/admin/seo/oportunidades`.
+
+Tres cosas que conviene no deshacer:
+
+- **La guarda anti-invención de la metadata mira cifras y nombres propios**, no
+  todas las palabras. Su primera versión tumbó una description correcta por el
+  verbo «cuenta», y una guarda que rechaza lo bueno acaba apagada. Lo que se ha
+  inventado aquí alguna vez son datos: un año falso, un homónimo.
+- **Una consulta no se compara token a token.** «letras de extremoduro
+  desarraigo» en la página que tiene la letra mandaba a escribir lo ya escrito: el
+  cuerpo dice «letra», en singular. Hay lista de modificadores de búsqueda
+  (`letra`, `wikipedia`, `youtube`…) y cotejo por prefijo de 5 caracteres.
+- **Aplicar comprueba que el cuerpo sigue siendo el del borrador.** Entre preparar
+  y pulsar pueden pasar días, y aplicar a ciegas pisaría lo que escribiera otro.
+
+Un `noop` es un resultado legítimo y frecuente: si el corpus no respalda nada
+nuevo, el gate anti-paja lo tumba (medido: solo 45 de 153 canciones tienen
+material para ampliar). Esos también van en el correo, con su motivo.
+
 ## Un directo no duplica sus canciones
 
 Los discos que **no** son de estudio (`kind` en `live | compilation | single`) no

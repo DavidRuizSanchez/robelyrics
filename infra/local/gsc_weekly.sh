@@ -7,9 +7,10 @@
 # y no queremos ese token en el server de prod. El token vive solo en la Mac
 # (~/.config/entreinteriores/gsc-token.json), se refresca solo.
 #
-# Cadena: fetch (token local) → rsync del JSON a prod → dispara el INFORME de
-# oportunidades en prod (email al admin). Nada se auto-publica: el email lista las
-# URLs a mejorar; David decide (o corre gsc_optimize --apply a mano).
+# Cadena: fetch (token local) → rsync del JSON a prod → DETECCIÓN de oportunidades
+# en prod, que encola lo accionable y manda el correo con los botones. Nada se
+# auto-publica: el primer clic solo PREPARA un borrador y llega un segundo correo
+# con el antes/después antes de que nada toque el sitio.
 #
 # Lo dispara launchd (com.entreinteriores.gsc-weekly.plist), lunes por la mañana.
 # Lock con mkdir (portátil; macOS no trae flock).
@@ -59,8 +60,8 @@ echo "[gsc-weekly] rsync del JSON a prod…"
 rsync -az "$REPO/data/gsc_page_queries.json" "$REPO/data/gsc_queries.json" \
   robelyrics:/opt/robelyrics/data/ || { echo "rsync falló"; exit 1; }
 
-echo "[gsc-weekly] informe de oportunidades en prod (email)…"
-ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.gsc_optimize' \
-  || echo "informe remoto falló (no crítico)"
+echo "[gsc-weekly] detección de oportunidades en prod (email con botones)…"
+ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.seo_queue --detect' \
+  || avisar "La detección de oportunidades SEO falló en prod. El volcado de GSC sí se subió."
 
 echo "[gsc-weekly] hecho."

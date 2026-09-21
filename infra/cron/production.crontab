@@ -211,6 +211,17 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 #   python -m scripts.seo.audit_urls --gsc --verbose
 0 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_urls --fix --review >> /var/log/robelyrics-cron.log 2>&1
 
+# 05:20 UTC diario: red de seguridad del circuito de aprobación SEO. El clic de
+# «preparar borrador» lanza el trabajo en segundo plano dentro del api, así que un
+# reinicio entre el clic y el borrador (o sea, cualquier deploy) dejaba la
+# oportunidad en `approved` para siempre y sin avisar a nadie. Esto recoge lo que
+# quedó a medias y manda el correo del antes/después. Tope de 3 por pasada: cada
+# ampliación de cuerpo es una pasada del motor profundo con su factura de OpenAI.
+# NADA se publica aquí: preparar es la fase 1; publicar lo autoriza el segundo clic.
+# La DETECCIÓN no va en este crontab — la dispara la Mac los lunes (el token de GSC
+# vive solo allí), en infra/local/gsc_weekly.sh.
+20 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.seo_queue --prepare --limit 3 >> /var/log/robelyrics-cron.log 2>&1
+
 # 05:10 UTC diario: política de nombre. «Robe Iniesta» no debe persistir en
 # contenido; el trigger `trg_robe_name` (migración robename2026_01) lo impide en
 # la BD, pero este barrido cubre las tablas que aún no tienen trigger y deja
