@@ -193,24 +193,35 @@ def _next_publish_slot(db: Session) -> datetime:
 # --------------------------------------------------------------------------- #
 # Hooks post-publicación
 # --------------------------------------------------------------------------- #
-def _revalidate_next(slug: str) -> None:
-    """Pide a Next.js que revalide /blog y /blog/{slug}. No bloquea si falla."""
+def revalidate_paths(paths: list[str], *, tags: list[str] | None = None) -> None:
+    """Pide a Next.js que revalide estas rutas. No bloquea si falla.
+
+    Cualquier ruta, no solo las del blog: desde que la web pública se sirve
+    cacheada (ISR, 17-09-2026), una ficha SEO tocada en BD puede tardar en
+    reflejarse, y quien acaba de aprobar un cambio y no lo ve lo da por roto.
+    """
+    if not paths:
+        return
     token = os.environ.get("REVALIDATE_TOKEN")
     if not token:
         logger.info("REVALIDATE_TOKEN no configurado, salto revalidate")
         return
     base = os.environ.get("WEB_INTERNAL_URL", "http://web:3000").rstrip("/")
     url = f"{base}/api/revalidate"
+    payload: dict = {"paths": paths}
+    if tags:
+        payload["tags"] = tags
     try:
         with httpx.Client(timeout=5.0) as client:
-            resp = client.post(
-                url,
-                headers={"X-Revalidate-Token": token},
-                json={"paths": ["/blog", f"/blog/{slug}"], "tags": ["posts"]},
-            )
+            resp = client.post(url, headers={"X-Revalidate-Token": token}, json=payload)
             resp.raise_for_status()
     except httpx.HTTPError as exc:
-        logger.warning("Revalidate failed for /blog/%s: %s", slug, exc)
+        logger.warning("Revalidate failed for %s: %s", ", ".join(paths), exc)
+
+
+def _revalidate_next(slug: str) -> None:
+    """Revalida /blog y /blog/{slug} tras publicar un post."""
+    revalidate_paths(["/blog", f"/blog/{slug}"], tags=["posts"])
 
 
 # --------------------------------------------------------------------------- #

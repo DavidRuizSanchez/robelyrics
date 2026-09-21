@@ -1,4 +1,16 @@
-"""Auto-optimización SEO semanal por URL con datos GSC reales (F2.5, paso 3).
+"""Informe de consultas en *striking distance* por URL, con datos GSC reales.
+
+OJO — el circuito de verdad vive ahora en `scripts.seo.seo_queue`. Este script
+queda como sonda de diagnóstico: encuentra las URLs con consultas en posición
+5-30, pero clasifica por POSICIÓN, y eso no dice qué hay que arreglar. Medido el
+21-09-2026 contra el contenido publicado, las tres URLs que este informe ponía
+arriba ya tenían el title y la description impecables: no les faltaba metadata ni
+cuerpo, les faltaba posición. `seo_queue` clasifica midiendo qué cubre la página.
+
+`--apply` está RETIRADO: regeneraba el cuerpo entero con `regenerate_deep`, que
+es exactamente lo que el propio informe documentaba que NO arreglaba su caso más
+rentable. Lo que aplica cambios ahora es la cola, y solo con dos aprobaciones.
+
 
 Por cada URL publicada, detecta consultas en *striking distance* (posición 5-30,
 impresiones altas) con ÁNGULO INFORMACIONAL nuevo (algo que la página aún no cubre
@@ -13,8 +25,7 @@ Seguridad (principio del proyecto: nada se auto-publica sin revisión):
   en sitio sin dejar la página a oscuras. Acotado por --limit.
 
 Uso:
-  python -m scripts.seo.gsc_optimize                    # informe + email
-  python -m scripts.seo.gsc_optimize --apply --limit 8  # regenera las 8 mejores
+  python -m scripts.seo.gsc_optimize     # informe + email (solo diagnóstico)
 """
 from __future__ import annotations
 
@@ -22,7 +33,6 @@ import argparse
 import json
 import logging
 import re
-import subprocess
 import unicodedata
 from pathlib import Path
 
@@ -119,8 +129,10 @@ def _email_report(opps: list[dict]) -> None:
     if not to or not opps:
         return
     parts = ["<h2 style='font-family:Georgia,serif'>Oportunidades SEO (GSC, striking distance)</h2>",
-             "<p>Consultas donde estas URLs ya aparecen (pos 5-30) pero podrían subir si el "
-             "contenido las cubre mejor. Ejecuta <code>gsc_optimize --apply</code> o regenera a mano.</p>"]
+             "<p>Sonda de diagnóstico: consultas donde estas URLs ya aparecen (pos 5-30). "
+             "Estar aquí no significa que falte contenido — el circuito que sí lo mide, y que "
+             "pide tu visto bueno antes de tocar nada, es "
+             "<code>scripts.seo.seo_queue --detect</code>.</p>"]
     for o in opps[:25]:
         parts.append(f"<h3><a href='{_SITE}{o['path']}'>{o['path']}</a> "
                      f"<span style='color:#888'>(pot. {o['score']} imp)</span></h3><ul>")
@@ -133,8 +145,9 @@ def _email_report(opps: list[dict]) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Auto-optimización SEO por URL con datos GSC.")
-    ap.add_argument("--apply", action="store_true", help="regenera las top-N URLs (si no, solo informe)")
-    ap.add_argument("--limit", type=int, default=8, help="máx URLs a regenerar con --apply")
+    ap.add_argument("--apply", action="store_true",
+                    help="RETIRADO: usa scripts.seo.seo_queue --detect")
+    ap.add_argument("--limit", type=int, default=8, help="máx URLs a listar")
     ap.add_argument("--no-email", action="store_true")
     args = ap.parse_args()
 
@@ -154,27 +167,12 @@ def main() -> None:
         _email_report(opps)
 
     if args.apply:
-        # Regenera las mejores por tipo (regenerate_deep aprovecha las queries GSC vía
-        # keyword_research). SEO_KEEP_PUBLISHED=1: refresca en sitio, gated, no deja a oscuras.
-        import os
-        applied = 0
-        for o in opps:
-            if applied >= args.limit:
-                break
-            ent = o["entity"]
-            if not ent:
-                continue
-            etype, eid = ent
-            logger.info("  APLICANDO: regenerando %s#%s (%s) por %d queries GSC",
-                        etype, eid, o["path"], len(o["queries"]))
-            env = {**os.environ, "SEO_KEEP_PUBLISHED": "1"}
-            subprocess.run(
-                ["python", "-m", "scripts.seo.regenerate_deep",
-                 "--entity-type", etype, "--ids", str(eid)],
-                check=False, env=env,
-            )
-            applied += 1
-        logger.info("Regeneradas %d URLs (revisar en el site).", applied)
+        logger.error(
+            "--apply está retirado. Regeneraba el cuerpo de cero incluso cuando lo "
+            "que fallaba era el title, y nada pasaba por tu visto bueno. Usa el "
+            "circuito de aprobación: python -m scripts.seo.seo_queue --detect"
+        )
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

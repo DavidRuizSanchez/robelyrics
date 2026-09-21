@@ -24,6 +24,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -1901,6 +1902,107 @@ class UrlIngestJob(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- Circuito de aprobación SEO (oportunidades de GSC) ----------------------
+
+
+class SeoOpportunity(Base):
+    """Una URL publicada que, según GSC, podría rendir más — y qué falta EXACTAMENTE.
+
+    Aprobación en DOS FASES (decisión de David, sep-2026), porque el correo de los
+    lunes era solo un informe con un CTA de texto («ejecuta gsc_optimize --apply»)
+    y nada se llegaba a aplicar nunca:
+
+        detected → approved → drafted → applied
+                       ↘ discarded        ↘ discarded
+                       ↘ noop (no había material que añadir)
+
+    El primer clic del correo APRUEBA el diagnóstico y el motor prepara un borrador
+    SIN PUBLICAR; el segundo correo enseña el antes/después y solo entonces se aplica.
+
+    `action` sale de medir la cobertura REAL de la página, no de la posición:
+
+      - `meta`  → el cuerpo ya responde a la consulta pero el title/description no la
+                  prometen. Se reescribe SOLO la metadata (`propose_meta`).
+      - `body`  → la página no cubre la consulta. Se amplía con `augment_entity`
+                  (contrato de no-pérdida + gate anti-paja), nunca regenerando de cero.
+
+    Lo que está cubierto en cuerpo Y en metadata NO entra en la cola: ahí no falta
+    contenido, falta posición, y fabricar una acción sería inventarse trabajo. Medido
+    el 21-09-2026 sobre 12 semanas: 266 consultas y 12.176 impresiones en ese caso.
+
+    Los campos `before_*` se sellan al preparar el borrador (no al detectar): son el
+    antes que se enseña en el correo y el que permite deshacer si algo sale torcido.
+    """
+
+    __tablename__ = "seo_opportunities"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('detected', 'approved', 'drafted', 'applied', "
+            "'discarded', 'noop', 'failed')",
+            name="ck_seo_opportunities_status",
+        ),
+        CheckConstraint("action IN ('meta', 'body')", name="ck_seo_opportunities_action"),
+        Index(
+            "uq_seo_opportunities_abierta",
+            "path",
+            "action",
+            unique=True,
+            postgresql_where=text(
+                "status IN ('detected', 'approved', 'drafted', 'failed')"
+            ),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(8), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="detected", index=True
+    )
+
+    entity_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    seo_content_id: Mapped[int | None] = mapped_column(Integer)
+
+    # Las consultas que sostienen la oportunidad, con su dato GSC íntegro (query,
+    # impressions, clicks, position, ctr). Es la evidencia: sin ella no hay fila.
+    # JSON y no JSONB a propósito: los tests corren en SQLite y JSONB no viaja.
+    queries: Mapped[list | None] = mapped_column(JSON)
+    impressions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Ventana GSC de la que salió («2026-06-26..2026-09-18»), para poder fechar
+    # cualquier cifra del correo contra el volcado que la generó.
+    period: Mapped[str | None] = mapped_column(String(32))
+    # Lo que la página NO cubre, en palabras, tal como se le pasa a augment_entity.
+    gap_hint: Mapped[str | None] = mapped_column(Text)
+
+    before_title: Mapped[str | None] = mapped_column(Text)
+    before_description: Mapped[str | None] = mapped_column(Text)
+    before_body: Mapped[str | None] = mapped_column(Text)
+    draft_title: Mapped[str | None] = mapped_column(Text)
+    draft_description: Mapped[str | None] = mapped_column(Text)
+    draft_body: Mapped[str | None] = mapped_column(Text)
+    # Por qué el motor hizo lo que hizo (headings añadidos, veredicto del rigor,
+    # motivo del no-op). Viaja al correo del antes/después.
+    draft_notes: Mapped[dict | None] = mapped_column(JSON)
+
+    error: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
+        nullable=False,
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    drafted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Cuándo se avisó por correo de cada fase, para no repetir el mismo aviso.
+    notified_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notified_drafted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------- #

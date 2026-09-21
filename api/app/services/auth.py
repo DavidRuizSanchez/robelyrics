@@ -131,6 +131,53 @@ def decode_youtube_ingest_token(token: str) -> dict[str, Any] | None:
     return data
 
 
+_SEO_ACTIONS = {"approve", "discard", "apply"}
+
+
+def create_seo_opportunity_token(
+    opportunity_ids: list[int], action: str, *, ttl_hours: int = 336
+) -> str:
+    """JWT firmado para mover oportunidades SEO desde el correo, sin estar logueado.
+
+    Una acción por token: `approve` autoriza a PREPARAR un borrador, `apply` a
+    publicarlo y `discard` a descartar. Separarlas es lo que hace que el circuito
+    sea de dos fases de verdad — con un token genérico, el primer clic podría
+    acabar publicando.
+
+    TTL de 14 días: el correo es semanal y conviene que el de la semana pasada
+    siga sirviendo, pero no eternamente.
+    """
+    if not opportunity_ids:
+        raise ValueError("opportunity_ids no puede estar vacío")
+    if action not in _SEO_ACTIONS:
+        raise ValueError(f"acción no permitida: {action}")
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "seo_opportunity",
+        "action": action,
+        "opportunity_ids": [int(i) for i in opportunity_ids],
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_seo_opportunity_token(token: str) -> dict[str, Any] | None:
+    """Devuelve el payload solo si es un token válido de seo_opportunity."""
+    data = decode_token(token)
+    if not data:
+        return None
+    if data.get("purpose") != "seo_opportunity":
+        return None
+    if data.get("action") not in _SEO_ACTIONS:
+        return None
+    ids = data.get("opportunity_ids")
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, int) for i in ids):
+        return None
+    return data
+
+
 def get_current_user(
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),

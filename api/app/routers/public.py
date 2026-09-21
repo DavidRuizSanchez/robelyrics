@@ -2300,3 +2300,102 @@ def youtube_ingest_approve(token: str, db: Session = Depends(get_db)) -> HTMLRes
         msg += f" ({already} ya estaba{'n' if already != 1 else ''} en marcha.)"
     msg += " El daemon de tu Mac los transcribirá y subirá solo."
     return HTMLResponse(_render_admin_action_page(msg, success=True))
+
+
+# --------------------------------------------------------------------------- #
+# Oportunidades SEO — aprobación en dos fases desde el correo
+# --------------------------------------------------------------------------- #
+from fastapi import BackgroundTasks as _BackgroundTasks  # noqa: E402
+
+from app.db.models import SeoOpportunity  # noqa: E402
+from app.services.auth import decode_seo_opportunity_token  # noqa: E402
+
+_SEO_VIVAS = ("detected", "approved", "drafted", "failed")
+
+
+@router.get("/seo-opportunity", response_class=HTMLResponse)
+def seo_opportunity_action(
+    token: str,
+    background: _BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """One-click desde los correos del circuito SEO.
+
+    El token lleva DENTRO qué se puede hacer con él: `approve` autoriza a preparar
+    un borrador, `apply` a publicarlo. Por eso el primer clic no puede publicar por
+    accidente aunque alguien reenvíe el correo.
+
+    Idempotente: lo que ya no esté en el estado que esa acción espera se ignora sin
+    romper, que es lo que pasa cuando se pulsa dos veces o llega el correo repetido.
+    """
+    data = decode_seo_opportunity_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page("Enlace inválido o caducado.", success=False),
+            status_code=400,
+        )
+    accion = data["action"]
+    rows = (
+        db.query(SeoOpportunity)
+        .filter(SeoOpportunity.id.in_(data["opportunity_ids"]))
+        .all()
+    )
+    if not rows:
+        return HTMLResponse(
+            _render_admin_action_page("Ese enlace ya no apunta a nada pendiente.",
+                                      success=True)
+        )
+
+    ahora = _dt.now(_tz.utc)
+    tocadas, ignoradas = [], 0
+
+    if accion == "approve":
+        for r in rows:
+            if r.status == "detected":
+                r.status = "approved"
+                r.approved_at = ahora
+                tocadas.append(r)
+            else:
+                ignoradas += 1
+        db.commit()
+        if tocadas:
+            # El borrador tarda minutos: fuera de la petición (Cloudflare corta a
+            # los 100 s). El cron de `--prepare` repesca lo que se quede a medias.
+            from app.services.seo_opportunities import run_prepare
+
+            background.add_task(run_prepare, [r.id for r in tocadas])
+        msg = (f"✓ Aprobadas {len(tocadas)} oportunidad"
+               f"{'es' if len(tocadas) != 1 else ''}. Preparando el borrador: "
+               "te llega un segundo correo con el antes/después. "
+               "Nada se ha publicado.")
+    elif accion == "apply":
+        from app.services.seo_opportunities import apply_draft
+
+        fallidas = 0
+        for r in rows:
+            if r.status != "drafted":
+                ignoradas += 1
+            elif apply_draft(db, r):
+                tocadas.append(r)
+            else:
+                fallidas += 1
+        msg = (f"✓ Publicada{'s' if len(tocadas) != 1 else ''} {len(tocadas)} "
+               f"mejora{'s' if len(tocadas) != 1 else ''} en el sitio.")
+        if fallidas:
+            msg += (f" {fallidas} no se pudo aplicar (el contenido cambió después "
+                    "de preparar el borrador); están en el panel.")
+    else:  # discard
+        for r in rows:
+            if r.status in _SEO_VIVAS:
+                r.status = "discarded"
+                tocadas.append(r)
+            else:
+                ignoradas += 1
+        db.commit()
+        msg = (f"✓ Descartada{'s' if len(tocadas) != 1 else ''} {len(tocadas)} "
+               "oportunidad" + ("es" if len(tocadas) != 1 else "") +
+               ". No se volverá a proponer con el volcado actual.")
+
+    if ignoradas:
+        msg += f" ({ignoradas} ya estaba{'n' if ignoradas != 1 else ''} resuelta{'s' if ignoradas != 1 else ''}.)"
+    return HTMLResponse(_render_admin_action_page(msg, success=True))

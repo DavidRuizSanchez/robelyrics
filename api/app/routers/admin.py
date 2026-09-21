@@ -3042,3 +3042,105 @@ def admin_graph(
         depth=max(1, min(depth, 4)),
         max_nodes=max(5, min(max_nodes, 200)),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Oportunidades SEO — la cola, visible
+# --------------------------------------------------------------------------- #
+# El correo tiene los botones, pero una cola que solo vive en un correo es una cola
+# invisible: si el correo se pierde o se archiva, el trabajo pendiente desaparece
+# de la vista. Aquí está lo mismo, consultable cuando haga falta.
+class SeoOpportunityOut(BaseModel):
+    id: int
+    path: str
+    action: str
+    status: str
+    impressions: int
+    period: str | None
+    gap_hint: str | None
+    queries: list | None
+    before_title: str | None
+    before_description: str | None
+    before_body: str | None
+    draft_title: str | None
+    draft_description: str | None
+    draft_body: str | None
+    draft_notes: dict | None
+    error: str | None
+    attempts: int
+    created_at: datetime
+    approved_at: datetime | None
+    drafted_at: datetime | None
+    applied_at: datetime | None
+
+
+def _opp_to_out(o) -> SeoOpportunityOut:
+    return SeoOpportunityOut(
+        id=o.id, path=o.path, action=o.action, status=o.status,
+        impressions=o.impressions, period=o.period, gap_hint=o.gap_hint,
+        queries=o.queries, before_title=o.before_title,
+        before_description=o.before_description, before_body=o.before_body,
+        draft_title=o.draft_title, draft_description=o.draft_description,
+        draft_body=o.draft_body, draft_notes=o.draft_notes, error=o.error,
+        attempts=o.attempts, created_at=o.created_at, approved_at=o.approved_at,
+        drafted_at=o.drafted_at, applied_at=o.applied_at,
+    )
+
+
+@router.get("/seo-opportunities", response_model=list[SeoOpportunityOut])
+def list_seo_opportunities(
+    status: str = "open",
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> list[SeoOpportunityOut]:
+    """`open` = todo lo que espera una decisión o un borrador; o un estado concreto."""
+    from app.db.models import SeoOpportunity
+
+    q = db.query(SeoOpportunity)
+    if status == "open":
+        q = q.filter(SeoOpportunity.status.in_(
+            ["detected", "approved", "drafted", "failed"]))
+    elif status != "all":
+        q = q.filter(SeoOpportunity.status == status)
+    rows = (q.order_by(SeoOpportunity.status.asc(),
+                       SeoOpportunity.impressions.desc())
+            .limit(max(1, min(limit, 500))).all())
+    return [_opp_to_out(r) for r in rows]
+
+
+@router.post("/seo-opportunities/{opp_id}/{accion}", response_model=SeoOpportunityOut)
+def act_on_seo_opportunity(
+    opp_id: int,
+    accion: Literal["approve", "apply", "discard"],
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> SeoOpportunityOut:
+    from app.db.models import SeoOpportunity
+    from app.services.seo_opportunities import apply_draft, run_prepare
+
+    o = db.query(SeoOpportunity).filter(SeoOpportunity.id == opp_id).first()
+    if not o:
+        raise HTTPException(status_code=404, detail="oportunidad no encontrada")
+
+    if accion == "approve":
+        if o.status != "detected":
+            raise HTTPException(status_code=409,
+                                detail=f"solo se aprueba lo detectado (está en {o.status})")
+        o.status = "approved"
+        o.approved_at = datetime.now(timezone.utc)
+        db.commit()
+        background.add_task(run_prepare, [o.id])
+    elif accion == "apply":
+        if o.status != "drafted":
+            raise HTTPException(status_code=409,
+                                detail=f"solo se publica un borrador (está en {o.status})")
+        if not apply_draft(db, o):
+            db.refresh(o)
+            raise HTTPException(status_code=409, detail=o.error or "no se pudo aplicar")
+    else:
+        o.status = "discarded"
+        db.commit()
+    db.refresh(o)
+    return _opp_to_out(o)
