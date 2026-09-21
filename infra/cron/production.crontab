@@ -215,12 +215,14 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # «preparar borrador» lanza el trabajo en segundo plano dentro del api, así que un
 # reinicio entre el clic y el borrador (o sea, cualquier deploy) dejaba la
 # oportunidad en `approved` para siempre y sin avisar a nadie. Esto recoge lo que
-# quedó a medias y manda el correo del antes/después. Tope de 3 por pasada: cada
-# ampliación de cuerpo es una pasada del motor profundo con su factura de OpenAI.
+# quedó a medias y manda el correo del antes/después. Tope de 8 por pasada: era 3
+# mientras no se sabía si las ampliaciones llegaban a salir; el 22-09-2026 salieron
+# 10 adelante, así que la cola avanza más rápido. Cada una es una pasada del motor
+# profundo con su factura de OpenAI, así que tampoco conviene subirlo mucho más.
 # NADA se publica aquí: preparar es la fase 1; publicar lo autoriza el segundo clic.
 # La DETECCIÓN no va en este crontab — la dispara la Mac los lunes (el token de GSC
 # vive solo allí), en infra/local/gsc_weekly.sh.
-20 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.seo_queue --prepare --limit 3 >> /var/log/robelyrics-cron.log 2>&1
+20 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.seo_queue --prepare --limit 8 >> /var/log/robelyrics-cron.log 2>&1
 
 # 05:10 UTC diario: política de nombre. «Robe Iniesta» no debe persistir en
 # contenido; el trigger `trg_robe_name` (migración robename2026_01) lo impide en
