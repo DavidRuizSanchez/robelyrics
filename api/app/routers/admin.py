@@ -1091,6 +1091,13 @@ def admin_post_unpublish(
         raise HTTPException(status_code=404, detail="post not found")
     p.status = "approved"  # vuelve a aprobado pero no publicado
     db.commit()
+    # Y se le dice a Next que lo olvide: sin esto la entrada seguía viéndose en
+    # /blog y en su propia URL hasta diez minutos después (`revalidate = 600`),
+    # así que el botón parecía no haber hecho nada. Publicar ya lo hacía; este
+    # camino, que es el contrario, se había quedado sin ello.
+    from app.services.publishing import _revalidate_next  # lazy: evita el ciclo
+
+    _revalidate_next(p.slug)
     return _post_to_item(p)
 
 

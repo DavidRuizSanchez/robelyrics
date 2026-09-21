@@ -128,3 +128,20 @@ def test_la_fecha_de_programacion_viaja_en_la_respuesta(db):
         _post(db, "Con fecha", estado="scheduled", programado=cuando)
     )
     assert item.scheduled_for is not None
+
+
+# --- Despublicar --------------------------------------------------------- #
+def test_despublicar_le_dice_a_next_que_lo_olvide(db, monkeypatch):
+    """Sin revalidar, la entrada seguía viéndose en /blog hasta diez minutos
+    después de quitarla, así que el botón parecía no hacer nada. Publicar ya
+    revalidaba; el camino contrario se había quedado sin ello."""
+    from app.routers import admin as router
+
+    revalidadas: list[str] = []
+    monkeypatch.setattr("app.services.publishing._revalidate_next", revalidadas.append)
+
+    p = _post(db, "Ya no la quiero", estado="published")
+    router.admin_post_unpublish(post_id=p.id, db=db, _admin=None)
+
+    assert p.status == "approved"
+    assert revalidadas == [p.slug]

@@ -48,7 +48,13 @@ export async function POST(
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
-      return NextResponse.json({ error: String(e.detail) }, { status: e.status });
+      // FastAPI devuelve { detail: "..." }; desempaquétalo para el aviso. Sin
+      // esto, «la fecha ya pasó» llegaba al usuario como «[object Object]».
+      const detail =
+        typeof e.detail === "object" && e.detail !== null && "detail" in e.detail
+          ? (e.detail as { detail: unknown }).detail
+          : e.detail;
+      return NextResponse.json({ error: String(detail) }, { status: e.status });
     }
     return NextResponse.json({ error: "internal error" }, { status: 500 });
   }

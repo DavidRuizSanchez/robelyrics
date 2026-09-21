@@ -48,17 +48,38 @@ function formatDate(iso: string): string {
   });
 }
 
+// Hoy en la zona del navegador (no en UTC): es la fecha que el usuario ve en el
+// calendario del sistema, y es la que tiene que poder elegir como mínimo.
+function hoyISO(): string {
+  const ahora = new Date();
+  return new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+}
+
 export default function PostListWithActions({ items }: { items: AdminPostItem[] }) {
   const [busy, setBusy] = useState<number | null>(null);
+  // Fecha elegida por fila. Sin esto solo se podía publicar YA, y la única forma
+  // de programar era entrar a la ficha de cada entrada de una en una.
+  const [fechas, setFechas] = useState<Record<number, string>>({});
 
   async function act(
     id: number,
-    action: "publish" | "reject" | "unpublish" | "unschedule",
+    action: "publish" | "reject" | "unpublish" | "unschedule" | "schedule",
+    body?: unknown,
   ) {
     setBusy(id);
     try {
       const res = await fetch(`/biblioteca/admin/posts/api/${action}/${id}`, {
         method: "POST",
+        // `schedule` lleva cuerpo; sin la cabecera el backend responde 422 y el
+        // botón parecería roto sin decir por qué.
+        ...(body !== undefined
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {}),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -88,6 +109,10 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
         const canPublish = p.status === "pending_review" || p.status === "approved" || p.status === "draft";
         const canReject = p.status === "pending_review" || p.status === "draft";
         const canUnpublish = p.status === "published";
+        // Se puede dar fecha a lo que aún no ha salido. Lo ya programado se
+        // cambia desprogramando primero, para no tener dos fechas compitiendo.
+        const canSchedule =
+          p.status === "pending_review" || p.status === "approved" || p.status === "draft";
         return (
           <li key={p.id} className="py-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -167,6 +192,38 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                     >
                       desprogramar
                     </button>
+                  )}
+                  {/* Programar: publicar YA no siempre es lo que toca. El tope es
+                      de 4 por semana, así que lo normal es repartir. */}
+                  {canSchedule && (
+                    <span className="flex gap-1.5 items-center">
+                      <input
+                        type="date"
+                        min={hoyISO()}
+                        value={fechas[p.id] ?? ""}
+                        onChange={(e) =>
+                          setFechas((f) => ({ ...f, [p.id]: e.target.value }))
+                        }
+                        aria-label={`Fecha para programar «${p.title}»`}
+                        className="bg-bg border border-divider focus:border-accent outline-none text-ink font-mono text-[11px] px-2 py-1.5"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cuando = fechas[p.id];
+                          if (!cuando) {
+                            alert("Elige antes una fecha.");
+                            return;
+                          }
+                          act(p.id, "schedule", { scheduled_for: cuando });
+                        }}
+                        disabled={busy === p.id || !fechas[p.id]}
+                        data-cursor="hover"
+                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+                      >
+                        programar
+                      </button>
+                    </span>
                   )}
                   {canPublish && (
                     <button
