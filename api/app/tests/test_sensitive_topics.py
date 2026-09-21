@@ -153,3 +153,33 @@ def test_una_errata_de_datos_no_retiene_la_pieza():
 
     assert rep.hay_erratas
     assert not rep.necesita_revision
+
+
+# --- Calibración contra las 352 piezas publicadas ---------------------------- #
+def test_la_ficha_de_un_colaborador_no_lleva_el_obituario_de_robe():
+    """Calibrado en dos vueltas contra producción. Contando menciones en el
+    cuerpo se marcaban 240 de 352 piezas; mirando el título seguían entrando las
+    fichas de Woody Amores o Ara Malikian, cuyo meta-título dice «de Robe». Quien
+    manda es el slug: dice de quién es la página, no a quién cita."""
+    cuerpo = ("Woody Amores tocó con Robe en Extremoduro durante años. Participó "
+              "en Deltoya, Pedrá, Agila y Canciones prohibidas, y su forma de "
+              "tocar marcó el sonido de la banda en aquella época.")
+
+    assert not st.es_trayectoria(
+        kind="person", subject="Woody Amores, colaborador de Robe",
+        body_md=cuerpo, titulos_catalogo=CATALOGO, entity_slug="woody-amores",
+    )
+
+
+def test_la_ficha_de_robe_si_entra_en_el_perimetro():
+    assert st.en_perimetro("lo que sea", "", entity_slug="robe-iniesta")
+    assert st.en_perimetro("lo que sea", "", entity_slug="extremoduro")
+
+
+def test_citar_un_par_de_discos_no_es_recorrer_una_trayectoria():
+    """Sin este freno, cualquier ficha de canción que nombre tres discos pediría
+    el obituario. La señal es enumerar obra de verdad o titularlo."""
+    cuerpo = "La canción aparece en Agila (1996), como Pedrá (1995) y Deltoya (1992)."
+
+    assert not st.es_trayectoria(kind="song", subject="Extremoduro", body_md=cuerpo,
+                                 titulos_catalogo=CATALOGO, entity_slug="so-payaso")

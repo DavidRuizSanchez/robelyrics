@@ -104,34 +104,47 @@ def menciona_fallecimiento(texto: str) -> bool:
     return bool(_MENCIONA_MUERTE.search(texto or ""))
 
 
-def en_perimetro(subject: str, texto: str) -> bool:
-    """¿Va de Robe o de Extremoduro, o solo los menciona de paso?"""
+def en_perimetro(subject: str, texto: str, entity_slug: str | None = None) -> bool:
+    """¿El texto va DE Robe o DE Extremoduro, o solo los menciona?
+
+    Calibrado contra las 352 piezas publicadas, en dos vueltas:
+
+    - Contar menciones en el cuerpo metía 240 piezas, entre ellas las fichas de
+      cualquier colaborador: hablan de Robe todo el rato porque tocaron con él.
+    - Mirar el título tampoco basta: el de Woody Amores dice «colaborador de
+      Robe», y una biografía suya no tiene por qué llevar su obituario.
+
+    Cuando la pieza es una ficha, quien manda es el SLUG de la entidad: dice de
+    quién es la página, no a quién cita. Para un post del blog, que no tiene
+    entidad, se cae al título — y ahí la exigencia de recorrido hace el resto.
+    """
+    if entity_slug is not None:
+        return entity_slug in robe_facts.PERIMETER_SLUGS
     n_sujeto = _norm(subject)
-    if any(k in n_sujeto for k in ("robe", "extremoduro", "roberto iniesta")):
-        return True
-    # Sin sujeto claro, que el cuerpo insista lo suficiente.
-    n = _norm(texto)
-    return n.count("extremoduro") + n.count("robe") >= 3
+    return any(k in n_sujeto for k in ("robe", "extremoduro", "roberto iniesta"))
 
 
 def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
-                   titulos_catalogo: list[str] | None = None) -> bool:
+                   titulos_catalogo: list[str] | None = None,
+                   entity_slug: str | None = None) -> bool:
     """¿El texto RECORRE una trayectoria, o solo habla de una cosa concreta?
 
     El análisis de una canción no dispara aunque nombre a Robe diez veces: lo que
     dispara es enumerar obra o encadenar años.
     """
-    if not en_perimetro(subject, body_md):
+    if not en_perimetro(subject, body_md, entity_slug):
         return False
     cuerpo = body_md or ""
+    # «Tres años distintos» era demasiado laxo: cualquier ficha biográfica los
+    # tiene, y con esa regla se marcaban 240 de 352 piezas. Lo que delata un
+    # RECORRIDO es titularlo («trayectoria», «legado», «discografía») o enumerar
+    # obra de verdad, no citar un par de fechas.
     if _ENCABEZADO_TRAYECTORIA.search(cuerpo):
-        return True
-    if len(set(_ANYO.findall(cuerpo))) >= 3:
         return True
     if titulos_catalogo:
         n = _norm(cuerpo)
         citados = sum(1 for t in titulos_catalogo if _norm(t) in n)
-        if citados >= 3:
+        if citados >= 4:
             return True
     return False
 
@@ -168,12 +181,14 @@ def afirma_disolucion_erronea(texto: str) -> bool:
     return bool(_DISOLUCION_2018.search(texto or ""))
 
 
-def revisar(db, *, kind: str | None, subject: str, body_md: str) -> SensitiveReport:
+def revisar(db, *, kind: str | None, subject: str, body_md: str,
+            entity_slug: str | None = None) -> SensitiveReport:
     """Pasada completa sobre una pieza."""
     rep = SensitiveReport()
     titulos = [d.title for d in robe_facts.discography(db)] if db is not None else []
     rep.es_trayectoria = es_trayectoria(
-        kind=kind, subject=subject, body_md=body_md, titulos_catalogo=titulos
+        kind=kind, subject=subject, body_md=body_md, titulos_catalogo=titulos,
+        entity_slug=entity_slug,
     )
     if rep.es_trayectoria and not menciona_fallecimiento(body_md):
         rep.omite_fallecimiento = True
