@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS: { href: string; label: string }[] = [
   { href: "/biblioteca/admin/sources", label: "fuentes" },
   { href: "/biblioteca/admin/seo", label: "SEO content" },
+  { href: "/biblioteca/admin/seo/oportunidades", label: "oportunidades" },
   { href: "/biblioteca/admin/blog", label: "Blog" },
   { href: "/biblioteca/admin/erratas", label: "erratas" },
   { href: "/biblioteca/admin/uso", label: "uso" },
@@ -16,10 +17,15 @@ const ITEMS: { href: string; label: string }[] = [
 
 export default function AdminNav() {
   const pathname = usePathname() || "";
+  // Con dos rutas anidadas («/seo» y «/seo/oportunidades») el prefijo solo no
+  // vale: encendía las dos a la vez. Manda la coincidencia más específica.
+  const activo = ITEMS.map((it) => it.href)
+    .filter((href) => pathname === href || pathname.startsWith(href + "/"))
+    .sort((a, b) => b.length - a.length)[0];
   return (
     <nav className="font-mono text-[10px] tracking-[2px] uppercase flex flex-wrap gap-4">
       {ITEMS.map((it) => {
-        const active = pathname.startsWith(it.href);
+        const active = it.href === activo;
         return (
           <Link
             key={it.href}
