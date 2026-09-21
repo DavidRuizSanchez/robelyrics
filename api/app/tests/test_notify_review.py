@@ -240,3 +240,25 @@ def test_el_aviso_senala_lo_que_ya_esta_publicado():
 def test_sin_duplicados_el_aviso_no_acusa_a_nadie():
     html = nr._build_html(_datos_html([_post_falso(2, "Única", 5)]))
     assert "ya publicaste" not in html
+
+
+def test_con_trece_pendientes_se_nombran_los_trece():
+    """El caso de prod del 21-09-2026: 13 esperando y un tope de 12.
+
+    La lista va de más viejo a más nuevo, así que lo que se cortaba era SIEMPRE
+    lo recién llegado — y la entrada 13 era justo la que duplicaba al 100% algo
+    ya publicado. El aviso más accionable era el único que no se veía.
+    """
+    posts = [_post_falso(i, f"Entrada {i:02d}", dias=100 - i) for i in range(1, 14)]
+    html = nr._build_html(_datos_html(posts))
+
+    for p in posts:
+        assert p.title in html, f"falta {p.title}"
+    assert "más." not in html  # sin nota de recorte: caben todas
+
+
+def test_el_digest_no_nombra_menos_que_el_correo_de_revision():
+    """Los dos avisos hablan de la MISMA cola: si este recortara antes, habría
+    entradas que salen en un correo y no en el otro."""
+    from app.services.publishing import MAX_REVIEW_EMAIL_ITEMS
+    assert nr._MAX_POSTS_EN_DIGEST >= MAX_REVIEW_EMAIL_ITEMS

@@ -35,7 +35,7 @@ from app.config import get_settings
 from app.db.models import ErrataReport, NotificationDigest, Post, VerificationRecord
 from app.db.session import SessionLocal
 from app.services.email import send_email
-from app.services.publishing import REVIEW_ROT_DAYS
+from app.services.publishing import MAX_REVIEW_EMAIL_ITEMS, REVIEW_ROT_DAYS
 from app.services.triage import duplicado_de
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -68,7 +68,12 @@ def _autofix_open_erratas(db) -> int:
 
 
 # Cuántos pendientes se nombran en el digest antes de resumir con «y N más».
-_MAX_POSTS_EN_DIGEST = 12
+# Mismo tope que el correo de revisión (`MAX_REVIEW_EMAIL_ITEMS`), y por la misma
+# razón: la lista va de más viejo a más nuevo, así que lo que se corta es SIEMPRE
+# lo recién llegado. Con 13 pendientes y un tope de 12 se quedaba fuera justo la
+# entrada que duplicaba al 100% algo ya publicado — el aviso más accionable de
+# todos, y el único que no se deduce mirando el título.
+_MAX_POSTS_EN_DIGEST = MAX_REVIEW_EMAIL_ITEMS
 
 
 def _gather(db) -> dict:
