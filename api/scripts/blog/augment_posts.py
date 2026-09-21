@@ -51,8 +51,15 @@ def _ancla(db, post: Post):
     )
 
 
-def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats) -> dict:
-    """Amplía un post SIN persistir. Devuelve el before/after y por qué."""
+def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats,
+              gap_hint: str | None = None, solo_anadir: bool = False) -> dict:
+    """Amplía un post SIN persistir. Devuelve el before/after y por qué.
+
+    `solo_anadir` endurece el contrato para lo que YA ESTÁ PUBLICADO: el texto
+    resultante debe empezar por el actual, carácter a carácter. Sin eso, el
+    «tensado» del editor jefe puede reescribir una pieza que Google ya indexó, y
+    eso no es ampliar: es cambiarla por otra a espaldas de quien la aprobó.
+    """
     current = (post.body_md or "").strip()
     if not current:
         return {"post_id": post.id, "noop": True, "motivo": "sin cuerpo"}
@@ -66,18 +73,30 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats) -> di
     dossier = gather_entity_dossier(db, anchor.entity_type, anchor.entity)
 
     gap_body, gap_head = _corpus_gap_section(
-        client, subject, current, dossier, heads, current, gap_hint=None,
+        client, subject, current, dossier, heads, current, gap_hint=gap_hint,
     )
     if not gap_body:
         return {"post_id": post.id, "noop": True, "motivo": "el corpus no da para más",
                 "subject": subject}
 
-    after = current.rstrip() + "\n\n" + gap_body
-    after = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", after, flags=re.M)
-    after = normalize_headings(after) or after
-    after = strip_ai_tells(after) or after
-    after = autolink_corpus(after, corpus_index, max_links=6,
-                            exclude_slug=anchor.entity.slug, link_stats=link_stats)
+    if solo_anadir:
+        # En lo YA PUBLICADO se limpia y enlaza SOLO el trozo nuevo. El enlazado
+        # interno reescribe el cuerpo entero metiendo enlaces markdown, así que
+        # pasárselo al original rompería la promesa de no tocar lo que Google ya
+        # indexó — y de paso haría imposible comprobar que no se ha tocado.
+        nuevo = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", gap_body, flags=re.M)
+        nuevo = normalize_headings(nuevo) or nuevo
+        nuevo = strip_ai_tells(nuevo) or nuevo
+        nuevo = autolink_corpus(nuevo, corpus_index, max_links=6,
+                                exclude_slug=anchor.entity.slug, link_stats=link_stats)
+        after = current.rstrip() + "\n\n" + nuevo.strip() + "\n"
+    else:
+        after = current.rstrip() + "\n\n" + gap_body
+        after = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", after, flags=re.M)
+        after = normalize_headings(after) or after
+        after = strip_ai_tells(after) or after
+        after = autolink_corpus(after, corpus_index, max_links=6,
+                                exclude_slug=anchor.entity.slug, link_stats=link_stats)
 
     # GATE ANTI-PAJA: la ampliación solo vale si MEJORA. Si el añadido es relleno,
     # el rigor lo castiga y se conserva el original.
@@ -91,8 +110,14 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats) -> di
                 "motivo": f"no mejora ({v_before.score} → {v_after.score}, {v_after.verdict})",
                 "before_score": v_before.score, "after_score": v_after.score}
     if (v_after.verdict == "revise" and v_after.tightened_body_md
-            and len(v_after.tightened_body_md) >= len(current)):
+            and len(v_after.tightened_body_md) >= len(current)
+            and not solo_anadir):
         after = v_after.tightened_body_md
+
+    if solo_anadir and not after.startswith(current.rstrip()):
+        # Se ha tocado algo de lo que ya había: no es una ampliación.
+        return {"post_id": post.id, "noop": True, "subject": subject,
+                "motivo": "el resultado no conserva el texto publicado intacto"}
 
     if len(after) < len(current):  # cinturón: nunca encoge
         return {"post_id": post.id, "noop": True, "subject": subject,
@@ -110,13 +135,23 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats) -> di
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ids", nargs="*", type=int, help="ids de post concretos")
+    parser.add_argument("--status", default="pending_review",
+                        choices=["pending_review", "published", "draft", "all"],
+                        help="qué estado mirar. `published` activa el modo solo-añadir")
+    parser.add_argument("--gap-hint", dest="gap_hint",
+                        help="por dónde ampliar (p.ej. «el fallecimiento de Robe»)")
     parser.add_argument("--plan", action="store_true",
                         help="solo dice qué ancla tiene cada uno (sin coste LLM)")
     parser.add_argument("--apply", action="store_true", help="persiste el resultado")
     args = parser.parse_args()
 
     with SessionLocal() as db:
-        q = db.query(Post).filter(Post.status == "pending_review")
+        # `--ids` restringe, pero el ESTADO lo elige `--status`: antes el filtro
+        # de `pending_review` era fijo, así que un post ya publicado no se podía
+        # ampliar aunque se pidiera por id (salía «Posts a mirar: 0»).
+        q = db.query(Post)
+        if args.status != "all":
+            q = q.filter(Post.status == args.status)
         if args.ids:
             q = q.filter(Post.id.in_(args.ids))
         posts = q.order_by(Post.created_at).all()
@@ -137,7 +172,8 @@ def main() -> None:
             logger.info("#%s %s", post.id, post.title[:60])
             try:
                 res = augmentar(db, client, post, corpus_index=corpus_index,
-                                link_stats=link_stats)
+                                link_stats=link_stats, gap_hint=args.gap_hint,
+                                solo_anadir=post.status == "published")
             except Exception:
                 logger.exception("  falló la ampliación de #%s", post.id)
                 continue
@@ -155,9 +191,16 @@ def main() -> None:
                 print(res["added"].strip())
                 print("----- fin -----\n")
             if args.apply:
+                estaba_publicado = post.status == "published"
                 post.body_md = res["after"]
                 db.commit()
                 logger.info("  ✓ aplicado")
+                if estaba_publicado:
+                    # Lo publicado se sirve cacheado: sin esto, el cambio tarda
+                    # hasta diez minutos en verse y parece que no se aplicó.
+                    from app.services.publishing import _revalidate_next
+                    _revalidate_next(post.slug)
+                    logger.info("  ✓ revalidado en la web")
         logger.info("Ampliados: %d/%d%s", crecidos, len(posts),
                     "" if args.apply else " (en memoria; usa --apply para persistir)")
 

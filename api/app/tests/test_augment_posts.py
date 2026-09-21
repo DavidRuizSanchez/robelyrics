@@ -119,3 +119,45 @@ def test_un_post_vacio_no_rompe(motor):
     p.body_md = "   "
     res = ap.augmentar(None, None, p, corpus_index=None, link_stats=None)
     assert res["noop"] is True
+
+
+# --- Modo solo-añadir, para lo que YA ESTÁ PUBLICADO ------------------------ #
+def test_en_lo_publicado_el_texto_anterior_queda_intacto(motor):
+    """Un post publicado ya lo ha leído Google y lo ha aprobado una persona:
+    ampliarlo es añadir al final, no devolver otra versión del texto. Aquí se
+    exige el original LITERAL, no solo que «no se pierda nada»."""
+    post = _Post()
+
+    res = ap.augmentar(None, None, post, corpus_index=None, link_stats=None,
+                       solo_anadir=True)
+
+    assert res["noop"] is False
+    assert res["after"].startswith(CUERPO.rstrip())
+    assert "Lo nuevo" in res["after"]
+
+
+def test_en_lo_publicado_no_se_acepta_el_tensado_del_editor(motor, monkeypatch):
+    """El «tensado» reescribe la pieza entera. Para un borrador es una mejora;
+    para algo indexado es cambiarlo por otra cosa a espaldas de quien lo aprobó."""
+    motor["verdict"] = "revise"
+    motor["seccion"] = ("## Lo nuevo\n\nMaterial verificado.", "Lo nuevo")
+
+    def _review_con_tensado(body, *, kind, subject, allowed_terms=None, **kw):
+        es_original = body.strip() == CUERPO.strip()
+        return EditorialVerdict(
+            verdict="pass" if es_original else "revise",
+            score=motor["antes"] if es_original else motor["despues"],
+            tightened_body_md=None if es_original else (
+                "## Otro encabezado\n\nUn texto reescrito de arriba abajo que es "
+                "más largo que el original pero ya no dice lo mismo en absoluto."
+            ),
+        )
+
+    monkeypatch.setattr(ap, "editorial_review", _review_con_tensado)
+
+    res = ap.augmentar(None, None, _Post(), corpus_index=None, link_stats=None,
+                       solo_anadir=True)
+
+    assert res["noop"] is False
+    assert res["after"].startswith(CUERPO.rstrip())
+    assert "reescrito de arriba abajo" not in res["after"]
