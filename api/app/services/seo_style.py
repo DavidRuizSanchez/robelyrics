@@ -115,6 +115,26 @@ def _token_en(texto_plano: str, token: str) -> bool:
     return False
 
 
+def expandir_alias(texto_plano: str, alias: dict[str, str] | None) -> str:
+    """Añade al texto las OTRAS formas de nombrar a quien ya nombra.
+
+    Una ficha que dice «Robe» responde de sobra a quien busca «Roberto Iniesta», y
+    la que dice «Milindris» a quien busca «Iñaki Setién». Sin esto, el clasificador
+    las daba por no cubiertas y mandaba a escribir contenido que ya estaba: medido
+    el 22-09-2026, 2 de las 15 oportunidades de cuerpo eran eso —una con 316
+    impresiones, sobre una página que tiene la letra entera— y otras 4 lo eran en
+    parte.
+
+    `alias` mapea forma normalizada → todas sus formas, y sale de la BD
+    (`nombre_alias_index`), no de una lista escrita a mano: así un fichaje nuevo se
+    reconoce solo.
+    """
+    if not alias:
+        return texto_plano
+    extra = [formas for clave, formas in alias.items() if f" {clave} " in texto_plano]
+    return texto_plano + " " + " ".join(extra) + " " if extra else texto_plano
+
+
 def cubre(texto_plano: str, query: str) -> bool:
     """¿Este texto responde a la consulta? Todos sus tokens de contenido presentes."""
     toks = content_tokens(query)

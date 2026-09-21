@@ -16,6 +16,7 @@ import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
+from math import ceil
 
 # --------------------------------------------------------------------------- #
 # Reglas de sustitución de dashes
@@ -205,12 +206,20 @@ def lexical_repetition_report(
     *,
     max_repeats: int = 3,
     allowed: set[str] | None = None,
+    repeats_per_1000: float | None = None,
 ) -> LexicalReport:
     """Informe determinista de repetición léxica y muletillas.
 
     - `max_repeats`: una raíz distintiva que aparezca MÁS de esto se marca.
     - Los verbos-muletilla (_TELL_LEMMAS) se marcan si aparecen más de una vez.
     - `allowed`: raíces extra que pueden repetirse (p.ej. la entidad del post).
+    - `repeats_per_1000`: presupuesto RELATIVO a la longitud. Sin él, el tope de 3
+      es absoluto sobre el documento entero, y eso penaliza crecer por aritmética:
+      un texto al que se le añade un 45% más de prosa pasa de 3 a 4 menciones de su
+      propio tema y aparece en el aviso, aunque lo añadido sea impecable. Ese aviso
+      va al prompt del editor con un «tenlo MUY en cuenta», así que la ampliación
+      salía penalizada por existir. Solo lo usa el circuito de optimización; a
+      `None`, el comportamiento es el de siempre.
     """
     report = LexicalReport()
     if not text:
@@ -245,9 +254,16 @@ def lexical_repetition_report(
         counts[stem] += 1
         display.setdefault(stem, low_tok)
 
+    # Con presupuesto relativo, el tope crece con el texto: lo que se penaliza es
+    # la DENSIDAD de repetición, no el tamaño. Nunca baja del tope absoluto.
+    tope = max_repeats
+    if repeats_per_1000:
+        palabras = len(_RE_WORD.findall(body))
+        tope = max(max_repeats, ceil(repeats_per_1000 * palabras / 1000))
+
     for stem, n in counts.most_common():
         is_tell = stem in _TELL_LEMMAS
-        if (is_tell and n > 1) or (not is_tell and n > max_repeats):
+        if (is_tell and n > 1) or (not is_tell and n > tope):
             report.overused.append((display[stem], n))
     report.overused.sort(key=lambda x: -x[1])
     return report

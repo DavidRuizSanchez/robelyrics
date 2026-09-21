@@ -27,7 +27,13 @@ export type Opportunity = {
   draft_body: string | null;
   draft_notes: {
     added_headings?: string[];
-    rigor?: Record<string, unknown>;
+    rigor?: {
+      verdict?: string;
+      score?: number;
+      before_score?: number;
+      reasons?: string[];
+      forzada?: boolean;
+    };
     rechazos?: string[];
     avisos?: string[];
   } | null;
@@ -53,7 +59,11 @@ function textoAnadido(o: Opportunity): string {
 export default function OpportunityRow({ item }: { item: Opportunity }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [abierto, setAbierto] = useState(false);
+  // Lo que el editor jefe rechaza se abre solo: un texto que sale con el veredicto
+  // en contra no se puede publicar a ciegas, y un clic de más para verlo es un clic
+  // que nadie da.
+  const forzada = item.draft_notes?.rigor?.forzada === true;
+  const [abierto, setAbierto] = useState(forzada);
   const [error, setError] = useState<string | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
 
@@ -92,7 +102,13 @@ export default function OpportunityRow({ item }: { item: Opportunity }) {
   }
 
   return (
-    <div className="border-b border-ink/[0.06] py-5">
+    <div
+      className={
+        forzada
+          ? "border-b border-ink/[0.06] py-5 pl-3 border-l-2 border-l-accent/60"
+          : "border-b border-ink/[0.06] py-5"
+      }
+    >
       <div className="flex flex-wrap items-baseline gap-x-3">
         <a
           href={item.path}
@@ -211,7 +227,7 @@ export default function OpportunityRow({ item }: { item: Opportunity }) {
             onClick={() => mover("apply")}
             className="font-mono text-[10px] tracking-[2px] uppercase text-accent disabled:opacity-40"
           >
-            publicar
+            {forzada ? "publicar igualmente" : "publicar"}
           </button>
         )}
         {item.status === "failed" && (

@@ -120,6 +120,8 @@ def review(
     material: str | None = None,
     event_when: str | None = None,  # 'past' | 'future' | None (pista para news)
     allowed_terms: set[str] | None = None,  # nombres propios que pueden repetirse
+    spotlight: str | None = None,  # el texto AÑADIDO, para que no se juzgue a ciegas
+    repeats_per_1000: float | None = None,  # presupuesto de repetición relativo
 ) -> EditorialVerdict:
     """Juzga el rigor de una pieza. Degrada a `pass` si no hay API key o el LLM
     falla (no bloquea la publicación por un fallo de infraestructura; el resto de
@@ -158,7 +160,8 @@ def review(
         from app.services.text_sanitizer import lexical_repetition_report
 
         _rep = lexical_repetition_report(
-            body, allowed=(allowed_terms or {(subject or "").lower()}))
+            body, allowed=(allowed_terms or {(subject or "").lower()}),
+            repeats_per_1000=repeats_per_1000)
         if _rep.has_problems:
             _lexical_note = (
                 "AVISO del linter (detección determinista, tenlo MUY en cuenta en los "
@@ -166,6 +169,21 @@ def review(
             )
     except Exception:  # noqa: BLE001 — nunca romper el gate por el linter
         _lexical_note = ""
+
+    # El texto AÑADIDO, aparte. Sin esto, una ampliación sobre un cuerpo que ya pasa
+    # de 9.000 caracteres se juzga a ciegas: lo añadido va al final, cae fuera del
+    # corte, y el juez puntúa el mismo prefijo de antes —pero con el aviso del linter
+    # empeorado justo por lo que no ha leído—. Penalización sin evidencia.
+    # Se enseña DENTRO del contexto, no suelto: el criterio de redundancia compara
+    # unas secciones con otras, y una sección aislada siempre parece no redundante.
+    _spotlight_block = ""
+    if spotlight and spotlight.strip():
+        _spotlight_block = (
+            "\n\nAMPLIACIÓN AÑADIDA (es el texto NUEVO que se quiere publicar; el "
+            "ARTÍCULO de arriba puede venir recortado, así que júzgala EN EL CONTEXTO "
+            "de lo anterior, muy en especial por redundancia con lo que ya se decía):"
+            f"\n\"\"\"{spotlight[:4000]}\"\"\""
+        )
 
     sys = (
         "Eres el editor jefe de Entre Interiores, un sitio sobre Robe y Extremoduro, "
@@ -226,6 +244,7 @@ def review(
         "\"reasons\": [\"...\"], \"tightened_body_md\": <texto o null>}.\n"
         f"{material_block}\n"
         f"ARTÍCULO:\n\"\"\"{body[:9000]}\"\"\""
+        f"{_spotlight_block}"
     )
 
     try:

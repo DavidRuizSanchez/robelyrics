@@ -76,13 +76,41 @@ verify_no_invention = seo_style.verify_no_invention
 spanish_case = seo_style.spanish_case
 
 
+def nombre_alias_index(db) -> dict[str, str]:
+    """Formas equivalentes de nombrar a cada persona del universo.
+
+    «Robe» y «Roberto Iniesta» son la misma persona, y una ficha que dice lo
+    primero responde a quien busca lo segundo. Sale de la BD —`stage_name` y
+    `full_name` de cada `Person`— y no de una lista a mano, para que valga también
+    para Uoho/Iñaki Antón, El Drogas/Enrique Villarreal o Milindris/Iñaki Setién.
+
+    Devuelve {token distintivo → todas las formas}, listo para `expandir_alias`.
+    """
+    from app.db.models import Person
+
+    idx: dict[str, str] = {}
+    for p in db.query(Person).all():
+        formas = [f for f in (p.stage_name, p.full_name) if (f or "").strip()]
+        if len(formas) < 2:
+            continue
+        todas = " ".join(flatten(f).strip() for f in formas)
+        for f in formas:
+            for tok in content_tokens(f):
+                # Un token que también es palabra común (o el apellido de otro)
+                # metería ruido; se exigen 4 letras y unicidad por persona.
+                if len(tok) >= 4:
+                    idx.setdefault(tok, todas)
+    return idx
+
+
 def classify_queries(
     queries: list[dict], *, body_md: str | None, meta_title: str | None,
-    meta_description: str | None,
+    meta_description: str | None, alias: dict[str, str] | None = None,
 ) -> dict[str, list[dict]]:
     """Reparte las consultas de una URL en `body`, `meta` y `covered`."""
-    body = flatten(body_md)
-    meta = flatten(f"{meta_title or ''} {meta_description or ''}")
+    body = seo_style.expandir_alias(flatten(body_md), alias)
+    meta = seo_style.expandir_alias(
+        flatten(f"{meta_title or ''} {meta_description or ''}"), alias)
     out: dict[str, list[dict]] = {"body": [], "meta": [], "covered": []}
     for q in queries:
         if int(q.get("impressions") or 0) < MIN_QUERY_IMPRESSIONS:
@@ -124,6 +152,7 @@ def detect(db, pages: dict, *, period: str | None = None,
     from app.db.models import SeoContent, SeoOpportunity
     from scripts.seo.gsc_optimize import _resolve_entity
 
+    alias = nombre_alias_index(db)
     creadas = []
     for path, queries in pages.items():
         ent = _resolve_entity(db, path)
@@ -140,7 +169,7 @@ def detect(db, pages: dict, *, period: str | None = None,
             continue
         reparto = classify_queries(
             queries, body_md=sc.body_md, meta_title=sc.meta_title,
-            meta_description=sc.meta_description,
+            meta_description=sc.meta_description, alias=alias,
         )
         for action in ("meta", "body"):
             qs = reparto[action]
@@ -380,22 +409,45 @@ def prepare_draft(db, opp) -> str:
                 opp.error = f"entidad {opp.entity_type}#{opp.entity_id} no encontrada"
                 db.commit()
                 return "failed"
+            from scripts.seo.augment_deep import ModoOptimizacion
+
+            # Optimizar no es escribir de cero: se busca material por la CONSULTA, no
+            # se penaliza crecer, y si el editor jefe aun así la rechaza, el borrador
+            # sale con el veredicto colgado para que lo juzgue una persona. Nada de
+            # esto llega a la generación de fichas nuevas.
+            consultas = [q.get("query", "") for q in (opp.queries or []) if q.get("query")]
             res = augment_entity(db, client, opp.entity_type, entidad,
-                                 gap_hint=opp.gap_hint)
+                                 gap_hint=opp.gap_hint,
+                                 optimizar=ModoOptimizacion(consultas=consultas[:6]))
             if not res or res.get("noop"):
+                rigor = (res or {}).get("rigor") or {}
                 opp.status = "noop"
-                opp.draft_notes = {"rigor": (res or {}).get("rigor")}
-                opp.error = ("el corpus no respalda nada nuevo sobre eso "
-                             "(no se rellena con generalidades)")
+                opp.draft_notes = {"rigor": rigor}
+                opp.error = (
+                    "hay versos citados que no están en la letra"
+                    if rigor.get("bloqueo_duro")
+                    else "el corpus no respalda nada nuevo sobre eso "
+                         "(no se rellena con generalidades)"
+                )
                 db.commit()
                 return "noop"
+            rigor = res.get("rigor") or {}
             opp.draft_body = res["after"]
             opp.draft_notes = {
                 "added_headings": res.get("added_headings") or [],
                 "videos_added": res.get("videos_added") or [],
-                "rigor": res.get("rigor"),
+                "rigor": rigor,
                 "before_len": res.get("before_len"),
                 "after_len": res.get("after_len"),
+                # El veredicto en contra va donde ya se pinta: el correo y el panel
+                # leen `avisos` desde el 22-09, así que aparece en los dos sitios sin
+                # tocar una línea más.
+                "avisos": (
+                    [f"el editor jefe la RECHAZA (rigor {rigor.get('before_score')} → "
+                     f"{rigor.get('score')}) y se te enseña igual para que decidas tú: "
+                     + "; ".join((rigor.get("reasons") or [])[:2])]
+                    if rigor.get("forzada") else []
+                ),
             }
     except Exception as exc:  # noqa: BLE001
         logger.exception("[seo-opp] fallo preparando %s (%s)", opp.path, opp.action)

@@ -197,6 +197,11 @@ def _diff_cuerpo(o) -> str:
     )
 
 
+def _forzada(o) -> bool:
+    """¿El editor jefe la rechaza y sale igual para que la juzgue una persona?"""
+    return bool(((o.draft_notes or {}).get("rigor") or {}).get("forzada"))
+
+
 def _avisos(o) -> str:
     """Lo que las guardas dejan pasar pero conviene mirar antes de publicar.
 
@@ -262,15 +267,20 @@ def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
             f'por: {_html.escape(o.gap_hint or "")}</div>'
             f"{cuerpo}"
             f'<div style="margin:12px 0 0;">'
-            f'<a href="{_link_accion([o.id], "apply")}" style="font-family:{_MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:{_ACCENT};text-decoration:none;">→ publicar este</a>'
+            f'<a href="{_link_accion([o.id], "apply")}" style="font-family:{_MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:{_ACCENT};text-decoration:none;">→ {"publicar igualmente" if _forzada(o) else "publicar este"}</a>'
             f'<a href="{_link_accion([o.id], "discard")}" style="font-family:{_MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.35);text-decoration:none;margin-left:18px;">descartar</a>'
             f"</div></div>"
         )
 
-    todos = _link_accion([o.id for o in opps], "apply") if opps else ""
+    # «Publicar todos» deja fuera las que el editor jefe rechaza. Si se las llevara
+    # por delante, la válvula se convertiría en auto-publicación por descuido, que es
+    # justo lo que el circuito entero existe para impedir: cada una de esas se
+    # publica con su propio clic, después de mirar el diff, o no se publica.
+    limpias = [o for o in opps if not _forzada(o)]
+    todos = _link_accion([o.id for o in limpias], "apply") if limpias else ""
     pie = "" if not opps else (
         f'<div style="margin:28px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">'
-        f'{_cta(todos, "publicar todos")}'
+        f'{_cta(todos, "publicar los limpios") if todos else ""}'
         f'{_cta(f"{site}/biblioteca/admin/seo/oportunidades", "revisar en el panel", principal=False)}'
         f"</div>"
     )
