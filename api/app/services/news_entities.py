@@ -374,7 +374,11 @@ def resolve(db, mention: Mention) -> ResolvedEntity:
     if propia is not None:
         return propia
 
-    cands = _candidatos_wikidata(mention.surface)
+    # Las metaentidades se quitan SIEMPRE, no solo cuando falta contexto: son la
+    # ficha del nombre, no de quien lo lleva. Con contexto se colaban igual —
+    # «Moisés», un concursante de Pasapalabra, resolvió a la ficha del nombre de
+    # pila «Moises», que es el mismo error que «Guardiola» → ficha del apellido.
+    cands = [c for c in _candidatos_wikidata(mention.surface) if not _es_metaentidad(c)]
     if not cands:
         return ResolvedEntity(
             mention, UNRESOLVED,

@@ -294,8 +294,11 @@ def test_la_ficha_del_apellido_no_es_la_persona(wiki, sin_corpus):
     del apellido. Darla por buena sería tomar el nombre por quien lo lleva."""
     wiki([{"id": "Q37220356", "label": "Guardiola", "description": "apellido"}])
     r = ne.resolve(None, ne.Mention("Guardiola", "person", "", "subject"))
-    assert r.status == ne.AMBIGUOUS
+    # `unresolved` o `ambiguous` da igual: lo que importa es que NO se le pone
+    # identidad y que queda callada.
+    assert r.status in (ne.AMBIGUOUS, ne.UNRESOLVED)
     assert r.qid is None
+    assert r.silenciada is True
 
 
 def test_dos_personas_reales_con_el_mismo_nombre_exacto_no_se_eligen_a_dedo(wiki, sin_corpus):
@@ -306,3 +309,16 @@ def test_dos_personas_reales_con_el_mismo_nombre_exacto_no_se_eligen_a_dedo(wiki
     ])
     r = ne.resolve(None, ne.Mention("Eduardo Casanova", "person", "", "mentioned"))
     assert r.status == ne.AMBIGUOUS
+
+
+def test_la_ficha_del_nombre_de_pila_tampoco_cuela_con_contexto(wiki, sin_corpus):
+    """Visto en producción: «Moisés», un concursante de Pasapalabra, resolvió a
+    la ficha del nombre de pila. El filtro de metaentidades solo corría cuando
+    faltaba contexto, así que con contexto se colaban igual — y es el mismo error
+    que «Guardiola» → ficha del apellido."""
+    wiki([{"id": "Q1", "label": "Moises", "description": "nombre masculino"}])
+    r = ne.resolve(None, ne.Mention("Moisés", "person", "concursante riojano", "subject"))
+    assert r.status != ne.WIKIDATA
+    assert r.qid is None
+    assert r.silenciada is False, "el artículo dice quién es: se le puede nombrar"
+    assert r.da_foto is False
