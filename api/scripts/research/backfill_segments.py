@@ -12,13 +12,18 @@ Se recuperan por el camino más barato primero:
   2. WHISPER (~0,006 $/min) solo con `--whisper`, y solo para lo que no tenga
      subtítulos. Antes de gastar dice cuánto va a costar.
 
-Corre en LOCAL: la descarga de audio necesita IP residencial (la del servidor
-está bloqueada por el antibot de YouTube).
+Corre en LOCAL, y no es un detalle: desde el servidor YouTube bloquea también
+los subtítulos. Medido el 23-09-2026 sobre las mismas 16 entrevistas — 15
+recuperadas desde la Mac, **0 desde el servidor**. Por eso los tiempos se
+EXPORTAN aquí y se IMPORTAN allí, igual que el resto del trabajo que solo puede
+hacer la máquina de casa.
 
 Uso:
     python -m scripts.research.backfill_segments --dry-run
     python -m scripts.research.backfill_segments                 # solo gratis
     python -m scripts.research.backfill_segments --whisper       # con coste
+    python -m scripts.research.backfill_segments --export /tmp/segmentos.json
+    python -m scripts.research.backfill_segments --import /tmp/segmentos.json
 """
 from __future__ import annotations
 
@@ -61,6 +66,61 @@ def _sin_segmentos(db, kinds: tuple[str, ...]) -> list[InterpretationSource]:
     ).scalars().all())
 
 
+def exportar(db, ruta: str) -> int:
+    """Vuelca los tramos con su fuente identificada por (kind, url).
+
+    Por URL y no por id: los ids de `interpretation_sources` no coinciden entre
+    la BD de casa y la de producción, y casar por número habría metido los
+    tiempos de una entrevista en otra.
+    """
+    import json
+
+    filas = db.execute(
+        select(InterpretationSource, SourceSegment)
+        .join(SourceSegment, SourceSegment.source_id == InterpretationSource.id)
+        .order_by(InterpretationSource.id, SourceSegment.idx)
+    ).all()
+    por_fuente: dict[tuple[str, str], list[dict]] = {}
+    for src, seg in filas:
+        clave = (src.kind, src.url)
+        por_fuente.setdefault(clave, []).append(
+            {"start_s": seg.start_s, "end_s": seg.end_s, "text": seg.text}
+        )
+    datos = [
+        {"kind": k, "url": u, "segmentos": segs}
+        for (k, u), segs in por_fuente.items()
+    ]
+    with open(ruta, "w", encoding="utf-8") as fh:
+        json.dump(datos, fh, ensure_ascii=False)
+    log(f"Exportadas {len(datos)} fuentes ({sum(len(d['segmentos']) for d in datos)} "
+        f"tramos) → {ruta}")
+    return len(datos)
+
+
+def importar(db, ruta: str) -> int:
+    """Mete los tramos exportados. Lo que no case por (kind, url) se dice."""
+    import json
+
+    with open(ruta, encoding="utf-8") as fh:
+        datos = json.load(fh)
+    hechas = 0
+    for d in datos:
+        src = db.execute(
+            select(InterpretationSource).where(
+                InterpretationSource.kind == d["kind"],
+                InterpretationSource.url == d["url"],
+            )
+        ).scalar_one_or_none()
+        if src is None:
+            log(f"  sin pareja aquí: [{d['kind']}] {d['url'][:70]}", "warn")
+            continue
+        n = guardar_segmentos(db, src.id, d["segmentos"])
+        log(f"  [{src.id}] {n} tramos · {(src.title or src.url)[:60]}")
+        hechas += 1
+    log(f"Importadas {hechas}/{len(datos)} fuentes")
+    return hechas
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--kind", action="append", default=None,
@@ -69,11 +129,21 @@ def main() -> None:
                     help="pagar Whisper para lo que no tenga subtítulos")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--export", metavar="FICHERO",
+                    help="vuelca a JSON los tramos ya recuperados")
+    ap.add_argument("--import", dest="importar", metavar="FICHERO",
+                    help="mete en esta BD los tramos de un volcado")
     args = ap.parse_args()
 
     kinds = tuple(args.kind) if args.kind else KINDS_POR_DEFECTO
 
     with SessionLocal() as db:
+        if args.export:
+            exportar(db, args.export)
+            return
+        if args.importar:
+            importar(db, args.importar)
+            return
         pendientes = _sin_segmentos(db, kinds)
         if args.limit:
             pendientes = pendientes[: args.limit]
