@@ -1,0 +1,44 @@
+{
+  "_nota": "Caso real. Item 348 de instagram_queue, publicado el 17-09-2026 y localizado el 22-09-2026. Todos los payloads son literales, grabados de las APIs reales. No editar a mano: si una respuesta cambia, se regraba.",
+  "item_id": 348,
+  "ig_media_id": "18023952173704216",
+  "day": "2026-09-10",
+  "published_at": "2026-09-17T16:30:38Z",
+  "media_type": "CAROUSEL",
+  "source_name": "Canal Extremadura",
+  "source_url_rss": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxOYTd6RGZHX0VCYTFnVGZPSVhVQ1ZseldYRWlRcnNNZUg4SUJ5c2c1RS1lWV9XaG1oSGtQV2g4VVdzekluWHloLVJzbUdQZTFHUEE0UlZvejB3dnpUQ2FjOVBsMHkxclFYVXBzcGdGQUxFLXNWT21HbDdQdmNaRzE3RGJMbXk0M192bkliVTNuVVc5QTJFUTdrQ21UbzRLa1dJQ3NnT0dveUFhZEl5WHpNN1FBRVhnZUx2WGJ4Y1ZENGxTbHkyV2pRag?oc=5",
+  "source_url_real": "http://www.canalextremadura.es/noticias/extremadura/guardiola-reivindica-el-talento-y-el-lema-inspirado-en-robe-iniesta-en-el-dia",
+  "title": "Guardiola reivindica el talento y el lema inspirado en Robe en el Día de Extremadura",
+  "summary": "",
+  "_summary_nota": "VACIO en la BD. El modelo escribio 4 frases, eligio foto y monto 5 diapositivas SOLO con el titular.",
+
+  "identidad_correcta": {
+    "qid": "Q115151208",
+    "label": "María Guardiola",
+    "description": "política española",
+    "cargo_en_la_noticia": "presidenta de la Junta de Extremadura",
+    "span_literal": "La presidenta de la Junta de Extremadura, María Guardiola , ha felicitado con un mensaje en sus redes sociales"
+  },
+  "identidad_publicada": {
+    "qid": "Q164038",
+    "label": "Pep Guardiola",
+    "description": "futbolista y entrenador español"
+  },
+
+  "fallos": [
+    {
+      "tipo": "identidad",
+      "detalle": "El titular solo dice 'Guardiola'. Wikidata con ese surface pelado no devuelve ni a la presidenta ni al entrenador (da apellido, genero de plantas, municipios). El nombre completo 'María Guardiola' SOLO aparece en el cuerpo del articulo, que nunca se descargo."
+    },
+    {
+      "tipo": "relacion_inventada",
+      "detalle": "El caption afirma que 'figuras del mundo del futbol como Guardiola reconozcan la influencia de Robe'. El articulo NO dice que nadie sea fan de Robe: dice que el LEMA del Dia de Extremadura ('sin pedir permiso') hace un guiño a Robe, y que la presidenta lo uso."
+    }
+  ],
+
+  "desambiguacion": {
+    "_nota": "Con el nombre del cuerpo, el primer candidato ya es el correcto. Pero el segundo es 'Maria Baptista dos Santos Guardiola, politica portuguesa': las dos son politicas, asi que un lexico de dominio NO basta. Lo que desambigua es el contexto literal de la noticia (Junta de Extremadura).",
+    "surface_titular": "Guardiola",
+    "surface_cuerpo": "María Guardiola"
+  }
+}
