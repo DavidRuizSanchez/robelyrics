@@ -69,6 +69,12 @@ _DOMAIN_LEXICONS: dict[str, tuple[str, ...]] = {
         "actor", "actriz", "actress", "cineasta", "film director", "pelicula",
         "cinema", "guionista", "screenwriter",
     ),
+    # Sale a menudo en este sitio: Pasapalabra, La Revuelta, El Hormiguero…
+    "television": (
+        "concursante", "presentador", "presentadora", "programa de televis",
+        "tertulian", "colaborador de televis", "reality", "plato de televis",
+        "television host", "tv presenter", "contestant",
+    ),
     "ciencia": (
         "cientific", "scientist", "investigador", "researcher", "profesor",
         "physicist", "biolog", "quimic", "matematic",

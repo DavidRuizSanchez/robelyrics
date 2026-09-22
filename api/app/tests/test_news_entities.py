@@ -132,10 +132,24 @@ def test_un_contexto_de_futbol_si_lleva_al_entrenador(wiki, sin_corpus):
 
 
 def test_si_wikidata_no_conoce_a_nadie_no_se_inventa(wiki, sin_corpus):
+    """Sin identidad y sin que el artículo diga quién es: callado del todo."""
     wiki([])
-    r = ne.resolve(None, ne.Mention("Zerkalov Pipistrelli", "person", "un cantante", "mentioned"))
+    r = ne.resolve(None, ne.Mention("Zerkalov Pipistrelli", "person", "", "mentioned"))
     assert r.status == ne.UNRESOLVED
     assert r.silenciada is True
+    assert r.da_foto is False
+
+
+def test_a_quien_el_articulo_describe_se_le_nombra_pero_sin_foto(wiki, sin_corpus):
+    """Calibrado en producción: exigir Wikidata a todo el mundo tumbaba cualquier
+    noticia sobre gente corriente."""
+    wiki([])
+    r = ne.resolve(
+        None, ne.Mention("Moisés", "person", "concursante riojano", "subject")
+    )
+    assert r.silenciada is False
+    assert r.da_foto is False
+    assert r.descripcion_efectiva == "concursante riojano"
 
 
 # --- La extracción: el LLM propone, el artículo dispone --------------------- #

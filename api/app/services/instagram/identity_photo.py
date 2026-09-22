@@ -226,8 +226,11 @@ def find_for_entity(
     es la regla dura. Publicar una foto de alguien de quien no sabemos quién es
     no es un riesgo menor por ser una foto bonita.
     """
-    if entity is None or entity.silenciada:
-        logger.info("[foto] entidad sin identificar: no se busca foto.")
+    if entity is None or not entity.da_foto:
+        # Ojo al matiz: NO es `silenciada`. Una entidad que el artículo describe
+        # («Moisés, concursante riojano») sí se puede nombrar, pero no se le sale
+        # a buscar la cara por internet — ahí es donde se coló la de Pep.
+        logger.info("[foto] sin identidad acreditada: no se busca foto.")
         return None
 
     exclude = exclude or set()

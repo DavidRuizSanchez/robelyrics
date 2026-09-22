@@ -42,6 +42,10 @@ def resolver_entidades(db, topic: dict) -> list[ne.ResolvedEntity]:
     """Identifica a quién nombra el artículo y aplica la regla del sujeto."""
     entidades = ne.resolve_all(db, topic.get("material") or "", topic.get("title") or "")
 
+    # `silenciada`, no «no resuelta»: una persona corriente a la que el artículo
+    # identifica («Moisés, concursante riojano») no tumba la noticia — no está en
+    # Wikidata ni va a estarlo. Lo que la tumba es un nombre del que NI EL
+    # ARTÍCULO dice quién es, que es con el que se confunde a un homónimo famoso.
     sujetos_perdidos = [
         e for e in entidades if e.mention.es_sujeto and e.silenciada
     ]
@@ -60,6 +64,9 @@ def resolver_entidades(db, topic: dict) -> list[ne.ResolvedEntity]:
     silenciadas = ne.silenciadas(entidades)
     if silenciadas:
         logger.info("[redaccion] silenciadas (no se nombran): %s", ", ".join(silenciadas))
+    solo_texto = [n for n in ne.sin_foto(entidades) if n not in silenciadas]
+    if solo_texto:
+        logger.info("[redaccion] se nombran pero no dan foto: %s", ", ".join(solo_texto))
     return entidades
 
 

@@ -119,16 +119,57 @@ class ResolvedEntity:
 
     @property
     def resuelta(self) -> bool:
+        """Tiene identidad acreditada fuera del artículo (corpus o Wikidata)."""
         return self.status in (CORPUS, WIKIDATA)
 
     @property
+    def descrita_por_el_articulo(self) -> bool:
+        """El artículo dice quién es, aunque no exista en ninguna base de datos.
+
+        La mayoría de la gente que sale en una noticia es así: un concursante de
+        un concurso, un vecino, un músico de un pueblo. No están en Wikidata y no
+        van a estarlo nunca.
+        """
+        return bool(self.mention.context)
+
+    @property
+    def da_foto(self) -> bool:
+        """Solo se le busca cara a quien está identificado FUERA del artículo.
+
+        Que una noticia diga «Moisés, concursante riojano» no da para salir a
+        buscar su foto por internet: ahí es donde se coló la de Pep Guardiola.
+        """
+        return self.resuelta
+
+    @property
     def silenciada(self) -> bool:
-        """Sin identidad acreditada: no se nombra, no da foto, no da hashtag."""
-        return not self.resuelta
+        """Ni identificada ni descrita: no se nombra siquiera.
+
+        Calibrado el 23-09-2026 después de probarlo en producción. La primera
+        versión exigía identidad a TODO sujeto, y tumbaba cualquier noticia sobre
+        gente corriente: la primera con la que se probó se descartó porque
+        «Moisés», un concursante de Pasapalabra, tiene en Wikidata al profeta
+        bíblico y poco más. Una guarda que rechaza lo bueno acaba apagada.
+
+        El daño del item 348 no fue no saber quién era: fue ponerle la FOTO de
+        otro y atribuirle un oficio y una afinidad que nadie había dicho. Eso lo
+        cierran `da_foto`, `caption_guard.contradice_la_identidad` y la
+        verificación de relaciones contra el artículo. Lo que queda aquí es el
+        caso de verdad peligroso: un nombre del que NI SIQUIERA el artículo dice
+        quién es — el «Guardiola» del titular pelado— y que por tanto se puede
+        confundir con un homónimo famoso.
+        """
+        return not (self.resuelta or self.descrita_por_el_articulo)
+
+    @property
+    def descripcion_efectiva(self) -> str:
+        """Lo que sabemos de ella: su descripción canónica o, si no la hay, lo
+        que el artículo dice que es."""
+        return self.description or self.mention.context or ""
 
     @property
     def nombre_publicable(self) -> str | None:
-        return self.label if self.resuelta else None
+        return self.label or (self.mention.surface if self.descrita_por_el_articulo else None)
 
 
 # --------------------------------------------------------------------------- #
@@ -444,5 +485,10 @@ def sujeto(entidades: list[ResolvedEntity]) -> ResolvedEntity | None:
 
 
 def silenciadas(entidades: list[ResolvedEntity]) -> list[str]:
-    """Nombres que NO pueden aparecer en el texto por no estar identificados."""
+    """Nombres que NO pueden aparecer en el texto: ni identificados ni descritos."""
     return [e.mention.surface for e in entidades if e.silenciada]
+
+
+def sin_foto(entidades: list[ResolvedEntity]) -> list[str]:
+    """Nombrables, pero sin identidad acreditada fuera del artículo: no dan cara."""
+    return [e.mention.surface for e in entidades if not e.da_foto]

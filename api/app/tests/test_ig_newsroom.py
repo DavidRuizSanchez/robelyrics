@@ -17,16 +17,20 @@ from app.services import news_entities as ne
 from app.services.instagram import newsroom
 
 
-def _ent(surface, status, *, role="mentioned", label=None, kind="person"):
+def _ent(surface, status, *, role="mentioned", label=None, kind="person", contexto=""):
+    """`contexto` es lo que el ARTÍCULO dice que es. Importa: una entidad sin
+    identificar pero descrita por el artículo se puede nombrar (no da foto); una
+    sin contexto no, porque es con la que se confunde a un homónimo famoso."""
     return ne.ResolvedEntity(
-        mention=ne.Mention(surface, kind, "ctx" if role == "subject" else "", role),
+        mention=ne.Mention(surface, kind, contexto, role),
         status=status,
         label=label or surface,
         reason="motivo de prueba",
     )
 
 
-IDENTIFICADA = _ent("María Guardiola", ne.WIKIDATA, role="subject")
+IDENTIFICADA = _ent("María Guardiola", ne.WIKIDATA, role="subject",
+                    contexto="la presidenta de la Junta")
 DUDOSA = _ent("Guardiola", ne.AMBIGUOUS, role="mentioned")
 PERDIDA = _ent("Fulano", ne.UNRESOLVED, role="mentioned")
 
@@ -50,8 +54,9 @@ def test_las_palabras_muy_cortas_no_disparan_solas():
 
 # --- La regla del sujeto ----------------------------------------------------- #
 def test_si_no_sabemos_de_quien_va_la_noticia_no_hay_post(monkeypatch):
+    """Sin contexto NI identidad: el «Guardiola» del titular pelado."""
     monkeypatch.setattr(ne, "resolve_all", lambda db, m, t: [
-        _ent("Guardiola", ne.AMBIGUOUS, role="subject"),
+        _ent("Guardiola", ne.AMBIGUOUS, role="subject", contexto=""),
     ])
     with pytest.raises(newsroom.SujetoNoIdentificado) as exc:
         newsroom.resolver_entidades(None, {"material": "x", "title": "t"})
@@ -69,7 +74,7 @@ def test_basta_con_que_UN_sujeto_este_identificado(monkeypatch):
     lugar). Perder uno secundario no la deja sin tema."""
     monkeypatch.setattr(ne, "resolve_all", lambda db, m, t: [
         IDENTIFICADA,
-        _ent("No sé quién", ne.UNRESOLVED, role="subject"),
+        _ent("No sé quién", ne.UNRESOLVED, role="subject", contexto=""),
     ])
     ents = newsroom.resolver_entidades(None, {"material": "x", "title": "t"})
     assert "No sé quién" in ne.silenciadas(ents)
@@ -172,3 +177,36 @@ def test_sin_entidades_el_prompt_no_se_ensucia():
     from app.services.instagram.editorial import _bloque_entidades
 
     assert _bloque_entidades([]) == ""
+
+
+# --- La calibración del 23-09-2026 ------------------------------------------ #
+def test_una_persona_corriente_a_la_que_el_articulo_identifica_no_tumba_el_post(monkeypatch):
+    """Probado en producción: la primera noticia real con la que se ensayó el
+    circuito se descartó porque «Moisés», un concursante de Pasapalabra, tiene en
+    Wikidata al profeta bíblico y poco más. La mayoría de la gente que sale en
+    una noticia no está en ninguna base de datos ni va a estarlo."""
+    moises = _ent("Moisés", ne.AMBIGUOUS, role="subject", contexto="concursante riojano")
+    monkeypatch.setattr(ne, "resolve_all", lambda db, m, t: [moises])
+    ents = newsroom.resolver_entidades(None, {"material": "x", "title": "t"})
+    assert ne.silenciadas(ents) == [], "el artículo dice quién es: se puede nombrar"
+
+
+def test_pero_a_esa_persona_no_se_le_busca_la_cara():
+    """Que la noticia diga «concursante riojano» no da para salir a buscar su
+    foto por internet: ahí es donde se coló la de Pep Guardiola."""
+    moises = _ent("Moisés", ne.AMBIGUOUS, role="subject", contexto="concursante riojano")
+    assert moises.da_foto is False
+    assert moises.silenciada is False
+    assert ne.sin_foto([moises]) == ["Moisés"]
+
+
+def test_el_identificado_de_verdad_si_da_foto():
+    assert IDENTIFICADA.da_foto is True
+
+
+def test_sin_contexto_y_sin_identidad_sigue_callado():
+    """El caso peligroso de verdad, que es el que había: un nombre del que ni el
+    artículo dice quién es, y que por eso se puede confundir con un famoso."""
+    pelado = _ent("Guardiola", ne.AMBIGUOUS, role="mentioned", contexto="")
+    assert pelado.silenciada is True
+    assert pelado.da_foto is False

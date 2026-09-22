@@ -265,15 +265,20 @@ def contradice_la_identidad(
 
     problemas: list[str] = []
     for e in entidades:
-        if not e.resuelta or not e.description:
+        # `descripcion_efectiva` es la de Wikidata o, si no la hay, lo que el
+        # artículo dice que es. Así también se protege a quien no está en ninguna
+        # base de datos: si la noticia dice «concursante riojano» y el caption lo
+        # convierte en futbolista, salta igual.
+        referencia = e.descripcion_efectiva
+        if e.silenciada or not referencia:
             continue
         nombre = e.label or e.mention.surface
         for frase in _frases_con(nombre, texto) + _frases_con(e.mention.surface, texto):
-            intruso = conflicto_de_dominio(e.description, frase)
+            intruso = conflicto_de_dominio(referencia, frase)
             if intruso:
                 problemas.append(
                     f"El texto sitúa a {nombre} en el mundo de {intruso}, y es "
-                    f"{e.description}: «{frase.strip()[:90]}»"
+                    f"{referencia}: «{frase.strip()[:90]}»"
                 )
                 break
     return problemas

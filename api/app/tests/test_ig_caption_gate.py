@@ -207,3 +207,19 @@ def test_el_articulo_y_el_caption_no_la_llaman_igual(sin_llm):
 def test_un_nombre_de_una_sola_palabra_no_genera_variantes_raras(sin_llm):
     assert caption_guard._variantes("Extremoduro") == ["Extremoduro"]
     assert "Guardiola" in caption_guard._variantes("María Guardiola")
+
+
+def test_tambien_se_protege_a_quien_no_esta_en_ninguna_base_de_datos(sin_llm):
+    """La calibración del 23-09-2026 permite nombrar a quien el artículo
+    describe, aunque no exista en Wikidata. Pero seguir permitiéndolo NO puede
+    significar que se le pueda cambiar el oficio: la referencia pasa a ser lo que
+    dice el artículo."""
+    concursante = ne.ResolvedEntity(
+        mention=ne.Mention("Moisés", "person", "concursante riojano", "subject"),
+        status=ne.AMBIGUOUS, label=None, description=None,
+    )
+    assert concursante.silenciada is False
+    texto = "Moisés, el diputado del Parlamento, cantó So payaso."
+    problemas = caption_guard.contradice_la_identidad(texto, [concursante])
+    assert problemas, "le ha cambiado el oficio y nadie lo ha parado"
+    assert "concursante riojano" in problemas[0]
