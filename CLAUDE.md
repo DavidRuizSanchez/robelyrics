@@ -39,6 +39,10 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.news.aggregate           (27 fuentes → news_items)
 # docker compose exec api python -m scripts.instagram.prepare_daily  (selecciona temas y prepara IG)
 # docker compose exec api python -m scripts.instagram.publish_next   (publica el siguiente post)
+# docker compose exec api python -m scripts.instagram.seed_video_assets  (catálogo de vídeo elegible)
+# docker compose exec api python -m scripts.instagram.propose_clips      (propone clips; NO publica)
+# docker compose exec api python -m scripts.instagram.notify_clips       (correo con los clips montados)
+# python -m scripts.research.backfill_segments             (tiempos de las transcripciones; LOCAL)
 # docker compose exec api python -m scripts.graph.embed_entity_bios  (vectoriza bio_long → entities_v1)
 # docker compose exec api python -m scripts.graph.build_graph        (SIEMPRE el ÚLTIMO: reconstruye entity_edges)
 ```
@@ -565,6 +569,95 @@ discos suman 2 páginas de álbum y **cero** páginas de canción.
   Va en las dos plantillas, pública y `/biblioteca` (paridad).
 - `deep_research._hard_facts` inyecta el tracklist real con su disco de origen.
   Sin eso el motor escribía sobre un disco cuyo contenido no conocía.
+
+## Las slides no las escribía nadie
+
+`carousel._frases` era un `re.split()` por puntos sobre el resumen que cogía las
+tres primeras frases de más de 40 caracteres y les ponía «CLAVE 01» encima. El
+carrusel no tenía autor, y de ahí salían «Un Canto a la Libertad» y «La
+Evolución Musical de Extremoduro», que están publicados.
+
+Faltaban tres cosas, y ninguna había que inventarla:
+
+- **La voz.** `voice.build_system_prompt` la usan blog, fichas y consultorio;
+  Instagram tenía un system prompt propio, defensivo, sin una línea sobre quién
+  lee. Ahora hay `family="instagram"`, así que IG hereda las reglas duras del
+  sitio (nombre, raya larga, no inventar, no presenciar, 4 líneas de letra). Lo
+  que NO se le pasa es `speech_style()`: ese manual es de cómo habla ROBE, y en
+  IG Robe no habla — es del consultorio y ahí se queda.
+- **El material.** `instagram/material` reúne los pasajes del corpus que
+  responden al tema y el dossier de las entidades del catálogo. Devuelve dos
+  montones que no son lo mismo: `prompt` (todo, atribuido, para escribir) y
+  `verificable` (solo nuestras fichas, para las guardas). Un análisis de un
+  tercero es buen material para citarlo y una fuente pésima para dar por buena
+  una relación nueva.
+- **El juicio de si merece leerse.** `caption_guard` dice si es VERDAD;
+  `tono_guard` dice si dice algo. Sus fórmulas son literales medidos en
+  producción, y **viajan también al prompt**: que la guarda conozca una lista y
+  el prompt no es hacer que el modelo la adivine a base de rechazos.
+
+**El texto nuevo pasa por las guardas.** `newsroom.texto_publicado` incluye las
+slides y el cierre. Mientras eran un troceo del caption daba igual —ese texto ya
+estaba revisado—, pero en cuanto alguien las escribe son texto nuevo, y texto
+nuevo sin gate es por donde entró el post de Guardiola.
+
+Evergreen y blog entran al mismo camino. Su texto de partida sigue intocable (un
+verso es de quien lo escribió, y en `quote` la tarjeta lleva el verso: dejar que
+el modelo le pusiera título daba «Lágrimas Invisibles» encima de una letra de
+Robe). **Sin material no se llama al modelo**: la regla no era «no usar IA», era
+«no inventar».
+
+Dos falsos positivos medidos, los dos tumbando noticias legítimas:
+
+- Se le pedía al artículo que demostrara «Robe — versionó a — Extremoduro»,
+  porque las dos están siempre en `_entidades_conocidas`. Una relación entre dos
+  entidades DE CASA no es una afirmación nueva: es de lo que va la web.
+- Un solo reintento para todo. Ahora mentir y sonar a molde se distinguen
+  (`Veredicto.estilo`): a un «no escribas "la esencia de Robe"» se le puede
+  hacer caso y se da un intento más; el listón de los hechos no se mueve.
+
+Ojo con los topes de las slides: están calibrados contra slides reales, no a
+ojo. Con el mínimo en 70 caracteres se descartaba «Pablo Recuero Pérez dirige y
+arregla el espectáculo sinfónico» (62), que es justo el dato que se pide.
+
+## Un clip se elige solo, pero no se publica solo
+
+Lo único manual que quedaba era ver el vídeo y teclear `desde` y `hasta`. Todo
+lo demás ya estaba: montaje 9:16, veto de canales, atribución quemada, retirada
+en un paso y el daemon de la Mac.
+
+**Los tiempos estaban ahí y se tiraban.** Whisper los devuelve con
+`verbose_json` y los subtítulos de YouTube traen `start` y `duration`; los dos
+caminos aplanaban a texto corrido. Ahora viven en `source_segments`, con el
+offset del troceo sumado — sin él, los tiempos del segundo trozo mienten en
+veinte minutos. Consecuencia medida: de las 16 entrevistas del corpus, **15 se
+recuperaron gratis** desde los subtítulos (`scripts.research.backfill_segments`,
+que prueba primero lo gratis y solo paga Whisper con `--whisper`).
+
+**El veto de canal pasa a ser previo** (`video_assets`): antes solo se conocía el
+canal real tras descargar, y un preselector así quemaría descargas e intentos.
+Sin metadatos no se da por bueno: no saber de qué canal es un vídeo es lo que el
+veto tiene que atrapar.
+
+**`clip_picker`** puntúa ventanas de 20-45 s por densidad de habla, menciones del
+catálogo, primera persona y limpieza del corte. La frontera se CLASIFICA
+(`puntuacion` / `pausa` / `aproximada`) en vez de disfrazarse de exacta: los
+subtítulos automáticos llegan sin puntuación, y dar un corte por limpio porque
+no se encontró un punto sería justo al revés. Dos cosas que la primera pasada
+real destapó: dos de los cinco mejores candidatos eran «bienvenidos al canal», y
+se elegían tramos del arranque, que son de quien sube el vídeo.
+
+**El orden importa**: `propose_clips` encola en `proposed` (fuera del goteo), el
+daemon lo monta, y SOLO ENTONCES `notify_clips` manda el correo con el vídeo
+real. Avisar antes sería pedir que se apruebe una idea. Un botón por clip, nunca
+«aprobar todos». Al aprobar entra en la cola por el final y sale con el resto; al
+descartar se retira de Cloudinary.
+
+Lo que dice un tramo sirve para ELEGIRLO, no para afirmarlo: el título del post
+sale de la procedencia (vídeo y canal), no de resumir la transcripción, que trae
+erratas conocidas. Y los medios grandes (Movistar+, RTVE, EL PAÍS, RockFM) no se
+vetan —no son discográficas— pero sí se **marcan** en el correo: se reclaman
+antes que el clip de un fan, y quien aprueba merece saberlo.
 
 ## Decisiones que NO hay que reabrir
 
