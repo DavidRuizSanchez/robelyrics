@@ -110,7 +110,14 @@ def main() -> None:
     with SessionLocal() as db:
         rows = db.execute(
             select(InstagramQueueItem)
-            .where(InstagramQueueItem.status == "proposed")
+            .where(
+                InstagramQueueItem.status == "proposed",
+                # Los clips NO: tienen su propio correo, con el vídeo montado y
+                # un botón por clip. Aquí se invita a aprobar EN BLOQUE, y un
+                # clip es el vídeo de otra persona publicado sin pedir permiso:
+                # esos se miran de uno en uno.
+                InstagramQueueItem.content_type != "clip",
+            )
             .order_by(InstagramQueueItem.content_type, InstagramQueueItem.created_at.desc())
         ).scalars().all()
 
