@@ -171,7 +171,8 @@ def _openai_espia(capturado: dict):
             capturado["user"] = kw["messages"][1]["content"]
             return _RespuestaFalsa(
                 '{"comentario": "c", "titular": "t", "image_query": "q", '
-                '"image_search": "s", "hashtags": ["#X"]}'
+                '"image_search": "s", "hashtags": ["#X"], '
+                '"slides": [{"kicker": "1997", "text": "x"}], "cierre": "z"}'
             )
 
     return _FakeOpenAI
@@ -183,11 +184,14 @@ def test_el_articulo_viaja_al_prompt_entero(monkeypatch):
     titular y un extracto vacío."""
     visto = {}
 
-    def _fake(title, summary, category, tone="neutral", *, material="", entidades=None,
+    def _fake(title, summary, category, tone="neutral", *, material="", corpus="",
+              content_type="news", texto_base="", entidades=None,
               correcciones=None):  # noqa: ANN001
         visto["material"] = material
         visto["title"] = title
-        return ("cuerpo", "titular", "q", "s", ["#X"])
+        return {"comentario": "cuerpo", "titular": "titular", "slides": [],
+                "cierre": "", "image_query": "q", "image_search": "s",
+                "hashtags": ["#X"]}
 
     monkeypatch.setattr(editorial, "_generate", _fake)
     editorial.enrich({
@@ -205,9 +209,9 @@ def test_el_cuerpo_va_dentro_del_mensaje_que_recibe_el_modelo(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(editorial, "OpenAI", _openai_espia(capturado))
 
-    cuerpo, *_ = editorial._generate(TITULAR, "", "Actualidad", material=ARTICULO)
+    datos = editorial._generate(TITULAR, "", "Actualidad", material=ARTICULO)
 
-    assert cuerpo == "c", "el resto de _generate tiene que seguir funcionando"
+    assert datos["comentario"] == "c", "el resto de _generate tiene que seguir funcionando"
     assert "María Guardiola" in capturado["user"]
     assert "presidenta de la Junta de Extremadura" in capturado["user"]
 

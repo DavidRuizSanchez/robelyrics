@@ -27,6 +27,7 @@ from app.db.models import (
     Song,
     VideoClip,
 )
+from app.services.instagram import material as material_ig
 from app.services.instagram import (
     album_cover,
     captions,
@@ -311,6 +312,47 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
         db.rollback()
 
 
+def _redactar_con_corpus(db: Session, topic: dict) -> None:
+    """Escribe el comentario y las slides de un post de material propio.
+
+    Evergreen y blog no pasaban por ningún redactor: su texto salía del corpus
+    verificado y las slides eran un troceo del resumen. El texto de partida
+    SIGUE siendo intocable (un verso es de quien lo escribió), pero lo que se
+    cuenta alrededor ahora lo escribe alguien, con el corpus delante.
+
+    Si no hay material, no se llama al modelo: el post sale exactamente como
+    salía. La regla no era «no usar IA», era «no inventar».
+    """
+    topic["texto_base"] = (
+        topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
+    ).strip()
+    mat = material_ig.reunir(db, topic)
+    if not mat:
+        logger.info(
+            "[prepare] sin material de casa para «%s»: se deja el texto tal cual",
+            (topic.get("title") or "")[:60],
+        )
+        return
+    topic["material_corpus"] = mat.prompt
+    # El material contra el que se ancla incluye el texto de partida: el verso o
+    # la efeméride son un hecho del post tanto como lo que dice el corpus.
+    material = f"{topic['texto_base']}\n\n{mat.prompt}"
+    try:
+        avisos = newsroom.escribir(db, topic, [], material=material, verificar_rel=False)
+    except newsroom.TextoNoPublicable as exc:
+        # Un evergreen no se tira por esto: su texto ya era publicable antes de
+        # que existiera el redactor. Se queda sin slides escritas y sigue.
+        logger.warning("[prepare] redacción descartada: %s", exc)
+        topic["caption_body"] = topic["texto_base"]
+        topic.pop("slides", None)
+        topic.pop("cierre", None)
+        topic.setdefault("avisos", []).append(
+            "Las slides no pasaron las guardas: el post va con el texto de siempre."
+        )
+        return
+    topic["avisos"] = list(topic.get("avisos") or []) + avisos
+
+
 def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     """Genera imagen y caption para un item de la cola (sin publicar)."""
     topic = _topic_from_item(db, item)
@@ -345,9 +387,19 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         # El contenido se basta solo: sin verso ornamental (evita duplicarlo en
         # los posts de frase, donde el verso YA es el titular).
         topic["verse"] = {}
+        # El texto del evergreen (el verso, la efeméride, la cita) es DEFINITIVO
+        # y ajeno: no se reescribe. Lo que sí se escribe ahora es lo de
+        # alrededor —el comentario y las slides—, y solo si hay material de casa
+        # que lo respalde. Sin material, el post sale como salía: eso es lo que
+        # protegía la regla de «en evergreen no se llama al LLM», y se mantiene.
+        _redactar_con_corpus(db, topic)
     else:
         # Las noticias se reescriben con voz editorial propia (sin citar al
         # medio); los posts del blog ya traen su texto y su imagen destacada.
+        if is_blog:
+            # El cuerpo del post no se toca (lo escribió el motor profundo), pero
+            # sus slides también las escribe alguien ahora.
+            _redactar_con_corpus(db, topic)
         if not is_blog:
             material = (topic.get("material") or "").strip()
             if not material:
@@ -359,7 +411,19 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # Antes de escribir: saber de quién se habla. Lo que no se
             # identifica no se nombra (`newsroom`, regla dura).
             entidades = newsroom.resolver_entidades(db, topic)
-            avisos = newsroom.escribir(db, topic, entidades)
+            # Y qué sabemos NOSOTROS del tema. El artículo cuenta lo que ha
+            # pasado; el corpus es lo que hace que el post sea de esta cuenta y
+            # no del medio: la canción, la letra, lo que dijo Robe.
+            mat = material_ig.reunir(db, topic, entidades=entidades)
+            topic["material_corpus"] = mat.prompt
+            # Anclarse vale con todo el material (una anotación citada es un
+            # apoyo legítimo); AFIRMAR una relación nueva, solo con el artículo
+            # y nuestras propias fichas.
+            avisos = newsroom.escribir(
+                db, topic, entidades,
+                material=f"{material}\n\n{mat.verificable}".strip(),
+                material_verificable=f"{material}\n\n{mat.verificable}".strip(),
+            )
             topic["avisos"] = avisos
             # Fuente de imagen por prioridad:
             #   1) Portada del disco si el tema trata sobre uno de la discografía.

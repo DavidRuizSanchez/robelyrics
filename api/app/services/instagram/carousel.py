@@ -64,6 +64,27 @@ def prosa(markdown: str, max_chars: int = 2000) -> str:
     return txt[:max_chars]
 
 
+def _atribucion_corpus(corpus: dict) -> str:
+    """«Canción» / artista / disco (año), tal y como va en la tarjeta."""
+    texto = f'«{corpus["song"]}»'
+    if corpus.get("artist"):
+        texto += f'\n{corpus["artist"]}'
+    if corpus.get("album"):
+        anio = f' ({corpus["year"]})' if corpus.get("year") else ""
+        texto += f'\n{corpus["album"]}{anio}'
+    return texto
+
+
+def _closing(topic: dict) -> dict:
+    """La última tarjeta. Lleva el cierre escrito para ESTE post, si lo hay.
+
+    El contador «Día N sin Robe» se queda: es la firma de la serie y la
+    identidad de la cuenta. Lo que cambia es que deje de ser el único texto, que
+    era lo que hacía que todos los carruseles terminaran igual.
+    """
+    return {"layout": "closing", "text": (topic.get("cierre") or "").strip()}
+
+
 def _frases(texto: str, minimo: int = 40) -> list[str]:
     """Trocea en frases con sustancia (las muy cortas no llenan una diapositiva)."""
     limpio = re.sub(r"\s+", " ", (texto or "").strip())
@@ -71,6 +92,30 @@ def _frases(texto: str, minimo: int = 40) -> list[str]:
         return []
     trozos = re.split(r'(?<=[.!?…])\s+(?=[A-ZÁÉÍÓÚÑ«¿¡"])', limpio)
     return [t.strip() for t in trozos if len(t.strip()) >= minimo]
+
+
+def _redactadas(topic: dict, content_type: str) -> list[dict]:
+    """Las slides que ha ESCRITO `editorial`, si las hay.
+
+    Este es el camino normal desde que las slides tienen autor. El troceo de
+    `_frases` queda debajo como red: sin clave de OpenAI, con el modelo caído o
+    en un evergreen sin material, el carrusel sigue saliendo como salía.
+    """
+    slides = topic.get("slides") or []
+    layout = "verse" if content_type in ("quote", "anecdote", "robe_quote") else "fact"
+    out = []
+    for s in slides:
+        texto = (s.get("text") or "").strip()
+        if not texto:
+            continue
+        out.append({
+            "layout": layout,
+            "text": texto,
+            # Sin kicker propio no se inventa un contador: se deja sin etiqueta,
+            # que se ve mejor que un «CLAVE 01» encima de una frase cualquiera.
+            "kicker": (s.get("kicker") or "").strip(),
+        })
+    return out[: MAX_SLIDES - 2]
 
 
 def plan(topic: dict, content_type: str) -> list[dict] | None:
@@ -84,17 +129,28 @@ def plan(topic: dict, content_type: str) -> list[dict] | None:
 
     specs: list[dict] = [{"layout": "cover", "text": titulo}]
 
+    redactadas = _redactadas(topic, content_type)
+    if redactadas:
+        # En los posts de verso, la ficha de la canción sigue yendo primero: es
+        # el dato que la gente pide en comentarios (de qué canción es).
+        if content_type == "quote" and corpus.get("song") and corpus.get("album"):
+            specs.append({
+                "layout": "fact",
+                "text": _atribucion_corpus(corpus),
+                "kicker": "DE DÓNDE SALE",
+            })
+        specs.extend(redactadas)
+        specs = specs[: MAX_SLIDES - 1] + [_closing(topic)]
+        if len(specs) < MIN_SLIDES + 1:
+            return None
+        return specs
+
     if content_type == "quote":
         # El verso ya es la portada; el desarrollo es su ficha y su contexto.
         if not (corpus.get("song") and corpus.get("album")):
             return None
-        atribucion = f'«{corpus["song"]}»'
-        if corpus.get("artist"):
-            atribucion += f'\n{corpus["artist"]}'
-        if corpus.get("album"):
-            anio = f' ({corpus["year"]})' if corpus.get("year") else ""
-            atribucion += f'\n{corpus["album"]}{anio}'
-        specs.append({"layout": "fact", "text": atribucion, "kicker": "DE DÓNDE SALE"})
+        specs.append({"layout": "fact", "text": _atribucion_corpus(corpus),
+                      "kicker": "DE DÓNDE SALE"})
 
     elif content_type in ("anecdote", "robe_quote"):
         beats = _frases(cuerpo)
@@ -115,11 +171,14 @@ def plan(topic: dict, content_type: str) -> list[dict] | None:
         for i, b in enumerate(beats[: MAX_SLIDES - 2], start=1):
             specs.append({"layout": "fact", "text": b, "kicker": f"CLAVE {i:02d}"})
 
-    specs.append({"layout": "closing", "text": ""})
+    # El cierre se añade DESPUÉS de recortar. Antes se añadía antes y el
+    # `specs[:MAX_SLIDES]` se lo llevaba por delante cuando el desarrollo daba
+    # para cinco: el carrusel acababa a media frase, sin CTA y sin firma.
+    specs = specs[: MAX_SLIDES - 1] + [_closing(topic)]
 
     if len(specs) < MIN_SLIDES + 1:  # portada + 1 desarrollo + cierre
         return None
-    return specs[:MAX_SLIDES]
+    return specs
 
 
 # --------------------------------------------------------------------------- #
@@ -163,9 +222,12 @@ def _slide(topic: dict, spec: dict, indice: int, total: int, seed: int) -> Image
         )
 
     if layout == "closing":
-        titulo = f"Día {config.dias_sin_robe()} sin Robe"
+        # Si hay una frase escrita para ESTE post, es ella la que manda y el
+        # contador baja a firma. Sin frase, se pinta lo de siempre.
+        firma = f"Día {config.dias_sin_robe()} sin Robe"
+        titulo = texto or firma
         fuente, lineas, alto = imaging._fit_headline(
-            draw, titulo, ancho_texto, 320, 3
+            draw, titulo, ancho_texto, 320 if not texto else 420, 3 if not texto else 5
         )
         y = (imaging.SIZE[1] - len(lineas) * alto) // 2 - 40
         for ln in lineas:
@@ -173,6 +235,14 @@ def _slide(topic: dict, spec: dict, indice: int, total: int, seed: int) -> Image
             draw.text(((imaging.SIZE[0] - w) / 2, y), ln, font=fuente,
                       fill=imaging.COL_PAPER)
             y += alto
+        if texto:
+            fuente_firma = imaging._mono(15)
+            w = imaging._tracked_width(draw, firma.upper(), fuente_firma, 4)
+            imaging._draw_tracked(
+                draw, ((imaging.SIZE[0] - w) / 2, y + 22), firma.upper(),
+                fuente_firma, imaging.COL_MUTED, tracking=4,
+            )
+            y += 40
         cta = "MÁS EN ENTREINTERIORES.COM"
         fuente_cta = imaging._mono(17)
         w = imaging._tracked_width(draw, cta, fuente_cta, 4)
