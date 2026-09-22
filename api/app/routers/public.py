@@ -2303,6 +2303,86 @@ def youtube_ingest_approve(token: str, db: Session = Depends(get_db)) -> HTMLRes
 
 
 # --------------------------------------------------------------------------- #
+# Clips de vídeo propuestos — un clic por clip, con el clip ya montado
+# --------------------------------------------------------------------------- #
+from sqlalchemy import func as _func  # noqa: E402
+from sqlalchemy import select as _select  # noqa: E402
+
+from app.db.models import InstagramQueueItem as _QueueItem  # noqa: E402
+from app.db.models import VideoClip as _VideoClip  # noqa: E402
+from app.services.auth import decode_clip_action_token  # noqa: E402
+
+
+@router.get("/clip-action", response_class=HTMLResponse)
+def clip_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One-click desde el correo de clips propuestos.
+
+    Aprobar mete la publicación en la cola normal, al final: sale por el
+    cuentagotas como cualquier otro post, sin fecha fija. Rechazar la descarta y
+    RETIRA el clip, que ya está subido a Cloudinary cuando llega el correo (el
+    correo se manda con el vídeo montado, para poder verlo antes de decidir).
+
+    Idempotente: pulsar dos veces no rompe nada ni publica de más.
+    """
+    data = decode_clip_action_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page("Enlace inválido o caducado.", success=False),
+            status_code=400,
+        )
+    clip = db.get(_VideoClip, data["clip_id"])
+    if clip is None:
+        return HTMLResponse(
+            _render_admin_action_page("Ese clip ya no existe.", success=False),
+            status_code=404,
+        )
+    item = (
+        db.get(_QueueItem, clip.queue_item_id)
+        if clip.queue_item_id else None
+    )
+    accion = data["action"]
+
+    if accion == "approve":
+        if item is None:
+            return HTMLResponse(
+                _render_admin_action_page(
+                    "El clip ya no tiene publicación asociada.", success=False,
+                ),
+                status_code=409,
+            )
+        if item.status != "proposed":
+            return HTMLResponse(_render_admin_action_page(
+                f"Ese clip ya estaba {item.status}; no se ha tocado nada.",
+                success=True,
+            ))
+        pos = db.execute(
+            _select(_func.coalesce(_func.max(_QueueItem.position), -1))
+        ).scalar() or -1
+        item.position = pos + 1
+        item.status = "pending"
+        item.needs_human = False
+        db.commit()
+        return HTMLResponse(_render_admin_action_page(
+            f"✓ Clip aprobado: «{item.title[:80]}». Entra en la cola y sale "
+            "cuando le toque, con el resto de publicaciones.",
+            success=True,
+        ))
+
+    # Rechazar: fuera de la cola y el vídeo se retira de Cloudinary. Un clip que
+    # no se va a publicar no tiene por qué seguir alojado.
+    if item is not None and item.status in ("proposed", "pending", "prepared"):
+        item.status = "discarded"
+    from app.services.instagram import video_clips as _vc
+
+    if clip.status in ("requested", "downloading", "ready"):
+        _vc.retire(db, clip, "descartado desde el correo de propuestas")
+    db.commit()
+    return HTMLResponse(_render_admin_action_page(
+        "Clip descartado y retirado. No se publicará.", success=True,
+    ))
+
+
+# --------------------------------------------------------------------------- #
 # Oportunidades SEO — aprobación en dos fases desde el correo
 # --------------------------------------------------------------------------- #
 from fastapi import BackgroundTasks as _BackgroundTasks  # noqa: E402

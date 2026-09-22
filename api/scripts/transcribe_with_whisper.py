@@ -167,18 +167,22 @@ def extract_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _captions_text(video_id: str) -> str | None:
-    """Intenta bajar los subtítulos (gratis) con youtube-transcript-api.
-    Devuelve el texto o None si no hay subtítulos disponibles."""
+def _captions_segments(video_id: str) -> list[dict] | None:
+    """Los subtítulos (gratis) CON sus tiempos, o None si no hay.
+
+    Devuelve segmentos, no texto: los tiempos son lo que permite después cortar
+    un clip de ese vídeo sin volver a pagar Whisper por un dato que YouTube da.
+    """
     try:
-        from scripts.research.fetch_youtube import fetch_transcript
+        from scripts.research.fetch_youtube import fetch_transcript_segments
     except Exception as e:  # noqa: BLE001
         log(f"  (sin youtube-transcript-api: {e})", "warn")
         return None
-    text = fetch_transcript(video_id)
-    if text and len(text) >= 200:
-        return text
-    return None
+    segmentos = fetch_transcript_segments(video_id)
+    if not segmentos:
+        return None
+    total = sum(len(s["text"]) for s in segmentos)
+    return segmentos if total >= 200 else None
 
 
 def transcribe_to_source(
@@ -194,7 +198,7 @@ def transcribe_to_source(
     Estrategia: SUBTÍTULOS PRIMERO (youtube-transcript-api, gratis); si el vídeo
     no tiene subtítulos, cae a Whisper (audio + API, con coste). `author_is_robe`
     decide el kind: "robe_interview" (habla Robe) vs "about_robe" (terceros)."""
-    from scripts.research.common import clean_text, upsert_source
+    from scripts.research.common import clean_text, guardar_segmentos, upsert_source
 
     vid = extract_video_id(url)
     if not vid:
@@ -204,9 +208,12 @@ def transcribe_to_source(
     kind = "robe_interview" if author_is_robe else "about_robe"
 
     # 1) Subtítulos (gratis)
-    full_text = _captions_text(vid)
-    if full_text:
-        log(f"  subtítulos: {len(full_text)} chars (sin coste Whisper)")
+    segments = _captions_segments(vid)
+    full_text = ""
+    if segments:
+        full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
+        log(f"  subtítulos: {len(full_text)} chars, {len(segments)} tramos "
+            f"(sin coste Whisper)")
     else:
         # 2) Fallback Whisper (audio a 32 kbps para caber en 25 MB)
         audio_path = tmpdir / f"{vid}.mp3"
@@ -224,13 +231,18 @@ def transcribe_to_source(
             return False
         log(f"  whisper: {len(segments)} segmentos")
         full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
+        segments = [
+            {"start_s": s.get("start", 0.0), "end_s": s.get("end", 0.0),
+             "text": s.get("text", "")}
+            for s in segments
+        ]
 
     if not full_text or len(full_text) < 200:
         log(f"  transcripción demasiado corta ({len(full_text or '')} chars)", "warn")
         return False
 
     with get_session() as db:
-        upsert_source(
+        source_id = upsert_source(
             db,
             kind=kind,
             url=url,
@@ -242,6 +254,11 @@ def transcribe_to_source(
             quality_score=0.8 if author_is_robe else 0.5,
             for_seo_only=False,  # entrevistas son material rico para destilador
         )
+        # Los tiempos, que hasta ahora se tiraban al aplanar el texto. Son lo
+        # único que permite elegir un tramo sin que una persona vea el vídeo.
+        if segments:
+            n = guardar_segmentos(db, source_id, segments)
+            log(f"  segmentos guardados: {n}")
     return True
 
 

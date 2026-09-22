@@ -487,6 +487,84 @@ class InterpretationSource(Base):
     )
 
 
+class SourceSegment(Base):
+    """Un tramo con TIEMPO de una transcripción. Es lo que permite cortar vídeo.
+
+    Whisper devuelve los segmentos con `start`/`end` desde siempre —
+    `transcribe_with_whisper.transcribe_audio` ya los pide con `verbose_json`—,
+    pero al guardar la fuente se aplanaban a texto corrido
+    (`" ".join(s["text"])`) y los tiempos se tiraban. Sin tiempos no se puede
+    elegir un tramo, y por eso elegir el fragmento de un clip seguía siendo un
+    trabajo manual: teclear `desde` y `hasta` a mano viendo el vídeo.
+
+    El otro camino estaba cerrado: existe `lines.start_seconds` (el segundo
+    exacto de cada verso), pero cuelga de `songs.youtube_id`, que apunta a
+    canales «- Topic» y VEVO, justo los que `video_clips.CANALES_VETADOS` veta.
+
+    Los tiempos son SIEMPRE absolutos respecto al vídeo original. Cuando el
+    audio se trocea para pasar el límite de 25 MB de Whisper, el offset del
+    trozo se suma antes de guardar: si no, los tiempos del segundo trozo
+    mentirían en veinte minutos.
+    """
+
+    __tablename__ = "source_segments"
+    __table_args__ = (
+        UniqueConstraint("source_id", "idx", name="uq_source_segments_source_idx"),
+        CheckConstraint("end_s >= start_s", name="ck_source_segments_tramo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("interpretation_sources.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    idx: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_s: Mapped[float] = mapped_column(Float, nullable=False)
+    end_s: Mapped[float] = mapped_column(Float, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class VideoAsset(Base):
+    """Un vídeo del que SÍ se puede sacar un clip, con su canal ya comprobado.
+
+    Hasta ahora el veto de canal (`video_clips.canal_vetado`) solo se aplicaba
+    DESPUÉS de descargar, sobre el `uploader` que devuelve yt-dlp: es el único
+    momento en que se conocía el canal real. Para un preselector automático eso
+    no vale — quemaría descargas e intentos en vídeos que nunca se van a poder
+    publicar —, así que aquí se resuelve antes, con la Data API de YouTube, y se
+    guarda el veredicto.
+
+    `kind` es lo que decidió David el 22-09-2026 sobre de dónde salen los clips:
+    entrevistas a Robe y directos grabados por fans. Los análisis de fans
+    (Juancares, @tesonica) quedan fuera aunque sean los que están transcritos.
+    """
+
+    __tablename__ = "video_assets"
+    __table_args__ = (
+        UniqueConstraint("youtube_id", name="uq_video_assets_youtube_id"),
+        CheckConstraint("kind IN ('interview','live_fan')", name="ck_video_assets_kind"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    youtube_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(500))
+    channel_title: Mapped[str | None] = mapped_column(String(200))
+    channel_url: Mapped[str | None] = mapped_column(String(500))
+    duration_s: Mapped[int | None] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="interview")
+    # La transcripción de la que salen los tramos, si la hay.
+    source_id: Mapped[int | None] = mapped_column(
+        ForeignKey("interpretation_sources.id", ondelete="SET NULL")
+    )
+    vetado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    motivo_veto: Mapped[str | None] = mapped_column(String(200))
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class SeoContent(Base):
     """Contenido SEO editorial generado para una entidad pública (artist/album/song).
 

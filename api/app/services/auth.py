@@ -131,6 +131,51 @@ def decode_youtube_ingest_token(token: str) -> dict[str, Any] | None:
     return data
 
 
+_CLIP_ACTIONS = {"approve", "reject"}
+
+
+def create_clip_action_token(
+    clip_id: int, action: str, *, ttl_hours: int = 336
+) -> str:
+    """JWT firmado para aprobar o descartar UN clip propuesto desde el email.
+
+    Un token por clip y por acción, nunca uno que se los lleve todos: un clip es
+    un vídeo de otra persona publicado sin pedir permiso, y eso se decide de uno
+    en uno. Mismo criterio que el correo de oportunidades SEO, donde «publicar
+    todos» habría sido auto-publicación por descuido.
+
+    El claim `purpose='clip_action'` lo separa de los demás tokens de acción
+    (blog, ingesta de YouTube, oportunidades SEO) para que no sean
+    intercambiables: reenviar un correo no puede disparar otra cosa.
+    """
+    if action not in _CLIP_ACTIONS:
+        raise ValueError(f"acción no permitida: {action}")
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "clip_action",
+        "clip_id": int(clip_id),
+        "action": action,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_clip_action_token(token: str) -> dict[str, Any] | None:
+    """Devuelve el payload solo si es un token válido de clip_action."""
+    data = decode_token(token)
+    if not data:
+        return None
+    if data.get("purpose") != "clip_action":
+        return None
+    if data.get("action") not in _CLIP_ACTIONS:
+        return None
+    if not isinstance(data.get("clip_id"), int):
+        return None
+    return data
+
+
 _SEO_ACTIONS = {"approve", "discard", "apply"}
 
 

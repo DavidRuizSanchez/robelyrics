@@ -122,6 +122,31 @@ def find_referenced_titles(text: str, all_titles: list[tuple[int, str]]) -> list
 # --------------------------------------------------------------------------- #
 # Upsert
 # --------------------------------------------------------------------------- #
+def guardar_segmentos(db: Session, source_id: int, segmentos: list[dict]) -> int:
+    """Guarda los tramos con tiempo de una transcripción. Reemplaza los previos.
+
+    Los tiempos son absolutos respecto al vídeo: quien trocea el audio suma su
+    offset ANTES de llamar aquí. Devuelve cuántos ha guardado.
+    """
+    from app.db.models import SourceSegment
+
+    db.query(SourceSegment).filter(SourceSegment.source_id == source_id).delete()
+    filas = []
+    for i, seg in enumerate(segmentos):
+        texto = (seg.get("text") or "").strip()
+        if not texto:
+            continue
+        inicio = float(seg.get("start_s", seg.get("start", 0.0)) or 0.0)
+        fin = float(seg.get("end_s", seg.get("end", inicio)) or inicio)
+        filas.append(SourceSegment(
+            source_id=source_id, idx=len(filas), start_s=inicio,
+            end_s=max(fin, inicio), text=texto,
+        ))
+    db.add_all(filas)
+    db.commit()
+    return len(filas)
+
+
 def upsert_source(
     db: Session,
     *,
