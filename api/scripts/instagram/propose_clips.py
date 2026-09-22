@@ -76,10 +76,18 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=POR_PASADA)
     ap.add_argument("--tema", default="", help="sesga la elección hacia un tema")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--forzar", action="store_true",
+                    help="propone aunque la cola esté llena (para probar el "
+                         "circuito; no publica nada igualmente)")
     args = ap.parse_args()
 
     with SessionLocal() as db:
         sitio = _hay_sitio(db)
+        if args.forzar and sitio <= 0:
+            # La propuesta no publica: espera un clic. Saltarse el freno solo
+            # adelanta trabajo del daemon, no vuelca nada al feed.
+            logger.info("Cola llena, pero se fuerza: la propuesta espera tu clic.")
+            sitio = args.limit
         if sitio <= 0 and not args.dry_run:
             logger.info("La cola está llena (umbral %d): no se proponen clips.",
                         config.BACKLOG_THRESHOLD)
