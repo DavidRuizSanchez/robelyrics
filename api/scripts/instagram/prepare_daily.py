@@ -17,18 +17,20 @@ Pensado para correr una vez al día (cron, p.ej. 08:00).
 Uso:
     python -m scripts.instagram.prepare_daily
     python -m scripts.instagram.prepare_daily --dry-run   (no llama a la IA de imagen)
+    python -m scripts.instagram.prepare_daily --no-news   (pausa solo las noticias)
 """
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
 from app.db.models import InstagramQueueItem, Post
 from app.db.session import SessionLocal
-from app.services.instagram import config, publisher, topics
+from app.services.instagram import config, newsroom, publisher, topics
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -42,6 +44,16 @@ def _next_position(db) -> int:
         select(func.coalesce(func.max(InstagramQueueItem.position), -1))
     ).scalar_one()
     return int(max_pos) + 1
+
+# Pausa del grifo de NOTICIAS (el blog y el evergreen siguen corriendo).
+# Existe porque una noticia se escribe con lo que trae el RSS, y cuando el
+# extracto viene vacío eso es SOLO el titular: en sep-2026 el 83,5% de las
+# noticias encoladas se escribieron así y alguna acabó afirmando cosas que
+# ninguna fuente decía. Mientras el camino de noticias no exija material real,
+# esto permite cerrarlo sin tocar el resto del pipeline.
+NEWS_PAUSED = os.getenv("IG_NEWS_PAUSED", "false").strip().lower() in (
+    "1", "true", "yes", "si", "sí",
+)
 
 # Slot bajo para que los posts del blog tengan prioridad en la cola.
 BLOG_SLOT = 0
@@ -78,7 +90,10 @@ def _enqueue_news(db, today: date, prepare: bool) -> int:
             category=tema.get("category"),
             summary=tema.get("summary"),
             source_name=tema.get("source"),
-            source_url=tema.get("url") or None,
+            # La URL del MEDIO, ya resuelta: `tema["url"]` suele ser un enlace
+            # de Google News, y el «fuente ↗» del panel llevaba allí en vez de al
+            # artículo — justo el clic que hacía falta para cazar un post dudoso.
+            source_url=tema.get("url_medio") or tema.get("url") or None,
             status=config.estado_inicial(),
         )
         db.add(item)
@@ -88,6 +103,17 @@ def _enqueue_news(db, today: date, prepare: bool) -> int:
         if prepare:
             try:
                 publisher.prepare(db, item)
+            except (publisher.SinMaterial, newsroom.SujetoNoIdentificado,
+                    newsroom.TextoNoPublicable) as falta:
+                # Sin artículo no hay post: se descarta con su motivo en vez de
+                # dejarlo a medias en el panel. `topics.select` ya filtra por
+                # esto, así que llegar aquí significa que el material se perdió
+                # entre la selección y la preparación.
+                item.status = "discarded"
+                item.error = str(falta)[:1000]
+                db.commit()
+                logger.warning("  Descartado %s: %s", item.id, falta)
+                continue
             except Exception as exc:  # noqa: BLE001
                 logger.error("  No se pudo preparar el item %s: %s", item.id, exc)
         queued += 1
@@ -151,19 +177,31 @@ def main() -> None:
         action="store_true",
         help="Solo encola; no genera imágenes ni captions.",
     )
+    parser.add_argument(
+        "--no-news",
+        action="store_true",
+        help="No encola noticias (el blog sí). Equivale a IG_NEWS_PAUSED=true.",
+    )
     args = parser.parse_args()
     prepare = not args.dry_run
 
     today = date.today()
     logger.info("Pipeline Instagram · tarea diaria · %s", today)
 
+    sin_noticias = args.no_news or NEWS_PAUSED
+    if sin_noticias:
+        logger.warning(
+            "NOTICIAS EN PAUSA (--no-news / IG_NEWS_PAUSED): no se encola ninguna. "
+            "El blog y el evergreen siguen su curso."
+        )
+
     with SessionLocal() as db:
-        news = _enqueue_news(db, today, prepare)
+        news = 0 if sin_noticias else _enqueue_news(db, today, prepare)
         blog = _enqueue_blog(db, today, prepare)
 
     logger.info(
-        "Tarea diaria completada: %d posts de noticias + %d del blog encolados.",
-        news, blog,
+        "Tarea diaria completada: %d posts de noticias%s + %d del blog encolados.",
+        news, " (EN PAUSA)" if sin_noticias else "", blog,
     )
 
 

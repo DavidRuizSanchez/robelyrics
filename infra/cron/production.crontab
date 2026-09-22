@@ -50,7 +50,15 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
 # Selecciona los temas del día y prepara imagen + caption. Diario 08:30 UTC,
 # después del agregador. También difunde los artículos nuevos del blog.
-30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
+#
+# --no-news DESDE EL 22-09-2026: el camino de noticias escribe con lo que trae
+# el RSS y el 83,5% de las encoladas no tenían extracto — solo el titular. Con
+# ese material el modelo rellenó los huecos y publicó cosas que ninguna fuente
+# decía (un homónimo famoso confundido con el sujeto real, y una relación
+# inventada entre él y Robe). Se reabre cuando el camino exija material real y
+# resuelva las entidades antes de escribir. El blog NO se pausa: sus posts pasan
+# por los cuatro gates de `publishing.auto_publish`.
+30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily --no-news >> /var/log/robelyrics-cron.log 2>&1
 
 # Publica lo que toque. Dispara CADA 15 MINUTOS, pero NO publica cada 15 min:
 # quien manda es el cuentagotas de `config.STEADY_INTERVAL_H` (15 h → ~11 posts
