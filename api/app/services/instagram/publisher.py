@@ -21,6 +21,7 @@ from app.db.models import (
     InstagramQueueItem,
     InstagramQueueMedia,
     Line,
+    NewsItem,
     Person,
     Post,
     Song,
@@ -102,6 +103,19 @@ def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
             from app.services.instagram.carousel import prosa
 
             topic["caption_body"] = prosa(post.body_md or "")
+
+    # El ARTÍCULO de la noticia. Se recupera aquí y no se arrastra desde
+    # `topics.select` porque `prepare` se llama también al re-preparar desde el
+    # panel, cuando de aquel tema ya no queda nada: el único hilo es
+    # `news_item_id`. Sin esto, los temas se elegían CON material y luego se
+    # descartaban por no tenerlo — y solo se ve corriendo el pipeline entero.
+    if item.news_item_id:
+        noticia = db.get(NewsItem, item.news_item_id)
+        if noticia is not None:
+            topic["material"] = noticia.body_text or ""
+            topic["url_medio"] = noticia.body_url or noticia.url
+            if not topic["url"]:
+                topic["url"] = topic["url_medio"]
     return topic
 
 

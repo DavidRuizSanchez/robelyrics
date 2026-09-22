@@ -230,3 +230,29 @@ def test_el_articulo_se_capa_para_no_pagar_el_pie_de_foto(monkeypatch):
 
     editorial._generate("t", "", "c", material="x" * 99_999)
     assert "x" * (editorial.MAX_MATERIAL_CHARS + 1) not in capturado["user"]
+
+
+def test_prepare_recupera_el_articulo_de_la_noticia(db, monkeypatch):
+    """El fallo que solo se vio corriendo el pipeline entero en producción.
+
+    `topics.select` elige los temas CON material, pero `prepare` reconstruye el
+    topic desde la fila de la cola, que no lo guarda: los dos temas del día se
+    eligieron bien y se descartaron acto seguido por «no hay cuerpo del
+    artículo». El único hilo entre la cola y el texto es `news_item_id`, y hay
+    que tirar de él aquí — también porque re-preparar desde el panel ocurre
+    cuando de aquel tema ya no queda nada.
+    """
+    noticia = _noticia(db)
+    item = _item(db, news_item_id=noticia.id)
+
+    visto = {}
+
+    def _espia(topic):
+        visto["material"] = topic.get("material", "")
+        raise RuntimeError("corta aquí: ya tengo el topic")
+
+    monkeypatch.setattr(editorial, "enrich", _espia)
+    with pytest.raises(RuntimeError):
+        publisher.prepare(db, item)
+
+    assert "María Guardiola" in visto["material"], "el artículo no llegó a prepare"
