@@ -210,3 +210,32 @@ def test_sin_contexto_y_sin_identidad_sigue_callado():
     pelado = _ent("Guardiola", ne.AMBIGUOUS, role="mentioned", contexto="")
     assert pelado.silenciada is True
     assert pelado.da_foto is False
+
+
+# --------------------------------------------------------------------------- #
+# Mentir y sonar a molde no se arreglan igual
+# --------------------------------------------------------------------------- #
+def test_una_frase_de_molde_da_un_intento_mas(monkeypatch):
+    """A un «no escribas "la esencia de Robe"» se le puede hacer caso, y por eso
+    se permite un intento más que con los hechos. Medido: una noticia legítima
+    se caía con dos intentos, uno por fórmula de relleno y otro por fórmula de
+    molde, sin tener nada malo que contar."""
+    _escritor(monkeypatch, [
+        "Un disco que dejó huella en todos.",          # relleno
+        "La esencia de Robe en cada verso de 1996.",   # molde
+        "Lo grabaron en 1996 en Madrid con Iñaki Antón.",   # limpio
+    ])
+    avisos = newsroom.escribir(None, {}, [IDENTIFICADA])
+    assert avisos and "reescribió" in avisos[0]
+
+
+def test_con_un_bloqueo_de_hechos_no_hay_tercer_intento(monkeypatch):
+    """El listón de los HECHOS no se toca: insistir ahí sería confiar en que el
+    modelo acabe obedeciendo, que es justo lo que no funcionó."""
+    _escritor(monkeypatch, [
+        "Guardiola, futbolista.",
+        "Otra vez Guardiola.",
+        "Y una tercera vez Guardiola.",
+    ])
+    with pytest.raises(newsroom.TextoNoPublicable):
+        newsroom.escribir(None, {}, [IDENTIFICADA, DUDOSA])

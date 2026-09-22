@@ -26,6 +26,13 @@ from app.services.image_guard import _norm
 logger = logging.getLogger(__name__)
 
 MAX_REINTENTOS = 1
+# Un intento más cuando lo ÚNICO que falla es el estilo. No es aflojar el
+# listón: el listón es el mismo, lo que cambia es que a un «no escribas "la
+# esencia de Robe"» se le puede hacer caso, y a un «no inventes una relación»
+# el modelo ya demostró que no. Medido: una noticia legítima (el Sinfónico
+# Extremo de Béjar) se caía con dos intentos, uno por fórmula de relleno y otro
+# por fórmula de molde, y no tenía nada malo que contar.
+MAX_REINTENTOS_ESTILO = 2
 
 
 class SujetoNoIdentificado(RuntimeError):
@@ -97,44 +104,92 @@ class TextoNoPublicable(RuntimeError):
     """
 
 
-def escribir(db, topic: dict, entidades: list[ne.ResolvedEntity]) -> list[str]:
-    """Escribe el caption y no lo da por bueno hasta que pasa las guardas.
+def texto_publicado(topic: dict) -> str:
+    """TODO lo que hemos escrito nosotros y va a ver la gente.
+
+    Antes esto era `headline + caption_body` y nada más, así que las SLIDES del
+    carrusel —que se planifican después, en `publisher`— no pasaban por ninguna
+    guarda. Mientras las slides eran un `re.split()` del caption daba igual: el
+    texto ya estaba revisado. En cuanto alguien las ESCRIBE, es texto nuevo, y
+    texto nuevo sin gate es exactamente por donde entró el post de Guardiola.
+    """
+    partes = [topic.get("headline") or "", topic.get("caption_body") or ""]
+    partes += [(s.get("text") or "") for s in (topic.get("slides") or [])]
+    partes.append(topic.get("cierre") or "")
+    return "\n".join(p for p in partes if p.strip())
+
+
+def escribir(
+    db, topic: dict, entidades: list[ne.ResolvedEntity] | None = None,
+    *, material: str | None = None, verificar_rel: bool = True,
+    material_verificable: str | None = None,
+) -> list[str]:
+    """Escribe el post y no lo da por bueno hasta que pasa las guardas.
 
     Devuelve los avisos para el panel. Reescribe UNA vez diciéndole qué falló;
     si vuelve a fallar, el post no sale.
-    """
-    from app.services.instagram import caption_guard, editorial
 
+    `material` por defecto es el artículo de la noticia. Los evergreen y el blog
+    pasan el suyo (el corpus propio) y `verificar_rel=False`: ver `caption_guard`.
+    """
+    from app.services.instagram import caption_guard, editorial, tono_guard
+
+    entidades = entidades or []
     topic["entidades"] = entidades
-    material = topic.get("material") or ""
+    if material is None:
+        material = topic.get("material") or ""
     avisos: list[str] = []
     veredicto = None
+    intento = -1
+    tope = MAX_REINTENTOS
 
-    for intento in range(MAX_REINTENTOS + 1):
+    while intento < tope:
+        intento += 1
         topic.pop("caption_body", None)
         topic.pop("headline", None)
+        topic.pop("slides", None)
+        topic.pop("cierre", None)
         if veredicto is not None:
             # La reescritura sabe QUÉ falló: repetir la misma petición a ciegas
             # es tirar una moneda otra vez.
-            topic["correcciones"] = list(veredicto.bloqueos)
+            topic["correcciones"] = veredicto.motivos
         editorial.enrich(topic)
 
-        texto = f"{topic.get('headline', '')}\n{topic.get('caption_body', '')}"
-        veredicto = caption_guard.revisar(db, texto, material, entidades)
+        texto = texto_publicado(topic)
+        veredicto = caption_guard.revisar(
+            db, texto, material, entidades, verificar_rel=verificar_rel,
+            material_verificable=material_verificable,
+        )
+        # ¿Es verdad? lo decide `caption_guard`. ¿Merece leerse? esto. Un post
+        # puede pasar lo primero y seguir siendo humo, que es lo que pasaba.
+        tono = tono_guard.revisar(
+            titular=topic.get("headline") or "",
+            comentario=topic.get("caption_body") or "",
+            slides=topic.get("slides") or [],
+            cierre=topic.get("cierre") or "",
+        )
+        veredicto.estilo.extend(tono.bloqueos)
+        veredicto.avisos.extend(tono.avisos)
         topic["claims"] = veredicto.claims
         avisos = list(veredicto.avisos)
 
         if veredicto.ok:
             if intento:
-                avisos.append("El texto se reescribió una vez: el primero no pasó las guardas.")
+                avisos.append(
+                    f"El texto se reescribió {intento} vez/veces: el primero no "
+                    "pasó las guardas."
+                )
             return avisos
+
+        if not veredicto.bloqueos:
+            tope = MAX_REINTENTOS_ESTILO
 
         logger.warning(
             "[redaccion] intento %d rechazado: %s",
-            intento + 1, " · ".join(veredicto.bloqueos),
+            intento + 1, " · ".join(veredicto.motivos),
         )
 
     raise TextoNoPublicable(
         "El texto no pasa las guardas después de reescribirlo: "
-        + " · ".join(veredicto.bloqueos)
+        + " · ".join(veredicto.motivos)
     )

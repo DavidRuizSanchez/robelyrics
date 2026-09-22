@@ -56,15 +56,28 @@ _SYS_RELACIONES = (
 
 @dataclass
 class Veredicto:
-    """Qué impide publicar esto, y qué solo hay que mirar."""
+    """Qué impide publicar esto, y qué solo hay que mirar.
+
+    `bloqueos` y `estilo` impiden publicar los dos, pero no son lo mismo y por
+    eso van separados: un bloqueo es que el texto DICE ALGO QUE NO ES (nombra a
+    quien no se identifica, afirma una relación que nadie sostiene) y ahí
+    insistir es confiar en que el modelo acabe obedeciendo; un fallo de estilo
+    es una frase de molde, y el reproche es literal («no escribas esto»), así
+    que reescribir con esa corrección delante sí lleva a alguna parte.
+    """
 
     bloqueos: list[str] = field(default_factory=list)
+    estilo: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
     claims: list[dict] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return not self.bloqueos
+        return not self.bloqueos and not self.estilo
+
+    @property
+    def motivos(self) -> list[str]:
+        return list(self.bloqueos) + list(self.estilo)
 
 
 def _entidades_conocidas(entidades: list[ne.ResolvedEntity]) -> list[str]:
@@ -84,6 +97,31 @@ def _entidades_conocidas(entidades: list[ne.ResolvedEntity]) -> list[str]:
         if e.mention.surface:
             nombres.add(e.mention.surface)
     return sorted(nombres)
+
+
+# Lo que el sitio ya sabe. Robe fue el líder de Extremoduro: eso no es una
+# afirmación nueva que un artículo tenga que sostener, es de lo que va la web.
+_DE_CASA_SIEMPRE = {"robe", "roberto iniesta", "extremoduro"}
+
+
+def _de_casa(entidades: list[ne.ResolvedEntity]) -> set[str]:
+    """Entidades que están en NUESTRO catálogo, normalizadas.
+
+    Una relación entre dos de estas no pasa por el verificador. El paso 6 existe
+    para no AFIRMAR algo nuevo sobre terceros («María Guardiola es fan de
+    Extremoduro»), no para volver a demostrar quién tocaba en Extremoduro cada
+    vez que una noticia los nombra a los dos. Medido: una noticia legítima sobre
+    un homenaje sinfónico en Béjar se caía dos veces seguidas porque el extractor
+    sacaba «Robe — versionó a — Extremoduro» y el artículo, claro, no lo decía.
+    """
+    nombres = set(_DE_CASA_SIEMPRE)
+    for e in entidades:
+        if getattr(e, "status", "") != "corpus":
+            continue
+        for n in (e.label, e.mention.surface):
+            if n:
+                nombres.add(n.strip().lower())
+    return nombres
 
 
 def _en_el_material(relacion: dict, material: str) -> bool:
@@ -131,6 +169,7 @@ def verificar_relaciones(
     conocidas = _entidades_conocidas(entidades)
     if not texto.strip() or len(conocidas) < 2:
         return [], []
+    de_casa = _de_casa(entidades)
 
     data = _json(
         _SYS_RELACIONES,
@@ -152,6 +191,11 @@ def verificar_relaciones(
         if not a or not b or a == b:
             continue
         frase = f"{a} — {rel} — {b}"
+
+        if a.lower() in de_casa and b.lower() in de_casa:
+            claims.append({"claim": frase, "verdict": "supported", "source": "corpus",
+                           "evidence": "Las dos entidades son del catálogo del sitio."})
+            continue
 
         if _en_el_material(r, material):
             claims.append({"claim": frase, "verdict": "supported", "source": "material",
@@ -285,9 +329,21 @@ def contradice_la_identidad(
 
 
 def revisar(
-    db, texto: str, material: str, entidades: list[ne.ResolvedEntity]
+    db, texto: str, material: str, entidades: list[ne.ResolvedEntity],
+    *, verificar_rel: bool = True, material_verificable: str | None = None,
 ) -> Veredicto:
-    """Pasa el caption por todas las guardas. Determinista y gratis primero."""
+    """Pasa el caption por todas las guardas. Determinista y gratis primero.
+
+    `material_verificable` es con lo que se comprueban las RELACIONES cuando no
+    todo el material sirve para eso: el artículo y nuestras fichas sí, un
+    análisis de un tercero o una transcripción automática no. Sin él, se usa
+    `material` entero (que es lo que hacían las noticias, y sigue valiendo).
+
+    `verificar_rel=False` para el material de CASA (evergreen, blog): el paso 6
+    existe para no afirmar de una noticia ajena una relación que el artículo no
+    dice. Sobre el corpus propio —una letra, una efeméride verificada— no tiene
+    nada que comprobar y sí puede inventarse un bloqueo.
+    """
     from app.services import lyric_guard, sensitive_topics
     from app.services.content_guard import anclaje_factual, find_especulacion
     from app.services.instagram import newsroom
@@ -313,7 +369,7 @@ def revisar(
     # 4. Fórmulas de relleno y especulación.
     especulacion = find_especulacion(texto)
     if especulacion:
-        v.bloqueos.append(f"Especula en vez de contar: {', '.join(especulacion[:3])}.")
+        v.estilo.append(f"Especula en vez de contar: {', '.join(especulacion[:3])}.")
 
     # 5. Versos: ni se inventa una letra ni se atribuye a la canción equivocada.
     #    `blocking` no se publica jamás; `to_review` es zona gris y va a una
@@ -335,8 +391,12 @@ def revisar(
         v.avisos.append("No se han podido comprobar las citas de letra.")
 
     # 6. Relaciones afirmadas (lo caro: al final, y solo si lo demás pasa).
-    if not v.bloqueos:
-        bloqueos, claims = verificar_relaciones(texto, material, entidades)
+    if verificar_rel and v.ok:
+        bloqueos, claims = verificar_relaciones(
+            texto,
+            material if material_verificable is None else material_verificable,
+            entidades,
+        )
         v.bloqueos.extend(bloqueos)
         v.claims.extend(claims)
 

@@ -39,6 +39,7 @@ from scripts.research.common import (
     get_session,
     log,
     polite_sleep,
+    guardar_segmentos,
     upsert_source,
 )
 from scripts.research.fetch_youtube import (
@@ -163,15 +164,39 @@ def split_audio(src: str, tmpdir: str) -> list[str]:
     )
 
 
-def transcribe(client: OpenAI, chunks: list[str]) -> str:
+def transcribe(client: OpenAI, chunks: list[str]) -> tuple[str, list[dict]]:
+    """Devuelve (texto corrido, tramos con tiempo ABSOLUTOS).
+
+    Los tiempos se pedían y se tiraban: la llamada iba sin `verbose_json`, así
+    que Whisper devolvía solo texto. Son gratis —vienen en la misma respuesta— y
+    son lo único que permite después recortar un tramo de ese vídeo.
+
+    El offset del trozo es lo que hace que sean absolutos. El audio se parte en
+    trozos de `CHUNK_SECONDS` para no pasar del límite de 25 MB, y Whisper
+    numera cada trozo desde cero: sin sumar el offset, los tiempos del segundo
+    trozo mentirían en veinte minutos.
+    """
     parts: list[str] = []
-    for ch in chunks:
+    segmentos: list[dict] = []
+    for i, ch in enumerate(chunks):
+        offset = i * CHUNK_SECONDS
         with open(ch, "rb") as f:
             tr = client.audio.transcriptions.create(
                 model="whisper-1", file=f, language="es",
+                response_format="verbose_json",
+                timestamp_granularities=["segment"],
             )
         parts.append((tr.text or "").strip())
-    return " ".join(p for p in parts if p)
+        for seg in (getattr(tr, "segments", None) or []):
+            texto = (getattr(seg, "text", "") or "").strip()
+            if not texto:
+                continue
+            segmentos.append({
+                "start_s": float(getattr(seg, "start", 0.0) or 0.0) + offset,
+                "end_s": float(getattr(seg, "end", 0.0) or 0.0) + offset,
+                "text": texto,
+            })
+    return " ".join(p for p in parts if p), segmentos
 
 
 def main() -> None:
@@ -213,7 +238,8 @@ def main() -> None:
                     raise RuntimeError("yt-dlp no devolvió audio")
                 dur = audio_duration_s(audio)
                 chunks = split_audio(audio, td)
-                text = clean_text(transcribe(client, chunks))
+                bruto, segmentos = transcribe(client, chunks)
+                text = clean_text(bruto)
             floor = min_chars_for(dur)
             if len(text) < floor:
                 raise RuntimeError(
@@ -221,11 +247,13 @@ def main() -> None:
                 )
             url = f"https://www.youtube.com/watch?v={vid}"
             with get_session() as db:
-                upsert_source(
+                source_id = upsert_source(
                     db, kind="youtube_transcript", url=url, title=v["title"],
                     author=AUTHOR, published_at=parse_iso(v["published_at"]),
                     content_raw=text, content_clean=text, quality_score=0.7,
                 )
+                if segmentos:
+                    guardar_segmentos(db, source_id, segmentos)
             n_ok += 1
             log(f"[{i}/{len(todo)}] ✓ {vid} · {len(text)} chars · {(v['title'] or '')[:55]}", "ok")
         except Exception as e:  # noqa: BLE001

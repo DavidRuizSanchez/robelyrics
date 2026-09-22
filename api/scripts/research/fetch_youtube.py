@@ -144,7 +144,15 @@ def list_videos(client: httpx.Client, api_key: str, playlist_id: str, limit: int
 _yt_api = YouTubeTranscriptApi()
 
 
-def fetch_transcript(video_id: str) -> str | None:
+def fetch_transcript_segments(video_id: str) -> list[dict] | None:
+    """Los subtítulos CON SUS TIEMPOS: [{start_s, end_s, text}, …].
+
+    `youtube-transcript-api` devuelve `start` y `duration` de cada fragmento
+    desde siempre, y aquí se aplanaban a una sola cadena. Tirarlos costaba caro:
+    sin tiempos no se puede recortar un vídeo, así que recuperar el tramo de una
+    entrevista ya transcrita obligaba a volver a pasarla por Whisper, pagando
+    otra vez por un dato que YouTube regala.
+    """
     try:
         fetched = _yt_api.fetch(video_id, languages=["es", "es-ES", "en"])
     except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, CouldNotRetrieveTranscript):
@@ -152,8 +160,24 @@ def fetch_transcript(video_id: str) -> str | None:
     except Exception as e:  # noqa: BLE001
         log(f"transcript error {video_id}: {type(e).__name__}: {e}", "warn")
         return None
-    text = " ".join(s.text for s in fetched.snippets if s.text)
-    return clean_text(text)
+    out = []
+    for sn in fetched.snippets:
+        if not sn.text:
+            continue
+        inicio = float(sn.start or 0.0)
+        out.append({
+            "start_s": inicio,
+            "end_s": inicio + float(getattr(sn, "duration", 0.0) or 0.0),
+            "text": sn.text,
+        })
+    return out or None
+
+
+def fetch_transcript(video_id: str) -> str | None:
+    segmentos = fetch_transcript_segments(video_id)
+    if not segmentos:
+        return None
+    return clean_text(" ".join(s["text"] for s in segmentos))
 
 
 # --------------------------------------------------------------------------- #

@@ -223,3 +223,61 @@ def test_tambien_se_protege_a_quien_no_esta_en_ninguna_base_de_datos(sin_llm):
     problemas = caption_guard.contradice_la_identidad(texto, [concursante])
     assert problemas, "le ha cambiado el oficio y nadie lo ha parado"
     assert "concursante riojano" in problemas[0]
+
+
+# --------------------------------------------------------------------------- #
+# Lo que el sitio ya sabe no se le pide al artículo
+# --------------------------------------------------------------------------- #
+def test_una_relacion_entre_dos_entidades_de_casa_no_pasa_por_el_verificador(monkeypatch):
+    """Medido: una noticia legítima (el Sinfónico Extremo de Béjar) se caía dos
+    veces porque el extractor sacaba «Robe — versionó a — Extremoduro» y el
+    artículo, claro, no lo decía. El paso 6 existe para no AFIRMAR algo nuevo
+    sobre terceros, no para volver a demostrar de qué va esta web."""
+    llamadas = []
+    monkeypatch.setattr(
+        caption_guard, "_json",
+        lambda *a, **k: {"relaciones": [
+            {"a": "Robe", "relacion": "versionó a", "b": "Extremoduro"},
+        ]},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        caption_guard, "_lo_dice_el_articulo",
+        lambda *a, **k: llamadas.append(a) or {"verdict": "not_found", "evidence": ""},
+    )
+    import app.services.news_research as nr
+    monkeypatch.setattr(
+        nr, "_json",
+        lambda *a, **k: {"relaciones": [
+            {"a": "Robe", "relacion": "versionó a", "b": "Extremoduro"},
+        ]},
+    )
+
+    bloqueos, claims = caption_guard.verificar_relaciones(
+        "Un homenaje sinfónico a Robe y Extremoduro en Béjar.",
+        "La banda tocará canciones del grupo.",
+        [],
+    )
+    assert bloqueos == []
+    assert llamadas == [], "no se gasta una llamada en lo que ya sabemos"
+    assert claims[0]["source"] == "corpus"
+
+
+def test_una_relacion_con_un_tercero_sigue_yendo_al_verificador(monkeypatch):
+    """El agujero que NO se abre: María Guardiola no es entidad de casa."""
+    import app.services.news_research as nr
+    monkeypatch.setattr(
+        nr, "_json",
+        lambda *a, **k: {"relaciones": [
+            {"a": "María Guardiola", "relacion": "es fan de", "b": "Extremoduro"},
+        ]},
+    )
+    monkeypatch.setattr(
+        caption_guard, "_lo_dice_el_articulo",
+        lambda *a, **k: {"verdict": "not_found", "evidence": ""},
+    )
+    bloqueos, _ = caption_guard.verificar_relaciones(
+        "María Guardiola es fan de Extremoduro.", "El artículo no dice eso.",
+        [PRESIDENTA],
+    )
+    assert bloqueos, "una afirmación nueva sobre un tercero sigue bloqueando"

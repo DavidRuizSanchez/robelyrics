@@ -203,6 +203,13 @@ def build(db: Session, topic: dict) -> str:
         body = _atribucion(ctx) or (topic.get("summary") or "").strip()
         if body:
             lines += ["", body]
+        # Y lo que se ha escrito SOBRE el verso, si hay material que lo respalde
+        # (de dónde sale, qué tiene detrás). Va después de la atribución: primero
+        # el dato que la gente pregunta, luego el porqué. Sin material,
+        # `publisher` no llama al redactor y esto sencillamente no existe.
+        comentario = (topic.get("caption_body") or "").strip()
+        if comentario and comentario != body:
+            lines += ["", captions_moldes.one_sentence_per_line(comentario)]
     else:
         body = (topic.get("caption_body") or "").strip()
         if not body:
@@ -289,4 +296,9 @@ def build(db: Session, topic: dict) -> str:
     except Exception:  # noqa: BLE001 — best-effort, nunca bloquea la publicación
         pass
 
-    return caption
+    # La regla dura del nombre, sobre el caption ENTERO. Hasta ahora solo corría
+    # dentro de `editorial` (comentario y titular), así que los moldes, el CTA y
+    # los hashtags se la saltaban: un «Robe Iniesta» escrito en un molde llegaba
+    # publicado. Es determinista y no reescribe nada más.
+    from app.services.text_sanitizer import enforce_name_policy
+    return enforce_name_policy(caption) or caption

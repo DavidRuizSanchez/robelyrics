@@ -95,6 +95,27 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 20 9 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_health >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
+# Clips de vídeo: el sistema propone, tú decides
+# ============================================================================
+
+# Martes y viernes 07:50 UTC: elige vídeo y tramo de `video_assets` (canales ya
+# comprobados) usando los tiempos de `source_segments`, y encola la propuesta en
+# estado `proposed` — FUERA del goteo, porque `next_pending` solo mira
+# pending/prepared. La descarga y el montaje los hace el daemon de la Mac.
+#
+# Dos por pasada y solo dos días a la semana: la cola es compartida y pasar de
+# IG_BACKLOG_THRESHOLD dispara el modo atasco, que acelera el goteo de todo lo
+# demás. El propio script comprueba el hueco antes de encolar.
+50 7 * * 2,5 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.propose_clips >> /var/log/robelyrics-cron.log 2>&1
+
+# Martes y viernes 10:30 UTC: correo con los clips YA MONTADOS y un botón por
+# clip. Va casi tres horas después de proponer, que es lo que tarda el daemon de
+# la Mac (dispara cada 10 min) en bajarlos y subirlos a Cloudinary: avisar antes
+# sería pedir que se apruebe una idea, y lo que se pidió fue validar sobre el
+# clip ya creado. Silencio si no hay ninguno montado esperando.
+30 10 * * 2,5 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_clips >> /var/log/robelyrics-cron.log 2>&1
+
+# ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)
 # ============================================================================
 
@@ -182,6 +203,12 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # las 731 fuentes estaban indexadas y eran irrecuperables porque el único camino de
 # lectura pedía song_ids y ellas no están ligadas a ninguna canción. Esto lo vigila.
 30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings && $DC exec -T api python -m scripts.audit_corpus ) >> /var/log/robelyrics-cron.log 2>&1
+
+# 04:05 UTC semanal (domingo): refresca el catálogo de vídeo elegible —canal
+# real y duración vía Data API, y el veto aplicado ANTES de descargar nada—.
+# Idempotente. Sin esto, un vídeo nuevo en `robe_interviews.yaml` no llega nunca
+# al selector de clips.
+5 4 * * 0 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.seed_video_assets >> /var/log/robelyrics-cron.log 2>&1
 
 # 03:50 UTC: barrido del Motor de Consenso de Verificación (MCV). Re-verifica los
 # overrides pendientes (letras/autoría/catálogo) contra sus fuentes y aplica lo que

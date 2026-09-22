@@ -81,9 +81,28 @@ def extraer_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+# Medios audiovisuales grandes. NO se vetan —no son discográficas ni canales
+# oficiales de artista, y una entrevista de radio o de televisión es justo el
+# material que se busca—, pero se señalan en el correo de aprobación: un clip de
+# Movistar+ o de RTVE se reclama antes que el de un fan, y quien aprueba merece
+# saberlo antes de pulsar. Vetarlos por mi cuenta sería decidir por David.
+CANALES_SENSIBLES = (
+    "movistar", "rtve", "el país", "el pais", "atresmedia", "antena 3",
+    "telecinco", "mediaset", "la sexta", "cadena ser", "cope", "onda cero",
+    "rockfm", "canal extremadura", "tve", "netflix", "hbo", "prisa",
+)
+
+
+def canal_sensible(canal: str) -> str | None:
+    """Medio profesional que conviene mirar dos veces. No veta: avisa."""
+    c = (canal or "").casefold()
+    return next((p for p in CANALES_SENSIBLES if p in c), None)
+
+
 def solicitar(
     db: Session, url: str, start_s: float, end_s: float,
     subtitle: str | None = None, requested_by: str | None = None,
+    *, estado_item: str | None = None, needs_human: bool = False,
 ) -> VideoClip:
     """Da de alta la petición de un clip Y su publicación propia.
 
@@ -96,6 +115,12 @@ def solicitar(
     Por eso `subtitle` pasa a ser obligatorio: es el título del post. Lo que
     solo se sabe tras bajar el vídeo (canal, título real) lo rellena
     `clips_complete`.
+
+    `estado_item` y `needs_human` los usa la propuesta AUTOMÁTICA
+    (`scripts.instagram.propose_clips`): el clip se baja y se monta igual, pero
+    su publicación nace en `proposed`, fuera del goteo, hasta que una persona la
+    aprueba desde el correo. El alta manual del panel no los pasa y se comporta
+    como siempre: la ha decidido una persona, ya está aprobada.
     """
     from app.db.models import InstagramQueueItem
 
@@ -132,7 +157,8 @@ def solicitar(
         source_url=clip.url,
         media_type="CLIP",
         media_locked=True,          # lo ha decidido una persona
-        status=config.estado_inicial(),
+        status=estado_item or config.estado_inicial(),
+        needs_human=needs_human,
     )
     db.add(item)
     db.flush()

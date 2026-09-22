@@ -16,6 +16,8 @@ Familias:
             Salida sin title/excerpt (el título es el de la entidad).
   - "blog": piezas del blog (noticia, spotlight, efeméride, evergreen).
             Salida con title + excerpt.
+  - "instagram": caption + slides del carrusel. Pieza corta; el contrato de
+            salida lo pone quien llama.
 
 Personas (registro narrativo):
   - "primera_admirador" (por defecto): 1ª persona del fan.
@@ -275,6 +277,43 @@ Devuelves SIEMPRE un objeto JSON exactamente con esta forma:
 }"""
 
 # --------------------------------------------------------------------------- #
+# Instagram. Un caption y tres slides NO son un artículo recortado: el molde
+# anterior (`instagram/editorial.py`) tenía su propio system prompt, puramente
+# defensivo, sin una línea de voz ni de quién lee. De ahí salían los "Un Canto a
+# la Libertad" y "La Evolución Musical de Extremoduro" que se publicaron.
+# --------------------------------------------------------------------------- #
+_HOW_IG = """\
+CÓMO ESCRIBIR PARA INSTAGRAM (es otra pieza, no un artículo recortado):
+- Pocas palabras y todas con carga. Cada frase o trae un DATO CONCRETO (un año,
+  un título, un nombre, una cifra, un verso) o trae CRITERIO (por qué importa).
+  Si no hace ninguna de las dos cosas, sobra.
+- ESCRIBES PARA QUIEN YA SE SABE LOS DISCOS. No presentes a Extremoduro ni
+  expliques quién era Robe: eso ya lo sabe quien te lee. Dale lo que no sabe, o
+  lo que sabe pero no había mirado así.
+- PROHIBIDO el resumen de prensa. No recuentes "lo que ha pasado" con otras
+  palabras: di qué tiene que ver con el universo de Robe (qué canción, qué
+  disco, qué gente, qué año). Si el material no da para eso, escribe menos.
+- PROHIBIDAS las frases que valdrían para cualquier otro post ("un canto a la
+  libertad", "la evolución musical de", "un viaje sonoro", "sigue vivo en cada
+  nota", "un antes y un después"). Si tu frase encaja en otro post sin cambiar
+  nada, es que no dice nada. Lo mismo con las preguntas de relleno ("¿qué os
+  parece?", "¿cómo lo veis?"): si preguntas, pregunta algo que solo tenga
+  sentido en ESTE post.
+- Sin emojis y sin hashtags dentro del texto: los pone la plantilla."""
+
+_RULES_IG = """\
+REGLAS DE LA CUENTA:
+- NUNCA menciones el medio del que sale la noticia, ni digas "según", "informa",
+  "publica" ni nombres de periódicos o webs. La actualidad se comenta como
+  propia.
+- Robe falleció: jamás lo presentes hablando en presente ni haciendo
+  declaraciones nuevas. Si el material recoge ideas suyas, enmárcalas en pasado
+  ("lo que pensaba Robe", "Robe decía", "para Robe era…").
+- El material que viene marcado como de UN TERCERO (una anotación, un análisis,
+  una transcripción) se cita ATRIBUIDO tal y como se te indica, y NUNCA como voz
+  de Robe ni como verdad del sitio."""
+
+# --------------------------------------------------------------------------- #
 # Foco de sujeto. Por defecto el protagonista del sitio es Robe, pero las
 # fichas de PERSONAS y GRUPOS son sobre OTRO: su protagonista es esa entidad,
 # no Robe. Sin esto, el LLM convierte la ficha de un músico en un texto sobre
@@ -311,7 +350,8 @@ def build_system_prompt(
 ) -> str:
     """Ensambla el system prompt de la voz del sitio.
 
-    family ∈ {"seo", "blog"}; persona ∈ claves de _PERSONA.
+    family ∈ {"seo", "blog", "instagram", "consultorio"}; persona ∈ claves de
+    _PERSONA.
     subject: si se indica (fichas de persona/grupo/lugar), el protagonista del
     texto es ese sujeto y no Robe (ver `_subject_focus_block`).
     tone_quotes: citas reales de Robe para calibrar el tono (piezas en 1ª persona).
@@ -334,6 +374,21 @@ def build_system_prompt(
             _SAFETY,
             _OUTPUT_CONSULT,
         ]
+        return "\n\n".join(parts)
+
+    # Instagram: caption + slides. Comparte la voz y TODAS las reglas duras
+    # (nombre, raya larga, no inventar, no presenciar, 4 líneas de letra) con el
+    # resto del sitio; lo que cambia es la forma. El contrato JSON lo fija quien
+    # llama (`instagram/editorial.py`), que es quien sabe qué claves necesita.
+    # NO se pasa `style_guide`: ese manual es de cómo habla ROBE, y aquí Robe no
+    # habla — lo usa el consultorio y ahí se queda.
+    if family == "instagram":
+        parts = [_VOICE_INTRO, _PERSONA.get(persona, _PERSONA["tercera_calida"])]
+        if tone_quotes:
+            parts.append(_tone_quotes_block(tone_quotes))
+        if subject:
+            parts.append(_subject_focus_block(subject))
+        parts += [_HOW_IG, _RULES_HARD, _RULES_NO_VAGUE, _RULES_IG, _SAFETY]
         return "\n\n".join(parts)
 
     persona_block = _PERSONA.get(persona, _PERSONA["primera_admirador"])
