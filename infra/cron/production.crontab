@@ -50,6 +50,12 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
 # Selecciona los temas del día y prepara imagen + caption. Diario 08:30 UTC,
 # después del agregador. También difunde los artículos nuevos del blog.
+#
+# Estuvo con --no-news del 22 al 23-09-2026, mientras el camino de noticias no
+# exigía material real: escribía con lo que trae el RSS, y el 83,5% de las
+# encoladas no tenían ni extracto. Reabierto tras verificarlo contra producción.
+# `--no-news` sigue disponible por si hay que volver a cerrar el grifo sin tocar
+# el blog ni el evergreen.
 30 8 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.prepare_daily >> /var/log/robelyrics-cron.log 2>&1
 
 # Publica lo que toque. Dispara CADA 15 MINUTOS, pero NO publica cada 15 min:

@@ -19,9 +19,13 @@ import os
 
 from openai import OpenAI, OpenAIError
 
+from app.services.text_sanitizer import strip_ai_tells
+
 logger = logging.getLogger(__name__)
 
 _MODEL = "gpt-4o-mini"
+# Tope del artículo que se le pasa al modelo.
+MAX_MATERIAL_CHARS = 4000
 
 _SYSTEM = (
     "Eres el editor de Entre Interiores, una cuenta de Instagram sobre Robe "
@@ -46,11 +50,23 @@ def enrich(topic: dict) -> None:
         return
     title = (topic.get("title") or "").strip()
     summary = (topic.get("summary") or "").strip()
+    # El ARTÍCULO, no el extracto. El extracto venía vacío en el 83,5% de las
+    # noticias (los feeds de Google News repiten el titular y el agregador lo
+    # vacía), así que pedir «2 a 4 frases comentando la noticia» con eso delante
+    # era pedir que rellenase. `topics._tema_de_noticia` lo trae de
+    # `news_items.body_text`; sin él, `publisher.prepare` ni llega hasta aquí.
+    material = (topic.get("material") or "").strip()
     body, headline, image_query, image_search, hashtags = _generate(
-        title, summary, topic.get("category", ""), topic.get("tone", "neutral")
+        title, summary, topic.get("category", ""), topic.get("tone", "neutral"),
+        material=material, entidades=topic.get("entidades") or [],
+        correcciones=topic.get("correcciones") or [],
     )
-    topic["caption_body"] = body or _fallback_body(title, summary)
-    topic["headline"] = headline or title
+    # El saneador corre sobre lo que escribimos NOSOTROS (el comentario y el
+    # titular de la tarjeta), nunca sobre el titular del medio ni sobre un verso:
+    # lo ajeno se cita, no se reescribe. Entre otras cosas aplica la regla dura
+    # del nombre — un caption publicado decía «Robe Iniesta».
+    topic["caption_body"] = strip_ai_tells(body) or _fallback_body(title, summary)
+    topic["headline"] = strip_ai_tells(headline) or title
     # Nombre propio del SUJETO (para el hashtag #Sujeto).
     topic["image_query"] = image_query or ""
     # Query DESAMBIGUADA para buscar su foto en Google Images (con contexto,
@@ -67,7 +83,9 @@ def _fallback_body(title: str, summary: str) -> str:
 
 
 def _generate(
-    title: str, summary: str, category: str, tone: str = "neutral"
+    title: str, summary: str, category: str, tone: str = "neutral",
+    *, material: str = "", entidades: list | None = None,
+    correcciones: list[str] | None = None,
 ) -> tuple[str | None, str | None, str | None, str | None, list[str] | None]:
     """Llama a OpenAI. Devuelve (comentario, titular, image_query, image_search,
     hashtags)."""
@@ -92,10 +110,30 @@ def _generate(
             '  "titular": una frase corta y llamativa (máximo 9 palabras) para '
             "una tarjeta visual, con mayúscula inicial y sin punto final."
         )
+    # El artículo se capa: lo que importa es que el modelo tenga los HECHOS, no
+    # que pague por el pie de foto y los enlaces relacionados.
+    cuerpo = material[:MAX_MATERIAL_CHARS] if material else ""
+    bloque_material = (
+        f"ARTÍCULO (única fuente de hechos; no uses nada que no esté aquí):\n"
+        f"\"\"\"\n{cuerpo}\n\"\"\"\n"
+        if cuerpo
+        else "ARTÍCULO: (no disponible)\n"
+    )
+    bloque_entidades = _bloque_entidades(entidades or [])
+    bloque_correcciones = ""
+    if correcciones:
+        bloque_correcciones = (
+            "TU VERSIÓN ANTERIOR SE RECHAZÓ POR ESTO. Corrígelo; no lo repitas:\n"
+            + "\n".join(f"  · {c}" for c in correcciones)
+            + "\n"
+        )
     user = (
         f"Categoría: {category}\n"
         f"Titular de la noticia: {title}\n"
         f"Extracto disponible: {summary or '(sin extracto)'}\n"
+        f"{bloque_material}"
+        f"{bloque_entidades}"
+        f"{bloque_correcciones}"
         f"{nota_tono}\n\n"
         "Devuelve SOLO un objeto JSON con cinco claves:\n"
         '  "comentario": de 2 a 4 frases comentando la noticia como Entre '
@@ -150,6 +188,32 @@ def _generate(
     except (OpenAIError, ValueError, json.JSONDecodeError) as exc:
         logger.warning("[editorial] OpenAI falló (%s); se usa el texto original.", exc)
         return None, None, None, None, None
+
+
+def _bloque_entidades(entidades: list) -> str:
+    """Quién es quién, y a quién NO se puede nombrar.
+
+    Lo segundo no se deja al criterio del modelo: `newsroom` lo comprueba después
+    buscando el nombre en el texto. Esto solo le ahorra el viaje.
+    """
+    if not entidades:
+        return ""
+    lineas = []
+    identificadas = [e for e in entidades if getattr(e, "resuelta", False)]
+    silenciadas = [e for e in entidades if not getattr(e, "resuelta", False)]
+    if identificadas:
+        lineas.append("QUIÉN ES QUIÉN (identificado; usa estos nombres y cargos):")
+        for e in identificadas:
+            desc = f" — {e.description}" if e.description else ""
+            lineas.append(f"  · {e.label}{desc}")
+    if silenciadas:
+        lineas.append(
+            "NO NOMBRAR (no hemos podido identificar a quién se refiere el artículo; "
+            "no los menciones, ni por su nombre ni por su cargo, y no digas nada "
+            "sobre ellos):"
+        )
+        lineas.extend(f"  · {e.mention.surface}" for e in silenciadas)
+    return "\n".join(lineas) + "\n"
 
 
 def _clean_hashtag(tag: str) -> str:

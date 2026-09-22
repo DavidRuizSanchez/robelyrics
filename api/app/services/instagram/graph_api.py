@@ -469,3 +469,30 @@ def post_reel(
     return publish(
         container, attempts=REELS_POLL_ATTEMPTS, interval=REELS_POLL_INTERVAL
     )
+
+
+def permalink(ig_media_id: str) -> str | None:
+    """URL pública del post, la que abre de verdad.
+
+    El panel componía `instagram.com/p/{ig_media_id}`, y eso NO es el shortcode:
+    `ig_media_id` es el identificador de la Graph API, así que ese enlace no
+    lleva a ninguna parte. Para revisar un post publicado —por ejemplo, para
+    decidir si hay que retirarlo— hace falta el permalink de verdad.
+
+    Devuelve None si no se puede consultar; nunca lanza.
+    """
+    if not ig_media_id:
+        return None
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            resp = client.get(
+                f"{GRAPH}/{ig_media_id}",
+                params={
+                    "fields": "permalink",
+                    "access_token": config.INSTAGRAM_ACCESS_TOKEN,
+                },
+            )
+        return (resp.json() or {}).get("permalink") or None
+    except Exception as exc:  # noqa: BLE001
+        logger.info("[graph] permalink de %s falló: %s", ig_media_id, exc)
+        return None

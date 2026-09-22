@@ -8,18 +8,30 @@ el almacén ÚNICO del que beben los dos consumidores:
   - instagram  (`scripts.instagram.*`): selecciona temas del día y publica
                 enlazando y atribuyendo al medio original.
 
-Respeto de derechos de autor: solo se guarda titular + enlace + extracto
-breve + atribución de fuente, igual que un agregador tipo Google News. Nunca
-se reproduce el cuerpo del artículo.
+Respeto de derechos de autor: de cara afuera se publica titular + enlace +
+extracto breve + atribución, igual que un agregador tipo Google News.
+
+El CUERPO del artículo sí se guarda desde el 22-09-2026, y el cambio fue
+deliberado: los feeds de Google News repiten el titular en la descripción, así
+que el vaciado de `summary` de unas líneas más abajo dejaba a los consumidores
+con UNA línea de material. Medido sobre la cola de Instagram: 177 de 212
+noticias (83,5%) sin extracto, y con eso el modelo escribía cuatro frases,
+elegía foto y montaba un carrusel — hasta publicar una identidad equivocada y
+una afinidad que ninguna fuente decía. El cuerpo vive lo que vive esta tabla
+(`purge_old`, 7 días): es caché de trabajo, no archivo, y no se copia al
+snapshot de `instagram_queue`, que es lo que sobrevive.
 
 Workflow:
-    cron diario 08:00 → fetch de cada fuente → filtro relevancia + antigüedad
-    → dedup por URL → upsert en news_items → purga de noticias > 7 días.
+    cron diario 07:30 → fetch de cada fuente → filtro relevancia + antigüedad
+    → dedup por URL → upsert en news_items → purga > 7 días → cuerpo de las
+    nuevas (`fetch_bodies`, con presupuesto de tiempo porque prepare_daily
+    entra a las 08:30).
 
 Uso:
     python -m scripts.news.aggregate
     python -m scripts.news.aggregate --dry-run
     python -m scripts.news.aggregate --source gn_robe
+    python -m scripts.news.aggregate --only-bodies   (repesca de material)
 """
 from __future__ import annotations
 
@@ -30,6 +42,8 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
+
+import time
 
 import feedparser
 import httpx
@@ -259,6 +273,59 @@ def purge_old(db) -> int:
     return result.rowcount or 0
 
 
+def fetch_bodies(
+    db,
+    *,
+    budget_s: float = 180.0,
+    limit: int | None = None,
+    timeout: float = 10.0,
+) -> dict:
+    """Baja el cuerpo de las noticias que aún no lo tienen. Devuelve el recuento.
+
+    Por qué existe: sin cuerpo, lo único que el modelo tiene de una noticia es el
+    titular (medido: el 83,5% de las encoladas no llegaba ni con extracto), y con
+    eso rellena los huecos inventando. Ver `NewsItem` y `services/article_extract`.
+
+    Se reintentan los `unreachable` (red caída, 5xx) porque son transitorios; los
+    definitivos (`blocked`, `paywall_or_short`, `unresolved`) no: el UA no se
+    disfraza, así que volver a pedirlo mañana da lo mismo.
+
+    Va con presupuesto de tiempo porque corre a las 07:30 y `prepare_daily` entra
+    a las 08:30: si un medio cuelga, no puede comerse la hora siguiente.
+    """
+    from app.services.article_extract import UNREACHABLE, fetch_article
+
+    pendientes = db.execute(
+        select(NewsItem)
+        .where(NewsItem.body_status.in_(("pending", UNREACHABLE)))
+        .order_by(NewsItem.relevance_score.desc())
+        .limit(limit or 200)
+    ).scalars().all()
+
+    if not pendientes:
+        return {}
+
+    logger.info("Bajando el cuerpo de %d noticias…", len(pendientes))
+    empezó = time.monotonic()
+    recuento: dict[str, int] = {}
+    for item in pendientes:
+        if time.monotonic() - empezó > budget_s:
+            logger.warning(
+                "Presupuesto agotado (%.0fs): quedan %d sin bajar; van mañana.",
+                budget_s, len(pendientes) - sum(recuento.values()),
+            )
+            break
+        res = fetch_article(item.url, timeout=timeout)
+        item.body_url = res.final_url
+        item.body_text = res.text
+        item.body_chars = res.chars
+        item.body_status = res.status
+        item.body_fetched_at = datetime.now(timezone.utc)
+        db.commit()
+        recuento[res.status] = recuento.get(res.status, 0) + 1
+    return recuento
+
+
 # --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
@@ -267,10 +334,23 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true",
                         help="No escribe en la BD; solo informa.")
     parser.add_argument("--source", help="Limita a una fuente por su `key`.")
+    parser.add_argument("--no-body", action="store_true",
+                        help="No baja el cuerpo de los artículos.")
+    parser.add_argument("--only-bodies", action="store_true",
+                        help="Solo baja cuerpos pendientes; no agrega fuentes.")
     args = parser.parse_args()
 
     if not SOURCES_PATH.exists():
         logger.error("No se encuentra %s", SOURCES_PATH)
+        return
+
+    if args.only_bodies:
+        with SessionLocal() as db:
+            recuento = fetch_bodies(db)
+        logger.info(
+            "Material: %s",
+            " · ".join(f"{k}={v}" for k, v in sorted(recuento.items())) or "nada pendiente",
+        )
         return
 
     cfg = load_config()
@@ -339,10 +419,26 @@ def main() -> None:
         if not args.dry_run:
             purged = purge_old(db)
 
+        cuerpos: dict[str, int] = {}
+        if not args.dry_run and not args.no_body:
+            cuerpos = fetch_bodies(db)
+
     logger.info(
         "Run terminado: %d nuevas · %d relevantes · %d purgadas · %d errores",
         total_new, total_relevant, purged, errors,
     )
+    if cuerpos:
+        logger.info(
+            "Material: %s",
+            " · ".join(f"{k}={v}" for k, v in sorted(cuerpos.items())),
+        )
+        con_material = cuerpos.get("ok", 0)
+        total_cuerpos = sum(cuerpos.values())
+        if total_cuerpos and not con_material:
+            logger.warning(
+                "NINGUNA noticia se pudo bajar. Si esto se repite, mira si Google "
+                "cambió el consentimiento (services/google_news_url)."
+            )
 
 
 if __name__ == "__main__":

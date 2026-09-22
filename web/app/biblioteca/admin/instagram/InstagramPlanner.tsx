@@ -88,6 +88,7 @@ export default function InstagramPlanner({
     image_b64: string | null;
     image_url: string | null;
     media?: PreviewMedia[];
+    evidence?: Evidencia | null;
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [draftCaption, setDraftCaption] = useState("");
@@ -449,7 +450,184 @@ export default function InstagramPlanner({
       .filter((x): x is number => typeof x === "number"),
   );
 
-  function ItemMeta({ it }: { it: IGItem }) {
+  type Evidencia = {
+  material_url: string | null;
+  material_status: string | null;
+  material_chars: number;
+  entities: Array<{
+    surface: string; kind: string; role: string; status: string;
+    label: string | null; description: string | null; qid: string | null;
+    context: string; reason: string;
+    candidates?: Array<{ qid: string; label: string; description: string }>;
+  }>;
+  subject_label: string | null;
+  subject_qid: string | null;
+  subject_description: string | null;
+  photo_source: string | null;
+  photo_verdict: string | null;
+  photo_reason: string | null;
+  photo_query: string | null;
+  photo_page_url: string | null;
+  photo_site: string | null;
+  photo_evidence: string[];
+  claims: Array<{ claim: string; verdict: string; evidence?: string }>;
+  avisos: string[];
+};
+
+/**
+ * De dónde salió cada cosa del post.
+ *
+ * Va AL LADO del preview y no dentro: el preview reproduce el feed tal cual, y
+ * ensuciarlo le quitaría lo único que sirve para ver si la primera línea dice
+ * algo.
+ *
+ * Esto es lo que faltaba el 17-09-2026: el panel enseñaba la foto compuesta, el
+ * caption y «imagen ✓». Para ver que la foto era de otra persona había que
+ * reconocer la cara y luego abrir la noticia original a mano.
+ */
+function EvidenciaPost({ ev }: { ev: Evidencia }) {
+  const linea = "font-mono text-[9px] tracking-[2px] uppercase text-ink-faint";
+  return (
+    <div className="flex-1 min-w-0 space-y-4 border-l border-[rgba(237,228,211,0.08)] pl-5">
+      {ev.avisos.length > 0 && (
+        <div>
+          <p className={linea}>revisar</p>
+          <ul className="mt-1 space-y-1">
+            {ev.avisos.map((a, i) => (
+              <li key={i} className="text-[13px] text-accent">⚠ {a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div>
+        <p className={linea}>quién es quién</p>
+        {ev.entities.length === 0 && (
+          <p className="mt-1 text-[13px] text-ink-faint">(sin entidades)</p>
+        )}
+        <ul className="mt-1 space-y-1.5">
+          {ev.entities.map((e, i) => (
+            <li key={i} className="text-[13px] leading-snug">
+              <span className={e.status === "corpus" || e.status === "wikidata"
+                ? "text-ink" : "text-accent"}>
+                {e.label ?? e.surface}
+              </span>
+              {e.description && (
+                <span className="text-ink-faint"> · {e.description}</span>
+              )}
+              {e.qid && (
+                <a
+                  href={`https://www.wikidata.org/wiki/${e.qid}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="ml-1 font-mono text-[10px] text-accent hover:underline"
+                >
+                  {e.qid} ↗
+                </a>
+              )}
+              {(e.status === "ambiguous" || e.status === "unresolved") && (
+                <span className="block text-[12px] text-ink-faint">
+                  silenciado: {e.reason}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <p className={linea}>la foto</p>
+        <p className="mt-1 text-[13px]">
+          {ev.photo_source ?? "—"}
+          {ev.photo_verdict && (
+            <span className="text-ink-faint"> · {ev.photo_verdict}</span>
+          )}
+        </p>
+        {ev.photo_reason && (
+          <p className="text-[12px] text-ink-faint">{ev.photo_reason}</p>
+        )}
+        {ev.photo_query && (
+          <p className="text-[12px] text-ink-faint">
+            se buscó: «{ev.photo_query}»
+          </p>
+        )}
+        {ev.photo_page_url && (
+          <a
+            href={ev.photo_page_url}
+            target="_blank" rel="noopener noreferrer"
+            className="font-mono text-[10px] text-accent hover:underline"
+          >
+            {ev.photo_site || "de dónde salió"} ↗
+          </a>
+        )}
+      </div>
+
+      {ev.claims.length > 0 && (
+        <div>
+          <p className={linea}>lo que afirma</p>
+          <ul className="mt-1 space-y-1">
+            {ev.claims.map((c, i) => (
+              <li key={i} className="text-[12px] leading-snug">
+                <span className={c.verdict === "supported" ? "text-ink" : "text-accent"}>
+                  {c.verdict === "supported" ? "✓" : "✗"} {c.claim}
+                </span>
+                {c.evidence && (
+                  <span className="block text-ink-faint">«{c.evidence}»</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div>
+        <p className={linea}>material</p>
+        <p className="mt-1 text-[13px] text-ink-faint">
+          {ev.material_chars > 0
+            ? `${ev.material_chars} caracteres del artículo`
+            : "sin artículo"}
+          {ev.material_url && (
+            <>
+              {" · "}
+              <a
+                href={ev.material_url}
+                target="_blank" rel="noopener noreferrer"
+                className="font-mono text-[10px] text-accent hover:underline"
+              >
+                fuente ↗
+              </a>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * De dónde salió la foto, en vez del «imagen ✓» de antes.
+ *
+ * Aquel booleano se enseñó tan campante sobre una foto de Pep Guardiola en una
+ * noticia que iba de la presidenta de la Junta de Extremadura: decía que HABÍA
+ * imagen, no de quién era. Para cazar el fallo había que reconocer la cara.
+ */
+function etiquetaFoto(it: IGItem): string {
+  switch (it.photo_source) {
+    case "ficha_propia":
+      return "📷 ficha propia";
+    case "wikidata_p18":
+      return "📷 commons ✓";
+    case "google_images":
+      return it.photo_verdict === "identidad_sin_mirar"
+        ? "📷 web · sin comprobar"
+        : "📷 web · identidad ✓";
+    case "arte_propio":
+      return "🎨 arte propio";
+    default:
+      return "imagen ✓";
+  }
+}
+
+function ItemMeta({ it }: { it: IGItem }) {
     return (
       <>
         <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
@@ -499,9 +677,20 @@ export default function InstagramPlanner({
               })}
             </span>
           )}
+          {it.needs_human && (
+            <span
+              className="font-mono text-[9px] tracking-[2px] uppercase text-accent"
+              title="Pide que lo mires: despliega para ver por qué"
+            >
+              ⚠ revisar
+            </span>
+          )}
           {it.is_prepared && (
-            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-              imagen ✓
+            <span
+              className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint"
+              title={it.photo_verdict ?? undefined}
+            >
+              {etiquetaFoto(it)}
             </span>
           )}
           {it.has_caption && (
@@ -561,6 +750,8 @@ export default function InstagramPlanner({
                   }
                   formatoPedido={it.media_type}
                 />
+
+                {detail?.evidence && <EvidenciaPost ev={detail.evidence} />}
 
                 {/* Editor del caption */}
                 <div className="flex-1 min-w-0">

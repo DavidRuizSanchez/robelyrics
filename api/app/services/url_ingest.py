@@ -29,16 +29,9 @@ logger = logging.getLogger(__name__)
 # para lo scrapeado y para lo pegado a mano.
 MIN_ARTICLE_CHARS = 200
 
-# Códigos con los que un medio dice "no sirvo a bots". Nuestro UA es
-# identificativo y no se disfraza de navegador (Responsible Builder Policy), así
-# que estos son un no definitivo, no un fallo transitorio: la salida es pegar el
-# texto a mano. Caso real: el WAF de deia.eus responde 406 a todo lo que no
-# parezca un navegador, incluso a su propio robots.txt.
-BOT_BLOCKED = {401, 403, 406, 429, 451}
-PASTE_HINT = (
-    "abre el artículo en el navegador, copia el texto y pégalo en "
-    "«cuerpo del artículo»"
-)
+# Definidos en `article_extract` (fuente única): el mismo criterio lo aplican el
+# alta manual y la descarga del agregador, y dos copias se desincronizan.
+from app.services.article_extract import BOT_BLOCKED, PASTE_HINT  # noqa: E402,F401
 
 
 class IngestError(Exception):

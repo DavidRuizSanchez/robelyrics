@@ -160,6 +160,105 @@ erratas (Whisper escribe «Robben y Niesta»): sirven de fondo, no como dato ni 
 vuelva: cuenta por kind qué fuentes alcanza cada camino y lista las que no alcanza
 ninguno. `audit_embeddings` cuenta puntos; este dice si sirven.
 
+## Un post de noticia no se escribe con el titular
+
+El 17-09-2026 salió publicado un post sobre el Día de Extremadura con **fotos de
+Pep Guardiola** y afirmando que «figuras del mundo del fútbol como Guardiola
+reconocen la influencia de Robe». La noticia iba de **María Guardiola**,
+presidenta de la Junta, y el artículo lo decía en su segunda frase. Nadie lo
+había leído: el camino de IG no descargaba el artículo.
+
+Las noticias tienen DOS caminos y el de Instagram era un atajo. El del blog pasa
+por investigación real y cuatro gates bloqueantes; el de IG pasaba por **una
+llamada a gpt-4o-mini** con el titular y 280 caracteres de RSS, a `temperature
+0.7`. Ninguna guarda del repo tocaba un caption: ni `editorial_review`, ni
+`lyric_guard`, ni `find_especulacion`, ni `web_verify`, ni `image_guard`. Solo
+`fact_check` con `use_web=False` dentro de un `try/except: pass`.
+
+Y **se lo ordenaba el motor**, como pasó con los titles SEO: el prompt pedía
+«añade SIEMPRE contexto» con cuatro ejemplos musicales, y su cláusula de escape
+solo saltaba con «un apellido o nombre común (p.ej. Pérez)». «Guardiola» no le
+parece común a un modelo.
+
+**Sin material no hay post.** `article_extract.fetch_article` dice además POR QUÉ
+falla, para separar «el medio bloquea bots» (definitivo: la salida es pegar el
+texto) de «se cayó la red». `topics._admisible` descarta con motivo y
+`publisher.prepare` lanza `SinMaterial`, que cubre el alta manual del panel —
+antes un bypass completo. Habrá días de 0 ó 1 noticia: **es lo correcto, no una
+avería**.
+
+**El cuerpo del artículo SÍ se persiste** (`news_items.body_*`), cambiando la
+política anterior. Vive lo que vive esa tabla (`purge_old`, 7 días): es caché de
+trabajo, no archivo, y **no se copia al snapshot de `instagram_queue`**, que es lo
+que sobrevive. De un artículo ajeno ahí sigue quedando titular, enlace y extracto.
+
+**El 84,4% de las URLs son de Google News y no redirigen.** `google_news_url`
+las traduce con la llamada firmada que usa la propia web. Desde una IP europea
+Google manda la primera visita a `consent.google.com` y la página vuelve sin
+firma: por eso va la cookie `SOCS`, que es lo que Google deja puesto cuando
+alguien responde al banner. **Esto solo se ve en producción**: en un portátil
+funciona sin ella. Y destapó un bug viejo — `fetch_article_text` sobre esos
+enlaces no «caía al snippet», devolvía el **texto del banner de cookies**, que
+pasa de `MIN_CHARS`, así que el `or news.summary` de `scrape_news.py:264` nunca
+saltaba y el motor del blog investigaba con la política de privacidad de Google
+dentro.
+
+**Quién es quién, antes de escribir** (`news_entities`): las entidades se extraen
+del CUERPO, no del titular —«Guardiola» a secas no devuelve ninguna persona en
+Wikidata; «María Guardiola» devuelve «política española» a la primera— y se
+desambigua contra el **contexto literal de la noticia**, no contra un léxico de
+oficios: ni el entrenador ni la presidenta son músicos, y el segundo candidato del
+nombre completo es *otra política*, portuguesa. **Con dos candidatos vivos no hay
+entidad.** El nombre corto se funde en el completo, o la regla dura silenciaría a
+quien el propio artículo identifica.
+
+REGLA DURA: lo que no se identifica no se nombra, no da foto y no da hashtag. Si
+es el sujeto, no hay post. Y **se comprueba después, por texto** (`newsroom`), no
+se le pide al modelo: es determinista, corre sin clave y es lo que habría parado
+el incidente.
+
+**La foto va por procedencia** (`identity_photo`): ficha propia → P18 de Wikidata
+del QID resuelto contra Commons → Google con la consulta CONSTRUIDA desde la
+entidad → arte propio. `photo_finder` se queda para evergreen y blog. En
+`image_guard`, `expected_terms` caza el homónimo de mismo país y distinto oficio
+(`_FOREIGN_HINTS` solo veía los de otro país) y es **opt-in**: sin él, el
+veredicto es idéntico, porque esa función mueve el cron de las 04:40 y un
+`homonym_risk` de más abriría erratas sobre fotos buenas.
+
+En `identity_guard`, **sin foto de referencia se pregunta por CONTRADICCIÓN, no
+por reconocimiento**. Un modelo no puede afirmar que una cara es la de una
+diputada que no ha visto nunca, y preguntándoselo así dice que sí a todo; sí
+puede ver un banquillo y un escudo del City.
+
+**El gate del caption** (`caption_guard`) lo destapó todo: lo falso NO era la
+relación —«Guardiola reconoce la influencia de Robe» se sostiene en el artículo,
+que habla de un lema inspirado en él— sino el inciso «del mundo del fútbol», un
+ATRIBUTO que contradice a la entidad identificada. Eso lo caza
+`contradice_la_identidad`, frase a frase (un post de música puede nombrar un
+estadio) y buscando también por el apellido: el artículo dice «María Guardiola» y
+el caption decía «Guardiola», y sin eso el barrido daba «nada que revisar» justo
+del post que había que cazar.
+
+**Las relaciones se comprueban contra el ARTÍCULO, nunca contra la web.** Medido:
+`verify_connection('Guardiola','Robe')` devolvía confirmado y su evidencia era la
+propia noticia (confirma coaparición, no la relación); y `classify_fact('María
+Guardiola es fan de Extremoduro')` volvía `supported` con la evidencia «fan
+absoluto que soy de Extremoduro», que es una frase de OTRA persona. La ausencia
+de evidencia BLOQUEA — al revés que en `classify_fact`, que existe para no BORRAR
+datos de páginas ya publicadas; aquí vamos a AFIRMAR algo nuevo.
+
+**El panel enseña de dónde sale cada cosa** (`instagram_post_evidence`): entidad
+resuelta con su descripción y su QID, candidatos descartados, origen y veredicto
+de la foto con la consulta literal y su página, y cada afirmación con su
+evidencia. Antes decía `imagen ✓` —un booleano— sobre una foto de otra persona, y
+la consulta solo quedaba en el log del cron, que rota. Un item `needs_human` **no
+se lleva por delante un «aprobar todo»**: cada uno necesita su clic.
+
+`scripts/instagram/audit_identidad.py` barre lo ya publicado. **No borra ni
+despublica nada** (no hay camino para ello en el código, y no conviene que lo
+haya: retirar un post es manual en instagram.com) y **no va al crontab** hasta
+calibrarlo, misma decisión que `audit_published.py`.
+
 ## Canales de YouTube: no todos son monotemáticos
 
 Los canales que se barren viven en `data/sources.yaml` con `ingest: true`, y

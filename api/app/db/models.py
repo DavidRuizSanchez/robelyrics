@@ -33,6 +33,11 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
+from sqlalchemy.types import JSON as _SA_JSON
+
+# JSONB donde lo hay, JSON donde no: los tests corren sobre SQLite y JSONB
+# no viaja (misma lección que las tablas del blog).
+_JSON = _SA_JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -1289,14 +1294,23 @@ class NewsItem(Base):
 
     El agregador (`scripts/news/aggregate.py`) descarga las fuentes de
     `data/news_sources.yaml` y guarda aquí titular + enlace + extracto breve
-    + atribución (nunca el cuerpo del artículo). Es el almacén ÚNICO del que
-    beben los dos consumidores:
+    + atribución. Es el almacén ÚNICO del que beben los dos consumidores:
 
       - blog:      filtra `policy` que incluya 'blog' → reescribe → propuestas.
       - instagram: usa todas → selecciona temas → publica enlazando al medio.
 
     `policy` se denormaliza de la fuente para poder filtrar sin joins.
     Las noticias con más de 7 días se purgan en cada ciclo del agregador.
+
+    CUERPO DEL ARTÍCULO (`body_*`, desde el 22-09-2026): antes NO se guardaba,
+    por respeto de derechos tipo agregador. Se guarda ahora porque sin él el
+    modelo escribía a ciegas: medido sobre la cola de Instagram, 177 de 212
+    noticias (83,5%) no tenían ni extracto —los feeds de Google News repiten el
+    titular y el agregador lo vacía—, y con un titular por todo material se
+    publicó una identidad equivocada y una afinidad que nadie había dicho.
+    Sigue sin ser un archivo: esta tabla se purga a los 7 días, así que es caché
+    de trabajo. Y el cuerpo NO se copia al snapshot de `instagram_queue`, que es
+    lo que sobrevive: de un artículo ajeno ahí queda titular, enlace y extracto.
     """
 
     __tablename__ = "news_items"
@@ -1330,6 +1344,22 @@ class NewsItem(Base):
     consumed_blog: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+
+    # --- Material real del artículo (ver docstring) ------------------------- #
+    # URL del medio de verdad. `url` suele ser un enlace de Google News, que NO
+    # redirige: hay que traducirlo (`services/google_news_url`). Guardarlo evita
+    # re-resolverlo y hace que el «fuente ↗» del panel lleve al artículo.
+    body_url: Mapped[str | None] = mapped_column(String(700))
+    body_text: Mapped[str | None] = mapped_column(Text)
+    body_chars: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    # pending | ok | blocked | paywall_or_short | unresolved | unreachable
+    # Los cuatro del medio son definitivos salvo `unreachable`, que se reintenta.
+    body_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="pending", server_default=text("'pending'")
+    )
+    body_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class InstagramQueueItem(Base):
@@ -1429,6 +1459,13 @@ class InstagramQueueItem(Base):
         String(16), nullable=False, default="pending"
     )
     ig_media_id: Mapped[str | None] = mapped_column(String(64))
+    # Pasó las guardas, pero algo pide que lo mire una persona (la foto no se
+    # pudo comprobar con visión, se silenció una entidad…). Vive aquí y no en
+    # `instagram_post_evidence` porque hay que filtrar y ordenar por él en SQL,
+    # y porque el aprobado en bloque tiene que poder negarse.
+    needs_human: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     error: Mapped[str | None] = mapped_column(Text)
     # Intentos de publicación gastados. Un `failed` NO era el final de nada por
     # decisión, sino porque `due_pinned`/`next_pending` filtran por
@@ -1501,6 +1538,63 @@ class InstagramQueueMedia(Base):
     )
 
     item: Mapped["InstagramQueueItem"] = relationship(back_populates="media")
+
+
+class InstagramPostEvidence(Base):
+    """Por qué este post dice lo que dice: de dónde salió cada cosa.
+
+    Nace del item 348 (17-09-2026). El panel enseñaba «imagen ✓» —un booleano—
+    sobre una foto de Pep Guardiola en una noticia sobre la presidenta de la
+    Junta de Extremadura, y el caption a su lado. Con eso delante, cazar el fallo
+    exigía reconocer la cara y luego abrir la noticia original a mano. La query
+    que buscó la foto no se guardaba en ninguna parte: solo quedaba en una línea
+    del log del cron, que rota.
+
+    Tabla aparte y no columnas en `instagram_queue` porque la cola es CALIENTE
+    —el publicador la escribe cada quince minutos— y esto es un registro frío de
+    auditoría, casi todo JSON.
+
+    Los JSON usan una variante: JSONB en Postgres, JSON en SQLite, porque los
+    tests corren sobre SQLite y JSONB no viaja.
+    """
+
+    __tablename__ = "instagram_post_evidence"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("instagram_queue.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+
+    # --- El material del que se escribió ---
+    material_url: Mapped[str | None] = mapped_column(String(700))
+    material_status: Mapped[str | None] = mapped_column(String(24))
+    material_chars: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # --- Quién es quién ---
+    # [{surface, kind, status, label, description, qid, context, reason,
+    #   candidates: [...]}]
+    entities: Mapped[list | None] = mapped_column(_JSON)
+    subject_label: Mapped[str | None] = mapped_column(String(200))
+    subject_qid: Mapped[str | None] = mapped_column(String(32))
+    subject_description: Mapped[str | None] = mapped_column(String(300))
+
+    # --- La foto ---
+    photo_source: Mapped[str | None] = mapped_column(String(32))
+    photo_verdict: Mapped[str | None] = mapped_column(String(40))
+    photo_reason: Mapped[str | None] = mapped_column(Text)
+    photo_query: Mapped[str | None] = mapped_column(String(300))
+    photo_page_url: Mapped[str | None] = mapped_column(String(700))
+    photo_site: Mapped[str | None] = mapped_column(String(200))
+    photo_evidence: Mapped[list | None] = mapped_column(_JSON)
+
+    # --- El texto ---
+    claims: Mapped[list | None] = mapped_column(_JSON)   # [{claim, verdict, evidence}]
+    avisos: Mapped[list | None] = mapped_column(_JSON)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class VideoClip(Base):

@@ -25,24 +25,37 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 TYPE_LABEL = {
+    "news": "Actualidad",
+    "blog": "Del blog",
+    "clip": "Clips de vídeo",
+    "product": "Enseñar la web",
     "quote": "Frases de canciones",
     "ephemeris": "Efemérides y aniversarios",
     "anecdote": "Anécdotas y hechos",
     "robe_quote": "Citas de Robe",
 }
-TYPE_ORDER = ["quote", "ephemeris", "anecdote", "robe_quote"]
+TYPE_ORDER = ["news", "blog", "clip", "product",
+              "quote", "ephemeris", "anecdote", "robe_quote"]
+OTROS = "Otros"
 
 
 def _render(grupos: dict[str, list[InstagramQueueItem]], admin_url: str) -> tuple[str, str]:
     total = sum(len(v) for v in grupos.values())
     secciones_html: list[str] = []
-    text_lines = [f"Propuestas evergreen de Instagram: {total}", ""]
+    text_lines = [f"Propuestas de Instagram esperando tu visto bueno: {total}", ""]
 
-    for tipo in TYPE_ORDER:
+    # `TYPE_ORDER` primero y LO QUE SOBRE después. Antes solo listaba los cuatro
+    # evergreen, pero `main()` selecciona TODOS los `proposed` y `total` los
+    # cuenta: las noticias engordaban el número del asunto y no salían en ninguna
+    # sección, así que una propuesta de noticia no ha aparecido nunca en el
+    # correo. Se arregla la clase de bug, no la instancia: un `content_type`
+    # nuevo ya no puede desaparecer en silencio.
+    sobrantes = [t for t in grupos if t not in TYPE_ORDER and grupos.get(t)]
+    for tipo in TYPE_ORDER + sorted(sobrantes):
         items = grupos.get(tipo) or []
         if not items:
             continue
-        label = TYPE_LABEL.get(tipo, tipo)
+        label = TYPE_LABEL.get(tipo, OTROS if tipo in sobrantes else tipo)
         text_lines.append(f"== {label} ({len(items)}) ==")
         filas = []
         for it in items:
@@ -72,7 +85,7 @@ def _render(grupos: dict[str, list[InstagramQueueItem]], admin_url: str) -> tupl
         f'text-transform:uppercase;color:rgba(237,228,211,0.5);margin:0 0 4px;">'
         f'Entre Interiores · Instagram</p>'
         f'<h1 style="font-family:Georgia,serif;font-size:24px;color:#ede4d3;margin:0 0 16px;">'
-        f'{total} propuestas evergreen esperando tu visto bueno</h1>'
+        f'{total} propuestas esperando tu visto bueno</h1>'
         f'<p style="font-family:Georgia,serif;font-size:14px;color:rgba(237,228,211,0.75);'
         f'line-height:1.6;margin:0 0 8px;">Material intemporal sacado del corpus '
         f'(letras, efemérides, hechos verificados y citas de Robe). Aprueba en bloque '
