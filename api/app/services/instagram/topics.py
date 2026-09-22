@@ -195,16 +195,30 @@ def select(db: Session, count: int = 3) -> list[dict]:
     # Arranca con los temas recientes para no repetirlos en esta tanda.
     kwsets_usados: list[set[str]] = list(recent_kwsets)
 
+    descartes: dict[str, int] = {}
+
+    def _descartar(motivo: str) -> bool:
+        descartes[motivo] = descartes.get(motivo, 0) + 1
+        return False
+
     def _admisible(n: NewsItem) -> bool:
         if n.url in ya_en_cola or n.url in urls_usadas:
             return False
         if _demasiado_vieja(n):
-            return False
+            return _descartar("vieja")
         if _es_muerte_consolidada(n):
-            return False
+            return _descartar("muerte_consolidada")
         if (n.relevance_score or 0) + _freshness(n) < 3:
-            return False
-        return _es_comentable(n)
+            return _descartar("poco_relevante")
+        # SIN MATERIAL NO HAY POST. El cuerpo del artículo es lo que separa
+        # escribir de rellenar: con solo el titular, el modelo inventa el resto.
+        # Un `blocked` (el medio no sirve a bots) o un `paywall_or_short` son
+        # definitivos; `pending`/`unreachable` volverán a intentarse mañana.
+        if (n.body_status or "pending") != "ok" or not (n.body_text or "").strip():
+            return _descartar(f"sin_material:{n.body_status or 'pending'}")
+        if not _es_comentable(n):
+            return _descartar("no_comentable")
+        return True
 
     # Primera pasada: máxima variedad de categoría Y de temática.
     for n in rankeadas:
@@ -267,6 +281,15 @@ def select(db: Session, count: int = 3) -> list[dict]:
                 "url": "",
             })
 
+    if descartes:
+        # Que se vea POR QUÉ hay pocos temas. Una cola corta por falta de
+        # material es lo correcto, no una avería, pero si nadie lo dice acaba
+        # diagnosticándose como tal.
+        logger.info(
+            "[temas] %d elegidos · descartes: %s",
+            len(temas[:count]),
+            " · ".join(f"{k}={v}" for k, v in sorted(descartes.items())),
+        )
     return temas[:count]
 
 
@@ -278,4 +301,9 @@ def _tema_de_noticia(n: NewsItem) -> dict:
         "summary": n.summary or "",
         "source": n.source_medium or n.source_name,
         "url": n.url,
+        # El artículo de verdad. Sin esto el LLM solo tiene el titular, y con un
+        # titular rellena: así se publicó un homónimo famoso por el sujeto real.
+        "material": n.body_text or "",
+        # URL del medio ya resuelta (`url` suele ser un enlace de Google News).
+        "url_medio": n.body_url or n.url,
     }
