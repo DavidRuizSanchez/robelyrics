@@ -9,7 +9,12 @@ Devuelve, por candidato:
   - url:   la imagen a tamaño completo (campo `source_url` de DataForSEO).
   - thumb: el thumbnail de Google (`encoded_url`), respaldo fiable si la imagen
            full no se puede descargar (hotlink/404).
-  - title: título/alt del resultado (para depurar y para una verificación laxa).
+  - title: título/alt del resultado.
+  - page_url: la página que contiene la imagen (campo `url` de DataForSEO).
+  - site: el sitio, tal como lo rotula Google (`subtitle`: «Wikipedia», «ABC»…).
+
+`title`, `page_url` y `site` son con lo que `identity_photo` descarta un
+candidato ANTES de gastar una llamada de visión.
 
 Degradación elegante: si no hay credenciales o la API falla, devuelve [].
 """
@@ -66,6 +71,13 @@ def search(query: str, depth: int = 20) -> list[dict]:
             "url": src or thumb,
             "thumb": thumb,
             "title": (it.get("title") or it.get("alt") or "").strip(),
+            # De dónde sale. Ojo a la semántica de DataForSEO, que engaña:
+            # `source_url` es la IMAGEN y `url` es la PÁGINA que la contiene.
+            # Las dos se descartaban, y son lo único con lo que se puede juzgar
+            # un resultado antes de publicarlo: sin ellas, elegir foto era tirar
+            # un dado entre los quince primeros de Google.
+            "page_url": (it.get("url") or "").strip(),
+            "site": (it.get("subtitle") or "").strip(),
         })
     logger.info("[web_image] '%s' -> %d imágenes", query, len(out))
     return out

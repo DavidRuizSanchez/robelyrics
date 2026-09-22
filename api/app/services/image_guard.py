@@ -42,6 +42,39 @@ _HOTLINK_HOSTS = ("upload.wikimedia.org", "wikipedia.org", "wikimedia.org")
 _COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 _UA = "RobeLyrics/1.0 (https://entreinteriores.com; davidruizsanchez@gmail.com)"
 
+# Oficios por dominio, para cazar el homónimo que `_FOREIGN_HINTS` no ve: mismo
+# apellido, mismo país, distinta profesión. El caso que lo motiva es «Guardiola»:
+# la presidenta de la Junta de Extremadura y el entrenador del Manchester City
+# son los dos españoles, así que la pista de país no dice nada, y ninguno de los
+# dos es músico, así que `_DOMAIN_HINTS` tampoco desempata.
+#
+# Solo actúan cuando el caller dice qué esperaba (`expected_terms`): sin eso, el
+# veredicto es el de siempre. Ese opt-in no es cosmético — `verify_provenance` es
+# el motor del cron de imágenes de las 04:40, y un `homonym_risk` de más abriría
+# erratas sobre fotos buenas de la web pública.
+_DOMAIN_LEXICONS: dict[str, tuple[str, ...]] = {
+    "musica": (),
+    "deporte": (
+        "futbol", "football", "soccer", "entrenador", "coach", "manager", "liga",
+        "league", "seleccion", "estadio", "stadium", "banquillo", "temporada",
+        "fc ", " cf", "olympic", "olimpic", "baloncesto", "basketball", "tenis",
+        "tennis", "ciclista", "cyclist", "atleta", "athlete", "deportivo",
+    ),
+    "politica": (
+        "politic", "diputad", "consejer", "alcald", "parlament", "gobierno",
+        "government", "ministr", "senador", "presidenta", "presidente", "junta",
+        "partido popular", "psoe", "congreso", "ayuntamiento", "electoral",
+    ),
+    "cine": (
+        "actor", "actriz", "actress", "cineasta", "film director", "pelicula",
+        "cinema", "guionista", "screenwriter",
+    ),
+    "ciencia": (
+        "cientific", "scientist", "investigador", "researcher", "profesor",
+        "physicist", "biolog", "quimic", "matematic",
+    ),
+}
+
 # Pistas de que un fichero de Commons retrata a un homónimo de otro país. No
 # deciden solas: marcan el caso para que lo mire un humano.
 _FOREIGN_HINTS = (
@@ -60,6 +93,10 @@ _DOMAIN_HINTS = (
     "extremoduro", "robe", "song", "cancion", "live", "directo", "discografia",
     "songwriter", "escenario", "stage",
 )
+
+# El léxico de música es el de arriba (se rellena aquí porque `_DOMAIN_LEXICONS`
+# se declara antes, junto al resto de pistas de homónimo).
+_DOMAIN_LEXICONS["musica"] = _DOMAIN_HINTS
 
 # Señales de que una imagen alojada por nosotros VIENE de una fuente libre: se
 # re-alojó en su día y se perdió el fichero de origen. Hay traza (autor + licencia),
@@ -98,6 +135,31 @@ def _norm(s: str) -> str:
     s = unicodedata.normalize("NFD", (s or "").lower())
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9 ]+", " ", s).strip()
+
+
+def dominios_de(texto: str) -> set[str]:
+    """Dominios de actividad que asoman en un texto ('política española' → politica)."""
+    t = _norm(texto)
+    return {d for d, terminos in _DOMAIN_LEXICONS.items()
+            if any(_norm(x).strip() in t for x in terminos)}
+
+
+def conflicto_de_dominio(esperado: str, haystack: str) -> str | None:
+    """¿La foto es claramente de OTRO oficio que el que se esperaba?
+
+    Devuelve el dominio intruso, o None. Exige las dos condiciones a la vez —que
+    case fuerte con otro y que NO case con el esperado— porque una ficha de
+    Commons mezcla de todo: una foto de un músico en un estadio menciona el
+    estadio, y eso no la convierte en la de un futbolista.
+    """
+    esperados = dominios_de(esperado)
+    if not esperados:
+        return None
+    hallados = dominios_de(haystack)
+    if esperados & hallados:
+        return None
+    intrusos = hallados - esperados
+    return sorted(intrusos)[0] if intrusos else None
 
 
 def _strip_authorship(description: str) -> str:
@@ -194,12 +256,19 @@ def verify_provenance(
     attribution: str | None = None,
     license_: str | None = None,
     aliases: list[str] | None = None,
+    expected_terms: str | None = None,
 ) -> ProvenanceVerdict:
     """¿La procedencia acredita que esta imagen es de esta entidad?
 
     `aliases` son otras formas de llamarla (nombre artístico y nombre completo de
     una persona): basta que UNA case, porque Commons etiqueta a Kutxi Romero por su
-    nombre artístico y a otros por el de pila."""
+    nombre artístico y a otros por el de pila.
+
+    `expected_terms` es lo que el caller sabe de la entidad («política española»),
+    y sirve para cazar al homónimo de mismo país y distinto oficio, que
+    `_FOREIGN_HINTS` no ve. Es OPT-IN a propósito: sin él el veredicto es
+    exactamente el de siempre, porque esta función mueve el cron de imágenes de
+    las 04:40 y un `homonym_risk` de más abriría erratas sobre fotos buenas."""
     if not image_url:
         return ProvenanceVerdict("unknown", "Sin imagen.")
 
@@ -270,6 +339,18 @@ def verify_provenance(
                       f"categorías: {', '.join(ev.get('categories', [])[:5]) or '—'}",
                       f"descripción: {(ev.get('description') or '—').strip()[:120]}"],
         )
+
+    if expected_terms:
+        intruso = conflicto_de_dominio(expected_terms, haystack)
+        if intruso:
+            return ProvenanceVerdict(
+                "homonym_risk",
+                f"El nombre casa, pero la foto es de {intruso} y se esperaba "
+                f"«{expected_terms}»: puede ser un homónimo.",
+                evidence=[f"fichero: {fname}",
+                          f"categorías: {', '.join(ev.get('categories', [])[:5])}",
+                          f"esperado: {expected_terms}"],
+            )
 
     foreign = [h for h in _FOREIGN_HINTS if h in haystack]
     if foreign:
