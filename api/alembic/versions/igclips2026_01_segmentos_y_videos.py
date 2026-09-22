@@ -14,6 +14,7 @@ Revises: igtrust2026_01
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "igclips2026_01"
