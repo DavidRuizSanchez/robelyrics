@@ -42,11 +42,27 @@ from app.services.instagram import (
     tone,
     video,
 )
+from app.services import news_entities
+from app.services.instagram import identity_photo, newsroom
 from app.services.instagram.evergreen import EVERGREEN_TYPES
 
 logger = logging.getLogger(__name__)
 
 BLOG_BASE_URL = f"{config.SITE_URL}/blog"
+
+
+class SinMaterial(RuntimeError):
+    """No hay artículo que leer, así que no hay post: esto SÍ es un no definitivo.
+
+    Distinta de `MaterialPendiente`, que significa «espera un poco». Aquí no se
+    espera nada: el medio bloquea la descarga, o hay paywall, o el enlace de
+    Google News no se resuelve. Escribir igualmente significa escribir con el
+    titular, que es exactamente como se publicó un homónimo famoso por el sujeto
+    real de la noticia y una afinidad que ninguna fuente decía.
+
+    `topics.select` ya filtra por esto, pero el alta MANUAL desde el panel no
+    pasa por ahí: sin esta guarda, seguiría siendo un bypass completo.
+    """
 
 
 class MaterialPendiente(RuntimeError):
@@ -211,6 +227,76 @@ def _apply_person_photo(
     logger.info("[IG] efeméride de %s → foto de ficha %s", slug, url[:60])
 
 
+
+def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
+    """Deja por escrito de dónde salió cada cosa de este post.
+
+    Sin esto, el panel solo podía decir «imagen ✓», y con eso delante no había
+    forma de cazar que la foto era de otra persona sin reconocer la cara. Es
+    best-effort: si falla, el post sigue —pero se loguea, que un `except: pass`
+    mudo es como muere una guarda sin que nadie se entere.
+    """
+    from app.db.models import InstagramPostEvidence
+
+    try:
+        fila = db.execute(
+            select(InstagramPostEvidence).where(
+                InstagramPostEvidence.item_id == item.id
+            )
+        ).scalar_one_or_none()
+        if fila is None:
+            fila = InstagramPostEvidence(item_id=item.id)
+            db.add(fila)
+
+        material = topic.get("material") or ""
+        fila.material_url = topic.get("url_medio") or topic.get("url")
+        fila.material_status = "ok" if material else "sin_material"
+        fila.material_chars = len(material)
+
+        fila.entities = [
+            {
+                "surface": e.mention.surface,
+                "kind": e.mention.kind,
+                "role": e.mention.role,
+                "status": e.status,
+                "label": e.label,
+                "description": e.description,
+                "qid": e.qid,
+                "context": e.mention.context,
+                "reason": e.reason,
+                "candidates": e.candidates,
+            }
+            for e in entidades
+        ]
+        sujeto = news_entities.sujeto(entidades)
+        if sujeto is not None:
+            fila.subject_label = sujeto.label
+            fila.subject_qid = sujeto.qid
+            fila.subject_description = sujeto.description
+
+        foto = topic.get("foto")
+        if foto is not None:
+            fila.photo_source = foto.source
+            fila.photo_verdict = foto.verdict
+            fila.photo_reason = foto.reason
+            fila.photo_query = foto.query
+            fila.photo_page_url = foto.page_url
+            fila.photo_site = foto.site
+            fila.photo_evidence = list(foto.evidence or [])
+        else:
+            fila.photo_source = identity_photo.ARTE_PROPIO
+            fila.photo_verdict = "own_art"
+            fila.photo_reason = "Sin foto acreditada: no afirma la identidad de nadie."
+
+        fila.claims = topic.get("claims") or []
+        fila.avisos = topic.get("avisos") or []
+        item.needs_human = bool(fila.avisos)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[evidencia] no se pudo guardar la del item %s: %s", item.id, exc)
+        db.rollback()
+
+
 def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     """Genera imagen y caption para un item de la cola (sin publicar)."""
     topic = _topic_from_item(db, item)
@@ -249,7 +335,18 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         # Las noticias se reescriben con voz editorial propia (sin citar al
         # medio); los posts del blog ya traen su texto y su imagen destacada.
         if not is_blog:
-            editorial.enrich(topic)
+            material = (topic.get("material") or "").strip()
+            if not material:
+                from app.services.article_extract import PASTE_HINT
+                raise SinMaterial(
+                    f"No hay cuerpo del artículo para «{topic.get('title', '')[:60]}»: "
+                    f"sin material no se escribe. Si el medio lo bloquea, {PASTE_HINT}."
+                )
+            # Antes de escribir: saber de quién se habla. Lo que no se
+            # identifica no se nombra (`newsroom`, regla dura).
+            entidades = newsroom.resolver_entidades(db, topic)
+            avisos = newsroom.escribir(db, topic, entidades)
+            topic["avisos"] = avisos
             # Fuente de imagen por prioridad:
             #   1) Portada del disco si el tema trata sobre uno de la discografía.
             #   2) Foto CC del protagonista real (Wikimedia/Openverse) por entidad.
@@ -273,12 +370,36 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                     ).scalars().all()
                     if c and (m := re.search(r"📷\s*(.+)", c))
                 }
-                foto = photo_finder.find(topic, exclude=recent_credits)
+                # La foto la busca la ENTIDAD resuelta, no una frase que el
+                # modelo adivina del titular. `photo_finder.find` se queda para
+                # el evergreen y el blog; aquí no se usa porque elegía uno de los
+                # quince primeros de Google por hash, sin mirar nada.
+                sujeto = news_entities.sujeto(entidades)
+                foto = (
+                    identity_photo.find_for_entity(
+                        sujeto, topic, exclude=recent_credits
+                    )
+                    if sujeto is not None
+                    else None
+                )
                 if foto:
-                    topic["image_hint"] = foto["url"]
-                    topic["image_hint_thumb"] = foto.get("thumb") or ""
-                    topic["image_credit"] = foto.get("credit") or ""
+                    topic["image_hint"] = foto.url
+                    topic["image_hint_thumb"] = foto.thumb
+                    topic["image_credit"] = foto.credit
                     topic["image_kind"] = "photo"
+                    topic["foto"] = foto
+                    if foto.needs_human:
+                        topic.setdefault("avisos", []).append(
+                            "La foto no se ha podido comprobar con visión: revísala."
+                        )
+                elif sujeto is not None:
+                    # Nada acreditado: arte propio. Se dice, porque una foto que
+                    # no aparece se nota menos que una foto equivocada, y aun así
+                    # conviene que alguien sepa por qué.
+                    topic.setdefault("avisos", []).append(
+                        f"Sin foto acreditada de «{sujeto.label or sujeto.mention.surface}»: "
+                        f"va arte propio."
+                    )
 
         # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
         # Se excluyen los versos usados en los últimos posts para no repetirlos.
@@ -408,6 +529,11 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     item.status = "prepared"
     item.error = None
     db.commit()
+
+    # Lo último: dejar por escrito de dónde salió cada cosa, para que el panel
+    # pueda enseñarlo y no haya que reconocer una cara para cazar un fallo.
+    if topic.get("entidades"):
+        _guardar_evidencia(db, item, topic, topic["entidades"])
     return item
 
 

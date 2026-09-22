@@ -33,6 +33,16 @@ export type IGItem = {
   source_url: string | null;
   image_url: string | null;
   ig_media_id: string | null;
+  /**
+   * Pasó las guardas pero algo pide un par de ojos (la foto no se pudo
+   * comprobar con visión, se silenció una entidad…). No se puede aprobar en
+   * bloque: cada uno necesita su clic.
+   */
+  needs_human: boolean;
+  /** ficha_propia | wikidata_p18 | google_images | arte_propio. */
+  photo_source: string | null;
+  /** Veredicto de la procedencia/identidad de esa foto. */
+  photo_verdict: string | null;
   error: string | null;
   is_blog: boolean;
   is_prepared: boolean;

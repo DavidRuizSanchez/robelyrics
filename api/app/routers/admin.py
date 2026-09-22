@@ -2073,6 +2073,7 @@ from app.db.models import (  # noqa: E402
 )
 from app.services.instagram import (  # noqa: E402
     graph_api as _ig_graph,
+    newsroom as _ig_newsroom,
     publisher as _ig_publisher,
     scheduling as _ig_scheduling,
 )
@@ -2096,6 +2097,12 @@ class AdminIGItem(BaseModel):
     source_url: str | None = None
     image_url: str | None = None
     ig_media_id: str | None = None
+    # De dónde salió la foto y con qué veredicto. Sustituye al `imagen ✓` del
+    # panel, que era un booleano y se enseñó tan campante sobre una foto de otra
+    # persona.
+    needs_human: bool = False
+    photo_source: str | None = None
+    photo_verdict: str | None = None
     error: str | None = None
     is_blog: bool = False
     is_prepared: bool = False
@@ -2118,6 +2125,27 @@ class AdminIGMedia(BaseModel):
     has_local: bool = False
 
 
+class AdminIGEvidence(BaseModel):
+    """De dónde salió cada cosa del post, para que se pueda cazar un fallo."""
+
+    material_url: str | None = None
+    material_status: str | None = None
+    material_chars: int = 0
+    entities: list[dict] = []
+    subject_label: str | None = None
+    subject_qid: str | None = None
+    subject_description: str | None = None
+    photo_source: str | None = None
+    photo_verdict: str | None = None
+    photo_reason: str | None = None
+    photo_query: str | None = None
+    photo_page_url: str | None = None
+    photo_site: str | None = None
+    photo_evidence: list[str] = []
+    claims: list[dict] = []
+    avisos: list[str] = []
+
+
 class AdminIGItemDetail(AdminIGItem):
     caption: str | None = None
     # Imagen preparada, codificada en base64 para previsualizarla en el
@@ -2125,6 +2153,7 @@ class AdminIGItemDetail(AdminIGItem):
     # Solo se rellena en posts de una pieza; el resto va por `media`.
     image_b64: str | None = None
     media: list[AdminIGMedia] = []
+    evidence: AdminIGEvidence | None = None
 
 
 class AdminIGNewsCandidate(BaseModel):
@@ -2192,7 +2221,7 @@ class AdminIGAccount(BaseModel):
     bloqueo_desde: datetime | None = None
 
 
-def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
+def _ig_item_to_model(it: _IGItem, ev=None) -> AdminIGItem:  # noqa: ANN001
     return AdminIGItem(
         id=it.id,
         day=it.day.isoformat() if it.day else "",
@@ -2211,6 +2240,9 @@ def _ig_item_to_model(it: _IGItem) -> AdminIGItem:
         source_url=it.source_url,
         image_url=it.image_url,
         ig_media_id=it.ig_media_id,
+        needs_human=bool(getattr(it, "needs_human", False)),
+        photo_source=getattr(ev, "photo_source", None),
+        photo_verdict=getattr(ev, "photo_verdict", None),
         error=it.error,
         is_blog=it.blog_post_id is not None,
         is_prepared=bool(it.image_path),
@@ -2235,17 +2267,52 @@ def admin_ig_queue_list(
         .limit(min(limit, 500))
         .all()
     )
-    return [_ig_item_to_model(it) for it in rows]
+    evs = _evidencias_de(db, rows)
+    return [_ig_item_to_model(it, ev=evs.get(it.id)) for it in rows]
 
 
-def _ig_detail_model(it: _IGItem) -> AdminIGItemDetail:
+def _evidencias_de(db: Session, items) -> dict:  # noqa: ANN001
+    """Evidencia de varios posts de una tacada, por id. Una consulta, no N."""
+    from app.db.models import InstagramPostEvidence
+
+    ids = [i.id for i in items]
+    if not ids:
+        return {}
+    try:
+        filas = db.execute(
+            select(InstagramPostEvidence).where(
+                InstagramPostEvidence.item_id.in_(ids)
+            )
+        ).scalars().all()
+    except Exception:  # noqa: BLE001
+        return {}
+    return {f.item_id: f for f in filas}
+
+
+def _evidencia_de(db: Session, item_id: int):
+    """Evidencia de un post, o None. Consulta explícita y no relación ORM: como
+    relación se cargaba SIEMPRE, y las pruebas que solo montan la tabla de la
+    cola —91 de ellas— se caían con «no such table»."""
+    from app.db.models import InstagramPostEvidence
+
+    try:
+        return db.execute(
+            select(InstagramPostEvidence).where(
+                InstagramPostEvidence.item_id == item_id
+            )
+        ).scalar_one_or_none()
+    except Exception:  # noqa: BLE001 — sin evidencia el panel sigue funcionando
+        return None
+
+
+def _ig_detail_model(it: _IGItem, db: Session | None = None) -> AdminIGItemDetail:
     """Modelo de detalle para el panel.
 
     La primera imagen sigue yendo en base64 por compatibilidad, pero SOLO si el
     post es de una pieza y no es vídeo: un carrusel de 10 serían ~5 MB por
     petición y un MP4 bastante más. El resto se sirve por `/media/{position}`.
     """
-    base = _ig_item_to_model(it)
+    base = _ig_item_to_model(it, ev=_evidencia_de(db, it.id) if db is not None else None)
     piezas = sorted(getattr(it, "media", []) or [], key=lambda m: m.position)
 
     image_b64 = None
@@ -2254,10 +2321,33 @@ def _ig_detail_model(it: _IGItem) -> AdminIGItemDetail:
         with open(it.image_path, "rb") as f:
             image_b64 = _b64.b64encode(f.read()).decode("ascii")
 
+    ev = _evidencia_de(db, it.id) if db is not None else None
+    evidencia = None
+    if ev is not None:
+        evidencia = AdminIGEvidence(
+            material_url=ev.material_url,
+            material_status=ev.material_status,
+            material_chars=ev.material_chars or 0,
+            entities=list(ev.entities or []),
+            subject_label=ev.subject_label,
+            subject_qid=ev.subject_qid,
+            subject_description=ev.subject_description,
+            photo_source=ev.photo_source,
+            photo_verdict=ev.photo_verdict,
+            photo_reason=ev.photo_reason,
+            photo_query=ev.photo_query,
+            photo_page_url=ev.photo_page_url,
+            photo_site=ev.photo_site,
+            photo_evidence=list(ev.photo_evidence or []),
+            claims=list(ev.claims or []),
+            avisos=list(ev.avisos or []),
+        )
+
     return AdminIGItemDetail(
         **base.model_dump(),
         caption=it.caption,
         image_b64=image_b64,
+        evidence=evidencia,
         media=[
             AdminIGMedia(
                 position=m.position, kind=m.kind, role=m.role, url=m.url,
@@ -2309,7 +2399,7 @@ def admin_ig_queue_detail(
     it = db.get(_IGItem, item_id)
     if it is None:
         raise HTTPException(status_code=404, detail="item not found")
-    return _ig_detail_model(it)
+    return _ig_detail_model(it, db)
 
 
 @router.patch("/instagram/queue/{item_id}", response_model=AdminIGItemDetail)
@@ -2357,7 +2447,7 @@ def admin_ig_update(
         it.publish_at = programado
     db.commit()
     db.refresh(it)
-    return _ig_detail_model(it)
+    return _ig_detail_model(it, db)
 
 
 @router.get("/instagram/news", response_model=list[AdminIGNewsCandidate])
@@ -2493,7 +2583,8 @@ def admin_ig_reorder(
         .order_by(_IGItem.position)
         .all()
     )
-    return [_ig_item_to_model(it) for it in rows]
+    evs = _evidencias_de(db, rows)
+    return [_ig_item_to_model(it, ev=evs.get(it.id)) for it in rows]
 
 
 @router.post("/instagram/queue/{item_id}/prepare", response_model=AdminIGItem)
@@ -2510,6 +2601,18 @@ def admin_ig_prepare(
         raise HTTPException(status_code=409, detail="ya está publicado")
     try:
         _ig_publisher.prepare(db, it)
+    except _ig_newsroom.TextoNoPublicable as texto:
+        # El texto no pasa las guardas. No es una avería: es que lo que salió no
+        # se sostiene en el artículo.
+        raise HTTPException(status_code=422, detail=str(texto)) from texto
+    except _ig_newsroom.SujetoNoIdentificado as quien:
+        # Tampoco es una avería: es que no sabemos de quién habla la noticia.
+        raise HTTPException(status_code=422, detail=str(quien)) from quien
+    except _ig_publisher.SinMaterial as falta:
+        # No es una avería del servidor: es que no hay artículo que leer. 422 para
+        # que el panel enseñe el motivo (y la salida: pegar el texto a mano) en
+        # vez de un 500 opaco.
+        raise HTTPException(status_code=422, detail=str(falta)) from falta
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"prepare falló: {exc}") from exc
     return _ig_item_to_model(it)
@@ -2585,7 +2688,8 @@ def admin_ig_interleave(
     for pos, it in enumerate(interleaved):
         it.position = pos
     db.commit()
-    return [_ig_item_to_model(it) for it in interleaved]
+    evs = _evidencias_de(db, interleaved)
+    return [_ig_item_to_model(it, ev=evs.get(it.id)) for it in interleaved]
 
 
 class AdminIGAutoScheduleIn(BaseModel):
@@ -2952,6 +3056,16 @@ def admin_ig_bulk_approve(
             continue
         if it.status != "proposed":
             result.failed.append({"id": item_id, "error": f"estado {it.status}"})
+            continue
+        if it.needs_human:
+            # Un item marcado NO se lleva por delante un «aprobar todo»: cada uno
+            # necesita su clic. Si no, la válvula es auto-publicación por
+            # descuido — el mismo criterio que el «publicar todos» del correo de
+            # SEO.
+            result.failed.append({
+                "id": item_id,
+                "error": "pide revisión: ábrelo y apruébalo de uno en uno",
+            })
             continue
         it.status = "pending"
         db.commit()
