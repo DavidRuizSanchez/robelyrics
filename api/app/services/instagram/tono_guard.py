@@ -47,6 +47,11 @@ MOLDES = (
     r"al m[aá]s puro estilo",
     r"(himno|grito) generacional",
     r"pura poes[ií]a",
+    # `content_guard.RELLENO` ya veta «dejó huella», pero solo esa forma: el
+    # gerundio se coló en un caption re-preparado en producción el 23-09-2026
+    # («dejando una huella imborrable en el rock español»).
+    r"(dejando|deja|dejaron) (una )?huella",
+    r"huella (imborrable|indeleble|eterna)",
     r"qu[eé] os parece",
     r"c[oó]mo lo v[eé]is",
     r"no te lo pierdas",

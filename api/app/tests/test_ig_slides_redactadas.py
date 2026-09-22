@@ -153,6 +153,9 @@ def test_tumba_los_titulares_de_molde_que_se_publicaron():
         "La evolución musical de Robe: de Extremoduro a su legado",
         "La Evolución Musical de Extremoduro: Un Viaje Sonoro",
         "Extremoduro: La Evolución del Rock Transgresivo en España",
+        # Se coló en producción: `content_guard` veta «dejó huella» y esto es
+        # el mismo molde en gerundio.
+        "El poema de Chinato dejando una huella imborrable en el rock español",
     ):
         v = tono_guard.revisar(titular=titular, comentario="", slides=[], cierre="")
         assert not v.ok, f"debería tumbarse: {titular}"
