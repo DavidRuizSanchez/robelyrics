@@ -261,3 +261,48 @@ def test_la_heuristica_vieja_no_distingue_a_un_entrenador_de_una_presidenta():
         h in (c.get("description") or "").lower()
         for c in baraja for h in _DOMINIO_HINTS
     ), "ninguno de los dos casa con el léxico musical: por eso no desempataba"
+
+
+# --- Sin contexto, pero sin nada que desambiguar --------------------------- #
+def test_un_nombre_distintivo_y_unico_no_necesita_contexto(wiki, sin_corpus):
+    """«Pasapalabra» es el concurso y punto. Exigirle un contexto que el artículo
+    no da silenciaba el programa del que iba la noticia."""
+    wiki([
+        {"id": "Q253511", "label": "Pasapalabra",
+         "description": "adaptación española del concurso de televisión"},
+        {"id": "Q62018559", "label": "Pasalapabra (Argentina)",
+         "description": "programa de televisión argentino"},
+        {"id": "Q115355926", "label": "Pasapalabra",
+         "description": "página de desambiguación de Wikimedia"},
+    ])
+    r = ne.resolve(None, ne.Mention("Pasapalabra", "org", "", "mentioned"))
+    assert r.status == ne.WIKIDATA
+    assert r.qid == "Q253511", "la desambiguación no es una entidad"
+
+
+def test_el_apellido_pelado_sigue_sin_resolver(wiki, sin_corpus):
+    """Que un nombre único pase sin contexto NO puede abrir la puerta al caso
+    original: tras quitar las metaentidades quedan dos municipios que también se
+    llaman «Guardiola», y con dos candidatos vivos no hay entidad."""
+    wiki(CANDS_APELLIDO_SOLO)
+    r = ne.resolve(None, ne.Mention("Guardiola", "person", "", "subject"))
+    assert r.status == ne.AMBIGUOUS
+
+
+def test_la_ficha_del_apellido_no_es_la_persona(wiki, sin_corpus):
+    """El primer resultado de «Guardiola» en Wikidata es, literalmente, la ficha
+    del apellido. Darla por buena sería tomar el nombre por quien lo lleva."""
+    wiki([{"id": "Q37220356", "label": "Guardiola", "description": "apellido"}])
+    r = ne.resolve(None, ne.Mention("Guardiola", "person", "", "subject"))
+    assert r.status == ne.AMBIGUOUS
+    assert r.qid is None
+
+
+def test_dos_personas_reales_con_el_mismo_nombre_exacto_no_se_eligen_a_dedo(wiki, sin_corpus):
+    wiki([
+        {"id": "Q3626210", "label": "Eduardo Casanova", "description": "actor español"},
+        {"id": "Q133087671", "label": "Eduardo Casanova",
+         "description": "arqueólogo hispanoargentino"},
+    ])
+    r = ne.resolve(None, ne.Mention("Eduardo Casanova", "person", "", "mentioned"))
+    assert r.status == ne.AMBIGUOUS

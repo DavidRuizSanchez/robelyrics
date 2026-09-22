@@ -382,15 +382,28 @@ def resolve(db, mention: Mention) -> ResolvedEntity:
         )
 
     if not mention.context:
-        # Sin contexto no hay con qué desambiguar. Un solo candidato podría ser
-        # el bueno, pero también podría ser el más famoso del mundo: con
-        # «Guardiola» a secas, el primero que devuelve Wikidata es un apellido.
+        # Sin contexto no se puede desambiguar… salvo que no haya nada que
+        # desambiguar. Un nombre propio distintivo que casa EXACTO con un único
+        # candidato real no tiene con quién confundirse: «Pasapalabra» es el
+        # concurso y punto. Exigirle un contexto que el artículo no da silenciaba
+        # el programa del que iba la noticia.
+        #
+        # «Guardiola» no pasa por aquí: tras quitar las metaentidades quedan dos
+        # municipios que también se llaman así, y con dos candidatos vivos no hay
+        # entidad.
+        exactos = [
+            c for c in cands
+            if _norm(c.get("label") or "") == _norm(mention.surface)
+            and not _es_metaentidad(c)
+        ]
+        if len(exactos) == 1:
+            return _resuelta_por_wikidata(mention, exactos[0], [_resumen(exactos[0])], 0)
         return ResolvedEntity(
             mention, AMBIGUOUS,
             candidates=[_resumen(c) for c in cands[:3]],
             reason=(
-                f"El artículo no dice quién es «{mention.surface}», así que no hay "
-                f"con qué distinguirlo de sus homónimos."
+                f"El artículo no dice quién es «{mention.surface}» y hay "
+                f"{len(exactos) or 'varios'} candidatos con ese mismo nombre."
             ),
         )
 
@@ -419,6 +432,21 @@ def resolve(db, mention: Mention) -> ResolvedEntity:
             f"Con dos candidatos vivos no hay entidad."
         ),
     )
+
+
+# Descripciones de Wikidata que NO señalan una entidad concreta, sino una ficha
+# sobre el nombre en sí. El primer resultado de «Guardiola» es «apellido»: darlo
+# por bueno sería tomar la ficha del apellido por la persona.
+_METAENTIDADES = (
+    "apellido", "surname", "family name",
+    "nombre masculino", "nombre femenino", "nombre propio", "given name",
+    "pagina de desambiguacion", "página de desambiguación", "disambiguation",
+)
+
+
+def _es_metaentidad(cand: dict) -> bool:
+    desc = _norm(cand.get("description") or "")
+    return any(_norm(m) in desc for m in _METAENTIDADES)
 
 
 def _resumen(cand: dict) -> dict:
