@@ -659,6 +659,30 @@ erratas conocidas. Y los medios grandes (Movistar+, RTVE, EL PAÍS, RockFM) no s
 vetan —no son discográficas— pero sí se **marcan** en el correo: se reclaman
 antes que el clip de un fan, y quien aprueba merece saberlo.
 
+### Cuando un clip no se baja, el orden de diagnóstico
+
+`ffmpeg exited with code 8` ya significa **cuatro cosas distintas**, y el
+mensaje no distingue. Los clips llevaban semanas sin poder bajarse (también el
+alta manual del panel; no lo rompió la automatización). Medido el 23-09-2026
+aislando cada variable:
+
+1. **¿Está yt-dlp al día?** Con 2026.7.4 todas las descargas daban 403, con y
+   sin tramo, con node y con deno. Subir a 2026.8.19 lo arregló. YouTube lo
+   rompe cada pocas semanas: **mirar esto primero siempre**.
+2. **¿Está el challenge solver?** Sin `remote_components: ["ejs:github"]` la
+   lista de formatos viene SIN VÍDEO (0 frente a 32 medidos) y se baja solo el
+   audio; el montaje muere con un filtergraph que no menciona YouTube.
+3. **node ya no vale como runtime**: yt-dlp solo habilita deno, que va en el
+   `Dockerfile` de desarrollo (allí corre el daemon).
+4. **El códec**: este ffmpeg baja el VP9 y no lo decodifica —ffprobe dice
+   «h264» y no entrega un fotograma—, así que se pide H.264 por delante.
+
+Bug propio que escondía los tres primeros: el `outtmpl` fijaba la extensión
+(«crudo.mp4»), el audio pisaba al vídeo y el merge se quedaba sin partes.
+
+`_tiene_imagen` intenta DECODIFICAR un fotograma en vez de preguntar a ffprobe
+si hay stream, y su error nombra las dos causas conocidas.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
