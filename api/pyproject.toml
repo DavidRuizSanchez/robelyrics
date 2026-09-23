@@ -26,7 +26,14 @@ dependencies = [
     "openai>=1.54",
     # Lyrics / sources
     "lyricsgenius>=3.0.1",
-    "yt-dlp>=2025.1.15",
+    # Mínimo 2026.8.19, y es una fecha con motivo: con la 2026.7.4 TODAS las
+    # descargas de YouTube devolvían «HTTP Error 403: Forbidden» (que con ffmpeg
+    # de por medio se reporta como «ffmpeg exited with code 8» y no dice nada de
+    # la causa). Verificado el 23-09-2026 aislando el fallo: no era el tramo, ni
+    # el vídeo, ni el runtime JS —se probó con deno instalado y falla igual—,
+    # era la versión. YouTube rompe yt-dlp cada pocas semanas: cuando los clips
+    # dejen de bajarse otra vez, lo PRIMERO que hay que mirar es esto.
+    "yt-dlp>=2026.8.19",
     "youtube-transcript-api>=0.6.2",
     "praw>=7.8",
     "beautifulsoup4>=4.12",
