@@ -362,40 +362,75 @@ PESO_TIPO = {
     "solo": 1.4,
     "canto": 1.0,
 }
-# Un clip de directo puede ser más corto: un estribillo entra en 20 segundos y
-# alargarlo por alargar mete la estrofa siguiente, que ya no es el momento.
-MIN_S_DIRECTO = 18.0
+# Un clip de directo dura lo que dura el momento. Este mínimo ya no rellena:
+# solo evita clips tan cortos que no se entiendan, y se estira únicamente con
+# momentos de la MISMA canción.
+#
+# Estaba en 18 s y rellenaba con lo que viniera detrás. Eso publicó «El
+# estribillo de "Por encima del bien y del mal"» cerrando en el segundo 294,
+# UNO ANTES de que sonara el gancho (295-302). Criterio de David: mejor corto y
+# exacto. `video_clips.MIN_CLIP_S` admite desde 3 s.
+MIN_S_DIRECTO = 10.0
 
 
-def _ventana_alrededor(
+def _mismo_momento(a, b) -> bool:
+    """¿Estos dos tramos son el mismo momento, seguido?"""
+    return a.tipo == b.tipo and a.cancion == b.cancion
+
+
+def abre_bloque(momentos_todos: list, idx: int) -> bool:
+    """¿Este es el primer tramo de su bloque?
+
+    Solo se construye un candidato por bloque. Antes se construía uno por cada
+    tramo, salían tres versiones del mismo trozo cortadas por sitios distintos,
+    y el filtro anti-solape decidía entre ellas por orden de aparición.
+    """
+    return idx == 0 or not _mismo_momento(momentos_todos[idx - 1], momentos_todos[idx])
+
+
+def _bloque_del_momento(
     momentos_todos: list, idx: int, duracion_total: float | None,
-) -> tuple[float, float, str]:
-    """Estira un momento hasta que dure lo suficiente, sin partir ningún tramo.
+) -> tuple[float, float, str, int]:
+    """El bloque entero: tramos seguidos del mismo tipo y la misma canción.
 
-    Se crece HACIA ADELANTE primero: un estribillo que empieza y se corta a la
-    mitad se nota mucho más que uno al que le falta la entrada.
+    El clip dura lo que dura el momento, ni más ni menos. Solo si el bloque se
+    queda por debajo de `MIN_S_DIRECTO` se estira, y únicamente con tramos de la
+    MISMA canción: rellenar con lo que venga detrás es lo que cortó un estribillo
+    un segundo antes de su gancho.
+
+    Devuelve (inicio, fin, frontera, cuántos tramos cubre).
     """
     m = momentos_todos[idx]
     inicio, fin = m.start_s, m.end_s
+    cubiertos = 1
+
     j = idx
-    while fin - inicio < MIN_S_DIRECTO and j + 1 < len(momentos_todos):
+    while j + 1 < len(momentos_todos):
+        siguiente = momentos_todos[j + 1]
+        if not _mismo_momento(m, siguiente):
+            break
+        if siguiente.end_s - inicio > MAX_S:
+            break
         j += 1
-        fin = momentos_todos[j].end_s
-        if fin - inicio > MAX_S:
-            fin = momentos_todos[j - 1].end_s if j > idx else m.end_s
+        fin = siguiente.end_s
+        cubiertos += 1
+
+    # El bloque se queda corto: se completa con lo que siga sonando de la misma
+    # canción (la estrofa que viene después, el cierre), nunca con otra cosa.
+    while fin - inicio < MIN_S_DIRECTO and j + 1 < len(momentos_todos):
+        siguiente = momentos_todos[j + 1]
+        if m.cancion and siguiente.cancion and siguiente.cancion != m.cancion:
             break
-    i = idx
-    while fin - inicio < MIN_S_DIRECTO and i > 0:
-        i -= 1
-        nuevo = momentos_todos[i].start_s
-        if fin - nuevo > MAX_S:
+        if siguiente.end_s - inicio > MAX_S:
             break
-        inicio = nuevo
+        j += 1
+        fin = siguiente.end_s
+
     if duracion_total:
         fin = min(fin, duracion_total)
     # La frontera es de tramo de transcripción, nunca «por puntuación»: en un
     # directo no hay puntuación fiable y decir lo contrario sería mentir.
-    return inicio, fin, "pausa" if idx > 0 else "aproximada"
+    return inicio, fin, "pausa" if idx > 0 else "aproximada", cubiertos
 
 
 def candidatos_directo(
@@ -429,39 +464,57 @@ def candidatos_directo(
     fuera: list[Candidato] = []
     aceptadas: list[tuple[float, float]] = []
 
-    # De mejor a peor ANTES de recortar solapes, para que el que se quede sea el
-    # de más puntuación y no el que caiga primero en el tiempo.
-    orden = sorted(
-        range(len(clasificados)),
-        key=lambda i: -(PESO_TIPO.get(clasificados[i].tipo, 0) + clasificados[i].confianza),
+    # Un candidato por BLOQUE, no por tramo: si no, salen tres versiones del
+    # mismo momento cortadas por sitios distintos y hay que elegir entre ellas.
+    bloques = [
+        i for i in range(len(clasificados))
+        if abre_bloque(clasificados, i)
+        and clasificados[i].tipo in PESO_TIPO
+        and clasificados[i].tipo != "canto"
+    ]
+    # De mejor a peor ANTES de recortar solapes, y con la COBERTURA como
+    # desempate: las dos ventanas del caso de Barcelona empataban a 4,00 exacto
+    # y ganó la peor por orden de aparición. Ahora gana la que trae más momento.
+    medidos = []
+    for idx in bloques:
+        inicio, fin, frontera, cubiertos = _bloque_del_momento(
+            clasificados, idx, duracion_total
+        )
+        medidos.append((idx, inicio, fin, frontera, cubiertos))
+    medidos.sort(
+        key=lambda t: (
+            -(PESO_TIPO.get(clasificados[t[0]].tipo, 0) + clasificados[t[0]].confianza),
+            -t[4],
+        )
     )
-    for idx in orden:
+
+    for idx, inicio, fin, frontera, cubiertos in medidos:
         m = clasificados[idx]
-        if m.tipo not in PESO_TIPO or m.tipo == "canto":
-            continue
-        inicio, fin, frontera = _ventana_alrededor(clasificados, idx, duracion_total)
         if fin - inicio < MIN_S_DIRECTO or fin - inicio > MAX_S:
             continue
         if inicio < intro or (duracion_total and fin > duracion_total - outro):
             continue
         if _solapa(inicio, fin, usados):
             continue
-        # Dos momentos seguidos dan ventanas que se pisan: en el concierto de
-        # Barcelona salieron 275-294s y 286-309s, que son el mismo estribillo
-        # cortado por sitios distintos. Se queda el primero (mejor puntuado, que
-        # es el orden en que se recorren después) y los que lo pisan se caen.
         if any(inicio < f and i < fin for i, f in aceptadas):
             continue
         aceptadas.append((inicio, fin))
 
         score = PESO_TIPO[m.tipo] + m.confianza
         motivos = list(m.motivos)
+        if cubiertos > 1:
+            motivos.append(f"el momento dura {cubiertos} tramos seguidos")
         if m.cancion:
             score += 0.4
             motivos.append(f"canción identificada: {m.cancion}")
         if asset.event_date or asset.event_place:
             score += 0.3
             motivos.append("el concierto tiene fecha o lugar")
+        if asset.imagen_fija:
+            # No se excluye —David quiere verlos y decidir— pero baja al fondo:
+            # solo sale si no hay material con imágenes de verdad.
+            score -= 2.0
+            motivos.append("OJO: el vídeo es una imagen fija con el audio")
         texto = " ".join(
             (getattr(s, "text", "") or "").strip() for s in segmentos
             if inicio <= s.start_s <= fin

@@ -81,8 +81,9 @@ def main() -> None:
                     destino=destino,
                 )
                 logger.info(
-                    "  %s descargado (%.1f MB, canal: %s)",
+                    "  %s descargado (%.1f MB, canal: %s)%s",
                     etiqueta, meta["size_mb"], meta["channel_title"],
+                    "  ⚠ IMAGEN FIJA" if meta.get("imagen_fija") else "",
                 )
                 subido = cloudinary_upload.upload_video(destino)
 
@@ -96,6 +97,9 @@ def main() -> None:
                         "video_title": meta["video_title"],
                         "channel_title": meta["channel_title"],
                         "channel_url": meta["channel_url"],
+                        # Solo se sabe habiendo bajado el tramo: el servidor no
+                        # puede comprobarlo porque YouTube le bloquea.
+                        "imagen_fija": meta.get("imagen_fija"),
                     },
                 ).raise_for_status()
             logger.info("  ✅ %s listo", etiqueta)

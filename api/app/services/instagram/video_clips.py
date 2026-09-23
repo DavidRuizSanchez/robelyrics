@@ -29,7 +29,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -259,6 +259,62 @@ def _tiene_imagen(ruta: str) -> bool:
     return proc.returncode == 0
 
 
+# Un «concierto» que es la portada del disco quieta con el audio encima. No se
+# sabe por el título ni por la descripción: el que se coló se llamaba «GIRA 2012
+# | Robando Perchas en el Hotel». Solo se ve mirando la imagen.
+#
+# Medido sobre los dos vídeos (1080p30 H.264, mismo formato) con
+# `freezedetect=n=0.003:d=2` sobre 45 segundos:
+#   · el de la foto quieta → 45 de 45 s congelados (100 %)
+#   · el concierto de Barcelona → ni un solo evento (0 %)
+# La separación es binaria, así que el 90 % deja sitio de sobra para un fundido
+# o una carátula de entrada sin dejar pasar un directo.
+#
+# `n=0.003` y no el `-60dB` por defecto: a -60 dB el ruido de cuantización de un
+# keyframe parte el congelado en dos intervalos y hay que sumarlos; a 0,003 sale
+# uno limpio. El concierto no dispara ni a -60 dB, así que subir la tolerancia
+# no acerca los dos grupos.
+#
+# NO sirve mirar el audio (`silencedetect` y compañía): el audio SÍ es el del
+# concierto en los dos casos. Esa es justo la trampa.
+FREEZE_RUIDO = 0.003
+FREEZE_MIN_S = 2
+FREEZE_FRACCION = 0.90
+
+_RE_FREEZE_START = re.compile(r"freeze_start: ?([\d.]+)")
+_RE_FREEZE_END = re.compile(r"freeze_end: ?([\d.]+)")
+
+
+def _es_imagen_fija(ruta: str, duracion_s: float) -> bool:
+    """¿Este tramo es una foto quieta, o hay imágenes de verdad?
+
+    No se puede usar `_ffmpeg`: ese helper fuerza `-loglevel error` y tira la
+    salida, y `freezedetect` escribe sus hallazgos en stderr a nivel info.
+    """
+    if duracion_s <= 0:
+        return False
+    proc = subprocess.run(
+        ["ffmpeg", "-v", "info", "-i", ruta,
+         "-vf", f"freezedetect=n={FREEZE_RUIDO}:d={FREEZE_MIN_S}",
+         "-map", "0:v:0", "-f", "null", "-"],
+        capture_output=True, text=True,
+    )
+    salida = proc.stderr or ""
+    inicios = [float(x) for x in _RE_FREEZE_START.findall(salida)]
+    finales = [float(x) for x in _RE_FREEZE_END.findall(salida)]
+    if not inicios:
+        return False
+    congelado = 0.0
+    for i, comienzo in enumerate(inicios):
+        # Un congelado que no termina llega hasta el final del tramo: es el caso
+        # de una foto quieta, que no «acaba» nunca.
+        final = finales[i] if i < len(finales) else duracion_s
+        congelado += max(0.0, final - comienzo)
+    fraccion = congelado / duracion_s
+    logger.info("[clip] imagen congelada %.0f%% del tramo", fraccion * 100)
+    return fraccion >= FREEZE_FRACCION
+
+
 def _escapar_drawtext(texto: str) -> str:
     """Escapa el texto para el filtro drawtext de ffmpeg."""
     return (
@@ -395,9 +451,14 @@ def descargar_y_recortar(
             destino,
         ])
 
+    # Si el vídeo es una foto quieta se dice, pero NO se aborta el montaje:
+    # David quiere verlo marcado en el correo y decidir él.
+    fija = _es_imagen_fija(destino, duracion)
+
     return {
         "path": destino,
         "duration_s": duracion,
+        "imagen_fija": fija,
         "video_title": (info or {}).get("title"),
         "channel_title": (info or {}).get("uploader") or canal,
         "channel_url": (info or {}).get("uploader_url"),
@@ -442,7 +503,7 @@ def retire(db: Session, clip: VideoClip, motivo: str) -> tuple[bool, str]:
             problemas.append(f"Cloudinary: {exc}")
 
     clip.status = "retired"
-    clip.retired_at = datetime.now(timezone.utc)
+    clip.retired_at = datetime.now(UTC)
     clip.retired_reason = motivo
     if problemas:
         clip.error = " · ".join(problemas)

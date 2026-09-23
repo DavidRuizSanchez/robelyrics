@@ -43,8 +43,25 @@ SIN_VOZ = 0.6
 RATIO_LARGO = 0.62
 RATIO_CORTO = 0.85
 CORTO_CHARS = 25
-# Un verso que aparece 3+ veces en su canción es un estribillo, casi siempre.
+# Un verso que aparece 3+ veces en su canción es CANDIDATO a estribillo.
 REPETICIONES_ESTRIBILLO = 3
+# Pero repetirse no basta: un estribillo es el que VUELVE. Se mide cuánto se
+# reparten sus apariciones por la canción, `(última - primera) / nº de líneas`.
+#
+# Salió de un clip que David rechazó: «El estribillo de "Por encima del bien y
+# del mal"» no cantaba el estribillo. El verso más repetido de esa canción
+# («Todo lo que no está en ti», 4 veces) está en la LÍNEA 0 y sus cuatro
+# apariciones caben en las seis primeras de 45 → dispersión 0,11. Es la letanía
+# de entrada, no el estribillo.
+#
+# Medido sobre el catálogo entero, y por eso el criterio NO es la posición:
+#   «Todo lo que no está en ti»    4 rep · 0,11  ← el fallo
+#   «Luce la oscuridad»           12 rep · 0,94  ← estribillo, y ABRE la canción
+#   «Siempre en estado de espera»  5 rep · 0,95
+#   «Como buen guerrero»           5 rep · 0,97
+# Mirar si abre la canción habría tirado los tres últimos. Con 0,35 se caen 83
+# de los 334 versos repetidos: uno de cada cuatro no era un estribillo.
+DISPERSION_MIN = 0.35
 # Las dos primeras líneas de una canción: su entrada.
 LINEAS_DE_ARRANQUE = 2
 # Un solo dura lo que dura un solo. Por debajo de 8 segundos no es nada, y por
@@ -97,18 +114,33 @@ def cargar_catalogo(db: Session) -> Catalogo:
     canciones = lg._load_song_lines(db)
 
     estribillos: dict[str, str] = {}
-    for titulo, texto, _n in db.execute(sqltext(
+    descartados = 0
+    for titulo, texto, _n, dispersion in db.execute(sqltext(
         """
-        select s.title, l.text, count(*) n
-        from lines l join songs s on s.id = l.song_id
+        with largo as (
+            select song_id, max(line_index)::float + 1 as lineas
+            from lines group by song_id
+        )
+        select s.title, l.text, count(*) as n,
+               (max(l.line_index) - min(l.line_index)) / max(largo.lineas) as dispersion
+        from lines l
+        join songs s on s.id = l.song_id
+        join largo on largo.song_id = l.song_id
         where length(l.text) > 12
         group by s.title, l.text
         having count(*) >= :minimo
         """
     ), {"minimo": REPETICIONES_ESTRIBILLO}).all():
         norm = lg.normalize(texto or "")
-        if norm:
-            estribillos.setdefault(norm, titulo)
+        if not norm:
+            continue
+        if (dispersion or 0) < DISPERSION_MIN:
+            # Se repite, pero no vuelve: está concentrado en un tramo. Sigue su
+            # camino normal (si abre la canción será `arranque`, que es lo que
+            # es y tiene su propio título de post).
+            descartados += 1
+            continue
+        estribillos.setdefault(norm, titulo)
 
     arranques: dict[str, str] = {}
     for titulo, texto in db.execute(sqltext(
@@ -122,8 +154,11 @@ def cargar_catalogo(db: Session) -> Catalogo:
         if norm:
             arranques.setdefault(norm, titulo)
 
-    logger.info("[momentos] catálogo: %d canciones · %d estribillos · %d arranques",
-                len(canciones), len(estribillos), len(arranques))
+    logger.info(
+        "[momentos] catálogo: %d canciones · %d estribillos · %d arranques "
+        "(%d versos repetidos descartados por estar concentrados)",
+        len(canciones), len(estribillos), len(arranques), descartados,
+    )
     return Catalogo(canciones=canciones, estribillos=estribillos, arranques=arranques)
 
 

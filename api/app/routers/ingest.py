@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -239,6 +239,9 @@ class ClipComplete(BaseModel):
     video_title: str | None = None
     channel_title: str | None = None
     channel_url: str | None = None
+    # ¿El vídeo era una foto quieta con el audio encima? Solo se sabe tras
+    # descargar el tramo, así que lo trae quien lo bajó.
+    imagen_fija: bool | None = None
 
 
 @clips_router.get("/pending", response_model=list[ClipPending])
@@ -312,6 +315,26 @@ def clips_complete(
             item.source_url = clip.channel_url or clip.url or item.source_url
             if not (item.summary or "").strip() and clip.video_title:
                 item.summary = clip.video_title[:500]
+            if payload.imagen_fija:
+                # Va al `summary`, que es de donde `notify_clips` saca lo que
+                # enseña en el correo. No se veta el vídeo: se marca y decide
+                # una persona, que es lo que pidió David.
+                aviso = ("AVISO: el vídeo no tiene imágenes de directo, es una "
+                         "imagen fija con el audio encima")
+                if aviso not in (item.summary or ""):
+                    item.summary = f"{(item.summary or '').strip()}\n{aviso}".strip()
+                item.needs_human = True
+
+    if payload.imagen_fija is not None:
+        # Y queda anotado en el catálogo, para que el selector lo tenga en
+        # cuenta la próxima vez sin volver a descargar nada.
+        from app.db.models import VideoAsset
+
+        asset = db.execute(
+            select(VideoAsset).where(VideoAsset.youtube_id == clip.video_id)
+        ).scalar_one_or_none()
+        if asset is not None:
+            asset.imagen_fija = bool(payload.imagen_fija)
 
     db.commit()
     return {"ok": True, "status": clip.status}

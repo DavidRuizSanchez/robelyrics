@@ -186,3 +186,108 @@ def test_sin_juez_disponible_no_se_da_por_bueno(monkeypatch):
     ok, motivo = habla_el_protagonista("Una frase cualquiera sin señales claras.")
     assert not ok
     assert "no se ha podido comprobar" in motivo
+
+
+# --------------------------------------------------------------------------- #
+# Un estribillo no es lo que se repite: es lo que VUELVE
+# --------------------------------------------------------------------------- #
+def test_un_verso_concentrado_al_principio_no_es_estribillo():
+    """El caso que David rechazó: «El estribillo de "Por encima del bien y del
+    mal"» no cantaba el estribillo. El verso más repetido de esa canción está en
+    la línea 0 y sus cuatro apariciones caben en las seis primeras de 45
+    (dispersión 0,11): es la letanía de entrada."""
+    assert momentos.DISPERSION_MIN > 0.11
+
+
+def test_el_umbral_deja_pasar_un_estribillo_que_abre_la_cancion():
+    """«Luce la oscuridad» empieza en la línea 0 y ES el estribillo: se repite
+    12 veces a lo largo de toda la canción (dispersión 0,94). Por eso el
+    criterio NO puede ser la posición — mirar si abre habría tirado este."""
+    assert momentos.DISPERSION_MIN < 0.94
+
+
+# --------------------------------------------------------------------------- #
+# El clip es el momento, no un relleno
+# --------------------------------------------------------------------------- #
+class _Mom:
+    def __init__(self, tipo, ini, fin, cancion=None):
+        self.tipo, self.start_s, self.end_s, self.cancion = tipo, ini, fin, cancion
+        self.confianza, self.verso, self.motivos = 1.0, None, []
+
+
+def test_el_bloque_se_queda_en_su_momento():
+    from app.services.instagram.clip_picker import _bloque_del_momento
+
+    ms = [
+        _Mom("estribillo", 100, 110, "A"),
+        _Mom("estribillo", 110, 120, "A"),
+        _Mom("habla", 120, 140),           # otro momento: aquí se corta
+    ]
+    inicio, fin, _frontera, cubiertos = _bloque_del_momento(ms, 0, 600)
+    assert (inicio, fin) == (100, 120)
+    assert cubiertos == 2
+
+
+def test_un_bloque_corto_se_completa_solo_con_la_misma_cancion():
+    from app.services.instagram.clip_picker import _bloque_del_momento
+
+    ms = [
+        _Mom("estribillo", 100, 105, "A"),   # 5 s: por debajo del mínimo
+        _Mom("canto", 105, 112, "A"),        # misma canción: vale
+        _Mom("canto", 112, 130, "B"),        # otra canción: no
+    ]
+    inicio, fin, _f, _c = _bloque_del_momento(ms, 0, 600)
+    assert inicio == 100
+    assert fin == 112, "no se rellena con otra canción"
+
+
+def test_solo_se_propone_el_primer_tramo_de_cada_bloque():
+    """Antes se construía un candidato por tramo, salían tres versiones del
+    mismo trozo y el filtro anti-solape decidía por orden de aparición."""
+    from app.services.instagram.clip_picker import abre_bloque
+
+    ms = [_Mom("estribillo", 100, 110, "A"), _Mom("estribillo", 110, 120, "A")]
+    assert abre_bloque(ms, 0)
+    assert not abre_bloque(ms, 1)
+
+
+# --------------------------------------------------------------------------- #
+# Que el vídeo tenga imágenes
+# --------------------------------------------------------------------------- #
+def test_la_salida_de_freezedetect_se_lee_bien(monkeypatch, tmp_path):
+    """Un congelado sin `freeze_end` llega hasta el final del tramo: es
+    justamente el caso de una foto quieta, que no «acaba» nunca."""
+    from app.services.instagram import video_clips as vcl
+
+    fichero = tmp_path / "c.mp4"
+    fichero.write_bytes(b"x")
+
+    class _Proc:
+        stderr = "[freezedetect @ 0x1] lavfi.freezedetect.freeze_start: 0\n"
+
+    monkeypatch.setattr(vcl.subprocess, "run", lambda *a, **k: _Proc())
+    assert vcl._es_imagen_fija(str(fichero), 20.0) is True
+
+
+def test_un_congelado_corto_no_marca_el_video(monkeypatch, tmp_path):
+    from app.services.instagram import video_clips as vcl
+
+    fichero = tmp_path / "c.mp4"
+    fichero.write_bytes(b"x")
+
+    class _Proc:
+        stderr = ("lavfi.freezedetect.freeze_start: 2\n"
+                  "lavfi.freezedetect.freeze_end: 5\n")
+
+    monkeypatch.setattr(vcl.subprocess, "run", lambda *a, **k: _Proc())
+    assert vcl._es_imagen_fija(str(fichero), 20.0) is False
+
+
+def test_sin_eventos_no_es_imagen_fija(monkeypatch, tmp_path):
+    from app.services.instagram import video_clips as vcl
+
+    fichero = tmp_path / "c.mp4"
+    fichero.write_bytes(b"x")
+    monkeypatch.setattr(vcl.subprocess, "run",
+                        lambda *a, **k: type("P", (), {"stderr": ""})())
+    assert vcl._es_imagen_fija(str(fichero), 20.0) is False
