@@ -80,16 +80,23 @@ def exportar(db, ruta: str) -> int:
         .join(SourceSegment, SourceSegment.source_id == InterpretationSource.id)
         .order_by(InterpretationSource.id, SourceSegment.idx)
     ).all()
-    por_fuente: dict[tuple[str, str], list[dict]] = {}
+    por_fuente: dict[tuple[str, str], dict] = {}
     for src, seg in filas:
         clave = (src.kind, src.url)
-        por_fuente.setdefault(clave, []).append(
-            {"start_s": seg.start_s, "end_s": seg.end_s, "text": seg.text}
+        entrada = por_fuente.setdefault(clave, {
+            "kind": src.kind, "url": src.url, "title": src.title,
+            "author": src.author, "quality_score": src.quality_score,
+            # El texto viaja para poder CREAR la fuente al otro lado: una
+            # transcripción de concierto se hace en la Mac (la IP del servidor
+            # está bloqueada) y allí esa fuente no existe todavía.
+            "content_clean": src.content_clean,
+            "segmentos": [],
+        })
+        entrada["segmentos"].append(
+            {"start_s": seg.start_s, "end_s": seg.end_s, "text": seg.text,
+             "no_speech_prob": seg.no_speech_prob, "avg_logprob": seg.avg_logprob}
         )
-    datos = [
-        {"kind": k, "url": u, "segmentos": segs}
-        for (k, u), segs in por_fuente.items()
-    ]
+    datos = list(por_fuente.values())
     with open(ruta, "w", encoding="utf-8") as fh:
         json.dump(datos, fh, ensure_ascii=False)
     log(f"Exportadas {len(datos)} fuentes ({sum(len(d['segmentos']) for d in datos)} "
@@ -112,9 +119,34 @@ def importar(db, ruta: str) -> int:
             )
         ).scalar_one_or_none()
         if src is None:
-            log(f"  sin pareja aquí: [{d['kind']}] {d['url'][:70]}", "warn")
-            continue
+            # No estaba: se crea con lo que viaja en el volcado. Es lo normal
+            # con los conciertos, que se transcriben en casa.
+            from scripts.research.common import upsert_source
+
+            nuevo_id = upsert_source(
+                db, kind=d["kind"], url=d["url"], title=d.get("title"),
+                author=d.get("author"), published_at=None,
+                content_raw=d.get("content_clean"),
+                content_clean=d.get("content_clean"),
+                quality_score=d.get("quality_score"),
+                for_seo_only=False,
+            )
+            src = db.get(InterpretationSource, nuevo_id)
+            log(f"  fuente creada: [{d['kind']}] {(d.get('title') or d['url'])[:60]}")
         n = guardar_segmentos(db, src.id, d["segmentos"])
+        # Y que el vídeo del catálogo apunte a su transcripción, que es lo que
+        # mira el selector de momentos para saber que puede trabajar con él.
+        from app.db.models import VideoAsset
+        from app.services.instagram.video_clips import extraer_video_id
+
+        vid = extraer_video_id(d["url"] or "")
+        if vid:
+            asset = db.execute(
+                select(VideoAsset).where(VideoAsset.youtube_id == vid)
+            ).scalar_one_or_none()
+            if asset is not None and asset.source_id != src.id:
+                asset.source_id = src.id
+                db.commit()
         log(f"  [{src.id}] {n} tramos · {(src.title or src.url)[:60]}")
         hechas += 1
     log(f"Importadas {hechas}/{len(datos)} fuentes")
