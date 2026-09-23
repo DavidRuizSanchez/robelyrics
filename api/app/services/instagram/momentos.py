@@ -47,6 +47,13 @@ CORTO_CHARS = 25
 REPETICIONES_ESTRIBILLO = 3
 # Las dos primeras líneas de una canción: su entrada.
 LINEAS_DE_ARRANQUE = 2
+# Un solo dura lo que dura un solo. Por debajo de 8 segundos no es nada, y por
+# encima de 90 ya no sabemos qué es: medido en el concierto de Barcelona 2022,
+# una racha sin voz llegó a 994 segundos (16 minutos), que no es un solo sino un
+# tramo donde la transcripción no reconoció nada. Proponerlo sería publicar a
+# ciegas.
+SOLO_MIN_S = 8.0
+SOLO_MAX_S = 90.0
 
 TIPOS = ("estribillo", "habla", "solo", "arranque", "canto")
 
@@ -167,12 +174,16 @@ def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
         if not racha:
             return
         inicio, fin = racha[0].start_s, racha[-1].end_s
-        if fin - inicio >= 8.0:
+        duracion = fin - inicio
+        if SOLO_MIN_S <= duracion <= SOLO_MAX_S:
             fuera.append(Momento(
                 tipo="solo", start_s=inicio, end_s=fin, cancion=cancion,
-                confianza=min(1.0, (fin - inicio) / 30.0),
+                confianza=min(1.0, duracion / 30.0),
                 motivos=[f"{len(racha)} tramos seguidos sin voz"],
             ))
+        elif duracion > SOLO_MAX_S:
+            logger.debug("[momentos] %.0fs sin voz en %s: demasiado para ser un "
+                         "solo, no se propone", duracion, cancion or "?")
         racha.clear()
 
     ultima_cancion: str | None = None

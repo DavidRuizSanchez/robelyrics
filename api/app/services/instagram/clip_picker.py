@@ -427,9 +427,16 @@ def candidatos_directo(
     duracion_total = float(asset.duration_s or segmentos[-1].end_s or 0)
     intro, outro = _bordes(duracion_total)
     fuera: list[Candidato] = []
-    vistos: set[tuple] = set()
+    aceptadas: list[tuple[float, float]] = []
 
-    for idx, m in enumerate(clasificados):
+    # De mejor a peor ANTES de recortar solapes, para que el que se quede sea el
+    # de más puntuación y no el que caiga primero en el tiempo.
+    orden = sorted(
+        range(len(clasificados)),
+        key=lambda i: -(PESO_TIPO.get(clasificados[i].tipo, 0) + clasificados[i].confianza),
+    )
+    for idx in orden:
+        m = clasificados[idx]
         if m.tipo not in PESO_TIPO or m.tipo == "canto":
             continue
         inicio, fin, frontera = _ventana_alrededor(clasificados, idx, duracion_total)
@@ -439,12 +446,13 @@ def candidatos_directo(
             continue
         if _solapa(inicio, fin, usados):
             continue
-        # Dos momentos seguidos del mismo tipo dan casi la misma ventana: se
-        # queda una, no tres versiones del mismo trozo.
-        clave = (round(inicio / 10), m.tipo)
-        if clave in vistos:
+        # Dos momentos seguidos dan ventanas que se pisan: en el concierto de
+        # Barcelona salieron 275-294s y 286-309s, que son el mismo estribillo
+        # cortado por sitios distintos. Se queda el primero (mejor puntuado, que
+        # es el orden en que se recorren después) y los que lo pisan se caen.
+        if any(inicio < f and i < fin for i, f in aceptadas):
             continue
-        vistos.add(clave)
+        aceptadas.append((inicio, fin))
 
         score = PESO_TIPO[m.tipo] + m.confianza
         motivos = list(m.motivos)
@@ -487,9 +495,34 @@ def elegir_directo(
     catalogo = mom.cargar_catalogo(db)
     fuera: list[Candidato] = []
     for asset in assets:
-        fuera.extend(candidatos_directo(db, asset, catalogo=catalogo)[:por_video])
+        cands = candidatos_directo(db, asset, catalogo=catalogo)
+        fuera.extend(_variados(cands, por_video))
     fuera.sort(key=lambda c: -c.score)
     return fuera[:limite]
+
+
+def _variados(candidatos: list[Candidato], cuantos: int) -> list[Candidato]:
+    """Los mejores de un mismo concierto, pero de momentos DISTINTOS.
+
+    Sin esto salían seis estribillos del mismo bolo, porque el estribillo pesa
+    más que lo demás: seis clips del mismo concierto cantando se leen como uno
+    repetido. Primero el mejor de cada tipo; si aún falta cupo, se completa con
+    los siguientes mejores.
+    """
+    elegidos: list[Candidato] = []
+    tipos_usados: set[str] = set()
+    for c in candidatos:
+        if len(elegidos) >= cuantos:
+            break
+        if c.tipo not in tipos_usados:
+            elegidos.append(c)
+            tipos_usados.add(c.tipo)
+    for c in candidatos:
+        if len(elegidos) >= cuantos:
+            break
+        if c not in elegidos:
+            elegidos.append(c)
+    return elegidos
 
 
 # --------------------------------------------------------------------------- #

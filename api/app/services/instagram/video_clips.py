@@ -61,7 +61,12 @@ _YT_ID = re.compile(
 #
 # Se comprueba sobre el nombre del canal que devuelve yt-dlp, que es el real, no
 # sobre lo que uno crea al pegar la URL.
+# Ojo con «reaccion»/«reacts»: el material de esos canales es el vídeo de OTRO
+# con su comentario encima, así que un clip de ahí publica al youtuber, no a
+# Robe. Salió al proponer: un tramo de «Leo Reaccion» pasó todas las guardas
+# porque el audio original sí era de Robe.
 CANALES_VETADOS = (
+    "reaccion", "reacción", "reacts", "reaction", "reacciona",
     "oficial", "official", "vevo", " - topic", "records", "discos",
     "warner", "sony music", "universal music", "dro east west",
 )

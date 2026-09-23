@@ -56,7 +56,8 @@ def _titulo_post(asset, candidato=None) -> str:
     Sin fecha ni lugar se dice solo el momento (decisión de David): antes un
     hueco que un dato inventado.
     """
-    if candidato is not None and getattr(candidato, "cancion", None):
+    es_directo = getattr(asset, "kind", "") == "live_fan"
+    if candidato is not None and es_directo and getattr(candidato, "cancion", None):
         etiqueta = {
             "estribillo": "El estribillo de",
             "arranque": "Arranca",
@@ -64,7 +65,10 @@ def _titulo_post(asset, candidato=None) -> str:
             "canto": "En directo,",
         }.get(candidato.tipo, "En directo,")
         base = f'{etiqueta} «{candidato.cancion}»'
-    elif candidato is not None and candidato.tipo == "habla":
+    elif candidato is not None and es_directo and candidato.tipo == "habla":
+        # Solo en un directo se habla DESDE EL ESCENARIO. En una entrevista,
+        # «habla» es el tipo por defecto del candidato y decir eso sería mentir
+        # sobre dónde se grabó.
         base = "Robe, desde el escenario"
     else:
         base = (asset.title or "").strip()

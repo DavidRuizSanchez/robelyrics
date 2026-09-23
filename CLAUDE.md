@@ -40,6 +40,8 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.instagram.prepare_daily  (selecciona temas y prepara IG)
 # docker compose exec api python -m scripts.instagram.publish_next   (publica el siguiente post)
 # docker compose exec api python -m scripts.instagram.seed_video_assets  (catálogo de vídeo elegible)
+# docker compose exec api python -m scripts.instagram.buscar_conciertos  (cataloga directos de YouTube)
+# python -m scripts.instagram.transcribir_concierto --id X   (LOCAL: audio + Whisper)
 # docker compose exec api python -m scripts.instagram.propose_clips      (propone clips; NO publica)
 # docker compose exec api python -m scripts.instagram.notify_clips       (correo con los clips montados)
 # python -m scripts.research.backfill_segments             (tiempos de las transcripciones; LOCAL)
@@ -682,6 +684,59 @@ Bug propio que escondía los tres primeros: el `outtmpl` fijaba la extensión
 
 `_tiene_imagen` intenta DECODIFICAR un fotograma en vez de preguntar a ffprobe
 si hay stream, y su error nombra las dos causas conocidas.
+
+## Un clip es un MOMENTO de un concierto
+
+El pipeline de clips (montaje 9:16, veto de canales, atribución quemada,
+retirada, daemon de la Mac, un clic por clip) funcionaba, pero apuntaba al
+material equivocado: sacaba tramos de entrevistas, y el primero que llegó al
+correo era un locutor de radio presentando una canción. Lo que se quiere es un
+estribillo con el público cantando, Robe hablando desde el escenario, un solo o
+la entrada de un tema, **y que el texto diga de qué momento va y dónde y cuándo
+fue**.
+
+**Se midió antes de construir**, porque la memoria del proyecto lo daba por
+imposible («las transcripciones de CONCIERTOS están garbleadas») y por eso se
+había descartado un setlist matcher. Medido sobre tres conciertos de 1992, 1997
+y 2024: **se identifica el 71% de los segmentos con voz** casando contra la
+letra de la BD, y en el peor audio (Cáceres 1992) el 80%. Coste: 0,11 $.
+
+Las piezas, y lo que cada una no debe perder:
+
+- **`concierto_meta`** saca fecha y lugar del título y de la descripción (que se
+  descargaba y se tiraba). Solo vale lo que consta literalmente, y **el año del
+  título manda sobre la descripción**: un vídeo de «sala Vértigo 1993» traía
+  «12-09-2016» —cuándo lo subieron— y habría fechado el concierto veintitrés
+  años tarde. Sin fecha ni sitio, el post no los menciona.
+- **Descarta lo que no son ellos**: tributos (la web está llena: Pedrá, Milongas
+  Extremas), ruedas de prensa, reacciones y vídeos de otros grupos. El descarte
+  es duro, no una penalización: publicar una banda tributo como si fuera
+  Extremoduro es el mismo fallo que confundir a dos personas.
+- **`momentos`** clasifica cada tramo. El estribillo no está marcado en ningún
+  sitio —Genius los traía y `ingest.py` los borra— pero un verso que se repite
+  3+ veces en su canción lo es: 288 versos en 153 canciones. Y `no_speech_prob`,
+  que Whisper devolvía y también se tiraba, distingue un solo de un silencio.
+- **`clip_picker.candidatos_directo` invierte el criterio** del picker de
+  entrevistas, que descarta lo que baja de 7 caracteres por segundo «porque ahí
+  hay música»: en un concierto eso es justo el solo.
+
+**REGLA DURA**: la transcripción de un directo sirve para ELEGIR el tramo,
+JAMÁS para afirmar lo que se oye. Está garbleada por definición. Lo que el post
+afirma sale de la letra de la BD, del catálogo y de los datos del concierto —
+por eso el verso que viaja al texto es el de `lines`, no el que transcribió
+Whisper, y por eso el kind `live_transcript` no tiene entrada en
+`corpus_for_queries._ATRIBUCION`: la guarda que ya existía lo excluye solo de
+cualquier cita.
+
+**Quién habla** (`habla_el_protagonista`): en una entrevista, el tramo tiene que
+ser del entrevistado. Tres señales gratis —es una pregunta, nombra al sujeto en
+tercera persona, usa fórmulas de programa («nos ha dejado», «vamos a escuchar»)—
+y un juez barato para lo dudoso. Ante la duda, NO: publicar al locutor es peor
+que quedarse sin clip. El tramo que se propuso el 23-09 cae por la primera.
+
+Y un texto corto casa con cualquier cosa: «¡Vamos Manolo!» se identificó como
+verso a 0,80 cuando es Robe animando al público. Por eso el listón de parecido
+sube cuanto más corto es el fragmento.
 
 ## Decisiones que NO hay que reabrir
 
