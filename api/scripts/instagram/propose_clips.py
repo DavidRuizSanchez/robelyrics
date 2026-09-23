@@ -78,8 +78,11 @@ def _titulo_post(asset, candidato=None) -> str:
         if asset.channel_title and asset.channel_title.lower() not in base.lower():
             base = f"{base} ({asset.channel_title})"
 
+    # Dónde y cuándo va en CUALQUIER momento de directo, no solo en los que
+    # tienen canción: «Robe, desde el escenario» sin decir de qué concierto es
+    # deja fuera justo el dato que se buscaba.
     donde_cuando = _cuando_y_donde(asset)
-    if donde_cuando and candidato is not None and candidato.cancion:
+    if donde_cuando and es_directo:
         base = f"{base} — {donde_cuando}"
     # El título del POST es texto nuestro, así que le aplica la regla dura del
     # nombre. El título original del vídeo se queda intacto donde toca —en
