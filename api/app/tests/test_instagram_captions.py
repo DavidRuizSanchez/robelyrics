@@ -297,3 +297,23 @@ def test_al_consultorio_solo_van_preguntas_escritas_con_cuidado():
     assert _escrita_con_cuidado("¿Qué es para ti la libertad?")
     assert not _escrita_con_cuidado("cuantas veces has actuado en plasencia?")
     assert not _escrita_con_cuidado("")
+
+
+# --------------------------------------------------------------------------- #
+# La atribución no lleva dos pictogramas
+# --------------------------------------------------------------------------- #
+def test_el_credito_de_un_video_conserva_su_propio_pictograma():
+    """`VideoClip.atribucion` devuelve «🎬 Vídeo: <canal>». Anteponerle la
+    cámara de fotos publicaba «📷 🎬 Vídeo: Vicenturri World» —salió así en
+    producción el 23-09-2026— y le ponía cara de foto a la atribución de un
+    vídeo, que es lo que se le enseña a un canal que reclama."""
+    cap = captions.build(None, _topic(image_credit="🎬 Vídeo: Vicenturri World"))
+    assert "🎬 Vídeo: Vicenturri World" in cap
+    assert "📷 🎬" not in cap
+
+
+def test_el_credito_de_una_foto_sigue_llevando_su_camara():
+    """El caso de siempre no cambia: un crédito de foto CC entra sin símbolo y
+    se lo pone esta función."""
+    cap = captions.build(None, _topic(image_credit="Wikimedia Commons, CC BY-SA 4.0"))
+    assert "📷 Wikimedia Commons, CC BY-SA 4.0" in cap

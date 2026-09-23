@@ -33,14 +33,25 @@ MOLDES = (
     r"m[aá]s all[aá] de la m[uú]sica",
     r"(una )?leyenda (viva|del rock)",
     r"nos dej[oó] un vac[ií]o",
-    r"la esencia de(l| la)? (rock|extremoduro|robe)",
     r"un ic[oó]no (del|de la)",
     r"toc[oó] el alma de",
     # Muletillas de análisis. `voice._RULES_HARD` ya las prohíbe: si salen, es
     # que el modelo no ha hecho caso, no que sean discutibles.
     r"encapsula",
     r"(una )?oda a\b",
-    r"la esencia (de|misma|introspectiva|pura)",
+    # «esencia» con determinante. Medido el 23-09-2026 sobre los 349 captions
+    # de la cuenta: la palabra sale en 40 frases y en las 40 es relleno («la
+    # esencia del rock», «la esencia de la banda», «revivir la esencia»). No
+    # hay un solo uso que diga algo, así que no se persiguen las variantes una
+    # a una: se veta el sintagma.
+    #
+    # Las dos formas anteriores pedían «la esencia» seguida de una lista corta
+    # de palabras, y por ahí se coló en producción «Robe en SU esencia PURA,
+    # caminando por encima de todo lo que lo quiere atrapar» — un caption de
+    # clip de directo, que es justo donde no se puede interpretar la letra al
+    # aire. También se escapaban «esa esencia única» y «la esencia cruda»: el
+    # adjetivo por medio rompía el patrón.
+    r"\b(la|las|el|su|sus|esa|esta|una|mi|tu)\s+esencia\b",
     r"met[aá]fora (especialmente )?poderosa",
     r"no es casualidad que",
     r"refleja (a la perfecci[oó]n|el esp[ií]ritu)",

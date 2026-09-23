@@ -161,6 +161,24 @@ def test_tumba_los_titulares_de_molde_que_se_publicaron():
         assert not v.ok, f"debería tumbarse: {titular}"
 
 
+def test_la_esencia_con_determinante_se_tumba_en_todas_sus_formas():
+    """Literales de producción. Los tres primeros los cazaba ya el patrón
+    viejo; los tres últimos se le escapaban porque pedía «la esencia» seguida
+    de una lista corta de palabras, y bastaba un posesivo o un adjetivo por
+    medio para colarse. El de «su esencia pura» salió publicado el 23-09-2026
+    en un clip de concierto, que es donde menos se puede interpretar al aire.
+    """
+    for frase in (
+        "La conexión entre la localidad y la esencia del rock será el eje",
+        "mantener viva la esencia de la banda y recordar las letras",
+        "recordar la esencia de la música que nos une",
+        "Robe en su esencia pura, caminando por encima de todo",
+        "Para él, 'La ley innata' representaba esa esencia única de cada persona",
+        "capturó la esencia cruda y transgresora que querían transmitir",
+    ):
+        assert tono_guard.moldes_en(frase), f"debería cazarse: {frase}"
+
+
 def test_deja_pasar_un_texto_con_fundamento():
     """Si la guarda tumba lo bueno, la guarda está mal (mismo criterio que
     `seo_style`). Este texto es el patrón de lo que SÍ queremos publicar."""

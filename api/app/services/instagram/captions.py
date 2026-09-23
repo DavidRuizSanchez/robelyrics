@@ -95,6 +95,19 @@ def _norm(s: str) -> str:
     return s.lower()
 
 
+def _trae_pictograma(credito: str) -> bool:
+    """¿El crédito ya abre con su propio símbolo?
+
+    Se mira el PRIMER carácter y no se busca una lista de emojis concretos: lo
+    que interesa no es cuál es, sino si ya hay uno. Así, el día que la
+    atribución de un formato nuevo abra con otro símbolo, esto sigue valiendo.
+    """
+    primero = (credito or "").lstrip()[:1]
+    if not primero:
+        return False
+    return unicodedata.category(primero) in ("So", "Sk", "Cs")
+
+
 def _hashtagify(name: str) -> str:
     """'Caída libre' → '#CaidaLibre'. Conserva tildes en la salida visible."""
     cleaned = re.sub(r"[^\w\s]", "", name or "", flags=re.UNICODE).strip()
@@ -280,9 +293,16 @@ def build(db: Session, topic: dict) -> str:
 
     # 8) Atribución de la foto al FINAL del todo (discreta), si es foto con
     #    licencia CC. Cumple la licencia sin ensuciar imagen ni cuerpo.
+    #
+    #    El pictograma solo lo pone quien no trae el suyo. Un clip de vídeo lo
+    #    trae (`VideoClip.atribucion` devuelve «🎬 Vídeo: <canal>»), así que
+    #    anteponerle una cámara de fotos publicaba «📷 🎬 Vídeo: …» —salió así
+    #    en producción el 23-09-2026— y encima le pone cara de foto a la
+    #    atribución de un vídeo, que es justo lo que se le enseña a un canal
+    #    que reclama.
     credit = (topic.get("image_credit") or "").strip()
     if credit:
-        lines += ["", f"📷 {credit}"]
+        lines += ["", credit if _trae_pictograma(credit) else f"📷 {credit}"]
 
     caption = "\n".join(lines)[:2190]
 
