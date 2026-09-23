@@ -10,10 +10,22 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
+from app.db.models import VideoClip
 from app.services.instagram import concierto_meta as cm
 from app.services.instagram import momentos
 from app.services.instagram.clip_picker import habla_el_protagonista
+
+
+@pytest.fixture()
+def db():
+    """Solo `video_clips`: es lo único que tocan los tests que la piden."""
+    engine = create_engine("sqlite://")
+    VideoClip.__table__.create(engine)
+    with Session(engine) as s:
+        yield s
 
 
 # --------------------------------------------------------------------------- #
@@ -291,3 +303,33 @@ def test_sin_eventos_no_es_imagen_fija(monkeypatch, tmp_path):
     monkeypatch.setattr(vcl.subprocess, "run",
                         lambda *a, **k: type("P", (), {"stderr": ""})())
     assert vcl._es_imagen_fija(str(fichero), 20.0) is False
+
+
+def test_no_se_propone_dos_veces_la_misma_cancion_del_mismo_concierto(db):
+    """Un estribillo suena varias veces en un bolo. Sin esto salen dos clips del
+    mismo estribillo del mismo concierto: no solapan, pero en el feed se leen
+    como el mismo post repetido. Pasó con «Si te vas…» de Barcelona."""
+    from app.services.instagram.clip_picker import _canciones_usadas
+
+    db.add(VideoClip(
+        video_id="dQw4w9WgXcQ", url="https://youtu.be/dQw4w9WgXcQ",
+        start_s=640.0, end_s=658.0, status="ready",
+        subtitle="El estribillo de «Si te vas...» — Barcelona, 08-10-2022",
+    ))
+    db.commit()
+
+    usadas = _canciones_usadas(db, "dQw4w9WgXcQ")
+    assert any("si te vas" in u for u in usadas)
+
+
+def test_un_clip_retirado_no_bloquea_su_cancion(db):
+    """Si se descartó, esa canción vuelve a estar disponible."""
+    from app.services.instagram.clip_picker import _canciones_usadas
+
+    db.add(VideoClip(
+        video_id="dQw4w9WgXcQ", url="https://youtu.be/dQw4w9WgXcQ",
+        start_s=1.0, end_s=20.0, status="retired",
+        subtitle="El estribillo de «Golfa» — Madrid, 07-09-2012",
+    ))
+    db.commit()
+    assert _canciones_usadas(db, "dQw4w9WgXcQ") == set()

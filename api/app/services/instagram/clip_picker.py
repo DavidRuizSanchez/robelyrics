@@ -172,6 +172,29 @@ def _tramos_usados(db: Session, video_id: str) -> list[tuple[float, float]]:
     return [(float(a), float(b)) for a, b in filas]
 
 
+def _canciones_usadas(db: Session, video_id: str) -> set[str]:
+    """Canciones de las que ya hay un clip vivo de ESTE concierto.
+
+    Un estribillo suele sonar varias veces en un bolo, así que sin esto salen
+    dos clips del mismo estribillo del mismo concierto cortados por sitios
+    distintos: no solapan, pero en el feed se leen como el mismo post repetido.
+    El nombre sale del título que escribió `propose_clips`, que lo pone entre
+    comillas angulares.
+    """
+    filas = db.execute(
+        select(VideoClip.subtitle).where(
+            VideoClip.video_id == video_id,
+            VideoClip.status.in_(("requested", "downloading", "ready", "published")),
+        )
+    ).scalars().all()
+    fuera: set[str] = set()
+    for titulo in filas:
+        m = re.search(r"«([^»]+)»", titulo or "")
+        if m:
+            fuera.add(_norm(m.group(1)))
+    return fuera
+
+
 def _solapa(a: float, b: float, usados: list[tuple[float, float]]) -> bool:
     for ini, fin in usados:
         if a < fin + MARGEN_REPETICION_S and ini - MARGEN_REPETICION_S < b:
@@ -459,6 +482,7 @@ def candidatos_directo(
         return []
 
     usados = _tramos_usados(db, asset.youtube_id)
+    canciones_usadas = _canciones_usadas(db, asset.youtube_id)
     duracion_total = float(asset.duration_s or segmentos[-1].end_s or 0)
     intro, outro = _bordes(duracion_total)
     fuera: list[Candidato] = []
@@ -498,7 +522,12 @@ def candidatos_directo(
             continue
         if any(inicio < f and i < fin for i, f in aceptadas):
             continue
+        if m.cancion and _norm(m.cancion) in canciones_usadas:
+            logger.debug("[clips] «%s» ya tiene clip de este concierto", m.cancion)
+            continue
         aceptadas.append((inicio, fin))
+        if m.cancion:
+            canciones_usadas.add(_norm(m.cancion))
 
         score = PESO_TIPO[m.tipo] + m.confianza
         motivos = list(m.motivos)
