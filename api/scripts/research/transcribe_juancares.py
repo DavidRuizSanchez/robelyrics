@@ -195,6 +195,8 @@ def transcribe(client: OpenAI, chunks: list[str]) -> tuple[str, list[dict]]:
                 "start_s": float(getattr(seg, "start", 0.0) or 0.0) + offset,
                 "end_s": float(getattr(seg, "end", 0.0) or 0.0) + offset,
                 "text": texto,
+                "no_speech_prob": getattr(seg, "no_speech_prob", None),
+                "avg_logprob": getattr(seg, "avg_logprob", None),
             })
     return " ".join(p for p in parts if p), segmentos
 

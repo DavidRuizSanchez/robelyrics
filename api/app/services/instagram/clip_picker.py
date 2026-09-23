@@ -94,15 +94,21 @@ class Candidato:
     score: float = 0.0
     frontera: str = "aproximada"
     motivos: list[str] = field(default_factory=list)
+    # Solo en directos: qué momento es y de qué canción. `verso` sale de la
+    # letra de la BD, nunca de la transcripción (que está garbleada).
+    tipo: str = "habla"
+    cancion: str | None = None
+    verso: str | None = None
 
     @property
     def duracion_s(self) -> float:
         return round(self.end_s - self.start_s, 2)
 
     def resumen(self) -> str:
+        de = f" · {self.cancion}" if self.cancion else ""
         return (
             f"{self.asset.youtube_id} · {self.start_s:.0f}-{self.end_s:.0f}s "
-            f"({self.duracion_s:.0f}s) · corte {self.frontera} · "
+            f"({self.duracion_s:.0f}s) · {self.tipo}{de} · corte {self.frontera} · "
             f"score {self.score:.2f} · {', '.join(self.motivos)}"
         )
 
@@ -287,6 +293,12 @@ def candidatos_de(
         if marca:
             logger.debug("[clips] descartado (habla el canal: «%s»)", marca)
             continue
+        # Y que hable el entrevistado, no quien le entrevista. Aquí sin juez
+        # (sería una llamada por ventana); el finalista sí pasa por él.
+        del_sujeto, motivo_voz = habla_el_protagonista(texto, usar_llm=False)
+        if not del_sujeto:
+            logger.debug("[clips] descartado (%s)", motivo_voz)
+            continue
         duracion = fin - inicio
         densidad = len(texto) / max(duracion, 1.0)
         if not (DENSIDAD_MIN <= densidad <= DENSIDAD_MAX):
@@ -335,3 +347,208 @@ def elegir(
         fuera.extend(cands[:por_video])
     fuera.sort(key=lambda c: -c.score)
     return fuera[:limite]
+
+
+# --------------------------------------------------------------------------- #
+# Directos: aquí manda lo que PASA en el escenario, no cuánto se habla
+# --------------------------------------------------------------------------- #
+# Lo que vale un momento por sí mismo. El estribillo primero porque es lo que
+# la gente reconoce y canta; el solo va detrás del habla porque acertar dónde
+# empieza de verdad es lo más difícil de todo esto.
+PESO_TIPO = {
+    "estribillo": 3.0,
+    "habla": 2.0,
+    "arranque": 1.6,
+    "solo": 1.4,
+    "canto": 1.0,
+}
+# Un clip de directo puede ser más corto: un estribillo entra en 20 segundos y
+# alargarlo por alargar mete la estrofa siguiente, que ya no es el momento.
+MIN_S_DIRECTO = 18.0
+
+
+def _ventana_alrededor(
+    momentos_todos: list, idx: int, duracion_total: float | None,
+) -> tuple[float, float, str]:
+    """Estira un momento hasta que dure lo suficiente, sin partir ningún tramo.
+
+    Se crece HACIA ADELANTE primero: un estribillo que empieza y se corta a la
+    mitad se nota mucho más que uno al que le falta la entrada.
+    """
+    m = momentos_todos[idx]
+    inicio, fin = m.start_s, m.end_s
+    j = idx
+    while fin - inicio < MIN_S_DIRECTO and j + 1 < len(momentos_todos):
+        j += 1
+        fin = momentos_todos[j].end_s
+        if fin - inicio > MAX_S:
+            fin = momentos_todos[j - 1].end_s if j > idx else m.end_s
+            break
+    i = idx
+    while fin - inicio < MIN_S_DIRECTO and i > 0:
+        i -= 1
+        nuevo = momentos_todos[i].start_s
+        if fin - nuevo > MAX_S:
+            break
+        inicio = nuevo
+    if duracion_total:
+        fin = min(fin, duracion_total)
+    # La frontera es de tramo de transcripción, nunca «por puntuación»: en un
+    # directo no hay puntuación fiable y decir lo contrario sería mentir.
+    return inicio, fin, "pausa" if idx > 0 else "aproximada"
+
+
+def candidatos_directo(
+    db: Session, asset: VideoAsset, *, catalogo=None,
+) -> list[Candidato]:
+    """Los mejores momentos de UN concierto, de mejor a peor.
+
+    Nada que ver con el camino de entrevistas: aquí no se mide densidad de
+    habla (eso descartaría justo los solos), se mira QUÉ está pasando.
+    """
+    from app.services.instagram import momentos as mom
+
+    if asset.vetado or asset.source_id is None:
+        return []
+    segmentos = list(db.execute(
+        select(SourceSegment)
+        .where(SourceSegment.source_id == asset.source_id)
+        .order_by(SourceSegment.idx)
+    ).scalars().all())
+    if len(segmentos) < 2:
+        return []
+
+    catalogo = catalogo or mom.cargar_catalogo(db)
+    clasificados = mom.clasificar(segmentos, catalogo)
+    if not clasificados:
+        return []
+
+    usados = _tramos_usados(db, asset.youtube_id)
+    duracion_total = float(asset.duration_s or segmentos[-1].end_s or 0)
+    intro, outro = _bordes(duracion_total)
+    fuera: list[Candidato] = []
+    vistos: set[tuple] = set()
+
+    for idx, m in enumerate(clasificados):
+        if m.tipo not in PESO_TIPO or m.tipo == "canto":
+            continue
+        inicio, fin, frontera = _ventana_alrededor(clasificados, idx, duracion_total)
+        if fin - inicio < MIN_S_DIRECTO or fin - inicio > MAX_S:
+            continue
+        if inicio < intro or (duracion_total and fin > duracion_total - outro):
+            continue
+        if _solapa(inicio, fin, usados):
+            continue
+        # Dos momentos seguidos del mismo tipo dan casi la misma ventana: se
+        # queda una, no tres versiones del mismo trozo.
+        clave = (round(inicio / 10), m.tipo)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+
+        score = PESO_TIPO[m.tipo] + m.confianza
+        motivos = list(m.motivos)
+        if m.cancion:
+            score += 0.4
+            motivos.append(f"canción identificada: {m.cancion}")
+        if asset.event_date or asset.event_place:
+            score += 0.3
+            motivos.append("el concierto tiene fecha o lugar")
+        texto = " ".join(
+            (getattr(s, "text", "") or "").strip() for s in segmentos
+            if inicio <= s.start_s <= fin
+        ).strip()
+
+        fuera.append(Candidato(
+            asset=asset, start_s=round(inicio, 2), end_s=round(fin, 2),
+            texto=texto, score=score, frontera=frontera, motivos=motivos,
+            tipo=m.tipo, cancion=m.cancion, verso=m.verso,
+        ))
+
+    fuera.sort(key=lambda c: -c.score)
+    return fuera
+
+
+def elegir_directo(
+    db: Session, *, limite: int = 3, por_video: int = 1,
+) -> list[Candidato]:
+    """Los mejores momentos del catálogo de conciertos."""
+    from app.services.instagram import momentos as mom
+
+    assets = list(db.execute(
+        select(VideoAsset).where(
+            VideoAsset.vetado.is_(False),
+            VideoAsset.source_id.is_not(None),
+            VideoAsset.kind == "live_fan",
+        )
+    ).scalars().all())
+    if not assets:
+        return []
+    catalogo = mom.cargar_catalogo(db)
+    fuera: list[Candidato] = []
+    for asset in assets:
+        fuera.extend(candidatos_directo(db, asset, catalogo=catalogo)[:por_video])
+    fuera.sort(key=lambda c: -c.score)
+    return fuera[:limite]
+
+
+# --------------------------------------------------------------------------- #
+# ¿Quién habla? (el fallo del primer clip que se propuso)
+# --------------------------------------------------------------------------- #
+# El primer clip automático que llegó al correo era de una entrevista en la
+# Cadena SER, y en el tramo elegido hablaba el LOCUTOR presentando la canción,
+# no Robe. El picker premiaba «habla en primera persona» sin preguntarse de
+# quién era esa primera persona.
+#
+# Dos señales deterministas primero, que son gratis y cazan la mayoría:
+_PREGUNTA = re.compile(r"[¿?]")
+# Quien nombra a Robe está hablando DE él: es quien presenta o entrevista. Robe
+# no se nombra a sí mismo en tercera persona.
+_NOMBRA_AL_SUJETO = re.compile(r"\b(robe|roberto iniesta|extremoduro)\b", re.I)
+# Fórmulas de quien conduce un programa.
+_DE_PROGRAMA = re.compile(
+    r"\b(nos (ha |había )?(dejado|acompaña|visita)|est[aá] con nosotros|"
+    r"bienvenid[oa]s?|vamos a escuchar|escuchamos|a continuaci[oó]n|"
+    r"les? (cuento|presento)|nuestro invitado|en antena|en directo desde)\b", re.I
+)
+
+_SYS_QUIEN_HABLA = (
+    "Te dan un fragmento transcrito de una entrevista. Dices quién habla: el "
+    "ENTREVISTADO (la persona sobre la que va la entrevista) o el PRESENTADOR "
+    "(quien conduce, pregunta o presenta). Si no se puede saber, di 'dudoso'.\n"
+    'Devuelve JSON: {"quien": "entrevistado"|"presentador"|"dudoso"}'
+)
+
+
+def habla_el_protagonista(texto: str, *, usar_llm: bool = True) -> tuple[bool, str]:
+    """¿Este tramo lo dice el entrevistado? → (sí/no, motivo).
+
+    Ante la duda responde que NO: publicar al locutor de una radio en una cuenta
+    sobre Robe es peor que quedarse sin clip.
+    """
+    t = (texto or "").strip()
+    if not t:
+        return False, "sin texto"
+    if _PREGUNTA.search(t):
+        return False, "es una pregunta: la hace quien entrevista"
+    if _NOMBRA_AL_SUJETO.search(t):
+        return False, "nombra al sujeto: habla DE él, no es él"
+    if _DE_PROGRAMA.search(t):
+        return False, "fórmula de quien conduce el programa"
+    if not usar_llm:
+        return True, "no lo contradice ninguna señal"
+
+    try:
+        from app.services.news_research import _json
+
+        data = _json(_SYS_QUIEN_HABLA, f'TEXTO:\n"""\n{t[:900]}\n"""',
+                     max_tokens=40, temperature=0)
+        quien = (data or {}).get("quien", "dudoso")
+    except Exception as exc:  # noqa: BLE001
+        # Sin juez no se da por bueno: las señales de arriba ya han pasado, pero
+        # el caso del locutor de la SER las pasaba todas.
+        logger.warning("[clips] no se pudo comprobar quién habla: %s", exc)
+        return False, "no se ha podido comprobar quién habla"
+    if quien == "entrevistado":
+        return True, "lo dice el entrevistado"
+    return False, f"lo dice el {quien}"

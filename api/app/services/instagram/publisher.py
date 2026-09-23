@@ -312,7 +312,7 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
         db.rollback()
 
 
-def _redactar_con_corpus(db: Session, topic: dict) -> None:
+def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
     """Escribe el comentario y las slides de un post de material propio.
 
     Evergreen y blog no pasaban por ningún redactor: su texto salía del corpus
@@ -327,6 +327,12 @@ def _redactar_con_corpus(db: Session, topic: dict) -> None:
         topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
     ).strip()
     mat = material_ig.reunir(db, topic)
+    if extra:
+        # Material que no sale del corpus: los datos del clip de directo (qué
+        # momento es, qué canción, de qué concierto). Va DELANTE porque es de lo
+        # que trata el post.
+        mat.prompt = f"{extra}\n\n----\n\n{mat.prompt}".strip("\n- ")
+        mat.verificable = f"{extra}\n\n{mat.verificable}".strip()
     if not mat:
         logger.info(
             "[prepare] sin material de casa para «%s»: se deja el texto tal cual",
@@ -351,6 +357,55 @@ def _redactar_con_corpus(db: Session, topic: dict) -> None:
         )
         return
     topic["avisos"] = list(topic.get("avisos") or []) + avisos
+
+
+def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> None:
+    """Qué se ve en el clip, para que el texto hable de ESO.
+
+    El momento y la canción los dejó escritos `propose_clips` en el `summary`
+    del item (es lo que también se enseña en el correo de aprobación). La fecha
+    y el sitio salen del catálogo de conciertos, nunca de la transcripción: la
+    de un directo está garbleada y solo sirve para ELEGIR el tramo.
+
+    Si no hay nada de esto —un clip dado de alta a mano, por ejemplo— no se
+    inventa: el post sale como salía.
+    """
+    resumen = (item.summary or "")
+    datos: dict[str, str] = {}
+    for linea in resumen.splitlines():
+        if ":" in linea:
+            clave, valor = linea.split(":", 1)
+            datos[clave.strip().lower()] = valor.strip()
+
+    cancion = datos.get("canción") or datos.get("cancion")
+    if cancion:
+        fila = db.execute(
+            select(Song.title, Album.title, Album.year, Artist.name)
+            .join(Album, Song.album_id == Album.id)
+            .join(Artist, Album.artist_id == Artist.id)
+            .where(Song.title == cancion)
+        ).first()
+        if fila:
+            topic["corpus"] = {"song": fila[0], "album": fila[1],
+                               "year": fila[2], "artist": fila[3]}
+
+    partes = []
+    if datos.get("momento"):
+        partes.append(f"Lo que se ve en el clip: {datos['momento']}"
+                      + (f" de «{cancion}»" if cancion else ""))
+    verso = datos.get("verso (de nuestra letra)")
+    if verso:
+        partes.append(f"El verso que suena, según NUESTRA letra: «{verso}»")
+    if datos.get("concierto"):
+        partes.append(f"El concierto: {datos['concierto']}")
+    if partes:
+        partes.append(
+            "REGLA: lo que se afirme sale de estos datos y de la letra de la "
+            "base de datos, NUNCA de la transcripción del directo, que está "
+            "llena de erratas. Si aquí no consta la fecha o el sitio, NO se "
+            "mencionan."
+        )
+        topic["material_directo"] = "\n".join(partes)
 
 
 def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
@@ -548,6 +603,16 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # El crédito del canal viaja también en el caption, no solo quemado
             # en el vídeo.
             topic["image_credit"] = clip.atribucion
+            # Y de qué momento va el post. Sin esto el caption de un clip de
+            # concierto hablaba del vídeo entero: «Robe en tal sitio», sin decir
+            # que lo que se ve es el estribillo de una canción concreta.
+            _contexto_de_directo(db, item, topic)
+            # Y que el texto lo escriba alguien, con ese material delante. Antes
+            # el caption de un clip salía solo de moldes, así que hablaba del
+            # vídeo en general y nunca del momento que se ve.
+            if topic.get("material_directo"):
+                topic["texto_base"] = topic.get("title") or ""
+                _redactar_con_corpus(db, topic, extra=topic["material_directo"])
             item.image_path = None      # el material vive en Cloudinary
             item.media_type = "CLIP"
             item.caption = captions.build(db, topic)

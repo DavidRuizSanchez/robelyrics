@@ -522,6 +522,13 @@ class SourceSegment(Base):
     start_s: Mapped[float] = mapped_column(Float, nullable=False)
     end_s: Mapped[float] = mapped_column(Float, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    # Whisper devuelve estas dos en cada segmento y se tiraban al guardar. En un
+    # concierto son la diferencia entre un solo de guitarra y un silencio:
+    # `no_speech_prob` alto = no hay voz, o sea instrumental. Medido sobre tres
+    # conciertos reales: 47 de 137 segmentos pasan de 0,6 y son justo la música.
+    # Los subtítulos de YouTube no las traen, así que quedan a NULL.
+    no_speech_prob: Mapped[float | None] = mapped_column(Float)
+    avg_logprob: Mapped[float | None] = mapped_column(Float)
 
 
 class VideoAsset(Base):
@@ -549,10 +556,23 @@ class VideoAsset(Base):
     youtube_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[str | None] = mapped_column(String(500))
+    # La descripción de YouTube se descargaba en `fetch_youtube.list_videos` y no
+    # la guardaba nadie. Es justo donde un canal de archivo escribe «Extremoduro
+    # — La Cubierta, Leganés, 22/06/2002»: sin ella no hay de dónde sacar cuándo
+    # y dónde fue el concierto sin inventárselo.
+    description: Mapped[str | None] = mapped_column(Text)
     channel_title: Mapped[str | None] = mapped_column(String(200))
     channel_url: Mapped[str | None] = mapped_column(String(500))
     duration_s: Mapped[int | None] = mapped_column(Integer)
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default="interview")
+    # --- Cuándo y dónde fue, si se ha podido saber SIN inventarlo ---
+    # La fecha solo se guarda si aparece literalmente en el título o en la
+    # descripción (`news_research.validated_event_date`), y el lugar solo si casa
+    # con una sala o una ciudad que el proyecto ya conoce. Vacío es un resultado
+    # legítimo y frecuente: entonces el post habla del momento y no los menciona.
+    event_date: Mapped[date | None] = mapped_column(Date)
+    event_place: Mapped[str | None] = mapped_column(String(200))
+    event_source: Mapped[str | None] = mapped_column(String(16))  # titulo|descripcion|curado
     # La transcripción de la que salen los tramos, si la hay.
     source_id: Mapped[int | None] = mapped_column(
         ForeignKey("interpretation_sources.id", ondelete="SET NULL")

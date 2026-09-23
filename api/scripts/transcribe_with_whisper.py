@@ -129,7 +129,14 @@ def transcribe_audio(client: OpenAI, audio_path: Path) -> list[dict] | None:
         log(f"  Whisper error: {type(e).__name__}: {e}", "warn")
         return None
     segments = getattr(resp, "segments", None) or []
-    return [{"start": s.start, "end": s.end, "text": s.text} for s in segments]
+    # `no_speech_prob` y `avg_logprob` vienen en la misma respuesta y se tiraban.
+    # En un concierto son la diferencia entre un solo de guitarra y un silencio.
+    return [
+        {"start": s.start, "end": s.end, "text": s.text,
+         "no_speech_prob": getattr(s, "no_speech_prob", None),
+         "avg_logprob": getattr(s, "avg_logprob", None)}
+        for s in segments
+    ]
 
 
 # ─── alineamiento: segmentos Whisper → líneas BD ───────────────────────── #
@@ -238,7 +245,9 @@ def transcribe_to_source(
         full_text = " ".join(s["text"].strip() for s in segments if s.get("text")).strip()
         segments = [
             {"start_s": s.get("start", 0.0), "end_s": s.get("end", 0.0),
-             "text": s.get("text", "")}
+             "text": s.get("text", ""),
+             "no_speech_prob": s.get("no_speech_prob"),
+             "avg_logprob": s.get("avg_logprob")}
             for s in segments
         ]
 
