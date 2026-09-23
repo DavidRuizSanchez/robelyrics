@@ -798,6 +798,43 @@ mismo tramo da siempre el mismo rótulo y re-montar no lo cambia.
 En los clips de Robe hablando **no hay gancho**: solo el concierto. La
 transcripción de un directo está garbleada y no se cita.
 
+## La pregunta de cierre no es un adorno
+
+Es lo ÚNICO que le pedimos a quien nos lee, y la ponía una plantilla **después**
+del gate: `captions.build` añadía el gancho, la pregunta, el verso y el CTA
+cuando `caption_guard` y `tono_guard` ya habían dicho que sí. Resultado medido:
+**39 de los 309 captions** cerraban con «¿Cómo lo veis vosotros?» o «¿Qué os
+parece?», dos fórmulas que el propio linter tenía vetadas.
+
+Ahora la escribe `editorial` con el material delante y viaja en
+`newsroom.texto_publicado`, así que la juzgan las mismas guardas que al resto.
+Si no sale una que sea de ESTE post, sale vacía.
+
+Tres cosas de criterio, que es donde está la chicha:
+
+- **La frontera no es «pregunta sí o no».** La pregunta funciona — lo que
+  sobraba eran las que valen para cualquier post. Las de plantilla ancladas
+  («¿Y a ti, qué verso de «Pepe Botika» se te quedó dentro?») se quedan como
+  respaldo de lo que no pasa por el redactor: un verso o una efeméride sin
+  material no llaman al modelo. Las listas de `news` y `blog` están **vacías a
+  propósito**: ahí una plantilla solo podía poner una fórmula.
+- **A la pregunta NO se le exige `tiene_ancla`.** «¿Dónde estabas la primera vez
+  que escuchaste esto?» no trae ni un año ni un nombre propio, y es de las que
+  mejor funcionan. Exigirle un dato se llevaría por delante las buenas.
+- **Anclar no basta: hay que variar.** Las dos primeras preguntas reales
+  calcaban el ejemplo del prompt con el título cambiado. Eso repetido
+  trescientas veces es un molde otra vez, por otro camino, así que al prompt se
+  le dice que los ejemplos son la FORMA, no la frase.
+
+`captions_moldes.QUESTIONS` y `tono_guard.PREGUNTAS_DE_MOLDE` viven en ficheros
+distintos y podrían divergir —una dice qué se escribe y la otra qué se rechaza—:
+un test recorre la primera contra la segunda.
+
+Y una lección que ya va por la tercera vez: **el linter persigue sintagmas, no
+palabras**. Vetada «huella imborrable», el modelo escribió «una marca
+indeleble»; vetada «la esencia», escribió «su esencia pura». Si se persigue el
+sustantivo, basta cambiar el sustantivo.
+
 ## Un post preparado no se entera de que has desplegado
 
 `IMAGES_DIR` (`/tmp/robelyrics_instagram`) **no es efímero en producción**: está
