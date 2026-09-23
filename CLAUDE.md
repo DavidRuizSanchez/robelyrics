@@ -768,6 +768,36 @@ no sirve: el audio SÍ es el del concierto.
 Tampoco se propone dos veces la misma canción del mismo concierto: un estribillo
 suena varias veces en un bolo y salían dos clips que en el feed se leen igual.
 
+### El rótulo del vídeo no es el título del post
+
+Eran el mismo string (`solicitar` lo usaba para `instagram_queue.title` y para
+`video_clips.subtitle`, que es lo que ve `drawtext`), y eso tenía dos
+consecuencias: el texto quemado era un titular descriptivo que no engancha, y
+**no cabía**. Medido con DejaVu Sans, que es la fuente que resuelve ffmpeg
+cuando no se le pasa `fontfile`: «Robe, desde el escenario — La Cubierta,
+Leganés, 09-10-1999» ocupa **1622 px** y el hueco útil son **1044** (el lienzo
+menos el borde de la caja a cada lado). Como `drawtext` centra, se recortaba
+**por los dos lados a la vez**.
+
+Ahora hay campo propio (`video_clips.overlay`) y el rótulo son dos líneas con
+jerarquía — dos `drawtext`, no un `\n`, porque un solo filtro las dibuja del
+mismo tamaño:
+
+    ¡Menuda locura!                                     ← gancho, ~62 px
+    «Por encima del bien y del mal» · Barcelona · 2022  ← dato, ~38 px
+
+Y el tamaño **se ajusta midiendo**: cada línea baja hasta entrar en los 1044 px,
+y si ni al mínimo cabe se recorta por palabra, nunca por la mitad de una.
+
+El gancho lo escribe el modelo, pero un rótulo **exclama, no informa**: se le
+prohíben las cifras y los nombres propios (el dato va debajo), los emojis
+—DejaVu Sans no los tiene y saldría una caja vacía— y las fórmulas de
+`tono_guard`. Si falla, una lista de casa elegida por hash del clip, así que el
+mismo tramo da siempre el mismo rótulo y re-montar no lo cambia.
+
+En los clips de Robe hablando **no hay gancho**: solo el concierto. La
+transcripción de un directo está garbleada y no se cita.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
