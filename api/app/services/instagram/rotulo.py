@@ -29,6 +29,16 @@ from app.services.text_sanitizer import enforce_name_policy
 
 logger = logging.getLogger(__name__)
 
+_MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+          "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+
+
+def fecha_larga(fecha) -> str:
+    """«9 de octubre de 1999». En un rótulo se lee mejor que 09-10-1999."""
+    if fecha is None:
+        return ""
+    return f"{fecha.day} de {_MESES[fecha.month - 1]} de {fecha.year}"
+
 # Lo que cabe de gancho a tamaño cómodo. No es un número redondo: sale de medir
 # con la fuente que usa ffmpeg (`video_clips.ancho_texto`).
 GANCHO_MAX_CHARS = 22

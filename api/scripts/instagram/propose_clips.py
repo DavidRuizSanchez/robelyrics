@@ -104,7 +104,9 @@ def _rotulo_del_clip(candidato) -> str:
     asset = candidato.asset
     cuando = None
     if asset.event_date:
-        cuando = asset.event_date.strftime("%d-%m-%Y")
+        # En el rótulo del vídeo la fecha va en largo: «9 de octubre de 1999»
+        # se lee mejor que «09-10-1999», y ahí hay sitio de sobra.
+        cuando = rotulo.fecha_larga(asset.event_date)
     elif asset.title:
         from app.services.instagram import concierto_meta as cm
 
