@@ -45,7 +45,13 @@ def _descargar_audio(url: str, minutos: int, destino: str) -> None:
 
     with tempfile.TemporaryDirectory() as tmp:
         op = {
-            "format": "bestaudio/best",
+            # m4a por delante: es un contenedor que ffmpeg abre sin discusión.
+            # OJO con la causa: el concierto de Las Ventas 1997 falló con
+            # «ffmpeg exited with code 8» y al reintentarlo funcionó con las dos
+            # selecciones de formato, la vieja y esta. O sea que aquel fallo era
+            # INTERMITENTE (lado de YouTube), no del formato. Esto no lo arregla;
+            # solo quita una variable de en medio cuando vuelva a pasar.
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "outtmpl": os.path.join(tmp, "a.%(ext)s"),
             "quiet": True, "noprogress": True, "no_warnings": True,
             "download_ranges": yt_dlp.utils.download_range_func(
