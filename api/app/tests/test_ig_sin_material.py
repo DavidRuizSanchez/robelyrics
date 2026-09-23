@@ -135,6 +135,44 @@ def test_el_aviso_dice_como_salir_del_paso(db):
     assert "pégalo" in str(exc.value)
 
 
+def test_un_post_del_blog_no_necesita_cuerpo_de_articulo(db, monkeypatch):
+    """El material de un post NUESTRO está en la BD, no en una descarga.
+
+    Medido en producción el 23-09-2026: `#370` («Pedrá en directo (1995)»)
+    quedó en `failed` con «no hay cuerpo del artículo» teniendo 2.102
+    caracteres escritos en su post del blog. No era un caso raro: 18 de los 20
+    items de la cola que vienen del blog están encolados con
+    `content_type='news'`, así que desde que existe la guarda ninguno podía
+    salir — y como las noticias van primero, el roto se reelegía cada 15
+    minutos sin gastar intentos, porque revienta antes de publicar.
+    """
+    # Se corta justo después de la guarda: lo que se comprueba es que NO salta
+    # `SinMaterial`, no el resto del camino (que pide red y tablas de
+    # contenido). Mismo criterio que el test del clip aprobado.
+    monkeypatch.setattr(publisher, "_redactar_con_corpus", lambda *a, **k: None)
+    monkeypatch.setattr(publisher, "_corpus_context", lambda *a, **k: {})
+    monkeypatch.setattr(publisher.robe_quote, "find_verse", lambda *a, **k: {})
+    monkeypatch.setattr(publisher, "captions", type("C", (), {
+        "build": staticmethod(lambda db, topic: "caption de prueba"),
+    }))
+
+    item = _item(db, category="Blog", blog_post_id=None)
+    try:
+        publisher.prepare(db, item)
+    except publisher.SinMaterial:  # pragma: no cover - es lo que se prueba
+        pytest.fail("a un post del blog no se le pide un artículo ajeno")
+    except Exception:  # noqa: BLE001
+        pass  # cualquier otro tropiezo es de pasos posteriores a la guarda
+
+
+def test_una_noticia_ajena_sigue_necesitando_su_articulo(db, monkeypatch):
+    """El arreglo de arriba no puede abrir la puerta de atrás: sin `category`
+    de blog, la exigencia se mantiene intacta."""
+    monkeypatch.setattr(publisher, "_corpus_context", lambda *a, **k: {})
+    with pytest.raises(publisher.SinMaterial):
+        publisher.prepare(db, _item(db, category="Música"))
+
+
 def test_sin_material_es_distinto_de_material_pendiente(db):
     """`MaterialPendiente` significa «espera, que viene»; esto significa «no hay».
     Confundirlos dejaría un post esperando para siempre un artículo que nunca

@@ -455,12 +455,24 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # El cuerpo del post no se toca (lo escribió el motor profundo), pero
             # sus slides también las escribe alguien ahora.
             _redactar_con_corpus(db, topic)
-        # SOLO las noticias. Un clip de vídeo no tiene «cuerpo del artículo»
-        # —su material es el propio vídeo— y con `not is_blog` se le exigía
-        # igualmente: desde que existe la guarda de «sin material no hay post»,
-        # CUALQUIER clip aprobado fallaba al prepararse. `product` no lo sufría
-        # de casualidad, porque está dentro de EVERGREEN_TYPES.
-        if item.content_type == "news":
+        # SOLO las noticias AJENAS. Dos formas de equivocarse aquí, y las dos
+        # han pasado:
+        #
+        #   - Un clip de vídeo no tiene «cuerpo del artículo» —su material es
+        #     el propio vídeo— y con `not is_blog` a secas se le exigía
+        #     igualmente: desde que existe la guarda de «sin material no hay
+        #     post», CUALQUIER clip aprobado fallaba al prepararse. `product`
+        #     no lo sufría de casualidad, porque está en EVERGREEN_TYPES.
+        #   - Y al arreglarlo mirando solo el `content_type` se rompió el caso
+        #     contrario: un post NUESTRO encolado como `news`. El material de
+        #     esos está en la BD (`blog_post_id`), no en una descarga, así que
+        #     pedirles un artículo ajeno es pedirles algo que nunca van a
+        #     tener. Medido el 23-09-2026: 18 de los 20 items que vienen del
+        #     blog están encolados con `content_type='news'`, y desde la
+        #     guarda ninguno podía salir. `is_blog` ya lo sabe unas líneas más
+        #     arriba —de ahí que sus slides sí se escriban—; lo que faltaba era
+        #     que esta condición se enterara.
+        if item.content_type == "news" and not is_blog:
             material = (topic.get("material") or "").strip()
             if not material:
                 from app.services.article_extract import PASTE_HINT
