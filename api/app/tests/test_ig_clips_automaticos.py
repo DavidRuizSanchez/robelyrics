@@ -292,3 +292,38 @@ def test_volver_a_guardar_no_duplica(db):
     filas = db.query(SourceSegment).all()
     assert len(filas) == 1
     assert filas[0].text == "otro"
+
+
+def test_un_clip_no_necesita_cuerpo_de_articulo(db, monkeypatch):
+    """Un clip no es una noticia: su material es el propio vídeo.
+
+    La guarda de «sin material no hay post» se aplicaba con `not is_blog`, así
+    que alcanzaba también a los clips y CUALQUIERA que se aprobara fallaba al
+    prepararse. `product` se libraba de casualidad, por estar en EVERGREEN_TYPES.
+    """
+    from app.services.instagram import publisher
+
+    clip = vc.solicitar(
+        db, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", 60.0, 90.0,
+        subtitle="El estribillo de «Standby» — Madrid, 1997",
+    )
+    clip.status = "ready"
+    clip.url_cdn = "https://res.cloudinary.com/x/video/upload/y.mp4"
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+    db.commit()
+
+    # Se corta justo después de la guarda: lo que se comprueba es que NO salta
+    # `SinMaterial`, no el resto del camino (que pide red y BD de contenido).
+    monkeypatch.setattr(publisher, "captions", type("C", (), {
+        "build": staticmethod(lambda db, topic: "caption de prueba"),
+    }))
+    monkeypatch.setattr(publisher, "_contexto_de_directo", lambda *a, **k: None)
+    # El resto del camino toca tablas de contenido que este fixture no monta
+    # (`songs`, `albums`): lo que se prueba aquí es la guarda, no eso.
+    monkeypatch.setattr(publisher, "_corpus_context", lambda *a, **k: {})
+    monkeypatch.setattr(publisher.robe_quote, "find_verse", lambda *a, **k: {})
+    publisher.prepare(db, item)
+
+    db.refresh(item)
+    assert item.status == "prepared"
+    assert item.media_type == "CLIP"

@@ -141,6 +141,10 @@ def guardar_segmentos(db: Session, source_id: int, segmentos: list[dict]) -> int
         filas.append(SourceSegment(
             source_id=source_id, idx=len(filas), start_s=inicio,
             end_s=max(fin, inicio), text=texto,
+            # Solo las trae Whisper; los subtítulos de YouTube no, y entonces
+            # quedan a NULL (quien las lea tiene que contar con eso).
+            no_speech_prob=seg.get("no_speech_prob"),
+            avg_logprob=seg.get("avg_logprob"),
         ))
     db.add_all(filas)
     db.commit()

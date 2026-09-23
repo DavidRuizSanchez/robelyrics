@@ -61,17 +61,32 @@ _YT_ID = re.compile(
 #
 # Se comprueba sobre el nombre del canal que devuelve yt-dlp, que es el real, no
 # sobre lo que uno crea al pegar la URL.
+# Ojo con «reaccion»/«reacts»: el material de esos canales es el vídeo de OTRO
+# con su comentario encima, así que un clip de ahí publica al youtuber, no a
+# Robe. Salió al proponer: un tramo de «Leo Reaccion» pasó todas las guardas
+# porque el audio original sí era de Robe.
 CANALES_VETADOS = (
+    "reaccion", "reacción", "reacts", "reaction", "reacciona",
     "oficial", "official", "vevo", " - topic", "records", "discos",
     "warner", "sony music", "universal music", "dro east west",
 )
 
 
+# Un canal que se llama EXACTAMENTE como el artista es su canal, aunque no
+# ponga «oficial» ni «VEVO» por ningún lado. Salió buscando conciertos: el canal
+# «Robe» a secas publica los directos de Mayéutica, y `CANALES_VETADOS` no lo
+# tocaba. Comparación exacta a propósito: «Extremoduro Directos» o «Robe y yo»
+# son de fans y tienen que seguir valiendo.
+_NOMBRES_OFICIALES = ("robe", "extremoduro", "robe iniesta", "roberto iniesta")
+
+
 def canal_vetado(canal: str) -> str | None:
     """Devuelve el patrón que veta a este canal, o None si se puede usar."""
-    c = (canal or "").casefold()
+    c = (canal or "").casefold().strip()
     if not c:
         return None
+    if c in _NOMBRES_OFICIALES:
+        return f"el canal se llama como el artista («{canal.strip()}»)"
     return next((p for p in CANALES_VETADOS if p in c), None)
 
 

@@ -52,6 +52,12 @@ MOLDES = (
     # («dejando una huella imborrable en el rock español»).
     r"(dejando|deja|dejaron) (una )?huella",
     r"huella (imborrable|indeleble|eterna)",
+    # Interpretar la letra al aire, que es lo que sale cuando no hay material
+    # del momento. Copiado de un caption de clip de concierto: «refleja la lucha
+    # interna de Robe», «el estribillo es un grito de desesperación».
+    r"refleja (la|el|su) (lucha|dolor|alma|esencia|sentir|esp[ií]ritu|"
+    r"distanciamiento|soledad)",
+    r"es un (grito|canto|himno|homenaje) (de|a|al)\b",
     r"qu[eé] os parece",
     r"c[oó]mo lo v[eé]is",
     r"no te lo pierdas",
