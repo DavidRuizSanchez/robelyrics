@@ -317,3 +317,48 @@ def test_el_credito_de_una_foto_sigue_llevando_su_camara():
     se lo pone esta función."""
     cap = captions.build(None, _topic(image_credit="Wikimedia Commons, CC BY-SA 4.0"))
     assert "📷 Wikimedia Commons, CC BY-SA 4.0" in cap
+
+
+# --------------------------------------------------------------------------- #
+# La pregunta de cierre la escribe quien escribe el texto
+# --------------------------------------------------------------------------- #
+def test_manda_la_pregunta_escrita_para_este_post():
+    """La que viene de `editorial` ya ha pasado por `caption_guard` y
+    `tono_guard`; la plantilla no sabe de qué va el post."""
+    escrita = "¿Y a ti, qué verso de «Pepe Botika» se te quedó dentro?"
+    cap = captions.build(None, _topic(content_type="quote", pregunta=escrita))
+    assert escrita in cap
+    # Y no se ponen las dos.
+    assert cap.count("?") >= 1
+    otras = [q for q in captions_moldes.QUESTIONS["quote"] if q in cap]
+    assert not otras, f"también coló una plantilla: {otras}"
+
+
+def test_sin_pregunta_escrita_queda_la_plantilla_anclada():
+    """Un verso o una efeméride pueden no pasar por el redactor (sin material
+    no se llama al modelo). Sus plantillas van ancladas al contenido, así que
+    siguen sirviendo de respaldo."""
+    cap = captions.build(None, _topic(content_type="quote"))
+    assert any(q.split("{")[0] in cap for q in captions_moldes.QUESTIONS["quote"])
+
+
+def test_una_noticia_sin_pregunta_escrita_va_sin_pregunta():
+    """Lo que no puede pasar es que vuelva la fórmula intercambiable: la lista
+    de plantillas de `news` está vacía a propósito, así que el caption sale sin
+    pregunta antes que con una que vale para cualquier post."""
+    cap = captions.build(None, _topic(content_type="news", category="Música"))
+    assert "¿Cómo lo veis" not in cap
+    assert "¿Qué os parece" not in cap
+
+
+def test_la_pregunta_escrita_entra_en_el_texto_que_juzgan_las_guardas():
+    """Si no está en `texto_publicado`, el gate no la ve — que es como una
+    fórmula vetada acababa publicada."""
+    from app.services.instagram import newsroom
+
+    texto = newsroom.texto_publicado({
+        "headline": "Agila cumple treinta años",
+        "caption_body": "Lo grabaron en 1996.",
+        "pregunta": "¿Cómo lo veis vosotros?",
+    })
+    assert "¿Cómo lo veis vosotros?" in texto

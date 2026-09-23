@@ -108,8 +108,6 @@ QUESTIONS: dict[str, list[str]] = {
         "¿Hay algún verso suyo que te sepas de memoria sin quererlo?",
     ],
     "robe_quote": [
-        "¿Estáis de acuerdo?",
-        "¿Qué os parece a vosotros?",
         "¿Os suena de algo lo que dice aquí?",
     ],
     "anecdote": [
@@ -131,14 +129,14 @@ QUESTIONS: dict[str, list[str]] = {
     "ephemeris": [
         "¿Qué recordáis vosotros de aquello?",
     ],
-    "news": [
-        "¿Qué os parece?",
-        "¿Cómo lo veis vosotros?",
-    ],
-    "blog": [
-        "¿Qué opináis?",
-        "¿Añadiríais algo?",
-    ],
+    # Vacías A PROPÓSITO. Una plantilla no sabe de qué va la noticia, así que
+    # aquí solo podía poner una fórmula que vale para cualquier post: «¿Cómo lo
+    # veis vosotros?» cerraba 39 de los 309 captions de la cuenta. La pregunta
+    # de una noticia o de un artículo del blog la escribe quien escribe el
+    # texto, con el material delante y pasando por el gate (`editorial`), y si
+    # no le sale una que sea de ESTE post, el caption va sin pregunta.
+    "news": [],
+    "blog": [],
     "product": [
         "¿Qué le preguntaríais vosotros?",
         "¿Qué echáis en falta?",

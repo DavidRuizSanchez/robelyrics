@@ -352,6 +352,11 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
         topic["caption_body"] = topic["texto_base"]
         topic.pop("slides", None)
         topic.pop("cierre", None)
+        # Y la pregunta del intento descartado, que si no se queda puesta en el
+        # topic y acaba en el caption: sería texto que NO pasó el gate saliendo
+        # publicado, justo lo que se está arreglando. Sin ella, `captions` cae a
+        # la plantilla anclada, que es lo que había antes de todo esto.
+        topic.pop("pregunta", None)
         topic.setdefault("avisos", []).append(
             "Las slides no pasaron las guardas: el post va con el texto de siempre."
         )

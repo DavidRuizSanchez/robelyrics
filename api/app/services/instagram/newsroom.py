@@ -116,6 +116,10 @@ def texto_publicado(topic: dict) -> str:
     partes = [topic.get("headline") or "", topic.get("caption_body") or ""]
     partes += [(s.get("text") or "") for s in (topic.get("slides") or [])]
     partes.append(topic.get("cierre") or "")
+    # Y la pregunta de cierre, por lo mismo: es la última línea del caption y la
+    # escribimos nosotros. Mientras la ponía una plantilla después del gate, una
+    # fórmula que el linter tenía vetada salía publicada igual.
+    partes.append(topic.get("pregunta") or "")
     return "\n".join(p for p in partes if p.strip())
 
 
@@ -149,6 +153,7 @@ def escribir(
         topic.pop("headline", None)
         topic.pop("slides", None)
         topic.pop("cierre", None)
+        topic.pop("pregunta", None)
         if veredicto is not None:
             # La reescritura sabe QUÉ falló: repetir la misma petición a ciegas
             # es tirar una moneda otra vez.
@@ -167,6 +172,7 @@ def escribir(
             comentario=topic.get("caption_body") or "",
             slides=topic.get("slides") or [],
             cierre=topic.get("cierre") or "",
+            pregunta=topic.get("pregunta") or "",
         )
         veredicto.estilo.extend(tono.bloqueos)
         veredicto.avisos.extend(tono.avisos)

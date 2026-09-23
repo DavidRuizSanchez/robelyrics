@@ -179,6 +179,105 @@ def test_la_esencia_con_determinante_se_tumba_en_todas_sus_formas():
         assert tono_guard.moldes_en(frase), f"debería cazarse: {frase}"
 
 
+# --------------------------------------------------------------------------- #
+# La pregunta de cierre: es de este post o no va
+# --------------------------------------------------------------------------- #
+def test_una_pregunta_que_vale_para_cualquier_post_se_bloquea():
+    """Literales de producción: cerraban 39 de los 309 captions de la cuenta."""
+    for p in (
+        "¿Cómo lo veis vosotros?",
+        "¿Qué os parece?",
+        "¿Qué opináis?",
+        "¿Añadiríais algo?",
+        "¿Estáis de acuerdo?",
+    ):
+        v = tono_guard.revisar(
+            titular="Agila cumple treinta años", slides=SLIDES_BUENAS, pregunta=p,
+        )
+        assert not v.ok, f"debería tumbarse: {p}"
+        assert any("cualquier post" in b for b in v.bloqueos)
+
+
+def test_una_pregunta_que_habla_del_post_pasa():
+    """La segunda NO trae ancla —ni año, ni comillas, ni nombres propios— y es
+    de las que mejor funcionan: el listón es que comente ESTE post, no que
+    traiga un dato. Exigirle un dato se llevaría por delante las buenas."""
+    for p in (
+        "¿Y a ti, qué verso de «Pepe Botika» se te quedó dentro?",
+        "¿Dónde estabas la primera vez que escuchaste esto?",
+    ):
+        v = tono_guard.revisar(
+            titular="Agila cumple treinta años", slides=SLIDES_BUENAS, pregunta=p,
+        )
+        assert v.ok, v.bloqueos
+
+
+def test_ninguna_plantilla_de_pregunta_contradice_al_linter():
+    """Las dos listas viven en ficheros distintos y podrían divergir: la del
+    linter dice qué se rechaza y la de `captions_moldes` qué se escribe. Si una
+    plantilla fuese de molde, saldría publicada sin que nadie se enterara —que
+    es exactamente lo que pasaba cuando la pregunta se añadía tras el gate."""
+    from app.services.instagram import captions_moldes
+
+    for tipo, plantillas in captions_moldes.QUESTIONS.items():
+        for tpl in plantillas:
+            formula = tono_guard.pregunta_de_molde(tpl)
+            assert formula is None, f"{tipo}: «{tpl}» es de molde («{formula}»)"
+
+
+def test_el_bloque_del_prompt_sale_de_la_misma_lista_que_juzga():
+    bloque = tono_guard.bloque_preguntas()
+    assert "¿qué os parece?" in bloque
+    assert "¿cómo lo veis?" in bloque
+
+
+def test_la_familia_de_la_huella_no_se_esquiva_cambiando_el_sustantivo():
+    """«dejaron una marca indeleble en la historia del rock español», medido en
+    el caption de `#370`. El linter vetaba «huella imborrable» y el modelo
+    cambió el sustantivo, igual que «su esencia pura» esquivó «la esencia»."""
+    for frase in (
+        "dejaron una marca indeleble en la historia del rock español",
+        "dejó una huella imborrable en toda una generación",
+        "su impronta eterna en el rock",
+    ):
+        assert tono_guard.moldes_en(frase), f"debería cazarse: {frase}"
+
+
+def test_si_el_texto_se_descarta_no_sobrevive_su_pregunta(monkeypatch):
+    """`_redactar_con_corpus` deja seguir a un evergreen cuyo texto no pasa las
+    guardas: su post sale con el texto de siempre. Lo que no puede hacer es
+    dejarse puesta la pregunta del intento descartado, porque entonces saldría
+    publicado un texto que el gate rechazó."""
+    from app.services.instagram import publisher
+
+    def _explota(*a, **k):  # noqa: ANN001, ANN002, ANN003
+        raise publisher.newsroom.TextoNoPublicable("de molde")
+
+    monkeypatch.setattr(
+        publisher.material_ig, "reunir", lambda *a, **k: _MaterialFalso()
+    )
+    monkeypatch.setattr(publisher.newsroom, "escribir", _explota)
+
+    # `texto_base` lo recalcula la propia función desde `caption_body`, así que
+    # se le da por ahí: ponerlo a mano lo pisaría y el test probaría otra cosa.
+    topic = {
+        "caption_body": "Un verso de los de verdad",
+        "title": "Un verso",
+        "pregunta": "¿Cómo lo veis vosotros?",
+    }
+    publisher._redactar_con_corpus(None, topic)
+
+    assert "pregunta" not in topic
+    assert topic["caption_body"] == "Un verso de los de verdad"
+
+
+class _MaterialFalso:
+    prompt = "material de casa"
+    verificable = "material de casa"
+    def __bool__(self) -> bool:
+        return True
+
+
 def test_deja_pasar_un_texto_con_fundamento():
     """Si la guarda tumba lo bueno, la guarda está mal (mismo criterio que
     `seo_style`). Este texto es el patrón de lo que SÍ queremos publicar."""

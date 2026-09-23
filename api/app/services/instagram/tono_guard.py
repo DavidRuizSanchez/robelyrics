@@ -69,10 +69,37 @@ MOLDES = (
     r"refleja (la|el|su) (lucha|dolor|alma|esencia|sentir|esp[ií]ritu|"
     r"distanciamiento|soledad)",
     r"es un (grito|canto|himno|homenaje) (de|a|al)\b",
-    r"qu[eé] os parece",
-    r"c[oó]mo lo v[eé]is",
     r"no te lo pierdas",
     r"d[eé]janos tu comentario",
+    # La familia entera, no solo la forma que salió aquel día: el linter
+    # perseguía «huella imborrable» y el modelo escribió «una marca indeleble
+    # en la historia del rock español» (caption de `#370`, 23-09-2026). Igual
+    # que «su esencia pura» esquivó «la esencia»: si se persigue el sustantivo,
+    # basta cambiar el sustantivo.
+    r"(huella|marca|impronta|sello|legado) "
+    r"(imborrable|indeleble|eterna?|imperecedera?)",
+    r"sigue (resonando|latiendo|sonando) (en|m[aá]s all[aá])",
+    r"m[aá]s all[aá] de su (ausencia|muerte|partida)",
+)
+
+# Preguntas de cierre que valen para cualquier post. Van aparte de `MOLDES`
+# porque no son lo mismo: una frase de molde es humo, y una pregunta genérica
+# puede ser perfectamente cierta — lo que le pasa es que no comenta ESTE post,
+# y por eso no abre ninguna conversación.
+#
+# Medido el 23-09-2026: 39 de 309 captions cerraban con «¿Cómo lo veis
+# vosotros?» o «¿Qué os parece?». Las que SÍ funcionan hablan del contenido
+# («¿Y a ti, qué verso de «Pepe Botika» se te quedó dentro?»), así que la
+# frontera no es «pregunta sí/no» sino si la pregunta sabe de qué va el post.
+PREGUNTAS_DE_MOLDE = (
+    r"qu[eé] (os|te) parece",
+    r"c[oó]mo lo v[eé]is",
+    r"qu[eé] opin[aá](is|s)",
+    r"a[ñn]adir[ií]ais algo",
+    r"est[aá]is de acuerdo",
+    r"qu[eé] pens[aá](is|s)",
+    r"y (vosotros|t[uú]),? qu[eé]\??$",
+    r"qu[eé] me cont[aá](is|s)",
 )
 
 # Un kicker es una etiqueta, no un contador. «CLAVE 01» encima de una frase
@@ -134,6 +161,29 @@ def moldes_en(texto: str) -> list[str]:
     return [m.group(0) for pat in MOLDES if (m := re.search(pat, plano))]
 
 
+def pregunta_de_molde(texto: str) -> str | None:
+    """La fórmula genérica que trae esta pregunta, si trae alguna."""
+    plano = _norm(texto)
+    for pat in PREGUNTAS_DE_MOLDE:
+        if (m := re.search(pat, plano)):
+            return m.group(0)
+    return None
+
+
+def bloque_preguntas() -> str:
+    """Lo que se le dice al modelo sobre la pregunta de cierre.
+
+    Sale de la MISMA lista que la juzga: que la guarda conozca una lista y el
+    prompt no es hacer que el modelo la adivine a base de rechazos.
+    """
+    return (
+        "PREGUNTAS PROHIBIDAS (valen para cualquier post, así que no son de "
+        "este): «¿qué os parece?», «¿cómo lo veis?», «¿qué opináis?», "
+        "«¿añadiríais algo?», «¿estáis de acuerdo?», «¿qué pensáis?». "
+        "Tampoco pidas una valoración de lo que acabas de contar."
+    )
+
+
 def tiene_ancla(texto: str) -> bool:
     """¿Hay algo concreto aquí, o es una frase que vale para cualquier post?
 
@@ -151,7 +201,7 @@ def tiene_ancla(texto: str) -> bool:
 
 def revisar(
     *, titular: str = "", comentario: str = "", slides: list[dict] | None = None,
-    cierre: str = "",
+    cierre: str = "", pregunta: str = "",
 ) -> VeredictoTono:
     """Veredicto sobre el texto que hemos escrito NOSOTROS.
 
@@ -162,10 +212,21 @@ def revisar(
     slides = slides or []
 
     todo = "\n".join(
-        [titular, comentario, cierre] + [s.get("text", "") for s in slides]
+        [titular, comentario, cierre, pregunta]
+        + [s.get("text", "") for s in slides]
     )
     for molde in moldes_en(todo):
         v.bloqueos.append(f"frase de molde: «{molde}»")
+
+    # La pregunta de cierre es lo único que le pedimos a quien lee, así que
+    # tiene que saber de qué va el post. NO se le exige `tiene_ancla`: «¿Dónde
+    # estabas la primera vez que escuchaste esto?» no trae ni un año ni un
+    # nombre propio y es de las que mejor funcionan. Lo que se le exige es que
+    # no sea una de las que valen para todo.
+    if pregunta and (formula := pregunta_de_molde(pregunta)):
+        v.bloqueos.append(
+            f"la pregunta de cierre vale para cualquier post: «{formula}»"
+        )
 
     for s in slides:
         kicker = (s.get("kicker") or "").strip()

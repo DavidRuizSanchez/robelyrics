@@ -227,9 +227,12 @@ def test_el_articulo_viaja_al_prompt_entero(monkeypatch):
               correcciones=None):  # noqa: ANN001
         visto["material"] = material
         visto["title"] = title
+        # El esquema es `strict` y `pregunta` va en `required`, así que la
+        # respuesta real SIEMPRE trae la clave: un doble al que le faltara
+        # sería más pobre que la realidad y probaría otro camino.
         return {"comentario": "cuerpo", "titular": "titular", "slides": [],
-                "cierre": "", "image_query": "q", "image_search": "s",
-                "hashtags": ["#X"]}
+                "cierre": "", "pregunta": "", "image_query": "q",
+                "image_search": "s", "hashtags": ["#X"]}
 
     monkeypatch.setattr(editorial, "_generate", _fake)
     editorial.enrich({

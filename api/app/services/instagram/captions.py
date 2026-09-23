@@ -244,10 +244,22 @@ def build(db: Session, topic: dict) -> str:
             attribution += f" ({verse['year']})"
         lines += ["", f"🎵 «{verse['line']}»", f"   — {attribution}"]
 
-    # 4) PREGUNTA de cierre: abre conversación. Se omite en tono sobrio, donde
-    #    una pregunta de ese corte desentona (homenajes, fallecimientos).
+    # 4) PREGUNTA de cierre: abre conversación, y es lo único que le pedimos a
+    #    quien lee. Se omite en tono sobrio, donde una pregunta de ese corte
+    #    desentona (homenajes, fallecimientos).
+    #
+    #    Manda la que ha escrito quien escribió el texto, porque es la única
+    #    que conoce el post: sale de `editorial` con el material delante y ya
+    #    ha pasado por `caption_guard` y `tono_guard`. La plantilla queda de
+    #    respaldo para lo que no pasa por el redactor —un verso, una efeméride
+    #    sin material—, y las suyas van ancladas al contenido («¿Y a ti, qué
+    #    verso de «Pepe Botika» se te quedó dentro?»). Donde la plantilla solo
+    #    podía poner una fórmula intercambiable, su lista está vacía: entonces
+    #    el caption va sin pregunta, que es mejor que ir con uno de relleno.
     if tono != "sober":
-        pregunta = captions_moldes.question(content_type, ctx, key)
+        pregunta = (topic.get("pregunta") or "").strip()
+        if not pregunta:
+            pregunta = captions_moldes.question(content_type, ctx, key) or ""
         if pregunta:
             lines += ["", pregunta]
 

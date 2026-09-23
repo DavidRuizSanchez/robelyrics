@@ -124,6 +124,10 @@ def enrich(topic: dict) -> None:
         topic["headline"] = (topic.get("texto_base") or title).strip()
     topic["slides"] = _normalizar_slides(datos["slides"])
     topic["cierre"] = strip_ai_tells(datos["cierre"]) or ""
+    # La pregunta la escribe quien escribe el resto, y por eso pasa por los
+    # mismos gates: mientras la ponía una plantilla DESPUÉS del gate, el linter
+    # la tenía vetada y salía publicada igual (39 de 309 captions).
+    topic["pregunta"] = strip_ai_tells(datos["pregunta"]) or ""
     # Nombre propio del SUJETO (para el hashtag #Sujeto).
     topic["image_query"] = datos["image_query"]
     # Query DESAMBIGUADA para buscar su foto en Google Images (con contexto,
@@ -180,12 +184,13 @@ def _esquema() -> dict:
                     },
                 },
                 "cierre": {"type": "string"},
+                "pregunta": {"type": "string"},
                 "image_query": {"type": "string"},
                 "image_search": {"type": "string"},
                 "hashtags": {"type": "array", "items": {"type": "string"}},
             },
             "required": [
-                "comentario", "titular", "slides", "cierre",
+                "comentario", "titular", "slides", "cierre", "pregunta",
                 "image_query", "image_search", "hashtags",
             ],
         },
@@ -375,6 +380,22 @@ def _generate(
         "(\"CLAVE 01\", \"PUNTO 2\"): eso no es una etiqueta, es un contador.\n"
         '  "cierre": una sola frase para la última tarjeta, que cierre ESTE post '
         "(no vale una frase intercambiable). Máximo 90 caracteres.\n"
+        '  "pregunta": la última línea del caption. Es lo ÚNICO que le pedimos '
+        "a quien nos lee, y la cuenta vive de que la conteste, así que se "
+        "escribe con el mismo cuidado que el resto.\n"
+        "      · Comenta ESTE post: tiene que nacer de algo que acabas de "
+        "contar —la canción, el año, quién tocaba, lo que pasó—, de modo que "
+        "puesta debajo de otro post no tenga sentido. Ese es el listón.\n"
+        "      · Invita a contar algo PROPIO (un recuerdo, una escucha, cuál "
+        "prefieren), no a valorar lo que hemos escrito. «¿Y a ti, qué verso de "
+        "«Pepe Botika» se te quedó dentro?» o «¿Dónde estabas la primera vez "
+        "que escuchaste esto?» funcionan; «¿qué os parece?» no le pregunta "
+        "nada a nadie.\n"
+        "      · Una sola pregunta, de tú o de vosotros —como se habla en un "
+        "bar, no en una encuesta—, máximo 110 caracteres. Sin emojis.\n"
+        f"      · {tono_guard.bloque_preguntas()}\n"
+        "      · Si el material no da para una pregunta que sea de este post, "
+        "devuélvela VACÍA. Mejor sin pregunta que con una de relleno.\n"
         '  "image_query": el NOMBRE PROPIO del SUJETO que PROTAGONIZA el post '
         "(quien hace la acción: el grupo, artista, banda o lugar del "
         "que VA), para el hashtag. Si es un homenaje/tributo/versión, "
@@ -424,6 +445,7 @@ def _generate(
             "titular": (data.get("titular") or "").strip(),
             "slides": data.get("slides") or [],
             "cierre": (data.get("cierre") or "").strip(),
+            "pregunta": (data.get("pregunta") or "").strip(),
             "image_query": (data.get("image_query") or "").strip(),
             "image_search": (data.get("image_search") or "").strip(),
             "hashtags": [t for t in hashtags if t],
