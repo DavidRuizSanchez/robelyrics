@@ -1738,6 +1738,11 @@ class VideoClip(Base):
     start_s: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     end_s: Mapped[float] = mapped_column(Float, nullable=False)
     subtitle: Mapped[str | None] = mapped_column(Text)
+    # Lo que se QUEMA en el vídeo, que no es lo mismo que el título del post:
+    # aquí caben ~32 caracteres por línea y lo que sobra se recorta sin avisar.
+    # Sin esto, el rótulo era el titular entero y salía cortado por los dos
+    # lados. Vacío = se usa `subtitle`, como el alta manual del panel.
+    overlay: Mapped[str | None] = mapped_column(Text)
     # --- Ciclo de vida ---
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="requested", index=True
