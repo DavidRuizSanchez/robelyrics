@@ -68,7 +68,21 @@ def main() -> None:
             except Exception as exc:  # noqa: BLE001
                 fail += 1
                 db.rollback()
+                # Un item que no se puede re-preparar se queda con el texto
+                # VIEJO y sigue en la cola: sale a su hora como si nada. Pasó el
+                # 23-09-2026 — el primer post publicado tras el cambio fue justo
+                # el único que había fallado (su noticia ya no tenía cuerpo,
+                # `news_items` se purga a los 7 días), y salió con las fórmulas
+                # de molde que el linter nuevo tumba. Marcarlo no impide que se
+                # publique, pero lo saca del silencio: el panel lo enseña.
+                try:
+                    item.needs_human = True
+                    db.commit()
+                except Exception:  # noqa: BLE001
+                    db.rollback()
                 logger.error("  ❌ %s → %s", etiqueta, exc)
+                logger.error("     (marcado para revisar: sigue con el texto "
+                             "anterior)")
         if not args.dry_run:
             logger.info("Hecho: %d re-preparados, %d fallidos.", ok, fail)
     finally:
