@@ -196,10 +196,26 @@ def runtime_js_para_ytdlp() -> dict:
     yt-dlp solo habilita `deno` por defecto. Aquí se le ofrece lo que haya en la
     máquina; si no hay nada, se devuelve vacío y se comporta como antes, porque
     forzar un runtime inexistente daría un error peor y más confuso.
+
+    **`remote_components` (23-09-2026)**: el runtime por sí solo ya no basta.
+    yt-dlp necesita además su «challenge solver», que descarga bajo demanda solo
+    si se le autoriza. Sin él, el aviso es `n challenge solving failed` y la
+    consecuencia NO es un error: la lista de formatos viene **sin vídeo**, se
+    baja solo el audio, y el montaje muere con «Stream specifier ':v' in
+    filtergraph», que no menciona YouTube por ningún lado. Medido sobre
+    `ykXsuPmebg4`: 0 formatos con vídeo sin la opción, 32 con ella.
+
+    Esto descarga un componente de yt-dlp desde GitHub en tiempo de ejecución.
+    Es el mecanismo oficial de la herramienta (`--remote-components`), no un
+    apaño para disfrazarse de navegador: la política del proyecto veta lo
+    segundo, no usar yt-dlp como está diseñado.
     """
     for nombre in ("deno", "node", "bun"):
         if shutil.which(nombre):
-            return {"js_runtimes": {nombre: {}}}
+            return {
+                "js_runtimes": {nombre: {}},
+                "remote_components": ["ejs:github"],
+            }
     return {}
 
 
@@ -210,6 +226,22 @@ def _ffmpeg(args: list[str]) -> None:
     )
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg falló: {proc.stderr.strip()[:400]}")
+
+
+def _tiene_imagen(ruta: str) -> bool:
+    """¿De este fichero sale una imagen de verdad?
+
+    Se intenta DECODIFICAR un fotograma, no basta con que ffprobe vea un stream
+    de vídeo: un VP9 que esta imagen no sabe decodificar se declara como
+    `h264` en los metadatos y no entrega un solo frame. Comprobar solo el
+    stream daba luz verde a un fichero del que no sale nada.
+    """
+    proc = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", ruta, "-frames:v", "1",
+         "-f", "null", "-"],
+        capture_output=True, text=True,
+    )
+    return proc.returncode == 0
 
 
 def _escapar_drawtext(texto: str) -> str:
@@ -235,13 +267,40 @@ def descargar_y_recortar(
 
     duracion = end_s - start_s
     with tempfile.TemporaryDirectory() as tmp:
-        crudo = os.path.join(tmp, "crudo.mp4")
+        # La plantilla lleva `%(ext)s` y NO una extensión fija. Con una ruta
+        # fija («crudo.mp4»), yt-dlp escribe el vídeo y el audio con el MISMO
+        # nombre —el segundo pisa al primero— y el merge se queda sin partes:
+        # el fichero final tiene solo audio. Eso no da error de descarga; da un
+        # «Stream specifier ':v' in filtergraph» de ffmpeg trescientas líneas
+        # después, que no menciona YouTube por ningún lado.
+        #
+        # Antes no se notaba porque YouTube servía un formato progresivo (vídeo
+        # y audio en uno) que no necesitaba merge. Ya no.
+        plantilla = os.path.join(tmp, "crudo.%(ext)s")
         opciones = {
-            "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "outtmpl": crudo,
+            # H.264 (avc1) POR DELANTE, y no es una preferencia estética: el
+            # ffmpeg de esta imagen baja el VP9 y luego no lo decodifica —
+            # ffprobe dice «h264» y `-frames:v 1` no saca ni uno—, así que el
+            # montaje muere con «Invalid data found when processing input».
+            # Medido el 23-09-2026 sobre `ykXsuPmebg4`: VP9 sin frames, avc1 OK.
+            # Además es el códec que quiere Instagram, así que ahorra una
+            # transcodificación. Se deja el selector antiguo al final por si
+            # algún vídeo solo existe en VP9: entonces fallará con el mensaje
+            # claro de `_tiene_imagen`, no con un filtergraph.
+            "format": (
+                "bestvideo[vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/"
+                "bestvideo[vcodec^=avc1][height<=1080]+bestaudio/"
+                "best[ext=mp4][height<=1080]/"
+                "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+            ),
+            "outtmpl": plantilla,
             "quiet": True,
             "noprogress": True,
-            "merge_output_format": "mp4",
+            # SIN `merge_output_format`: forzar mp4 aquí tira el vídeo cuando
+            # YouTube sirve VP9 + Opus (que es lo que sirve ahora), y deja un
+            # fichero de solo audio. Da igual el contenedor intermedio: el mp4
+            # final lo produce el montaje de ffmpeg de más abajo, en H.264.
+            "merge_output_format": "mkv",
             # Solo el tramo pedido: no se descarga el vídeo entero.
             "download_ranges": yt_dlp.utils.download_range_func(
                 None, [(start_s, end_s)]
@@ -264,8 +323,25 @@ def descargar_y_recortar(
                 "de fan, de archivo o de entrevistas."
             )
 
-        if not os.path.exists(crudo):
+        descargados = sorted(
+            os.path.join(tmp, f) for f in os.listdir(tmp)
+            if f.startswith("crudo.")
+        )
+        if not descargados:
             raise RuntimeError("yt-dlp no dejó fichero")
+        crudo = max(descargados, key=os.path.getsize)
+
+        # Que el fichero exista no quiere decir que traiga imagen. Se comprueba
+        # AQUÍ para que el error diga la causa: sin esto, el síntoma es un
+        # filtergraph de ffmpeg que no menciona ni YouTube ni el formato.
+        if not _tiene_imagen(crudo):
+            raise RuntimeError(
+                f"del tramo descargado ({os.path.basename(crudo)}) no sale "
+                "imagen. Dos causas vistas: faltan los formatos de vídeo (yt-dlp "
+                "avisa de «n challenge solving failed» — mira el runtime de "
+                "JavaScript y `remote_components`), o el códec que ha bajado no "
+                "lo decodifica este ffmpeg (pasó con VP9)."
+            )
 
         # A 9:16 con relleno desenfocado + atribución quemada abajo.
         #

@@ -58,13 +58,18 @@ def _flags_runtime_js() -> list[str]:
     menciona la causa (con ffmpeg de por medio, «exited with code 8»). yt-dlp
     solo habilita `deno` por defecto, y esta máquina tiene `node`.
 
+    Desde el 23-09-2026 va acompañado de `--remote-components ejs:github`: el
+    runtime solo ya no basta, yt-dlp necesita además su «challenge solver» y sin
+    él la lista de formatos viene sin vídeo (ver `instagram.video_clips`).
+
     Si no hay ninguno se devuelve lista vacía: mejor el comportamiento de antes
     que un flag apuntando a un binario que no existe.
     """
     import shutil
     for nombre in ("deno", "node", "bun"):
         if shutil.which(nombre):
-            return ["--js-runtimes", nombre]
+            return ["--js-runtimes", nombre,
+                    "--remote-components", "ejs:github"]
     return []
 
 

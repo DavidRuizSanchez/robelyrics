@@ -20,13 +20,37 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # quedó en «FALLIDO» en el panel. El daemon de clips corre DENTRO de este
 # contenedor (infra/local/clips_daemon.sh), así que el intérprete tiene que
 # estar aquí, no en la Mac.
+#
+# ACTUALIZACIÓN 23-09-2026: node ya no basta. yt-dlp avisa en cada descarga
+# («Only deno is enabled by default») y, sin runtime que le valga, LE FALTAN LOS
+# FORMATOS DE VÍDEO: baja solo el audio y el montaje muere con «Stream specifier
+# ':v' in filtergraph». Se deja node —no estorba y algún vídeo con formato
+# progresivo se baja con él— y se añade deno, que es el que yt-dlp habilita.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
         ffmpeg \
         fonts-dejavu-core \
         nodejs \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Deno, el runtime que yt-dlp habilita por defecto (ver el bloque de arriba).
+# Versión fijada: no se quiere que un rebuild cualquiera cambie el intérprete
+# por debajo. Para subirla, comprobar antes que un clip se sigue bajando.
+ARG DENO_VERSION=v2.9.7
+RUN arch="$(uname -m)" \
+    && case "$arch" in \
+         aarch64) deno_zip="deno-aarch64-unknown-linux-gnu.zip" ;; \
+         x86_64)  deno_zip="deno-x86_64-unknown-linux-gnu.zip" ;; \
+         *) echo "arquitectura sin deno: $arch" && exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/deno.zip \
+       "https://github.com/denoland/deno/releases/download/${DENO_VERSION}/${deno_zip}" \
+    && unzip -q /tmp/deno.zip -d /usr/local/bin \
+    && chmod +x /usr/local/bin/deno \
+    && rm /tmp/deno.zip \
+    && deno --version | head -1
 
 WORKDIR /app
 
