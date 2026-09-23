@@ -22,8 +22,8 @@ import logging
 
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
 from app.db.models import InstagramQueueItem
+from app.db.session import SessionLocal
 from app.services.instagram import publisher
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
