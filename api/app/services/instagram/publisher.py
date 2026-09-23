@@ -455,7 +455,12 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # El cuerpo del post no se toca (lo escribió el motor profundo), pero
             # sus slides también las escribe alguien ahora.
             _redactar_con_corpus(db, topic)
-        if not is_blog:
+        # SOLO las noticias. Un clip de vídeo no tiene «cuerpo del artículo»
+        # —su material es el propio vídeo— y con `not is_blog` se le exigía
+        # igualmente: desde que existe la guarda de «sin material no hay post»,
+        # CUALQUIER clip aprobado fallaba al prepararse. `product` no lo sufría
+        # de casualidad, porque está dentro de EVERGREEN_TYPES.
+        if item.content_type == "news":
             material = (topic.get("material") or "").strip()
             if not material:
                 from app.services.article_extract import PASTE_HINT

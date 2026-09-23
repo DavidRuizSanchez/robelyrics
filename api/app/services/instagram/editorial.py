@@ -309,6 +309,10 @@ def _generate(
             + "\n"
         )
 
+    # Un clip de concierto va de UN MOMENTO concreto que se está viendo, no de
+    # la canción en abstracto. Sin esto el modelo se pone a interpretar la letra
+    # («refleja la lucha interna», «es un grito de desesperación»), que es humo
+    # y encima no es lo que se ve en el vídeo.
     nota_comentario = (
         '  "comentario": de 2 a 4 frases comentando la noticia como Entre '
         "Interiores, sin mencionar ningún medio y sin inventar datos.\n"
@@ -323,6 +327,19 @@ def _generate(
         "frase con lo que el material SÍ dice. Si el post va de una canción "
         "concreta, habla de ELLA antes que del disco entero.\n"
     )
+
+    # Un clip de concierto va de UN MOMENTO que se está viendo, no de la
+    # canción en abstracto. Sin esto el modelo interpreta la letra («refleja la
+    # lucha interna», «es un grito de desesperación»): humo, y encima no es lo
+    # que se ve en el vídeo.
+    if content_type == "clip":
+        nota_comentario = (
+            '  "comentario": de 1 a 3 frases sobre EL MOMENTO QUE SE VE en el '
+            "clip y sobre el concierto: qué suena, en qué punto de la canción, "
+            "y dónde y cuándo fue si consta. PROHIBIDO interpretar la letra o "
+            "explicar de qué va la canción, que no es lo que se está viendo. Si "
+            "no consta la fecha o el sitio, NO los menciones ni los aproximes.\n"
+        )
 
     user = (
         f"Categoría: {category}\n"
