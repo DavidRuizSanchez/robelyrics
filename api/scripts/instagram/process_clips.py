@@ -78,6 +78,7 @@ def main() -> None:
                     end_s=clip["end_s"],
                     canal=clip.get("channel_title") or "",
                     subtitulo=clip.get("subtitle"),
+                    rotulo=clip.get("overlay"),
                     destino=destino,
                 )
                 logger.info(

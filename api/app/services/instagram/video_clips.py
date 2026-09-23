@@ -118,6 +118,7 @@ def solicitar(
     db: Session, url: str, start_s: float, end_s: float,
     subtitle: str | None = None, requested_by: str | None = None,
     *, estado_item: str | None = None, needs_human: bool = False,
+    overlay: str | None = None,
 ) -> VideoClip:
     """Da de alta la petición de un clip Y su publicación propia.
 
@@ -156,6 +157,10 @@ def solicitar(
     clip = VideoClip(
         video_id=video_id, url=url.strip(), start_s=start_s, end_s=end_s,
         subtitle=tema, requested_by=requested_by, status="requested",
+        # Lo que se quema en el vídeo, que NO es el título del post: ahí caben
+        # unos 32 caracteres por línea. Sin rótulo se usa el título, como hace
+        # el alta manual del panel.
+        overlay=overlay,
     )
     db.add(clip)
     db.flush()
@@ -315,6 +320,70 @@ def _es_imagen_fija(ruta: str, duracion_s: float) -> bool:
     return fraccion >= FREEZE_FRACCION
 
 
+# La fuente que ffmpeg resuelve cuando `drawtext` no lleva `fontfile`
+# (verificado con `fc-match sans` dentro del contenedor; la instala
+# `fonts-dejavu-core` en el Dockerfile). Se mide con ella y no con las del
+# sitio, que solo usa `imaging.py` para las tarjetas.
+FUENTE_FFMPEG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+# Lo que cabe de verdad: el ancho del lienzo menos el borde de la caja a cada
+# lado. Medido: el rótulo que se estaba publicando ocupaba 1622 px, así que
+# ffmpeg se comía unos 20 caracteres — y como el texto va centrado, se los
+# comía por los DOS lados a la vez.
+ANCHO_UTIL = ANCHO - 2 * 18
+# Tamaños del rótulo: el gancho manda, el dato acompaña. Bajan hasta que entren.
+GANCHO_PX = 62
+GANCHO_PX_MIN = 40
+DATO_PX = 38
+DATO_PX_MIN = 26
+# Un emoji no tiene glifo en DejaVu Sans: sale un cuadrado vacío.
+_RE_EMOJI = re.compile(
+    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\uFE0F]"
+)
+
+
+def sin_emojis(texto: str) -> str:
+    """Fuera los emojis: DejaVu Sans no los tiene y se dibujan como una caja."""
+    return _RE_EMOJI.sub("", texto or "").strip()
+
+
+def ancho_texto(texto: str, tamano: int) -> float:
+    """Cuántos píxeles ocupa este texto dibujado por ffmpeg.
+
+    Se mide con PIL sobre la MISMA fuente que usará ffmpeg, que es como lo hace
+    `imaging._fit_headline` para las tarjetas. Si la fuente no estuviera, se
+    estima por ancho medio de carácter (28,8 px a 52, medido) antes que fallar.
+    """
+    from PIL import ImageFont
+
+    try:
+        fuente = ImageFont.truetype(FUENTE_FFMPEG, tamano)
+        return fuente.getlength(texto or "")
+    except OSError:
+        return len(texto or "") * tamano * 0.554
+
+
+def _encoger(texto: str, maximo: int, minimo: int) -> tuple[str, int]:
+    """Baja el tamaño hasta que el texto entre; si no, recorta POR PALABRA.
+
+    Partir una palabra por la mitad se lee peor que perder la última: el corte
+    de ffmpeg, que es lo que había, hacía las dos cosas a la vez y por los dos
+    lados.
+    """
+    texto = (texto or "").strip()
+    if not texto:
+        return "", maximo
+    for tamano in range(maximo, minimo - 1, -2):
+        if ancho_texto(texto, tamano) <= ANCHO_UTIL:
+            return texto, tamano
+    palabras = texto.split()
+    while len(palabras) > 1:
+        palabras.pop()
+        recortado = " ".join(palabras) + "…"
+        if ancho_texto(recortado, minimo) <= ANCHO_UTIL:
+            return recortado, minimo
+    return texto, minimo
+
+
 def _escapar_drawtext(texto: str) -> str:
     """Escapa el texto para el filtro drawtext de ffmpeg."""
     return (
@@ -325,7 +394,7 @@ def _escapar_drawtext(texto: str) -> str:
 
 def descargar_y_recortar(
     url: str, start_s: float, end_s: float, canal: str,
-    subtitulo: str | None, destino: str,
+    subtitulo: str | None, destino: str, rotulo: str | None = None,
 ) -> dict:
     """Baja el vídeo, recorta el tramo, lo pasa a 9:16 y quema la atribución.
 
@@ -336,6 +405,10 @@ def descargar_y_recortar(
     """
     import yt_dlp
 
+    # El rótulo es lo que se quema en el vídeo; el subtítulo (que es el título
+    # del post) solo se usa si no hay rótulo — el caso del alta manual del
+    # panel, que no ha cambiado.
+    subtitulo = rotulo or subtitulo
     duracion = end_s - start_s
     with tempfile.TemporaryDirectory() as tmp:
         # La plantilla lleva `%(ext)s` y NO una extensión fija. Con una ruta
@@ -433,11 +506,26 @@ def descargar_y_recortar(
             f"[v0]drawtext=text='{credito}':fontcolor=white@0.92:fontsize=34:"
             f"x=(w-text_w)/2:y=h-190:box=1:boxcolor=black@0.55:boxborderw=16"
         )
-        if subtitulo:
+        # El rótulo va en DOS líneas con tamaños distintos: el gancho manda y
+        # el dato acompaña. Dos `drawtext` y no un `\n` dentro de uno, porque
+        # un solo filtro dibuja las dos líneas al mismo tamaño y aquí la
+        # jerarquía es justo lo que se busca.
+        lineas = [ln.strip() for ln in (subtitulo or "").split("\n") if ln.strip()]
+        if lineas:
+            gancho, px_gancho = _encoger(
+                sin_emojis(lineas[0]), GANCHO_PX, GANCHO_PX_MIN
+            )
             texto += (
-                f"[v1];[v1]drawtext=text='{_escapar_drawtext(subtitulo)}':"
-                f"fontcolor=white:fontsize=52:x=(w-text_w)/2:y=h-420:"
+                f"[r0];[r0]drawtext=text='{_escapar_drawtext(gancho)}':"
+                f"fontcolor=white:fontsize={px_gancho}:x=(w-text_w)/2:y=h-470:"
                 f"box=1:boxcolor=black@0.5:boxborderw=18"
+            )
+        if len(lineas) > 1:
+            dato, px_dato = _encoger(sin_emojis(lineas[1]), DATO_PX, DATO_PX_MIN)
+            texto += (
+                f"[r1];[r1]drawtext=text='{_escapar_drawtext(dato)}':"
+                f"fontcolor=white@0.92:fontsize={px_dato}:x=(w-text_w)/2:y=h-392:"
+                f"box=1:boxcolor=black@0.45:boxborderw=14"
             )
         filtros.append(texto + "[v]")
 

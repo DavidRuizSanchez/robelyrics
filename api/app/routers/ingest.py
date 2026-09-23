@@ -227,6 +227,9 @@ class ClipPending(BaseModel):
     start_s: float
     end_s: float
     subtitle: str | None = None
+    # Lo que se quema en el vídeo. Va aparte del `subtitle` (el título del post)
+    # porque en el vídeo caben ~32 caracteres por línea y el título no entra.
+    overlay: str | None = None
     channel_title: str | None = None
     attempts: int
 
@@ -255,7 +258,8 @@ def clips_pending(
     return [
         ClipPending(
             id=c.id, url=c.url, video_id=c.video_id, start_s=c.start_s,
-            end_s=c.end_s, subtitle=c.subtitle, channel_title=c.channel_title,
+            end_s=c.end_s, subtitle=c.subtitle, overlay=c.overlay,
+            channel_title=c.channel_title,
             attempts=c.attempts,
         )
         for c in _vc.pendientes(db, max_intentos=MAX_ATTEMPTS)

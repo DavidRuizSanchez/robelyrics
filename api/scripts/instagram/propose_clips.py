@@ -93,6 +93,35 @@ def _titulo_post(asset, candidato=None) -> str:
     return (enforce_name_policy(base) or base)[:300]
 
 
+def _rotulo_del_clip(candidato) -> str:
+    """El texto que se QUEMA en el vídeo, que no es el título del post.
+
+    El título es descriptivo y largo, para el panel y el caption; el rótulo son
+    dos líneas cortas, porque en el vídeo caben unos 32 caracteres por línea.
+    """
+    from app.services.instagram import rotulo
+
+    asset = candidato.asset
+    cuando = None
+    if asset.event_date:
+        cuando = asset.event_date.strftime("%d-%m-%Y")
+    elif asset.title:
+        from app.services.instagram import concierto_meta as cm
+
+        ev = cm.extraer(asset.title, "")
+        cuando = str(ev.anio) if ev.anio else None
+
+    return rotulo.componer(
+        tipo=candidato.tipo,
+        cancion=candidato.cancion,
+        verso=candidato.verso,
+        lugar=asset.event_place,
+        cuando=cuando,
+        # La clave del clip: el mismo tramo da siempre el mismo rótulo.
+        clave=f"{asset.youtube_id}:{int(candidato.start_s)}",
+    )
+
+
 def _cuando_y_donde(asset) -> str:
     """«Barcelona, 08-10-2022», o "" si no consta. Nunca se rellena a ojo."""
     partes = []
@@ -179,6 +208,7 @@ def main() -> None:
             clip = video_clips.solicitar(
                 db, c.asset.url, c.start_s, c.end_s,
                 subtitle=_titulo_post(c.asset, c),
+                overlay=_rotulo_del_clip(c),
                 requested_by="auto",
                 estado_item="proposed",
                 needs_human=True,
