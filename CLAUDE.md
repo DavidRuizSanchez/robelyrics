@@ -798,6 +798,41 @@ mismo tramo da siempre el mismo rótulo y re-montar no lo cambia.
 En los clips de Robe hablando **no hay gancho**: solo el concierto. La
 transcripción de un directo está garbleada y no se cita.
 
+## Un post preparado no se entera de que has desplegado
+
+`IMAGES_DIR` (`/tmp/robelyrics_instagram`) **no es efímero en producción**: está
+montado como volumen docker (`robelyrics_ig-images`) y sobrevive a los
+rebuilds. Verificado el 23-09-2026: ficheros de junio vivos en un contenedor
+creado ese mismo día.
+
+Por eso `_media_lista` da `True` para todo lo que se preparó alguna vez y
+`publish` **no vuelve a llamar a `prepare`**: lo que sale al feed es el texto
+que se escribió el día que se preparó el post, con el código de aquel día.
+Desplegar una guarda nueva no toca lo que ya está en cola. Para que un item se
+reescriba hay que borrarle sus filas de `instagram_queue_media` y vaciar
+`caption`/`image_url`/`image_path`.
+
+Antes de rehacer nada en bloque, **datar lo que hay**:
+`instagram_queue_media.created_at` dice con qué código se escribió. Ojo al
+comparar, que la BD guarda UTC y `git log` muestra hora local.
+
+Y el texto que sale se puede MEDIR sin publicarlo: `tono_guard.moldes_en`
+corre sobre el caption guardado, no hace falta adivinar si una cola «lleva las
+mejoras». Así se vio que de 25 posts en cola solo uno traía molde.
+
+### El cuentagotas no mira la hora del día
+
+`publish_next` publica cuando pasa el intervalo desde la última vez, así que el
+feed acaba con posts a las 02:31 y a las 23:16. Los `IG_SLOTS` (13:30 y 20:30)
+**solo gobiernan lo autoprogramado**: quien reparte por horas decentes es
+`scheduling.apply_plan`, desde el panel.
+
+Si se programa toda la cola, `next_pending` pasa a devolver `None` y el goteo
+deja de mandar: todo sale por `due_pinned` a su hora. Dos cosas que conviene no
+olvidar en ese modo — `due_pinned` publica **de una tacada todo lo vencido**
+(una caída larga del cron vuelca varios posts juntos al volver), y lo que
+encola `prepare_daily` entra SIN fecha, o sea que vuelve al goteo. Conviven.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
