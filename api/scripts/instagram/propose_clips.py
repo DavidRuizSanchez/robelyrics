@@ -104,9 +104,15 @@ def _rotulo_del_clip(candidato) -> str:
     asset = candidato.asset
     cuando = None
     if asset.event_date:
-        # En el rótulo del vídeo la fecha va en largo: «9 de octubre de 1999»
-        # se lee mejor que «09-10-1999», y ahí hay sitio de sobra.
-        cuando = rotulo.fecha_larga(asset.event_date)
+        # La fecha larga («9 de octubre de 1999») solo donde ocupa línea propia,
+        # que es el clip de Robe hablando. En los demás la línea ya lleva la
+        # canción y el sitio, así que basta el año o se encoge tanto que no se
+        # lee: el hueco son 1044 px medidos, no una estimación.
+        cuando = (
+            rotulo.fecha_larga(asset.event_date)
+            if candidato.tipo == "habla"
+            else str(asset.event_date.year)
+        )
     elif asset.title:
         from app.services.instagram import concierto_meta as cm
 
