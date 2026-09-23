@@ -579,6 +579,12 @@ class VideoAsset(Base):
     )
     vetado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     motivo_veto: Mapped[str | None] = mapped_column(String(200))
+    # ¿Es el audio de un concierto con una foto quieta encima? NULL = aún no se
+    # ha mirado; solo se sabe al descargar un tramo, porque ni el título ni la
+    # descripción lo dicen (de 45 conciertos catalogados, solo 2 lo declaran).
+    # No veta: un vídeo así sigue pudiendo proponerse, pero puntúa por debajo y
+    # el correo lo enseña marcado, que es lo que pidió David.
+    imagen_fija: Mapped[bool | None] = mapped_column(Boolean)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
