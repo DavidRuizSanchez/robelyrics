@@ -738,6 +738,36 @@ Y un texto corto casa con cualquier cosa: «¡Vamos Manolo!» se identificó com
 verso a 0,80 cuando es Robe animando al público. Por eso el listón de parecido
 sube cuanto más corto es el fragmento.
 
+### Un estribillo es el que VUELVE, y el clip dura lo que dura
+
+Dos clips rechazados por David el 23-09-2026, con su causa medida:
+
+- **«El estribillo de "Por encima del bien y del mal"» no cantaba el
+  estribillo.** Se marcaba como tal cualquier verso repetido 3+ veces sin mirar
+  dónde, y en esa canción el más repetido («Todo lo que no está en ti», 4 veces)
+  es la LÍNEA 0: sus apariciones caben en las seis primeras de 45. El gancho
+  sonaba en 295-302, un segundo después de que el clip acabara. Ahora se mide la
+  **dispersión** `(última - primera) / nº de líneas`, umbral 0,35: caen 83 de
+  334 versos repetidos. **El criterio NO puede ser la posición**: «Luce la
+  oscuridad» también abre su canción y sí es el estribillo (dispersión 0,94).
+- **El clip se estiraba hasta 18 s rellenando** con lo que viniera detrás. Ahora
+  es el BLOQUE —tramos seguidos del mismo tipo y canción— y dura lo que dure;
+  solo se completa por debajo de 10 s y con la misma canción.
+- De paso: las dos ventanas candidatas de aquel caso **empataban a 4,00 exacto**
+  y ganó la peor por orden de aparición. Se construye un candidato por bloque y
+  desempata la cobertura.
+
+Y un vídeo que resultó ser **la portada del disco quieta con el audio encima**.
+No se sabe por el título («GIRA 2012 | Robando Perchas en el Hotel»): de 45
+conciertos catalogados solo 2 declaran ser audio. Se detecta con
+`freezedetect=n=0.003:d=2` sobre el tramo que el daemon ya ha descargado —medido:
+100 % congelado frente a 0 % en un directo real— y **no se veta**: puntúa por
+debajo y el correo lo enseña marcado, que es lo que pidió David. Mirar el audio
+no sirve: el audio SÍ es el del concierto.
+
+Tampoco se propone dos veces la misma canción del mismo concierto: un estribillo
+suena varias veces en un bolo y salían dos clips que en el feed se leen igual.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
