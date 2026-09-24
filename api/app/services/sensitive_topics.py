@@ -68,6 +68,63 @@ def _norm(s: str) -> str:
     return "".join(c for c in s if unicodedata.category(c) != "Mn").lower()
 
 
+def _sin_urls(s: str) -> str:
+    """Vacía la URL de cada enlace markdown, conservando la longitud.
+
+    Un slug NO es una mención. `lyric_guard._mask_link_urls` hace exactamente esto
+    desde que un `/extremoduro/yo-minoria-absoluta/menamoro` falseaba la atribución
+    de un verso; aquí el mismo slug contaba como «disco citado». Medido el
+    24-09-2026: el análisis de una sola canción llegaba a cuatro discos —el suelo
+    que dispara el gate— y uno era el `deltoya` de la URL de su propio enlace.
+    """
+    return re.sub(r"\]\(([^)\n]*)\)", lambda m: "](" + " " * len(m.group(1)) + ")", s or "")
+
+
+# Un título ambiguo (disco Y canción: «Pedrá», «Agila», «Deltoya»…) solo cuenta
+# como DISCO si el texto lo presenta como tal. Sin esto, nombrar dos canciones
+# sumaba dos discos.
+_MARCA_DISCO = re.compile(
+    # Las comillas y el corchete del enlace van entre medias: «su disco '[Pedrá]».
+    r"(?:\*|_)$|(?:disco|album|elepe|lp|en su|de su)\s*[\"'«\[*_]*$", re.IGNORECASE
+)
+_MARCA_DISCO_DERECHA = re.compile(r"^(?:\*|_|\s*\(\s*(?:19|20)\d\d\s*\))")
+_LINK = re.compile(r"\[([^\]]+)\]\(([^)\n]*)\)")
+
+
+def _discos_enlazados(cuerpo: str, titulos_norm: list[str]) -> set[str]:
+    """Títulos cuyo enlace apunta a la PÁGINA DEL DISCO.
+
+    La URL desambigua mejor que cualquier heurística y está ahí: `/extremoduro/
+    deltoya` es el disco y `/extremoduro/deltoya/de-acero` es una canción suya.
+    Sin mirarla, un «en "[Deltoya](…)" Robe escribe…» que enlaza al disco se
+    descartaba por prudencia y dejaba de contar un recorrido real.
+    """
+    out: set[str] = set()
+    for m in _LINK.finditer(cuerpo or ""):
+        ancla = _norm(m.group(1))
+        ruta = [x for x in m.group(2).split("?")[0].split("#")[0].split("/") if x]
+        if ruta and ruta[0].startswith("http"):   # absoluta: fuera esquema y dominio
+            ruta = ruta[2:]
+        if len(ruta) != 2:                        # 2 segmentos = artista/disco
+            continue
+        out.update(t for t in titulos_norm if t in ancla)
+    return out
+
+
+def _cita_como_disco(cuerpo_norm: str, titulo_norm: str) -> bool:
+    """¿Alguna aparición del título se presenta como disco y no como canción?
+
+    Señales, todas del propio texto: cursiva markdown (`*Pedrá*`), la palabra
+    «disco»/«álbum» justo antes, o el año entre paréntesis justo después.
+    """
+    for m in re.finditer(re.escape(titulo_norm), cuerpo_norm):
+        izq = cuerpo_norm[max(0, m.start() - 24):m.start()]
+        der = cuerpo_norm[m.end():m.end() + 10]
+        if _MARCA_DISCO.search(izq) or _MARCA_DISCO_DERECHA.match(der):
+            return True
+    return False
+
+
 @dataclass
 class SensitiveReport:
     """Qué se ha encontrado. `necesita_revision` es lo único que frena algo."""
@@ -124,9 +181,57 @@ def en_perimetro(subject: str, texto: str, entity_slug: str | None = None) -> bo
     return any(k in n_sujeto for k in ("robe", "extremoduro", "roberto iniesta"))
 
 
+def _titulos_cancion(db) -> set[str]:
+    """Títulos de canción normalizados, para saber cuáles colisionan con un disco.
+
+    Sale de la BD, nunca de una lista a mano: «Pedrá», «Agila» o «Deltoya» son a la
+    vez disco y canción, y mañana puede haber otro.
+    """
+    if db is None:
+        return set()
+    try:
+        from sqlalchemy import select
+
+        from app.db.models import Song
+
+        return {_norm(t) for (t,) in db.execute(select(Song.title)) if t}
+    except Exception:  # noqa: BLE001 — sin catálogo se calla, no se inventa
+        return set()
+
+
+def discos_citados(cuerpo: str, titulos_catalogo: list[str],
+                   titulos_cancion: set[str] | None = None) -> list[str]:
+    """Discos que el texto menciona DE VERDAD.
+
+    Dos cosas que no son menciones y se contaban como tales (medidas el
+    24-09-2026 sobre el análisis de «De Acero (En Directo)», que sumaba cuatro):
+
+    - El slug de un enlace: `.../extremoduro/deltoya/de-acero` no nombra *Deltoya*.
+    - Una canción cuyo título coincide con el de un disco: el texto citaba las
+      canciones «Pedrá» y «Standby», y «Pedrá» es además un disco de 1995.
+
+    Cuatro discos es el suelo que marca una pieza como recorrido de trayectoria,
+    así que dos falsos bastaban para retener el análisis de una sola canción —
+    justo lo que el módulo dice no querer hacer.
+    """
+    n = _norm(_sin_urls(cuerpo))
+    fuera: set[str] = titulos_cancion or set()
+    enlazados = _discos_enlazados(cuerpo, [_norm(t) for t in titulos_catalogo])
+    out = []
+    for t in titulos_catalogo:
+        nt = _norm(t)
+        if nt not in n:
+            continue
+        if nt in fuera and nt not in enlazados and not _cita_como_disco(n, nt):
+            continue  # en este texto es la canción, no el disco
+        out.append(t)
+    return out
+
+
 def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
                    titulos_catalogo: list[str] | None = None,
-                   entity_slug: str | None = None) -> bool:
+                   entity_slug: str | None = None,
+                   titulos_cancion: set[str] | None = None) -> bool:
     """¿El texto RECORRE una trayectoria, o solo habla de una cosa concreta?
 
     El análisis de una canción no dispara aunque nombre a Robe diez veces: lo que
@@ -137,8 +242,7 @@ def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
     cuerpo = body_md or ""
     citados = 0
     if titulos_catalogo:
-        n = _norm(cuerpo)
-        citados = sum(1 for t in titulos_catalogo if _norm(t) in n)
+        citados = len(discos_citados(cuerpo, titulos_catalogo, titulos_cancion))
 
     # Enumerar obra de verdad es la señal fuerte, y va sola.
     if citados >= 4:
@@ -154,16 +258,18 @@ def discos_no_citados(db, body_md: str, *, minimo_para_exigir: int = 4) -> list[
     """Discos del catálogo que el texto se deja, si es que está enumerando.
 
     Con menos de `minimo_para_exigir` citados no se dice nada: mencionar dos
-    discos no es hacer una discografía, y exigirlo sería ruido.
+    discos no es hacer una discografía, y exigirlo sería ruido. Cuenta con el
+    mismo criterio que `es_trayectoria` — si contara distinto, una pieza podría
+    quedar retenida por «enumerar» y a la vez no enumerar.
     """
     discos = robe_facts.discography(db)
     if not discos:
         return []
-    n = _norm(body_md or "")
-    citados = [d for d in discos if _norm(d.title) in n]
+    titulos = [d.title for d in discos]
+    citados = set(discos_citados(body_md or "", titulos, _titulos_cancion(db)))
     if len(citados) < minimo_para_exigir:
         return []
-    return [f"{d.title} ({d.year})" for d in discos if d not in citados]
+    return [f"{d.title} ({d.year})" for d in discos if d.title not in citados]
 
 
 def afirma_debut_erroneo(texto: str) -> bool:
@@ -189,7 +295,7 @@ def revisar(db, *, kind: str | None, subject: str, body_md: str,
     titulos = [d.title for d in robe_facts.discography(db)] if db is not None else []
     rep.es_trayectoria = es_trayectoria(
         kind=kind, subject=subject, body_md=body_md, titulos_catalogo=titulos,
-        entity_slug=entity_slug,
+        entity_slug=entity_slug, titulos_cancion=_titulos_cancion(db),
     )
     if rep.es_trayectoria and not menciona_fallecimiento(body_md):
         rep.omite_fallecimiento = True

@@ -454,6 +454,16 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
         attr_song = by_title.get(attributed) if attributed else None
 
         # Canción atribuida SIN letra en el corpus → cita literal no verificable.
+        #
+        # OJO, falso positivo latente (medido el 24-09-2026, NO arreglado): este
+        # `continue` se salta el barrido global de abajo, así que un verso que SÍ
+        # está en el corpus —en la versión de estudio— se declara inverificable si
+        # el texto lo atribuye a una fila sin letra. Hoy no puede pasar: las 153
+        # canciones tienen letra. Pero el alta automática de discos crea canciones
+        # vacías a propósito (`catalog_ingest`), así que llegará el día. El arreglo,
+        # cuando haya un caso real que lo respalde: no cortar aquí, dejar que corra
+        # el barrido y emitir `no_lyrics` solo si tampoco ahí aparece el verso —
+        # eso verifica MÁS, no menos. No se toca a ciegas porque es una guarda dura.
         if attr_song is not None and not attr_song.has_lyrics:
             if _in_external(q_norm):
                 report.verdicts.append(LyricVerdict(

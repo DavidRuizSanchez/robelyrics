@@ -206,3 +206,75 @@ def test_un_recorrido_de_verdad_sigue_disparando():
 
     assert st.es_trayectoria(kind="evergreen", subject="Extremoduro",
                              body_md=recorrido, titulos_catalogo=CATALOGO)
+
+
+# --- Lo que NO es una mención de disco --------------------------------------- #
+# Cuarta calibración, con el post #59 delante (24-09-2026). El análisis de UNA
+# canción quedó retenido por «recorrer la trayectoria»: sumaba cuatro discos, el
+# suelo que dispara el gate, y dos de los cuatro no eran menciones. El módulo dice
+# que el análisis de una canción no debe disparar; esto es lo que hacía que sí.
+
+POST_59 = """## Análisis de la Letra de 'De Acero (En Directo)'
+
+La canción "[De Acero](https://entreinteriores.com/extremoduro/deltoya/de-acero)
+(En Directo)", incluida en el disco *Iros todos a tomar por culo* de Extremoduro,
+examina la tensión entre una fachada de dureza y una fragilidad interna.
+
+Este elemento aparece en varias canciones de Extremoduro, como en "Pedrá" y
+"Standby", reflejando la búsqueda de libertad. "Standby", del álbum *Yo, minoría
+absoluta* (2002), también toca el concepto de el viento."""
+
+CANCIONES = {st._norm(t) for t in ("Pedrá", "Standby", "De Acero", "Deltoya", "Agila")}
+
+
+def test_el_slug_de_una_url_no_es_una_mencion_de_disco():
+    """`/extremoduro/deltoya/de-acero` no nombra *Deltoya*: es el enlace de la
+    canción. `lyric_guard` enmascara las URLs desde que un slug falseaba la
+    atribución de un verso; aquí contaba como disco citado."""
+    cuerpo = ('La canción "[De Acero](https://entreinteriores.com/extremoduro/'
+              'deltoya/de-acero)" habla de la dureza.')
+
+    assert "Deltoya" not in st.discos_citados(cuerpo, CATALOGO, CANCIONES)
+
+
+def test_una_cancion_que_se_llama_como_un_disco_no_cuenta_como_disco():
+    """«Pedrá» es disco de 1995 y también canción. Si el texto cita la canción,
+    no está nombrando el disco."""
+    cuerpo = 'Aparece en varias canciones, como en "Pedrá" y "Standby".'
+
+    assert "Pedrá" not in st.discos_citados(cuerpo, CATALOGO, CANCIONES)
+
+
+def test_pero_si_el_texto_lo_presenta_como_disco_si_cuenta():
+    """El otro lado: en cursiva, con «disco» delante o con su año detrás, es el
+    disco. Sin esto, dejaríamos de contar discos citados de verdad."""
+    assert "Pedrá" in st.discos_citados("Escuchó *Pedrá* entero.", CATALOGO, CANCIONES)
+    assert "Pedrá" in st.discos_citados("el disco Pedrá", CATALOGO, CANCIONES)
+    assert "Pedrá" in st.discos_citados("Pedrá (1995)", CATALOGO, CANCIONES)
+
+
+def test_el_analisis_de_una_cancion_ya_no_se_retiene():
+    """El caso real: dos discos de contexto, un slug y una canción homónima."""
+    assert not st.es_trayectoria(kind="spotlight", subject="Extremoduro",
+                                 body_md=POST_59, titulos_catalogo=CATALOGO,
+                                 titulos_cancion=CANCIONES)
+
+
+def test_el_post_58_sigue_marcado_con_el_criterio_nuevo():
+    """REGRESIÓN, no negociable: el artículo que motivó el gate recorría la
+    discografía de verdad y omitía la muerte. Tiene que seguir cayendo."""
+    assert st.es_trayectoria(kind="evergreen", subject="Extremoduro",
+                             body_md=POST_58, titulos_catalogo=CATALOGO,
+                             titulos_cancion=CANCIONES)
+
+
+def test_un_titulo_enlazado_al_DISCO_si_cuenta_aunque_sea_tambien_cancion():
+    """La URL desambigua y está ahí: `/extremoduro/deltoya` es el disco y
+    `/extremoduro/deltoya/de-acero` una canción suya. Sin mirarla, un texto que
+    repasa la obra enlazando cada disco dejaba de contar como recorrido."""
+    disco = 'En "[Deltoya](https://entreinteriores.com/extremoduro/deltoya)" ya estaba todo.'
+    cancion = ('En "[De Acero](https://entreinteriores.com/extremoduro/deltoya/de-acero)" '
+               'se ve la dureza.')
+
+    assert "Deltoya" in st.discos_citados(disco, CATALOGO, CANCIONES)
+    assert "Deltoya" not in st.discos_citados(cancion, CATALOGO, CANCIONES)
