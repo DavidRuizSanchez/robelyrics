@@ -2215,11 +2215,18 @@ def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
         # éxito y el post seguía sin salir.
         resultado = auto_publish_post(db, post, factcheck=False, rigor=False)
         if resultado["action"] != "published":
+            # El motivo lo pone el gate que retuvo la pieza. Antes era un texto
+            # fijo que culpaba al guard de citas, y el 24-09-2026 se midió en prod
+            # un post al que ese guard daba por bueno (7 citas, 0 bloqueantes) y
+            # que frenaba el gate de completitud: la pantalla mentía y no había
+            # manera de saber qué corregir.
+            motivo = resultado.get("reason") or (
+                "un gate de publicación la retiene; el motivo está en el panel"
+            )
             return HTMLResponse(
                 _render_admin_action_page(
-                    f"«{post.title}» NO se ha publicado: el guard de citas de "
-                    "letra la bloquea (verso sin letra verificable en el corpus). "
-                    "Ábrela en el panel para corregir la cita.",
+                    f"«{post.title}» NO se ha publicado: {motivo}. "
+                    "Ábrela en el panel para corregirla.",
                     success=False,
                 ),
                 status_code=409,

@@ -1018,6 +1018,12 @@ def admin_post_update(
     if body.excerpt is not None:
         p.excerpt = body.excerpt
     if body.body_md is not None:
+        if body.body_md != p.body_md:
+            # El bloqueo describía el texto ANTERIOR. Dejarlo puesto escondería el
+            # botón de aprobar sobre una pieza ya corregida, que es justo lo que
+            # esta edición viene a arreglar.
+            p.review_blocked_at = None
+            p.review_blocked_reason = None
         p.body_md = body.body_md
     if body.meta_title is not None:
         p.meta_title = body.meta_title
@@ -1054,11 +1060,11 @@ def admin_post_publish(
 
     resultado = auto_publish_post(db, p, factcheck=False, rigor=False)
     if resultado["action"] != "published":
+        # Lo dice el gate que lo retuvo, no una frase fija: ver `PublishResult`.
+        motivo = resultado.get("reason") or "un gate de publicación lo retiene"
         raise HTTPException(
             status_code=409,
-            detail=("No se ha publicado: el guard de citas de letra lo bloquea "
-                    "(verso sin letra verificable en el corpus). Corrige la cita "
-                    "y vuelve a intentarlo."),
+            detail=f"No se ha publicado: {motivo}. Corrígelo y vuelve a intentarlo.",
         )
     p.approved_by = _admin.id
     db.commit()

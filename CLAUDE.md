@@ -870,6 +870,65 @@ olvidar en ese modo — `due_pinned` publica **de una tacada todo lo vencido**
 (una caída larga del cron vuelca varios posts juntos al volver), y lo que
 encola `prepare_daily` entra SIN fecha, o sea que vuelve al goteo. Conviven.
 
+## Un botón que no puede funcionar no se ofrece
+
+Llegaba «Una entrada para revisar», David pulsaba APROBAR, salía una pantalla
+roja y **volvía a llegar el mismo correo**. Tres fallos encadenados, medidos en
+producción el 24-09-2026 sobre el post #59 («La Dualidad de 'De Acero (En
+Directo)'»):
+
+- **El rechazo generaba el correo.** Cuando un gate retiene la pieza,
+  `auto_publish_post` hace `return propose_for_review(db, post)`, y esa función
+  trae `notify=True` por defecto: el propio bloqueo mandaba un correo idéntico en
+  el acto. No había que esperar al cron. Ahora los tres returns pasan
+  `notify=False` —la docstring de `auto_publish_post` ya decía «NO manda email»,
+  eran el único punto que la contradecía— y nada queda en silencio, porque el
+  digest de las 09:15 firma por IDs de la cola y avisa igual.
+- **La pantalla mentía.** El texto estaba escrito a mano en `public.py` y en su
+  gemelo de `admin.py`, y culpaba SIEMPRE al guard de citas. Medido: ese guard
+  daba el post por bueno (7 citas, 0 bloqueantes, 0 a revisar) y quien lo frenaba
+  era el gate de completitud. El motivo solo existía en el log, que en prod corre
+  a `--log-level warning`. Ahora `PublishResult` lleva `blocked_by`/`reason`, los
+  construye el gate que retiene —el `LyricVerdict` ya traía el verso y la canción,
+  y se tiraba— y el 409 los enseña.
+- **El botón no podía funcionar NUNCA.** Aprobar llama al tronco de publicación,
+  que vuelve a encontrarse el mismo gate. Con `posts.review_blocked_at/_reason`
+  (migración `revblock2026_01`) el correo marca la pieza, enseña el motivo y
+  cambia «aprobar» por «corregir →», que lleva a su editor. **Sigue en la lista**:
+  sacarla recrearía el embudo de piezas invisibles que blinda
+  `test_review_email_queue.py`. Los campos se limpian al editar `body_md`, o
+  describirían el texto de ayer.
+
+**Y el gate de completitud se equivocaba.** Se dispara al contar ≥4 discos
+citados, y los cuatro del #59 eran: `Deltoya` **sacado del slug de una URL**,
+`Pedrá` **que ahí es una canción, no el disco**, y dos menciones legítimas de
+contexto. Un análisis de UNA canción no recorre ninguna trayectoria — es justo lo
+que el módulo declara no querer hacer. Tres reglas nuevas en `sensitive_topics`,
+las tres con el texto delante:
+
+- Las URLs se enmascaran antes de contar (`_sin_urls`, mismo criterio que
+  `lyric_guard._mask_link_urls`, que existe desde que un slug falseaba la
+  atribución de un verso).
+- Un título que es disco Y canción («Pedrá», «Deltoya», «Agila») solo cuenta como
+  disco si el texto lo presenta así: cursiva, «disco» delante o su año detrás.
+- **La URL desambigua y está ahí**: `/extremoduro/deltoya` es el disco y
+  `/extremoduro/deltoya/de-acero` una canción suya. Sin esta tercera regla se
+  liberaba de más — un evergreen que repasa la obra enlazando cada disco dejaba de
+  contar como recorrido. Medido sobre las 23 piezas: de 6 retenidas se pasa a 4, y
+  las dos que salen son el #59 y un artículo sobre un solo disco cuya segunda
+  mención era un slug. El post que motivó el gate sigue cayendo, con test propio.
+
+**El guard de citas NO se tocó, a propósito.** Tiene un falso positivo latente
+—si la canción atribuida no tiene letra, corta con `continue` sin llegar al
+barrido del corpus— pero hoy es inalcanzable: **las 153 canciones tienen letra**.
+No se afloja una guarda dura sin un caso real que lo respalde; queda anotado en el
+código, con el arreglo escrito, para cuando el alta automática de discos cree una
+canción vacía.
+
+Al tocar esto: el test del bucle **no puede parchear `propose_for_review`** —es la
+función por la que pasa el fallo—; el corte va en `send_email`, que es la frontera
+real.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

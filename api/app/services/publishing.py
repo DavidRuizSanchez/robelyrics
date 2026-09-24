@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import UTC, datetime, timedelta
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import httpx
 from sqlalchemy import or_
@@ -123,6 +123,14 @@ class PublishResult(TypedDict):
     action: str  # "published" | "scheduled"
     post_id: int
     scheduled_for: datetime | None
+    # Por qué NO se publicó, cuando un gate lo retiene. Hasta que existieron, el
+    # 409 del one-click y el del panel culpaban SIEMPRE al guard de citas con un
+    # texto fijo: el 24-09-2026 se midió en prod un post que ese guard daba por
+    # bueno (7 citas, 0 bloqueantes) y al que frenaba el gate de completitud. El
+    # motivo solo vivía en el log, así que la pantalla mentía y no había forma de
+    # saberlo desde fuera.
+    blocked_by: NotRequired[str]   # "lyrics" | "rigor" | "completeness"
+    reason: NotRequired[str]       # frase humana: qué verso, qué omisión
 
 
 # --------------------------------------------------------------------------- #
@@ -228,7 +236,8 @@ def _revalidate_next(slug: str) -> None:
 # API pública
 # --------------------------------------------------------------------------- #
 def propose_for_review(
-    db: Session, post: Post, *, notify: bool = True
+    db: Session, post: Post, *, notify: bool = True,
+    blocked_by: str | None = None, reason: str | None = None,
 ) -> PublishResult:
     """Pone el post en `pending_review` y manda email al admin (si notify).
 
@@ -279,6 +288,17 @@ def propose_for_review(
 
     if post.status != "pending_review":
         post.status = "pending_review"
+    # Por qué está retenido, para que lo vea quien abra el panel o el correo. Se
+    # limpia solo en cuanto alguien toca el cuerpo (`admin.py`, PUT del post): el
+    # motivo de ayer no describe el texto de hoy.
+    if blocked_by:
+        post.review_blocked_at = _now()
+        post.review_blocked_reason = (reason or "")[:2000] or None
+    elif reason is None and blocked_by is None:
+        # Entrada normal a revisión (no la retiene ningún gate): si traía un
+        # bloqueo viejo, ya no aplica.
+        post.review_blocked_at = None
+        post.review_blocked_reason = None
     # Y se le quita la fecha: si venía de `scheduled`, esa fecha ya no programa
     # nada (`flush_scheduled_due` solo mira los `scheduled`) pero el panel la
     # seguía pintando como si el post fuera a salir ese día. El desprogramado
@@ -290,7 +310,14 @@ def propose_for_review(
     if notify:
         notify_review_queue(db, post)
 
-    return {"action": "pending_review", "post_id": post.id, "scheduled_for": None}
+    out: PublishResult = {
+        "action": "pending_review", "post_id": post.id, "scheduled_for": None,
+    }
+    if blocked_by:
+        out["blocked_by"] = blocked_by
+    if reason:
+        out["reason"] = reason
+    return out
 
 
 def notify_review_queue(db: Session, post: Post | None = None) -> None:
@@ -345,6 +372,7 @@ def notify_review_queue(db: Session, post: Post | None = None) -> None:
     for p in pendings:
         approve_token = create_admin_action_token(p.id, "approve")
         reject_token = create_admin_action_token(p.id, "reject")
+        bloqueo = getattr(p, "review_blocked_reason", None)
         items.append({
             "title": p.title,
             "kind_label": kind_label.get(p.kind, p.kind),
@@ -353,7 +381,10 @@ def notify_review_queue(db: Session, post: Post | None = None) -> None:
             "source_url": p.source_url,
             "approve_url": f"{site_url}/api/public/admin-action?token={approve_token}",
             "reject_url": f"{site_url}/api/public/admin-action?token={reject_token}",
-            "admin_url": f"{site_url}/biblioteca/admin/blog",
+            # Una pieza retenida se corrige en su editor, no en el planificador.
+            "admin_url": (f"{site_url}/biblioteca/admin/posts/{p.id}" if bloqueo
+                          else f"{site_url}/biblioteca/admin/blog"),
+            "blocked_reason": bloqueo,
         })
 
     nota = ""
@@ -378,6 +409,43 @@ def notify_review_queue(db: Session, post: Post | None = None) -> None:
 _notify_admin_review = notify_review_queue
 
 
+# --------------------------------------------------------------------------- #
+# Motivos de bloqueo: lo que el gate ya sabe, dicho en una frase
+# --------------------------------------------------------------------------- #
+def _motivo_citas(lr) -> str:
+    """Qué verso retiene la pieza. El `LyricVerdict` ya trae el verso, la canción
+    atribuida y la que sí lo contiene; hasta ahora solo se logueaba `summary()`
+    («N citas · N bloqueantes»), que no dice qué corregir."""
+    ofensores = lr.blocking + lr.to_review
+    if not ofensores:
+        return "una cita de letra no se puede verificar contra el corpus"
+    v = ofensores[0]
+    verso = (v.quote or "").strip().replace("\n", " ")
+    if len(verso) > 140:
+        verso = verso[:139] + "…"
+    frase = f"el verso «{verso}»"
+    if v.attributed_song:
+        frase += f", atribuido a «{v.attributed_song}»"
+    frase += f": {v.reason}" if v.reason else " no se verifica contra el corpus"
+    if len(ofensores) > 1:
+        frase += f" (y {len(ofensores) - 1} cita(s) más)"
+    return frase
+
+
+def _motivo_rigor(v) -> str:
+    razones = "; ".join((v.reasons or [])[:3])
+    return (f"el editor jefe lo rechaza (score {v.score})"
+            + (f": {razones}" if razones else ""))
+
+
+def _motivo_completitud(rep) -> str:
+    """Solo lo que RETIENE la pieza. `rep.motivos` mezcla la omisión bloqueante
+    con erratas de datos (un disco que falta), que no retienen nada: meterlas en
+    el mensaje haría creer que hay que corregirlas para poder publicar."""
+    return "; ".join(m for m in rep.motivos if "no menciona que Robe" in m) or \
+        "; ".join(rep.motivos)
+
+
 def auto_publish_post(
     db: Session, post: Post, *, factcheck: bool = True, rigor: bool = True
 ) -> PublishResult:
@@ -397,6 +465,14 @@ def auto_publish_post(
     `rigor`: gate editorial BLOQUEANTE (el "editor jefe"). Si la pieza es genérica/
     relleno y no se puede tensar, NO se publica: se enruta a `pending_review`. Quien
     ya lo corrió antes (materialize_proposals) lo pasa en False.
+
+    Cuando un gate retiene la pieza se enruta con `notify=False`: el aviso ya salió
+    cuando entró en la cola, y avisar aquí cerraba un BUCLE — el correo de revisión
+    trae un botón «aprobar» que llama a esta función, así que cada clic sobre una
+    pieza retenida generaba un correo idéntico al instante. Medido el 24-09-2026:
+    un spotlight en cola devolvía correo nuevo en cada intento. Nada queda en
+    silencio: el digest de las 09:15 firma por IDs de la cola y avisa igual. El
+    motivo viaja en `blocked_by`/`reason` para que el 409 no tenga que adivinarlo.
     """
     if factcheck and post.body_md:
         try:
@@ -472,7 +548,9 @@ def auto_publish_post(
             if v.verdict == "reject":
                 logger.info("auto_publish: RIGOR rechaza post %s (score %d): %s",
                             post.id, v.score, "; ".join(v.reasons))
-                return propose_for_review(db, post)
+                return propose_for_review(db, post, notify=False,
+                                          blocked_by="rigor",
+                                          reason=_motivo_rigor(v))
             if v.verdict == "revise" and v.tightened_body_md:
                 post.body_md = v.tightened_body_md
                 db.flush()
@@ -492,7 +570,9 @@ def auto_publish_post(
             if lr.blocking or lr.to_review:
                 logger.warning("auto_publish: CITAS bloquean post %s (%s) → revisión",
                                post.id, lr.summary())
-                return propose_for_review(db, post)
+                return propose_for_review(db, post, notify=False,
+                                          blocked_by="lyrics",
+                                          reason=_motivo_citas(lr))
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish lyric-guard falló: %s", exc)
 
@@ -519,7 +599,9 @@ def auto_publish_post(
             if rep.necesita_revision:
                 logger.warning("auto_publish: COMPLETITUD frena post %s → revisión (%s)",
                                post.id, "; ".join(rep.motivos))
-                return propose_for_review(db, post)
+                return propose_for_review(db, post, notify=False,
+                                          blocked_by="completeness",
+                                          reason=_motivo_completitud(rep))
             if rep.hay_erratas:
                 # Datos que corregir, no motivo para retener la pieza.
                 logger.info("auto_publish: post %s publica con erratas de datos: %s",

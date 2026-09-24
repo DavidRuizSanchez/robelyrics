@@ -1088,6 +1088,17 @@ class Post(Base):
     approved_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+    # Un gate retuvo la pieza al intentar publicarla, y por qué. Sirve para que el
+    # correo de revisión NO ofrezca un botón «aprobar» que no puede funcionar: ese
+    # botón llama al tronco de publicación, que vuelve a encontrarse el mismo gate.
+    # Se limpia en cuanto cambia `body_md` (PUT del panel): el motivo de ayer no
+    # describe el texto de hoy. No hace falta un `notified_at` al lado: el digest
+    # de las 09:15 ya firma por IDs de la cola (`notify_review._signature`) y no
+    # reenvía lo mismo dos veces.
+    review_blocked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    review_blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Marca de cuándo se incluyó este post en un envío de newsletter (legacy,
     # mantenido por compatibilidad con el dispatcher diario). Para el flujo
     # newsletter-on-publish (cap 2/sem) usamos `newsletter_dispatched_at`.

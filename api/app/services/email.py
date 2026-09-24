@@ -382,7 +382,13 @@ def render_admin_review_email(
 
     Cada item en `posts` debe tener: title, kind_label, excerpt (opcional),
     source_name (opcional), source_url (opcional), approve_url, reject_url,
-    admin_url (vista detalle).
+    admin_url (vista detalle), blocked_reason (opcional).
+
+    `blocked_reason`: un gate retiene la pieza. Entonces NO se pinta «aprobar»,
+    porque ese botón vuelve al tronco de publicación y se encuentra el mismo gate:
+    ofrecerlo era pedir un clic que no podía funcionar, y cada clic devolvía un
+    correo idéntico. El post SIGUE en la lista, con el motivo a la vista: sacarlo
+    recrearía el embudo de piezas que no aparecían en ningún correo.
 
     `nota_final`: aviso al pie, para cuando la cola no cabe entera en el correo.
     """
@@ -405,6 +411,27 @@ def render_admin_review_email(
                 f'<a href="{p["source_url"]}" style="color:#e85050;text-decoration:none;">'
                 f'{p["source_name"]} ↗</a></p>'
             )
+        bloqueo = (p.get("blocked_reason") or "").strip()
+        bloqueo_html = ""
+        aprobar_html = (
+            f'<a href="{p["approve_url"]}" style="display:inline-block;padding:10px 18px;'
+            f'margin-right:8px;background:#a83a3a;color:#fff;text-decoration:none;'
+            f"font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;"
+            f'text-transform:uppercase;">aprobar</a>'
+        )
+        if bloqueo:
+            bloqueo_html = (
+                f'<p style="font-family:\'Courier New\',monospace;font-size:11px;'
+                f'color:#e85050;margin:0 0 12px;line-height:1.5;">'
+                f'RETENIDA · {bloqueo}</p>'
+            )
+            # Sin botón «aprobar»: no puede funcionar hasta corregir el texto.
+            aprobar_html = (
+                f'<a href="{p["admin_url"]}" style="display:inline-block;padding:10px 18px;'
+                f'margin-right:8px;background:#a83a3a;color:#fff;text-decoration:none;'
+                f"font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;"
+                f'text-transform:uppercase;">corregir →</a>'
+            )
         items_html += f"""\
 <div style="margin:0 0 24px;padding:18px 18px 16px;background:rgba(237,228,211,0.03);border-left:3px solid #a83a3a;">
   <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);margin:0 0 6px;">
@@ -414,11 +441,10 @@ def render_admin_review_email(
     {p["title"]}
   </p>
   {excerpt_html}
+  {bloqueo_html}
   {source_html}
   <p style="margin:14px 0 0;">
-    <a href="{p["approve_url"]}" style="display:inline-block;padding:10px 18px;margin-right:8px;background:#a83a3a;color:#fff;text-decoration:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
-      aprobar
-    </a>
+    {aprobar_html}
     <a href="{p["reject_url"]}" style="display:inline-block;padding:10px 18px;margin-right:8px;border:1px solid rgba(237,228,211,0.3);color:rgba(237,228,211,0.7);text-decoration:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
       rechazar
     </a>
@@ -429,8 +455,9 @@ def render_admin_review_email(
 </div>"""
         items_text.append(
             f"· [{p['kind_label']}] {p['title']}\n"
-            f"  aprobar: {p['approve_url']}\n"
-            f"  rechazar: {p['reject_url']}\n"
+            + (f"  RETENIDA: {bloqueo}\n  corregir: {p['admin_url']}\n" if bloqueo
+               else f"  aprobar: {p['approve_url']}\n")
+            + f"  rechazar: {p['reject_url']}\n"
             f"  ver: {p['admin_url']}\n"
         )
 
