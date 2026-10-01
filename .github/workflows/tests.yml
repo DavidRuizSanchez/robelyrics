@@ -30,7 +30,7 @@ jobs:
     name: pytest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Construir la imagen de desarrollo
         run: docker build -t robelyrics-api:ci ./api
@@ -54,7 +54,7 @@ jobs:
     name: migraciones coherentes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Dos fallos que ya han pasado en este repo: IDs de revisión hex repetidos
       # (colisión real) y más de una cabeza tras un merge. Ambos son baratos de
@@ -84,7 +84,7 @@ jobs:
     # fichero viejo no te obliga a sanearlo entero — solo lo avisa. Así la deuda
     # se drena cuando se pisa, sin bloquear a nadie por herencia.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
