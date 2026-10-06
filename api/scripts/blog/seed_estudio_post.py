@@ -44,134 +44,233 @@ META_DESCRIPTION = (
 )
 
 EXCERPT = (
-    "Cruzamos las 132 composiciones publicadas con los 591 conciertos "
-    "documentados de Extremoduro y Robe. Once canciones no aparecen en ninguno. "
-    "Una de ellas repite doce veces un verso que nadie ha podido documentar "
-    "cantado."
+    "El setlist de un concierto que no existió: once canciones que Extremoduro "
+    "publicó y de las que no consta que llegaran a sonar nunca. Las contamos una "
+    "a una, con sus letras."
 )
 
 BODY_MD = """\
-Hay canciones que se publican, se escuchan en casa durante treinta años y no
-llegan nunca a un escenario. En la obra de Extremoduro son **once**, y de ninguna
-de ellas existe un solo registro de que haya sonado en directo.
+Si alguna vez te has acercado al escenario cuando ya se encendían las luces, sabes
+lo que es un setlist: un folio pegado al suelo con cinta, los títulos en mayúsculas
+y la letra de alguien que escribía con prisa. Siempre hay alguien que se lo lleva
+de recuerdo.
 
-**Roberto Iniesta murió el 10 de diciembre de 2025**, a los 63 años. Este trabajo
-no va de lo que dejó sin hacer, que sería una forma barata de contarlo: va de lo
-que publicó en vida y que, por lo que consta, no llegó a sonar delante de nadie.
+Esto es el setlist de un concierto que no existió. **Once canciones que Extremoduro
+publicó en disco y de las que no consta que llegaran a sonar nunca delante de
+nadie.**
 
-Conviene decir con precisión lo que eso significa, porque no es lo mismo que
-afirmar que no sonaron nunca. Un archivo de conciertos lo rellenan personas, y lo
-que nadie apuntó no existe en él. Lo que se puede afirmar es más modesto y más
-comprobable: **en 591 conciertos documentados no aparece ninguna de las once**, y
-dos búsquedas independientes llegaron casi a la misma lista.
+**Roberto Iniesta murió el 10 de diciembre de 2025**, a los 63 años. Esto no va de
+lo que dejó sin hacer, que sería una forma barata de contarlo. Va de once canciones
+que están ahí, publicadas, y que se quedaron esperando su turno.
 
-## Cómo se ha medido
+Antes de seguir, una precisión que importa: **no es lo mismo decir que no sonaron
+nunca que decir que no hay registro de que sonaran.** Un archivo de conciertos lo
+rellenamos personas, y lo que nadie apuntó no existe en él. Lo que sí podemos
+decir es que en **591 conciertos documentados** no aparece ninguna de las once, y
+que dos búsquedas independientes llegaron casi a la misma lista.
 
-El catálogo de este sitio tiene 153 fichas de canción, pero no son 153
-composiciones: 21 son regrabaciones o versiones en directo de un tema que ya
-estaba. Las composiciones distintas son **132**.
+## Las once, una a una
 
-Contra eso se puso el repertorio en directo: **459 conciertos documentados de
-Extremoduro** entre 1987 y 2014, y **132 de Robe** entre 2017 y 2024, con un total
-de 5.581 interpretaciones contadas. De los 137 títulos que aparecen en esos
-setlists, 121 casan con una composición del catálogo. Los dieciséis restantes son
-versiones de otros, medleys y temas inéditos.
+### Volando solo — «nunca estoy solo con nadie»
+*Deltoya, 1992*
 
-La resta deja once canciones, todas publicadas en disco de estudio o EP. Un corte
-que solo existe en un disco en directo no puede figurar aquí, por razones
-evidentes.
+> ¿Dónde me escondo?, si no va a salir el sol
+> Quizá mañana tal vez me sienta mejor
+> Nunca estoy solo con nadie
+> Y ahora me cuelgo del aire
 
-## Las once
+Ese tercer verso es de los que te paran en seco. Y la canción acaba convertida en
+un cántico que repite que el planeta está contaminado, en 1992, cuando eso no
+tocaba todavía.
 
-La columna del disco es **el disco de cada una de estas once canciones**, no un
-repaso de la discografía: faltan ahí la mayoría de los discos de Extremoduro y
-todos los de Robe en solitario, simplemente porque de ellos no hay ninguna canción
-en esta lista.
+### Estoy muy bien — la que dice que está bien y se va deshaciendo
+*¿Dónde están mis amigos?, 1993*
 
-| Canción | Disco | Año |
-|---|---|---|
-| Volando Solo | Deltoya | 1992 |
-| Estoy Muy Bien | ¿Dónde están mis amigos? | 1993 |
-| Islero, shirlero o ladrón | ¿Dónde están mis amigos? | 1993 |
-| Sin Dios Ni Amo | ¿Dónde están mis amigos? | 1993 |
-| Adiós Abanico, Que Llegó el Aire | Rock Transgresivo | 1994 |
-| Caballero andante | Rock Transgresivo | 1994 |
-| Érase una Vez | Canciones prohibidas | 1998 |
-| Buitre No Come Alpiste | Yo, minoría absoluta | 2002 |
-| Cerca del Suelo | Yo, minoría absoluta | 2002 |
-| Luce la Oscuridad | Yo, minoría absoluta | 2002 |
-| Manué IV | Para todos los públicos | 2013 |
+Empieza firme:
 
-Cada una está verificada como corte real de su disco contra
-[MusicBrainz](https://musicbrainz.org/), con su posición en el tracklist. No hay
-ninguna canción fantasma en la lista.
+> Estoy muy bien
+> Cada vez que pasas a mi lado
+> Sin mirar puedo oler
+> Tu calor y tu amor resudado
+
+Y termina tartamudeando: «Estoy aquí, estoy, estoy, es». El título insiste en que
+todo va bien mientras la propia canción se le va de las manos. Está entera en ese
+contraste.
+
+### Islero, shirlero o ladrón — tres maneras de salir adelante
+*¿Dónde están mis amigos?, 1993*
+
+El islero es el toro que cogió a Manolete. El shirlero es quien te vacía los
+bolsillos. Y el ladrón es el ladrón. Tres oficios para lo mismo, y una letra que
+lo resume así:
+
+> Para ceder si te has equivocado
+> Hay que comerse los cojones a bocados
+
+Al final lo dice sin anestesia: «he aprendido a ser shirlero / ayudando a los demás
+a quedarse sin dinero».
+
+### Sin dios ni amo — la que se marcha sin despedirse
+*¿Dónde están mis amigos?, 1993*
+
+> Voy a dejar esta ciudad
+> No me pienso despedir
+> De la gente, hace ya tiempo estoy ausente
+
+De las once, esta es la que más suena a Extremoduro: libertad, rabia y ganas de
+largarse. Y es también la única con una prueba a favor de que sí sonó, que
+contamos más abajo.
+
+### Adiós abanico, que llegó el aire — dos versos que valen un disco
+*Rock Transgresivo, 1994*
+
+> Voy caminando, y pienso en no pisar ni una amapola;
+> Ella, entretanto, duerme casi, casi siempre sola
+
+Con eso se cierra la canción, repitiéndolo. No hace falta nada más.
+
+### Caballero andante — la que lleva cuatro voces prestadas
+*Rock Transgresivo, 1994*
+
+«Caballero andante» arranca con un cartel absurdo y un hombre defendiéndose de
+algo que nadie le ha dicho:
+
+> ¿Acaso no has visto el cartel?
+> "Prohibida la entrada de ranas"
+
+Y dentro de sus cuatro minutos caben, según documentó Jot Down, **cuatro voces que
+no son la suya**: un fragmento de Marcos Ana de *Las soledades del muro*, una
+estrofa de Antonio Machado casi literal, Cervantes en el título y en el molino, y
+una cuarta alusión a Manolillo Chinato. Cuatro poetas en una canción, y ninguno
+llegó a un escenario por esta puerta.
+
+### Érase una vez — un cuento que te deja a ti el final
+*Canciones prohibidas, 1998*
+
+Así empieza «Érase una vez»:
+
+> Érase una vez dentro de un mundo gris
+> Luchando por salir una mijita de color
+
+Vuelve siete veces a la misma pregunta —«¿Mi alma en un cajón tan negro?»— y se
+despide con una orden preciosa: **«Sigue tú inventando el cuento.»** Para una
+canción que nadie ha oído en directo, cuesta encontrar una última frase mejor.
+
+### Buitre no come alpiste — el humor negro de la casa
+*Yo, minoría absoluta, 2002*
+
+El título ya te avisa de por dónde va. Y luego remata:
+
+> Que estás más loca que yo
+> Que necesito ver amanecer cuando no toca
+
+De las once es la que más se ríe, y la risa va por dentro.
+
+### Cerca del suelo — «y esta sí que salió bien»
+*Yo, minoría absoluta, 2002*
+
+El estribillo se lo sabe cualquiera que haya puesto el disco:
+
+> Quedamos cerca del suelo
+> A la altura de tu cintura
+
+Y la canción se despide diciendo **«Y esta sí que salió bien…»**. Razón no le
+falta: es un temazo. Y aun así no nos consta que llegara a sonar en un escenario.
+
+Hay quien jura haberla escuchado en directo. Si eres de esos, escríbenos — nos
+encantaría quitarla de esta lista.
+
+### Luce la oscuridad — la pregunta que lleva ahí desde 2002
+*Yo, minoría absoluta, 2002*
+
+El estribillo es de los que se te quedan pegados: «Luce la oscuridad; luz de las
+velas». Y en medio, sin avisar, esto:
+
+> ¿Quién va a meterse por el culo mi libertad de expresión cuando diga que me cago en la constitución?
+
+Más de veinte años después suena igual de clara. Nunca se cantó en un escenario, y
+no sabemos por qué.
+
+### Manué IV — la que es una conversación entre colegas
+*Para todos los públicos, 2013*
+
+No es una canción, es una escena:
+
+> - Manué
+> - ¿Qué pasa?
+> - Qué pena que nadie nos fusile al alba.
+> - Puto revolucionario de los cojones...
+
+Esto es Robe de arriba abajo: colar en un disco una conversación que podría haber
+pasado en cualquier bar, con su gracia y su mala leche, y dejarla ahí sin explicar
+nada. Está en el último disco que publicó Extremoduro. En el disco sigue intacta, y
+sigue haciendo gracia.
 
 ## Por qué nos fiamos de una ausencia
 
-Una lista de lo que falta solo vale si el archivo es capaz de registrar lo raro.
-Lo es, y se puede demostrar.
+Una lista de lo que falta solo vale si el archivo sabe registrar lo raro. Y sabe.
 
-Tres canciones de Extremoduro sonaron **una única vez** en toda su historia.
+Hubo tres canciones que sonaron **una única vez** en toda la historia del grupo.
 «¡Qué sonrisa tan rara!» y «Tomás», en una prueba en la sala Neptuno de Granada
 antes de publicar *Agila*. «Te juzgarán sólo por tus errores», en la presentación
 de *Pedrá* en Madrid, en 1995. Las fechas y los sitios los cuenta
-[Juancares](https://www.youtube.com/watch?v=fbAKGSeQGy4) en su historia de la
-banda; el recuento sale de
+[Juancares](https://www.youtube.com/watch?v=fbAKGSeQGy4), que lleva años
+reconstruyendo esta historia; el recuento sale de
 [setlist.fm](https://www.setlist.fm/stats/extremoduro-13d68da1.html), que registra
-**exactamente un toque de cada una**. Dos fuentes que no se hablan, coincidiendo
-en actuaciones únicas de hace treinta años.
+**exactamente un toque de cada una**. Dos sitios que no se hablan, coincidiendo en
+tres noches de hace treinta años.
 
-Y hay algo más. Ese mismo trabajo de Juancares, hecho por su cuenta y sin conocer
-este estudio, dedicó dos programas a preguntarse qué canciones no había llevado
-Extremoduro nunca al escenario. Nombró **diez de estas once**. La única que no
-aparece en sus listas es «Manué IV».
+Y hay más. Ese mismo trabajo de Juancares, hecho por su cuenta y sin saber nada de
+esto, dedicó dos programas a preguntarse qué canciones no había llevado nunca
+Extremoduro al escenario. Nombró **diez de estas once**. La única que no sale en
+sus listas es «Manué IV».
 
-## La única prueba en contra, y se publica
+## La única prueba en contra, y la contamos igual
 
-De «Sin Dios Ni Amo» hay una prueba a favor de que sí sonó: un setlist publicado
-en la revista *Heavy Rock* en el que figuraba. Pero en las cintas grabadas en
-conciertos de aquella época no aparece. Es la única de las once con evidencia en
-contra, y es de papel.
-
-## El estribillo que nadie llegó a cantar
-
-Entre las once hay una que duele más que las otras. En «Luce la Oscuridad», de
-*Yo, minoría absoluta*, el verso **«Luce la oscuridad;»** se repite **doce veces**,
-repartidas de principio a fin de la canción. No es una letanía de entrada ni un
-estribillo que aparece y desaparece: vuelve una y otra vez, de las primeras líneas
-a las últimas.
-
-Medido sobre las 132 composiciones, solo 70 tienen un estribillo identificable con
-ese criterio. El de «Luce la Oscuridad» es uno de los más insistentes del catálogo
-entero. Y no consta que se cantara nunca delante de nadie.
+De «Sin dios ni amo» hay un indicio de que sí sonó: un setlist publicado en la
+revista *Heavy Rock* en el que figuraba. Pero en las cintas grabadas en conciertos
+de aquella época no aparece. Es la única de las once con algo a favor, y es de
+papel.
 
 ## Si tienes una prueba, queremos verla
 
 Cualquiera de estas once se cae de la lista con un solo documento: una grabación,
-una entrada, la foto de un setlist pegado al suelo del escenario, el recuerdo
-fechado de alguien que estuvo. Y esa sería la mejor noticia que puede dar este
-trabajo, porque significaría que hay una canción menos que se quedó sin sonar.
+una entrada, la foto de un setlist pegado al suelo, el recuerdo fechado de alguien
+que estuvo allí. Y sería la mejor noticia que puede dar este trabajo, porque
+querría decir que hay una canción menos que se quedó sin sonar.
 
-Si tienes algo, escríbenos. La lista se corregirá y se dirá de dónde salió la
-corrección.
+Si tienes algo, escríbenos. Lo corregimos y decimos de dónde salió la corrección.
 
-## Fuentes y método
+---
 
-- **Catálogo, letras y versos**: base de datos propia de Entre Interiores, 132
-  composiciones con su letra completa.
+«Caballero andante» acaba con un fragmento recitado. Lo dejamos aquí, sin añadir
+nada:
+
+> Pasado mañana, brotes de esperanza, y yo no he muerto, si tengo frío me caliento, si tengo miedo, que no lo tengo, susurro y pienso, y para mañana ya he comido mi pequeña ración de esperanza
+
+## Método y fuentes
+
+El catálogo de este sitio tiene 153 fichas de canción, pero no son 153
+composiciones: 21 son regrabaciones o versiones en directo de un tema que ya
+estaba. Las distintas son **132**. Contra eso se puso el repertorio en directo:
+**459 conciertos documentados de Extremoduro** entre 1987 y 2014 y **132 de Robe**
+entre 2017 y 2024. De los 137 títulos que aparecen en esos setlists, 121 casan con
+una composición del catálogo; el resto son versiones de otros, medleys y temas
+inéditos. La resta deja estas once, todas publicadas en disco de estudio o EP.
+
+- **Catálogo, letras y versos**: base de datos propia de Entre Interiores.
 - **Repertorio en directo**: páginas públicas de estadísticas de
-  [setlist.fm](https://www.setlist.fm/stats/robe-63c74607.html), consultadas el 6
-  de octubre de 2026. Es un archivo colaborativo: 459 setlists no son todos los
+  [setlist.fm](https://www.setlist.fm/stats/robe-63c74607.html), consultadas el 6 de
+  octubre de 2026. Es un archivo colaborativo: 459 setlists no son todos los
   conciertos de Extremoduro, son los que alguien subió.
 - **Verificación de tracklists**: [MusicBrainz](https://musicbrainz.org/).
 - **Contraste de las ausencias**: el consultorio de Juancares,
   [capítulo 1x04](https://www.youtube.com/watch?v=fbAKGSeQGy4) y
-  [capítulo 1x05](https://www.youtube.com/watch?v=ReX6OLBnT90). Es trabajo de un
-  tercero y se cita como tal.
+  [capítulo 1x05](https://www.youtube.com/watch?v=ReX6OLBnT90).
 
 Este artículo forma parte de un estudio más amplio sobre el repertorio en directo
-de Extremoduro y Robe —591 conciertos documentados entre 1987 y 2024— que se
-publicará completo en diciembre, al cumplirse un año de su muerte.
+de Extremoduro y Robe —591 conciertos entre 1987 y 2024— que publicaremos completo
+en diciembre, al cumplirse un año de su muerte.
 """
 
 
@@ -212,6 +311,17 @@ def main() -> int:
             return 0
 
         from app.services.publishing import auto_publish_post
+
+        # Si el post YA estaba publicado, `auto_publish_post` avisa de que está
+        # «en estado terminal» y los gates pierden los dientes: el 06-10-2026
+        # `lyric_guard` marcó una cita mal atribuida, quiso retener la pieza y el
+        # cuerpo nuevo se publicó igual. Volver a borrador antes de republicar es
+        # lo que hace que las guardas sigan mandando en cada reedición.
+        if row.status == "published":
+            logger.info("estaba publicado: vuelve a borrador para que los gates actúen")
+            row.status = "draft"
+            db.commit()
+            db.refresh(row)
 
         # `PublishResult` es un TypedDict, o sea un dict: con getattr() el motivo
         # salía siempre «?» y había que ir al log a buscarlo, que es justo el
