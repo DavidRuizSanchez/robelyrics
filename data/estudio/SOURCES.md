@@ -132,6 +132,52 @@ candidato entre los 137 títulos de setlist.fm. El mejor parecido de todas queda
 en **≤ 0,58** y apunta a canciones claramente distintas («Sin Dios Ni Amo» →
 «Necesito droga y amor», 0,56), así que no son fallos de casado.
 
+### V-08 · Geografía: 591 conciertos extraídos, y tres saneados que hacían falta (07-10-2026)
+
+`crawl_setlist_browser --what conciertos` recorrió el índice entero: **46 páginas de
+Extremoduro y 14 de Robe**, 1 petición cada 3,5 s. Resultado: **591 conciertos, los 591
+con fecha, 568 con ciudad** — y 459 + 132 cuadra exactamente con los totales que
+declara setlist.fm, así que la extracción está completa.
+
+| Cifra | Valor |
+|---|---|
+| Conciertos documentados | **591** (459 Extremoduro + 132 Robe) |
+| Con fecha | 591 |
+| Con ciudad | 568 (23 sin ella: entradas donde solo consta el festival) |
+| Ciudades distintas | **193** |
+| Ciudades con un solo concierto | **106** |
+| En España | **559** |
+| Fuera de España | **9** — Argentina 4, Uruguay 2, Colombia 1, Ecuador 1, Chile 1 |
+| Top ciudades | Madrid 34 · Barcelona 19 · Cáceres 15 · Zaragoza 15 · Valladolid 13 · Sevilla 12 · A Coruña 12 · Valencia 12 · Granada 11 · Bilbao 11 · **Plasencia 11** |
+| Top recintos | Sala Zeleste 8 · Coliseum da Coruña 7 · Recinto Hípico (Cáceres) 7 · Sala Canciller 6 |
+
+**Tres saneados, los tres necesarios, con su medición:**
+
+1. **Exónimos ingleses.** setlist.fm escribe algunas ciudades españolas en inglés:
+   «Seville» tenía **12** conciertos y convivía con «Sevilla» como si fueran dos
+   sitios. También «Cordova». Mapeados.
+2. **`Unknown Venue` encabezaba el ranking de recintos con 31.** Es el literal que usa
+   setlist.fm cuando no se sabe dónde fue; no es un recinto. Excluido.
+3. **Los nombres genéricos de recinto contaban categorías, no sitios.** «Plaza de
+   Toros» sumaba **16** conciertos de dieciséis plazas distintas, y «Campo de Futbol»
+   (6) y «Campo de fútbol» (6) iban por separado por la tilde. Ahora los genéricos se
+   cualifican con su ciudad —«Recinto Hípico (Cáceres)»— y si no hay ciudad, se caen.
+
+También se corrigió un falso positivo propio: «Casal de Festes» es una sala y la
+detección de festivales la clasificaba como festival por la subcadena «fest». Ahora
+van tokens completos.
+
+**Dos lecturas que cambian el relato de partida:**
+
+- **Toda la aventura americana son nueve conciertos.** El informe previo hablaba de
+  «expansión latinoamericana» y de «primera gira por Hispanoamérica» como fenómeno; en
+  el registro son 9 noches de 591.
+- **Extremadura pesa más que Barcelona.** Cáceres (15) y Plasencia (11) suman **26**
+  frente a los 19 de Barcelona. Plasencia, donde Robe nació y fundó el grupo en 1987,
+  tiene tantos conciertos registrados como Bilbao o Granada.
+- Y las dos etapas reparten distinto: Extremoduro concentraba (Madrid 29, Barcelona 14,
+  Cáceres 12) y Robe esparce (Valencia 6 es su máximo, Madrid baja a 5).
+
 ### V-07 · Autoría: 10 atribuciones aplicadas, 7 retenidas (07-10-2026)
 
 Se escribieron 17 hipótesis en `data/song_credits.yaml` leyendo a mano el artículo
@@ -323,7 +369,7 @@ adivina nada: un disco en directo o un recopilatorio no estrena composiciones.
 
 | Qué | Por qué | Consecuencia |
 |---|---|---|
-| **Ciudades y recintos** | viven concierto a concierto (46 páginas); el crawl con navegador ya puede, pero no se ha corrido | pendiente |
+| ~~Ciudades y recintos~~ | **resuelto**: índice recorrido entero, 591 conciertos (V-08) | publicable |
 | **Primera y última vez que sonó cada canción** | una página por canción, mismo bloqueo | sin «canciones abandonadas» por ahora |
 | ~~Desgloses por gira no fiables~~ | **Era mi medición, no su dato** — ver V-06. Con navegador son correctos y la serie por año cuadra con el total | se usan, leídos con navegador |
 | **Densidad desigual por época** | las fichas de 1987-2002 traen 2,2 canciones por concierto y las de 2008-2014, 22,8 | toda comparación va entre épocas equivalentes, nunca sobre los 459 |

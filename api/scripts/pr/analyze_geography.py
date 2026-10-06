@@ -40,10 +40,37 @@ ALIAS_CIUDAD = {
     "lleida": "Lleida", "lerida": "Lleida",
     "girona": "Girona", "gerona": "Girona",
     "castello de la plana": "Castellón", "castellon de la plana": "Castellón",
+    # setlist.fm escribe algunas ciudades españolas con su EXÓNIMO INGLÉS. Salen
+    # mezcladas con las demás y rompen el ranking: «Seville» con 12 conciertos
+    # convivía con «Sevilla» como si fueran dos sitios.
+    "seville": "Sevilla", "saragossa": "Zaragoza", "cordova": "Córdoba",
+    "corunna": "A Coruña", "majorca": "Palma", "catalonia": "Cataluña",
+    "andalusia": "Andalucía", "biscay": "Vizcaya", "navarre": "Navarra",
+    "basque country": "País Vasco",
 }
 # Lo que aparece en el hueco del recinto pero es un festival, no un recinto fijo.
-FESTIVALES = ("festival", "fest", "viña rock", "vina rock", "festimad", "azkena",
-              "sonorama", "resurrection", "rock in rio", "derrame", "bbk")
+# «fest» a secas cazaba «Casal de Festes», que es una sala: por eso van tokens
+# completos y no subcadenas sueltas.
+FESTIVALES = ("festival", "viña rock", "vina rock", "festimad", "azkena", "sonorama",
+              "resurrection", "rock in rio", "derrame", "bbk", "rockout", "esparrago",
+              "san fermin", "shikillo", "doctor music", "viñarock")
+
+# setlist.fm usa este literal cuando nadie sabe dónde fue. No es un recinto y
+# encabezaba el ranking con 31 conciertos.
+PLACEHOLDER_RECINTO = {"unknown venue", "unknown", ""}
+
+# Nombres de recinto que NO identifican un sitio: cada ciudad tiene el suyo.
+# «Plaza de Toros» sumaba 16 conciertos de dieciséis plazas distintas, y «Campo
+# de Futbol» y «Campo de fútbol» se contaban por separado por la tilde. Estos se
+# cualifican con la ciudad; el resto se deja tal cual.
+GENERICOS_RECINTO = {
+    "plaza de toros", "campo de futbol", "campo de deportes", "auditorio municipal",
+    "recinto ferial", "recinto hipico", "polideportivo", "polideportivo municipal",
+    "pabellon municipal", "pabellon municipal de deportes", "pabellon de deportes",
+    "palacio de deportes", "palacio de los deportes", "plaza de la constitucion",
+    "plaza mayor", "estadio municipal", "parque municipal", "sala municipal",
+    "carpa", "pabellon polideportivo",
+}
 
 
 def _norm(s: str) -> str:
@@ -60,6 +87,22 @@ def canon_ciudad(c: str | None) -> str | None:
 def es_festival(recinto: str | None) -> bool:
     n = _norm(recinto)
     return bool(n) and any(f in n for f in FESTIVALES)
+
+
+def canon_recinto(recinto: str | None, ciudad: str | None) -> str | None:
+    """Nombre de recinto utilizable, o None si no identifica ningún sitio.
+
+    Devuelve «Nombre (Ciudad)» cuando el nombre es genérico, porque sin la ciudad
+    no se está contando un recinto sino una categoría de recinto.
+    """
+    if not recinto:
+        return None
+    n = _norm(recinto)
+    if n in PLACEHOLDER_RECINTO:
+        return None
+    if n in GENERICOS_RECINTO:
+        return f"{recinto.strip()} ({ciudad})" if ciudad else None
+    return recinto.strip()
 
 
 def main() -> int:
@@ -82,8 +125,17 @@ def main() -> int:
     sin_ciudad = [c for c in todos if not c["ciudad"]]
     ciudades = Counter(c["ciudad"] for c in todos if c["ciudad"])
     paises = Counter(c["pais"] for c in todos if c.get("pais"))
-    recintos = Counter(c["recinto"] for c in todos
-                       if c.get("recinto") and not es_festival(c["recinto"]))
+    recintos = Counter()
+    for c in todos:
+        if es_festival(c.get("recinto")):
+            continue
+        r = canon_recinto(c.get("recinto"), c.get("ciudad"))
+        if r:
+            recintos[r] += 1
+    sin_recinto_util = sum(
+        1 for c in todos
+        if not es_festival(c.get("recinto")) and not canon_recinto(c.get("recinto"), c.get("ciudad"))
+    )
     fests = Counter(c["recinto"] for c in todos if es_festival(c.get("recinto")))
 
     por_artista_ciudad: dict[str, Counter] = defaultdict(Counter)
@@ -101,6 +153,7 @@ def main() -> int:
             "con_ciudad": len(todos) - len(sin_ciudad),
             "con_recinto": sum(1 for c in todos if c.get("recinto")),
             "sin_ciudad": len(sin_ciudad),
+            "sin_recinto_identificable": sin_recinto_util,
         },
         "ciudades_distintas": len(ciudades),
         "ciudades_top": ciudades.most_common(30),
@@ -121,13 +174,14 @@ def main() -> int:
     print(f"\nCONCIERTOS        {len(todos)}")
     print(f"  con fecha       {payload['cobertura']['con_fecha']}")
     print(f"  con ciudad      {payload['cobertura']['con_ciudad']}")
-    print(f"  con recinto     {payload['cobertura']['con_recinto']}")
+    print(f"  con recinto     {payload['cobertura']['con_recinto']}"
+          f"  (sin recinto identificable: {sin_recinto_util})")
     print(f"CIUDADES          {len(ciudades)} distintas · {len(una_vez)} con un solo concierto")
     print(f"PAÍSES            {len(paises)}: {', '.join(f'{p} ({n})' for p, n in paises.most_common(8))}")
     print("\nTOP CIUDADES")
     for c, n in ciudades.most_common(15):
         print(f"  {n:>3}  {c}")
-    print("\nTOP RECINTOS (sin festivales)")
+    print("\nTOP RECINTOS (sin festivales ni genéricos sin ciudad)")
     for r, n in recintos.most_common(10):
         print(f"  {n:>3}  {r}")
     if fests:
