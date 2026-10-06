@@ -55,6 +55,10 @@ Hay canciones que se publican, se escuchan en casa durante treinta años y no
 llegan nunca a un escenario. En la obra de Extremoduro son **once**, y de ninguna
 de ellas existe un solo registro de que haya sonado en directo.
 
+**Roberto Iniesta murió el 10 de diciembre de 2025**, a los 63 años. Este trabajo
+no va de lo que dejó sin hacer, que sería una forma barata de contarlo: va de lo
+que publicó en vida y que, por lo que consta, no llegó a sonar delante de nadie.
+
 Conviene decir con precisión lo que eso significa, porque no es lo mismo que
 afirmar que no sonaron nunca. Un archivo de conciertos lo rellenan personas, y lo
 que nadie apuntó no existe en él. Lo que se puede afirmar es más modesto y más
@@ -78,6 +82,11 @@ que solo existe en un disco en directo no puede figurar aquí, por razones
 evidentes.
 
 ## Las once
+
+La columna del disco es **el disco de cada una de estas once canciones**, no un
+repaso de la discografía: faltan ahí la mayoría de los discos de Extremoduro y
+todos los de Robe en solitario, simplemente porque de ellos no hay ninguna canción
+en esta lista.
 
 | Canción | Disco | Año |
 |---|---|---|
@@ -161,7 +170,8 @@ corrección.
   tercero y se cita como tal.
 
 Este artículo forma parte de un estudio más amplio sobre el repertorio en directo
-de Extremoduro y Robe que se publicará completo en diciembre.
+de Extremoduro y Robe —591 conciertos documentados entre 1987 y 2024— que se
+publicará completo en diciembre, al cumplirse un año de su muerte.
 """
 
 
@@ -203,11 +213,17 @@ def main() -> int:
 
         from app.services.publishing import auto_publish_post
 
+        # `PublishResult` es un TypedDict, o sea un dict: con getattr() el motivo
+        # salía siempre «?» y había que ir al log a buscarlo, que es justo el
+        # fallo que PR #27 arregló en el panel.
         res = auto_publish_post(db, row, factcheck=False, rigor=False)
-        ok = getattr(res, "published", None)
-        if ok is False or (ok is None and row.status != "published"):
-            logger.error("NO publicado. Retenido por: %s — %s",
-                         getattr(res, "blocked_by", "?"), getattr(res, "reason", "?"))
+        # La clave es `action` ("published" | "scheduled"), no `published`: con
+        # `res.get("published")` el script decía que no se había publicado un post
+        # que SÍ estaba publicado, que es el mismo tipo de mentira que PR #27
+        # arregló en la pantalla del panel.
+        if res.get("action") not in ("published", "scheduled"):
+            logger.error("NO publicado. Retenido por %s: %s",
+                         res.get("blocked_by") or "?", res.get("reason") or "sin motivo")
             return 1
         logger.info("publicado: /blog/%s", SLUG)
         return 0
