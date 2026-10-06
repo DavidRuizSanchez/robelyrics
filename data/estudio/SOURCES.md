@@ -132,6 +132,61 @@ candidato entre los 137 títulos de setlist.fm. El mejor parecido de todas queda
 en **≤ 0,58** y apunta a canciones claramente distintas («Sin Dios Ni Amo» →
 «Necesito droga y amor», 0,56), así que no son fallos de casado.
 
+### V-07 · Autoría: 10 atribuciones aplicadas, 7 retenidas (07-10-2026)
+
+Se escribieron 17 hipótesis en `data/song_credits.yaml` leyendo a mano el artículo
+**«Extremoduro y la literatura» (Jot Down, 2017)**, que documenta más de veinte
+préstamos citando los versos, y se pasaron por
+`scripts.verify.authorship_consensus --pending --apply`.
+
+**Aplicadas (10, con corroboración externa):**
+
+| Canción | Autor | Rol | Confianza |
+|---|---|---|---|
+| Ama, Ama, Ama y Ensancha el Alma | Manolo Chinato (+ Robe, música) | poema_original | 0,92 |
+| Sucede | Pablo Neruda | adaptacion | 0,88 |
+| Pedrá | Manolillo Chinato | adaptacion | 0,87 |
+| Ábreme el Pecho y Registra | Sor Kampana | adaptacion | 0,86 |
+| Todos Me Dicen | Ramón Romero Ruiz | poema_original | 0,86 |
+| Deltoya | Kiko Luna Creciente | adaptacion | 0,83 |
+| Posado en un Nenúfar | Raúl Lomas | adaptacion | 0,83 |
+| Quemando Tus Recuerdos | Manolillo Chinato | adaptacion | 0,83 |
+| Malos Pensamientos | Sor Kampana | adaptacion | 0,80 |
+| Buscando una Luna | Antonio Machado | adaptacion | 0,74 |
+
+**Retenidas para revisión humana (7, confianza 0,67 y cero corroboración externa):**
+«Te juzgarán sólo por tus errores» y «Caballero andante» (Marcos Ana), «Prometeo»
+(Miguel Hernández), «Salir» y «Standby» (Santos Isidro Seseña), «Hoy Te La Meto Hasta
+Las Orejas» (Shakespeare) y «Puta» (Lorca).
+
+**OJO: retenidas NO es refutadas.** Tres observaciones sobre por qué cayeron:
+
+1. **La consulta web que construye el motor es una frase que nadie escribe**:
+   `«En la canción «Puta», Federico García Lorca firma la parte de adaptacion»`
+   (`authorship_consensus._web_source`). Para Lorca sí existe corroboración —los
+   propios comentarios del artículo enlazan dos piezas tituladas «Lorca en la Música
+   Popular (IV): Extremoduro – *Puta*»—, pero esa búsqueda no la encuentra. Una
+   consulta del tipo `"Puta" Extremoduro Lorca poema` la traería.
+2. **El motor etiqueta la hipótesis como `fan_feedback`** sea cual sea su `source`, así
+   que no pondera que venga de un artículo de revista publicado y firmado.
+3. Las retenidas son precisamente las de **autor célebre**: buscar «Lorca» o
+   «Shakespeare» junto a una canción devuelve ruido sobre el autor, no la atribución.
+   Las que pasaron son las de autores específicos del entorno (Sor Kampana, Raúl Lomas,
+   Ramón Romero Ruiz), donde la búsqueda sí aterriza en el documento concreto.
+
+**Hallazgo lateral que sí cuenta como dato:** de **«Santos Isidro Seseña» no apareció
+ni una fuente externa** en ninguna de sus dos canciones. Coincide con la duda que
+levanta un comentarista del propio artículo de Jot Down —que el poeta no exista y sea
+un seudónimo de Robe— y es una línea que merece perseguirse por sí misma.
+
+**Dos límites del verificador, medidos:**
+- Comprueba **un solo crédito por canción** (el primero con rol `poema_original`,
+  `letra` o `adaptacion`) y, si pasa, escribe TODOS los de esa entrada. Machado y
+  Chinato en «Caballero andante» y Zorrilla en «Hoy Te La Meto» no se evaluaron
+  (tampoco se escribieron: su crédito principal quedó retenido).
+- **«Última Generación» se saltó en silencio**: su único crédito es `colaboracion`, rol
+  que no está en esa lista. Sigue en el YAML sin procesar.
+
 ### V-06 · Los índices estaban MAL NORMALIZADOS — CORREGIDOS (crawl con navegador, 06-10-2026)
 
 Dos errores míos, encadenados, y el segundo invertía una conclusión del estudio.
@@ -275,7 +330,7 @@ adivina nada: un disco en directo o un recopilatorio no estrena composiciones.
 | **Giras de Extremoduro: suman 433 de 459** | 26 conciertos no tienen gira asignada en su base | si se publica el reparto por gira, se dice que cubre el 94 % |
 | **«71 % de segmentos de concierto identificados»** | cifra interna NO reproducible: no hay script ni salida guardada, y los 3 conciertos transcritos son de 1999, 2012 y 2022, no los «1992, 1997 y 2024» de la documentación | **no se publica** hasta re-medirla |
 | **«288 versos repetidos»** | cifra interna obsoleta; hoy son 283 sobre composiciones canónicas | se publica 283 |
-| **Autoría de las letras** | `song_credits` tiene 2 filas: está vacía de facto | el pilar de «los poetas» necesita correr `authorship_consensus` primero |
+| **Autoría de las letras** | 11 créditos aplicados con corroboración (V-07); 7 atribuciones retenidas sin verificar | el pilar de «los poetas» se publica con las 10 confirmadas; las 7 van como `[HIPÓTESIS]` o fuera |
 | **Versos por minuto de duración** | `songs.youtube_duration_sec` está vacío en las 153 filas y `duration_sec` solo en 8 | se mide por tramo cantado, que es otra métrica y así se nombra |
 
 ### Sesgo que hay que declarar siempre
