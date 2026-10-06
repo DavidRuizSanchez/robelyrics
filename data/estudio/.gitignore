@@ -8,7 +8,9 @@
 # repo. Lo que se publica son los agregados e índices derivados, con
 # atribución y enlace sin nofollow.
 #
-# Lo único que se versiona aquí es SOURCES.md, que es el ledger de evidencia.
+# Se versiona lo que es ANÁLISIS NUESTRO (el ledger de evidencia y los documentos
+# de método), nunca las salidas con el dato de setlist.fm dentro.
 *
 !.gitignore
 !SOURCES.md
+!FUENTES_CONCIERTOS.md
