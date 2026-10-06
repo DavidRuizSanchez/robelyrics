@@ -26,6 +26,7 @@ from app.db.session import SessionLocal
 from app.services import consensus as mcv
 from app.services import curated_overrides as co
 from app.services.consensus import SourceRef
+from app.services.kw_normalize import strip_title_suffix
 from app.services.lyric_guard import best_ratio, normalize
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -52,29 +53,49 @@ def _resolve_song(db, title: str, album_slug: str | None) -> Song | None:
 _OBRA_CITADA = re.compile(r"[«\"']([^»\"']{8,70})[»\"']")
 
 
-def _consulta_autoria(titulo: str, autor: str, nota: str = "") -> str:
-    """Consulta de BÚSQUEDA, distinta de la afirmación que se juzga.
+def _consultas_autoria(titulo: str, autor: str, nota: str = "") -> list[str]:
+    """Consultas de BÚSQUEDA, de la más precisa a la más amplia.
 
-    La afirmación («En la canción X, AUTOR firma la parte de adaptacion») está
-    redactada para el juez y no existe escrita en ninguna parte, así que como
-    consulta no encuentra nada: así se quedaron sin verificar Lorca, Shakespeare,
-    Marcos Ana y Miguel Hernández, que sí están documentados.
+    Son DOS y no una porque afinar una sola me hizo oscilar: con el título de la
+    obra entre comillas se verificaba «Puta» → Lorca («Los encuentros de un
+    caracol aventurero» aterriza en el documento exacto) pero se caía
+    «Te juzgarán…» → Marcos Ana; quitándole las comillas pasaba lo contrario.
+    No hay una forma óptima para los dos casos, así que se prueban en orden y la
+    primera que encuentre evidencia gana.
+
+    El título de la canción va siempre SIN su sufijo desambiguador: el catálogo
+    guarda «Caballero andante (¡No me dejéis asíii!)» y nadie lo escribe así.
     """
-    partes = [f'"{titulo}"', f'"{autor}"']
-    obras = [o for o in _OBRA_CITADA.findall(nota or "") if o.lower() not in titulo.lower()]
+    base = f'"{strip_title_suffix(titulo)}" "{autor}"'
+    # Del paréntesis de la nota solo vale lo que parece un TÍTULO de obra. Un
+    # verso citado no sirve como frase exacta: «No me levanto ni me acuesto día /
+    # que malvado cien veces no haya sido» no aparece escrito así en ninguna parte.
+    obras = [
+        o.strip() for o in _OBRA_CITADA.findall(nota or "")
+        if "/" not in o and len(o) <= 45 and o.lower() not in titulo.lower()
+    ]
     if obras:
-        partes.append(f'"{obras[0]}"')
-    else:
-        partes.append("poema letra")
-    partes.append("Extremoduro Robe")
-    return " ".join(partes)
+        return [
+            f'{base} "{obras[0]}" Extremoduro Robe',   # precisa
+            f'{base} {obras[0]} Extremoduro Robe',     # amplia
+        ]
+    return [f'{base} poema letra Extremoduro Robe']
 
 
-def _web_source(claim: str, author: str, query: str = "") -> SourceRef | None:
-    """Señal Wikipedia/Google para el claim de autoría."""
+def _web_source(claim: str, author: str, queries: list[str] | None = None) -> SourceRef | None:
+    """Señal Wikipedia/Google para el claim de autoría.
+
+    Prueba las consultas en orden y se queda con la primera que diga algo. Un
+    `not_found` no es una respuesta: es que la consulta no encontró nada, y por
+    eso se insiste con la siguiente antes de darse por vencido.
+    """
     from app.services.web_verify import classify_fact
 
-    res = classify_fact(claim, query=query)
+    res = {"verdict": "not_found"}
+    for q in (queries or [claim]):
+        res = classify_fact(claim, query=q)
+        if res.get("verdict") in ("supported", "contradicted"):
+            break
     verdict = res.get("verdict")
     src = (res.get("source") or "").lower()
     kind = "wikipedia" if "wiki" in src else "google_serp"
@@ -165,8 +186,7 @@ def verify_credit(db, song: Song, author: str, role: str, nota: str = "") -> mcv
     fan = SourceRef(name="fan (feedback)", source_kind="fan_feedback",
                     stance="supports", value=author)
     sources = [fan]
-    query = _consulta_autoria(song.title, author, nota)
-    web = _web_source(claim, author, query=query)
+    web = _web_source(claim, author, _consultas_autoria(song.title, author, nota))
     if web:
         sources.append(web)
     sources.extend(_corpus_sources(db, song, author))

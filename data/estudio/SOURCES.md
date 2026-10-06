@@ -132,6 +132,54 @@ candidato entre los 137 títulos de setlist.fm. El mejor parecido de todas queda
 en **≤ 0,58** y apunta a canciones claramente distintas («Sin Dios Ni Amo» →
 «Necesito droga y amor», 0,56), así que no son fallos de casado.
 
+### V-09 · El verificador de autoría NO es reproducible: no se relanza (07-10-2026)
+
+Tras arreglar la consulta (V-07) relancé `authorship_consensus` tres veces más. El
+arreglo funcionó —rescató «Última Generación», y el caso Chinato subió a 0,93 con
+corroboración de Google y de la voz de Robe—, pero al repetirlo apareció algo peor
+que el defecto original: **el mismo claim recibe veredictos distintos en pasadas
+consecutivas.**
+
+| Afirmación | Pasada 2 | Pasada 3 | Pasada 4 |
+|---|---|---|---|
+| «Te juzgarán sólo por tus errores» → Marcos Ana | 0,67 retenida | **0,80 APLICADA** | **0,50 retenida** |
+| «Puta» → Federico García Lorca | **0,80 APLICADA** | 0,67 retenida | 0,67 retenida |
+| «Buscando una Luna» → Antonio Machado | 0,74 | 0,87 | **0,59** |
+
+La confianza de una misma afirmación oscila entre **0,50 y 0,87** según los
+fragmentos que devuelva el buscador en ese momento y cómo los lea el juez. No es una
+medición: es un sorteo con sesgo favorable.
+
+**Consecuencia que hay que conocer: `apply_credits` es ADITIVO.** Comprueba si el
+crédito ya existe y, si no, lo inserta; nunca retira. Así que relanzar acumula lo que
+cualquier pasada haya aprobado. Estado actual: **14 créditos en 13 canciones de 12
+autores**, de los cuales **dos quedaron aplicados en una pasada y retenidos en la
+siguiente** («Puta» → Lorca y «Te juzgarán» → Marcos Ana).
+
+**Qué se hace con esos dos: se quedan.** Los dos tuvieron corroboración externa en la
+pasada que los aplicó, y los dos están documentados **con los versos citados** en el
+artículo de Jot Down; para Lorca existen además dos piezas publicadas tituladas «Lorca
+en la Música Popular (IV): Extremoduro – *Puta*». Retirar dato cierto porque una
+búsqueda flojeó es el error que este proyecto ya tiene anotado en
+`gotcha_guards_falsos_positivos`: guardas que protegen el fallo en vez del dato.
+
+**Qué NO se hace: relanzar.** Cada pasada reparte distinto y acumula. Si hay que
+rehacer la autoría, se vacía `song_credits` primero y se corre UNA vez.
+
+**Y qué se publica en el estudio.** La autoridad citable no es el veredicto del motor,
+es **el artículo de Jot Down (2017)**, que es una pieza publicada y firmada que cita
+los versos de cada préstamo. El estudio cita eso, y señala aparte las que tienen
+además corroboración independiente estable: Chinato en «Ama, ama, ama» (0,93 con
+Google y voz de Robe), Neruda en «Sucede», Ramón Romero Ruiz en «Todos me dicen».
+
+**Las cuatro que no ha corroborado nunca ninguna pasada** —Shakespeare y Zorrilla en
+«Hoy te la meto hasta las orejas», Miguel Hernández en «Prometeo», Marcos Ana en
+«Caballero andante» y **Santos Isidro Seseña en «Salir» y «Standby»**— van al estudio
+como `[HIPÓTESIS]` citando Jot Down, nunca como dato. Y lo de Santos Isidro Seseña
+sigue siendo informativo por sí mismo: cero fuentes externas en cuatro intentos encaja
+con la duda de un comentarista del propio artículo, que sospecha que es un seudónimo
+de Robe.
+
 ### V-08 · Geografía: 591 conciertos extraídos, y tres saneados que hacían falta (07-10-2026)
 
 `crawl_setlist_browser --what conciertos` recorrió el índice entero: **46 páginas de
