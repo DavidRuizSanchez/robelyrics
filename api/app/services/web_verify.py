@@ -183,20 +183,32 @@ _CLASSIFY_SYS = (
 )
 
 
-def classify_fact(claim: str, wiki_title: str = "") -> dict:
+def classify_fact(claim: str, wiki_title: str = "", query: str = "") -> dict:
     """Verificación de 3 estados: distingue 'contradicho' de 'no encontrado'.
 
     Devuelve {verdict: supported|contradicted|not_found, evidence, source}.
     Clave para auto-corregir solo lo realmente falso (contradicted) sin borrar
     datos reales que la web simplemente no indexa (not_found). Cacheado.
+
+    `query` separa los dos trabajos que hacía una sola cadena: BUSCAR la
+    evidencia y JUZGAR la afirmación. Una afirmación bien redactada para el juez
+    suele ser una consulta pésima para Google. Medido en la verificación de
+    autoría (07-10-2026): el claim «En la canción «Puta», Federico García Lorca
+    firma la parte de adaptacion» es una frase que nadie ha escrito nunca, así
+    que no encontraba evidencia y 7 atribuciones correctas quedaron sin
+    verificar. Con `query` se busca por palabras clave y se sigue juzgando con
+    la frase. Si no se pasa, el comportamiento es idéntico al de siempre.
     """
     from app.services.news_research import _json
-    k = _key("classify", claim)
+    busqueda = query or claim
+    # La consulta entra en la clave de caché: si no, un `not_found` guardado con
+    # la consulta vieja se devolvería para siempre y el arreglo no se notaría.
+    k = _key("classify", claim if busqueda == claim else f"{claim}||q={busqueda}")
     with _LOCK:
         cache = _load_cache()
         if k in cache:
             return cache[k]
-    evidence = _gather_evidence(claim, [wiki_title] if wiki_title else [])
+    evidence = _gather_evidence(busqueda, [wiki_title] if wiki_title else [])
     if not evidence.strip():
         res = {"verdict": "not_found", "evidence": "", "source": ""}
     else:

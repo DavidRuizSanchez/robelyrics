@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 
 from sqlalchemy import select
 
@@ -45,11 +46,35 @@ def _resolve_song(db, title: str, album_slug: str | None) -> Song | None:
     return best if best_r >= 0.75 else None
 
 
-def _web_source(claim: str, author: str) -> SourceRef | None:
+# Títulos de obra citados entre comillas en la nota de la hipótesis. Son la mejor
+# palabra clave que hay: «Los encuentros de un caracol aventurero» aterriza en el
+# documento exacto, mientras que buscar «Lorca» devuelve a Lorca entero.
+_OBRA_CITADA = re.compile(r"[«\"']([^»\"']{8,70})[»\"']")
+
+
+def _consulta_autoria(titulo: str, autor: str, nota: str = "") -> str:
+    """Consulta de BÚSQUEDA, distinta de la afirmación que se juzga.
+
+    La afirmación («En la canción X, AUTOR firma la parte de adaptacion») está
+    redactada para el juez y no existe escrita en ninguna parte, así que como
+    consulta no encuentra nada: así se quedaron sin verificar Lorca, Shakespeare,
+    Marcos Ana y Miguel Hernández, que sí están documentados.
+    """
+    partes = [f'"{titulo}"', f'"{autor}"']
+    obras = [o for o in _OBRA_CITADA.findall(nota or "") if o.lower() not in titulo.lower()]
+    if obras:
+        partes.append(f'"{obras[0]}"')
+    else:
+        partes.append("poema letra")
+    partes.append("Extremoduro Robe")
+    return " ".join(partes)
+
+
+def _web_source(claim: str, author: str, query: str = "") -> SourceRef | None:
     """Señal Wikipedia/Google para el claim de autoría."""
     from app.services.web_verify import classify_fact
 
-    res = classify_fact(claim)
+    res = classify_fact(claim, query=query)
     verdict = res.get("verdict")
     src = (res.get("source") or "").lower()
     kind = "wikipedia" if "wiki" in src else "google_serp"
@@ -125,8 +150,12 @@ def _corpus_sources(db, song: Song, author: str) -> list[SourceRef]:
     return sources
 
 
-def verify_credit(db, song: Song, author: str, role: str) -> mcv.ConsensusResult:
-    """Consenso sobre 'el texto de esta canción es de <author>' (rol autoral)."""
+def verify_credit(db, song: Song, author: str, role: str, nota: str = "") -> mcv.ConsensusResult:
+    """Consenso sobre 'el texto de esta canción es de <author>' (rol autoral).
+
+    `nota` es la nota de la hipótesis; de ahí se saca el título del poema para
+    construir la consulta de búsqueda, que NO es la afirmación que se juzga.
+    """
     claim = (
         f"El texto de la canción «{song.title}» de Extremoduro es un poema/letra "
         f"escrito por {author} (no compuesto líricamente por Robe)."
@@ -136,7 +165,8 @@ def verify_credit(db, song: Song, author: str, role: str) -> mcv.ConsensusResult
     fan = SourceRef(name="fan (feedback)", source_kind="fan_feedback",
                     stance="supports", value=author)
     sources = [fan]
-    web = _web_source(claim, author)
+    query = _consulta_autoria(song.title, author, nota)
+    web = _web_source(claim, author, query=query)
     if web:
         sources.append(web)
     sources.extend(_corpus_sources(db, song, author))
@@ -195,10 +225,22 @@ def process(db, entry: dict, *, apply: bool) -> None:
     # el claim ARRIESGADO es el autor del poema/letra (no "musica: Robe")
     key = next((c for c in credits if c.get("role") in ("poema_original", "letra", "adaptacion")), None)
     if not key:
+        # Antes aquí había un `return` a secas y la entrada desaparecía sin
+        # rastro: «Última Generación», cuyo único crédito es `colaboracion`, no
+        # se procesó nunca y nadie se enteró. Se intenta con el resto de roles
+        # ajenos y, si tampoco, se dice en voz alta.
+        key = next((c for c in credits
+                    if c.get("role") in ("colaboracion", "arreglos")
+                    and normalize(c.get("name", "")) not in ("robe", "roberto iniesta")), None)
+    if not key:
+        logger.warning(
+            "«%s»: ningún crédito verificable (roles presentes: %s). No se procesa.",
+            entry.get("song_title"), [c.get("role") for c in credits],
+        )
         return
     author = key["name"]
     logger.info("Verificando autoría de «%s» → %s (%s)...", song.title, author, key["role"])
-    result = verify_credit(db, song, author, key["role"])
+    result = verify_credit(db, song, author, key["role"], key.get("note") or "")
     action = mcv.decide_fan_correction(result, fan_value=author)
     ext = [s.source_kind for s in result.sources if s.stance == "supports" and s.source_kind != "fan_feedback"]
     logger.info("  veredicto=%s conf=%.2f acción=%s corroboran=%s",

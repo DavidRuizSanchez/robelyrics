@@ -66,13 +66,25 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
               !!href &&
               /^https?:\/\//i.test(href) &&
               !/^https?:\/\/(www\.)?entreinteriores\.com(\/|$)/i.test(href);
+            // Hay fuentes cuyos términos de uso EXIGEN que el enlace de vuelta
+            // no lleve nofollow. setlist.fm lo dice literalmente: «You may not
+            // tag links to Setlist.fm with a nofollow attribute or otherwise
+            // prevent or discourage search engines from following the link».
+            // El nofollow por defecto es lo correcto para un medio que se cita;
+            // aquí incumpliría la condición con la que usamos su dato, así que
+            // va una lista blanca estrecha y no una excepción general.
+            const exigeFollow =
+              !!href && /^https?:\/\/([a-z0-9-]+\.)*(setlist\.fm|musicbrainz\.org)(\/|$)/i.test(href);
             return (
               <a
                 href={href}
                 className="text-accent underline decoration-accent/40 hover:decoration-accent transition-colors"
                 data-cursor="hover"
                 {...(isExternal
-                  ? { target: "_blank", rel: "nofollow noopener" }
+                  ? {
+                      target: "_blank",
+                      rel: exigeFollow ? "noopener" : "nofollow noopener",
+                    }
                   : {})}
               >
                 {children}
