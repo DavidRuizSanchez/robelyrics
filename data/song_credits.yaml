@@ -47,3 +47,204 @@ credits:
         name: "Robe"
         person_slug: robe
         primary: true
+
+  # ============================================================
+  # Tanda del 06-10-2026 — del artículo «Extremoduro y la literatura»
+  # (Jot Down Cultural Magazine, 2017), que está en el corpus:
+  # https://www.jotdown.es/2017/10/extremoduro-y-la-literatura/
+  #
+  # Es la fuente más sistemática que tenemos sobre esto: documenta más de veinte
+  # atribuciones CITANDO LOS VERSOS, lo que las hace verificables una a una. Las
+  # extrajo una lectura a mano de ese artículo, no el minado por patrones
+  # (`scripts.pr.mine_authorship`), que da mucho ruido: en un párrafo que enumera
+  # a Machado, Neruda, Miguel Hernández y Lorca junto a varias canciones, el
+  # producto cartesiano sale entero y atribuye «So payaso» a los tres a la vez.
+  #
+  # Criterio de rol: `poema_original` cuando TODA la letra sale de un poema ajeno;
+  # `adaptacion` cuando Robe incrusta unos versos o una estrofa en una letra suya.
+  # Si alguno está mal clasificado, cámbialo aquí antes de verificar.
+  #
+  # TODAS en pending_verification: las escribe el consenso multi-fuente, no esto.
+  # ============================================================
+
+  - song_title: "Te juzgarán sólo por tus errores (Yo no)"
+    album_slug: rock-transgresivo
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: poema_original
+        name: "Marcos Ana"
+        primary: true
+        note: "La primera mitad disecciona poemas de Marcos Ana (del recopilatorio «Las soledades del muro»), y la cierra con «No puedo seguir: escucho / los pasos del funcionario»."
+
+  - song_title: "Caballero andante (¡No me dejéis asíii!)"
+    album_slug: rock-transgresivo
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Marcos Ana"
+        primary: true
+        note: "El fragmento que ABRE la canción es de «Las soledades del muro»."
+      - role: adaptacion
+        name: "Antonio Machado"
+        note: "Le sucede una estrofa de Machado, con levísima variación: «Roto en tu espejo tu mejor idilio, / y vuelto ya de espaldas a la vida…»."
+      - role: adaptacion
+        name: "Manolillo Chinato"
+        person_slug: manolo-chinato
+        note: "Jot Down señala una cuarta alusión en esta canción, de Chinato. No cita el verso: es la más débil de las tres."
+
+  - song_title: "Deltoya"
+    album_slug: deltoya
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Kiko Luna Creciente"
+        primary: true
+        note: "Ocho versos «que ve escritos en la luna, luna creciente» son un juego de palabras con el seudónimo del autor. ⚠️ DISCREPANCIA: Jot Down dice que es Tomás Rodríguez, mánager del grupo; DOS comentarios del propio artículo lo corrigen diciendo que Kiko Luna Creciente es Kiko Murillo, de Trujillo, y que no es el mánager. No fijar el nombre civil sin resolverlo."
+
+  - song_title: "Última Generación"
+    album_slug: deltoya
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: colaboracion
+        name: "Tomás Rodríguez"
+        primary: true
+        note: "Coescrita. Misma discrepancia de identidad que «Deltoya»."
+
+  - song_title: "Posado en un Nenúfar"
+    album_slug: donde-estan-mis-amigos
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Raúl Lomas"
+        primary: true
+        note: "Usa un fragmento de su libro «Mierda bañada en mentiras de sangre»."
+
+  - song_title: "Malos Pensamientos"
+    album_slug: donde-estan-mis-amigos
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Sor Kampana"
+        primary: true
+        note: "Fusiona versos de tres poemas de «Poesía asfáltica de confusión», primer libro del valenciano Sor Kampana (Antonio Belarte)."
+
+  - song_title: "Buscando una Luna"
+    album_slug: agila
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Antonio Machado"
+        primary: true
+        note: "«Los pasajes de un libro que de memoria se aprendió» son de «Por tierras de España», de Campos de Castilla."
+
+  - song_title: "Prometeo"
+    album_slug: agila
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Miguel Hernández"
+        primary: true
+        note: "Repite dos versos del poeta de Orihuela: «No me levanto ni me acuesto día / que malvado cien veces no haya sido»."
+
+  - song_title: "Sucede"
+    album_slug: agila
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Pablo Neruda"
+        primary: true
+        note: "Arranca con la apertura de «Walking around»: «Sucede que me canso de ser hombre»."
+
+  - song_title: "Ábreme el Pecho y Registra"
+    album_slug: agila
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Sor Kampana"
+        primary: true
+        note: "Al final brama los versos de «Ni vertiendo polvo», de Antonio Belarte (Sor Kampana)."
+
+  - song_title: "Todos Me Dicen"
+    album_slug: agila
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: poema_original
+        name: "Ramón Romero Ruiz"
+        primary: true
+        note: "«Según consta en el libreto original», está inspirada en un poema suyo. OJO: el corpus también lo escribe «Román Romero Ruiz»; resolver la grafía."
+
+  - song_title: "Salir"
+    album_slug: canciones-prohibidas
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Santos Isidro Seseña"
+        primary: true
+        note: "Robe recita el final de su poema «La mala gana». ⚠️ Un comentario del artículo duda de que el poeta exista y sugiere que es un seudónimo de Robe; otro apunta a Francisco M. Ortega Palomares. Sin resolver."
+
+  - song_title: "Standby"
+    album_slug: yo-minoria-absoluta
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Santos Isidro Seseña"
+        primary: true
+        note: "Los versos restantes de «La mala gana» sirvieron de introducción al videoclip. Misma duda de identidad que en «Salir»."
+
+  - song_title: "Hoy Te La Meto Hasta Las Orejas"
+    album_slug: yo-minoria-absoluta
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "William Shakespeare"
+        primary: true
+        note: "La Julieta que espera a su galán desde el balcón."
+      - role: adaptacion
+        name: "José Zorrilla"
+        note: "«Más clara la luna brilla», de Don Juan Tenorio."
+
+  - song_title: "Puta"
+    album_slug: yo-minoria-absoluta
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Federico García Lorca"
+        primary: true
+        note: "Cita un par de fragmentos de «Los encuentros de un caracol aventurero», escrito por un Lorca joven."
+
+  - song_title: "Pedrá"
+    album_slug: pedra
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Manolillo Chinato"
+        person_slug: manolo-chinato
+        primary: true
+        note: "«Por volver como eres, por volver como somos…». Robe los encontró escritos en su bolsillo tras una noche con Manolillo; aquí NO se lo reconoció en los créditos."
+
+  - song_title: "Quemando Tus Recuerdos"
+    album_slug: somos-unos-animales
+    source: jotdown_2017
+    status: pending_verification
+    credits:
+      - role: adaptacion
+        name: "Manolillo Chinato"
+        person_slug: manolo-chinato
+        primary: true
+        note: "Suyos son los versos que CIERRAN la canción."

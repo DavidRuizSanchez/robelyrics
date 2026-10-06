@@ -80,8 +80,8 @@ entregable para remitir aquí.
 | A-17 | **Composiciones con estribillo identificable** | **70** de 132 | F1 | ídem | CONFIRMADA |
 | A-18 | Verso más repetido dentro de una sola canción | «De una patada rompo el Sol» y «Luce la oscuridad;», **×12** | F1 | — | CONFIRMADA |
 | A-19 | Composición con más versos | **Pedrá, 211** | F1 | — | CONFIRMADA |
-| A-20 | **Índice de Resurrección de «Contra todos»** | **×17,7** (2,4 % → 42,4 %) | F2 | 11/459 vs 56/132 | CONFIRMADA |
-| A-21 | **Índice de Resurrección de «Si te vas…»** | **×7,7** (7,6 % → 59,1 %) | F2 | 35/459 vs 78/132 | CONFIRMADA |
+| A-20 | **Índice de Resurrección de «Contra todos»** | **×4,1** (10,3 % → 42,4 %) | F2 | 11/107 (2008-14) vs 56/132 | CORREGIDA en V-06 |
+| A-21 | **Índice de Resurrección de «Si te vas…»** | **×1,8** (32,7 % → 59,1 %) | F2 | 35/107 (2008-14) vs 78/132 | CORREGIDA en V-06 |
 | A-22 | **Toques de Robe fuera de sus propios discos** | **667 de 2.286 = 29,2 %** | F2 | bloques «Covers» + «Others» | CONFIRMADA |
 | A-23 | **Lo mismo en Extremoduro** | **170 de 3.295 = 5,2 %** | F2 | ídem | CONFIRMADA |
 | A-24 | Conciertos por año de Extremoduro | 17 años, de 1 (1987) a 53 (1996) | F2 | serie completa: suma 459 | CONFIRMADA |
@@ -131,6 +131,59 @@ Las 11, cada una verificada como corte real del disco contra **MusicBrainz (F3)*
 candidato entre los 137 títulos de setlist.fm. El mejor parecido de todas queda
 en **≤ 0,58** y apunta a canciones claramente distintas («Sin Dios Ni Amo» →
 «Necesito droga y amor», 0,56), así que no son fallos de casado.
+
+### V-06 · Los índices estaban MAL NORMALIZADOS — CORREGIDOS (crawl con navegador, 06-10-2026)
+
+Dos errores míos, encadenados, y el segundo invertía una conclusión del estudio.
+
+**a) «Los desgloses por gira de setlist.fm no son fiables» era FALSO.** Lo medí con
+`httpx` y leí el HTML **sin hidratar**: la página de «Agila 96» parecía declarar 53
+conciertos con un máximo de 4 toques. Con un navegador real esperando a
+`tr.songRow`, el año 2008 pasa de 0 a **1.011 toques en 47 conciertos**. No era su
+dato, era mi medición. La serie por año de Extremoduro suma **3.295**, exactamente su
+total, y la de Robe **2.286**, exactamente el suyo: ambas completas y validadas.
+
+**b) La mayoría de las fichas antiguas NO LISTAN el repertorio.** Medido:
+
+| Época | Setlists | Toques | Toques por setlist |
+|---|---|---|---|
+| 1987-2002 | 315 | 708 | **2,2** |
+| 2004 | 37 | 151 | 4,1 |
+| 2008-2014 | 107 | 2.436 | **22,8** |
+
+El **78,5 % de las interpretaciones registradas sale de 2008-2014**, que es el 23 % de
+los conciertos. Así que dividir los toques por los 459 setlists —lo que hacía el
+`indice_resurreccion` de la primera versión— **hinchaba los porcentajes de Robe hasta
+tres veces**, porque Robe tiene 132 setlists todos con repertorio y Extremoduro 459 de
+los que solo ~107 lo traen.
+
+**Qué cambia:** la comparación se hace entre épocas de densidad equivalente —
+Extremoduro 2008-2014 (107 conciertos) frente a todo Robe (132) — y **el relato se
+invierte**:
+
+| Canción | Antes (÷459) | Corregido | %E 08-14 | %R |
+|---|---|---|---|---|
+| Contra todos | ×17,7 | **×4,1** | 10,3 % | 42,4 % |
+| Si te vas… | ×7,7 | **×1,8** | 32,7 % | 59,1 % |
+| Ama, ama, ama | ×2,3 | **×0,7** | 96,3 % | 71,2 % |
+| Dulce introducción al caos | ×2,0 | **×0,5** | 96,3 % | 43,9 % |
+| La vereda de la puerta de atrás | ×1,5 | **×0,4** | 81,3 % | 31,8 % |
+
+De las **24** canciones que tocaron las dos formaciones, solo **2 suenan más con
+Robe** y **22 menos**. La «resurrección del repertorio» no existe como fenómeno
+general: existe en «Contra todos» y en «Si te vas…», y nada más.
+
+Y aparece el hallazgo que lo sustituye, más fuerte porque es contraintuitivo: **el
+Extremoduro final tenía un repertorio casi inmóvil** —«Standby» en el 98,1 % de sus
+conciertos, «Puta» y «Salir» en el 97,2 %, «Dulce introducción al caos» y «Ama» en el
+96,3 %, «Rockin' All Over the World» en el 86,9 %— mientras que **a Robe no hay nada
+que le pase del 72 %**. El informe de partida afirmaba justo lo contrario («la
+monolitización del directo» de Robe, «una curaduría de rigidez asombrosa»).
+
+**Páginas que no cargaron y cómo se cerraron:** 1997 y 1999 se recuperaron al
+reintentar (39 y 72 toques). **1987 tiene cero de verdad**: su único setlist no lista
+repertorio. Dos giras («Robando perchas del hotel», «Somos unos animales») siguen sin
+recuperar, pero no hacen falta: la serie por AÑO ya cuadra con el total.
 
 ### V-05 · La afirmación estaba MAL FORMULADA — CORREGIDA
 
@@ -215,9 +268,10 @@ adivina nada: un disco en directo o un recopilatorio no estrena composiciones.
 
 | Qué | Por qué | Consecuencia |
 |---|---|---|
-| **Ciudades y recintos** | viven concierto a concierto (46 páginas paginadas) y el WAF corta | fuera de la ola 1 |
+| **Ciudades y recintos** | viven concierto a concierto (46 páginas); el crawl con navegador ya puede, pero no se ha corrido | pendiente |
 | **Primera y última vez que sonó cada canción** | una página por canción, mismo bloqueo | sin «canciones abandonadas» por ahora |
-| **Desgloses por gira de setlist.fm** | **no son fiables**: su página de «Agila 96» declara 53 conciertos y su canción más tocada sale con 4 toques; la del setlist promedio avisa de que usó 2 de los 53 | no se usan para series temporales |
+| ~~Desgloses por gira no fiables~~ | **Era mi medición, no su dato** — ver V-06. Con navegador son correctos y la serie por año cuadra con el total | se usan, leídos con navegador |
+| **Densidad desigual por época** | las fichas de 1987-2002 traen 2,2 canciones por concierto y las de 2008-2014, 22,8 | toda comparación va entre épocas equivalentes, nunca sobre los 459 |
 | **Giras de Extremoduro: suman 433 de 459** | 26 conciertos no tienen gira asignada en su base | si se publica el reparto por gira, se dice que cubre el 94 % |
 | **«71 % de segmentos de concierto identificados»** | cifra interna NO reproducible: no hay script ni salida guardada, y los 3 conciertos transcritos son de 1999, 2012 y 2022, no los «1992, 1997 y 2024» de la documentación | **no se publica** hasta re-medirla |
 | **«288 versos repetidos»** | cifra interna obsoleta; hoy son 283 sobre composiciones canónicas | se publica 283 |
