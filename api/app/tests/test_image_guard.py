@@ -190,3 +190,70 @@ def test_una_descripcion_normal_sigue_acreditando(commons):
     """El filtro anti-autoría no puede cargarse las descripciones buenas."""
     commons(categories=["Rosendo"], description="Leño playing live on 28 August 1981")
     assert ig.verify_provenance(entity_name="Leño", image_url=_WIKI).publishable
+
+
+# --- Obra gráfica propia (infografías del estudio de repertorio) ------------ #
+# El hueco era real: la única puerta de arte propio exigía literalmente
+# «generado por IA», así que una infografía hecha a mano y alojada por nosotros
+# caía a `unsourced` → `needs_human`, y el cron de las 04:40 abría una errata
+# contra ella cada noche.
+def test_una_infografia_propia_es_obra_propia_y_se_publica():
+    v = ig.verify_provenance(
+        entity_name="Extremoduro",
+        image_url=_CLOUD,
+        attribution="Entre Interiores · entreinteriores.com",
+        license_="propio",
+    )
+    assert v.status == "own_art"
+    assert v.publishable is True
+    assert v.needs_human is False
+
+
+def test_basta_la_licencia_propio_sin_mencionar_la_casa():
+    v = ig.verify_provenance(
+        entity_name="Extremoduro", image_url=_CLOUD,
+        attribution="Gráfico del estudio del repertorio", license_="propio",
+    )
+    assert v.status == "own_art"
+
+
+def test_una_url_ajena_no_se_declara_obra_propia_por_mucho_que_lo_diga_el_credito():
+    """La puerta exige host propio. Si no, cualquier foto de un tercero entraría
+    con solo escribirle «Entre Interiores» en el crédito."""
+    v = ig.verify_provenance(
+        entity_name="Rosendo",
+        image_url="https://un-medio-cualquiera.es/foto-de-rosendo.jpg",
+        attribution="Entre Interiores", license_="propio",
+    )
+    assert v.status != "own_art"
+    assert v.publishable is False
+
+
+def test_una_foto_realojada_con_su_autor_sigue_siendo_legacy_cc_no_obra_propia():
+    """La ampliación no se puede comer el caso de al lado: lo re-alojado desde
+    Commons conserva autor y licencia libre, y tiene su propio estado."""
+    v = ig.verify_provenance(
+        entity_name="Kutxi Romero", image_url=_CLOUD,
+        attribution="Foto de un tercero (Wikimedia Commons)", license_="CC BY-SA 4.0",
+    )
+    assert v.status == "legacy_cc"
+
+
+def test_el_criterio_de_obra_propia_no_puede_divergir_del_de_hero_guard():
+    """Dos sitios deciden si una pieza es «de la casa»: esta guarda y el gate
+    del hero. Vivían con el vocabulario duplicado, que es como se desincronizan
+    (misma lección que `captions_moldes.QUESTIONS` vs `tono_guard`). Si alguien
+    cambia uno, este test cae."""
+    from app.services import hero_guard as hg
+
+    casos = [
+        {"attribution": "Entre Interiores · entreinteriores.com", "license": "propio"},
+        {"attribution": "Entre Interiores", "license": None},
+        {"attribution": "Gráfico del estudio", "license": "propio"},
+        {"attribution": "Foto de agencia", "license": "todos los derechos"},
+        {"attribution": "", "license": ""},
+    ]
+    for caso in casos:
+        mio = ig.es_obra_propia(caso["attribution"], caso["license"])
+        suyo = hg._is_trusted(caso)
+        assert mio == suyo, f"divergen en {caso}: image_guard={mio} hero_guard={suyo}"

@@ -254,6 +254,21 @@ def commons_evidence(filename: str, *, timeout: float = 15.0) -> dict:
     }
 
 
+# Cómo se declara que una pieza gráfica es NUESTRA. Literalmente el mismo
+# vocabulario que `hero_guard._is_trusted`, que es donde nació; vive aquí porque
+# `image_guard` es quien decide qué se puede publicar.
+OBRA_PROPIA_ATRIBUCION = "entre interiores"
+OBRA_PROPIA_LICENCIA = "propio"
+
+
+def es_obra_propia(attribution: str | None, license_: str | None) -> bool:
+    """True si el crédito o la licencia declaran que la pieza es de la casa."""
+    return (
+        OBRA_PROPIA_ATRIBUCION in _norm(attribution or "")
+        or _norm(license_ or "") == OBRA_PROPIA_LICENCIA
+    )
+
+
 def verify_provenance(
     *,
     entity_name: str,
@@ -283,6 +298,26 @@ def verify_provenance(
         return ProvenanceVerdict("own_art", "Arte propio generado por IA (no es un retrato).")
     if is_own_host(image_url) and _norm(attribution or "").startswith("arte generado"):
         return ProvenanceVerdict("own_art", "Arte propio generado por IA (no es un retrato).")
+    # Obra gráfica propia que NO ha generado un modelo: una infografía, un
+    # gráfico, un mapa. Tampoco afirma identidad —no retrata a nadie—, así que
+    # cae en `own_art` por el mismo motivo que el arte IA.
+    #
+    # Sin esto, una infografía nuestra alojada en Cloudinary caía a `unsourced`
+    # → `needs_human`, y el cron de imágenes de las 04:40 abría una errata
+    # contra ella cada noche: la guarda protestando por nuestro propio trabajo.
+    # El hueco era que la única puerta de arte propio pedía literalmente
+    # «generado por IA».
+    #
+    # El vocabulario es el MISMO que ya acepta `hero_guard._is_trusted` para no
+    # tener dos criterios de «esto es nuestro» divergiendo, y lo vigila
+    # `test_image_guard.py`. Exige host propio: una URL de un
+    # tercero no puede declararse obra nuestra por mucho que lo diga el crédito.
+    if is_own_host(image_url) and es_obra_propia(attribution, license_):
+        return ProvenanceVerdict(
+            "own_art",
+            "Obra gráfica propia (no retrata a nadie).",
+            evidence=[f"crédito: {attribution or '—'}", f"licencia: {license_ or '—'}"],
+        )
 
     fname = commons_filename(image_url, source_url)
     if not fname:

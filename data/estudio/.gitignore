@@ -1,0 +1,14 @@
+# Las salidas del estudio NO se versionan: se regeneran con
+#   python -m scripts.pr.fetch_setlist_index  →  setlist_stats.json
+#   python -m scripts.pr.build_study_dataset  →  el resto
+#
+# Y hay un motivo además del de siempre: `setlist_stats.json` y
+# `repertorio_unificado.csv` llevan dentro las cifras de setlist.fm. Sus
+# términos no permiten retener copias de su dato, así que no se guarda en el
+# repo. Lo que se publica son los agregados e índices derivados, con
+# atribución y enlace sin nofollow.
+#
+# Lo único que se versiona aquí es SOURCES.md, que es el ledger de evidencia.
+*
+!.gitignore
+!SOURCES.md

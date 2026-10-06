@@ -94,6 +94,47 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
           strong: ({ children }) => (
             <strong className="font-medium text-ink">{children}</strong>
           ),
+          // Tablas de datos. El estudio del repertorio es casi todo tablas y
+          // sin estos overrides salían con los estilos por defecto del
+          // navegador. Mismo patrón que la tabla a mano de
+          // `app/discografia/[artist]/page.tsx`: mono en minúsculas espaciadas
+          // para el encabezado, serif en el cuerpo y divisores a 0.4 de opacidad.
+          //
+          // El `overflow-x-auto` no es decorativo: el contenedor del artículo
+          // mide 680px y una tabla de cinco columnas se sale. Scrollea en vez
+          // de desbordar la página en móvil.
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-7">
+              <table className="w-full text-left border-collapse">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+              {children}
+            </thead>
+          ),
+          tr: ({ children }) => (
+            <tr className="border-b border-divider/40">{children}</tr>
+          ),
+          // `style` llega de remark-gfm con la alineación declarada en el
+          // markdown (`|---:|`). Si no se reenvía, las columnas de cifras
+          // quedan alineadas a la izquierda y la tabla se lee mal.
+          th: ({ children, style }) => (
+            <th
+              style={style}
+              className="py-3 pr-4 font-normal border-b border-divider whitespace-nowrap"
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children, style }) => (
+            <td
+              style={style}
+              className="py-3 pr-4 font-serif text-[16px] text-ink align-top"
+            >
+              {children}
+            </td>
+          ),
           hr: () => <hr className="my-10 border-divider" />,
           code: ({ children }) => (
             <code className="font-mono text-[14px] text-accent bg-paper px-1.5 py-0.5">
