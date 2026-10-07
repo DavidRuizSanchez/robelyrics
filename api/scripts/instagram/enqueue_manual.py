@@ -124,7 +124,12 @@ def main() -> int:
             media_locked=True,
             image_url=subidas[0],
             publish_at=cuando,
-            publish_on=cuando.date(),
+            # `publish_on` se queda a NULL A PROPÓSITO. `due_pinned` vence con
+            # `publish_on == hoy` O con `publish_at <= ahora`, así que poner los
+            # dos hace que el item esté vencido DESDE MEDIANOCHE y la hora exacta
+            # no sirva de nada: se publicaría en la primera pasada del cron del
+            # día. Con solo `publish_at`, sale a su hora.
+            publish_on=None,
             status="pending",
             needs_human=False,
         )
