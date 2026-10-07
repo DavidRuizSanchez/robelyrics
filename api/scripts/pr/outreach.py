@@ -29,6 +29,7 @@ import email.header
 import email.utils
 import imaplib
 import json
+import ssl
 import sys
 import urllib.error
 import urllib.request
@@ -43,6 +44,11 @@ REMITENTE = {"name": "David Ruiz · Entre Interiores", "email": "hola@entreinter
 BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 EXTRA = ["ID", "Brevo messageId", "Última comprobación"]
 DIAS_INSISTENCIA = 7
+# El Python de python.org en macOS no trae CA raíz: sin esto, Brevo falla con
+# CERTIFICATE_VERIFY_FAILED, y `imaplib` sin contexto propio NO verifica el
+# certificado del servidor. Se usa el almacén del sistema y se verifica siempre.
+_CA_SISTEMA = Path("/etc/ssl/cert.pem")
+TLS = ssl.create_default_context(cafile=str(_CA_SISTEMA) if _CA_SISTEMA.exists() else None)
 
 
 # --------------------------------------------------------------------------- #
@@ -166,11 +172,14 @@ def cmd_send(args) -> int:
             "api-key": credencial("BREVO_API_KEY"),
             "content-type": "application/json",
             "accept": "application/json",
+            # El UA por defecto («Python-urllib») lo bloquea Cloudflare con un 1010.
+            # Se identifica tal cual, sin hacerse pasar por un navegador.
+            "user-agent": "entreinteriores-outreach/1.0 (+https://entreinteriores.com)",
         },
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=TLS) as resp:
             cuerpo = json.loads(resp.read() or b"{}")
     except urllib.error.HTTPError as e:
         sys.exit(f"Brevo respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
@@ -208,7 +217,7 @@ def cmd_replies(args) -> int:
         if "@" in f["Email"]:
             por_dominio[f["Email"].split("@", 1)[1].lower()] = f
 
-    imap = imaplib.IMAP4_SSL("imap.gmail.com")
+    imap = imaplib.IMAP4_SSL("imap.gmail.com", ssl_context=TLS)
     imap.login(credencial("GMAIL_USER"), credencial("GMAIL_APP_PASSWORD"))
     try:
         # La carpeta «Todos» cambia de nombre con el idioma de Gmail («[Gmail]/All Mail»,

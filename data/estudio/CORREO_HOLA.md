@@ -80,7 +80,8 @@ la copia reenviada de un correo que tú mismo enviaste y parece que falla).
 | 07-10-2026 | DNS tras la autoconfiguración de Brevo | `brevo-code`, DKIM `brevo1/brevo2` → `dkim.brevo.com`, DMARC `p=none`. MX de Cloudflare intactos. SPF sin tocar (Brevo usa su propio dominio de rebote; DMARC alinea por DKIM) |
 | 07-10-2026 | Primer envío por Gmail «Enviar como» vía Brevo | **Rechazado**: «sender hola@ is not valid». Solo estaba dado de alta el remitente de Gmail. Se añadió hola@ como remitente |
 | 07-10-2026 | Envío tras verificar el remitente | David confirma que funciona |
-| — | Envío por API (`outreach.py send 0`) + cabeceras en david@convertix.net | pendiente de las credenciales |
+| 07-10-2026 23:03 | Envío por API (`outreach.py send 0`) a david@convertix.net | **Bandeja de entrada** (Importante). `dkim=pass header.i=@entreinteriores.com s=brevo2`, `spf=pass` (rebote de Brevo), **`dmarc=pass header.from=entreinteriores.com`**. La copia BCC llega a la Gmail personal (Recibidos) |
+| 07-10-2026 23:03 | Lo que añade Brevo | Convierte el texto en HTML y mete un **píxel de seguimiento de aperturas** (`sendibt2.com/tr/op`) y cabeceras `List-Unsubscribe`. El enlace al estudio sale LIMPIO (no reescrito). Pendiente: desactivar el seguimiento en Brevo antes de escribir a prensa |
 
 ## Mandar desde Claude: `api/scripts/pr/outreach.py`
 
