@@ -82,11 +82,18 @@ la copia reenviada de un correo que tú mismo enviaste y parece que falla).
 | 07-10-2026 | Envío tras verificar el remitente | David confirma que funciona |
 | 07-10-2026 23:03 | Envío por API (`outreach.py send 0`) a david@convertix.net | **Bandeja de entrada** (Importante). `dkim=pass header.i=@entreinteriores.com s=brevo2`, `spf=pass` (rebote de Brevo), **`dmarc=pass header.from=entreinteriores.com`**. La copia BCC llega a la Gmail personal (Recibidos) |
 | 07-10-2026 23:03 | Lo que añade Brevo | Convierte el texto en HTML y mete un **píxel de seguimiento de aperturas** (`sendibt2.com/tr/op`) y cabeceras `List-Unsubscribe`. El enlace al estudio sale LIMPIO (no reescrito). Pendiente: desactivar el seguimiento en Brevo antes de escribir a prensa |
+| 07-10-2026 23:08 | API con cabeceras `X-Mailin-Track*: 0` | Las cabeceras llegan, **el píxel sigue** |
+| 07-10-2026 23:11 | SMTP de Brevo, MIME solo `text/plain` | Brevo lo **reescribe a `text/html` con píxel**. No hay ajuste en la cuenta para quitarlo (Transactional › Configuration no tiene opción). Con Brevo no se puede mandar sin píxel |
+| 07-10-2026 23:27 | **Resend** (API, solo `text`), dominio verificado en eu-west-1 | **Bandeja de entrada** (Importante). `Content-Type: text/plain`, **sin píxel, sin List-Unsubscribe**, enlace limpio. `dkim=pass d=entreinteriores.com s=resend`, `spf=pass` (rebote `rsend.entreinteriores.com`), **`dmarc=pass`**. BCC en la Gmail personal (Recibidos + Enviados). **Es el canal que se usa** |
 
-## Mandar desde Claude: `api/scripts/pr/outreach.py`
+## Mandar desde Claude: `api/scripts/pr/outreach.py` (por Resend)
+
+Resend, no Brevo: Brevo mete un píxel de aperturas por cualquier vía (ver tabla). En Resend
+el seguimiento solo existe si se da de alta un subdominio de enlaces, y no se ha hecho. Los
+registros de Resend viven en `resend._domainkey` y `send.` y no tocan los MX del reenvío.
 
 Corre en el host, no en docker. Credenciales en `~/.config/correo-personal/credenciales.env`
-(`BREVO_API_KEY` y `GMAIL_APP_PASSWORD`), que solo se usan desde RobeLyrics y Privado: lo
+(`RESEND_API_KEY` y `GMAIL_APP_PASSWORD`; las de Brevo quedan de reserva), que solo se usan desde RobeLyrics y Privado: lo
 vigila el hook global `proteger-correo-personal.py`.
 
 ```bash
@@ -97,8 +104,8 @@ python3 -I api/scripts/pr/outreach.py replies       # respuestas a hola@, en sol
 python3 -I api/scripts/pr/outreach.py followups     # mandados hace ≥7 días sin respuesta
 ```
 
-- Sale en **texto plano** con BCC a hola@: Brevo no reescribe los enlaces y la copia llega
-  a la Gmail como si se hubiera mandado desde ella.
+- Sale en **texto plano**, sin seguimiento, con BCC a hola@: la copia llega a la Gmail como
+  si se hubiera mandado desde ella.
 - No manda dos veces, ni a un `n/d`, ni sin `--yes`.
 - `replies` abre el buzón con `EXAMINE` y lee con `BODY.PEEK`: no marca nada como leído.
 - La verdad es `data/estudio/outreach.csv` (no versionado). La fila **0** es una prueba a

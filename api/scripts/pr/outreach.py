@@ -1,4 +1,4 @@
-"""Outreach del estudio: manda desde hola@ por Brevo y lee las respuestas por IMAP.
+"""Outreach del estudio: manda desde hola@ por Resend y lee las respuestas por IMAP.
 
 Corre en el HOST, no en docker (la clave nunca entra en un contenedor ni en la imagen):
 
@@ -15,8 +15,10 @@ Reglas que el script hace cumplir, no solo documenta:
   · Cada `send` es UN destinatario y exige `--yes`: la aprobación es uno a uno, en el
     chat, y nunca hay un «mandar todos».
   · No se manda dos veces: si «Mandado (fecha)» tiene valor, se niega.
-  · Solo texto plano: sin HTML, Brevo no reescribe los enlaces con su seguimiento y el
-    periodista copia la URL limpia (que es el backlink que se busca).
+  · Solo texto plano y SIN seguimiento: el correo llega como lo escribiría una persona y
+    el enlace llega limpio (es el backlink que se busca). Por eso Resend y no Brevo:
+    Brevo convierte el texto en HTML y mete un píxel de aperturas por cualquier vía
+    (API, SMTP, cabeceras X-Mailin-Track a 0). Medido el 07-10-2026.
   · La lectura es de SOLO LECTURA (`EXAMINE`): no marca nada como leído ni lo mueve.
 """
 from __future__ import annotations
@@ -41,10 +43,10 @@ CSV_PATH = REPO / "data" / "estudio" / "outreach.csv"
 CREDENCIALES = Path.home() / ".config" / "correo-personal" / "credenciales.env"
 
 REMITENTE = {"name": "David Ruiz · Entre Interiores", "email": "hola@entreinteriores.com"}
-BREVO_URL = "https://api.brevo.com/v3/smtp/email"
-EXTRA = ["ID", "Brevo messageId", "Última comprobación"]
+RESEND_URL = "https://api.resend.com/emails"
+EXTRA = ["ID", "messageId", "Última comprobación"]
 DIAS_INSISTENCIA = 7
-# El Python de python.org en macOS no trae CA raíz: sin esto, Brevo falla con
+# El Python de python.org en macOS no trae CA raíz: sin esto, HTTPS falla con
 # CERTIFICATE_VERIFY_FAILED, y `imaplib` sin contexto propio NO verifica el
 # certificado del servidor. Se usa el almacén del sistema y se verifica siempre.
 _CA_SISTEMA = Path("/etc/ssl/cert.pem")
@@ -155,26 +157,27 @@ def cmd_send(args) -> int:
         sys.exit(f"no se manda: {motivo}")
 
     nombre = f["Persona"] if f["Persona"] and not f["Persona"].startswith("Redacción") else None
-    destino = {"email": f["Email"], **({"name": nombre} if nombre else {})}
+    remitente = email.utils.formataddr((REMITENTE["name"], REMITENTE["email"]))
     payload = {
-        "sender": REMITENTE,
-        "to": [destino],
-        "bcc": [{"email": REMITENTE["email"]}],
-        "replyTo": REMITENTE,
+        "from": remitente,
+        "to": [email.utils.formataddr((nombre, f["Email"])) if nombre else f["Email"]],
+        "bcc": [REMITENTE["email"]],
+        "reply_to": remitente,
         "subject": f["Asunto"],
-        "textContent": f["Cuerpo"],
-        "tags": ["outreach-estudio-repertorio"],
+        # Solo `text`, sin `html`: Resend no rastrea si no se activa en el dominio, y
+        # sin HTML no hay nada que reescribir.
+        "text": f["Cuerpo"],
     }
     req = urllib.request.Request(
-        BREVO_URL,
+        RESEND_URL,
         data=json.dumps(payload).encode("utf-8"),
         headers={
-            "api-key": credencial("BREVO_API_KEY"),
+            "authorization": f"Bearer {credencial('RESEND_API_KEY')}",
             "content-type": "application/json",
-            "accept": "application/json",
-            # El UA por defecto («Python-urllib») lo bloquea Cloudflare con un 1010.
-            # Se identifica tal cual, sin hacerse pasar por un navegador.
+            # Identificarse tal cual; el UA por defecto de urllib lo bloquea Cloudflare.
             "user-agent": "entreinteriores-outreach/1.0 (+https://entreinteriores.com)",
+            # Si la red corta tras enviar y se reintenta, Resend no lo manda dos veces.
+            "idempotency-key": f"outreach-{f['ID']}-{f['Email']}",
         },
         method="POST",
     )
@@ -182,12 +185,12 @@ def cmd_send(args) -> int:
         with urllib.request.urlopen(req, timeout=30, context=TLS) as resp:
             cuerpo = json.loads(resp.read() or b"{}")
     except urllib.error.HTTPError as e:
-        sys.exit(f"Brevo respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
+        sys.exit(f"Resend respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
 
     f["Mandado (fecha)"] = date.today().isoformat()
-    f["Brevo messageId"] = cuerpo.get("messageId", "")
+    f["messageId"] = cuerpo.get("id", "")
     escribir(cols, filas)
-    print(f"mandado a {f['Email']} · messageId {f['Brevo messageId']}")
+    print(f"mandado a {f['Email']} · messageId {f['messageId']}")
     return 0
 
 
