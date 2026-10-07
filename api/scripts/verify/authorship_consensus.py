@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 
 from sqlalchemy import select
 
@@ -25,6 +26,7 @@ from app.db.session import SessionLocal
 from app.services import consensus as mcv
 from app.services import curated_overrides as co
 from app.services.consensus import SourceRef
+from app.services.kw_normalize import strip_title_suffix
 from app.services.lyric_guard import best_ratio, normalize
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -45,11 +47,55 @@ def _resolve_song(db, title: str, album_slug: str | None) -> Song | None:
     return best if best_r >= 0.75 else None
 
 
-def _web_source(claim: str, author: str) -> SourceRef | None:
-    """Señal Wikipedia/Google para el claim de autoría."""
+# Títulos de obra citados entre comillas en la nota de la hipótesis. Son la mejor
+# palabra clave que hay: «Los encuentros de un caracol aventurero» aterriza en el
+# documento exacto, mientras que buscar «Lorca» devuelve a Lorca entero.
+_OBRA_CITADA = re.compile(r"[«\"']([^»\"']{8,70})[»\"']")
+
+
+def _consultas_autoria(titulo: str, autor: str, nota: str = "") -> list[str]:
+    """Consultas de BÚSQUEDA, de la más precisa a la más amplia.
+
+    Son DOS y no una porque afinar una sola me hizo oscilar: con el título de la
+    obra entre comillas se verificaba «Puta» → Lorca («Los encuentros de un
+    caracol aventurero» aterriza en el documento exacto) pero se caía
+    «Te juzgarán…» → Marcos Ana; quitándole las comillas pasaba lo contrario.
+    No hay una forma óptima para los dos casos, así que se prueban en orden y la
+    primera que encuentre evidencia gana.
+
+    El título de la canción va siempre SIN su sufijo desambiguador: el catálogo
+    guarda «Caballero andante (¡No me dejéis asíii!)» y nadie lo escribe así.
+    """
+    base = f'"{strip_title_suffix(titulo)}" "{autor}"'
+    # Del paréntesis de la nota solo vale lo que parece un TÍTULO de obra. Un
+    # verso citado no sirve como frase exacta: «No me levanto ni me acuesto día /
+    # que malvado cien veces no haya sido» no aparece escrito así en ninguna parte.
+    obras = [
+        o.strip() for o in _OBRA_CITADA.findall(nota or "")
+        if "/" not in o and len(o) <= 45 and o.lower() not in titulo.lower()
+    ]
+    if obras:
+        return [
+            f'{base} "{obras[0]}" Extremoduro Robe',   # precisa
+            f'{base} {obras[0]} Extremoduro Robe',     # amplia
+        ]
+    return [f'{base} poema letra Extremoduro Robe']
+
+
+def _web_source(claim: str, author: str, queries: list[str] | None = None) -> SourceRef | None:
+    """Señal Wikipedia/Google para el claim de autoría.
+
+    Prueba las consultas en orden y se queda con la primera que diga algo. Un
+    `not_found` no es una respuesta: es que la consulta no encontró nada, y por
+    eso se insiste con la siguiente antes de darse por vencido.
+    """
     from app.services.web_verify import classify_fact
 
-    res = classify_fact(claim)
+    res = {"verdict": "not_found"}
+    for q in (queries or [claim]):
+        res = classify_fact(claim, query=q)
+        if res.get("verdict") in ("supported", "contradicted"):
+            break
     verdict = res.get("verdict")
     src = (res.get("source") or "").lower()
     kind = "wikipedia" if "wiki" in src else "google_serp"
@@ -125,8 +171,12 @@ def _corpus_sources(db, song: Song, author: str) -> list[SourceRef]:
     return sources
 
 
-def verify_credit(db, song: Song, author: str, role: str) -> mcv.ConsensusResult:
-    """Consenso sobre 'el texto de esta canción es de <author>' (rol autoral)."""
+def verify_credit(db, song: Song, author: str, role: str, nota: str = "") -> mcv.ConsensusResult:
+    """Consenso sobre 'el texto de esta canción es de <author>' (rol autoral).
+
+    `nota` es la nota de la hipótesis; de ahí se saca el título del poema para
+    construir la consulta de búsqueda, que NO es la afirmación que se juzga.
+    """
     claim = (
         f"El texto de la canción «{song.title}» de Extremoduro es un poema/letra "
         f"escrito por {author} (no compuesto líricamente por Robe)."
@@ -136,7 +186,7 @@ def verify_credit(db, song: Song, author: str, role: str) -> mcv.ConsensusResult
     fan = SourceRef(name="fan (feedback)", source_kind="fan_feedback",
                     stance="supports", value=author)
     sources = [fan]
-    web = _web_source(claim, author)
+    web = _web_source(claim, author, _consultas_autoria(song.title, author, nota))
     if web:
         sources.append(web)
     sources.extend(_corpus_sources(db, song, author))
@@ -195,10 +245,22 @@ def process(db, entry: dict, *, apply: bool) -> None:
     # el claim ARRIESGADO es el autor del poema/letra (no "musica: Robe")
     key = next((c for c in credits if c.get("role") in ("poema_original", "letra", "adaptacion")), None)
     if not key:
+        # Antes aquí había un `return` a secas y la entrada desaparecía sin
+        # rastro: «Última Generación», cuyo único crédito es `colaboracion`, no
+        # se procesó nunca y nadie se enteró. Se intenta con el resto de roles
+        # ajenos y, si tampoco, se dice en voz alta.
+        key = next((c for c in credits
+                    if c.get("role") in ("colaboracion", "arreglos")
+                    and normalize(c.get("name", "")) not in ("robe", "roberto iniesta")), None)
+    if not key:
+        logger.warning(
+            "«%s»: ningún crédito verificable (roles presentes: %s). No se procesa.",
+            entry.get("song_title"), [c.get("role") for c in credits],
+        )
         return
     author = key["name"]
     logger.info("Verificando autoría de «%s» → %s (%s)...", song.title, author, key["role"])
-    result = verify_credit(db, song, author, key["role"])
+    result = verify_credit(db, song, author, key["role"], key.get("note") or "")
     action = mcv.decide_fan_correction(result, fan_value=author)
     ext = [s.source_kind for s in result.sources if s.stance == "supports" and s.source_kind != "fan_feedback"]
     logger.info("  veredicto=%s conf=%.2f acción=%s corroboran=%s",

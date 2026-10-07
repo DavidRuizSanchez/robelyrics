@@ -66,13 +66,25 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
               !!href &&
               /^https?:\/\//i.test(href) &&
               !/^https?:\/\/(www\.)?entreinteriores\.com(\/|$)/i.test(href);
+            // Hay fuentes cuyos términos de uso EXIGEN que el enlace de vuelta
+            // no lleve nofollow. setlist.fm lo dice literalmente: «You may not
+            // tag links to Setlist.fm with a nofollow attribute or otherwise
+            // prevent or discourage search engines from following the link».
+            // El nofollow por defecto es lo correcto para un medio que se cita;
+            // aquí incumpliría la condición con la que usamos su dato, así que
+            // va una lista blanca estrecha y no una excepción general.
+            const exigeFollow =
+              !!href && /^https?:\/\/([a-z0-9-]+\.)*(setlist\.fm|musicbrainz\.org)(\/|$)/i.test(href);
             return (
               <a
                 href={href}
                 className="text-accent underline decoration-accent/40 hover:decoration-accent transition-colors"
                 data-cursor="hover"
                 {...(isExternal
-                  ? { target: "_blank", rel: "nofollow noopener" }
+                  ? {
+                      target: "_blank",
+                      rel: exigeFollow ? "noopener" : "nofollow noopener",
+                    }
                   : {})}
               >
                 {children}
@@ -93,6 +105,47 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
           em: ({ children }) => <em className="italic text-ink">{children}</em>,
           strong: ({ children }) => (
             <strong className="font-medium text-ink">{children}</strong>
+          ),
+          // Tablas de datos. El estudio del repertorio es casi todo tablas y
+          // sin estos overrides salían con los estilos por defecto del
+          // navegador. Mismo patrón que la tabla a mano de
+          // `app/discografia/[artist]/page.tsx`: mono en minúsculas espaciadas
+          // para el encabezado, serif en el cuerpo y divisores a 0.4 de opacidad.
+          //
+          // El `overflow-x-auto` no es decorativo: el contenedor del artículo
+          // mide 680px y una tabla de cinco columnas se sale. Scrollea en vez
+          // de desbordar la página en móvil.
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-7">
+              <table className="w-full text-left border-collapse">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
+              {children}
+            </thead>
+          ),
+          tr: ({ children }) => (
+            <tr className="border-b border-divider/40">{children}</tr>
+          ),
+          // `style` llega de remark-gfm con la alineación declarada en el
+          // markdown (`|---:|`). Si no se reenvía, las columnas de cifras
+          // quedan alineadas a la izquierda y la tabla se lee mal.
+          th: ({ children, style }) => (
+            <th
+              style={style}
+              className="py-3 pr-4 font-normal border-b border-divider whitespace-nowrap"
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children, style }) => (
+            <td
+              style={style}
+              className="py-3 pr-4 font-serif text-[16px] text-ink align-top"
+            >
+              {children}
+            </td>
           ),
           hr: () => <hr className="my-10 border-divider" />,
           code: ({ children }) => (
