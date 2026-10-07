@@ -593,3 +593,52 @@ Bug propio que costó dos intentos y conviene no repetir: el selector
 `[class*="ink-cursor"]` casa con `<body class="ink-cursor-active">`, así que el
 `.remove()` **borraba el `<body>` entero** y después «no encontraba» ningún selector.
 El cursor se apaga por CSS, que no borra nodos.
+
+---
+
+## Ola 1 · reparto por la web y outreach — validación del 07-10-2026 (21:30 Madrid)
+
+### Datos por página (`web/components/estudio/datos-por-pagina.ts`)
+
+Lo genera `api/scripts/pr/build_page_data.py` con el mismo casado que el estudio
+(`catalogo` + `emparejar`) sobre `setlist_stats.json` (06-10-2026) y
+`conciertos.csv` (07-10-2026). **Se niega a escribir si no cuadra** con este ledger.
+
+| Comprobación | Esperado | Obtenido | Veredicto |
+|---|---|---|---|
+| Toques Extremoduro (suma de bloques) | 3.295 | 3.295 | CUADRA |
+| Toques Robe | 2.286 | 2.286 | CUADRA |
+| Composiciones sin registro | 11 | 11 | CUADRA |
+| Conciertos (conciertos.csv) | 591 = 459 + 132 | 591 = 459 + 132 | CUADRA |
+| Ciudades distintas | 193 | 193 (181 Extremoduro, 59 Robe, con solape) | CUADRA |
+| Fuera de España | 9 | 9 (los 23 sin país no cuentan) | CUADRA |
+| Provincia de Cáceres / Plasencia | 37 / 11 | 37 / 11 | CUADRA |
+| Títulos de TOP/ATRAS/DUMB con ficha propia | todos | 0 sin ficha | CUADRA |
+
+### Cifras nuevas que aparecen fuera del estudio (web y correos)
+
+| ID | Afirmación | Evidencia (conciertos.csv / geografia.json) | Veredicto |
+|---|---|---|---|
+| B-01 | El primer concierto documentado es en Plasencia, 19-09-1987, Torre Lucía | primera fila de `conciertos.csv` por fecha | CONFIRMADA |
+| B-02 | Plasencia: 8 Extremoduro + 3 Robe; último 09-10-2021 | filtro ciudad = Plasencia | CONFIRMADA |
+| B-03 | Extremadura: 48 conciertos en 16 localidades | provincias Cáceres + Badajoz | CONFIRMADA |
+| B-04 | Valencia, ciudad con más conciertos de Robe (6), Madrid y Barcelona 5 | `por_artista.robe` | CONFIRMADA |
+| B-05 | Provincia de Valencia 22, la cuarta de España, sin empate | `provincias` (A Coruña y Murcia 20) | CONFIRMADA |
+| B-06 | Puesto de provincia solo sin empate; en la web solo se dice si es 1.ª-3.ª | Madrid 48, Cáceres 37, Barcelona 33 | CONFIRMADA |
+| B-07 | Coliseum da Coruña, 7 conciertos, «uno de» los recintos con más | `recintos_top` (empata con Recinto Hípico de Cáceres) | CONFIRMADA |
+
+### Afirmación del press kit REFUTADA (no corregida a mano)
+
+`PRESS_KIT.md:53` y los cuatro correos de `OUTREACH_EXTREMADURA.md` decían «de las
+132 canciones que **Extremoduro** publicó». Las 132 composiciones son de Extremoduro
+**y** Robe (BD local: 34 cortes de estudio de Robe). La web siempre dijo bien «132
+composiciones del catálogo». El sheet de outreach usa la formulación correcta. Con el OK
+de David (07-10-2026) se corrigió también en `PRESS_KIT.md` y en los borradores de
+`OUTREACH_EXTREMADURA.md`: «132 composiciones del catálogo de Extremoduro y Robe».
+
+### Contactos del sheet
+
+17 emails re-verificados el 07-10-2026 descargando la página de origen (columna
+«Verificado en») y buscando la dirección literal, incluidas las ofuscadas por
+Cloudflare (decodificadas del propio HTML). 4 sin email (`n/d`). Copia local en
+`data/estudio/outreach.csv` (no versionada: emails de terceros).
