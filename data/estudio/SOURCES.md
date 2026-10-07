@@ -517,3 +517,79 @@ extracción del 6 y 7 de octubre de 2026.
 | A-33 | El relinker dominical NO se lleva el enlace al estudio | leído `relink_existing._desnudar` | solo desnuda rutas presentes en el índice del corpus (album/artist/band/concept/person/place/song/theme); `/estudios` no está | CONFIRMADA |
 | A-34 | `robe plasencia` y `extremoduro caceres` ya los tiene otra página | `seo_content` en producción | `place/plasencia → "Plasencia robe"` y `place/caceres → "Cáceres extremoduro"` | CONFIRMADA |
 | A-35 | Nada del sitio ataca `versiones de extremoduro` ni `conciertos de extremoduro` | `seo_content` + `posts`, `target_keyword ILIKE '%version%'`, `'%concierto%'`, `'%directo%'`, `'%gira%'` | los únicos resultados son 7 fichas de canción «en directo» y `ara malikian en concierto`: otra intención | CONFIRMADA |
+
+---
+
+## Press kit y outreach a Extremadura · 07-10-2026
+
+### Cifras que viajan en los correos, re-verificadas contra `datos-repertorio.ts`
+
+El fichero que se consulta es el que rinde la página publicada, así que lo que diga
+un correo y lo que vea un periodista al entrar es lo mismo. Diez afirmaciones, diez
+comprobaciones, cero descuadres.
+
+| Afirmación en el correo | Fuente | Devuelto | Veredicto |
+|---|---|---|---|
+| Cáceres, 37 conciertos | `PROV["Cáceres"].n` | 37 | CUADRA |
+| Barcelona, 33 | `PROV["Barcelona"].n` | 33 | CUADRA |
+| Madrid, 48, la única por encima | `PROV["Madrid"].n` | 48 | CUADRA |
+| Cáceres es la **segunda** provincia | ranking por `n` | Madrid 48 · **Cáceres 37** · Barcelona 33 | CUADRA |
+| Cáceres capital, 15 | `PROV["Cáceres"].ciudades[0]` | Cáceres 15 | CUADRA |
+| Plasencia, 11 | `PROV["Cáceres"].ciudades[1]` | Plasencia 11 | CUADRA |
+| Plasencia es la 2ª ciudad de su provincia | orden de `ciudades` | 2ª tras Cáceres capital | CUADRA |
+| Hervás, 3 | `PROV["Cáceres"].ciudades[2]` | Hervás 3 | CUADRA |
+| Once municipios cacereños | `PROV["Cáceres"].n_ciudades` | 11 | CUADRA |
+| Las cincuenta provincias | `len(PROV)` | 50 | CUADRA |
+
+El resumen de 150 palabras del press kit se contó: **146**. La cifra que figuraba
+antes en el documento (148) se corrigió al contarla, no se dejó aproximada.
+
+### Dataset abierto: qué entra y qué no
+
+`dataset/once-canciones-sin-registro-en-directo.csv` se publica bajo **CC BY 4.0** y
+contiene SOLO lo que es inequívocamente nuestro: las once canciones con su disco,
+año y la URL de su ficha, de la BD propia y verificado contra MusicBrainz.
+
+**Los agregados por provincia, ciudad y recinto NO se publican como fichero**, aunque
+sí se muestran en la página. Se derivan del índice de setlist.fm, cuyos términos no
+permiten retener ni redistribuir su base de datos: enseñarlos con atribución y enlace
+sin `nofollow` es la mitigación acordada; empaquetarlos como descarga bajo una
+licencia que invita a redistribuirlos es ir más lejos, y no se hace.
+
+Las 11 URLs del CSV se comprobaron una a una el 07-10-2026: **las once devuelven 200**.
+
+### Contactos de prensa: verificados en la web del medio, no en un directorio
+
+| Medio | Fuente del contacto | Verificado |
+|---|---|---|
+| Diario HOY | `hoy.es/quienes-somos.html` (7 personas con nombre, puesto y email) | sí |
+| El Periódico de Extremadura | `elperiodicoextremadura.com/quienes-somos/` | sí |
+| Plasencia Hoy | `plasenciahoy.com` | sí |
+| Diario de Plasencia | `diariodeplasencia.es` | sí |
+| Plasencia Directo | su web no publica email | **NO — no se usa** |
+| Región Digital | solo formulario, sin email | **NO — no se usa** |
+| `plasencia@hoy.es`, `caceres@hoy.es` | aparecen en resultados de búsqueda, no en hoy.es | **NO — fuera de la lista** |
+
+Un contacto que no se ha podido verificar en la web del propio medio no entra en la
+tabla de envío. El emparejamiento nombre↔email de HOY se extrajo del HTML por
+posición, no deduciéndolo de las iniciales.
+
+### Afirmaciones nuevas
+
+| ID | Afirmación | Evidencia | Veredicto |
+|---|---|---|---|
+| A-36 | Las once fichas del dataset existen y son accesibles | 11 peticiones HTTP, 11 respuestas 200, 07-10-2026 | CONFIRMADA |
+| A-37 | El catálogo escribe «Llego» sin tilde en «Adiós Abanico, Que Llego el Aire» | `songs.title` del slug `adios-abanico-que-llego-el-aire` | CONFIRMADA — errata abierta, se corrige por el circuito, no a mano |
+| A-38 | Dos de las once no casan por título con el catálogo | «Adiós Abanico…» (tilde) y «Caballero andante (¡No me dejéis asíii!)» (sufijo); por eso el CSV casa por slug | CONFIRMADA |
+
+### Imágenes de prensa
+
+Capturadas de la URL pública el 07-10-2026 con Playwright, a 2x. Se rechaza el
+banner de cookies, se oculta la cabecera pegajosa y se apaga el InkCursor antes de
+disparar. **No se usa `full_page`**: la página mide 32.466 px de alto y esa tira no
+la publica ninguna redacción.
+
+Bug propio que costó dos intentos y conviene no repetir: el selector
+`[class*="ink-cursor"]` casa con `<body class="ink-cursor-active">`, así que el
+`.remove()` **borraba el `<body>` entero** y después «no encontraba» ningún selector.
+El cursor se apaga por CSS, que no borra nodos.
