@@ -168,6 +168,10 @@ def cmd_send(args) -> int:
         # sin HTML no hay nada que reescribir.
         "text": f["Cuerpo"],
     }
+    if args.at:
+        # Resend lo guarda y lo manda a esa hora; hasta entonces se puede cancelar
+        # desde su panel (Emails › el correo › Cancel).
+        payload["scheduled_at"] = args.at
     req = urllib.request.Request(
         RESEND_URL,
         data=json.dumps(payload).encode("utf-8"),
@@ -187,10 +191,11 @@ def cmd_send(args) -> int:
     except urllib.error.HTTPError as e:
         sys.exit(f"Resend respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
 
-    f["Mandado (fecha)"] = date.today().isoformat()
+    f["Mandado (fecha)"] = args.at[:16].replace("T", " ") if args.at else date.today().isoformat()
     f["messageId"] = cuerpo.get("id", "")
     escribir(cols, filas)
-    print(f"mandado a {f['Email']} · messageId {f['messageId']}")
+    accion = f"programado para {args.at}" if args.at else "mandado"
+    print(f"{accion} a {f['Email']} · messageId {f['messageId']}")
     return 0
 
 
@@ -268,7 +273,7 @@ def cmd_followups(_args) -> int:
     for f in filas:
         if not f["Mandado (fecha)"] or f.get("Respuesta"):
             continue
-        enviado = datetime.strptime(f["Mandado (fecha)"], "%Y-%m-%d").date()
+        enviado = datetime.strptime(f["Mandado (fecha)"][:10], "%Y-%m-%d").date()
         if hoy - enviado < timedelta(days=DIAS_INSISTENCIA):
             continue
         hay = True
@@ -291,6 +296,7 @@ def main() -> int:
     s = sub.add_parser("send")
     s.add_argument("id")
     s.add_argument("--yes", action="store_true")
+    s.add_argument("--at", help="programarlo en Resend, ISO 8601 con zona: 2026-10-08T06:00:00+02:00")
     s.set_defaults(fn=cmd_send)
     r = sub.add_parser("replies")
     r.add_argument("--dias", type=int, default=60)
