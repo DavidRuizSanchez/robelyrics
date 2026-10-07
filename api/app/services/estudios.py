@@ -23,8 +23,9 @@ que anunciarlo tarde.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,7 @@ class Estudio:
         correo: de ahí la regla de dar de alta la entrada solo con la página ya
         desplegada.
         """
-        return datetime.combine(self.publicado, datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.combine(self.publicado, datetime.min.time(), tzinfo=UTC)
 
 
 ESTUDIOS: tuple[Estudio, ...] = (
@@ -68,6 +69,10 @@ ESTUDIOS: tuple[Estudio, ...] = (
 ESTUDIO_SLUGS: frozenset[str] = frozenset(e.slug for e in ESTUDIOS)
 
 
+def _mas_nuevos_primero(estudios: Iterable[Estudio]) -> list[Estudio]:
+    return sorted(estudios, key=lambda e: e.publicado, reverse=True)
+
+
 def pendientes_desde(desde: datetime | None) -> list[Estudio]:
     """Estudios publicados después de `desde`, los más nuevos primero.
 
@@ -76,7 +81,5 @@ def pendientes_desde(desde: datetime | None) -> list[Estudio]:
     tenemos para enseñarle.
     """
     if desde is None:
-        elegidos = list(ESTUDIOS)
-    else:
-        elegidos = [e for e in ESTUDIOS if e.publicado_utc > desde]
-    return sorted(elegidos, key=lambda e: e.publicado, reverse=True)
+        return _mas_nuevos_primero(ESTUDIOS)
+    return _mas_nuevos_primero(e for e in ESTUDIOS if e.publicado_utc > desde)

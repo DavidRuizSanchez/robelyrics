@@ -13,7 +13,7 @@ dentro.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -36,21 +36,21 @@ def solo_uno(monkeypatch):
 
 
 def test_entra_si_se_publico_despues_del_ultimo_envio(solo_uno):
-    envio_anterior = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
+    envio_anterior = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
     assert pendientes_desde(envio_anterior) == [UNO]
 
 
 def test_no_se_repite_en_el_envio_siguiente(solo_uno):
     # El domingo de después: el estudio ya se anunció y no vuelve.
-    envio_posterior = datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc)
+    envio_posterior = datetime(2026, 10, 11, 12, 0, tzinfo=UTC)
     assert pendientes_desde(envio_posterior) == []
 
 
 def test_el_dia_exacto_del_envio_no_lo_duplica(solo_uno):
     # `publicado_utc` es medianoche, así que un envío del mismo día a las 12:00 lo
     # incluye una vez y el de la semana siguiente ya no.
-    assert pendientes_desde(datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)) == []
-    assert pendientes_desde(datetime(2026, 10, 6, 23, 59, tzinfo=timezone.utc)) == [UNO]
+    assert pendientes_desde(datetime(2026, 10, 7, 12, 0, tzinfo=UTC)) == []
+    assert pendientes_desde(datetime(2026, 10, 6, 23, 59, tzinfo=UTC)) == [UNO]
 
 
 def test_un_suscriptor_nuevo_recibe_todos(solo_uno):
