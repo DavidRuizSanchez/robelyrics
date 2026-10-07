@@ -211,8 +211,19 @@ def cmd_replies(args) -> int:
     imap = imaplib.IMAP4_SSL("imap.gmail.com")
     imap.login(credencial("GMAIL_USER"), credencial("GMAIL_APP_PASSWORD"))
     try:
-        # EXAMINE = solo lectura: nada cambia de estado en el buzón.
-        imap.select('"[Gmail]/All Mail"', readonly=True)
+        # La carpeta «Todos» cambia de nombre con el idioma de Gmail («[Gmail]/All Mail»,
+        # «[Gmail]/Todos»…): se busca por su atributo \All, no por el nombre.
+        _, carpetas = imap.list()
+        todos = next(
+            (c.decode().rsplit(' "/" ', 1)[-1] for c in carpetas or [] if b"\\All" in c),
+            None,
+        )
+        if not todos:
+            sys.exit("no encuentro la carpeta de todos los mensajes (atributo \\All)")
+        # readonly=True manda EXAMINE: nada cambia de estado en el buzón.
+        typ, _ = imap.select(todos, readonly=True)
+        if typ != "OK":
+            sys.exit(f"no se pudo abrir {todos}")
         consulta = (f"to:hola@entreinteriores.com -from:hola@entreinteriores.com "
                     f"newer_than:{args.dias}d")
         typ, data = imap.search(None, "X-GM-RAW", f'"{consulta}"')
