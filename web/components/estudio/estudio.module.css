@@ -356,3 +356,9 @@
 @media (prefers-reduced-motion: reduce) {
   .estudio * { transition: none !important }
 }
+
+/* Las secciones que reciben enlaces desde otras fichas (#once, #mapa…): sin
+   margen, la cabecera pegajosa tapa el titular al aterrizar. */
+.ancla {
+  scroll-margin-top: 96px;
+}

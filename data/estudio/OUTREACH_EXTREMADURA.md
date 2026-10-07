@@ -1,5 +1,9 @@
 # Outreach · Prensa de Extremadura
 
+**SUPERADO por el sheet de outreach** (`outreach.csv` / Google Sheet, 07-10-2026),
+que lleva estos cuatro reescritos con firma hola@ y once medios más. Se conserva
+por los contactos y el método.
+
 **Estado: BORRADORES. No se ha mandado ni un correo.** Los escribe David y los
 manda David, desde su cuenta. Aquí están el gancho, los contactos verificados y el
 texto para que los revise, los recorte y les meta su voz.
@@ -91,8 +95,8 @@ Dos cosas por si os sirve:
   conciertos de Extremoduro, y lo decimos en la propia página.
 - Tengo el mapa en PNG a 2000 px, listo para publicar, y te lo paso si lo quieres.
 
-El estudio trae además otro hallazgo: de las 132 canciones que Extremoduro publicó
-en disco, hay **once de las que no consta que sonaran nunca en directo**.
+El estudio trae además otro hallazgo: de las 132 composiciones del catálogo de Extremoduro
+y Robe, hay **once de las que no consta que sonaran nunca en directo**.
 
 Cualquier cosa que necesites —un dato suelto, el desglose por municipios, una
 declaración—, dímelo y te lo mando.
@@ -127,8 +131,8 @@ https://entreinteriores.com/estudios/repertorio-en-directo-extremoduro-robe
 Lleva publicados el método, las fuentes y los límites de lo que puede afirmarse.
 Tengo el mapa en PNG a 2000 px si os encaja, y el desglose municipio a municipio.
 
-Y un segundo hallazgo por si os interesa más: de las 132 canciones que Extremoduro
-publicó en disco, **once no consta que llegaran a sonar en directo**.
+Y un segundo hallazgo por si os interesa más: de las 132 composiciones del catálogo de
+Extremoduro y Robe, **once no consta que llegaran a sonar en directo**.
 
 Quedo a vuestra disposición para lo que necesitéis.
 
@@ -156,8 +160,8 @@ provincia, es **la segunda de España con 37**, por delante de Barcelona.
 El estudio:
 https://entreinteriores.com/estudios/repertorio-en-directo-extremoduro-robe
 
-Trae además un hallazgo del que quizá os apetezca tirar: de las 132 canciones que
-Extremoduro publicó en disco, **once no consta que sonaran nunca en un escenario**,
+Trae además un hallazgo del que quizá os apetezca tirar: de las 132 composiciones del
+catálogo de Extremoduro y Robe, **once no consta que sonaran nunca en un escenario**,
 entre ellas «Cerca del suelo» y «Luce la oscuridad».
 
 Tengo material gráfico listo para publicar y el detalle de las once con su disco y
@@ -187,7 +191,7 @@ de Madrid.
 Aquí está, con el mapa de las cincuenta provincias:
 https://entreinteriores.com/estudios/repertorio-en-directo-extremoduro-robe
 
-Y el otro hallazgo: de las 132 canciones que Extremoduro publicó en disco, **once
+Y el otro hallazgo: de las 132 composiciones del catálogo de Extremoduro y Robe, **once
 no consta que llegaran a sonar en directo**.
 
 El método, las fuentes y los límites de los datos están publicados en la propia

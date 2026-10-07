@@ -50,8 +50,8 @@ El estudio publica su método, sus fuentes y lo que sus datos no permiten afirma
 | Conciertos fuera de España | 9 |
 | Versos del catálogo · cuántos son repetición | 6.078 · 30,3 % |
 
-**Si solo se cita un dato, que sea este:** de las 132 canciones que Extremoduro
-publicó en disco, **once no consta que sonaran nunca en un escenario**.
+**Si solo se cita un dato, que sea este:** de las 132 composiciones del
+catálogo de Extremoduro y Robe, **once no consta que sonaran nunca en un escenario**.
 
 **Para prensa de Extremadura:** **Cáceres es la segunda provincia de España** en
 conciertos documentados de Extremoduro y Robe, con 37, por delante de Barcelona
