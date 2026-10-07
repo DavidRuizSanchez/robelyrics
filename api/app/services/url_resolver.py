@@ -47,6 +47,8 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.services.estudios import ESTUDIO_SLUGS
+
 logger = logging.getLogger(__name__)
 
 # Dominio propio: el LLM a veces escribe la URL absoluta en vez de la ruta.
@@ -73,18 +75,14 @@ STATIC_PATHS: frozenset[str] = frozenset({
     "/reset-password", "/verificar-email", "/biblioteca", "/estudios",
 })
 
-# Los estudios NO viven en la BD: son páginas con su dataset y su componente, y
-# su registro está en `web/lib/estudios.ts`. Sin esta lista, `guard_internal_links`
-# daba el enlace por inventado y lo DESENLAZABA en silencio (medido el 07-10-2026:
-# el enlace del post al estudio desaparecía al republicar). Mismo caso que /sellos
-# y /libros en el relinker dominical: una guarda que solo conoce la BD se lleva por
-# delante lo que la BD no modela.
+# Los estudios NO viven en la BD: son páginas con su dataset y su componente. Sin
+# conocerlos, `guard_internal_links` daba el enlace por inventado y lo DESENLAZABA
+# en silencio (medido el 07-10-2026: el enlace del post al estudio desaparecía al
+# republicar). Mismo caso que /sellos y /libros en el relinker dominical: una
+# guarda que solo conoce la BD se lleva por delante lo que la BD no modela.
 #
-# Los dos idiomas tienen que decir lo mismo: `test_estudios_rutas.py` lee el
-# fichero TS y comprueba que esta lista coincide.
-ESTUDIO_SLUGS: frozenset[str] = frozenset({
-    "repertorio-en-directo-extremoduro-robe",
-})
+# La lista vive en `app.services.estudios`, que explica por qué está duplicada
+# respecto a `web/lib/estudios.ts` y quién vigila que no divergan.
 
 # Enlaces markdown `](/ruta)` y HTML `<a href="/ruta">`.
 _MD_LINK_RE = re.compile(r"\]\((\S+?)\)")

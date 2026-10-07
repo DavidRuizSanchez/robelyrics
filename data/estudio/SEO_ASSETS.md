@@ -128,8 +128,8 @@ y poco cuerpo es una página delgada:
 
 | Dato | Fuente | Periodo / filtro | Consultado |
 |---|---|---|---|
-| Volúmenes de los 33 términos | Ahrefs Keywords Explorer (`keywords-explorer-overview`) | país `es` | 07-10-2026 |
-| `target_keyword` de 27 posts publicados | `posts` en producción | `status='published'` | 07-10-2026 |
+| Volúmenes de los 39 términos | Ahrefs Keywords Explorer (`keywords-explorer-overview`) | país `es` | 07-10-2026 |
+| `target_keyword` de los 26 posts publicados | `posts` en producción | `status='published'` | 07-10-2026 |
 | `target_keyword` de fichas SEO | `seo_content` en producción | `published is true` | 07-10-2026 |
 | 102 consultas geográficas y sus páginas | `data/gsc_page_queries.json` | `sc-domain:entreinteriores.com`, 10-07-2026 → 02-10-2026 | 07-10-2026 |
 | Interpretaciones de «Versiones y otros» | `data/estudio/SOURCES.md` (ver ledger) | 591 setlists, 1987-2024 | 06/07-10-2026 |
