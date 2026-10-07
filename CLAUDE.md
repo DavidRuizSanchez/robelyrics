@@ -966,6 +966,35 @@ los agregados por provincia **no se publican como fichero descargable** aunque s
 muestren en la página — mostrarlos con atribución es la mitigación acordada,
 empaquetarlos bajo CC BY es ir más lejos.
 
+### El estudio también vive en las fichas
+
+Las fichas de artista, lugar, disco y canción pintan su dato de directo («En directo»)
+desde `web/components/estudio/datos-por-pagina.ts`, que **genera**
+`api/scripts/pr/build_page_data.py` con el mismo casado que el estudio. No se edita a
+mano y el dato **no entra en la BD**: si cambia el estudio, se regenera. El script se
+niega a escribir si los toques no suman 3.295 / 2.286 o las sin registro no son 11.
+Cada ficha enlaza al estudio una vez y solo si el estudio habla de ella, a su sección
+(`#once`, `#mapa`, `#legado`…). Toques por canción en TODAS las fichas: decisión de
+David (07-10-2026), sabiendo que va más allá de la mitigación de setlist.fm.
+
+## Outreach: se manda desde hola@ por Resend, nunca con píxel
+
+`api/scripts/pr/outreach.py` (`list` / `preview` / `send --yes [--at]` / `replies` /
+`followups`) corre en el **host**, no en docker, con las credenciales de
+`~/.config/correo-personal/`, que solo se usan desde este proyecto y Privado (lo vigila
+un hook global). La verdad es `data/estudio/outreach.csv` (no versionado: emails de
+terceros). Cada envío, con el OK de David.
+
+Va por **Resend** y no por Brevo, medido: Brevo reescribe cualquier correo a HTML y le
+mete un píxel de aperturas y un `List-Unsubscribe` por la API, por SMTP y con las
+cabeceras `X-Mailin-Track` a 0. A una redacción se le escribe como una persona. Las dos
+quedan con DKIM/DMARC del dominio (`resend._domainkey`, `brevo1/2._domainkey`) y los MX
+del reenvío de hola@ (Cloudflare Email Routing) no se tocan.
+
+Un correo de outreach **no afirma fuentes que no se usaron**: los conciertos salen de
+setlist.fm; Wikipedia ES solo se cotejó con las giras de Robe y los blogs de fans de
+`FUENTES_CONCIERTOS.md` están localizados pero no incorporados.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
