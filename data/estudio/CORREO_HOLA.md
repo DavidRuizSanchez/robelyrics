@@ -73,10 +73,32 @@ la copia reenviada de un correo que tú mismo enviaste y parece que falla).
   `dmarc=pass`. Que llegue a Bandeja de entrada, no a Correo no deseado.
 - Responder a ese correo desde Outlook y comprobar que la respuesta llega a la Gmail.
 
-## Resultado de la prueba
+## Resultado
 
 | Fecha | Prueba | Resultado |
 |---|---|---|
-| — | regla de reenvío | pendiente |
-| — | mail-tester | pendiente |
-| — | cabeceras en Outlook | pendiente |
+| 07-10-2026 | DNS tras la autoconfiguración de Brevo | `brevo-code`, DKIM `brevo1/brevo2` → `dkim.brevo.com`, DMARC `p=none`. MX de Cloudflare intactos. SPF sin tocar (Brevo usa su propio dominio de rebote; DMARC alinea por DKIM) |
+| 07-10-2026 | Primer envío por Gmail «Enviar como» vía Brevo | **Rechazado**: «sender hola@ is not valid». Solo estaba dado de alta el remitente de Gmail. Se añadió hola@ como remitente |
+| 07-10-2026 | Envío tras verificar el remitente | David confirma que funciona |
+| — | Envío por API (`outreach.py send 0`) + cabeceras en david@convertix.net | pendiente de las credenciales |
+
+## Mandar desde Claude: `api/scripts/pr/outreach.py`
+
+Corre en el host, no en docker. Credenciales en `~/.config/correo-personal/credenciales.env`
+(`BREVO_API_KEY` y `GMAIL_APP_PASSWORD`), que solo se usan desde RobeLyrics y Privado: lo
+vigila el hook global `proteger-correo-personal.py`.
+
+```bash
+python3 -I api/scripts/pr/outreach.py list          # estado de las 22 filas
+python3 -I api/scripts/pr/outreach.py preview 1     # el correo exacto que saldría
+python3 -I api/scripts/pr/outreach.py send 1 --yes  # SOLO con el OK de David a ese correo
+python3 -I api/scripts/pr/outreach.py replies       # respuestas a hola@, en solo lectura
+python3 -I api/scripts/pr/outreach.py followups     # mandados hace ≥7 días sin respuesta
+```
+
+- Sale en **texto plano** con BCC a hola@: Brevo no reescribe los enlaces y la copia llega
+  a la Gmail como si se hubiera mandado desde ella.
+- No manda dos veces, ni a un `n/d`, ni sin `--yes`.
+- `replies` abre el buzón con `EXAMINE` y lee con `BODY.PEEK`: no marca nada como leído.
+- La verdad es `data/estudio/outreach.csv` (no versionado). La fila **0** es una prueba a
+  david@convertix.net con el texto literal del correo a HOY.
