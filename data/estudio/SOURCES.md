@@ -469,3 +469,51 @@ atribuciones comprobadas. Se deja constancia para que no vuelvan a colarse:
    `youtube_id`.
 4. **`album_tracks`** no cubre *Iros todos a tomar por culo* (1997), que es
    `kind='live'` y tiene filas `songs` propias — de ahí la reconciliación V-04.
+
+---
+
+## Validación de cierre de la sección `/estudios` · 07-10-2026
+
+La infografía se publica como página del sitio
+(`/estudios/repertorio-en-directo-extremoduro-robe`). **Ninguna cifra ha cambiado**
+respecto a la versión ya validada arriba: el texto es el mismo, y lo único que se ha
+tocado es (a) el sello del pie, que decía «Borrador del 6 de octubre de 2026, no
+publicado», (b) el aviso «boceto · datos verificados» de la cabecera, los dos
+retirados al publicar, y (c) el tooltip del mapa, que ahora dice «y N más» cuando una
+provincia tiene más ciudades de las tres que lista.
+
+Cifras citadas en `SEO_ASSETS.md` que salen de este estudio, re-verificadas contra
+`web/components/estudio/datos-repertorio.ts`, que es el fichero que rinde la página:
+
+| Cifra afirmada | Dónde se afirma | Fuente re-consultada | Valor devuelto | Veredicto |
+|---|---|---|---|---|
+| Versiones en Extremoduro: 170 (5,2 %) | SEO_ASSETS.md A-2 | `DISCO_E` | 170 · 5.2 | CUADRA |
+| Versiones en Robe: 667 (29,2 %) | SEO_ASSETS.md A-2 | `DISCO_R` | 667 · 29.2 | CUADRA |
+| Cáceres, 37 conciertos | SEO_ASSETS.md A-1 | `PROV["Cáceres"].n` | 37 | CUADRA |
+| Barcelona, 33 conciertos | SEO_ASSETS.md A-1 | `PROV["Barcelona"].n` | 33 | CUADRA |
+| Madrid, 48 (la única por encima) | infografía, sección del mapa | `PROV["Madrid"].n` | 48 | CUADRA |
+| Plasencia, 11 conciertos | SEO_ASSETS.md A-1 | `PROV["Cáceres"].ciudades` | 11 | CUADRA |
+
+Cifras nuevas de `SEO_ASSETS.md`, con su fuente y su comprobación:
+
+| Cifra | Fuente | Filtro | Comprobado | Veredicto |
+|---|---|---|---|---|
+| 39 términos consultados, 13 a 0 búsquedas | Ahrefs Keywords Explorer | país `es` | 07-10-2026 | CUADRA |
+| `robe plasencia` 200/mes · `letras de extremoduro` 150 · `extremoduro caceres` 30 · `versiones de extremoduro` 10 | Ahrefs | país `es` | 07-10-2026 | CUADRA |
+| 26 posts publicados | `posts` en producción | `status='published'` | 07-10-2026 | CUADRA |
+| 0 consultas con «concierto», «gira» o «en directo» en el GSC propio | `data/gsc_page_queries.json` | `sc-domain:entreinteriores.com`, 10-07-2026 → 02-10-2026 | 07-10-2026 | CUADRA |
+| `primer disco de extremoduro` lo pelean 3 páginas (20 / 12 / 9 impresiones) | mismo fichero de GSC | mismo periodo | 07-10-2026 | CUADRA |
+
+**No validado:** nada. Las cifras de setlist.fm no se han vuelto a descargar en esta
+pasada porque ninguna ha cambiado y su validación consta arriba, con la hora de la
+extracción del 6 y 7 de octubre de 2026.
+
+### Afirmaciones nuevas de esta pasada
+
+| ID | Afirmación | Cómo se comprueba | Evidencia | Veredicto |
+|---|---|---|---|---|
+| A-31 | Las marcas de los gráficos y el texto no pueden llevar el mismo granate | `dataviz/scripts/validate_palette.js` sobre `#0d0b0a` | `#e85050`+`#b08a2a` → FAIL, ΔE 2,8 deutan. `#a83a3a`+`#b08a2a` → los cinco checks PASS, ΔE 15,2 deutan / 20,1 normal | CONFIRMADA |
+| A-32 | `guard_internal_links` desenlazaba el enlace al estudio | ejecutada la guarda sobre un cuerpo con los tres enlaces | antes: `unlinked: ['/estudios/repertorio-en-directo-extremoduro-robe']`. Después: solo `['/estudios/inventado']` | CONFIRMADA |
+| A-33 | El relinker dominical NO se lleva el enlace al estudio | leído `relink_existing._desnudar` | solo desnuda rutas presentes en el índice del corpus (album/artist/band/concept/person/place/song/theme); `/estudios` no está | CONFIRMADA |
+| A-34 | `robe plasencia` y `extremoduro caceres` ya los tiene otra página | `seo_content` en producción | `place/plasencia → "Plasencia robe"` y `place/caceres → "Cáceres extremoduro"` | CONFIRMADA |
+| A-35 | Nada del sitio ataca `versiones de extremoduro` ni `conciertos de extremoduro` | `seo_content` + `posts`, `target_keyword ILIKE '%version%'`, `'%concierto%'`, `'%directo%'`, `'%gira%'` | los únicos resultados son 7 fichas de canción «en directo» y `ara malikian en concierto`: otra intención | CONFIRMADA |
