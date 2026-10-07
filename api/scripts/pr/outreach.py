@@ -29,6 +29,7 @@ import csv
 import email
 import email.header
 import email.utils
+import hashlib
 import imaplib
 import json
 import ssl
@@ -158,6 +159,9 @@ def cmd_send(args) -> int:
 
     nombre = f["Persona"] if f["Persona"] and not f["Persona"].startswith("Redacción") else None
     remitente = email.utils.formataddr((REMITENTE["name"], REMITENTE["email"]))
+    huella = hashlib.sha256(
+        f"{f['Email']}|{f['Asunto']}|{f['Cuerpo']}|{args.at or ''}".encode()
+    ).hexdigest()[:16]
     payload = {
         "from": remitente,
         "to": [email.utils.formataddr((nombre, f["Email"])) if nombre else f["Email"]],
@@ -181,7 +185,9 @@ def cmd_send(args) -> int:
             # Identificarse tal cual; el UA por defecto de urllib lo bloquea Cloudflare.
             "user-agent": "entreinteriores-outreach/1.0 (+https://entreinteriores.com)",
             # Si la red corta tras enviar y se reintenta, Resend no lo manda dos veces.
-            "idempotency-key": f"outreach-{f['ID']}-{f['Email']}",
+            # Lleva el hash del texto: si se cancela y se reprograma con otro texto,
+            # la misma clave devolvería el envío cancelado en vez de crear uno nuevo.
+            "idempotency-key": f"outreach-{f['ID']}-{huella}",
         },
         method="POST",
     )
