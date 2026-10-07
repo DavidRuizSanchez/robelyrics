@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { PublicAlbumDetail } from "@/lib/types";
+import { ANCLA, ESTUDIO_PATH, SETLISTFM, coma, datoDisco, es } from "@/components/estudio/en-directo";
 
 const KIND_LABEL: Record<string, string> = {
   studio: "Álbum de estudio",
@@ -66,6 +67,47 @@ export default function AlbumDataTable({ detail }: { detail: PublicAlbumDetail }
   const dur = totalDuration(detail);
   if (dur) {
     rows.push({ label: "Duración total", value: dur });
+  }
+
+  const directo = datoDisco(`/${detail.artist.slug}/${detail.slug}`);
+  if (directo) {
+    const quien = detail.artist.slug === "robe" ? "Robe" : "Extremoduro";
+    rows.push({
+      label: "En directo",
+      value: (
+        <>
+          {/* Por debajo de 10 la cifra no describe el disco sino cómo atribuye
+              setlist.fm las regrabaciones: «Rock transgresivo» tiene 1 porque sus
+              canciones cuentan en el disco donde se publicaron primero. */}
+          {directo.toques >= 10 && (
+            <>
+              {es(directo.toques)} interpretaciones de sus canciones en los{" "}
+              {es(directo.setlists)} conciertos documentados de {quien}: el{" "}
+              {coma(directo.pct)} % de todo lo que {quien === "Robe" ? "tocaba" : "tocaban"}.{" "}
+            </>
+          )}
+          {directo.once > 0 && (
+            <>
+              {directo.once === 1 ? "Una de sus canciones es" : `${directo.once} de sus canciones son`}{" "}
+              <Link
+                href={`${ESTUDIO_PATH}#${ANCLA.once}`}
+                data-cursor="hover"
+                className="text-accent hover:underline"
+              >
+                de las once sin registro conocido en directo
+              </Link>
+              .
+            </>
+          )}
+          <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+            Fuente:{" "}
+            <a href={SETLISTFM[detail.artist.slug] ?? SETLISTFM.extremoduro} className="hover:underline">
+              setlist.fm
+            </a>
+          </p>
+        </>
+      ),
+    });
   }
 
   return (

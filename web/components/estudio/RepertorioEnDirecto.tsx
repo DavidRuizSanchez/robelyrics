@@ -425,7 +425,7 @@ export default function RepertorioEnDirecto() {
         </div>
       </div>
 
-      <section>
+      <section id="once" className={s.ancla}>
         <h3>El hallazgo</h3>
         <h2 className={s.col}>Once canciones de las que nadie guarda registro</h2>
         <p className={`${s.col} ${s.dim}`}>
@@ -484,7 +484,7 @@ export default function RepertorioEnDirecto() {
         </p>
       </section>
 
-      <section>
+      <section id="mapa" className={s.ancla}>
         <h3>El mapa</h3>
         <h2 className={s.col}>Tocaron en las cincuenta provincias de España</h2>
         <p className={`${s.col} ${s.dim}`}>
@@ -553,7 +553,7 @@ export default function RepertorioEnDirecto() {
         </div>
       </section>
 
-      <section>
+      <section id="mas-tocadas" className={s.ancla}>
         <h3>Lo más tocado</h3>
         <h2 className={s.col}>Doce canciones, mil seiscientas noches</h2>
         <p className={`${s.col} ${s.dim}`}>
@@ -586,7 +586,7 @@ export default function RepertorioEnDirecto() {
         </div>
       </section>
 
-      <section>
+      <section id="extremoduro-vs-robe" className={s.ancla}>
         <h3>Lo que Robe no recuperó</h3>
         <h2 className={s.col}>De veinticuatro canciones compartidas, veintidós suenan menos</h2>
         <p className={`${s.col} ${s.dim}`}>
@@ -657,7 +657,7 @@ export default function RepertorioEnDirecto() {
         </div>
       </section>
 
-      <section>
+      <section id="lo-que-se-quedo-atras" className={s.ancla}>
         <h3>La otra cara</h3>
         <h2 className={s.col}>Lo que se quedó atrás</h2>
         <p className={`${s.col} ${s.dim}`}>
@@ -682,7 +682,7 @@ export default function RepertorioEnDirecto() {
         </div>
       </section>
 
-      <section>
+      <section id="legado" className={s.ancla}>
         <h3>Dos repertorios</h3>
         <h2 className={s.col}>Robe dedicaba un tercio del concierto al legado</h2>
         <p className={`${s.col} ${s.dim}`}>

@@ -5,6 +5,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
 import MarkdownArticle from "@/components/MarkdownArticle";
+import { EnDirectoArtista } from "@/components/estudio/EnDirectoBloque";
 import RelatedPosts from "@/components/RelatedPosts";
 import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
@@ -134,6 +135,7 @@ export default async function ArtistPublicPage({
           )}
 
           <MarkdownArticle markdown={detail.seo_body} />
+          <EnDirectoArtista slug={detail.slug} />
         </article>
 
         <section className="mt-20">

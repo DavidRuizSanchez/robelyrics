@@ -241,7 +241,11 @@ export default async function SongPublicPage({
           />
         )}
 
-        <SongDataTable detail={detail} />
+        <SongDataTable
+          detail={detail}
+          path={`/${artistSlug}/${albumSlug}/${songSlug}`}
+          titulo={detail.title}
+        />
 
         <article className="mb-12">
           <MarkdownArticle markdown={detail.seo_body} />
