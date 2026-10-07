@@ -70,7 +70,20 @@ STATIC_PATHS: frozenset[str] = frozenset({
     "", "/", "/blog", "/buscar", "/discografia", "/libros", "/temas", "/lugares",
     "/conceptos", "/personas", "/grupos", "/sellos", "/legal", "/sobre",
     "/registro", "/login", "/logout", "/newsletter", "/olvide-password",
-    "/reset-password", "/verificar-email", "/biblioteca",
+    "/reset-password", "/verificar-email", "/biblioteca", "/estudios",
+})
+
+# Los estudios NO viven en la BD: son páginas con su dataset y su componente, y
+# su registro está en `web/lib/estudios.ts`. Sin esta lista, `guard_internal_links`
+# daba el enlace por inventado y lo DESENLAZABA en silencio (medido el 07-10-2026:
+# el enlace del post al estudio desaparecía al republicar). Mismo caso que /sellos
+# y /libros en el relinker dominical: una guarda que solo conoce la BD se lleva por
+# delante lo que la BD no modela.
+#
+# Los dos idiomas tienen que decir lo mismo: `test_estudios_rutas.py` lee el
+# fichero TS y comprueba que esta lista coincide.
+ESTUDIO_SLUGS: frozenset[str] = frozenset({
+    "repertorio-en-directo-extremoduro-robe",
 })
 
 # Enlaces markdown `](/ruta)` y HTML `<a href="/ruta">`.
@@ -403,6 +416,13 @@ def resolve_path(cat: Catalog, path: str) -> Resolution:
         return Resolution("not_catalog", canonical_path=ruta, reason="static")
 
     partes = [p for p in ruta.strip("/").split("/") if p]
+    if partes[:1] == ["estudios"]:
+        # Se comprueba el slug, no se da por bueno el prefijo: un /estudios/lo-que-sea
+        # inventado tiene que seguir cayendo.
+        if len(partes) == 2 and partes[1] in ESTUDIO_SLUGS:
+            return Resolution("not_catalog", canonical_path=ruta, reason="static")
+        return Resolution("not_found", reason="estudio desconocido")
+
     if not partes:
         return Resolution("not_catalog", canonical_path="/", reason="static")
 

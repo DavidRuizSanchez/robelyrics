@@ -1,0 +1,358 @@
+/* Estilos del estudio del repertorio en directo.
+ *
+ * Van en un CSS Module y no en Tailwind a propósito: es una pieza editorial
+ * larga con su propia escala tipográfica, y escribirla en utilidades la volvía
+ * ilegible. Los selectores de elemento (`section`, `h2`, `table`) están todos
+ * scopeados bajo `.estudio` porque un CSS Module NO los aísla: solo hashea las
+ * clases, así que un `h2 {}` suelto se aplicaría a toda la web.
+ *
+ * COLOR, con una división que importa:
+ *   - las MARCAS de los gráficos usan el par categórico validado
+ *     (--granate #a83a3a + --ocre #b08a2a: ΔE 15,2 deutan sobre #0d0b0a);
+ *   - el TEXTO, los enlaces y las etiquetas usan los tokens del sitio
+ *     (--accent #e85050, --ink-dim, --ink-faint), que se subieron de contraste
+ *     justamente para texto pequeño.
+ * Pintar las marcas con el #e85050 del sitio falla en deutan (ΔE 2,8): los dos
+ * colores se vuelven el mismo. Si alguien unifica esto, vuelve a validar antes.
+ */
+
+.estudio {
+  --negro: #0d0b0a;
+  --negro-alto: #141110;
+  --papel: #ede4d3;
+  --papel-dim: #c4b8a0;
+  --papel-faint: #8d8270;
+  --divisor: rgba(237, 228, 211, 0.1);
+  --granate: #a83a3a;      /* serie: Extremoduro */
+  --ocre: #b08a2a;         /* serie: Robe */
+  --tinta: #e85050;        /* accent del sitio: enlaces y etiquetas */
+  --serif: var(--font-serif), Spectral, Georgia, serif;
+  --mono: var(--font-mono), "JetBrains Mono", monospace;
+  --mano: var(--font-hand), Caveat, cursive;
+
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.65;
+  color: var(--papel);
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 0 72px;
+}
+
+.col { max-width: 720px }
+
+.estudio .eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--papel-faint); margin: 0 0 14px;
+}
+.estudio h1 {
+  font-family: var(--serif); font-weight: 400; font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 20px; text-wrap: balance;
+}
+.estudio h2 {
+  font-family: var(--serif); font-weight: 400; font-size: clamp(1.7rem, 4vw, 2.4rem);
+  line-height: 1.15; margin: 0 0 10px; text-wrap: balance;
+}
+.estudio h3 {
+  font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--papel-dim); margin: 0 0 16px;
+}
+.estudio p { margin: 0 0 18px; color: var(--papel) }
+.dim { color: var(--papel-dim) }
+.lede { font-size: 21px; line-height: 1.6; color: var(--papel-dim) }
+.estudio a {
+  color: var(--tinta); text-underline-offset: 3px;
+  text-decoration-color: rgba(232, 80, 80, 0.5);
+}
+.estudio a:hover { text-decoration-color: var(--tinta) }
+.estudio :focus-visible { outline: 2px solid var(--ocre); outline-offset: 3px }
+.estudio section { padding-block: 56px; border-top: 1px solid var(--divisor) }
+.estudio section:first-of-type { border-top: 0 }
+.num { font-variant-numeric: tabular-nums }
+
+/* --- cabecera --- */
+.estudio header { padding-block: 16px 8px }
+.borrador {
+  font-family: var(--mano); font-size: 26px; color: var(--ocre);
+  transform: rotate(-3deg); display: inline-block; margin-bottom: 8px;
+}
+.kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+  background: var(--divisor); border: 1px solid var(--divisor); margin-top: 36px;
+}
+.kpi { background: var(--negro); padding: 20px 18px }
+.kpi b {
+  display: block; font-family: var(--serif); font-weight: 600; font-size: 38px;
+  line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.kpi span {
+  display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--papel-faint); margin-top: 9px; line-height: 1.5;
+}
+.kpiDe { display: inline; font-size: 20px; color: var(--papel-faint) }
+
+/* --- leyenda --- */
+.leyenda {
+  display: flex; gap: 22px; flex-wrap: wrap; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--papel-dim); margin: 0 0 22px;
+}
+.leyenda i {
+  width: 11px; height: 11px; border-radius: 2px; display: inline-block;
+  margin-right: 7px; vertical-align: -1px; font-style: normal;
+}
+
+/* --- barras apiladas --- */
+.barras { display: flex; flex-direction: column; gap: 13px }
+.fila { display: grid; grid-template-columns: 1fr; gap: 5px }
+.filaTop { display: flex; justify-content: space-between; align-items: baseline; gap: 14px }
+.filaTit { font-size: 17px; line-height: 1.25; min-width: 0 }
+.filaTit em {
+  font-style: normal; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+  color: var(--papel-faint); display: block; margin-top: 3px; text-transform: uppercase;
+}
+.filaVal {
+  font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums;
+  color: var(--papel); white-space: nowrap;
+}
+.filaVal span { color: var(--papel-faint) }
+/* El hueco de 2px entre segmentos es de la superficie, no decorativo: es lo que
+   deja leer dónde acaba una serie y empieza la otra sin depender del color. */
+.pista { height: 11px; display: flex; gap: 2px }
+.seg { height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; transition: filter 0.15s }
+.seg:first-child { border-radius: 3px 0 0 3px }
+.seg:only-child { border-radius: 3px }
+.segE { background: var(--granate) }
+.segR { background: var(--ocre) }
+.seg:hover { filter: brightness(1.35) }
+
+/* --- dumbbell --- */
+.dumb { display: flex; flex-direction: column; gap: 16px }
+.dumbFila { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px }
+.dumbCab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px }
+.dumbX {
+  font-family: var(--mono); font-size: 14px; color: var(--ocre);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.dumbXBaja { color: var(--papel-faint) }
+.dumbPista { position: relative; height: 22px }
+.dumbLinea { position: absolute; top: 10px; height: 2px; background: rgba(237, 228, 211, 0.18) }
+.dot {
+  position: absolute; top: 4px; width: 14px; height: 14px; border-radius: 50%;
+  margin-left: -7px; box-shadow: 0 0 0 2px var(--negro);
+}
+.dotE { background: var(--granate) }
+.dotR { background: var(--ocre) }
+.dumbEsc {
+  display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 1.5px; color: var(--papel-faint); margin-top: 6px; text-transform: uppercase;
+}
+
+/* --- las once --- */
+.once {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1px;
+  background: var(--divisor); border: 1px solid var(--divisor);
+}
+.card {
+  background: var(--negro); padding: 20px 18px; min-height: 112px; display: flex;
+  flex-direction: column; justify-content: space-between; gap: 12px;
+  text-align: left; border: 0; font: inherit; color: inherit; cursor: pointer;
+  transition: background 0.12s;
+}
+.card:hover { background: var(--negro-alto) }
+.cardDestaca { background: var(--negro-alto); box-shadow: inset 3px 0 0 var(--granate) }
+.cardT { font-size: 19px; line-height: 1.2 }
+/* El título es el disparador del verso: va en <button> para que responda al
+   teclado, y sin los estilos de botón del navegador. */
+.cardBoton {
+  appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; display: block;
+}
+.cardM {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--papel-faint); line-height: 1.6;
+}
+.verso {
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.4;
+  color: var(--papel); margin-top: 2px;
+}
+.pistaCard {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--tinta); opacity: 0.85;
+}
+.oida {
+  display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 9px;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--papel-faint); margin-top: 8px;
+}
+.oida input { accent-color: var(--tinta); width: 15px; height: 15px; cursor: pointer }
+.marcador {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 2.2px; text-transform: uppercase;
+  color: var(--papel-dim); margin-top: 20px; border-top: 1px solid var(--divisor); padding-top: 18px;
+}
+.marcador b { color: var(--tinta); font-size: 19px }
+
+/* --- años --- */
+.anios {
+  display: flex; align-items: flex-end; gap: 2px; height: 190px; margin-bottom: 8px;
+  overflow-x: auto; padding-bottom: 2px;
+}
+.anio {
+  flex: 1 1 0; min-width: 11px; display: flex; flex-direction: column;
+  justify-content: flex-end; height: 100%; position: relative;
+}
+.anio > span { width: 100%; border-radius: 3px 3px 0 0; transition: filter 0.15s }
+.anio > span:hover { filter: brightness(1.35) }
+.anioCero > span {
+  height: 2px !important; background: rgba(237, 228, 211, 0.13); border-radius: 0;
+}
+.aniosEsc {
+  display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 1.5px; color: var(--papel-faint);
+}
+
+/* --- tablas --- */
+.tablaWrap { overflow-x: auto }
+.estudio table { width: 100%; border-collapse: collapse; font-size: 16px }
+.estudio th {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--papel-faint); font-weight: 400; text-align: left; padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--divisor); white-space: nowrap;
+}
+.estudio td {
+  padding: 11px 14px 11px 0; border-bottom: 1px solid rgba(237, 228, 211, 0.05);
+  vertical-align: top;
+}
+.estudio td.n {
+  font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- notas y pie --- */
+.nota {
+  border-left: 2px solid var(--granate); padding: 2px 0 2px 20px; margin: 28px 0;
+  color: var(--papel-dim); font-size: 17.5px;
+}
+.fuentes { font-size: 15.5px; color: var(--papel-dim) }
+.fuentes h3 { margin-top: 28px }
+.fuentes li { margin-bottom: 9px }
+.sello {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--papel-faint); border-top: 1px solid var(--divisor); padding-top: 22px;
+  margin-top: 44px; line-height: 1.9;
+}
+
+/* --- el setlist que se pega al suelo del escenario ------------------------
+   Es el objeto que reconoce cualquiera que haya ido a un concierto y se haya
+   acercado al escenario al acabar. Funciona como pieza para compartir porque
+   no es un gráfico: es un trozo de papel que podría existir. */
+.escenario {
+  background:
+    repeating-linear-gradient(90deg, rgba(237, 228, 211, 0.022) 0 2px, transparent 2px 7px),
+    radial-gradient(ellipse at 50% 0%, rgba(168, 58, 58, 0.16), transparent 62%);
+  padding: clamp(28px, 6vw, 64px) 16px clamp(36px, 7vw, 72px);
+  display: flex; justify-content: center;
+}
+.setlist {
+  position: relative; background: #f2ead8; color: #191410;
+  width: min(430px, 100%); padding: 30px 26px 26px;
+  transform: rotate(-1.1deg);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.6), 0 2px 0 rgba(0, 0, 0, 0.3);
+  font-family: var(--mono);
+}
+.setlist::before, .setlist::after {
+  content: ""; position: absolute; width: 86px; height: 26px;
+  background: rgba(237, 228, 211, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.setlist::before { top: -11px; left: -16px; transform: rotate(-22deg) }
+.setlist::after { bottom: -11px; right: -16px; transform: rotate(-22deg) }
+.slCab { text-align: center; border-bottom: 2px solid #191410; padding-bottom: 12px; margin-bottom: 16px }
+.slCab b {
+  display: block; font-family: var(--serif); font-weight: 600;
+  font-size: clamp(25px, 6.2vw, 33px); line-height: 1.02; letter-spacing: -0.01em;
+}
+.slCab span {
+  display: block; font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  margin-top: 9px; color: #6d6153;
+}
+.slTemas { list-style: none; margin: 0; padding: 0; counter-reset: tema }
+.slTemas li {
+  counter-increment: tema; display: flex; align-items: baseline; gap: 11px;
+  padding: 7px 0; border-bottom: 1px dotted rgba(25, 20, 16, 0.2);
+}
+.slTemas li::before {
+  content: counter(tema, decimal-leading-zero);
+  font-size: 11px; color: #9a8c79; min-width: 20px;
+}
+.slTema {
+  flex: 1; min-width: 0; font-family: var(--serif); font-size: 19px; line-height: 1.2;
+  text-transform: uppercase; letter-spacing: 0.01em;
+}
+.slAnyo { font-size: 11px; color: #8a7c69; white-space: nowrap }
+.slPie {
+  margin-top: 18px; padding-top: 13px; border-top: 2px solid #191410;
+  font-family: var(--mano); font-size: 19px; line-height: 1.35; color: #3a2f26;
+}
+.slSello {
+  margin-top: 11px; font-size: 8.5px; letter-spacing: 2.2px; text-transform: uppercase;
+  color: #8a7c69;
+}
+
+/* --- mapa de provincias --------------------------------------------------
+   Rampa secuencial de un solo tono: sobre fondo oscuro el extremo CLARO es el
+   valor alto, al revés que sobre papel. */
+.mapaCaja { position: relative; margin: 26px 0 10px }
+.mapa { width: 100%; height: auto; display: block }
+.mapa path { stroke: var(--negro); stroke-width: 0.8; cursor: pointer; transition: fill 0.12s }
+.mapa path:hover, .mapa path.sel { stroke: var(--papel); stroke-width: 1.6 }
+.insetCaja { fill: none; stroke: rgba(237, 228, 211, 0.22); stroke-width: 1; stroke-dasharray: 4 4 }
+.tip {
+  position: absolute; pointer-events: none; background: var(--negro-alto);
+  border: 1px solid var(--divisor); padding: 13px 15px; min-width: 190px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6); opacity: 0; transition: opacity 0.12s; z-index: 5;
+}
+.tipOn { opacity: 1 }
+.tip b { display: block; font-family: var(--serif); font-size: 21px; line-height: 1.1; margin-bottom: 6px }
+.tipN {
+  font-family: var(--mono); font-size: 26px; color: var(--tinta);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.tipD {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--papel-faint); margin-top: 8px; line-height: 1.8;
+}
+.leyendaMapa {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-family: var(--mono);
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--papel-faint);
+}
+.leyendaMapa i { width: 46px; height: 11px; display: block }
+
+/* --- pestañas --- */
+.tabs {
+  display: flex; gap: 1px; background: var(--divisor); border: 1px solid var(--divisor);
+  margin: 0 0 20px; width: fit-content;
+}
+.tabs button {
+  appearance: none; background: var(--negro); color: var(--papel-dim); border: 0;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 2.4px; text-transform: uppercase;
+  padding: 11px 20px; cursor: pointer; transition: color 0.12s, background 0.12s;
+}
+.tabs button[aria-selected="true"] { background: var(--granate); color: #fff }
+.tabs button:hover:not([aria-selected="true"]) { color: var(--papel) }
+
+.dosColumnas {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 40px; margin-top: 8px;
+}
+.tituloE { color: var(--granate) }
+.tituloR { color: var(--ocre) }
+.conMargen { margin-top: 44px }
+
+@media (max-width: 560px) {
+  .estudio { font-size: 18px }
+  .kpi b { font-size: 30px }
+  .anios { height: 140px }
+}
+@media (prefers-reduced-motion: reduce) {
+  .estudio * { transition: none !important }
+}

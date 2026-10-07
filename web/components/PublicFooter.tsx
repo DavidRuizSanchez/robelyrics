@@ -38,6 +38,9 @@ export default function PublicFooter() {
           <Link href="/libros" data-cursor="hover" className={linkCls} title="Lo que se ha escrito sobre ellos">
             Libros
           </Link>
+          <Link href="/estudios" data-cursor="hover" className={linkCls} title="Investigaciones con datos propios">
+            Estudios
+          </Link>
         </div>
 
         {/* Col 2 · Sitio + apoyar */}

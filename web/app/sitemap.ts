@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { apiFetch } from "@/lib/api";
+import { ESTUDIOS } from "@/lib/estudios";
 
 const SITE_URL = process.env.SITE_URL || "https://entreinteriores.com";
 
@@ -37,6 +38,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/grupos`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${SITE_URL}/sellos`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/libros`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/estudios`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    // Los estudios van uno a uno: son pocos, llevan su propia fecha y son la
+    // pieza que se enlaza desde fuera, así que entran con prioridad alta.
+    ...ESTUDIOS.map((e) => ({
+      url: `${SITE_URL}/estudios/${e.slug}`,
+      lastModified: new Date(e.dateModified),
+      changeFrequency: "monthly" as const,
+      priority: 0.9,
+    })),
     { url: `${SITE_URL}/sobre`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
     { url: `${SITE_URL}/buscar`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/legal/aviso`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
