@@ -8,10 +8,19 @@
 # repo. Lo que se publica son los agregados e índices derivados, con
 # atribución y enlace sin nofollow.
 #
-# Se versiona lo que es ANÁLISIS NUESTRO (el ledger de evidencia y los documentos
-# de método), nunca las salidas con el dato de setlist.fm dentro.
+# Se versiona lo que es ANÁLISIS NUESTRO (el ledger de evidencia, los documentos
+# de método, el press kit) y el material de prensa, nunca las salidas con el dato
+# de setlist.fm dentro. El CSV abierto solo lleva catálogo propio + MusicBrainz:
+# por eso ese sí entra y los agregados por provincia no (ver PRESS_KIT.md).
 *
 !.gitignore
 !SOURCES.md
 !FUENTES_CONCIERTOS.md
 !MATERIAL.md
+!SEO_ASSETS.md
+!PRESS_KIT.md
+!OUTREACH_EXTREMADURA.md
+!prensa/
+!prensa/*.png
+!dataset/
+!dataset/*.csv

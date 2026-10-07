@@ -929,6 +929,43 @@ Al tocar esto: el test del bucle **no puede parchear `propose_for_review`** —e
 función por la que pasa el fallo—; el corte va en `send_email`, que es la frontera
 real.
 
+## Un estudio no es un post, y vive en código
+
+`/estudios` (07-10-2026) son piezas de datos con su dataset, su documento de fuentes
+y su propio componente React. **El registro va en código, no en la BD**, porque no
+lo escribe el motor: `web/lib/estudios.ts` tiene los metadatos y
+`api/app/services/estudios.py` lo que necesita el backend. **Hay que tocar las dos**,
+y no se pueden unificar —los contextos de build son `./web` y `./api`, ninguno ve al
+otro ni `data/`—, así que lo vigila el paso «estudios sincronizados» del CI
+(`.github/scripts/check_estudios.py`), que compara slug, título y fecha. Un test de
+pytest no sirve: dentro del contenedor se saltaría.
+
+Dos caminos lo ignoraban **en silencio**, que es el patrón de siempre con lo que no
+es una fila de la BD:
+
+- **`guard_internal_links` desenlazaba** el enlace del post al estudio, porque
+  resuelve cada ruta contra el catálogo. `ESTUDIO_SLUGS` lo arregla sin aflojar nada:
+  un `/estudios/lo-que-sea` inventado sigue cayendo.
+- **La newsletter no lo mandaba.** El digest se construye solo con filas de `posts`,
+  y el correo manda título y excerpt, nunca el cuerpo, así que el enlace al estudio
+  que vive dentro del post no llegaba a nadie. Ahora lleva bloque propio, usa el
+  mismo criterio por suscriptor (`publicado > last_sent_at`) y **un estudio dispara
+  envío por sí solo**. `dispatch_for_post` es código muerto; el único camino es el
+  cron del domingo.
+
+**Las marcas de los gráficos y el texto NO llevan el mismo granate.** Marcas:
+`#a83a3a` + ocre `#b08a2a` (par validado, ΔE 15,2 en deutan sobre `#0d0b0a`). Texto
+y enlaces: el `#e85050` del sitio, que se subió por contraste de etiquetas pequeñas.
+Pintar las marcas con `#e85050` falla en deutan con **ΔE 2,8**: las dos series se
+vuelven el mismo color. Re-validar antes de unificar.
+
+El material de prensa está en `data/estudio/`: `PRESS_KIT.md`,
+`OUTREACH_EXTREMADURA.md`, `prensa/` y `dataset/`. El `.gitignore` de esa carpeta es
+una **lista blanca**: las salidas con dato de setlist.fm dentro no se versionan, y
+los agregados por provincia **no se publican como fichero descargable** aunque sí se
+muestren en la página — mostrarlos con atribución es la mitigación acordada,
+empaquetarlos bajo CC BY es ir más lejos.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

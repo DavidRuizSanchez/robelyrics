@@ -252,10 +252,21 @@ def render_newsletter_confirm_email(confirm_url: str) -> tuple[str, str]:
 
 
 def render_newsletter_digest_email(
-    posts: list[dict], unsubscribe_url: str, site_url: str
+    posts: list[dict],
+    unsubscribe_url: str,
+    site_url: str,
+    estudios: list[dict] | None = None,
 ) -> tuple[str, str]:
-    """Digest de nuevas entradas del blog. Recibe lista de posts con
-    {title, excerpt, url, kind_label, published_at_human}."""
+    """Digest de novedades. Recibe lista de posts con
+    {title, excerpt, url, kind_label, published_at_human} y, opcionalmente, una
+    lista de estudios con {title, excerpt, url, published_at_human}.
+
+    Los estudios van en bloque APARTE y DESPUÉS de los posts, no mezclados: una
+    entrada del diario se lee en cinco minutos y un estudio es otra cosa. Y van
+    aparte porque antes no iban: el digest solo llevaba posts, así que un estudio
+    solo viajaba como un enlace dentro del cuerpo de uno, que el correo no manda.
+    `estudios` es opcional para no romper a quien ya llama con tres argumentos.
+    """
     posts_html = ""
     posts_text_parts: list[str] = []
     for p in posts:
@@ -281,10 +292,50 @@ def render_newsletter_digest_email(
             f"· {p['title']}\n  {p.get('excerpt') or ''}\n  {p['url']}\n"
         )
 
-    intro = (
-        "Una nueva entrada" if len(posts) == 1
-        else f"{len(posts)} entradas nuevas"
-    )
+    estudios = estudios or []
+    estudios_html = ""
+    estudios_text_parts: list[str] = []
+    if estudios:
+        estudios_html = """\
+<div style="margin:36px 0 0;padding:26px 0 0;border-top:1px solid rgba(237,228,211,0.08);">
+  <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#b08a2a;margin:0 0 16px;">
+    datos propios
+  </p>
+"""
+        for e in estudios:
+            estudios_html += f"""\
+  <div style="margin:0 0 22px;">
+    <h2 style="font-family:Georgia,serif;font-size:21px;color:#ede4d3;margin:0 0 10px;line-height:1.25;">
+      <a href="{e['url']}" style="color:#ede4d3;text-decoration:none;">{e['title']}</a>
+    </h2>
+    <p style="font-family:Georgia,serif;font-style:italic;font-size:15px;line-height:1.6;color:rgba(237,228,211,0.7);margin:0 0 10px;">
+      {e.get('excerpt') or ''}
+    </p>
+    <p style="margin:8px 0 0;">
+      <a href="{e['url']}" style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#b08a2a;text-decoration:none;border-bottom:1px solid #b08a2a;">
+        ver el estudio
+      </a>
+    </p>
+  </div>
+"""
+            estudios_text_parts.append(
+                f"· {e['title']}\n  {e.get('excerpt') or ''}\n  {e['url']}\n"
+            )
+        estudios_html += "</div>\n"
+
+    # El asunto y el titular los pone quien llama; aquí solo se nombra lo que hay.
+    if posts and estudios:
+        intro = (
+            "Una entrada nueva y un estudio" if len(posts) == 1 and len(estudios) == 1
+            else f"{len(posts)} entradas y {len(estudios)} estudios"
+        )
+    elif estudios:
+        intro = "Un estudio nuevo" if len(estudios) == 1 else f"{len(estudios)} estudios nuevos"
+    else:
+        intro = (
+            "Una nueva entrada" if len(posts) == 1
+            else f"{len(posts)} entradas nuevas"
+        )
     html = f"""\
 <!doctype html>
 <html lang="es">
@@ -302,6 +353,7 @@ def render_newsletter_digest_email(
       Entre Interiores. Tómatelo con calma.
     </p>
     {posts_html}
+    {estudios_html}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);">
       <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:1px;color:rgba(237,228,211,0.4);line-height:1.7;margin:0;">
         Recibes este email porque te suscribiste en
@@ -317,6 +369,10 @@ def render_newsletter_digest_email(
     text = (
         f"{intro} en Entre Interiores · De manera urgente.\n\n"
         + "\n".join(posts_text_parts)
+        + (
+            "\nDATOS PROPIOS\n\n" + "\n".join(estudios_text_parts)
+            if estudios_text_parts else ""
+        )
         + f"\n--\nDarse de baja: {unsubscribe_url}\n"
         + f"Web: {site_url}\n"
     )

@@ -469,3 +469,127 @@ atribuciones comprobadas. Se deja constancia para que no vuelvan a colarse:
    `youtube_id`.
 4. **`album_tracks`** no cubre *Iros todos a tomar por culo* (1997), que es
    `kind='live'` y tiene filas `songs` propias — de ahí la reconciliación V-04.
+
+---
+
+## Validación de cierre de la sección `/estudios` · 07-10-2026
+
+La infografía se publica como página del sitio
+(`/estudios/repertorio-en-directo-extremoduro-robe`). **Ninguna cifra ha cambiado**
+respecto a la versión ya validada arriba: el texto es el mismo, y lo único que se ha
+tocado es (a) el sello del pie, que decía «Borrador del 6 de octubre de 2026, no
+publicado», (b) el aviso «boceto · datos verificados» de la cabecera, los dos
+retirados al publicar, y (c) el tooltip del mapa, que ahora dice «y N más» cuando una
+provincia tiene más ciudades de las tres que lista.
+
+Cifras citadas en `SEO_ASSETS.md` que salen de este estudio, re-verificadas contra
+`web/components/estudio/datos-repertorio.ts`, que es el fichero que rinde la página:
+
+| Cifra afirmada | Dónde se afirma | Fuente re-consultada | Valor devuelto | Veredicto |
+|---|---|---|---|---|
+| Versiones en Extremoduro: 170 (5,2 %) | SEO_ASSETS.md A-2 | `DISCO_E` | 170 · 5.2 | CUADRA |
+| Versiones en Robe: 667 (29,2 %) | SEO_ASSETS.md A-2 | `DISCO_R` | 667 · 29.2 | CUADRA |
+| Cáceres, 37 conciertos | SEO_ASSETS.md A-1 | `PROV["Cáceres"].n` | 37 | CUADRA |
+| Barcelona, 33 conciertos | SEO_ASSETS.md A-1 | `PROV["Barcelona"].n` | 33 | CUADRA |
+| Madrid, 48 (la única por encima) | infografía, sección del mapa | `PROV["Madrid"].n` | 48 | CUADRA |
+| Plasencia, 11 conciertos | SEO_ASSETS.md A-1 | `PROV["Cáceres"].ciudades` | 11 | CUADRA |
+
+Cifras nuevas de `SEO_ASSETS.md`, con su fuente y su comprobación:
+
+| Cifra | Fuente | Filtro | Comprobado | Veredicto |
+|---|---|---|---|---|
+| 39 términos consultados, 13 a 0 búsquedas | Ahrefs Keywords Explorer | país `es` | 07-10-2026 | CUADRA |
+| `robe plasencia` 200/mes · `letras de extremoduro` 150 · `extremoduro caceres` 30 · `versiones de extremoduro` 10 | Ahrefs | país `es` | 07-10-2026 | CUADRA |
+| 26 posts publicados | `posts` en producción | `status='published'` | 07-10-2026 | CUADRA |
+| 0 consultas con «concierto», «gira» o «en directo» en el GSC propio | `data/gsc_page_queries.json` | `sc-domain:entreinteriores.com`, 10-07-2026 → 02-10-2026 | 07-10-2026 | CUADRA |
+| `primer disco de extremoduro` lo pelean 3 páginas (20 / 12 / 9 impresiones) | mismo fichero de GSC | mismo periodo | 07-10-2026 | CUADRA |
+
+**No validado:** nada. Las cifras de setlist.fm no se han vuelto a descargar en esta
+pasada porque ninguna ha cambiado y su validación consta arriba, con la hora de la
+extracción del 6 y 7 de octubre de 2026.
+
+### Afirmaciones nuevas de esta pasada
+
+| ID | Afirmación | Cómo se comprueba | Evidencia | Veredicto |
+|---|---|---|---|---|
+| A-31 | Las marcas de los gráficos y el texto no pueden llevar el mismo granate | `dataviz/scripts/validate_palette.js` sobre `#0d0b0a` | `#e85050`+`#b08a2a` → FAIL, ΔE 2,8 deutan. `#a83a3a`+`#b08a2a` → los cinco checks PASS, ΔE 15,2 deutan / 20,1 normal | CONFIRMADA |
+| A-32 | `guard_internal_links` desenlazaba el enlace al estudio | ejecutada la guarda sobre un cuerpo con los tres enlaces | antes: `unlinked: ['/estudios/repertorio-en-directo-extremoduro-robe']`. Después: solo `['/estudios/inventado']` | CONFIRMADA |
+| A-33 | El relinker dominical NO se lleva el enlace al estudio | leído `relink_existing._desnudar` | solo desnuda rutas presentes en el índice del corpus (album/artist/band/concept/person/place/song/theme); `/estudios` no está | CONFIRMADA |
+| A-34 | `robe plasencia` y `extremoduro caceres` ya los tiene otra página | `seo_content` en producción | `place/plasencia → "Plasencia robe"` y `place/caceres → "Cáceres extremoduro"` | CONFIRMADA |
+| A-35 | Nada del sitio ataca `versiones de extremoduro` ni `conciertos de extremoduro` | `seo_content` + `posts`, `target_keyword ILIKE '%version%'`, `'%concierto%'`, `'%directo%'`, `'%gira%'` | los únicos resultados son 7 fichas de canción «en directo» y `ara malikian en concierto`: otra intención | CONFIRMADA |
+
+---
+
+## Press kit y outreach a Extremadura · 07-10-2026
+
+### Cifras que viajan en los correos, re-verificadas contra `datos-repertorio.ts`
+
+El fichero que se consulta es el que rinde la página publicada, así que lo que diga
+un correo y lo que vea un periodista al entrar es lo mismo. Diez afirmaciones, diez
+comprobaciones, cero descuadres.
+
+| Afirmación en el correo | Fuente | Devuelto | Veredicto |
+|---|---|---|---|
+| Cáceres, 37 conciertos | `PROV["Cáceres"].n` | 37 | CUADRA |
+| Barcelona, 33 | `PROV["Barcelona"].n` | 33 | CUADRA |
+| Madrid, 48, la única por encima | `PROV["Madrid"].n` | 48 | CUADRA |
+| Cáceres es la **segunda** provincia | ranking por `n` | Madrid 48 · **Cáceres 37** · Barcelona 33 | CUADRA |
+| Cáceres capital, 15 | `PROV["Cáceres"].ciudades[0]` | Cáceres 15 | CUADRA |
+| Plasencia, 11 | `PROV["Cáceres"].ciudades[1]` | Plasencia 11 | CUADRA |
+| Plasencia es la 2ª ciudad de su provincia | orden de `ciudades` | 2ª tras Cáceres capital | CUADRA |
+| Hervás, 3 | `PROV["Cáceres"].ciudades[2]` | Hervás 3 | CUADRA |
+| Once municipios cacereños | `PROV["Cáceres"].n_ciudades` | 11 | CUADRA |
+| Las cincuenta provincias | `len(PROV)` | 50 | CUADRA |
+
+El resumen de 150 palabras del press kit se contó: **146**. La cifra que figuraba
+antes en el documento (148) se corrigió al contarla, no se dejó aproximada.
+
+### Dataset abierto: qué entra y qué no
+
+`dataset/once-canciones-sin-registro-en-directo.csv` se publica bajo **CC BY 4.0** y
+contiene SOLO lo que es inequívocamente nuestro: las once canciones con su disco,
+año y la URL de su ficha, de la BD propia y verificado contra MusicBrainz.
+
+**Los agregados por provincia, ciudad y recinto NO se publican como fichero**, aunque
+sí se muestran en la página. Se derivan del índice de setlist.fm, cuyos términos no
+permiten retener ni redistribuir su base de datos: enseñarlos con atribución y enlace
+sin `nofollow` es la mitigación acordada; empaquetarlos como descarga bajo una
+licencia que invita a redistribuirlos es ir más lejos, y no se hace.
+
+Las 11 URLs del CSV se comprobaron una a una el 07-10-2026: **las once devuelven 200**.
+
+### Contactos de prensa: verificados en la web del medio, no en un directorio
+
+| Medio | Fuente del contacto | Verificado |
+|---|---|---|
+| Diario HOY | `hoy.es/quienes-somos.html` (7 personas con nombre, puesto y email) | sí |
+| El Periódico de Extremadura | `elperiodicoextremadura.com/quienes-somos/` | sí |
+| Plasencia Hoy | `plasenciahoy.com` | sí |
+| Diario de Plasencia | `diariodeplasencia.es` | sí |
+| Plasencia Directo | su web no publica email | **NO — no se usa** |
+| Región Digital | solo formulario, sin email | **NO — no se usa** |
+| `plasencia@hoy.es`, `caceres@hoy.es` | aparecen en resultados de búsqueda, no en hoy.es | **NO — fuera de la lista** |
+
+Un contacto que no se ha podido verificar en la web del propio medio no entra en la
+tabla de envío. El emparejamiento nombre↔email de HOY se extrajo del HTML por
+posición, no deduciéndolo de las iniciales.
+
+### Afirmaciones nuevas
+
+| ID | Afirmación | Evidencia | Veredicto |
+|---|---|---|---|
+| A-36 | Las once fichas del dataset existen y son accesibles | 11 peticiones HTTP, 11 respuestas 200, 07-10-2026 | CONFIRMADA |
+| A-37 | El catálogo escribe «Llego» sin tilde en «Adiós Abanico, Que Llego el Aire» | `songs.title` del slug `adios-abanico-que-llego-el-aire` | CONFIRMADA — errata abierta, se corrige por el circuito, no a mano |
+| A-38 | Dos de las once no casan por título con el catálogo | «Adiós Abanico…» (tilde) y «Caballero andante (¡No me dejéis asíii!)» (sufijo); por eso el CSV casa por slug | CONFIRMADA |
+
+### Imágenes de prensa
+
+Capturadas de la URL pública el 07-10-2026 con Playwright, a 2x. Se rechaza el
+banner de cookies, se oculta la cabecera pegajosa y se apaga el InkCursor antes de
+disparar. **No se usa `full_page`**: la página mide 32.466 px de alto y esa tira no
+la publica ninguna redacción.
+
+Bug propio que costó dos intentos y conviene no repetir: el selector
+`[class*="ink-cursor"]` casa con `<body class="ink-cursor-active">`, así que el
+`.remove()` **borraba el `<body>` entero** y después «no encontraba» ningún selector.
+El cursor se apaga por CSS, que no borra nodos.

@@ -22,6 +22,7 @@ import logging
 import sys
 
 from app.db.models import Subscriber
+from app.services.estudios import pendientes_desde
 from app.db.session import SessionLocal
 from app.services.newsletter import (
     dispatch_to_all_confirmed,
@@ -54,9 +55,15 @@ def main() -> int:
                 logger.warning("Subscriber %s no está confirmed (status=%s)", sub.email, sub.status)
                 return 0
             pending = posts_pending_for_subscriber(db, sub)
-            logger.info("Pending para %s: %d", sub.email, len(pending))
+            # Los estudios cuentan igual: si el dry-run solo mira posts, dice que no
+            # hay nada que enviar la semana en que lo único nuevo es un estudio.
+            estudios = pendientes_desde(sub.last_sent_at)
+            logger.info("Pending para %s: %d posts · %d estudios",
+                        sub.email, len(pending), len(estudios))
             for p in pending:
                 logger.info("  · %s — %s", p.kind, p.title)
+            for e in estudios:
+                logger.info("  · estudio — %s", e.titulo)
             if args.dry_run:
                 logger.info("dry-run: nada enviado.")
                 return 0
@@ -71,7 +78,10 @@ def main() -> int:
         if args.dry_run:
             for sub in db.query(Subscriber).filter(Subscriber.status == "confirmed").all():
                 pending = posts_pending_for_subscriber(db, sub)
-                logger.info("  · %s — pending: %d", sub.email, len(pending))
+                estudios = pendientes_desde(sub.last_sent_at)
+                logger.info("  · %s — pending: %d posts, %d estudios%s",
+                            sub.email, len(pending), len(estudios),
+                            "" if (pending or estudios) else " (no recibe nada)")
             logger.info("dry-run: nada enviado.")
             return 0
 

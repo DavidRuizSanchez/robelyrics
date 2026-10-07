@@ -10,6 +10,12 @@ Esto permite:
 - Que quien confirma tarde reciba la primera entrada ya publicada.
 - Que el cron reenvíe solo los nuevos a quien ya está al día.
 - Que sea idempotente: relanzar dos veces seguidas no duplica.
+
+Desde el 07-10-2026 el digest también lleva los **estudios** (`/estudios`), que no
+son filas de `posts` y por tanto no entraban: un estudio solo viajaba como un
+enlace dentro del cuerpo de un post, y el correo manda título y excerpt, no el
+cuerpo. Se seleccionan con el mismo criterio por suscriptor (`publicado >
+last_sent_at`), así que no se repiten, y **un estudio dispara envío por sí solo**.
 """
 from __future__ import annotations
 
@@ -20,6 +26,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.db.models import Post, Subscriber
+from app.services.estudios import Estudio, pendientes_desde
 from app.services.email import (
     EmailError,
     render_newsletter_digest_email,
@@ -60,6 +67,15 @@ def _post_to_dict(p: Post, base_url: str) -> dict:
     }
 
 
+def _estudio_to_dict(e: Estudio, base_url: str) -> dict:
+    return {
+        "title": e.titulo,
+        "excerpt": e.resumen,
+        "url": f"{base_url}{e.ruta}",
+        "published_at_human": _format_date_es(e.publicado_utc),
+    }
+
+
 def posts_pending_for_subscriber(db: Session, sub: Subscriber) -> list[Post]:
     """Devuelve los posts publicados que el subscriber aún no ha recibido."""
     q = (
@@ -79,19 +95,31 @@ def dispatch_to_subscriber(db: Session, sub: Subscriber) -> bool:
         return False
 
     pending = posts_pending_for_subscriber(db, sub)
-    if not pending:
+    # Un estudio nuevo es novedad por sí solo. Antes el envío dependía ÚNICAMENTE
+    # de que hubiera posts, así que un estudio publicado en una semana sin
+    # entradas no se anunciaba a nadie.
+    estudios = pendientes_desde(sub.last_sent_at)
+    if not pending and not estudios:
         return False
 
     base_url = _site_url()
     post_dicts = [_post_to_dict(p, base_url) for p in pending]
+    estudio_dicts = [_estudio_to_dict(e, base_url) for e in estudios]
     unsubscribe_url = f"{base_url}/newsletter/baja?token={sub.unsubscribe_token}"
-    html, text = render_newsletter_digest_email(post_dicts, unsubscribe_url, base_url)
-
-    subject = (
-        f"Una entrada nueva · {post_dicts[0]['title']}"
-        if len(post_dicts) == 1
-        else f"{len(post_dicts)} entradas nuevas en Entre Interiores"
+    html, text = render_newsletter_digest_email(
+        post_dicts, unsubscribe_url, base_url, estudios=estudio_dicts
     )
+
+    # El asunto nombra lo que de verdad va dentro: un asunto que dice «una entrada
+    # nueva» cuando lo gordo del correo es un estudio se abre peor y además miente.
+    if len(post_dicts) == 1 and not estudio_dicts:
+        subject = f"Una entrada nueva · {post_dicts[0]['title']}"
+    elif len(estudio_dicts) == 1 and not post_dicts:
+        subject = f"Un estudio nuevo · {estudio_dicts[0]['title']}"
+    elif estudio_dicts:
+        subject = f"Un estudio nuevo · {estudio_dicts[0]['title']}"
+    else:
+        subject = f"{len(post_dicts)} entradas nuevas en Entre Interiores"
 
     try:
         send_email(to=sub.email, subject=subject, html=html, text=text)

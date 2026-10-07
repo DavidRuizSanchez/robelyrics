@@ -50,6 +50,21 @@ jobs:
             -w /app robelyrics-api:ci \
             python -m pytest -q
 
+  estudios:
+    name: estudios sincronizados
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Los estudios se declaran DOS veces y en dos idiomas: el registro con
+      # títulos y fechas en `web/lib/estudios.ts`, y los slugs en
+      # `url_resolver.ESTUDIO_SLUGS`, que es lo que mira la guarda de enlaces
+      # internos. Si divergen, el enlace del post al estudio se desenlaza en
+      # silencio al republicar (medido el 07-10-2026). Esto no puede ir en pytest:
+      # la imagen del api se construye solo con `api/` y no ve `web/`.
+      - name: los dos idiomas declaran los mismos estudios
+        run: python3 .github/scripts/check_estudios.py
+
   alembic:
     name: migraciones coherentes
     runs-on: ubuntu-latest

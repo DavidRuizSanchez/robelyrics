@@ -232,6 +232,11 @@ temas inéditos. La resta deja estas once, todas publicadas en disco de estudio 
 EP. Un corte que solo existe en un disco en directo no puede estar aquí, por
 razones evidentes.
 
+Todo ese cruce está publicado con sus gráficos en
+[el estudio del repertorio en directo](/estudios/repertorio-en-directo-extremoduro-robe):
+el mapa de las cincuenta provincias donde tocaron, el ranking de lo que más sonó y
+el reparto real del repertorio entre las dos formaciones.
+
 ## Y luego vimos que Juancares había llegado a lo mismo
 
 Con la lista ya cerrada nos encontramos con esto:
@@ -292,9 +297,10 @@ nada:
   [capítulo 1x04](https://www.youtube.com/watch?v=fbAKGSeQGy4) y
   [capítulo 1x05](https://www.youtube.com/watch?v=ReX6OLBnT90).
 
-Este artículo forma parte de un estudio más amplio sobre el repertorio en directo
-de Extremoduro y Robe, 591 conciertos entre 1987 y 2024, que publicaremos completo
-en diciembre, al cumplirse un año de su muerte.
+Este artículo es una parte del estudio del repertorio en directo de Extremoduro y
+Robe, los 591 conciertos documentados entre 1987 y 2024, que está publicado arriba
+con el mapa provincia a provincia y el método entero. Lo seguiremos ampliando hasta
+diciembre, cuando se cumpla un año de su muerte.
 """
 
 

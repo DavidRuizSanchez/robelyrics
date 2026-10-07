@@ -47,6 +47,8 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.services.estudios import ESTUDIO_SLUGS
+
 logger = logging.getLogger(__name__)
 
 # Dominio propio: el LLM a veces escribe la URL absoluta en vez de la ruta.
@@ -70,8 +72,17 @@ STATIC_PATHS: frozenset[str] = frozenset({
     "", "/", "/blog", "/buscar", "/discografia", "/libros", "/temas", "/lugares",
     "/conceptos", "/personas", "/grupos", "/sellos", "/legal", "/sobre",
     "/registro", "/login", "/logout", "/newsletter", "/olvide-password",
-    "/reset-password", "/verificar-email", "/biblioteca",
+    "/reset-password", "/verificar-email", "/biblioteca", "/estudios",
 })
+
+# Los estudios NO viven en la BD: son páginas con su dataset y su componente. Sin
+# conocerlos, `guard_internal_links` daba el enlace por inventado y lo DESENLAZABA
+# en silencio (medido el 07-10-2026: el enlace del post al estudio desaparecía al
+# republicar). Mismo caso que /sellos y /libros en el relinker dominical: una
+# guarda que solo conoce la BD se lleva por delante lo que la BD no modela.
+#
+# La lista vive en `app.services.estudios`, que explica por qué está duplicada
+# respecto a `web/lib/estudios.ts` y quién vigila que no divergan.
 
 # Enlaces markdown `](/ruta)` y HTML `<a href="/ruta">`.
 _MD_LINK_RE = re.compile(r"\]\((\S+?)\)")
@@ -403,6 +414,13 @@ def resolve_path(cat: Catalog, path: str) -> Resolution:
         return Resolution("not_catalog", canonical_path=ruta, reason="static")
 
     partes = [p for p in ruta.strip("/").split("/") if p]
+    if partes[:1] == ["estudios"]:
+        # Se comprueba el slug, no se da por bueno el prefijo: un /estudios/lo-que-sea
+        # inventado tiene que seguir cayendo.
+        if len(partes) == 2 and partes[1] in ESTUDIO_SLUGS:
+            return Resolution("not_catalog", canonical_path=ruta, reason="static")
+        return Resolution("not_found", reason="estudio desconocido")
+
     if not partes:
         return Resolution("not_catalog", canonical_path="/", reason="static")
 
