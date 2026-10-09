@@ -437,7 +437,7 @@ def _in_external(quote_norm: str) -> bool:
               for v in _external_verses())
 
 
-def check_lyrics(db, body_md: str, subject: str | None = None) -> LyricGuardReport:
+def check_lyrics(db, body_md: str) -> LyricGuardReport:
     """Verifica todas las citas de letra del cuerpo contra el corpus real.
 
     Determinista, sin LLM. Solo mira citas presentadas como VERSO de una canción
@@ -445,8 +445,10 @@ def check_lyrics(db, body_md: str, subject: str | None = None) -> LyricGuardRepo
     Las citas de entrevistas/declaraciones (sin canción cercana) no son asunto de
     este guardia.
 
-    `subject` (título del post): si el verso es de la canción de la que va la
-    pieza, está referenciada aunque su nombre no se repita junto a la cita."""
+    No hay excepción por «la canción de la que va el post»: se probó el
+    09-10-2026 y dejaba pasar «En "So payaso" canta: <verso de otra>» si el
+    verso era de la canción del título. Una atribución explícita y falsa sigue
+    siendo falsa aunque el post vaya de la canción correcta."""
     songs = _load_songs(db)
     by_title = {normalize(s.title): s for s in songs}
     titles_norm = list(by_title.keys())
@@ -469,7 +471,6 @@ def check_lyrics(db, body_md: str, subject: str | None = None) -> LyricGuardRepo
         [a for a in {normalize(s.album) for s in songs if s.album} if a not in by_title])
     title_occ = [(p, t) for (p, t) in _title_occurrences(body_norm, titles_norm)
                  if not _is_album_mention(p, t, body_norm, album_spans)]
-    subject_norm = normalize(subject) if subject else ""
 
     report = LyricGuardReport()
     for quote, start in extract_quotes(body_md):
@@ -563,7 +564,7 @@ def check_lyrics(db, body_md: str, subject: str | None = None) -> LyricGuardRepo
             # verso? El enlace interno la ancla aunque la 'mención más cercana' en
             # prosa apunte a otra: entonces NO es misatribución, está bien citada.
             near = normalize(body_md[max(0, start - 450):start + len(quote) + 450])
-            referenced = bool(best_norm) and (best_norm in near or best_norm in subject_norm)
+            referenced = bool(best_norm) and best_norm in near
             if attributed and best_song and best_norm != attributed \
                     and r_attr < _REVIEW_RATIO and not referenced:
                 report.verdicts.append(LyricVerdict(

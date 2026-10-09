@@ -25,6 +25,7 @@ const GATE_LABEL: Record<string, string> = {
   lyrics: "citas de letra",
   rigor: "editor jefe",
   completeness: "completitud",
+  facts: "datos de catálogo",
 };
 
 const KIND_LABEL: Record<string, string> = {

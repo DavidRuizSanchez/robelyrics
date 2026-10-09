@@ -82,6 +82,9 @@ def _pick_spotlight_song(db, today: date):
         .order_by(Song.id)
         .all()
     )
+    # Solo versiones originales (ver `app/services/versiones.py`).
+    from app.services.versiones import es_original
+    rows = [s for s in rows if es_original(s, s.album)]
     if not rows:
         return None
     week = today.isocalendar().week

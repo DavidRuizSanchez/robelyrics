@@ -294,7 +294,7 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     #     sin letra verificable en el corpus NO se publica JAMÁS. La zona
     #     gris (coincidencia parcial / posible misatribución) va a revisión.
     from app.services.lyric_guard import check_lyrics
-    lyric_report = check_lyrics(db, post.body_md, subject=post.title)
+    lyric_report = check_lyrics(db, post.body_md)
     if lyric_report.blocking:
         db.delete(post)
         p.status = "discarded"

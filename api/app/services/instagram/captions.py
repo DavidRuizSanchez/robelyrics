@@ -26,12 +26,13 @@ como firma al pie, donde no cuesta la única línea visible.
 """
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 
 from sqlalchemy.orm import Session
 
-from app.services.instagram import captions_moldes, config, robe_quote
+from app.services.instagram import captions_moldes, config
 
 # Solo TRES fijos. Antes eran 7 y salían en los 40 posts seguidos, con lo que la
 # mitad de los hashtags no decía nada del contenido concreto.
@@ -86,6 +87,12 @@ ENTITY_HASHTAGS = {
     # Nunca «#RobeIniesta»: la regla del proyecto es «Robe» o «Roberto Iniesta».
     "iniesta": "#RobertoIniesta",
 }
+
+logger = logging.getLogger(__name__)
+
+# Hueco del verso mientras se corrige el resto del caption: la letra no pasa
+# por `correct_body` ni por la política del nombre (no se toca lo que es de otro).
+_MARCA_VERSO = "\u2063VERSO\u2063"
 
 def _norm(s: str) -> str:
     s = "".join(
@@ -230,19 +237,19 @@ def build(db: Session, topic: dict) -> str:
         if body:
             lines += ["", captions_moldes.one_sentence_per_line(body)]
 
-    # 3) Verso afín al tema (solo noticias/blog: en evergreen el verso YA es el
-    #    contenido). Se reutiliza el calculado en `publisher.prepare` para que
-    #    coincida con el de la imagen.
-    verse = topic.get("verse")
-    if verse is None:
-        verse = robe_quote.find_verse(db, f"{title}. {body}")
+    # 3) Verso de LA canción del post, ya elegido en `publisher.prepare` (y ya
+    #    revisado por las guardas). Si no hay, no se busca uno aquí: un verso de
+    #    otra canción es peor que ninguno (09-10-2026).
+    verse = topic.get("verse") or {}
+    bloque_verso = ""
     if verse:
         attribution = verse["artist"]
         if verse["song"]:
             attribution += f', «{verse["song"]}»'
         if verse.get("year"):
             attribution += f" ({verse['year']})"
-        lines += ["", f"🎵 «{verse['line']}»", f"   — {attribution}"]
+        bloque_verso = f"🎵 «{verse['line']}»\n   — {attribution}"
+        lines += ["", _MARCA_VERSO]
 
     # 4) PREGUNTA de cierre: abre conversación, y es lo único que le pedimos a
     #    quien lee. Se omite en tono sobrio, donde una pregunta de ese corte
@@ -316,21 +323,23 @@ def build(db: Session, topic: dict) -> str:
     if credit:
         lines += ["", credit if _trae_pictograma(credit) else f"📷 {credit}"]
 
-    caption = "\n".join(lines)[:2190]
+    caption = "\n".join(lines)
 
     # Red de seguridad anti-alucinación: corrige errores de catálogo (canción↔
     # álbum↔año) contra la BD antes de publicar. Determinista, no reescribe.
+    # El verso va FUERA (marca de posición): una letra no se corrige nunca.
     try:
         from app.services.fact_check import check_body, correct_body
         rep = check_body(db, caption, use_web=False)
         if rep.autofixes:
             caption, _ = correct_body(db, caption, rep)
-    except Exception:  # noqa: BLE001 — best-effort, nunca bloquea la publicación
-        pass
+    except Exception as exc:  # noqa: BLE001 — best-effort, nunca bloquea la publicación
+        logger.warning("[caption] fact_check no pudo correr: %s", exc)
 
     # La regla dura del nombre, sobre el caption ENTERO. Hasta ahora solo corría
     # dentro de `editorial` (comentario y titular), así que los moldes, el CTA y
     # los hashtags se la saltaban: un «Robe Iniesta» escrito en un molde llegaba
     # publicado. Es determinista y no reescribe nada más.
     from app.services.text_sanitizer import enforce_name_policy
-    return enforce_name_policy(caption) or caption
+    caption = enforce_name_policy(caption) or caption
+    return caption.replace(_MARCA_VERSO, bloque_verso)[:2190]

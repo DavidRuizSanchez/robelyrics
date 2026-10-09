@@ -249,8 +249,10 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
                     + "; ".join(f"{i}. {t}" for i, t in enumerate(titulos, 1)) + "."
                 )
         else:
-            # Directos, recopilatorios y singles no tienen filas `Song` propias:
-            # su tracklist es referencial y apunta a la grabación original.
+            # Directos, recopilatorios y singles con `album_tracks`: su tracklist
+            # es referencial y apunta a la grabación original. OJO: el directo
+            # «Iros todos a tomar por culo» es anterior a ese modelo y SÍ tiene 14
+            # filas `Song` propias (ver `app/services/versiones.py`).
             filas = db.execute(
                 select(AlbumTrack, Song, Album)
                 .outerjoin(Song, AlbumTrack.song_id == Song.id)
@@ -282,12 +284,35 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
                     "distintas de ellos."
                 )
     elif entity_type == "song":
+        from app.services.versiones import es_original, version_original
+
         al = getattr(entity, "album", None)
         art = getattr(al, "artist", None) if al else None
-        facts.append(
-            f"«{entity.title}» es una canción de {art.name if art else 'Extremoduro'}"
-            + (f", del disco «{al.title}» ({al.year})" if al else "") + "."
-        )
+        if es_original(entity, al):
+            facts.append(
+                f"«{entity.title}» es una canción de {art.name if art else 'Extremoduro'}"
+                + (f", del disco «{al.title}» ({al.year})" if al else "") + "."
+            )
+        else:
+            # Una grabación en directo NO es el contexto de la canción: el
+            # 09-10-2026 se publicó «De Acero» situada en «Iros… (1992)».
+            orig = version_original(db, entity)
+            oal = getattr(orig, "album", None) if orig is not entity else None
+            if oal is not None:
+                facts.append(
+                    f"«{orig.title}» es una canción de {art.name if art else 'Extremoduro'} "
+                    f"publicada en el disco de estudio «{oal.title}» ({oal.year}). "
+                    f"«{entity.title}» es una GRABACIÓN EN DIRECTO de ella incluida en "
+                    f"«{al.title}» ({al.year}). Habla de la canción en su disco de "
+                    f"estudio; el directo es solo un dato más, y nunca le atribuyas "
+                    f"el año del disco de estudio."
+                )
+            else:
+                facts.append(
+                    f"«{entity.title}» es una grabación en directo incluida en "
+                    f"«{al.title}» ({al.year}). No consta en nuestro catálogo su "
+                    f"versión de estudio: no afirmes en qué disco salió."
+                )
         themes = [t.name for t in (getattr(entity, "themes", None) or []) if getattr(t, "name", None)]
         if themes:
             facts.append(f"Temas que toca: {', '.join(themes[:8])}.")

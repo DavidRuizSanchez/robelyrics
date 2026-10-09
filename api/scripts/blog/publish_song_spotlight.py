@@ -62,6 +62,11 @@ def _pick_song(db, today: date, override_slug: str | None) -> Song | None:
         .where(SeoContent.published.is_(True))
         .order_by(Song.id)
     ).scalars().all()
+    # Solo versiones originales: una fila del directo «Iros…» no es otra canción,
+    # es una grabación de una que ya está en la rotación (09-10-2026: «De Acero
+    # (En Directo)» salió como canción de la semana situada en el directo).
+    from app.services.versiones import es_original
+    rows = [s for s in rows if es_original(s, s.album)]
     if not rows:
         return None
 
@@ -93,6 +98,9 @@ def main() -> None:
         if song is None:
             logger.error("No hay candidata disponible")
             return
+        # Forzada a mano o no, se habla de la versión original.
+        from app.services.versiones import version_original
+        song = version_original(db, song)
 
         # Carga album + artist
         album = db.get(Album, song.album_id)

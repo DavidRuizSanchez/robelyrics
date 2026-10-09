@@ -1,38 +1,19 @@
-"""Busca un verso de Robe / Extremoduro afín a un texto.
+"""El verso 🎵 que cierra un post de Instagram: de SU canción o ninguno.
 
-Antes Entre Noticias llamaba por HTTP al buscador de entreinteriores.com; ahora
-que el pipeline vive DENTRO de RobeLyrics se hace la búsqueda in-process:
-embedding + búsqueda vectorial sobre la colección de líneas. Así cada post
-puede cerrar enlazando la actualidad con una frase del propio Robe.
-
-Degradación elegante: ante cualquier fallo devuelve None y el post se publica
-igualmente sin verso.
+Ver `verso_de_cancion`. Hasta el 09-10-2026 se elegía por parecido vectorial
+con el texto del post y salían versos de canciones ajenas al tema.
 """
 from __future__ import annotations
 
 import logging
 import re
 import unicodedata
-from functools import lru_cache
-from pathlib import Path
 
-import yaml
 from sqlalchemy.orm import Session
 
 from app.db.models import Song
-from app.services.embeddings import get_embedder
-from app.services.retrieval import LINES_COLLECTION, vector_search
 
 logger = logging.getLogger(__name__)
-
-# Versos curados de canciones fuera del corpus (colaboraciones de Robe, etc.).
-# Ver data/external_verses.yaml. Verificados a mano; nunca inventados.
-_EXTERNAL_PATH = Path(__file__).resolve().parents[3] / "data" / "external_verses.yaml"
-
-# Por debajo de este score coseno el verso no es lo bastante afín al tema:
-# mejor publicar sin verso que con uno que no pega (p.ej. "cancioncita
-# conmovedora" en una noticia sobre una colaboración).
-MIN_SCORE = 0.30
 
 
 def _clean_song_title(title: str) -> str:
@@ -56,146 +37,182 @@ def _strip_accents(s: str) -> str:
     ).lower()
 
 
-@lru_cache(maxsize=1)
-def _external_verses() -> list[dict]:
-    try:
-        data = yaml.safe_load(_EXTERNAL_PATH.read_text(encoding="utf-8")) or {}
-        return data.get("versos") or []
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def _external_verse(text: str) -> dict | None:
-    """Si el tema menciona una canción del dataset curado externo, devuelve su
-    verso verificado (prioridad sobre el corpus). None si no aplica."""
-    ntext = _strip_accents(text)
-    for v in _external_verses():
-        verse = (v.get("verse") or "").strip()
-        if not verse:
-            continue
-        aliases = v.get("aliases") or ([v["song"]] if v.get("song") else [])
-        for a in aliases:
-            if a and _strip_accents(a) in ntext:
-                return {
-                    "line": verse,
-                    "song": v.get("song", ""),
-                    "artist": v.get("artist", "") or "Extremoduro",
-                    "year": v.get("year"),
-                }
-    return None
-
-
-def _mentioned_song_ids(db: Session, text: str) -> set[int]:
-    """song_id de canciones del catálogo cuyo título aparece literalmente en el
-    texto del tema (títulos de >=5 caracteres, para evitar falsos positivos).
-
-    Permite priorizar un verso de LA canción de la que va la noticia."""
-    ntext = _strip_accents(text)
-    out: set[int] = set()
-    try:
-        for sid, title in db.query(Song.id, Song.title).all():
-            t = _strip_accents(_clean_song_title(title))
-            if len(t) >= 5 and t in ntext:
-                out.add(sid)
-    except Exception:  # noqa: BLE001
-        return set()
-    return out
-
-
 _TERMINAL = re.compile(r'[.!?…]["»)]?\s*$')
 
 
-def _full_verse(song, line_text: str, max_lines: int = 4) -> str:
-    """Expande la línea casada a la FRASE completa: incluye líneas contiguas hacia
-    atrás (hasta el cierre anterior) y hacia delante (hasta el siguiente cierre de
-    frase), acotado a `max_lines`. Así el verso citado nunca queda a medias."""
-    texts = [(ln.text or "").strip() for ln in song.lines]
-    if not texts:
-        return line_text.strip()
-    nt = _norm_line(line_text)
-    idx = next((i for i, t in enumerate(texts) if _norm_line(t) == nt), None)
-    if idx is None:
-        return line_text.strip()
+# --------------------------------------------------------------------------- #
+# El verso de SU canción
+# --------------------------------------------------------------------------- #
+# Hasta el 09-10-2026 el verso se elegía por PARECIDO con el texto del post
+# (búsqueda vectorial sobre todas las líneas). Medido en prod: 192 posts con
+# verso y 153 con uno de solo TRES versos comodín — «Mira por donde va el Robe»
+# atraía a cualquier noticia con «Robe» dentro. Un clip de «Si te vas...» salió
+# con un verso de «Bri, bri, bli, bli» teniendo el estribillo bueno en la BD.
+#
+# Criterio de David: lleva verso SOLO el post que va de una canción concreta, y
+# el verso es de ESA canción (en su versión original). Sin canción, sin verso.
+
+# Charla de la grabación que Genius transcribe como si fuera letra.
+_CHARLA = re.compile(r"^(toma\b|eh[,!]|uno,? dos|vamos\b|venga\b)", re.IGNORECASE)
+MAX_CHARS_VERSO = 160
+
+
+def _palabras(s: str) -> list[str]:
+    return re.findall(r"[a-zñ0-9]+", _strip_accents(s))
+
+
+def verso_decente(verso: str, titulo: str) -> bool:
+    """¿Funciona como cita? Descarta lo que se publicó como «Deltoya, deltoya…»
+    ×35 (solo el título repetido), la charla de estudio («Toma primera…») y lo
+    que no cabe."""
+    v = (verso or "").strip()
+    if not v or len(v) > MAX_CHARS_VERSO:
+        return False
+    palabras = _palabras(v)
+    del_titulo = set(_palabras(_clean_song_title(titulo)))
+    propias = {p for p in palabras if p not in del_titulo}
+    if len(set(palabras)) < 4 or len(propias) < 3:
+        return False
+    return not _CHARLA.search(v)
+
+
+def _estribillo(textos: list[str]) -> int | None:
+    """Índice de la primera aparición del estribillo: un verso que se repite 3+
+    veces Y vuelve a lo largo de la canción (dispersión ≥ 0,35). Mismo criterio
+    que `momentos`, por el mismo motivo: lo que se repite al principio es la
+    letanía de entrada, no el estribillo."""
+    from app.services.instagram.momentos import DISPERSION_MIN, REPETICIONES_ESTRIBILLO
+
+    n = len(textos)
+    pos: dict[str, list[int]] = {}
+    for i, t in enumerate(textos):
+        k = _norm_line(t)
+        if len(k) > 12:
+            pos.setdefault(k, []).append(i)
+    mejores = [
+        (len(ix), ix[0]) for ix in pos.values()
+        if len(ix) >= REPETICIONES_ESTRIBILLO and (ix[-1] - ix[0]) / max(n, 1) >= DISPERSION_MIN
+    ]
+    return max(mejores)[1] if mejores else None
+
+
+def _linea_ok(linea: str, titulo: str) -> bool:
+    """Una línea suelta que no aporta nada propio: solo el título repetido
+    («Deltoya, deltoya…») o charla de la grabación. Se mira línea a línea: en el
+    bloque entero, una buena al lado la camuflaba."""
+    palabras = _palabras(linea)
+    if not palabras or _CHARLA.search(linea.strip()):
+        return False
+    raices = {w[:4] for w in _palabras(_clean_song_title(titulo)) if len(w) >= 4}
+    # Por raíz y no por palabra exacta: la letra trae apócopes («delto'»), y una
+    # línea con «deltoya» cuatro veces y un «delto'» al final seguía pasando.
+    del_titulo = [w for w in palabras if len(w) >= 4 and w[:4] in raices]
+    return len(del_titulo) / len(palabras) <= 0.5
+
+
+def _bloque(textos: list[str], idx: int, titulo: str, max_lines: int = 4) -> list[str]:
+    """La frase completa alrededor de `idx` (hasta cerrar con puntuación), con
+    tope de líneas, sin repetir la misma línea dos veces seguidas y cortando en
+    cuanto aparece una línea que no vale (`_linea_ok`)."""
+    if not _linea_ok(textos[idx] or "", titulo):
+        return []
     start = idx
-    while start > 0 and texts[start - 1] and not _TERMINAL.search(texts[start - 1]) \
-            and (idx - start) < 2:
+    while start > 0 and textos[start - 1] and not _TERMINAL.search(textos[start - 1]) \
+            and _linea_ok(textos[start - 1], titulo) and (idx - start) < 1:
         start -= 1
-    end = idx
-    while end < len(texts) - 1 and texts[end] and not _TERMINAL.search(texts[end]) \
-            and (end - start) < max_lines - 1:
-        end += 1
-    verse = " ".join(t for t in texts[start:end + 1] if t)
-    return verse or line_text.strip()
+    out: list[str] = []
+    for t in textos[start:]:
+        t = (t or "").strip()
+        if not t:
+            if out:
+                break
+            continue
+        if not _linea_ok(t, titulo):
+            break
+        if out and _norm_line(t) == _norm_line(out[-1]):
+            continue
+        out.append(t)
+        if len(out) >= max_lines or _TERMINAL.search(t):
+            break
+    return out
 
 
-def find_verse(
-    db: Session, text: str, exclude_lines: set[str] | None = None
-) -> dict | None:
-    """Devuelve el verso más afín a `text` o None.
+def verso_de_cancion(db: Session, song_id: int | None, preferido: str | None = None) -> dict:
+    """El verso de la canción `song_id`, en su versión ORIGINAL, o `{}`.
 
-    `exclude_lines` (normalizadas) son versos usados recientemente: se saltan
-    para no repetir el mismo verso en posts consecutivos.
-
-    Prioriza un verso de la canción mencionada explícitamente en el tema; si no
-    hay, el mejor hit semántico que supere `MIN_SCORE` (si nada lo supera,
-    devuelve None: mejor sin verso que con uno que no pega).
-
-    Resultado: {"line", "song", "artist", "year"}.
+    Orden: el `preferido` si está en la letra (el clip ya sabe qué verso suena),
+    luego el estribillo, luego el primer bloque que funcione como cita. Las
+    líneas se unen con « / », que es como se cita un verso. Nunca se reescribe.
     """
-    exclude = {_norm_line(x) for x in (exclude_lines or set())}
+    if not song_id:
+        return {}
+    from app.services.versiones import version_original
 
-    # Prioridad máxima: si el tema va de una canción del dataset curado externo
-    # (colaboraciones de Robe fuera del corpus), usar SU verso verificado.
-    ext = _external_verse(text)
-    if ext and _norm_line(ext["line"]) not in exclude:
-        return ext
-
-    try:
-        query_vec = get_embedder().embed_one(text[:480])
-        hits = vector_search(LINES_COLLECTION, query_vec, k=10)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[robe_quote] búsqueda semántica falló: %s", exc)
-        return None
-
-    if not hits:
-        return None
-
-    def _usable(h) -> bool:
-        return bool((h.text or "").strip()) and _norm_line(h.text) not in exclude
-
-    mentioned = _mentioned_song_ids(db, text)
-    top = None
-    # 1) Preferir un verso de la canción de la que va el tema (pertinencia alta).
-    if mentioned:
-        top = next((h for h in hits if h.song_id in mentioned and _usable(h)), None)
-    # 2) Si no, el mejor hit afín no usado recientemente.
-    if top is None:
-        top = next((h for h in hits if _usable(h)), None)
-    if top is None:
-        return None
-    # Umbral de relevancia (salvo que sea de una canción ya mencionada, donde la
-    # pertinencia está garantizada): no forzar un verso poco afín.
-    if top.song_id not in mentioned and (top.score or 0.0) < MIN_SCORE:
-        logger.info("[robe_quote] sin verso afín (mejor score %.3f < %.2f)",
-                    top.score or 0.0, MIN_SCORE)
-        return None
-    line = (top.text or "").strip()
-    if not line:
-        return None
-
-    song = db.get(Song, top.song_id) if top.song_id else None
+    song = db.get(Song, song_id)
     if song is None:
-        return {"line": line, "song": "", "artist": "Extremoduro", "year": None}
+        return {}
+    song = version_original(db, song)
+    textos = [(ln.text or "").strip() for ln in song.lines]
+    if not any(textos):
+        return {}
 
-    # Verso SIEMPRE completo: expande la línea casada a la frase entera (líneas
-    # contiguas hasta cerrar con puntuación), para que la cita no quede a medias.
-    line = _full_verse(song, line)
+    candidatos: list[int] = []
+    if preferido:
+        objetivo = _norm_line(preferido)
+        candidatos += [i for i, t in enumerate(textos) if _norm_line(t) and _norm_line(t) in objetivo]
+    est = _estribillo(textos)
+    if est is not None:
+        candidatos.append(est)
+    candidatos += list(range(len(textos)))
 
-    album = song.album
-    artist = album.artist if album is not None else None
-    return {
-        "line": line,
-        "song": _clean_song_title(song.title),
-        "artist": artist.name if artist is not None else "Extremoduro",
-        "year": album.year if album is not None else None,
-    }
+    vistos: set[int] = set()
+    for i in candidatos:
+        if i in vistos or not textos[i]:
+            continue
+        vistos.add(i)
+        bloque = _bloque(textos, i, song.title)
+        verso = " / ".join(bloque)
+        if verso_decente(verso, song.title):
+            album = song.album
+            artist = album.artist if album is not None else None
+            return {
+                "line": verso,
+                "song": _clean_song_title(song.title),
+                "song_id": song.id,
+                "artist": artist.name if artist is not None else "Extremoduro",
+                "year": album.year if album is not None else None,
+            }
+    return {}
+
+
+def cancion_del_post(db: Session, item) -> tuple[int | None, str | None]:
+    """¿De qué canción va este post? `(song_id, verso_preferido)` o `(None, None)`.
+
+    Solo dos casos la saben con certeza, y por eso solo esos llevan verso:
+      - un CLIP de concierto: `propose_clips` dejó «Canción:» y el verso de
+        nuestra letra en el `summary`;
+      - un post del blog que es la ficha de una canción (`spotlight:song_<id>`).
+    Una noticia que NOMBRA una canción no va de ella: no se adivina.
+    """
+    from app.db.models import Post
+
+    if (item.media_type or "") == "CLIP" or (item.content_type or "") == "clip":
+        datos: dict[str, str] = {}
+        for linea in (item.summary or "").splitlines():
+            if ":" in linea:
+                k, v = linea.split(":", 1)
+                datos[k.strip().lower()] = v.strip()
+        titulo = datos.get("canción") or datos.get("cancion")
+        if titulo:
+            sid = db.query(Song.id).filter(Song.title == titulo).order_by(Song.id).scalar()
+            if sid:
+                return sid, datos.get("verso (de nuestra letra)")
+        return None, None
+
+    if item.blog_post_id:
+        post = db.get(Post, item.blog_post_id)
+        ck = (getattr(post, "content_key", None) or "") if post else ""
+        m = re.match(r"spotlight:song_(\d+)$", ck)
+        if m:
+            return int(m.group(1)), None
+    return None, None

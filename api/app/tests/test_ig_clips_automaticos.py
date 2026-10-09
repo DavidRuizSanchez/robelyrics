@@ -321,7 +321,7 @@ def test_un_clip_no_necesita_cuerpo_de_articulo(db, monkeypatch):
     # El resto del camino toca tablas de contenido que este fixture no monta
     # (`songs`, `albums`): lo que se prueba aquí es la guarda, no eso.
     monkeypatch.setattr(publisher, "_corpus_context", lambda *a, **k: {})
-    monkeypatch.setattr(publisher.robe_quote, "find_verse", lambda *a, **k: {})
+    monkeypatch.setattr(publisher.robe_quote, "verso_de_cancion", lambda *a, **k: {})
     publisher.prepare(db, item)
 
     db.refresh(item)

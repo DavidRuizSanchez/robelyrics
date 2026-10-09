@@ -191,6 +191,10 @@ def generate_body(db, p: ContentProposal) -> dict | None:
         song = db.get(Song, p.source_id)
         if not song:
             return None
+        # Una propuesta vieja puede apuntar a una fila del directo: se escribe
+        # sobre la canción original, con su disco y su año.
+        from app.services.versiones import version_original
+        song = version_original(db, song)
         album = db.get(Album, song.album_id)
         artist = db.get(Artist, album.artist_id) if album else None
         seo = db.execute(

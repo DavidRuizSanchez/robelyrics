@@ -29,6 +29,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Album, Artist, InstagramQueueItem, Line, Person, Song
+from app.services.versiones import KINDS_NO_ORIGINALES
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,9 @@ def gen_quotes(db: Session, count: int, used: set[str]) -> list[dict]:
         .join(Album, Song.album_id == Album.id)
         .join(Artist, Album.artist_id == Artist.id)
         .where(func.length(Line.text) >= 32, func.length(Line.text) <= 120)
+        # Solo versiones originales: un verso del directo «Iros…» salía firmado
+        # como «Iros todos a tomar por culo (1997)» en vez de su disco.
+        .where(Album.kind.notin_(KINDS_NO_ORIGINALES), ~Song.title.ilike("%en directo%"))
         .order_by(func.random())
         .limit(count * 8)
     ).all()

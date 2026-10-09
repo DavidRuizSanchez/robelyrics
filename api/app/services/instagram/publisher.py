@@ -454,6 +454,13 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         # protegía la regla de «en evergreen no se llama al LLM», y se mantiene.
         _redactar_con_corpus(db, topic)
     else:
+        # El verso 🎵: SOLO si el post va de una canción concreta, y de ESA
+        # canción (`robe_quote.cancion_del_post`). Se elige AQUÍ, antes de
+        # escribir, para que las guardas lo vean (`newsroom.texto_publicado`):
+        # hasta el 09-10-2026 se añadía después de ellas y nadie lo revisaba.
+        sid, preferido = robe_quote.cancion_del_post(db, item)
+        topic["verse"] = robe_quote.verso_de_cancion(db, sid, preferido) if sid else {}
+
         # Las noticias se reescriben con voz editorial propia (sin citar al
         # medio); los posts del blog ya traen su texto y su imagen destacada.
         if is_blog:
@@ -556,24 +563,6 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                         f"va arte propio."
                     )
 
-        # Verso afín al tema (se reutiliza en imagen y caption, así coinciden).
-        # Se excluyen los versos usados en los últimos posts para no repetirlos.
-        _t = topic.get("headline") or topic.get("title") or ""
-        _b = topic.get("caption_body") or topic.get("summary") or ""
-        recent_caps = db.execute(
-            select(InstagramQueueItem.caption)
-            .where(InstagramQueueItem.caption.is_not(None), InstagramQueueItem.id != item.id)
-            .order_by(InstagramQueueItem.id.desc())
-            .limit(6)
-        ).scalars().all()
-        recent_verses = {
-            m.group(1)
-            for c in recent_caps
-            if (m := re.search(r"«([^»]+)»", c or ""))
-        }
-        topic["verse"] = robe_quote.find_verse(
-            db, f"{_t}. {_b}", exclude_lines=recent_verses
-        ) or {}
 
     # Formato: carrusel si el tema da para ello, foto única en cualquier otro
     # caso (que sigue siendo el camino por defecto). `carousel.plan` devuelve

@@ -850,3 +850,51 @@ def check_and_correct(
         return body_md, report
     fixed, _skipped = correct_body(db, body_md, report, index=index, material=material, client=client)
     return fixed, report
+
+
+# --------------------------------------------------------------------------- #
+# «Disco» (AAAA): el par título-año tiene que cuadrar con el catálogo
+# --------------------------------------------------------------------------- #
+def pares_disco_anio_falsos(db: Session, texto: str) -> list[str]:
+    """Pares «Disco» (AAAA) cuyo año no es el del disco. Determinista, sin LLM.
+
+    El 09-10-2026 salió en Instagram «formó parte del álbum 'Iros todos a tomar
+    por culo' (1992)»: el directo es de 1997 (1992 es «Deltoya», el disco de
+    estudio de la canción). `album_year` no lo cazó porque se salta cualquier
+    frase con «directo» —está pensado para fechas de grabación—, y aquí lo que
+    se afirma es el año DEL DISCO, que no tiene ambigüedad.
+
+    Si el título es también el de una canción y el año cuadra con ella
+    («Deltoya» es disco y canción), no se marca.
+    """
+    import unicodedata
+
+    from app.db.models import Album, Song
+    from app.services.versiones import version_original
+
+    def _plano(s: str) -> str:
+        s = unicodedata.normalize("NFD", s or "")
+        return "".join(c for c in s if unicodedata.category(c) != "Mn").lower()
+
+    plano = _plano(texto)
+    if "(" not in plano:
+        return []
+    discos = db.execute(select(Album.title, Album.year)).all()
+    canciones: dict[str, set[int]] = {}
+    for song in db.execute(select(Song)).scalars().all():
+        orig = version_original(db, song)
+        al = orig.album
+        if al and al.year:
+            canciones.setdefault(_plano(song.title), set()).add(int(al.year))
+    falsos: list[str] = []
+    for titulo, anio in discos:
+        if not titulo or not anio:
+            continue
+        patron = (re.escape(_plano(titulo))
+                  + r"\s*[»\"'*_”’\)]*\s*,?\s*\(\s*((?:19|20)\d\d)\s*\)")
+        for m in re.finditer(patron, plano):
+            dicho = int(m.group(1))
+            if dicho == int(anio) or dicho in canciones.get(_plano(titulo), set()):
+                continue
+            falsos.append(f"«{titulo}» ({dicho}): el disco es de {anio}")
+    return falsos

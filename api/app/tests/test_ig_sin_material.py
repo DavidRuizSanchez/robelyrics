@@ -151,7 +151,7 @@ def test_un_post_del_blog_no_necesita_cuerpo_de_articulo(db, monkeypatch):
     # contenido). Mismo criterio que el test del clip aprobado.
     monkeypatch.setattr(publisher, "_redactar_con_corpus", lambda *a, **k: None)
     monkeypatch.setattr(publisher, "_corpus_context", lambda *a, **k: {})
-    monkeypatch.setattr(publisher.robe_quote, "find_verse", lambda *a, **k: {})
+    monkeypatch.setattr(publisher.robe_quote, "verso_de_cancion", lambda *a, **k: {})
     monkeypatch.setattr(publisher, "captions", type("C", (), {
         "build": staticmethod(lambda db, topic: "caption de prueba"),
     }))

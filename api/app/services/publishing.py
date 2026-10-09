@@ -483,12 +483,22 @@ def gates_deterministas(db: Session, post: Post) -> tuple[str, str] | None:
     """
     try:
         from app.services.lyric_guard import check_lyrics
-        lr = check_lyrics(db, post.body_md or "", subject=post.title)
+        lr = check_lyrics(db, post.body_md or "")
         if lr.blocking or lr.to_review:
             logger.warning("CITAS retienen post %s (%s)", post.id, lr.summary())
             return "lyrics", _motivo_citas(lr)
     except Exception as exc:  # noqa: BLE001
         logger.warning("lyric-guard falló: %s", exc)
+    # AÑO DE DISCO (BLOQUEANTE): «Disco» (AAAA) tiene que cuadrar con el
+    # catálogo. «Iros todos a tomar por culo (1992)» salió el 09-10-2026.
+    try:
+        from app.services.fact_check import pares_disco_anio_falsos
+        falsos = pares_disco_anio_falsos(db, post.body_md or "")
+        if falsos:
+            logger.warning("AÑO DE DISCO retiene post %s (%s)", post.id, "; ".join(falsos))
+            return "facts", "año de disco falso: " + "; ".join(falsos[:3])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("disco-año falló: %s", exc)
     try:
         from app.services.sensitive_topics import revisar as revisar_sensible
         rep = revisar_sensible(

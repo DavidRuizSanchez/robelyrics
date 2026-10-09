@@ -390,6 +390,17 @@ def revisar(
         logger.warning("[caption] lyric_guard no pudo correr: %s", exc)
         v.avisos.append("No se han podido comprobar las citas de letra.")
 
+    # 5b. Un disco con un año que no es el suyo: «Iros todos a tomar por culo
+    #     (1992)» salió publicado el 09-10-2026. Determinista y bloqueante.
+    try:
+        from app.services.fact_check import pares_disco_anio_falsos
+
+        for falso in pares_disco_anio_falsos(db, texto):
+            v.bloqueos.append(f"Año de disco falso: {falso}.")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[caption] comprobación disco-año no pudo correr: %s", exc)
+        v.avisos.append("No se ha podido comprobar el año de los discos.")
+
     # 6. Relaciones afirmadas (lo caro: al final, y solo si lo demás pasa).
     if verificar_rel and v.ok:
         bloqueos, claims = verificar_relaciones(

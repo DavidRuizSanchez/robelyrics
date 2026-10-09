@@ -271,10 +271,11 @@ def test_disco_igual_que_cancion_sigue_atribuyendo(_corpus_destrozares):
     assert rep.to_review and rep.to_review[0].attributed_song == "Agila"
 
 
-def test_verso_de_la_cancion_del_post_esta_referenciado(_corpus_destrozares):
+def test_misatribucion_explicita_se_caza_aunque_el_post_vaya_de_esa_cancion(_corpus_destrozares):
+    """Regresión del 09-10-2026: con la excepción por «sujeto del post» esto
+    pasaba. Decir que un verso es de «So payaso» cuando es de otra canción es
+    falso, vaya de lo que vaya el post."""
     body = ('En "So payaso" se oye algo parecido, pero el estribillo dice '
             '"Si te da por volver / Al venir, si te acuerdas".')
-    rep = lg.check_lyrics(None, body, subject="Robe y el vacío en 'Donde se rompen las olas'")
-    assert not rep.to_review
-    rep_sin = lg.check_lyrics(None, body)
-    assert rep_sin.to_review   # sin el sujeto del post, sigue siendo misatribución
+    rep = lg.check_lyrics(None, body)
+    assert rep.to_review and rep.to_review[0].status == "misattributed"

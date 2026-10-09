@@ -222,7 +222,17 @@ def entity_dossiers(db, blob: str, *, max_songs: int = 2) -> str:
         song_ids = find_referenced_titles(blob, get_all_song_titles(db))
         if not song_ids:
             return ""
-        songs = db.query(Song).filter(Song.id.in_(song_ids[:max_songs])).all()
+        # De cada canción se habla en su versión ORIGINAL: si el texto nombra «De
+        # Acero (En Directo)», el dossier es el de «De Acero» en «Deltoya» (1992),
+        # no el del directo de 1997. Se deduplica tras redirigir.
+        from app.services.versiones import version_original
+
+        songs = []
+        for s in db.query(Song).filter(Song.id.in_(song_ids)).order_by(Song.id).all():
+            o = version_original(db, s)
+            if o.id not in {x.id for x in songs}:
+                songs.append(o)
+        songs = songs[:max_songs]
         if not songs:
             return ""
 

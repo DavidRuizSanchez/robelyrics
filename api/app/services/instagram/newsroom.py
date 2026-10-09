@@ -120,6 +120,12 @@ def texto_publicado(topic: dict) -> str:
     # escribimos nosotros. Mientras la ponía una plantilla después del gate, una
     # fórmula que el linter tenía vetada salía publicada igual.
     partes.append(topic.get("pregunta") or "")
+    # Y el verso 🎵, con su canción delante para que `lyric_guard` compruebe que
+    # es de ella. Hasta el 09-10-2026 lo añadía `captions.build` DESPUÉS de las
+    # guardas y salieron 153 versos de canciones que no eran la del post.
+    verso = topic.get("verse") or {}
+    if verso.get("line"):
+        partes.append(f'En «{verso.get("song") or ""}»: "{verso["line"]}"')
     return "\n".join(p for p in partes if p.strip())
 
 

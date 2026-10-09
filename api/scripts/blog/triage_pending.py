@@ -62,7 +62,7 @@ def main() -> None:
             motivos: list[str] = []
 
             dup = duplicado_de(p, vistos)
-            citas = check_lyrics(db, p.body_md or "", subject=p.title)
+            citas = check_lyrics(db, p.body_md or "")
             hechos = check_body(db, p.body_md or "", use_web=False)
 
             if dup:
