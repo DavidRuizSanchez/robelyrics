@@ -77,12 +77,31 @@ def test_errata_rejected_es_por_correccion(db):
                                    suggested_right="Otro (autoría)")
 
 
-def test_las_seis_hipotesis_no_entran_al_barrido():
+_ENTRADAS = [
+    {"song_title": "Salir", "album_slug": "canciones-prohibidas", "source": "jotdown_2017",
+     "status": "hipotesis",
+     "credits": [{"role": "adaptacion", "name": "Santos Isidro Seseña", "primary": True}]},
+    {"song_title": "Sucede", "album_slug": "agila", "source": "jotdown_2017",
+     "status": "pending_verification",
+     "credits": [{"role": "adaptacion", "name": "Pablo Neruda", "primary": True}]},
+]
+
+
+def test_una_hipotesis_no_entra_al_barrido():
+    pend = {e["song_title"] for e in co.pending_only(_ENTRADAS)}
+    assert pend == {"Sucede"}
+
+
+def test_las_seis_hipotesis_del_yaml_real():
+    """Contra el YAML de verdad. En el CI no existe `data/` (la imagen se
+    construye con contexto `./api`), así que allí se salta; en local vigila que
+    nadie devuelva una hipótesis al barrido sin querer."""
+    if not (co._DATA_DIR / "song_credits.yaml").exists():
+        pytest.skip("sin data/ en este entorno (CI)")
     co.song_credits.cache_clear()
     hip = [e["song_title"] for e in co.song_credits() if e.get("status") == "hipotesis"]
     assert len(hip) == 6
-    pend = {e["song_title"] for e in co.pending_only(co.song_credits())}
-    assert not pend & set(hip)
+    assert not {e["song_title"] for e in co.pending_only(co.song_credits())} & set(hip)
 
 
 def test_arreglar_una_hipotesis_la_cierra_sin_verificar(monkeypatch):
@@ -91,7 +110,7 @@ def test_arreglar_una_hipotesis_la_cierra_sin_verificar(monkeypatch):
 
     from scripts.verify import authorship_consensus as ac
     monkeypatch.setattr(ac, "verify_credit", _no_verifiques)
-    co.song_credits.cache_clear()
+    monkeypatch.setattr(co, "song_credits", lambda: _ENTRADAS)
     song = Song(id=78, title="Salir")
     e = ErrataReport(id=29, target_type="authorship", target_id=78, field="credit",
                      reported_wrong="atribución actual a Robe",
