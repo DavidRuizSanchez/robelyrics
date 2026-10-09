@@ -232,6 +232,12 @@ class ClipPending(BaseModel):
     overlay: str | None = None
     channel_title: str | None = None
     attempts: int
+    # Clip de UNA canción: hay que localizar su estribillo en el audio y, si no
+    # se oye, no hay clip. Viaja la letra de la versión ORIGINAL de la canción.
+    buscar_estribillo: bool = False
+    cancion: str | None = None
+    estribillo: list[str] = []
+    letra: list[str] = []
 
 
 class ClipComplete(BaseModel):
@@ -245,6 +251,12 @@ class ClipComplete(BaseModel):
     # ¿El vídeo era una foto quieta con el audio encima? Solo se sabe tras
     # descargar el tramo, así que lo trae quien lo bajó.
     imagen_fija: bool | None = None
+    # Tramo REAL, cuando el daemon lo ha localizado escuchando el audio, y el
+    # verso de nuestra letra con el que casó (la evidencia).
+    start_s: float | None = None
+    end_s: float | None = None
+    verso: str | None = None
+    tramos_cancion: int | None = None
 
 
 @clips_router.get("/pending", response_model=list[ClipPending])
@@ -255,15 +267,36 @@ def clips_pending(
     """Clips que quedan por descargar."""
     from app.services.instagram import video_clips as _vc
 
-    return [
-        ClipPending(
+    out = []
+    for c in _vc.pendientes(db, max_intentos=MAX_ATTEMPTS):
+        extra: dict = {}
+        if c.buscar_estribillo and c.song_id:
+            extra = _letra_para_localizar(db, c.song_id)
+        out.append(ClipPending(
             id=c.id, url=c.url, video_id=c.video_id, start_s=c.start_s,
             end_s=c.end_s, subtitle=c.subtitle, overlay=c.overlay,
             channel_title=c.channel_title,
-            attempts=c.attempts,
-        )
-        for c in _vc.pendientes(db, max_intentos=MAX_ATTEMPTS)
-    ]
+            attempts=c.attempts, buscar_estribillo=bool(c.buscar_estribillo), **extra,
+        ))
+    return out
+
+
+def _letra_para_localizar(db: Session, song_id: int) -> dict:
+    """Letra y estribillo de la versión ORIGINAL de la canción."""
+    from app.db.models import Song
+    from app.services.instagram.robe_quote import _estribillo
+    from app.services.versiones import version_original
+
+    song = db.get(Song, song_id)
+    if song is None:
+        return {}
+    song = version_original(db, song)
+    letra = [(ln.text or "").strip() for ln in song.lines if (ln.text or "").strip()]
+    i = _estribillo(letra)
+    # El verso que se repite y el que lo sigue: un estribillo rara vez es una
+    # sola línea, y con dos hay más donde casar lo que se oye.
+    estribillo = list(dict.fromkeys(letra[i:i + 2])) if i is not None else []
+    return {"cancion": song.title, "estribillo": estribillo, "letra": letra}
 
 
 @clips_router.post("/{clip_id}/claim")
@@ -306,6 +339,8 @@ def clips_complete(
     clip.channel_url = payload.channel_url or clip.channel_url
     clip.status = "ready"
     clip.error = None
+    if payload.start_s is not None and payload.end_s is not None:
+        clip.start_s, clip.end_s = payload.start_s, payload.end_s
 
     # La publicación del clip se creó al pedirlo, con el tema que escribió el
     # admin. Ahora se le añade la procedencia REAL, que hasta la descarga no se
@@ -319,6 +354,14 @@ def clips_complete(
             item.source_url = clip.channel_url or clip.url or item.source_url
             if not (item.summary or "").strip() and clip.video_title:
                 item.summary = clip.video_title[:500]
+            if payload.verso:
+                # La prueba de que el tramo es el estribillo de ESA canción: el
+                # verso de nuestra letra con el que casó lo que se oye. Va al
+                # correo de aprobación.
+                nota = (f"Verificado: en {payload.start_s:.0f}-{payload.end_s:.0f}s se oye "
+                        f"«{payload.verso}» ({payload.tramos_cancion or 0} tramos casan "
+                        f"con la letra)")
+                item.summary = f"{(item.summary or '').strip()}\n{nota}".strip()
             if payload.imagen_fija:
                 # Va al `summary`, que es de donde `notify_clips` saca lo que
                 # enseña en el correo. No se veta el vídeo: se marca y decide
@@ -358,5 +401,17 @@ def clips_fail(
         raise HTTPException(status_code=404, detail="clip no encontrado")
     clip.status = "failed"
     clip.error = str(payload.get("error", ""))[:2000]
+    if payload.get("permanente"):
+        # No se oye el estribillo de esa canción: reintentar no lo cambia. Se
+        # agotan los intentos y su publicación se descarta (si no, ocuparía
+        # para siempre un hueco del tope de vídeo).
+        clip.attempts = max(clip.attempts, MAX_ATTEMPTS)
+        if clip.queue_item_id:
+            from app.db.models import InstagramQueueItem
+
+            item = db.get(InstagramQueueItem, clip.queue_item_id)
+            if item is not None and item.status in ("proposed", "pending", "prepared"):
+                item.status = "discarded"
+                item.error = clip.error
     db.commit()
     return {"ok": True, "attempts": clip.attempts}

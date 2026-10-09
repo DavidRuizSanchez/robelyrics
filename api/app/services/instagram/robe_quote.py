@@ -137,6 +137,15 @@ def _bloque(textos: list[str], idx: int, titulo: str, max_lines: int = 4) -> lis
     return out
 
 
+def _sin_coletilla(song) -> str:
+    """El nombre de la canción, sin «(En Directo)» ni el disco con el que el
+    catálogo distingue los gemelos («Extremaydura (Rock Transgresivo)»)."""
+    from app.services.instagram.publisher import _sin_desambiguador
+
+    return _sin_desambiguador(_clean_song_title(song.title),
+                              song.album.title if song.album else "")
+
+
 def verso_de_cancion(db: Session, song_id: int | None, preferido: str | None = None) -> dict:
     """El verso de la canción `song_id`, en su versión ORIGINAL, o `{}`.
 
@@ -177,7 +186,7 @@ def verso_de_cancion(db: Session, song_id: int | None, preferido: str | None = N
             artist = album.artist if album is not None else None
             return {
                 "line": verso,
-                "song": _clean_song_title(song.title),
+                "song": _sin_coletilla(song),
                 "song_id": song.id,
                 "artist": artist.name if artist is not None else "Extremoduro",
                 "year": album.year if album is not None else None,

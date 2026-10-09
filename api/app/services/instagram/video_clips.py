@@ -118,7 +118,8 @@ def solicitar(
     db: Session, url: str, start_s: float, end_s: float,
     subtitle: str | None = None, requested_by: str | None = None,
     *, estado_item: str | None = None, needs_human: bool = False,
-    overlay: str | None = None,
+    overlay: str | None = None, song_id: int | None = None,
+    buscar_estribillo: bool = False,
 ) -> VideoClip:
     """Da de alta la petición de un clip Y su publicación propia.
 
@@ -161,6 +162,9 @@ def solicitar(
         # unos 32 caracteres por línea. Sin rótulo se usa el título, como hace
         # el alta manual del panel.
         overlay=overlay,
+        # Clip de UNA canción: el tramo es provisional hasta que el daemon oiga
+        # el estribillo en el audio (`estribillo.localizar`).
+        song_id=song_id, buscar_estribillo=buscar_estribillo,
     )
     db.add(clip)
     db.flush()
@@ -171,7 +175,8 @@ def solicitar(
     item = InstagramQueueItem(
         day=date.today(), slot=2, position=pos + 1,
         content_type="clip",
-        content_key=f"clip:{video_id}:{int(start_s)}-{int(end_s)}",
+        content_key=(f"clip:{video_id}:estribillo" if buscar_estribillo
+                     else f"clip:{video_id}:{int(start_s)}-{int(end_s)}"),
         title=tema[:300],
         category="Cultura",
         source_url=clip.url,

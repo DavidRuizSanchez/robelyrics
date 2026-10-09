@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -147,6 +148,89 @@ def _cuando_y_donde(asset) -> str:
     return ", ".join(partes)
 
 
+def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
+    """Clips de UNA canción, cortados en su estribillo (09-10-2026). Van primero.
+
+    Criterio de David: un clip es una canción y su estribillo, y el texto es el
+    de esa canción. El vídeo ya dice qué canción es (`live_song`, catalogado por
+    `buscar_canciones_directo`), así que aquí no se transcribe nada: el tramo
+    nace por localizar y el daemon lo fija escuchando el audio. Si no oye el
+    estribillo de esa canción, no hay clip (y no llega al correo).
+
+    Una canción por propuesta y nunca una que ya tenga clip vivo o publicado.
+    """
+    from datetime import timedelta
+
+    from app.db.models import Song, VideoAsset, VideoClip
+    from app.services.instagram import rotulo
+    from app.services.instagram.robe_quote import _clean_song_title, _estribillo
+    from app.services.versiones import version_original
+
+    hace = datetime.now(UTC) - timedelta(days=120)
+    usadas = {sid for (sid,) in db.execute(
+        select(VideoClip.song_id).where(
+            VideoClip.song_id.is_not(None),
+            (VideoClip.status.in_(("requested", "downloading", "ready", "published")))
+            | (VideoClip.created_at >= hace),
+        )).all()}
+    videos_fallidos = {v for (v,) in db.execute(
+        select(VideoClip.video_id).where(VideoClip.status == "failed")).all()}
+    assets = db.execute(
+        select(VideoAsset).where(VideoAsset.kind == "live_song",
+                                 VideoAsset.vetado.is_(False),
+                                 VideoAsset.song_id.is_not(None))
+        .order_by(VideoAsset.event_date.is_(None), VideoAsset.id)
+    ).scalars().all()
+
+    hechas = 0
+    for asset in assets:
+        if hechas >= cupo:
+            break
+        if asset.song_id in usadas or asset.youtube_id in videos_fallidos:
+            continue
+        song = version_original(db, db.get(Song, asset.song_id))
+        letra = [(ln.text or "").strip() for ln in song.lines if (ln.text or "").strip()]
+        i = _estribillo(letra)
+        if i is None:
+            continue   # sin estribillo identificado en la letra no hay qué buscar
+        # Sin la coletilla con la que el catálogo distingue los discos gemelos:
+        # «Emparedado (Rock Transgresivo)» → «Emparedado».
+        from app.services.instagram.publisher import _sin_desambiguador
+
+        cancion = _sin_desambiguador(_clean_song_title(song.title),
+                                     song.album.title if song.album else "")
+        donde = _cuando_y_donde(asset)
+        titulo = f"El estribillo de «{cancion}»" + (f" — {donde}" if donde else "")
+        cuando = str(asset.event_date.year) if asset.event_date else None
+        logger.info("Canción: %s · %s · %s", cancion, asset.youtube_id, asset.title)
+        usadas.add(asset.song_id)
+        hechas += 1
+        if dry_run:
+            continue
+        clip = video_clips.solicitar(
+            db, asset.url, 0.0, 30.0,   # provisional: lo fija el daemon al oírlo
+            subtitle=titulo,
+            overlay=rotulo.componer(tipo="estribillo", cancion=cancion, verso=letra[i],
+                                    lugar=asset.event_place, cuando=cuando,
+                                    clave=f"{asset.youtube_id}:estribillo"),
+            requested_by="auto", estado_item="proposed", needs_human=True,
+            song_id=song.id, buscar_estribillo=True,
+        )
+        item = db.get(InstagramQueueItem, clip.queue_item_id)
+        if item is not None:
+            partes = [f"Vídeo de una canción: «{asset.title}»",
+                      "Momento: estribillo (se localiza escuchando el audio)",
+                      f"Canción: {song.title}",
+                      f"Verso (de nuestra letra): {letra[i]}"]
+            if donde:
+                partes.append(f"Concierto: {donde} (fuente: {asset.event_source or 'título'})")
+            if asset.channel_title:
+                partes.append(f"Canal: {asset.channel_title}")
+            item.summary = "\n".join(partes)
+            db.commit()
+    return hechas
+
+
 def _hay_sitio(db) -> int:
     """Cuántas propuestas caben. Los clips van por su carril (1 al día, encima
     del goteo), así que el tope es de VÍDEO —`VIDEO_BUFFER`, una semana— y no
@@ -184,6 +268,11 @@ def main() -> None:
                         config.VIDEO_BUFFER, config.VIDEO_BUFFER)
             return
         cupo = min(args.limit, sitio or args.limit)
+
+        # Primero, directos de UNA canción cortados en su estribillo.
+        cupo -= _proponer_canciones(db, cupo, args.dry_run)
+        if cupo <= 0:
+            return
 
         # Primero los conciertos, que es de lo que se quieren los clips. Las
         # entrevistas solo completan si el directo no da para el cupo.

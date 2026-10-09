@@ -549,7 +549,8 @@ class VideoAsset(Base):
     __tablename__ = "video_assets"
     __table_args__ = (
         UniqueConstraint("youtube_id", name="uq_video_assets_youtube_id"),
-        CheckConstraint("kind IN ('interview','live_fan')", name="ck_video_assets_kind"),
+        CheckConstraint("kind IN ('interview','live_fan','live_song')",
+                        name="ck_video_assets_kind"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -565,6 +566,9 @@ class VideoAsset(Base):
     channel_url: Mapped[str | None] = mapped_column(String(500))
     duration_s: Mapped[int | None] = mapped_column(Integer)
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default="interview")
+    # `live_song`: directo de UNA canción (09-10-2026). El título del vídeo la
+    # nombra y aquí queda cuál es, para cortar su estribillo y no otro.
+    song_id: Mapped[int | None] = mapped_column(ForeignKey("songs.id", ondelete="SET NULL"))
     # --- Cuándo y dónde fue, si se ha podido saber SIN inventarlo ---
     # La fecha solo se guarda si aparece literalmente en el título o en la
     # descripción (`news_research.validated_event_date`), y el lugar solo si casa
@@ -1758,6 +1762,12 @@ class VideoClip(Base):
     # Sin esto, el rótulo era el titular entero y salía cortado por los dos
     # lados. Vacío = se usa `subtitle`, como el alta manual del panel.
     overlay: Mapped[str | None] = mapped_column(Text)
+    # Clip de UNA canción: cuál es y si el tramo está por localizar. Con
+    # `buscar_estribillo`, `start_s/end_s` son provisionales y el daemon los
+    # fija al encontrar el estribillo en el audio; si no lo oye, no hay clip.
+    song_id: Mapped[int | None] = mapped_column(ForeignKey("songs.id", ondelete="SET NULL"))
+    buscar_estribillo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false")
     # --- Ciclo de vida ---
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="requested", index=True
