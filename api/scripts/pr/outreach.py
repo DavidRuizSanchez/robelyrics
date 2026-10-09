@@ -6,6 +6,8 @@ Corre en el HOST, no en docker (la clave nunca entra en un contenedor ni en la i
     python3 -I api/scripts/pr/outreach.py preview 1
     python3 -I api/scripts/pr/outreach.py send 1 --yes
     python3 -I api/scripts/pr/outreach.py replies
+    python3 -I api/scripts/pr/outreach.py reply 2 --texto r.txt --adjunto a.png   # vista previa
+    python3 -I api/scripts/pr/outreach.py reply 2 --texto r.txt --adjunto a.png --yes
     python3 -I api/scripts/pr/outreach.py followups
 
 Credenciales en ~/.config/correo-personal/credenciales.env, que solo se usan desde
@@ -15,6 +17,9 @@ Reglas que el script hace cumplir, no solo documenta:
   · Cada `send` es UN destinatario y exige `--yes`: la aprobación es uno a uno, en el
     chat, y nunca hay un «mandar todos».
   · No se manda dos veces: si «Mandado (fecha)» tiene valor, se niega.
+  · `reply` contesta al ÚLTIMO correo recibido de ese medio, en su mismo hilo
+    (In-Reply-To/References) y a quien lo escribió, que no siempre es la dirección
+    a la que se mandó (redacción@ → el redactor jefe). Sin `--yes` solo enseña.
   · Solo texto plano y SIN seguimiento: el correo llega como lo escribiría una persona y
     el enlace llega limpio (es el backlink que se busca). Por eso Resend y no Brevo:
     Brevo convierte el texto en HTML y mete un píxel de aperturas por cualquier vía
@@ -24,6 +29,7 @@ Reglas que el script hace cumplir, no solo documenta:
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import csv
 import email
@@ -148,6 +154,29 @@ def cmd_preview(args) -> int:
     return 0
 
 
+def _resend(payload: dict, idempotencia: str) -> dict:
+    req = urllib.request.Request(
+        RESEND_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "authorization": f"Bearer {credencial('RESEND_API_KEY')}",
+            "content-type": "application/json",
+            # Identificarse tal cual; el UA por defecto de urllib lo bloquea Cloudflare.
+            "user-agent": "entreinteriores-outreach/1.0 (+https://entreinteriores.com)",
+            # Si la red corta tras enviar y se reintenta, Resend no lo manda dos veces.
+            # Lleva el hash del texto: si se cancela y se reprograma con otro texto,
+            # la misma clave devolvería el envío cancelado en vez de crear uno nuevo.
+            "idempotency-key": idempotencia,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60, context=TLS) as resp:
+            return json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        sys.exit(f"Resend respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
+
+
 def cmd_send(args) -> int:
     if not args.yes:
         sys.exit("falta --yes: cada envío necesita el OK explícito de David")
@@ -176,26 +205,7 @@ def cmd_send(args) -> int:
         # Resend lo guarda y lo manda a esa hora; hasta entonces se puede cancelar
         # desde su panel (Emails › el correo › Cancel).
         payload["scheduled_at"] = args.at
-    req = urllib.request.Request(
-        RESEND_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "authorization": f"Bearer {credencial('RESEND_API_KEY')}",
-            "content-type": "application/json",
-            # Identificarse tal cual; el UA por defecto de urllib lo bloquea Cloudflare.
-            "user-agent": "entreinteriores-outreach/1.0 (+https://entreinteriores.com)",
-            # Si la red corta tras enviar y se reintenta, Resend no lo manda dos veces.
-            # Lleva el hash del texto: si se cancela y se reprograma con otro texto,
-            # la misma clave devolvería el envío cancelado en vez de crear uno nuevo.
-            "idempotency-key": f"outreach-{f['ID']}-{huella}",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=TLS) as resp:
-            cuerpo = json.loads(resp.read() or b"{}")
-    except urllib.error.HTTPError as e:
-        sys.exit(f"Resend respondió {e.code}: {e.read().decode('utf-8', 'replace')}")
+    cuerpo = _resend(payload, f"outreach-{f['ID']}-{huella}")
 
     f["Mandado (fecha)"] = args.at[:16].replace("T", " ") if args.at else date.today().isoformat()
     f["messageId"] = cuerpo.get("id", "")
@@ -214,14 +224,36 @@ def _decodificar(valor: str | None) -> str:
     )
 
 
-def _extracto(msg: email.message.Message) -> str:
+def _texto_plano(msg: email.message.Message) -> str:
     for parte in msg.walk():
         if parte.get_content_type() == "text/plain" and not parte.get_filename():
             carga = parte.get_payload(decode=True) or b""
-            texto = carga.decode(parte.get_content_charset() or "utf-8", "replace")
-            lineas = [ln for ln in texto.splitlines() if ln.strip() and not ln.startswith(">")]
-            return " ".join(lineas)[:400]
+            return carga.decode(parte.get_content_charset() or "utf-8", "replace")
     return ""
+
+
+def _extracto(msg: email.message.Message) -> str:
+    lineas = [ln for ln in _texto_plano(msg).splitlines() if ln.strip() and not ln.startswith(">")]
+    return " ".join(lineas)[:400]
+
+
+def _abrir_buzon() -> imaplib.IMAP4_SSL:
+    imap = imaplib.IMAP4_SSL("imap.gmail.com", ssl_context=TLS)
+    imap.login(credencial("GMAIL_USER"), credencial("GMAIL_APP_PASSWORD"))
+    # La carpeta «Todos» cambia de nombre con el idioma de Gmail («[Gmail]/All Mail»,
+    # «[Gmail]/Todos»…): se busca por su atributo \All, no por el nombre.
+    _, carpetas = imap.list()
+    todos = next(
+        (c.decode().rsplit(' "/" ', 1)[-1] for c in carpetas or [] if b"\\All" in c),
+        None,
+    )
+    if not todos:
+        sys.exit("no encuentro la carpeta de todos los mensajes (atributo \\All)")
+    # readonly=True manda EXAMINE: nada cambia de estado en el buzón.
+    typ, _ = imap.select(todos, readonly=True)
+    if typ != "OK":
+        sys.exit(f"no se pudo abrir {todos}")
+    return imap
 
 
 def cmd_replies(args) -> int:
@@ -231,22 +263,8 @@ def cmd_replies(args) -> int:
         if "@" in f["Email"]:
             por_dominio[f["Email"].split("@", 1)[1].lower()] = f
 
-    imap = imaplib.IMAP4_SSL("imap.gmail.com", ssl_context=TLS)
-    imap.login(credencial("GMAIL_USER"), credencial("GMAIL_APP_PASSWORD"))
+    imap = _abrir_buzon()
     try:
-        # La carpeta «Todos» cambia de nombre con el idioma de Gmail («[Gmail]/All Mail»,
-        # «[Gmail]/Todos»…): se busca por su atributo \All, no por el nombre.
-        _, carpetas = imap.list()
-        todos = next(
-            (c.decode().rsplit(' "/" ', 1)[-1] for c in carpetas or [] if b"\\All" in c),
-            None,
-        )
-        if not todos:
-            sys.exit("no encuentro la carpeta de todos los mensajes (atributo \\All)")
-        # readonly=True manda EXAMINE: nada cambia de estado en el buzón.
-        typ, _ = imap.select(todos, readonly=True)
-        if typ != "OK":
-            sys.exit(f"no se pudo abrir {todos}")
         consulta = (f"to:hola@entreinteriores.com -from:hola@entreinteriores.com "
                     f"newer_than:{args.dias}d")
         typ, data = imap.search(None, "X-GM-RAW", f'"{consulta}"')
@@ -265,10 +283,103 @@ def cmd_replies(args) -> int:
             print(f"  De: {_decodificar(msg.get('From'))}")
             print(f"  Asunto: {_decodificar(msg.get('Subject'))}")
             print(f"  Fila: {f['ID'] + ' · ' + f['Medio'] if f else '(no casa con ningún medio)'}")
-            print(f"  {_extracto(msg)}\n")
+            if args.completo:
+                cita = [ln for ln in _texto_plano(msg).splitlines() if not ln.startswith(">")]
+                print("\n".join("  " + ln for ln in cita) + "\n")
+            else:
+                print(f"  {_extracto(msg)}\n")
     finally:
         with contextlib.suppress(Exception):
             imap.logout()
+    return 0
+
+
+# Con un buzón genérico el dominio no identifica al medio: hay que casar la dirección.
+_DOMINIOS_PUBLICOS = {"gmail.com", "hotmail.com", "outlook.com", "live.com", "yahoo.es",
+                      "yahoo.com", "icloud.com", "me.com", "protonmail.com"}
+
+
+def _ultimo_recibido(imap: imaplib.IMAP4_SSL, f: dict) -> email.message.Message | None:
+    destino = f["Email"].lower()
+    dominio = destino.split("@", 1)[1]
+    remitentes = [destino] + ([] if dominio in _DOMINIOS_PUBLICOS else [dominio])
+    for de in remitentes:
+        consulta = f"to:hola@entreinteriores.com from:{de} newer_than:90d"
+        typ, data = imap.search(None, "X-GM-RAW", f'"{consulta}"')
+        ids = data[0].split() if typ == "OK" and data and data[0] else []
+        if ids:
+            typ, partes = imap.fetch(ids[-1], "(BODY.PEEK[])")
+            if typ == "OK" and partes and isinstance(partes[0], tuple):
+                return email.message_from_bytes(partes[0][1])
+    return None
+
+
+def cmd_reply(args) -> int:
+    cols, filas = leer()
+    f = fila(filas, args.id)
+    if "@" not in f["Email"]:
+        sys.exit(f"sin email válido: «{f['Email']}»")
+    texto = Path(args.texto).read_text(encoding="utf-8").strip() + "\n"
+    adjuntos = [Path(a) for a in args.adjunto or []]
+    for a in adjuntos:
+        if not a.is_file():
+            sys.exit(f"no existe el adjunto {a}")
+
+    imap = _abrir_buzon()
+    try:
+        original = _ultimo_recibido(imap, f)
+    finally:
+        with contextlib.suppress(Exception):
+            imap.logout()
+    if original is None:
+        sys.exit(f"no hay ningún correo de {f['Medio']} al que contestar")
+
+    para = original.get("Reply-To") or original.get("From", "")
+    # Un asunto largo llega plegado en varias líneas: se deja en una.
+    asunto = " ".join(_decodificar(original.get("Subject")).split()) or f["Asunto"]
+    if not asunto.lower().startswith("re:"):
+        asunto = f"Re: {asunto}"
+    message_id = (original.get("Message-ID") or "").strip()
+    referencias = f"{(original.get('References') or '').strip()} {message_id}".strip()
+
+    print(f"De:      {REMITENTE['name']} <{REMITENTE['email']}>")
+    print(f"Para:    {_decodificar(para)}")
+    print(f"Asunto:  {asunto}")
+    print(f"Hilo:    {message_id or '(sin Message-ID: irá suelto)'}")
+    for a in adjuntos:
+        print(f"Adjunto: {a.name} ({a.stat().st_size / 1024:.0f} KB)")
+    print("-" * 72)
+    print(texto, end="")
+    print("-" * 72)
+    if not args.yes:
+        print("vista previa: para mandarlo, repite con --yes")
+        return 0
+
+    remitente = email.utils.formataddr((REMITENTE["name"], REMITENTE["email"]))
+    payload = {
+        "from": remitente,
+        "to": [para],
+        "bcc": [REMITENTE["email"]],
+        "reply_to": remitente,
+        "subject": asunto,
+        "text": texto,
+    }
+    if message_id:
+        payload["headers"] = {"In-Reply-To": message_id, "References": referencias}
+    if adjuntos:
+        payload["attachments"] = [
+            {"filename": a.name, "content": base64.b64encode(a.read_bytes()).decode("ascii")}
+            for a in adjuntos
+        ]
+    huella = hashlib.sha256(
+        f"{para}|{asunto}|{texto}|{[a.name for a in adjuntos]}".encode()
+    ).hexdigest()[:16]
+    cuerpo = _resend(payload, f"reply-{f['ID']}-{huella}")
+
+    nota = f"contestado {date.today().isoformat()}"
+    f["Respuesta"] = f"{f['Respuesta']} · {nota}" if f.get("Respuesta") else nota
+    escribir(cols, filas)
+    print(f"contestado a {para} · messageId {cuerpo.get('id', '')}")
     return 0
 
 
@@ -307,7 +418,14 @@ def main() -> int:
     r = sub.add_parser("replies")
     r.add_argument("--dias", type=int, default=60)
     r.add_argument("--max", type=int, default=30)
+    r.add_argument("--completo", action="store_true", help="el texto entero, no el extracto")
     r.set_defaults(fn=cmd_replies)
+    c = sub.add_parser("reply")
+    c.add_argument("id")
+    c.add_argument("--texto", required=True, help="fichero con el cuerpo, en texto plano")
+    c.add_argument("--adjunto", action="append", help="repetible")
+    c.add_argument("--yes", action="store_true")
+    c.set_defaults(fn=cmd_reply)
     sub.add_parser("followups").set_defaults(fn=cmd_followups)
     args = ap.parse_args()
     return args.fn(args)
