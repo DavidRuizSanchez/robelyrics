@@ -22,7 +22,20 @@ export type Estudio = {
   mide: string[];
   /** Post del blog que cuenta el estudio en prosa, si lo hay. */
   post?: string;
+  /** Periodo que cubren los datos, ISO 8601 (`1987/2024`). */
+  cobertura?: string;
+  /**
+   * Ficheros que se publican para descargar, con su licencia. SOLO material
+   * propio: lo derivado de setlist.fm se muestra con atribución pero no se
+   * redistribuye (sus condiciones prohíben retener copias y obras derivadas),
+   * así que nunca entra aquí ni bajo CC BY.
+   */
+  descargas?: { nombre: string; ruta: string; formato: string }[];
+  /** Fuentes de las que parte el dataset (`isBasedOn`). */
+  basadoEn?: string[];
 };
+
+export const LICENCIA_CC_BY = "https://creativecommons.org/licenses/by/4.0/";
 
 export const ESTUDIOS: Estudio[] = [
   {
@@ -43,6 +56,15 @@ export const ESTUDIOS: Estudio[] = [
       "versos, repeticiones y estribillos del catálogo",
     ],
     post: "canciones-extremoduro-sin-registro-en-directo",
+    cobertura: "1987/2024",
+    descargas: [
+      {
+        nombre: "Las once canciones sin registro en directo",
+        ruta: "/datos/once-canciones-sin-registro-en-directo.csv",
+        formato: "text/csv",
+      },
+    ],
+    basadoEn: ["https://www.setlist.fm/", "https://musicbrainz.org/"],
   },
 ];
 

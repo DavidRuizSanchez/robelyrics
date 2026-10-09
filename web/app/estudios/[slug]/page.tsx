@@ -4,7 +4,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import RepertorioEnDirecto from "@/components/estudio/RepertorioEnDirecto";
-import { ESTUDIOS, estudioPorSlug } from "@/lib/estudios";
+import { ESTUDIOS, LICENCIA_CC_BY, estudioPorSlug } from "@/lib/estudios";
 import { AUTHOR_ID } from "@/lib/site";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
@@ -106,6 +106,23 @@ export default async function EstudioPage({ params }: Props) {
                   ],
                   ...(estudio.post
                     ? { subjectOf: { "@id": canonical.article(estudio.post) } }
+                    : {}),
+                  ...(estudio.cobertura ? { temporalCoverage: estudio.cobertura } : {}),
+                  ...(estudio.basadoEn ? { isBasedOn: estudio.basadoEn } : {}),
+                  // La licencia cubre lo que se DESCARGA, que es solo material
+                  // propio: las cifras de setlist.fm no se redistribuyen.
+                  ...(estudio.descargas?.length
+                    ? {
+                        license: LICENCIA_CC_BY,
+                        creditText: "Entre Interiores (entreinteriores.com)",
+                        distribution: estudio.descargas.map((d) => ({
+                          "@type": "DataDownload",
+                          name: d.nombre,
+                          encodingFormat: d.formato,
+                          contentUrl: urls.page(d.ruta),
+                          license: LICENCIA_CC_BY,
+                        })),
+                      }
                     : {}),
                 },
                 breadcrumbListNode(path, [

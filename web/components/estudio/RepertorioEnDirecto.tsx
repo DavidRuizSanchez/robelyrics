@@ -870,7 +870,7 @@ export default function RepertorioEnDirecto() {
                   ["Locura transitoria", "50", "51", "9,2 %"],
                   ["Entre interiores", "20", "26", "5,7 %"],
                   ["Mi voluntad", "20", "31", "6,8 %"],
-                  ["Cerca del suelo", "10", "0", "nunca"],
+                  ["Cerca del suelo", "10", "0", "sin registro"],
                 ] as [string, string, string, string][]
               ).map(([cancion, vol, veces, pct]) => (
                 <tr key={cancion}>
@@ -966,6 +966,17 @@ export default function RepertorioEnDirecto() {
             donde solo consta el festival.
           </li>
           <li>La fecha en que cada canción sonó por última vez no está en esta versión.</li>
+          <li>
+            <strong>Licencia.</strong> El listado de las once canciones sin registro se publica bajo{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/deed.es" rel="license">
+              CC BY 4.0
+            </a>{" "}
+            (<a href="/datos/once-canciones-sin-registro-en-directo.csv" download>
+              descargar CSV
+            </a>
+            ): úsalo citando «Entre Interiores (entreinteriores.com)». Las cifras de directo
+            proceden de setlist.fm, se rigen por sus condiciones y no se redistribuyen.
+          </li>
         </ul>
 
         <p className={s.sello}>
