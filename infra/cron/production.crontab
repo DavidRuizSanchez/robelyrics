@@ -98,22 +98,23 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Clips de vídeo: el sistema propone, tú decides
 # ============================================================================
 
-# Martes y viernes 07:50 UTC: elige vídeo y tramo de `video_assets` (canales ya
+# 07:50 UTC: elige vídeo y tramo de `video_assets` (canales ya
 # comprobados) usando los tiempos de `source_segments`, y encola la propuesta en
 # estado `proposed` — FUERA del goteo, porque `next_pending` solo mira
 # pending/prepared. La descarga y el montaje los hace el daemon de la Mac.
 #
-# Dos por pasada y solo dos días a la semana: la cola es compartida y pasar de
-# IG_BACKLOG_THRESHOLD dispara el modo atasco, que acelera el goteo de todo lo
-# demás. El propio script comprueba el hueco antes de encolar.
-50 7 * * 2,5 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.propose_clips >> /var/log/robelyrics-cron.log 2>&1
+# A DIARIO desde el 09-10-2026 (antes martes y viernes): sale 1 vídeo al día
+# por su propio carril (`publish_next`, encima del goteo de carruseles). Dos por
+# pasada; el freno es IG_VIDEO_BUFFER (una semana de vídeo esperando), que el
+# propio script comprueba antes de encolar.
+50 7 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.propose_clips >> /var/log/robelyrics-cron.log 2>&1
 
-# Martes y viernes 10:30 UTC: correo con los clips YA MONTADOS y un botón por
+# 10:30 UTC: correo con los clips YA MONTADOS y un botón por
 # clip. Va casi tres horas después de proponer, que es lo que tarda el daemon de
 # la Mac (dispara cada 10 min) en bajarlos y subirlos a Cloudinary: avisar antes
 # sería pedir que se apruebe una idea, y lo que se pidió fue validar sobre el
 # clip ya creado. Silencio si no hay ninguno montado esperando.
-30 10 * * 2,5 cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_clips >> /var/log/robelyrics-cron.log 2>&1
+30 10 * * * cd $APP_DIR && $DC exec -T api python -m scripts.instagram.notify_clips >> /var/log/robelyrics-cron.log 2>&1
 
 # ============================================================================
 # Efemérides personales de Robe (publicación directa el día exacto)

@@ -38,8 +38,9 @@ from app.services.instagram import clip_picker, config, video_clips
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("clips")
 
-# Pocos y espaciados: la cola es compartida y pasar de `BACKLOG_THRESHOLD`
-# dispara el modo atasco, que acelera el goteo de TODO lo demás.
+# Dos por pasada y a diario: sale 1 vídeo al día y de cada dos propuestas se
+# descarta alguna (a 09-10-2026: 4 publicados, 6 retirados). El freno es
+# `VIDEO_BUFFER`, no el atasco de los carruseles: el vídeo va por su carril.
 POR_PASADA = 2
 # Los títulos de YouTube vienen con ruido de canal («| LA RESISTENCIA #LaRe»).
 _RUIDO = re.compile(r"\s*[|#\-–—]\s*[^|#]{0,40}$")
@@ -147,13 +148,16 @@ def _cuando_y_donde(asset) -> str:
 
 
 def _hay_sitio(db) -> int:
-    """Cuántas propuestas caben sin volcar la cola."""
+    """Cuántas propuestas caben. Los clips van por su carril (1 al día, encima
+    del goteo), así que el tope es de VÍDEO —`VIDEO_BUFFER`, una semana— y no
+    el umbral de atasco de los carruseles, que ya no les afecta."""
     vivos = db.execute(
         select(InstagramQueueItem).where(
-            InstagramQueueItem.status.in_(("proposed", "pending", "prepared"))
+            InstagramQueueItem.status.in_(("proposed", "pending", "prepared")),
+            InstagramQueueItem.media_type.in_(config.VIDEO_MEDIA_TYPES),
         )
     ).scalars().all()
-    return max(0, config.BACKLOG_THRESHOLD - len(vivos))
+    return max(0, config.VIDEO_BUFFER - len(vivos))
 
 
 def main() -> None:
@@ -176,8 +180,8 @@ def main() -> None:
             logger.info("Cola llena, pero se fuerza: la propuesta espera tu clic.")
             sitio = args.limit
         if sitio <= 0 and not args.dry_run:
-            logger.info("La cola está llena (umbral %d): no se proponen clips.",
-                        config.BACKLOG_THRESHOLD)
+            logger.info("Ya esperan %d vídeos (tope %d): no se proponen más.",
+                        config.VIDEO_BUFFER, config.VIDEO_BUFFER)
             return
         cupo = min(args.limit, sitio or args.limit)
 

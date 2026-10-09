@@ -222,3 +222,46 @@ def test_pasado_el_cooldown_vuelve_a_la_cola(db):
               last_attempt_at=datetime.now(timezone.utc) - timedelta(
                   hours=config.RETRY_COOLDOWN_H, minutes=1))
     assert publisher.next_pending(db).id == it.id
+
+
+# --------------------------------------------------------------------------- #
+# Carril de vídeo (09-10-2026): 1 al día por la tarde, ENCIMA del goteo
+# --------------------------------------------------------------------------- #
+def _video(db, **kw):
+    it = _add(db, media_type="REELS", content_type="ephemeris", title="Un reel", **kw)
+    return it
+
+
+def _utc_madrid(h: int) -> datetime:
+    """Hoy a las `h` de Madrid, en UTC."""
+    local = datetime.now(publish_next._TZ).replace(hour=h, minute=0, second=0, microsecond=0)
+    return local.astimezone(timezone.utc)
+
+
+def test_el_goteo_no_ve_los_videos_y_el_carril_solo_ve_videos(db):
+    car = _add(db, media_type="CAROUSEL")
+    vid = _video(db)
+    assert publisher.next_pending(db, video=False).id == car.id
+    assert publisher.next_pending(db, video=True).id == vid.id
+    assert publisher.next_pending(db).id in (car.id, vid.id)   # el panel ve todo
+
+
+def test_un_video_no_retrasa_el_goteo_ni_cuenta_como_atasco(db):
+    _video(db, status="published", published_at=datetime.now(timezone.utc))
+    for _ in range(config.BACKLOG_THRESHOLD + 3):
+        _video(db)
+    assert publish_next._hours_since_last_publish(db) is None
+    assert publish_next._pending_count(db) == 0
+
+
+def test_el_video_sale_por_la_tarde_y_uno_al_dia(db):
+    assert not publish_next._toca_video(db, _utc_madrid(10))[0]       # mañana: no
+    assert publish_next._toca_video(db, _utc_madrid(19))[0]           # tarde: sí
+    _video(db, status="published", published_at=_utc_madrid(18))
+    toca, motivo = publish_next._toca_video(db, _utc_madrid(20))
+    assert not toca and "ya salieron" in motivo
+
+
+def test_el_video_de_ayer_no_cuenta_para_hoy(db):
+    _video(db, status="published", published_at=_utc_madrid(19) - timedelta(days=1))
+    assert publish_next._toca_video(db, _utc_madrid(19))[0]

@@ -1114,12 +1114,22 @@ def _lo_que_caduca_primero():
     )
 
 
-def next_pending(db: Session) -> InstagramQueueItem | None:
+def _filtro_video(video: bool | None) -> list:
+    if video is None:
+        return []
+    es_video = InstagramQueueItem.media_type.in_(config.VIDEO_MEDIA_TYPES)
+    return [es_video] if video else [or_(~es_video, InstagramQueueItem.media_type.is_(None))]
+
+
+def next_pending(db: Session, *, video: bool | None = None) -> InstagramQueueItem | None:
     """Siguiente item del GOTEO: primero lo que caduca (noticias y blog), y
     dentro de cada grupo el orden manual (`position`), slot, día y antigüedad.
     Excluye el contenido con momento fijado (`publish_on` de efeméride o
     `publish_at` programado a mano): ese no gotea, sale a su hora vía
-    `due_pinned`."""
+    `due_pinned`.
+
+    `video`: None = todo (panel); False = solo el goteo de carruseles; True =
+    solo el carril de vídeo (`config.VIDEO_MEDIA_TYPES`)."""
     # Un post de clip cuyo vídeo aún se está bajando NO cuenta como pendiente:
     # si contara, el goteo lo elegiría cada 15 minutos —siempre es el mismo, va
     # por `position`— y toda la cola se quedaría parada detrás esperándolo.
@@ -1138,6 +1148,7 @@ def next_pending(db: Session) -> InstagramQueueItem | None:
             InstagramQueueItem.publish_on.is_(None),
             InstagramQueueItem.publish_at.is_(None),
             or_(InstagramQueueItem.media_type != "CLIP", clip_listo),
+            *_filtro_video(video),
         )
         .order_by(
             _lo_que_caduca_primero(),

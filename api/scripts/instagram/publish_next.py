@@ -1,7 +1,8 @@
 """Publica el siguiente post pendiente de la cola de Instagram.
 
-Cadencia "cuentagotas": el cron lo dispara cada 2h, pero solo publica si ha
-pasado el intervalo mínimo desde la última publicación. El intervalo se adapta:
+Cadencia "cuentagotas": el cron lo dispara cada 15 min, pero solo publica si ha
+pasado el intervalo mínimo desde la última publicación. El vídeo va aparte: un
+carril propio de `VIDEO_PER_DAY` al día por la tarde, encima del goteo. El intervalo se adapta:
 mientras hay atasco (cola > BACKLOG_THRESHOLD) publica cada BACKLOG_INTERVAL_H
 horas para drenarlo; en régimen normal, cada STEADY_INTERVAL_H horas.
 
@@ -16,6 +17,7 @@ import argparse
 import logging
 import sys
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -36,17 +38,22 @@ def _pending_count(db: Session) -> int:
     que el modo atasco no se activaba justo cuando más falta hacía.
     """
     return db.execute(
-        select(func.count(InstagramQueueItem.id)).where(publisher._publicable())
+        select(func.count(InstagramQueueItem.id)).where(
+            publisher._publicable(), *publisher._filtro_video(False))
     ).scalar_one()
 
 
 def _hours_since_last_publish(db: Session) -> float | None:
-    """Horas desde la última publicación, o None si nunca se publicó."""
+    """Horas desde la última publicación del GOTEO, o None si nunca se publicó.
+
+    El vídeo va por su carril y no cuenta: si contara, cada reel retrasaría el
+    siguiente carrusel 12 h y el total no subiría, solo cambiaría de formato."""
     last = db.execute(
         select(InstagramQueueItem.published_at)
         .where(
             InstagramQueueItem.status == "published",
             InstagramQueueItem.published_at.is_not(None),
+            *publisher._filtro_video(False),
         )
         .order_by(InstagramQueueItem.published_at.desc())
         .limit(1)
@@ -63,6 +70,30 @@ def _interval_hours(pending: int) -> int:
     if pending > config.BACKLOG_THRESHOLD:
         return config.BACKLOG_INTERVAL_H
     return config.STEADY_INTERVAL_H
+
+
+_TZ = ZoneInfo("Europe/Madrid")
+
+
+def _toca_video(db: Session, ahora: datetime | None = None) -> tuple[bool, str]:
+    """¿Sale ya el vídeo del día? Dentro de la franja de tarde (hora de Madrid) y
+    solo si hoy no ha salido ya `VIDEO_PER_DAY`. Cuenta cualquier vídeo, también
+    un reel de efeméride fijado, para no meter dos el mismo día."""
+    ahora = ahora or datetime.now(timezone.utc)
+    local = ahora.astimezone(_TZ)
+    if not (config.VIDEO_DESDE_HORA <= local.hour < config.VIDEO_HASTA_HORA):
+        return False, f"fuera de franja ({local:%H:%M} Madrid)"
+    inicio = local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    hoy = db.execute(
+        select(func.count(InstagramQueueItem.id)).where(
+            InstagramQueueItem.status == "published",
+            InstagramQueueItem.published_at >= inicio,
+            *publisher._filtro_video(True),
+        )
+    ).scalar_one()
+    if hoy >= config.VIDEO_PER_DAY:
+        return False, f"hoy ya salieron {hoy} vídeo(s)"
+    return True, ""
 
 
 def main() -> None:
@@ -114,7 +145,23 @@ def main() -> None:
             )
             return
 
-        item = publisher.next_pending(db)
+        # Carril de vídeo: 1 al día por la tarde, ENCIMA del goteo. Un
+        # movimiento por disparo del cron: si sale el vídeo, el goteo espera a
+        # la pasada siguiente (15 min).
+        video = publisher.next_pending(db, video=True)
+        if video is not None:
+            toca, motivo = _toca_video(db)
+            if toca:
+                logger.info("Vídeo del día: publicando item %s «%s»", video.id, video.title)
+                res = publisher.publish(db, video, dry_run=args.dry_run)
+                logger.info("Estado final del item %s: %s", res.id, res.status)
+                if res.status == "failed":
+                    logger.error("Error: %s", res.error)
+                    sys.exit(1)
+                return
+            logger.info("Vídeo %s en espera: %s.", video.id, motivo)
+
+        item = publisher.next_pending(db, video=False)
         if item is None:
             logger.info("No hay posts pendientes en la cola.")
             return

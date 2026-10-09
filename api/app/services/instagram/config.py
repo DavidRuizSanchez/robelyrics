@@ -78,6 +78,25 @@ BACKLOG_THRESHOLD = int(os.getenv("IG_BACKLOG_THRESHOLD", "15"))
 BACKLOG_INTERVAL_H = int(os.getenv("IG_BACKLOG_INTERVAL_H", "10"))
 STEADY_INTERVAL_H = int(os.getenv("IG_STEADY_INTERVAL_H", "12"))
 
+# --- Carril de vídeo (09-10-2026) ------------------------------------------
+# En seis semanas salieron 4 vídeos de ~86 posts: los clips aprobados entraban
+# por el final de una cola de carruseles y competían por los mismos 2 huecos.
+# David pidió 1 vídeo al día aunque suba el total: el vídeo va por un carril
+# PROPIO, encima del goteo (2 carruseles + 1 vídeo = 3/día), y el goteo no lo
+# cuenta ni para la cadencia ni para el atasco. Si un día no hay clip aprobado,
+# el hueco se queda vacío: no se rellena con otra cosa.
+VIDEO_MEDIA_TYPES = ("CLIP", "REELS")
+VIDEO_PER_DAY = int(os.getenv("IG_VIDEO_PER_DAY", "1"))
+# Hora (Madrid) a partir de la cual sale el vídeo del día. El goteo no mira la
+# hora del reloj y dejaba posts a las 02:31; el vídeo, que es lo que más se
+# quiere que se vea, no puede caer de madrugada.
+VIDEO_DESDE_HORA = int(os.getenv("IG_VIDEO_DESDE_HORA", "18"))
+VIDEO_HASTA_HORA = int(os.getenv("IG_VIDEO_HASTA_HORA", "23"))
+# Cuántos clips pueden esperar (propuestos + montados + aprobados) sin que se
+# propongan más: una semana de vídeo. Va aparte de BACKLOG_THRESHOLD, que es
+# de la cola de carruseles.
+VIDEO_BUFFER = int(os.getenv("IG_VIDEO_BUFFER", "7"))
+
 # --- Reintentos de publicación --------------------------------------------
 # Cuántas veces se reintenta un post que falló al publicar. Un fallo transitorio
 # (Cloudinary, un timeout de Meta) dejaba el item en `failed` y ahí se moría: los
