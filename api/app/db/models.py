@@ -1099,6 +1099,10 @@ class Post(Base):
         DateTime(timezone=True), nullable=True
     )
     review_blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Qué gate la retuvo (`rigor`, `lyrics`, `completeness`…). Si el MISMO gate
+    # la vuelve a frenar sin que haya cambiado el cuerpo, se retira
+    # (`publishing.propose_for_review`): el correo no la manda en bucle.
+    review_blocked_by: Mapped[str | None] = mapped_column(String(32), nullable=True)
     # Marca de cuándo se incluyó este post en un envío de newsletter (legacy,
     # mantenido por compatibilidad con el dispatcher diario). Para el flujo
     # newsletter-on-publish (cap 2/sem) usamos `newsletter_dispatched_at`.

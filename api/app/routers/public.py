@@ -2223,13 +2223,14 @@ def admin_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
             motivo = resultado.get("reason") or (
                 "un gate de publicación la retiene; el motivo está en el panel"
             )
+            texto = (
+                f"«{post.title}» se ha retirado de la cola. {motivo}"
+                if resultado["action"] == "rejected" else
+                f"«{post.title}» NO se ha publicado: {motivo}. "
+                "Ábrela en el panel para corregirla."
+            )
             return HTMLResponse(
-                _render_admin_action_page(
-                    f"«{post.title}» NO se ha publicado: {motivo}. "
-                    "Ábrela en el panel para corregirla.",
-                    success=False,
-                ),
-                status_code=409,
+                _render_admin_action_page(texto, success=False), status_code=409,
             )
         return HTMLResponse(
             _render_admin_action_page(

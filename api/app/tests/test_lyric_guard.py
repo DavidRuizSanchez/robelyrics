@@ -220,3 +220,61 @@ def test_complete_verses_no_toca_verso_ya_completo(monkeypatch):
     monkeypatch.setattr(lg, "_load_song_lines", lambda db: _song_lines_corpus())
     body = f'En "A Fuego": "{_AFUEGO_LINE}".'
     assert lg.complete_verses(None, body) == body
+
+
+# --------------------------------------------------------------------------- #
+# Canción y disco homónimos: «Destrozares» (post #51, 09-10-2026)
+# --------------------------------------------------------------------------- #
+DONDE_OLAS = (
+    "Ha pasado el tiempo y voy\nTotalmente a oscuras\n"
+    "Si te da por volver\nAl venir, si te acuerdas\nDe traer, del amor\nDe una vez\n"
+)
+DESTROZARES = "Destrozares, destrozares, todo lo que toco se destroza\n"
+_DESTROZ_ALBUM = "Destrozares, Canciones para el Final de los Tiempos"
+
+
+@pytest.fixture
+def _corpus_destrozares(monkeypatch):
+    extra = [
+        lg._SongLyrics("Donde se rompen las olas", _DESTROZ_ALBUM, 2016,
+                       lg.normalize(DONDE_OLAS), True),
+        lg._SongLyrics("Destrozares", _DESTROZ_ALBUM, 2016, lg.normalize(DESTROZARES), True),
+        # disco y canción homónimos de verdad: aquí la mención sigue siendo ambigua
+        lg._SongLyrics("Agila", "Agila", 1996, lg.normalize("Agila, agila vuela\n"), True),
+    ]
+    monkeypatch.setattr(lg, "_load_songs", lambda db: _corpus() + extra)
+
+
+@pytest.mark.parametrize("intro", [
+    # texto literal del post #51 en producción
+    'La canción, parte del disco "[Destrozares, Canciones para el Final de los Tiempos]'
+    '(https://entreinteriores.com/robe/destrozares)" (2016), inicia con nostalgia. ',
+    "Abre el disco Destrozares y su estribillo dice ",
+    "El disco [Destrozares](/robe/destrozares) abre con este verso: ",
+])
+def test_disco_homonimo_no_es_atribucion_a_la_cancion(_corpus_destrozares, intro):
+    body = intro + '"Ha pasado el tiempo y voy / Totalmente a oscuras".'
+    _, rep = _statuses(body)
+    assert not rep.to_review and not rep.blocking, [v.reason for v in rep.verdicts]
+
+
+def test_cancion_homonima_mal_atribuida_se_sigue_cazando(_corpus_destrozares):
+    body = 'En la canción "[Destrozares](/robe/destrozares/destrozares)" Robe canta: ' \
+           '"Ha pasado el tiempo y voy / Totalmente a oscuras".'
+    _, rep = _statuses(body)
+    assert rep.to_review and rep.to_review[0].status == "misattributed"
+
+
+def test_disco_igual_que_cancion_sigue_atribuyendo(_corpus_destrozares):
+    body = 'En "Agila" Robe canta: "Meterme mil rayas, hablar con la gente".'
+    _, rep = _statuses(body)
+    assert rep.to_review and rep.to_review[0].attributed_song == "Agila"
+
+
+def test_verso_de_la_cancion_del_post_esta_referenciado(_corpus_destrozares):
+    body = ('En "So payaso" se oye algo parecido, pero el estribillo dice '
+            '"Si te da por volver / Al venir, si te acuerdas".')
+    rep = lg.check_lyrics(None, body, subject="Robe y el vacío en 'Donde se rompen las olas'")
+    assert not rep.to_review
+    rep_sin = lg.check_lyrics(None, body)
+    assert rep_sin.to_review   # sin el sujeto del post, sigue siendo misatribución

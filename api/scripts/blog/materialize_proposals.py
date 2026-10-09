@@ -294,7 +294,7 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     #     sin letra verificable en el corpus NO se publica JAMÁS. La zona
     #     gris (coincidencia parcial / posible misatribución) va a revisión.
     from app.services.lyric_guard import check_lyrics
-    lyric_report = check_lyrics(db, post.body_md)
+    lyric_report = check_lyrics(db, post.body_md, subject=post.title)
     if lyric_report.blocking:
         db.delete(post)
         p.status = "discarded"
@@ -324,7 +324,15 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
             logger.info("  cita REVISAR: «%s» · %s", v.quote[:50], v.reason)
         if review_focus:
             logger.info("  foco REVISAR: deriva no recortable")
-        propose_for_review(db, post)
+        if lyric_review:
+            # Con el motivo: el gate de citas vuelve a correr al aprobar, así que
+            # el correo tiene que ofrecer «corregir», no un «aprobar» que no
+            # puede funcionar. Sin `blocked_by` se borraba el motivo.
+            from app.services.publishing import _motivo_citas
+            propose_for_review(db, post, blocked_by="lyrics",
+                               reason=_motivo_citas(lyric_report))
+        else:
+            propose_for_review(db, post)
         p.status = "used"
         p.post_id = post.id
         db.commit()

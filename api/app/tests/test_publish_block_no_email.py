@@ -12,6 +12,7 @@ permisivo que la realidad no prueba el camino que dice probar.
 from __future__ import annotations
 
 import inspect
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import JSON, MetaData, Text, create_engine
@@ -140,7 +141,10 @@ def test_un_verso_real_no_retiene_nada(db, correos, corpus):
 def test_los_tres_gates_enrutan_con_notify_false():
     """Estructural y barato: que nadie reintroduzca el bucle por copiar-pegar."""
     fuente = inspect.getsource(publishing.auto_publish_post)
-    assert fuente.count("propose_for_review(db, post, notify=False") == 3
+    # rigor + los dos deterministas (citas y completitud), que comparten llamada
+    # desde que viven en `gates_deterministas` para que «programar» los use.
+    assert fuente.count("propose_for_review(db, post, notify=False") == 2
+    assert "gates_deterministas(db, post)" in fuente
     # Ni una sola llamada que se deje el flag y vuelva a avisar desde aquí.
     assert "propose_for_review(db, post)" not in fuente
 
@@ -181,3 +185,93 @@ def test_una_pieza_normal_conserva_su_boton():
     assert "aprobar-token" in html
     assert "aprobar-token" in texto
     assert "RETENIDA" not in html
+
+
+# --- Retirada: un post frenado no vuelve al correo en bucle (09-10-2026) ------ #
+# Cuatro posts llegaban cada día: se programaban, el cron de las 08:15 los pasaba
+# por gates que el botón se salta (rigor), volvían a la cola sin fecha y el digest
+# los traía otra vez. Criterio de David: si se puede publicar, que se publique; si
+# no, que desaparezca.
+INVENTADO = 'En "So payaso" Robe canta: "Si te vas te voy a colgar de las piernas".'
+
+
+def test_segundo_frenazo_del_mismo_gate_retira_la_pieza(db, correos, corpus):
+    p = _post(db, INVENTADO)
+    r1 = publishing.auto_publish_post(db, p, factcheck=False, rigor=False)
+    assert r1["action"] == "pending_review" and p.review_blocked_by == "lyrics"
+
+    r2 = publishing.auto_publish_post(db, p, factcheck=False, rigor=False)
+    assert r2["action"] == "rejected"
+    assert p.status == "rejected"
+    assert p.review_blocked_reason.startswith("retirado")
+    assert correos == []   # retirar tampoco manda correo
+
+
+def test_otro_gate_no_retira(db, correos, corpus):
+    p = _post(db, INVENTADO)
+    publishing.propose_for_review(db, p, notify=False, blocked_by="rigor", reason="paja")
+    r = publishing.auto_publish_post(db, p, factcheck=False, rigor=False)
+    assert r["action"] == "pending_review" and p.status == "pending_review"
+    assert p.review_blocked_by == "lyrics"
+
+
+def test_editar_el_cuerpo_da_otra_oportunidad(db, correos, corpus):
+    p = _post(db, INVENTADO)
+    publishing.auto_publish_post(db, p, factcheck=False, rigor=False)
+    # lo que hace el PUT del panel al cambiar body_md
+    p.review_blocked_at = p.review_blocked_reason = p.review_blocked_by = None
+    db.commit()
+    r = publishing.auto_publish_post(db, p, factcheck=False, rigor=False)
+    assert r["action"] == "pending_review"
+
+
+def test_programado_se_publica_sin_rigor_y_cuenta_bien(db, correos, corpus, monkeypatch):
+    llamadas = []
+    real = publishing.auto_publish_post
+
+    def espia(db_, post, **kw):
+        llamadas.append(kw)
+        return real(db_, post, **kw)
+
+    monkeypatch.setattr(publishing, "auto_publish_post", espia)
+    ayer = datetime.now(UTC) - timedelta(days=1)
+    bueno = _post(db, 'En "So payaso": "So payaso y me tiemblan los pies a su lado".')
+    bueno.status, bueno.scheduled_for = "scheduled", ayer
+    malo = Post(slug="otra", kind="evergreen", status="scheduled",
+                           title="Otra", body_md=INVENTADO, entities=[],
+                           scheduled_for=ayer)
+    db.add(malo)
+    db.commit()
+
+    out = publishing.flush_scheduled_due(db)
+    assert all(kw == {"factcheck": False, "rigor": False} for kw in llamadas)
+    assert out == {"due": 2, "published": 1}   # el frenado ya no cuenta como publicado
+    assert bueno.status == "published" and malo.status == "pending_review"
+
+
+def test_programar_pasa_los_gates_al_pulsar(db, correos, corpus):
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routers.admin import AdminPostScheduleIn, admin_post_schedule
+
+    manana = (datetime.now(UTC) + timedelta(days=1)).date().isoformat()
+    p = _post(db, INVENTADO)
+    with pytest.raises(HTTPException) as e1:
+        admin_post_schedule(p.id, AdminPostScheduleIn(scheduled_for=manana), db=db, _admin=None)
+    assert e1.value.status_code == 409 and "No se ha programado" in e1.value.detail
+    assert p.status == "pending_review" and p.scheduled_for is None
+
+    with pytest.raises(HTTPException) as e2:   # segundo intento sin tocar nada
+        admin_post_schedule(p.id, AdminPostScheduleIn(scheduled_for=manana), db=db, _admin=None)
+    assert "Retirado" in e2.value.detail and p.status == "rejected"
+
+
+def test_programar_un_post_limpio_lo_programa(db, correos, corpus):
+    from app.routers.admin import AdminPostScheduleIn, admin_post_schedule
+
+    manana = (datetime.now(UTC) + timedelta(days=1)).date().isoformat()
+    p = _post(db, 'En "So payaso": "So payaso y me tiemblan los pies a su lado".')
+    admin = type("U", (), {"id": None})()
+    admin_post_schedule(p.id, AdminPostScheduleIn(scheduled_for=manana), db=db, _admin=admin)
+    assert p.status == "scheduled"

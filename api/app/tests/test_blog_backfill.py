@@ -123,7 +123,7 @@ def gates(monkeypatch):
     # Estos dos se importan DENTRO de la función, así que se parchean en su
     # módulo de origen: en `mp` ni siquiera existe el nombre.
     monkeypatch.setattr("app.services.lyric_guard.check_lyrics",
-                        lambda db, body: LyricGuardReport())
+                        lambda db, body, **kw: LyricGuardReport())
     monkeypatch.setattr("app.services.text_sanitizer.embed_youtube_links", lambda body: body)
     return estado
 
@@ -219,15 +219,16 @@ def test_la_cascada_de_descartes_tiene_tope(db, gates):
 def test_un_post_a_revision_no_dispara_repesca(db, gates, monkeypatch):
     """El post existe y está a un clic del admin: adelantar otro publicaría dos."""
 
-    class _CitaEnZonaGris:
-        quote = "un verso dudoso"
-        reason = "coincidencia parcial"
+    from app.services.lyric_guard import LyricVerdict
 
     class _Reporte:
         blocking: list = []
-        to_review = [_CitaEnZonaGris()]
+        # Veredicto de verdad: el motivo del correo se construye con sus campos.
+        to_review = [LyricVerdict(quote="un verso dudoso", status="review",
+                                  reason="coincidencia parcial")]
 
-    monkeypatch.setattr("app.services.lyric_guard.check_lyrics", lambda db, body: _Reporte())
+    monkeypatch.setattr("app.services.lyric_guard.check_lyrics",
+                        lambda db, body, **kw: _Reporte())
     _prop(db, "Albert Pla", dias=0)
     recambio = _prop(db, "Rosendo", dias=7)
 

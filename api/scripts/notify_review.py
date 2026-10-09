@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -234,10 +235,19 @@ def _build_html(data: dict) -> str:
                 otro, ratio = dup
                 nota_dup = (f"<br><span style='color:#a83a3a'>· ya publicaste algo "
                             f"casi igual: «{otro}» ({int(ratio * 100)}%)</span>")
+            # Si un gate la frenó, el motivo y «corregir»: aprobarla tal cual
+            # vuelve a dar con el mismo gate y, a la segunda, la retira.
+            nota_freno = ""
+            freno = getattr(post, "review_blocked_reason", None)
+            if freno:
+                nota_freno = (f"<br><span style='color:#a83a3a'>· frenada: "
+                              f"{html.escape(freno[:400])} — "
+                              f"<a href='{_SITE}/biblioteca/admin/posts/{post.id}'>"
+                              f"corregir →</a></span>")
             parts.append(
                 f"<li><a href='{_SITE}/biblioteca/admin/posts/{post.id}'>{post.title}</a>"
                 f" <span style='color:#888'>· {post.kind} · esperando {espera}</span>"
-                f"{aviso}{nota_dup}</li>"
+                f"{aviso}{nota_dup}{nota_freno}</li>"
             )
         parts.append("</ul>")
         resto = data["posts_pending"] - _MAX_POSTS_EN_DIGEST

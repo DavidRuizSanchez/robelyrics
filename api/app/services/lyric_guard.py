@@ -204,6 +204,54 @@ def _title_occurrences(body_norm: str, titles_norm: list[str]) -> list[tuple[int
     return occ
 
 
+_ALBUM_WORD = re.compile(r"(?:^|\s)(?:disco|album|lp|ep|elepe)\s$")
+_MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)\n]*)\)")
+
+
+def _album_mention_spans(body_md: str, body_norm: str, orig_to_norm: dict[int, int],
+                         albums_norm: list[str]) -> list[tuple[int, int]]:
+    """Tramos (en el body NORMALIZADO) donde lo que se nombra es un DISCO.
+
+    «Destrozares» es canción y disco a la vez: sin esto, el título del disco
+    («Destrozares, Canciones para el Final de los Tiempos»), «el disco
+    Destrozares» o un enlace a `/robe/destrozares` contaban como atribución a la
+    CANCIÓN, y un verso bien citado de «Donde se rompen las olas» salía como
+    misatribuido (post #51, 09-10-2026). Aquí van dos señales del propio texto;
+    la tercera («disco/álbum» justo delante) la mira `_is_album_mention`:
+
+    - el título COMPLETO del disco cuando NO es también título de canción (si
+      lo es, «Agila» a secas sigue siendo ambiguo y no se descarta);
+    - el ancla de un enlace de DOS segmentos (`/artista/disco`): una canción
+      tiene tres. Mismo criterio que `sensitive_topics._discos_enlazados`.
+    """
+    spans: list[tuple[int, int]] = []
+    for a in sorted(set(albums_norm), key=len, reverse=True):
+        if len(a) < 3:
+            continue
+        for m in re.finditer(r'(?<![a-z0-9ñ])' + re.escape(a) + r'(?![a-z0-9ñ])', body_norm):
+            spans.append((m.start(), m.end()))
+    for m in _MD_LINK.finditer(body_md or ""):
+        ruta = [x for x in m.group(2).split("?")[0].split("#")[0].split("/") if x]
+        if ruta and ruta[0].startswith("http"):   # absoluta: fuera esquema y dominio
+            ruta = ruta[2:]
+        if len(ruta) != 2:
+            continue
+        ini = next((orig_to_norm[i] for i in range(m.start(1), m.end(1)) if i in orig_to_norm), None)
+        fin = next((orig_to_norm[i] for i in range(m.end(1) - 1, m.start(1) - 1, -1)
+                    if i in orig_to_norm), None)
+        if ini is not None and fin is not None:
+            spans.append((ini, fin + 1))
+    return spans
+
+
+def _is_album_mention(pos: int, title: str, body_norm: str,
+                      spans: list[tuple[int, int]]) -> bool:
+    end = pos + len(title)
+    if any(a <= pos and end <= b for a, b in spans):
+        return True
+    return bool(_ALBUM_WORD.search(body_norm[max(0, pos - 12):pos]))
+
+
 def _norm_positions(body: str) -> tuple[str, list[int]]:
     """Body normalizado + mapa de posición-normalizada → posición-original, para
     poder relacionar la posición de una cita (original) con las menciones de
@@ -389,13 +437,16 @@ def _in_external(quote_norm: str) -> bool:
               for v in _external_verses())
 
 
-def check_lyrics(db, body_md: str) -> LyricGuardReport:
+def check_lyrics(db, body_md: str, subject: str | None = None) -> LyricGuardReport:
     """Verifica todas las citas de letra del cuerpo contra el corpus real.
 
     Determinista, sin LLM. Solo mira citas presentadas como VERSO de una canción
     (título de canción cercano o palabra-indicador tipo 'canta/verso/estribillo').
     Las citas de entrevistas/declaraciones (sin canción cercana) no son asunto de
-    este guardia."""
+    este guardia.
+
+    `subject` (título del post): si el verso es de la canción de la que va la
+    pieza, está referenciada aunque su nombre no se repita junto a la cita."""
     songs = _load_songs(db)
     by_title = {normalize(s.title): s for s in songs}
     titles_norm = list(by_title.keys())
@@ -413,7 +464,12 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
     orig_to_norm: dict[int, int] = {}
     for ni, oi in enumerate(norm_map):
         orig_to_norm.setdefault(oi, ni)
-    title_occ = _title_occurrences(body_norm, titles_norm)
+    album_spans = _album_mention_spans(
+        body_md, body_norm, orig_to_norm,
+        [a for a in {normalize(s.album) for s in songs if s.album} if a not in by_title])
+    title_occ = [(p, t) for (p, t) in _title_occurrences(body_norm, titles_norm)
+                 if not _is_album_mention(p, t, body_norm, album_spans)]
+    subject_norm = normalize(subject) if subject else ""
 
     report = LyricGuardReport()
     for quote, start in extract_quotes(body_md):
@@ -507,7 +563,7 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
             # verso? El enlace interno la ancla aunque la 'mención más cercana' en
             # prosa apunte a otra: entonces NO es misatribución, está bien citada.
             near = normalize(body_md[max(0, start - 450):start + len(quote) + 450])
-            referenced = bool(best_norm) and best_norm in near
+            referenced = bool(best_norm) and (best_norm in near or best_norm in subject_norm)
             if attributed and best_song and best_norm != attributed \
                     and r_attr < _REVIEW_RATIO and not referenced:
                 report.verdicts.append(LyricVerdict(

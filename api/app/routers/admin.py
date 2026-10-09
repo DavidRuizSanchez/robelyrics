@@ -924,6 +924,10 @@ class AdminPostListItem(BaseModel):
     # día que se moviera la constante los dos dejarían de coincidir en silencio.
     days_waiting: int = 0
     stale: bool = False
+    # Qué gate la retiene y por qué: sin esto el panel ofrecía «programar» sobre
+    # una pieza que el cron iba a volver a frenar a las 08:15.
+    review_blocked_by: str | None = None
+    review_blocked_reason: str | None = None
 
 
 class AdminPostDetailOut(AdminPostListItem):
@@ -967,6 +971,8 @@ def _post_to_item(post: _Post) -> AdminPostListItem:
         created_at=post.created_at, published_at=post.published_at,
         scheduled_for=post.scheduled_for,
         days_waiting=days, stale=days >= REVIEW_ROT_DAYS,
+        review_blocked_by=post.review_blocked_by,
+        review_blocked_reason=post.review_blocked_reason,
     )
 
 
@@ -1024,6 +1030,7 @@ def admin_post_update(
             # esta edición viene a arreglar.
             p.review_blocked_at = None
             p.review_blocked_reason = None
+            p.review_blocked_by = None
         p.body_md = body.body_md
     if body.meta_title is not None:
         p.meta_title = body.meta_title
@@ -1062,6 +1069,9 @@ def admin_post_publish(
     if resultado["action"] != "published":
         # Lo dice el gate que lo retuvo, no una frase fija: ver `PublishResult`.
         motivo = resultado.get("reason") or "un gate de publicación lo retiene"
+        if resultado["action"] == "rejected":
+            # Segundo frenazo del mismo gate sin cambios: sale de la cola.
+            raise HTTPException(status_code=409, detail=f"Retirado de la cola. {motivo}")
         raise HTTPException(
             status_code=409,
             detail=f"No se ha publicado: {motivo}. Corrígelo y vuelve a intentarlo.",
@@ -1135,6 +1145,22 @@ def admin_post_schedule(
     # Permite hoy (se publicará en el próximo run del cron); rechaza ayer o antes.
     if when.date() < now.date():
         raise HTTPException(status_code=400, detail="la fecha ya pasó")
+    # Los gates deterministas corren AL PULSAR. Antes programar solo cambiaba el
+    # estado: el frenazo llegaba a las 08:15, la pieza volvía a la cola sin fecha
+    # y el correo la traía otra vez, en bucle (09-10-2026). Y mismo criterio que
+    # publicar: el segundo frenazo del mismo gate la retira.
+    from app.services.publishing import gates_deterministas, propose_for_review
+
+    frenazo = gates_deterministas(db, p)
+    if frenazo:
+        gate, motivo = frenazo
+        res = propose_for_review(db, p, notify=False, blocked_by=gate, reason=motivo)
+        if res["action"] == "rejected":
+            raise HTTPException(status_code=409, detail=f"Retirado de la cola. {res['reason']}")
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se ha programado: {motivo}. Corrígelo y vuelve a intentarlo.",
+        )
     p.status = "scheduled"
     p.scheduled_for = when
     p.approved_by = _admin.id

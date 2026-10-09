@@ -17,6 +17,14 @@ type AdminPostItem = {
   scheduled_for: string | null;
   days_waiting?: number;
   stale?: boolean;
+  review_blocked_by?: string | null;
+  review_blocked_reason?: string | null;
+};
+
+const GATE_LABEL: Record<string, string> = {
+  lyrics: "citas de letra",
+  rigor: "editor jefe",
+  completeness: "completitud",
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -144,6 +152,16 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
                 {p.excerpt && (
                   <p className="mt-2 font-serif italic text-ink-dim text-base leading-relaxed max-w-[680px]">
                     {p.excerpt}
+                  </p>
+                )}
+                {/* Por qué la frenó un gate. Programar y publicar vuelven a
+                    pasarlo al pulsar; si el MISMO gate la frena otra vez sin
+                    cambios en el cuerpo, se retira de la cola. */}
+                {p.review_blocked_reason && (
+                  <p className="mt-2 font-mono text-[11px] leading-relaxed text-accent max-w-[680px]">
+                    ⚠ {p.status === "rejected" ? "retirada" : "frenada"}
+                    {p.review_blocked_by && ` por ${GATE_LABEL[p.review_blocked_by] ?? p.review_blocked_by}`}
+                    : {p.review_blocked_reason}
                   </p>
                 )}
                 {p.source_url && p.source_name && (

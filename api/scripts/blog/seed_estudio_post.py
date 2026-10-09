@@ -331,6 +331,7 @@ def main() -> int:
             # el texto de ayer.
             row.review_blocked_at = None
             row.review_blocked_reason = None
+            row.review_blocked_by = None
             logger.info("actualizado: %s (estado %s)", SLUG, row.status)
         db.commit()
         db.refresh(row)

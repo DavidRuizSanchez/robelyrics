@@ -102,7 +102,11 @@ def test_el_guard_esta_enchufado_al_camino_de_publicacion():
     """Que exista el detector no sirve de nada si nadie lo llama: esto vigila que
     siga colgado de `auto_publish_post` y que siga enrutando, no rechazando."""
     import inspect
-    fuente = inspect.getsource(publishing.auto_publish_post)
+    # Vive en `gates_deterministas` (que también usa «programar») y
+    # `auto_publish_post` lo llama y enruta lo que devuelva a revisión.
+    fuente = inspect.getsource(publishing.gates_deterministas)
     assert "sensitive_topics" in fuente
     assert "necesita_revision" in fuente
-    assert "propose_for_review" in fuente
+    tronco = inspect.getsource(publishing.auto_publish_post)
+    assert "gates_deterministas(db, post)" in tronco
+    assert "propose_for_review" in tronco

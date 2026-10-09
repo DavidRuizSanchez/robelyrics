@@ -120,7 +120,7 @@ def backfill_candidates(db: Session, today, *, exclude_ids=(), limit: int = 3) -
 
 
 class PublishResult(TypedDict):
-    action: str  # "published" | "scheduled"
+    action: str  # "published" | "scheduled" | "pending_review" | "rejected" (retirado)
     post_id: int
     scheduled_for: datetime | None
     # Por qué NO se publicó, cuando un gate lo retiene. Hasta que existieron, el
@@ -286,6 +286,23 @@ def propose_for_review(
             post.body_md = new_body
             logger.info("Post %s: headings normalizados + autolink corpus", post.id)
 
+    # Retirada: el MISMO gate la vuelve a frenar y nadie ha tocado el cuerpo desde
+    # el primer frenazo (editar limpia `review_blocked_*`). Volver a la cola solo
+    # la mandaría otra vez en el correo, en bucle; criterio de David (09-10-2026):
+    # si no se puede publicar, que desaparezca. No se borra nada: queda en
+    # `rejected` con su motivo y se rescata editándola en el panel.
+    if blocked_by and post.review_blocked_at and post.review_blocked_by == blocked_by:
+        post.status = "rejected"
+        post.scheduled_for = None
+        post.review_blocked_reason = (
+            f"retirado: frenado dos veces por el gate «{blocked_by}». {reason or ''}"
+        ).strip()[:2000]
+        db.commit()
+        logger.warning("Post %s retirado: el gate %s lo frena por segunda vez",
+                       post.id, blocked_by)
+        return {"action": "rejected", "post_id": post.id, "scheduled_for": None,
+                "blocked_by": blocked_by, "reason": post.review_blocked_reason}
+
     if post.status != "pending_review":
         post.status = "pending_review"
     # Por qué está retenido, para que lo vea quien abra el panel o el correo. Se
@@ -294,11 +311,13 @@ def propose_for_review(
     if blocked_by:
         post.review_blocked_at = _now()
         post.review_blocked_reason = (reason or "")[:2000] or None
+        post.review_blocked_by = blocked_by
     elif reason is None and blocked_by is None:
         # Entrada normal a revisión (no la retiene ningún gate): si traía un
         # bloqueo viejo, ya no aplica.
         post.review_blocked_at = None
         post.review_blocked_reason = None
+        post.review_blocked_by = None
     # Y se le quita la fecha: si venía de `scheduled`, esa fecha ya no programa
     # nada (`flush_scheduled_due` solo mira los `scheduled`) pero el panel la
     # seguía pintando como si el post fuera a salir ese día. El desprogramado
@@ -446,6 +465,49 @@ def _motivo_completitud(rep) -> str:
         "; ".join(rep.motivos)
 
 
+def gates_deterministas(db: Session, post: Post) -> tuple[str, str] | None:
+    """Los dos gates sin LLM del tronco de publicación: `(gate, motivo)` si
+    alguno retiene la pieza, None si pasa.
+
+    Viven aparte para que el botón «programar» los pase AL PULSAR: antes
+    programar solo cambiaba el estado, el frenazo llegaba a las 08:15 y la pieza
+    volvía al correo sin que nadie supiera por qué (09-10-2026).
+
+    - CITAS DE LETRA (BLOQUEANTE, NO evadible ni con force_publish): un verso
+      inventado o una cita de canción sin letra verificable no se publica jamás.
+    - COMPLETITUD sobre Robe: un texto puede estar impecable de forma y engañar
+      por lo que calla — el caso que lo motiva recorría la discografía entera y
+      no decía que Robe había muerto en diciembre de 2025. Va con reglas y no
+      dentro del juez LLM a propósito: una omisión se ve con reglas, y el juez
+      tiene varianza (tres pasadas dieron revise, reject y reject).
+    """
+    try:
+        from app.services.lyric_guard import check_lyrics
+        lr = check_lyrics(db, post.body_md or "", subject=post.title)
+        if lr.blocking or lr.to_review:
+            logger.warning("CITAS retienen post %s (%s)", post.id, lr.summary())
+            return "lyrics", _motivo_citas(lr)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("lyric-guard falló: %s", exc)
+    try:
+        from app.services.sensitive_topics import revisar as revisar_sensible
+        rep = revisar_sensible(
+            db, kind=post.kind,
+            subject=(post.target_keyword or post.title or "").strip(),
+            body_md=post.body_md or "",
+        )
+        if rep.necesita_revision:
+            logger.warning("COMPLETITUD retiene post %s (%s)", post.id, "; ".join(rep.motivos))
+            return "completeness", _motivo_completitud(rep)
+        if rep.hay_erratas:
+            # Datos que corregir, no motivo para retener la pieza.
+            logger.info("post %s publica con erratas de datos: %s",
+                        post.id, "; ".join(rep.motivos))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("completitud falló: %s", exc)
+    return None
+
+
 def auto_publish_post(
     db: Session, post: Post, *, factcheck: bool = True, rigor: bool = True
 ) -> PublishResult:
@@ -558,56 +620,14 @@ def auto_publish_post(
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto_publish rigor falló: %s", exc)
 
-    # Gate de CITAS DE LETRA (universal, BLOQUEANTE, NO evadible ni con
-    # force_publish): último cortafuegos común a TODOS los caminos de publicación
-    # (efeméride directa, publicación manual, cron). Un verso inventado o una cita
-    # de canción sin letra verificable NO se publica jamás: se enruta a revisión.
-    # Determinista y barato; corre siempre (independiente de factcheck/rigor).
+    # Gates de CITAS DE LETRA y de COMPLETITUD: deterministas, corren siempre
+    # (independientes de factcheck/rigor). Ver `gates_deterministas`.
     if post.body_md:
-        try:
-            from app.services.lyric_guard import check_lyrics
-            lr = check_lyrics(db, post.body_md)
-            if lr.blocking or lr.to_review:
-                logger.warning("auto_publish: CITAS bloquean post %s (%s) → revisión",
-                               post.id, lr.summary())
-                return propose_for_review(db, post, notify=False,
-                                          blocked_by="lyrics",
-                                          reason=_motivo_citas(lr))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("auto_publish lyric-guard falló: %s", exc)
-
-    # Gate de COMPLETITUD sobre Robe (universal, determinista, NO bloqueante).
-    # Un texto puede estar impecable de forma y engañar por lo que calla: el caso
-    # que lo motiva recorría la discografía entera de Extremoduro, contaba la
-    # disolución y «Mayéutica» (2021), y no decía que Robe había muerto en
-    # diciembre de 2025. El gate de rigor le dio el visto bueno porque mide
-    # densidad, no cobertura.
-    #
-    # Va aquí y no dentro del juez LLM a propósito: una omisión se ve con reglas,
-    # y el juez tiene varianza (tres pasadas sobre el mismo texto dieron revise,
-    # reject y reject). Y NO rechaza: enruta a revisión, igual que el guard de
-    # citas. Retener una pieza cuesta una decisión tuya; publicar un texto que
-    # deja creer que Robe sigue vivo cuesta bastante más.
-    if post.body_md:
-        try:
-            from app.services.sensitive_topics import revisar as revisar_sensible
-            rep = revisar_sensible(
-                db, kind=post.kind,
-                subject=(post.target_keyword or post.title or "").strip(),
-                body_md=post.body_md,
-            )
-            if rep.necesita_revision:
-                logger.warning("auto_publish: COMPLETITUD frena post %s → revisión (%s)",
-                               post.id, "; ".join(rep.motivos))
-                return propose_for_review(db, post, notify=False,
-                                          blocked_by="completeness",
-                                          reason=_motivo_completitud(rep))
-            if rep.hay_erratas:
-                # Datos que corregir, no motivo para retener la pieza.
-                logger.info("auto_publish: post %s publica con erratas de datos: %s",
-                            post.id, "; ".join(rep.motivos))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("auto_publish completitud falló: %s", exc)
+        frenazo = gates_deterministas(db, post)
+        if frenazo:
+            gate, motivo = frenazo
+            logger.warning("auto_publish: gate %s frena post %s → revisión", gate, post.id)
+            return propose_for_review(db, post, notify=False, blocked_by=gate, reason=motivo)
 
     # Gate de RELEVANCIA de la IMAGEN hero (universal): una foto que no muestra al
     # sujeto NO llega a producción. Cortafuegos común a TODOS los caminos, incluidos
@@ -690,6 +710,12 @@ def flush_scheduled_due(db: Session) -> dict[str, int]:
                 post.id, new_slot.isoformat(),
             )
             continue
-        auto_publish_post(db, post)
-        published += 1
+        # Programar ES la aprobación de una persona: mismos gates que el botón
+        # «publicar» (sin factcheck ni rigor, que son juicios LLM que ya hizo
+        # quien programó). Con los de serie, el editor jefe tumbaba a las 08:15
+        # lo que se había aprobado y el post volvía al correo, en bucle. Los
+        # gates deterministas (citas, completitud) corren igual.
+        res = auto_publish_post(db, post, factcheck=False, rigor=False)
+        if res.get("action") == "published":
+            published += 1
     return {"due": len(due), "published": published}
