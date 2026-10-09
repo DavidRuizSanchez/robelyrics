@@ -225,7 +225,8 @@ def apply_credits(db, song: Song, credits: list[dict], confidence: float) -> int
 
 def _open_errata(db, song: Song, author: str, result, verif):
     from app.db.models import ErrataReport
-    if mcv.errata_exists(db, target_type="authorship", target_id=song.id, field="credit"):
+    if mcv.errata_exists(db, target_type="authorship", target_id=song.id, field="credit",
+                         suggested_right=f"{author} (autoría)"):
         return
     db.add(ErrataReport(
         target_type="authorship", target_id=song.id, field="credit",
@@ -259,6 +260,20 @@ def process(db, entry: dict, *, apply: bool) -> None:
         )
         return
     author = key["name"]
+    # No relanzar: el veredicto NO es reproducible (el mismo claim dio 0,50 /
+    # 0,80 / 0,67 en pasadas seguidas), así que re-verificar cada noche solo
+    # sirve para que una pasada con suerte acabe aplicando. Lo ya acreditado no
+    # se vuelve a preguntar, y lo que una persona rechazó, tampoco.
+    ya = db.execute(select(SongCredit.id).where(
+        SongCredit.song_id == song.id, SongCredit.credited_name == author)).first()
+    if ya:
+        logger.info("«%s»: %s ya acreditado; no se re-verifica", song.title, author)
+        return
+    if mcv.errata_rejected(db, target_type="authorship", target_id=song.id,
+                           field="credit", suggested_right=f"{author} (autoría)"):
+        logger.info("«%s»: %s rechazado por una persona; no se re-verifica",
+                    song.title, author)
+        return
     logger.info("Verificando autoría de «%s» → %s (%s)...", song.title, author, key["role"])
     result = verify_credit(db, song, author, key["role"], key.get("note") or "")
     action = mcv.decide_fan_correction(result, fan_value=author)

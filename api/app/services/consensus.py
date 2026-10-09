@@ -367,22 +367,50 @@ def adjudicate(
 # --------------------------------------------------------------------------- #
 # Persistencia en VerificationRecord (traza auditable).
 # --------------------------------------------------------------------------- #
-def errata_exists(db, *, target_type: str, target_id: int | None, field: str | None = None) -> bool:
-    """¿Ya hay una errata ABIERTA (pending/needs_human) para este target? Evita que
-    el barrido nocturno cree duplicados del mismo caso en cada pasada."""
-    from sqlalchemy import select
+def errata_exists(db, *, target_type: str, target_id: int | None, field: str | None = None,
+                  suggested_right: str | None = None) -> bool:
+    """¿Ya hay una errata para este caso? Evita que el barrido nocturno la vuelva
+    a crear en cada pasada.
+
+    Cuenta la ABIERTA (pending/needs_human) y la RECHAZADA. Sin lo segundo,
+    «Rechazar» no duraba una noche: el 7-oct se rechazaron seis de autoría y el
+    8-oct el barrido abrió las mismas seis con id nuevo, y el correo volvió a
+    traerlas. Si se pasa `suggested_right`, el rechazo cuenta solo para ESA
+    corrección: en letras el `field` es de toda la canción (`lyrics_line`), y
+    rechazar un verso no puede silenciar las demás correcciones de esa canción.
+    """
+    from sqlalchemy import and_, or_, select
 
     from app.db.models import ErrataReport
 
+    rechazada = ErrataReport.status == "rejected"
+    if suggested_right is not None:
+        rechazada = and_(rechazada, ErrataReport.suggested_right == suggested_right)
     q = select(ErrataReport.id).where(
         ErrataReport.target_type == target_type,
-        ErrataReport.status.in_(("pending", "needs_human")),
+        or_(ErrataReport.status.in_(("pending", "needs_human")), rechazada),
     )
     if target_id is not None:
         q = q.where(ErrataReport.target_id == target_id)
     if field:
         q = q.where(ErrataReport.field == field)
     return db.execute(q).first() is not None
+
+
+def errata_rejected(db, *, target_type: str, target_id: int, field: str,
+                    suggested_right: str) -> bool:
+    """¿Una persona ya rechazó ESTA corrección? Entonces el barrido no la aplica
+    aunque una pasada con suerte la dé por buena: el 8-oct se aplicó «Tomás
+    Rodríguez» en «Última Generación» la noche después de rechazarla."""
+    from sqlalchemy import select
+
+    from app.db.models import ErrataReport
+
+    return db.execute(select(ErrataReport.id).where(
+        ErrataReport.target_type == target_type, ErrataReport.target_id == target_id,
+        ErrataReport.field == field, ErrataReport.suggested_right == suggested_right,
+        ErrataReport.status == "rejected",
+    )).first() is not None
 
 
 def record_verification(

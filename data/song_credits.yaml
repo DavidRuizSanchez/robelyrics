@@ -64,13 +64,19 @@ credits:
   # `adaptacion` cuando Robe incrusta unos versos o una estrofa en una letra suya.
   # Si alguno está mal clasificado, cámbialo aquí antes de verificar.
   #
-  # TODAS en pending_verification: las escribe el consenso multi-fuente, no esto.
+  # Entran en pending_verification: las escribe el consenso multi-fuente, no esto.
+  #
+  # `status: hipotesis` (09-10-2026): seis que NINGUNA pasada corroboró. El
+  # veredicto de autoría no es reproducible (mismo claim → 0,50 / 0,80 / 0,67) y
+  # re-verificarlas cada noche reabría la errata aunque se rechazara. Ni el
+  # barrido ni el botón «Arreglar» las tocan; en la web no se afirman. Salen de
+  # aquí solo con una fuente nueva que las corrobore.
   # ============================================================
 
   - song_title: "Te juzgarán sólo por tus errores (Yo no)"
     album_slug: rock-transgresivo
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: poema_original
         name: "Marcos Ana"
@@ -80,7 +86,7 @@ credits:
   - song_title: "Caballero andante (¡No me dejéis asíii!)"
     album_slug: rock-transgresivo
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: adaptacion
         name: "Marcos Ana"
@@ -147,7 +153,7 @@ credits:
   - song_title: "Prometeo"
     album_slug: agila
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: adaptacion
         name: "Miguel Hernández"
@@ -187,7 +193,7 @@ credits:
   - song_title: "Salir"
     album_slug: canciones-prohibidas
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: adaptacion
         name: "Santos Isidro Seseña"
@@ -197,7 +203,7 @@ credits:
   - song_title: "Standby"
     album_slug: yo-minoria-absoluta
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: adaptacion
         name: "Santos Isidro Seseña"
@@ -207,7 +213,7 @@ credits:
   - song_title: "Hoy Te La Meto Hasta Las Orejas"
     album_slug: yo-minoria-absoluta
     source: jotdown_2017
-    status: pending_verification
+    status: hipotesis   # 09-10-2026: ninguna pasada lo corroboró; no se afirma ni se re-verifica
     credits:
       - role: adaptacion
         name: "William Shakespeare"

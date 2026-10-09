@@ -181,9 +181,14 @@ def _fix_authorship(db, errata: ErrataReport) -> FixOutcome:
 
     # Los créditos concretos (roles) salen del YAML curado; sin entrada no
     # inventamos roles: es dato editorial, no se rellena a ojo.
+    # Además del título, que la entrada nombre a ESTE autor: el parecido de
+    # título a 0,75 sola podía casar «Salir» con otra canción.
     entry = None
     for cand in co.song_credits():
-        if best_ratio(normalize(cand.get("song_title") or ""), normalize(song.title)) >= 0.75:
+        if best_ratio(normalize(cand.get("song_title") or ""), normalize(song.title)) < 0.75:
+            continue
+        if any(best_ratio(normalize(author), normalize(c.get("name") or "")) >= 0.9
+               for c in cand.get("credits") or []):
             entry = cand
             break
     if not entry:
@@ -196,6 +201,19 @@ def _fix_authorship(db, errata: ErrataReport) -> FixOutcome:
             ),
         )
 
+    # Hipótesis: lo dice una fuente (Jot Down 2017) y ninguna pasada del consenso
+    # lo ha corroborado. No se afirma ni se vuelve a preguntar: el veredicto no
+    # es reproducible y repetirlo solo da ocasión a una pasada con suerte.
+    if (entry.get("status") or "").lower() == "hipotesis":
+        _close(errata, f"Hipótesis sin corroborar ({entry.get('source') or 'sin fuente'}): "
+                       "no se afirma en la web.", status="rejected")
+        return FixOutcome(
+            "already_ok",
+            f"«{song.title}» → {author} es una hipótesis sin corroborar: no se acredita. "
+            "Errata cerrada y no volverá.",
+            closed=True,
+        )
+
     credits = entry.get("credits") or []
     key = next((c for c in credits if c.get("role") in ("poema_original", "letra", "adaptacion")), None)
     if not key:
@@ -204,7 +222,9 @@ def _fix_authorship(db, errata: ErrataReport) -> FixOutcome:
             "La entrada curada no tiene rol autoral (poema_original/letra/adaptacion).",
         )
 
-    result = ac.verify_credit(db, song, key["name"], key["role"])
+    # Con la nota, como el barrido: sin ella la consulta no lleva el título del
+    # poema y el botón tenía menos opciones que el cron.
+    result = ac.verify_credit(db, song, key["name"], key["role"], key.get("note") or "")
     action = mcv.decide_fan_correction(result, fan_value=key["name"])
     verif = mcv.record_verification(
         db, claim_kind="song_authorship",
