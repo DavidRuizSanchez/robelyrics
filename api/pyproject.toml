@@ -17,7 +17,9 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     # Auth
-    "python-jose[cryptography]>=3.3",
+    # PyJWT y no python-jose: jose está abandonada y su confusión de algoritmo
+    # (GHSA-3qf3-8w2g-rqmx) no tendrá parche. Arrastraba además ecdsa (Minerva).
+    "pyjwt>=2.10",
     "passlib[bcrypt]>=1.7.4",
     "slowapi>=0.1.9",
     # Vector / search
