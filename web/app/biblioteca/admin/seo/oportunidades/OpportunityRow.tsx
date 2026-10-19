@@ -47,6 +47,9 @@ export type Opportunity = {
     images_added?: { url: string; alt: string; section: string; status: string }[];
     videos_added?: { url: string; section: string }[] | string[];
     descartado?: string[];
+    enriched?: { heading: string; texto: string }[];
+    juez?: { op: string; vuelta: number; antes: number; despues: number; veredicto: string }[];
+    corroboracion?: { verificados: string[]; descartados: string[] };
     protegidas?: number;
     before_len?: number;
     after_len?: number;
@@ -96,6 +99,8 @@ function DiffFusion({ o }: { o: Opportunity }) {
   const n = o.draft_notes || {};
   const nuevas = new Set((n.added_headings || []).map((h) => h.toLowerCase()));
   const renombres = new Map((n.renamed || []).map((r) => [r.new.toLowerCase(), r]));
+  const enriquecidas = new Map((n.enriched || []).map((e) => [e.heading.toLowerCase(), e]));
+  const juez = new Map((n.juez || []).map((j) => [j.op, j]));
   const bloques = trocear(o.draft_body || "");
   return (
     <>
@@ -113,6 +118,12 @@ function DiffFusion({ o }: { o: Opportunity }) {
             return (
               <li key={i} className="text-accent">
                 + {b.heading}
+              </li>
+            );
+          if (enriquecidas.has(h))
+            return (
+              <li key={i} className="text-accent">
+                ± {b.heading} <span className="text-ink-faint">(se le añade un párrafo)</span>
               </li>
             );
           const r = renombres.get(h);
@@ -163,6 +174,35 @@ function DiffFusion({ o }: { o: Opportunity }) {
             <pre className="font-serif text-sm text-ink/85 whitespace-pre-wrap">{b.texto}</pre>
           </div>
         ))}
+      {(n.enriched || []).map((e) => (
+        <div key={e.heading}>
+          <Mini>se añade al final de «{e.heading}»</Mini>
+          <p className="font-serif text-sm text-ink/85 whitespace-pre-wrap">{e.texto}</p>
+        </div>
+      ))}
+      {juez.size > 0 && (
+        <>
+          <Mini>editor jefe, sobre cada cambio en su contexto</Mini>
+          <ul className="font-serif text-[13px] text-ink-dim list-disc pl-5">
+            {[...juez.values()].map((j) => (
+              <li key={j.op}>
+                «{j.op}»: {j.antes} → {j.despues} ({j.veredicto}
+                {j.vuelta ? `, tras ${j.vuelta} reescritura${j.vuelta > 1 ? "s" : ""}` : ""})
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {(n.corroboracion?.descartados?.length ?? 0) > 0 && (
+        <>
+          <Mini>datos de terceros que NO se han escrito (sin corroborar)</Mini>
+          <ul className="font-serif text-[13px] text-ink-faint list-disc pl-5">
+            {n.corroboracion!.descartados.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </>
+      )}
       {(n.puentes || []).map((p) => (
         <div key={p.after + p.texto}>
           <Mini>frase puente tras «{p.after}»</Mini>

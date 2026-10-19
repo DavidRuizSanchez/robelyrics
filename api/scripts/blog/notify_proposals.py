@@ -42,11 +42,12 @@ KIND_LABEL = {
 }
 
 
-def _accion_url(p: ContentProposal, action: str, target: str | None = None) -> str:
+def _accion_url(p: ContentProposal, action: str, target: str | None = None,
+                keywords: list[str] | None = None) -> str:
     from app.config import get_settings
     from app.services.auth import create_proposal_action_token
 
-    token = create_proposal_action_token(p.id, action, target=target)
+    token = create_proposal_action_token(p.id, action, target=target, keywords=keywords)
     return f"{get_settings().site_url.rstrip('/')}/api/public/proposal-action?token={token}"
 
 
@@ -58,35 +59,49 @@ def _boton(url: str, label: str, *, principal: bool) -> str:
             f'text-transform:uppercase;">{label}</a>')
 
 
-def _placement_html(p: ContentProposal) -> str:
-    """La recomendación, su evidencia y un botón por opción del selector."""
+def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
+    """Un bloque por grupo de keywords: su destino, su evidencia y sus botones.
+
+    Cada keyword va a SU página (borrador #40: «necesito droga y amor» acabó en
+    /extremoduro). Un correo no admite conmutadores fiables, así que desactivar
+    keywords se hace en el panel: cada propuesta lleva el enlace.
+    """
     if not p.placement:
         return ""
     from html import escape
 
     from app.services import content_placement as cp
 
-    pl = p.placement
-    rec = cp.headline(pl)
-    conf = pl.get("confidence") or ""
-    evid = cp.short_evidence(pl)
-    botones = []
-    for opt in cp.selector_options(pl):
-        if opt["value"] == "new":
-            url = _accion_url(p, "new")
-        else:
-            url = _accion_url(p, "merge", opt["value"])
-        label = escape(opt["label"]) + (" ★" if opt.get("recommended") else "")
-        botones.append(_boton(url, label, principal=bool(opt.get("recommended"))))
-    botones.append(_boton(_accion_url(p, "discard"), "rechazar", principal=False))
-    return (
-        f'<p style="font-family:\'Courier New\',monospace;font-size:10px;letter-spacing:2px;'
-        f'text-transform:uppercase;color:#a83a3a;margin:10px 0 2px;">propuesta: '
-        f'{escape(rec)} · confianza {escape(conf)}</p>'
-        f'<p style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.6);'
-        f'margin:0;line-height:1.5;">{escape(evid)}</p>'
-        f'<p style="margin:2px 0 0;">{"".join(botones)}</p>'
-    )
+    mono = "font-family:'Courier New',monospace;"
+    bloques = []
+    for g in cp.grupos(p.placement):
+        kws = g.get("keywords") or []
+        botones = []
+        for opt in cp.selector_options(g):
+            if opt["value"] in ("new", "skip"):
+                continue
+            label = escape(opt["label"]) + (" ★" if opt.get("recommended") else "")
+            botones.append(_boton(_accion_url(p, "merge", opt["value"], kws), label,
+                                  principal=bool(opt.get("recommended"))))
+        evid = escape(" ".join((g.get("reasons") or [])[:2])[:400])
+        bloques.append(
+            f'<div style="margin:10px 0 0;padding:8px 0 0;border-top:1px solid '
+            f'rgba(237,228,211,0.08);">'
+            f'<p style="{mono}font-size:10px;color:rgba(237,228,211,0.55);margin:0;">'
+            f'{escape(" · ".join(kws))}</p>'
+            f'<p style="{mono}font-size:10px;letter-spacing:2px;text-transform:uppercase;'
+            f'color:#a83a3a;margin:4px 0 2px;">{escape(cp.headline(g))} · confianza '
+            f'{escape(g.get("confidence") or "")}</p>'
+            f'<p style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.6);'
+            f'margin:0;line-height:1.5;">{evid}</p>'
+            f'<p style="margin:2px 0 0;">{"".join(botones)}</p></div>'
+        )
+    pie = [_boton(_accion_url(p, "new"), "aprobar lo que quede como contenido nuevo",
+                  principal=False),
+           _boton(_accion_url(p, "discard"), "rechazar", principal=False)]
+    if admin_url:
+        pie.append(_boton(admin_url, "ajustar keywords en el panel →", principal=False))
+    return "".join(bloques) + f'<p style="margin:8px 0 0;">{"".join(pie)}</p>'
 
 
 def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, str]:
@@ -97,11 +112,10 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             if p.angle else ""
         )
         kw_html = ""
-        kws = sorted(
-            p.keywords or [], key=lambda k: -(k.get("volume") or 0)
-        )[:6]
+        activas = [k for k in (p.keywords or []) if not k.get("excluded")]
+        kws = sorted(activas, key=lambda k: -(k.get("volume") or 0))[:6]
         if kws:
-            total = sum(int(k.get("volume") or 0) for k in (p.keywords or []))
+            total = sum(int(k.get("volume") or 0) for k in activas)
             chips = " ".join(
                 f'<span style="font-family:\'Courier New\',monospace;font-size:10px;'
                 f'color:rgba(237,228,211,0.6);border:1px solid rgba(237,228,211,0.15);'
@@ -123,7 +137,7 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             f'margin:0 0 4px;">{KIND_LABEL.get(p.kind, p.kind)}</p>'
             f'<p style="font-family:Georgia,serif;font-size:16px;color:#ede4d3;'
             f'margin:0;font-weight:bold;">{p.title}</p>{angle}{kw_html}'
-            f'{_placement_html(p)}</li>'
+            f'{_placement_html(p, admin_url)}</li>'
         )
 
     def _section(titulo: str, items: list) -> str:
@@ -174,8 +188,9 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             if p.placement:
                 from app.services import content_placement as cp
 
-                text_lines.append(f"    propuesta: {cp.headline(p.placement)} "
-                                  f"({p.placement.get('confidence')})")
+                for g in cp.grupos(p.placement):
+                    text_lines.append(f"    [{', '.join(g.get('keywords') or [])}] → "
+                                      f"{cp.headline(g)} ({g.get('confidence')})")
         text_lines.append("")
     text_lines.append(f"Programar en: {admin_url}")
     return html, "\n".join(text_lines)

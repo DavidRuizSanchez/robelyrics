@@ -227,7 +227,8 @@ _PROPOSAL_ACTIONS = {"merge", "new", "discard"}
 
 
 def create_proposal_action_token(
-    proposal_id: int, action: str, *, target: str | None = None, ttl_hours: int = 336
+    proposal_id: int, action: str, *, target: str | None = None,
+    keywords: list[str] | None = None, ttl_hours: int = 336,
 ) -> str:
     """JWT para decidir una propuesta del blog desde el correo de los lunes.
 
@@ -251,6 +252,9 @@ def create_proposal_action_token(
     }
     if target:
         payload["target"] = target
+    # El grupo de keywords que va a ese destino: cada botón funde SU grupo.
+    if keywords:
+        payload["keywords"] = [str(k) for k in keywords]
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
 
 

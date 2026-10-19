@@ -178,3 +178,133 @@ def test_un_title_nuevo_no_puede_estrechar_la_pagina():
 def test_la_marca_no_cuenta_como_contenido_del_title():
     assert md.title_bloqueado("Extremoduro · Entre Interiores", "Extremoduro: género musical",
                               "que genero es extremoduro") is None
+
+
+# --------------------------------------------------------------------------- #
+# Fusión v2 (19-10-2026): lo cubierto se mejora en su sitio, el juez lee el
+# contexto y un rechazo no se presenta.
+# --------------------------------------------------------------------------- #
+FICHA_LARGA = ("Extremoduro fue el grupo de Robe.\n\n"
+               "## Rock transgresivo: el nombre de un género\n\n"
+               "Extremoduro definió su género como rock transgresivo. " * 1
+               + "\n\n"
+               + "\n\n".join(f"## Sección {i}\n\n" + ("Texto largo de relleno real. " * 60)
+                             for i in range(12))
+               + "\n\n## El final\n\nLa banda se disolvió en 2019.\n")
+
+
+def test_la_cobertura_dice_que_seccion_ya_responde_cada_consulta():
+    mapa = md.cobertura_por_seccion(FICHA_LARGA, ["que genero es extremoduro",
+                                                  "extremoduro cancion de amor"])
+    assert mapa["que genero es extremoduro"] == "Rock transgresivo: el nombre de un género"
+    assert mapa["extremoduro cancion de amor"] is None
+
+
+def test_enriquecer_anade_al_final_de_su_seccion_sin_tocar_lo_demas():
+    ops = md.Operaciones(enriquecer=[{"heading": "El final",
+                                      "texto": "Robe murió en diciembre de 2025."}])
+    despues = md.aplicar(CUERPO, ops)
+    assert "La banda se disolvió en 2019.\n\nRobe murió en diciembre de 2025." in despues
+    assert md.secciones_conservadas(CUERPO, despues, ops) == []
+
+
+def test_el_juez_lee_el_contexto_y_no_un_recorte():
+    """Sobre /extremoduro (23.700 caracteres) el juez leía `body[:9000]` y ponía un 18
+    al «antes» porque «el artículo queda truncado»."""
+    assert len(FICHA_LARGA) > 9000
+    ext = md.extracto_local(FICHA_LARGA, {"El final"})
+    assert ext.startswith("ESQUEMA DE LA PÁGINA:") and "El final" in ext
+    assert "La banda se disolvió en 2019." in ext      # la cola que el recorte perdía
+    assert "Sección 11" in ext                          # su vecina
+    assert "Sección 3\n" not in ext                     # lo lejano no
+    assert len(ext) < 9000
+
+
+class _V:
+    def __init__(self, verdict, score):
+        self.verdict, self.score, self.reasons = verdict, score, ["repite lo que ya dice"]
+
+
+def _motor_merge(monkeypatch, *, veredicto, despues=40):
+    """Cablea `merge_page` sin red: el juez devuelve lo que se le pida."""
+    from types import SimpleNamespace
+
+    from scripts.seo import augment_deep, generate_deep
+
+    destino = md.Destino("ficha", SimpleNamespace(target_keyword=None), "/extremoduro",
+                         "Extremoduro", "artist", object(), CUERPO, "Extremoduro", "", "x")
+    monkeypatch.setattr(md, "cargar_destino", lambda db, opp: destino)
+    monkeypatch.setattr(md, "reunir_material", lambda db, c, d, q: md.Material(
+        escritor="DATOS PROPIOS", verificable="Extremoduro 1987 Plasencia", hard="", pasajes=0))
+    monkeypatch.setattr(md, "planificar", lambda *a, **kw: {
+        "insert": [{"after": "El final", "heading": "La gira de despedida",
+                    "covers": "la gira"}]})
+    monkeypatch.setattr("app.services.seo_opportunities.nombre_alias_index", lambda db: {})
+    monkeypatch.setattr("app.services.source_guard.nombres_de_fuentes", lambda db=None: [])
+    monkeypatch.setattr("app.services.content_placement.load_gsc_pages", lambda: ({}, None))
+    llamadas = {"escritas": 0}
+
+    def _escribe(*a, **kw):
+        llamadas["escritas"] += 1
+        return "## La gira de despedida\n\nExtremoduro anunció una gira en 2019 en Plasencia."
+
+    monkeypatch.setattr(generate_deep, "_write_section", _escribe)
+    monkeypatch.setattr(generate_deep, "_verify_section", lambda c, t, m: t)
+    monkeypatch.setattr(augment_deep, "confiesa_no_saber", lambda t: None)
+    monkeypatch.setattr("app.services.editorial_review.review",
+                        lambda body, **kw: _V(veredicto, despues) if kw.get("spotlight")
+                        else _V("pass", 60))
+    opp = SimpleNamespace(queries=[{"query": "extremoduro gira despedida"}], gap_hint="")
+    return opp, llamadas
+
+
+def test_un_rechazo_tras_dos_reescrituras_no_se_presenta(monkeypatch):
+    opp, llamadas = _motor_merge(monkeypatch, veredicto="reject")
+    res = md.merge_page(object(), object(), opp)
+    assert res["noop"] is True
+    assert llamadas["escritas"] == md.MAX_VUELTAS + 1
+    assert any("editor jefe no la ve mejor" in d for d in res["notas"]["descartado"])
+
+
+def test_si_el_juez_la_ve_mejor_sale_borrador_a_la_primera(monkeypatch):
+    opp, llamadas = _motor_merge(monkeypatch, veredicto="pass", despues=68)
+    monkeypatch.setattr(md, "propose_meta", lambda *a, **kw: {}, raising=False)
+    monkeypatch.setattr("app.services.seo_opportunities.propose_meta", lambda *a, **kw: {})
+    monkeypatch.setattr(md, "coser", lambda *a, **kw: {})
+    monkeypatch.setattr("app.services.entity_resolver.build_corpus_index", lambda db: [])
+    monkeypatch.setattr("app.services.entity_resolver.load_link_stats", lambda: {})
+    monkeypatch.setattr("app.services.url_resolver.guard_internal_links",
+                        lambda db, t: type("G", (), {"body_md": t, "changed": False})())
+    monkeypatch.setattr("app.services.lyric_guard.check_lyrics",
+                        lambda db, t: type("R", (), {"blocking": []})())
+    res = md.merge_page(object(), object(), opp)
+    assert res["noop"] is False, res.get("motivo")
+    assert llamadas["escritas"] == 1
+    assert "## La gira de despedida" in res["after"]
+    assert res["notas"]["juez"][-1]["despues"] == 68
+
+
+def test_el_juez_ve_lo_nuevo_una_sola_vez(monkeypatch):
+    """En la prueba del 19-10-2026 lo añadido iba dentro del contexto Y por
+    `spotlight`, y el juez respondía «repite literalmente el párrafo»."""
+    vistos = []
+
+    def _review(body, **kw):
+        vistos.append((body, kw.get("spotlight")))
+        return _V("pass", 70 if kw.get("spotlight") else 60)
+
+    monkeypatch.setattr("app.services.editorial_review.review", _review)
+    j = md.juzgar("CONTEXTO PUBLICADO", "LO NUEVO", kind="artist", subject="Extremoduro",
+                  consultas=["x"], material="")
+    assert [b for b, _ in vistos] == ["CONTEXTO PUBLICADO", "CONTEXTO PUBLICADO"]
+    assert [sp for _, sp in vistos] == [None, "LO NUEVO"]
+    assert j.ok
+
+
+def test_si_sube_la_nota_vale_aunque_la_pagina_base_siga_rechazada(monkeypatch):
+    monkeypatch.setattr("app.services.editorial_review.review",
+                        lambda body, **kw: _V("reject", 30 if kw.get("spotlight") else 18))
+    assert md.juzgar("c", "n", kind="artist", subject="E", consultas=[], material="").ok
+    monkeypatch.setattr("app.services.editorial_review.review",
+                        lambda body, **kw: _V("reject", 18))
+    assert not md.juzgar("c", "n", kind="artist", subject="E", consultas=[], material="").ok

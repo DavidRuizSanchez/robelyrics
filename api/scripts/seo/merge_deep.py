@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.services import ranking_guard, seo_style
+from app.services.source_guard import quitar_metatexto  # noqa: F401 (API de este módulo)
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,9 @@ class Operaciones:
     renames: list[dict] = field(default_factory=list)   # {old, new}
     intro: str | None = None
     puentes: list[dict] = field(default_factory=list)   # {after, texto}
+    # Párrafos que se añaden al final de una sección EXISTENTE que ya responde la
+    # consulta: lo cubierto se mejora en su sitio, no se duplica en otra sección.
+    enriquecer: list[dict] = field(default_factory=list)  # {heading, texto}
 
 
 def aplicar(body: str, ops: Operaciones) -> str:
@@ -121,6 +125,12 @@ def aplicar(body: str, ops: Operaciones) -> str:
             bloques.append(nuevo)
         else:
             bloques.insert(i + 1 if i >= 0 else 0, nuevo)
+    for e in ops.enriquecer:
+        i = _buscar(bloques, e["heading"])
+        if i is None or i < 0:
+            continue
+        bloques[i] = Bloque(bloques[i].heading,
+                            bloques[i].texto.rstrip() + "\n\n" + e["texto"].strip())
     for r in ops.renames:
         i = _buscar(bloques, r["old"])
         if i is None or i < 0:
@@ -259,61 +269,64 @@ def formacion(db, consultas: list[str]) -> str:
 
 @dataclass
 class Material:
-    texto: str
+    """Lo que el redactor ve y lo que el verificador acepta, que NO es lo mismo.
+
+    Criterio de David (19-10-2026): la voz es nuestra. Lo de terceros es FONDO
+    (orienta qué contar, nunca se nombra) y un dato que solo esté ahí no se afirma
+    salvo que `corroborar` lo confirme por otra vía.
+    """
+    escritor: str          # propio + palabras de Robe + verificados + fondo
+    verificable: str       # lo único que se puede afirmar
     hard: str
-    consulta: str
     pasajes: int
+    verificados: list[str] = field(default_factory=list)
+    descartados: list[str] = field(default_factory=list)
 
 
-def reunir_material(db, destino: Destino, consultas: list[str]) -> Material:
-    from app.services.corpus_for_queries import bloque_material, material_para_consultas
+def reunir_material(db, client, destino: Destino, consultas: list[str]) -> Material:
+    from app.services.corpus_for_queries import (
+        bloque_material,
+        corroborar,
+        material_para_consultas,
+        separar_material,
+    )
 
-    hard, base = "", ""
+    hard, propio, fondo = "", "", ""
     if destino.entity is not None and destino.entity_type:
         from app.services.deep_research import gather_entity_dossier
 
         try:
             d = gather_entity_dossier(db, destino.entity_type, destino.entity)
-            hard, base = d.hard_facts, d.material
+            hard = d.hard_facts
+            propio, fondo = separar_material(d.material)
         except Exception as exc:  # noqa: BLE001
             logger.warning("[merge] dossier falló para %s: %s", destino.path, exc)
-    pasajes = material_para_consultas(db, consultas)
-    consulta = bloque_material(pasajes)
     form = formacion(db, consultas)
     if form:
         hard = f"{hard}\n\n{form}".strip()
-    texto = "\n\n----\n\n".join(x for x in (consulta, base) if x)
-    return Material(texto=texto, hard=hard, consulta=consulta, pasajes=len(pasajes))
 
+    pasajes = material_para_consultas(db, consultas)
+    robe = [p for p in pasajes if p.get("kind") == "robe_interview"]
+    ajenos = [p for p in pasajes if p.get("kind") != "robe_interview"]
+    fondo_total = "\n\n----\n\n".join(
+        x for x in ("\n\n".join(p.get("fragmento") or "" for p in ajenos), fondo) if x.strip())
+    propio_total = "\n\n".join(x for x in (hard, propio,
+                                            "\n".join(p.get("fragmento") or "" for p in robe))
+                                if x.strip())
+    verificados, descartados = corroborar(client, fondo_total, propio_total, consultas)
 
-# Frases que hablan del PROCESO y no del tema. Medido en la primera muestra real
-# (19-10-2026, /personas): «Estos nombres y fechas responden a las búsquedas
-# «integrantes de Extremoduro»…» y «no se añaden otros músicos sin periodos
-# confirmados en el registro de miembros». Es eco de las instrucciones, y una
-# página que le habla al lector de sus keywords no se publica.
-_METATEXTO = re.compile(
-    r"\bb[uú]squedas?\b|\bpalabras? clave\b|\bkeywords?\b|\bSEO\b"
-    r"|\bregistro de (?:miembros|integrantes)\b|\bformaci[oó]n registrada\b"
-    r"|\bperiodos? (?:confirmados|registrados)\b|\ben el registro\b",
-    re.I,
-)
-_FRASE = re.compile(r"[^.!?\n]+[.!?]?")
-
-
-def quitar_metatexto(texto: str) -> tuple[str, list[str]]:
-    """Quita las frases que hablan del proceso. Devuelve (texto, frases quitadas)."""
-    quitadas: list[str] = []
-    lineas = []
-    for linea in (texto or "").split("\n"):
-        if linea.lstrip().startswith("#") or not _METATEXTO.search(linea):
-            lineas.append(linea)
-            continue
-        frases = _FRASE.findall(linea)
-        buenas = [f for f in frases if not _METATEXTO.search(f)]
-        quitadas += [f.strip() for f in frases if _METATEXTO.search(f)]
-        lineas.append("".join(buenas).strip())
-    limpio = re.sub(r"\n{3,}", "\n\n", "\n".join(lineas)).strip()
-    return limpio, quitadas
+    bloque = bloque_material(pasajes, verificados)
+    escritor = "\n\n====\n\n".join(x for x in (
+        f"DATOS PROPIOS (se pueden afirmar):\n{propio}" if propio.strip() else "",
+        bloque,
+        (f"FONDO DEL DOSSIER (de terceros: solo para orientarte; no se nombra ni se "
+         f"afirma nada que solo esté aquí):\n{fondo[:6000]}") if fondo.strip() else "",
+    ) if x)
+    verificable = "\n\n".join(x for x in (
+        propio_total, "DATOS VERIFICADOS:\n" + "\n".join(verificados) if verificados else "")
+        if x)
+    return Material(escritor=escritor, verificable=verificable, hard=hard,
+                    pasajes=len(pasajes), verificados=verificados, descartados=descartados)
 
 
 # --------------------------------------------------------------------------- #
@@ -328,26 +341,51 @@ def _esquema(body: str) -> str:
     return "\n".join(out) or "(la página no tiene texto todavía)"
 
 
+def cobertura_por_seccion(body: str, consultas: list[str]) -> dict[str, str | None]:
+    """{consulta: heading de la sección que ya la responde, o None}.
+
+    Es lo que impide repetir: el borrador #40 metía una sección «Qué género es
+    Extremoduro» en una ficha que ya lo explicaba en «Rock transgresivo: el nombre y
+    la filosofía de un género», y el editor jefe lo tumbó con razón.
+    """
+    out: dict[str, str | None] = {}
+    bloques = [b for b in trocear(body) if b.heading]
+    for c in consultas:
+        out[c] = next((b.heading for b in bloques
+                       if seo_style.cubre(seo_style.flatten(b.texto), c)), None)
+    return out
+
+
 def planificar(client, destino: Destino, consultas: list[str], protegidas: list[dict],
                material: Material, propuesta: str) -> dict:
     from scripts.seo.generate_deep import _chat
 
     prot = "\n".join(f"- «{q['query']}» (pos {q.get('position')}, "
                      f"{q.get('clicks') or 0} clics)" for q in protegidas[:12]) or "- (ninguna)"
+    mapa = cobertura_por_seccion(destino.body, consultas)
+    cobertura = "\n".join(
+        f"- «{c}» → YA la responde «{h}»: enriquece ESA sección, no crees otra"
+        if h else f"- «{c}» → ninguna sección la responde todavía"
+        for c, h in mapa.items())
     prompt = (
         f"Vas a AMPLIAR una página publicada sobre «{destino.subject}» ({destino.path}) "
-        f"integrando una idea que iba a ser un post aparte: «{propuesta}».\n\n"
-        f"BÚSQUEDAS QUE LA PÁGINA DEBE PASAR A RESPONDER:\n- " + "\n- ".join(consultas)
-        + "\n\nBÚSQUEDAS QUE YA GANA Y NO PUEDE PERDER (no quites ni cambies lo que las "
+        f"integrando una idea que iba a ser un post aparte: «{propuesta}». Ampliar es "
+        "MEJORARLA: nada que repita lo que ya dice.\n\n"
+        f"LO QUE LA PÁGINA DEBE RESPONDER Y DÓNDE:\n{cobertura}\n\n"
+        "BÚSQUEDAS QUE YA GANA Y NO PUEDE PERDER (no quites ni cambies lo que las "
         f"cubre):\n{prot}\n\n"
         f"ESTRUCTURA ACTUAL (heading: arranque):\n{_esquema(destino.body)}\n\n"
         f"HECHOS DUROS:\n{material.hard[:3000]}\n\n"
-        f"MATERIAL (única fuente de hechos):\n\"\"\"{material.texto[:9000]}\"\"\"\n\n"
+        f'MATERIAL:\n"""{material.escritor[:9000]}"""\n\n'
         "Propón un PLAN de edición, no texto final:\n"
-        f"- insert (máx {MAX_INSERTS}): secciones H2 NUEVAS, cada una colocada DONDE "
-        "encaja en el orden de la página (after = heading EXACTO de la sección tras la "
-        f"que va, o «{INTRO}» para ir justo tras la intro). Solo si el material sostiene "
-        "hechos concretos; si no, no la propongas. Nada que la página ya diga.\n"
+        f"- insert (máx {MAX_INSERTS}): secciones H2 NUEVAS, solo para lo que ninguna "
+        "sección responde, colocadas DONDE encajan (after = heading EXACTO de la sección "
+        f"tras la que van, o «{INTRO}» para ir justo tras la intro). Solo si los DATOS "
+        "PROPIOS, las PALABRAS DE ROBE o los DATOS VERIFICADOS sostienen hechos "
+        "concretos: el FONDO solo orienta.\n"
+        "- enrich: para lo que una sección YA responde, qué dato nuevo le falta a ESA "
+        "sección (heading EXACTO). Solo si hay un dato propio o verificado que la página "
+        "no tenga.\n"
         f"- rename (máx {MAX_RENAMES}): solo si un heading existente gana claridad o "
         "cubre mejor una búsqueda SIN dejar de cubrir lo que ya cubre. Si dudas, no.\n"
         "- rewrite_intro: true solo si la intro ya no anuncia bien lo que la página "
@@ -355,10 +393,11 @@ def planificar(client, destino: Destino, consultas: list[str], protegidas: list[
         "- media: para una sección nueva, un vídeo (query de YouTube concreta) o la "
         "imagen de una persona/disco del universo (nombre exacto). Opcional.\n"
         'Devuelve JSON {"insert":[{"after":"...","heading":"...","covers":"..."}],'
+        '"enrich":[{"heading":"...","covers":"..."}],'
         '"rename":[{"old":"...","new":"...","why":"..."}],"rewrite_intro":false,'
         '"intro_why":"","media":[{"section":"<heading nuevo>","type":"video|image",'
         '"query":"...","entity":"..."}]}. Si no hay nada sólido que añadir, '
-        '{"insert":[]}.'
+        '{"insert":[],"enrich":[]}.'
     )
     try:
         data = _chat(client, prompt, max_tokens=1200, temp=0.3)
@@ -473,23 +512,96 @@ def video_para(query: str, subject: str, ya: set[str]) -> dict | None:
 
 
 # --------------------------------------------------------------------------- #
+# El juez: lee el contexto, no un recorte
+# --------------------------------------------------------------------------- #
+# Margen frente a la varianza medida del juez (tres pasadas sobre el MISMO texto
+# dieron revise/reject/reject). Menos que el 5 del modo optimización: aquí se juzga
+# un extracto pequeño, que varía menos que una página entera.
+TOLERANCIA_JUEZ = 3
+MAX_VUELTAS = 2
+_SECCION_MAX = 3500
+
+
+def extracto_local(body: str, headings: set[str]) -> str:
+    """El esquema de la página entera + las secciones tocadas y sus vecinas.
+
+    El juez leía `body[:9000]`: sobre /extremoduro (23.700 caracteres) puntuaba el
+    «antes» con un 18 porque «el artículo queda truncado», y medía lo añadido contra
+    una página que no había leído entera. Así ve dónde cae lo nuevo y qué lo rodea.
+    """
+    bloques = trocear(body)
+    objetivo = {_norm_h(h) for h in headings}
+    idx = {i for i, b in enumerate(bloques) if b.heading and _norm_h(b.heading) in objetivo}
+    if not idx and bloques:
+        idx = {0}
+    vecinos = sorted({j for i in idx for j in (i - 1, i, i + 1) if 0 <= j < len(bloques)})
+    esquema = "ESQUEMA DE LA PÁGINA: " + " · ".join(b.heading or "(intro)" for b in bloques)
+    return esquema + "\n\n" + "\n\n[…]\n\n".join(
+        bloques[j].texto[:_SECCION_MAX] for j in vecinos)
+
+
+@dataclass
+class Juicio:
+    ok: bool
+    antes: int
+    despues: int
+    veredicto: str
+    motivos: list[str]
+
+
+def juzgar(contexto: str, anadido: str, *, kind: str, subject: str,
+           consultas: list[str], material: str) -> Juicio:
+    """¿Lo añadido mejora la página? El MISMO contexto en las dos pasadas.
+
+    Lo nuevo le llega al juez solo por `spotlight`. Si también va dentro del
+    contexto lo ve dos veces y contesta lo previsible («repite literalmente el
+    párrafo»): pasó en la prueba del 19-10-2026, igual que le había pasado a
+    `augment_deep` el 22-09-2026.
+
+    Aprueba si sube la nota, aunque el veredicto global siga siendo «reject»: ese
+    veredicto es sobre el texto publicado (en /extremoduro, un 18), no sobre lo que
+    se añade. Si no sube, hace falta que no rechace y que no baje más que el ruido.
+    """
+    from app.services.editorial_review import review as editorial_review
+
+    allowed = {subject.lower()} | {c.lower() for c in consultas}
+    extra = {"material": material[:4000] or None, "focus": "; ".join(consultas),
+             "repeats_per_1000": 4.0}
+    va = editorial_review(contexto, kind=kind, subject=subject, allowed_terms=allowed, **extra)
+    vd = editorial_review(contexto, kind=kind, subject=subject, allowed_terms=allowed,
+                          spotlight=anadido, **extra)
+    # NUNCA se toma `tightened_body_md`: condensaría el texto publicado.
+    ok = vd.score > va.score or (vd.verdict != "reject"
+                                 and vd.score >= va.score - TOLERANCIA_JUEZ)
+    return Juicio(ok, va.score, vd.score, vd.verdict, list(vd.reasons or []))
+
+
+# --------------------------------------------------------------------------- #
 # Orquestador
 # --------------------------------------------------------------------------- #
 def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None = None
                ) -> dict:
-    """Prepara la fusión. Devuelve {noop, motivo} o el borrador con sus notas."""
+    """Prepara la fusión. Devuelve {noop, motivo} o el borrador con sus notas.
+
+    Ampliar tiene que MEJORAR (criterio de David, 19-10-2026): cada operación pasa
+    por el juez con su contexto y, si no mejora, se reescribe con sus motivos
+    delante (`MAX_VUELTAS`); si sigue sin mejorar, se quita. Sin válvula: lo que el
+    editor jefe rechaza no se presenta.
+    """
+    from app.services import source_guard
     from app.services.entity_resolver import autolink_corpus, build_corpus_index, load_link_stats
     from app.services.seo_opportunities import nombre_alias_index, propose_meta
     from app.services.text_sanitizer import strip_ai_tells
     from app.services.url_resolver import guard_internal_links
     from scripts.seo.augment_deep import confiesa_no_saber
-    from scripts.seo.generate_deep import _verify_section, _write_section
+    from scripts.seo.generate_deep import _chat, _verify_section, _write_section
 
     destino = cargar_destino(db, opp)
     if destino is None:
         return {"noop": True, "motivo": "la página de destino ya no existe"}
     consultas = [q.get("query", "") for q in (opp.queries or []) if q.get("query")]
     alias = nombre_alias_index(db)
+    nombres = source_guard.nombres_de_fuentes(db)
 
     if gsc_pages is None:
         from app.services.content_placement import load_gsc_pages
@@ -497,15 +609,17 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
         gsc_pages, _ = load_gsc_pages()
     protegidas = ranking_guard.consultas_protegidas(gsc_pages.get(destino.path) or [])
 
-    material = reunir_material(db, destino, consultas)
-    if not material.texto.strip() and not material.hard.strip():
-        return {"noop": True, "motivo": "no hay material del corpus que respalde la ampliación"}
+    material = reunir_material(db, client, destino, consultas)
+    if not material.verificable.strip():
+        return {"noop": True, "motivo": "no hay material propio que respalde la ampliación"}
 
     plan = planificar(client, destino, consultas, protegidas, material,
                       propuesta or opp.gap_hint or "")
     notas: dict[str, Any] = {
         "descartado": [], "avisos": [], "protegidas": len(protegidas),
-        "pasajes": material.pasajes,
+        "pasajes": material.pasajes, "juez": [],
+        "corroboracion": {"verificados": material.verificados,
+                          "descartados": material.descartados},
         # La línea base que `merge_watch` compara a las 4 semanas de aplicar.
         "protegidas_detalle": [
             {k: q.get(k) for k in ("query", "position", "clicks", "impressions")}
@@ -514,46 +628,144 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     }
     ops = Operaciones()
     heads = [b.heading for b in trocear(destino.body) if b.heading]
-    nuevas: list[str] = []
-
-    # --- Secciones nuevas: escritas, verificadas y sin confesiones ------------- #
-    material_escritor = material.texto
+    mapa = cobertura_por_seccion(destino.body, consultas)
+    kind = destino.entity_type or "post"
     kw_block = ("Lo que el lector quiere saber (úsalo para ELEGIR qué contar; NUNCA "
                 "menciones búsquedas, palabras clave, registros ni de dónde sale cada "
-                "dato): " + "; ".join(consultas))
-    for ins in (plan.get("insert") or [])[:MAX_INSERTS]:
-        h = (ins.get("heading") or "").strip().strip("<>").strip()
-        if not h or _norm_h(h) in {_norm_h(x) for x in heads + nuevas}:
-            continue
-        texto = _write_section(client, destino.subject, {"heading": h,
-                                                         "covers": ins.get("covers") or h},
-                               heads + nuevas, material.hard, material_escritor, kw_block,
-                               prior=destino.body, tier="premium")
-        texto = _verify_section(client, texto, material.hard + "\n\n" + material_escritor)
-        texto, meta = quitar_metatexto(texto)
-        if meta:
-            notas["descartado"].append(f"«{h}»: frases de metatexto quitadas: "
-                                       + " / ".join(m[:80] for m in meta[:3]))
-        if not texto.strip() or not re.sub(r"^##.*$", "", texto, flags=re.M).strip():
-            notas["descartado"].append(f"«{h}»: el verificador la dejó vacía")
-            continue
+                "dato, y NUNCA nombres ni cites a analistas, blogs, canales ni medios: "
+                "solo Robe se cita, con su medio): " + "; ".join(consultas))
+
+    def _limpio(texto: str, etiqueta: str) -> str | None:
+        """Verificado, sin fuentes nombradas ni metatexto, y con sustancia."""
+        texto = _verify_section(client, texto, material.hard + "\n\n" + material.verificable)
+        texto = strip_ai_tells(texto) or texto
+        largo = len(re.sub(r"^##.*$", "", texto, flags=re.M).strip())
+        texto, quitadas = source_guard.limpiar(texto, nombres)
+        if quitadas:
+            notas["descartado"].append(f"{etiqueta}: frases quitadas (fuentes o metatexto): "
+                                       + " / ".join(q[:70] for q in quitadas[:3]))
+        resto = len(re.sub(r"^##.*$", "", texto, flags=re.M).strip())
+        # Una sección que vivía de citar a otro no se salva quitando frases.
+        if not resto or (largo and resto < largo * 0.6):
+            notas["descartado"].append(f"{etiqueta}: sin las citas a terceros no queda "
+                                       "contenido propio suficiente")
+            return None
         confesion = confiesa_no_saber(texto)
         if confesion:
-            notas["descartado"].append(f"«{h}»: admite no saberlo («{confesion}»)")
+            notas["descartado"].append(f"{etiqueta}: admite no saberlo («{confesion}»)")
+            return None
+        return texto.strip()
+
+    def _ya_anadido() -> str:
+        """Lo aceptado hasta ahora. Cada operación se juzga sola, así que sin esto dos
+        párrafos nuevos repetían lo mismo («noche y día», «los camellos no le fían»),
+        visto en la prueba del 19-10-2026."""
+        return "\n\n".join(x["texto"] for x in ops.inserts + ops.enriquecer)
+
+    def _redactar_insert(h: str, covers: str, correccion: str = "") -> str | None:
+        texto = _write_section(client, destino.subject, {"heading": h, "covers": covers},
+                               heads + [i["heading"] for i in ops.inserts], material.hard,
+                               material.escritor, kw_block,
+                               prior=(destino.body + "\n\n" + _ya_anadido()).strip(),
+                               coverage=correccion, tier="premium")
+        texto = _limpio(texto, f"«{h}»")
+        if texto and not texto.lstrip().startswith("##"):
+            texto = f"## {h}\n\n{texto}"
+        return texto
+
+    def _redactar_enriquecer(h: str, covers: str, correccion: str = "") -> str | None:
+        seccion = next((b.texto for b in trocear(destino.body) if b.heading
+                        and _norm_h(b.heading) == _norm_h(h)), "")
+        try:
+            data = _chat(
+                client,
+                f"Sección publicada de la página sobre «{destino.subject}»:\n"
+                f'"""{seccion[:5000]}"""\n\n'
+                f"Escribe 1-2 párrafos (60-160 palabras) que se AÑADEN al final de esta "
+                f"sección para responder mejor a: {covers}. Solo datos NUEVOS que ni la "
+                "sección ni lo YA AÑADIDO tengan, y solo de DATOS PROPIOS, PALABRAS DE ROBE o DATOS "
+                "VERIFICADOS (el FONDO solo orienta). Sin repetir nada, sin frases de "
+                "transición huecas, sin nombrar ni citar a analistas, blogs, canales ni "
+                "medios. Si no hay nada nuevo, devuelve texto vacío.\n"
+                f"{correccion}\n"
+                + (f'YA AÑADIDO en otras secciones (no lo repitas):\n"""{_ya_anadido()[:3000]}"""\n'
+                   if _ya_anadido() else "")
+                + f'MATERIAL:\n"""{material.escritor[:9000]}"""\n'
+                'Devuelve JSON {"texto": "..."}.',
+                max_tokens=700, temp=0.4,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[merge] enriquecer falló en «%s»: %s", h, exc)
+            return None
+        texto = (data.get("texto") or "").strip() if isinstance(data, dict) else ""
+        if not texto or texto.startswith("#"):
+            return None
+        return _limpio(texto, f"enriquecer «{h}»")
+
+    def _con_juez(etiqueta: str, redactar, foco: str) -> str | None:
+        """Redacta, juzga y, si no mejora, reescribe con los motivos delante."""
+        correccion = ""
+        for vuelta in range(MAX_VUELTAS + 1):
+            texto = redactar(correccion)
+            if not texto:
+                return None
+            try:
+                j = juzgar(extracto_local(destino.body, {foco}), texto, kind=kind,
+                           subject=destino.subject, consultas=consultas,
+                           material=material.verificable)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[merge] el juez no pudo correr: %s", exc)
+                notas["descartado"].append(f"«{etiqueta}»: el editor jefe no pudo juzgarla")
+                return None
+            notas["juez"].append({"op": etiqueta, "vuelta": vuelta, "antes": j.antes,
+                                  "despues": j.despues, "veredicto": j.veredicto,
+                                  "motivos": j.motivos[:3]})
+            if j.ok:
+                return texto
+            correccion = ("EL EDITOR JEFE RECHAZÓ TU VERSIÓN ANTERIOR POR ESTO. Corrígelo "
+                          "(sin aflojar: si no hay datos para hacerlo bien, escribe menos):"
+                          "\n- " + "\n- ".join(j.motivos[:4]))
+        notas["descartado"].append(f"«{etiqueta}»: el editor jefe no la ve mejor tras "
+                                   f"{MAX_VUELTAS} reescrituras")
+        return None
+
+    # --- Secciones nuevas: solo para lo que ninguna sección responde ----------- #
+    cubiertas = {c for c, h in mapa.items() if h}
+    for ins in (plan.get("insert") or [])[:MAX_INSERTS]:
+        h = (ins.get("heading") or "").strip().strip("<>").strip()
+        if not h or _norm_h(h) in {_norm_h(x) for x in heads + [i["heading"] for i in ops.inserts]}:
             continue
-        if not texto.lstrip().startswith("##"):
-            texto = f"## {h}\n\n{texto.strip()}"
-        h_real = _H2.match(texto.strip()).group(1).strip()
+        repetida = next((c for c in cubiertas if seo_style.cubre(seo_style.flatten(h), c)), None)
+        if repetida:
+            notas["descartado"].append(f"«{h}»: «{repetida}» ya la responde «{mapa[repetida]}»; "
+                                       "se mejora esa sección, no se duplica")
+            continue
         after = (ins.get("after") or "").strip()
         if after != INTRO and _buscar(trocear(destino.body), after) is None:
             after = heads[-1] if heads else INTRO
-        ops.inserts.append({"after": after, "heading": h_real, "texto": texto.strip()})
-        nuevas.append(h_real)
+        covers = ins.get("covers") or h
+        texto = _con_juez(
+            h, lambda corr, h=h, covers=covers: _redactar_insert(h, covers, corr),
+            after if after != INTRO else (heads[0] if heads else ""))
+        if texto:
+            h_real = _H2.match(texto).group(1).strip() if _H2.match(texto) else h
+            ops.inserts.append({"after": after, "heading": h_real, "texto": texto})
 
-    if not ops.inserts:
+    # --- Enriquecer lo que ya está cubierto, en su sitio ----------------------- #
+    for e in (plan.get("enrich") or [])[:MAX_INSERTS]:
+        h = (e.get("heading") or "").strip()
+        if not h or _buscar(trocear(destino.body), h) in (None, -1):
+            continue
+        covers = e.get("covers") or h
+        texto = _con_juez(
+            h, lambda corr, h=h, covers=covers: _redactar_enriquecer(h, covers, corr), h)
+        if texto:
+            ops.enriquecer.append({"heading": h, "texto": texto})
+
+    if not ops.inserts and not ops.enriquecer:
         return {"noop": True, "notas": notas,
-                "motivo": "el corpus no respalda nada nuevo que añadir a esta página "
-                          "(no se rellena con generalidades)"}
+                "motivo": "no hay nada propio que mejore esta página para estas búsquedas "
+                          "(no se rellena ni se repite lo que ya dice)"}
 
     # --- Medios ---------------------------------------------------------------- #
     ya_videos = set(_YT.findall(destino.body))
@@ -579,14 +791,15 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
                 videos.append({**vid, "section": sec["heading"]})
 
     # --- Enlazado: solo en lo nuevo, validado contra la BD --------------------- #
+    nuevos_textos = ops.inserts + ops.enriquecer
     try:
         indice, stats = build_corpus_index(db), load_link_stats()
-        for sec in ops.inserts:
+        for sec in nuevos_textos:
             sec["texto"] = autolink_corpus(sec["texto"], indice, max_links=2,
                                            exclude_slug=destino.slug, link_stats=stats)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[merge] autolink falló: %s", exc)
-    for sec in ops.inserts:
+    for sec in nuevos_textos:
         g = guard_internal_links(db, sec["texto"])
         sec["texto"] = g.body_md
         if g.changed:
@@ -594,27 +807,29 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
 
     # --- Renombres: solo los que no pierden cobertura -------------------------- #
     for r in (plan.get("rename") or [])[:MAX_RENAMES]:
-        viejo, nuevo = (r.get("old") or "").strip(), (r.get("new") or "").strip()
-        if not viejo or not nuevo or _buscar(trocear(destino.body), viejo) is None:
+        viejo, nuevo_h = (r.get("old") or "").strip(), (r.get("new") or "").strip()
+        if not viejo or not nuevo_h or _buscar(trocear(destino.body), viejo) is None:
             continue
-        v = ranking_guard.renombre_permitido(viejo, nuevo, protegidas, alias)
+        v = ranking_guard.renombre_permitido(viejo, nuevo_h, protegidas, alias)
         if not v.ok:
             notas["descartado"].append(f"rename {v.motivo}")
             continue
-        ops.renames.append({"old": viejo, "new": nuevo, "why": r.get("why") or ""})
+        ops.renames.append({"old": viejo, "new": nuevo_h, "why": r.get("why") or ""})
 
     # --- Cosido: intro y puentes ----------------------------------------------- #
+    nuevas = [i["heading"] for i in ops.inserts]
     borrador = aplicar(destino.body, ops)
-    cos = coser(client, destino, borrador, nuevas, material, bool(plan.get("rewrite_intro")))
+    cos = coser(client, destino, borrador, nuevas, material,
+                bool(plan.get("rewrite_intro")) and bool(nuevas))
     intro_vieja = next((b.texto for b in trocear(destino.body) if b.heading is None), "")
     intro_nueva = (strip_ai_tells(cos["intro"]) or "").strip() \
         if isinstance(cos.get("intro"), str) else ""
-    intro_nueva, _meta = quitar_metatexto(intro_nueva)
+    intro_nueva, _quitadas = source_guard.limpiar(intro_nueva, nombres)
     if intro_nueva and intro_vieja and intro_nueva != intro_vieja.strip():
         perdidos = ranking_guard.datos_perdidos(intro_vieja, intro_nueva)
         inventados = seo_style.verify_no_invention(
-            intro_nueva, seo_style.tokens_permitidos(destino.body, material.hard,
-                                                     material.texto, *nuevas))
+            intro_nueva, seo_style.tokens_permitidos(destino.body, material.verificable,
+                                                     *nuevas))
         if perdidos:
             notas["descartado"].append("intro: soltaba datos (" + ", ".join(perdidos[:4]) + ")")
         elif inventados:
@@ -622,9 +837,10 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
                                        + ", ".join(inventados[:4]) + ")")
         else:
             ops.intro = intro_nueva
-    permitidos = seo_style.tokens_permitidos(destino.body, material.hard, material.texto)
+    permitidos = seo_style.tokens_permitidos(destino.body, material.verificable)
     for p in (cos.get("puentes") or [])[:MAX_PUENTES]:
-        texto = quitar_metatexto((strip_ai_tells(p.get("texto") or "") or "").strip())[0]
+        texto, _q = source_guard.limpiar((strip_ai_tells(p.get("texto") or "") or "").strip(),
+                                         nombres)
         if not texto or _buscar(trocear(borrador), p.get("after") or "") in (None, -1):
             continue
         fuera = seo_style.verify_no_invention(texto, permitidos)
@@ -633,8 +849,6 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
             continue
         ops.puentes.append({"after": p["after"], "texto": texto})
 
-    # El saneado (`strip_ai_tells`) se ha pasado SOLO por lo nuevo: pasarlo por el
-    # cuerpo entero reescribiría guiones y comillas del texto publicado.
     after = aplicar(destino.body, ops)
 
     # --- No-pérdida: lo que no se tocó sigue entero ---------------------------- #
@@ -644,25 +858,33 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
                 "motivo": "el montaje perdía secciones existentes: " + "; ".join(faltan[:3])}
 
     # --- Rankings: cobertura de la página entera ------------------------------- #
-    v = ranking_guard.cobertura_conservada(
-        ranking_guard.pagina(destino.body, destino.title, destino.description),
-        ranking_guard.pagina(after, destino.title, destino.description), protegidas, alias)
+    def _cobertura():
+        return ranking_guard.cobertura_conservada(
+            ranking_guard.pagina(destino.body, destino.title, destino.description),
+            ranking_guard.pagina(after, destino.title, destino.description), protegidas, alias)
+
+    v = _cobertura()
     if not v.ok and ops.renames:
         ops.renames = []
         notas["descartado"].append(f"renombres retirados: {v.motivo}")
         after = aplicar(destino.body, ops)
-        v = ranking_guard.cobertura_conservada(
-            ranking_guard.pagina(destino.body, destino.title, destino.description),
-            ranking_guard.pagina(after, destino.title, destino.description), protegidas, alias)
+        v = _cobertura()
     if not v.ok and ops.intro is not None:
         ops.intro = None
         notas["descartado"].append(f"intro retirada: {v.motivo}")
         after = aplicar(destino.body, ops)
-        v = ranking_guard.cobertura_conservada(
-            ranking_guard.pagina(destino.body, destino.title, destino.description),
-            ranking_guard.pagina(after, destino.title, destino.description), protegidas, alias)
+        v = _cobertura()
     if not v.ok:
         return {"noop": True, "notas": notas, "motivo": v.motivo}
+
+    # --- Última red: nada publicado nombra a un editor externo ----------------- #
+    anadido = "\n\n".join([i["texto"] for i in nuevos_textos]
+                           + [p["texto"] for p in ops.puentes] + [ops.intro or ""])
+    restos = source_guard.fuentes_nombradas(anadido, nombres)
+    if restos:
+        return {"noop": True, "notas": notas,
+                "motivo": "lo nuevo sigue nombrando fuentes externas: "
+                          + "; ".join(f"«{f[:60]}» ({c})" for f, c in restos[:2])}
 
     # --- Versos y especulación sobre lo añadido -------------------------------- #
     try:
@@ -679,7 +901,6 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     try:
         from app.services.content_guard import find_especulacion
 
-        anadido = "\n\n".join(i["texto"] for i in ops.inserts)
         espec = set(find_especulacion(anadido)) - set(find_especulacion(destino.body))
         if espec:
             notas["avisos"].append("fórmulas especulativas en lo nuevo: "
@@ -687,32 +908,14 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     except Exception as exc:  # noqa: BLE001
         logger.warning("[merge] find_especulacion falló: %s", exc)
 
-    # --- Editor jefe: juzga lo añadido, con válvula ---------------------------- #
     rigor = None
-    try:
-        from app.services.editorial_review import review as editorial_review
-
-        allowed = {destino.subject.lower()} | {c.lower() for c in consultas}
-        extra = {"material": material.texto or None, "focus": "; ".join(consultas),
-                 "repeats_per_1000": 4.0}
-        kind = destino.entity_type or "post"
-        antes_v = editorial_review(destino.body or after, kind=kind, subject=destino.subject,
-                                   allowed_terms=allowed, **extra)
-        v2 = editorial_review(destino.body or after, kind=kind, subject=destino.subject,
-                              allowed_terms=allowed,
-                              spotlight="\n\n".join(i["texto"] for i in ops.inserts), **extra)
-        rigor = {"verdict": v2.verdict, "score": v2.score, "before_score": antes_v.score,
-                 "reasons": list(v2.reasons or [])}
-        # NUNCA se toma `tightened_body_md`: el juez condensa el cuerpo VIEJO (lo
-        # nuevo le llega aparte) y aceptarlo rompía la no-pérdida y podía tirar
-        # justo lo que se acababa de añadir.
-        if v2.verdict == "reject" or v2.score < antes_v.score - 5:
-            rigor["forzada"] = True
-            notas["avisos"].append(
-                f"el editor jefe la RECHAZA (rigor {antes_v.score} → {v2.score}) y se te "
-                "enseña igual para que decidas tú: " + "; ".join((v2.reasons or [])[:2]))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[merge] rigor falló: %s", exc)
+    if notas["juez"]:
+        finales = {}
+        for j in notas["juez"]:
+            finales[j["op"]] = j
+        rigor = {"verdict": "pass", "ops": list(finales.values()),
+                 "before_score": min(j["antes"] for j in finales.values()),
+                 "score": min(j["despues"] for j in finales.values())}
 
     # --- Title y description --------------------------------------------------- #
     title, description = None, None
@@ -753,6 +956,7 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
         "notas": {
             **notas,
             "added_headings": [i["heading"] for i in ops.inserts],
+            "enriched": [{"heading": e["heading"], "texto": e["texto"]} for e in ops.enriquecer],
             "placement": [{"heading": i["heading"], "after": i["after"]} for i in ops.inserts],
             "renamed": ops.renames,
             "intro_rewritten": ops.intro is not None,

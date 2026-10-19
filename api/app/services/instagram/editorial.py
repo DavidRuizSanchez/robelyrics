@@ -299,9 +299,9 @@ def _generate(
     bloque_corpus = ""
     if corpus:
         bloque_corpus = (
-            "MATERIAL DE CASA (letras, entrevistas, anotaciones y datos del "
-            "corpus; lo de terceros va con su atribución y NUNCA como voz de "
-            f"Robe):\n{corpus[:MAX_CORPUS_CHARS]}\n"
+            "MATERIAL DE CASA (letras, entrevistas y datos del corpus; lo marcado "
+            "como FONDO no se nombra ni se cita, y NUNCA es voz de Robe):\n"
+            f"{corpus[:MAX_CORPUS_CHARS]}\n"
         )
     bloque_entidades = _bloque_entidades(entidades or [])
     bloque_correcciones = ""

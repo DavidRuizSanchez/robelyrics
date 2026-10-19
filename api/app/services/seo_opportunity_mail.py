@@ -268,6 +268,7 @@ def _diff_fusion(o) -> str:
     notas = o.draft_notes or {}
     nuevas = {h.lower() for h in notas.get("added_headings") or []}
     renombres = {r["new"].lower(): r for r in notas.get("renamed") or []}
+    enriquecidas = {e["heading"].lower(): e for e in notas.get("enriched") or []}
     mapa = []
     for b in trocear(o.draft_body or ""):
         if b.heading is None:
@@ -275,6 +276,10 @@ def _diff_fusion(o) -> str:
             mapa.append(f"(intro){marca}")
         elif b.heading.lower() in nuevas:
             mapa.append(f"<b style='color:{_ACCENT};'>+ {_html.escape(b.heading)}</b>")
+        elif b.heading.lower() in enriquecidas:
+            mapa.append(f"<span style='color:{_ACCENT};'>± {_html.escape(b.heading)}</span> "
+                        "<span style='color:rgba(237,228,211,0.4);'>(se le añade un "
+                        "párrafo al final)</span>")
         elif b.heading.lower() in renombres:
             r = renombres[b.heading.lower()]
             mapa.append(f"~ {_html.escape(b.heading)} <span style='color:rgba(237,228,211,0.4);'>"
@@ -306,6 +311,26 @@ def _diff_fusion(o) -> str:
     for b in trocear(o.draft_body or ""):
         if b.heading and b.heading.lower() in nuevas:
             partes += [_mini(f"sección nueva: {_html.escape(b.heading)}"), _parrafo(b.texto)]
+    for e in notas.get("enriched") or []:
+        partes += [_mini(f"se añade al final de «{_html.escape(e['heading'])}»"),
+                   _parrafo(e["texto"], n=1200)]
+    juez = {}
+    for j in notas.get("juez") or []:
+        juez[j["op"]] = j
+    if juez:
+        lineas = "".join(
+            f"<li>«{_html.escape(op)}»: {j['antes']} → {j['despues']} ({j['veredicto']}"
+            f"{', tras ' + str(j['vuelta']) + ' reescritura' + ('s' if j['vuelta'] > 1 else '') if j['vuelta'] else ''})</li>"
+            for op, j in juez.items())
+        partes += [_mini("editor jefe, sobre cada cambio en su contexto"),
+                   f'<ul style="font-family:Georgia,serif;font-size:13px;'
+                   f'color:rgba(237,228,211,0.6);margin:0;padding-left:18px;">{lineas}</ul>']
+    corr = notas.get("corroboracion") or {}
+    if corr.get("descartados"):
+        lis = "".join(f"<li>{_html.escape(d)}</li>" for d in corr["descartados"][:6])
+        partes += [_mini("datos de terceros que NO se han escrito (sin corroborar)"),
+                   f'<ul style="font-family:Georgia,serif;font-size:13px;'
+                   f'color:rgba(237,228,211,0.5);margin:0;padding-left:18px;">{lis}</ul>']
     for p in notas.get("puentes") or []:
         partes += [_mini(f"frase puente tras «{_html.escape(p['after'])}»"),
                    _parrafo(p["texto"], n=400)]

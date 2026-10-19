@@ -125,6 +125,11 @@ class Placement:
     period: str | None = None
     serp_checked: bool = False
     semantic_checked: bool = False
+    # Desde el 19-10-2026 cada keyword va a SU página: «extremoduro necesito droga
+    # y amor» es de la ficha de la canción, no de /extremoduro. `groups` es el
+    # reparto (ver `analyze`); los campos de arriba son los del grupo principal.
+    groups: list[dict] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -400,8 +405,12 @@ def semantic_neighbours(texto: str, *, k: int = 5) -> list[dict]:
 # Orquestador
 # --------------------------------------------------------------------------- #
 def proposal_keywords(proposal) -> list[str]:
-    kws = [k.get("keyword") for k in (proposal.keywords or []) if isinstance(k, dict)]
-    if proposal.target_keyword:
+    """Las keywords ACTIVAS: las que David desmarca en el panel no cuentan."""
+    kws = [k.get("keyword") for k in (proposal.keywords or [])
+           if isinstance(k, dict) and not k.get("excluded")]
+    excluidas = {(k.get("keyword") or "").lower() for k in (proposal.keywords or [])
+                 if isinstance(k, dict) and k.get("excluded")}
+    if proposal.target_keyword and proposal.target_keyword.lower() not in excluidas:
         kws.insert(0, proposal.target_keyword)
     vistos, out = set(), []
     for k in kws:
@@ -412,14 +421,102 @@ def proposal_keywords(proposal) -> list[str]:
     return out
 
 
-def analyze(db, proposal, *, pages: dict | None = None, period: str | None = None,
-            use_serp: bool = True, use_semantic: bool = True, client=None) -> Placement:
-    """El análisis completo de una propuesta. No escribe nada en la BD."""
-    from app.services.blog_anchor import resolve_central_entity
+# --------------------------------------------------------------------------- #
+# Cada keyword a su página
+# --------------------------------------------------------------------------- #
+@dataclass
+class Ruta:
+    path: str | None      # None = ninguna página propia la responde
+    via: str              # gsc | titulo | semantica | ninguna
+    motivo: str
 
-    if pages is None:
-        pages, period = load_gsc_pages()
-    keywords = proposal_keywords(proposal)
+
+def dueno_gsc(pages: dict, keyword: str) -> tuple[str, dict] | None:
+    """La página que más impresiones recibe por ESTA keyword, en pos. ≤ 20."""
+    firma = _firma(keyword)
+    mejor = None
+    for path, qs in pages.items():
+        for q in qs:
+            if _firma(q.get("query") or "") != firma:
+                continue
+            imp, pos = int(q.get("impressions") or 0), float(q.get("position") or 100)
+            if imp >= 3 and pos <= OWNER_MAX_POSITION and (
+                    mejor is None or imp > mejor[1]["impressions"]):
+                mejor = (path, {"impressions": imp, "position": pos})
+    return mejor
+
+
+def repartir(keywords: list[str], *, por_gsc, por_titulo, por_semantica) -> list[tuple[str, Ruta]]:
+    """[(keyword, Ruta)]. Puro: las tres búsquedas llegan inyectadas.
+
+    De lo más fuerte a lo más débil: lo que Google ya asocia, el título de una
+    canción o un disco (`kw_attribute.dueno`: «extremoduro necesito droga y amor»
+    es de esa canción), y el parecido con lo publicado.
+    """
+    out = []
+    for kw in keywords:
+        g = por_gsc(kw)
+        if g:
+            path, d = g
+            out.append((kw, Ruta(path, "gsc", f"«{kw}» ya la posiciona {path} "
+                                              f"(pos {_n(round(d['position'], 1))}, "
+                                              f"{d['impressions']} impr.)")))
+            continue
+        t = por_titulo(kw)
+        if t:
+            path, titulo = t
+            out.append((kw, Ruta(path, "titulo", f"«{kw}» nombra «{titulo}»: es de su "
+                                                 f"ficha, {path}")))
+            continue
+        sm = por_semantica(kw)
+        if sm:
+            path, sim = sm
+            out.append((kw, Ruta(path, "semantica", f"«{kw}» es de lo que trata {path} "
+                                                    f"(similitud {_n(sim, 2)})")))
+            continue
+        out.append((kw, Ruta(None, "ninguna", f"Ninguna página propia responde «{kw}»")))
+    return out
+
+
+_CONF_VIA = {"gsc": "alta", "titulo": "alta", "semantica": "baja"}
+
+
+def _texto_destino(db, cand: Candidate) -> tuple[str, str, str]:
+    from app.db.models import Post, SeoContent
+
+    tipo, _, ident = (cand.target or "").partition(":")
+    if tipo == "ficha" and ident.isdigit():
+        sc = db.get(SeoContent, int(ident))
+        if sc:
+            return sc.body_md or "", sc.meta_title or "", sc.meta_description or ""
+    if tipo == "post" and ident.isdigit():
+        po = db.get(Post, int(ident))
+        if po:
+            return po.body_md or "", po.meta_title or po.title, po.meta_description or ""
+    return "", "", ""
+
+
+def ya_cubierto(body: str, title: str, description: str, keywords: list[str],
+                gsc_page: list[dict], alias: dict | None = None) -> bool:
+    """La página ya lo responde en el cuerpo Y lo promete en la metadata, y Google
+    la tiene en pos. ≤ 10: ahí falta posición, no contenido (mismo criterio que
+    `seo_opportunities.classify_queries`, que deja eso fuera del circuito)."""
+    cuerpo = seo_style.expandir_alias(seo_style.flatten(body), alias)
+    meta = seo_style.expandir_alias(seo_style.flatten(f"{title} {description}"), alias)
+    for kw in keywords:
+        if not (seo_style.cubre(cuerpo, kw) and seo_style.cubre(meta, kw)):
+            return False
+        pos = [float(q.get("position") or 100) for q in gsc_page
+               if _firma(q.get("query") or "") == _firma(kw)]
+        if not pos or min(pos) > 10:
+            return False
+    return bool(keywords)
+
+
+def _evaluar(db, keywords: list[str], *, texto: str, target_keyword: str | None,
+             pages: dict, period: str | None, use_serp: bool, use_semantic: bool,
+             client, anchor) -> Placement:
+    """La decisión con evidencia de siempre, sobre un grupo de keywords."""
     por_ruta: dict[str, Candidate] = {}
 
     def _cand(path: str) -> Candidate | None:
@@ -441,10 +538,10 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
             key=lambda q: -q["impressions"])[:6]
 
     serp_checked = False
-    if use_serp and proposal.target_keyword:
+    if use_serp and target_keyword:
         from app.services import serp_intent
 
-        v = serp_intent.classify(proposal.target_keyword, client=client)
+        v = serp_intent.classify(target_keyword, client=client)
         serp_checked = bool(v.top_urls)
         for rank, url in enumerate(v.top_urls, start=1):
             path = normalize_path(url)
@@ -453,8 +550,6 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
                 if c and not c.serp_rank:
                     c.serp_rank = rank
 
-    anchor = resolve_central_entity(db, primary_keyword=proposal.target_keyword,
-                                    title=proposal.title, angle=proposal.angle)
     if anchor:
         from app.services.url_resolver import canonical_path_for
 
@@ -464,9 +559,7 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
             c.is_anchor = True
 
     semantic_checked = False
-    if use_semantic:
-        texto = " · ".join(x for x in (proposal.title, proposal.target_keyword,
-                                       proposal.angle) if x)
+    if use_semantic and texto:
         vecinos = semantic_neighbours(texto)
         semantic_checked = bool(vecinos)
         for v in vecinos:
@@ -478,6 +571,113 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
                   serp_checked=serp_checked, semantic_checked=semantic_checked)
 
 
+def analyze(db, proposal, *, pages: dict | None = None, period: str | None = None,
+            use_serp: bool = True, use_semantic: bool = True, client=None) -> Placement:
+    """El análisis completo de una propuesta. No escribe nada en la BD.
+
+    Reparte cada keyword a su página (`repartir`) y evalúa cada grupo por separado.
+    El grupo principal (el de la keyword objetivo) da los campos de arriba, que es
+    lo que leían el panel y el correo antes de los grupos.
+    """
+    from app.services.blog_anchor import resolve_central_entity
+    from app.services.seo_opportunities import nombre_alias_index
+
+    if pages is None:
+        pages, period = load_gsc_pages()
+    keywords = proposal_keywords(proposal)
+    if not keywords:
+        return Placement(decision="nuevo", confidence="baja", recommended=None,
+                         reasons=["La propuesta no tiene keywords activas."],
+                         candidates=[], period=period)
+
+    indice = None
+
+    def _por_titulo(kw: str):
+        nonlocal indice
+        try:
+            from scripts.seo.kw_attribute import build_index, dueno
+
+            if indice is None:
+                indice = build_index()
+            info, titulo = dueno(kw, *indice)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[placement] atribución por título no disponible: %s", exc)
+            return None
+        if not titulo or titulo.startswith("("):   # «(marca:…)» / «(sin atribuir)»
+            return None
+        cand = candidate_for_path(db, info.get("owner_url") or "")
+        return (cand.path, info.get("owner_title") or titulo) if cand else None
+
+    def _por_semantica(kw: str):
+        if not use_semantic:
+            return None
+        vecinos = semantic_neighbours(kw, k=3)
+        if vecinos and vecinos[0]["score"] >= SIM_AMPLIAR:
+            return vecinos[0]["path"], round(vecinos[0]["score"], 3)
+        return None
+
+    rutas = repartir(keywords, por_gsc=lambda kw: dueno_gsc(pages, kw),
+                     por_titulo=_por_titulo, por_semantica=_por_semantica)
+    grupos: dict[str | None, list[tuple[str, Ruta]]] = {}
+    for kw, r in rutas:
+        grupos.setdefault(r.path, []).append((kw, r))
+
+    alias = nombre_alias_index(db)
+    anchor = resolve_central_entity(db, primary_keyword=proposal.target_keyword,
+                                    title=proposal.title, angle=proposal.angle)
+    principal = (proposal.target_keyword or keywords[0]).lower()
+    salida: list[dict] = []
+    placement_principal: Placement | None = None
+    for path, miembros in grupos.items():
+        kws = [k for k, _ in miembros]
+        es_principal = principal in {k.lower() for k in kws}
+        texto = " · ".join(x for x in ((proposal.title if es_principal else ""),
+                                       *kws, (proposal.angle if es_principal else "")) if x)
+        p = _evaluar(db, kws, texto=texto, target_keyword=kws[0], pages=pages,
+                     period=period, use_serp=use_serp and es_principal,
+                     use_semantic=use_semantic, client=client,
+                     anchor=anchor if es_principal else None)
+        motivos = [r.motivo for _, r in miembros]
+        decision_evidencia = p.decision
+        if path is not None:
+            cand = next((c for c in p.candidates if c.path == path), None) \
+                or candidate_for_path(db, path)
+            if cand is not None:
+                body, title, desc = _texto_destino(db, cand)
+                if cand.mergeable and ya_cubierto(body, title, desc, kws,
+                                                  pages.get(path) or [], alias):
+                    p.decision, p.recommended, p.confidence = "cubierto", None, "alta"
+                    motivos.append(f"{path} ya lo responde en el cuerpo y lo promete en el "
+                                   "title/description, y está en el top 10: falta posición, "
+                                   "no contenido.")
+                else:
+                    p.decision = "ampliar"
+                    p.recommended = cand.target
+                    vias = {r.via for _, r in miembros}
+                    p.confidence = min((_CONF_VIA.get(v, "media") for v in vias),
+                                       key=["baja", "media", "alta"].index)
+                p.candidates = [cand] + [c for c in p.candidates if c.path != path]
+                p.candidates = p.candidates[:MAX_CANDIDATOS]
+        # Si el reparto contradice a la evaluación genérica («contenido nuevo» para
+        # una keyword que nombra una canción), sus motivos no viajan: se leerían
+        # como la conclusión.
+        evidencia = p.reasons if p.decision == decision_evidencia else []
+        p.reasons = motivos + [r for r in evidencia if r not in motivos]
+        d = p.to_dict()
+        d["keywords"] = kws
+        salida.append(d)
+        # El principal manda; si la keyword objetivo estuviera excluida, el primero.
+        if es_principal or placement_principal is None:
+            placement_principal = p
+            placement_principal.keywords = kws
+
+    # El principal primero; el resto por volumen de keywords.
+    salida.sort(key=lambda g: principal not in {k.lower() for k in g["keywords"]})
+    assert placement_principal is not None
+    placement_principal.groups = salida
+    return placement_principal
+
+
 def store(db, proposal, placement: Placement) -> None:
     proposal.placement = placement.to_dict()
 
@@ -486,6 +686,9 @@ def store(db, proposal, placement: Placement) -> None:
 def headline(placement: dict | None) -> str:
     if not placement:
         return ""
+    if placement.get("decision") == "cubierto":
+        rec = (placement.get("candidates") or [None])[0]
+        return f"Ya lo cubre {rec['path'] if rec else 'una página'} (falta posición)"
     if placement.get("decision") == "ampliar":
         # `decide` pone siempre el recomendado el primero, también cuando es una
         # página de código (que no tiene target).
@@ -504,7 +707,11 @@ def short_evidence(placement: dict | None) -> str:
 
 
 def selector_options(placement: dict | None) -> list[dict[str, Any]]:
-    """Las opciones del selector: los candidatos ampliables y «contenido nuevo»."""
+    """Las opciones del selector de UN grupo (o del principal, si es el placement).
+
+    Los candidatos ampliables, «contenido nuevo» y «omitir» (quitar esas keywords de
+    la propuesta, que es lo que toca cuando la página ya lo cubre).
+    """
     if not placement:
         return [{"value": "new", "label": "Contenido nuevo", "recommended": True}]
     out = []
@@ -516,7 +723,17 @@ def selector_options(placement: dict | None) -> list[dict[str, Any]]:
                     "recommended": c["target"] == placement.get("recommended")})
     out.append({"value": "new", "label": "Contenido nuevo",
                 "recommended": placement.get("decision") == "nuevo"})
+    out.append({"value": "skip", "label": "Omitir estas keywords",
+                "recommended": placement.get("decision") == "cubierto"})
     return out
+
+
+def grupos(placement: dict | None) -> list[dict]:
+    """Los grupos del reparto; un placement anterior a los grupos es uno solo."""
+    if not placement:
+        return []
+    return placement.get("groups") or [{**placement,
+                                        "keywords": placement.get("keywords") or []}]
 
 
 def analyze_pending(db, *, ids: list[int] | None = None, only_missing: bool = True,

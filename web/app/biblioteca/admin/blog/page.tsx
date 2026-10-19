@@ -10,6 +10,9 @@ export type ProposalKeyword = {
   volume: number;
   cpc: number | null;
   competition: number | null;
+  // Desactivada a mano (o fundida con una página: `merged` lleva la ruta).
+  excluded?: boolean;
+  merged?: string;
 };
 
 export type ProposalItem = {
@@ -38,6 +41,7 @@ export type ProposalItem = {
   placement: Placement | null;
   placement_headline: string | null;
   placement_options: PlacementOption[];
+  placement_groups: PlacementGroup[];
   merge_target: string | null;
   merge_opportunity_id: number | null;
   created_at: string;
@@ -60,7 +64,7 @@ export type PlacementCandidate = {
 };
 
 export type Placement = {
-  decision: "ampliar" | "nuevo";
+  decision: "ampliar" | "nuevo" | "cubierto";
   confidence: "alta" | "media" | "baja";
   recommended: string | null;
   reasons: string[];
@@ -71,8 +75,20 @@ export type Placement = {
   last_merge?: { path: string; status: string; error: string };
 };
 
+// Un grupo del reparto: keywords que van al mismo destino.
+export type PlacementGroup = {
+  keywords: string[];
+  decision: "ampliar" | "nuevo" | "cubierto";
+  confidence: "alta" | "media" | "baja";
+  recommended: string | null;
+  reasons: string[];
+  candidates: PlacementCandidate[];
+  headline: string;
+  options: PlacementOption[];
+};
+
 export type PlacementOption = {
-  value: string; // «ficha:12» | «post:7» | «new»
+  value: string; // «ficha:12» | «post:7» | «new» | «skip»
   label: string;
   path?: string;
   recommended: boolean;

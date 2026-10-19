@@ -431,17 +431,18 @@ generación de fichas nuevas no se entera: allí nadie mira antes de publicar.
 - **`corpus_for_queries`** busca por la consulta. Umbral 0.45 y dos filtros que el
   parecido no cubre: la prensa vetada seguía indexada (Rockdelux entró a 0.56) y un
   vecino semántico que no menciona nada de lo que se preguntaba no lo responde (un
-  corte de Radio Nacional puntuaba más que Chinato). **El material ajeno se cita
-  atribuido** — «una anotación de Genius sostiene…» — nunca como voz de Robe.
+  corte de Radio Nacional puntuaba más que Chinato). **El material ajeno ya NO se
+  cita** (desde el 19-10-2026, ver «La voz es nuestra»): es FONDO, orienta y no se
+  nombra.
 - **Se dejó de penalizar el crecimiento**, que estaba en el código y no en la
   calidad: el linter contaba repeticiones en absoluto, el juez leía 9.000 caracteres
   y lo añadido va al final (podía puntuar sin haberlo leído, con el aviso del linter
   empeorado por lo que no veía) y la comparación era `<` estricto contra un juez cuya
   varianza está medida aquí. Ahora hay `spotlight`, densidad y tolerancia.
-- **La válvula**: lo que el editor jefe rechaza sale igual con el veredicto colgado,
-  al correo y al panel, y decide una persona viendo el antes/después. En el correo
-  **«publicar todos» NO se las lleva**: cada una necesita su clic, o la válvula sería
-  auto-publicación por descuido.
+- **La válvula (APAGADA desde el 19-10-2026)**: lo que el editor jefe rechazaba salía
+  igual con el veredicto colgado. Criterio de David: ampliar una página publicada
+  tiene que mejorarla, nunca empeorarla, así que un rechazo es `noop`.
+  `ModoOptimizacion(valvula=True)` sigue existiendo, pero nadie la abre.
 
 **Abre el juicio sobre si merece leerse, no sobre si es verdad.** Siguen bloqueando
 la verificación factual, la no-invención, la no-pérdida y los versos: `lyric_guard`,
@@ -592,9 +593,60 @@ Cuatro cosas que conviene no deshacer:
   ampliarse. La migración sembró EXACTAMENTE el title, la description, el H1 y la
   intro que tenía en código: es la página que posiciona.
 
+**Cada keyword va a su página** (fusión v2, 19-10-2026). El borrador #40 metió
+«necesito droga y amor» en `/extremoduro`. `content_placement.repartir` decide por
+keyword, por este orden: lo que Google ya asocia (dueño en GSC en pos. ≤ 20), el título de
+una canción o un disco (`kw_attribute.dueno`) y el parecido. Agrupa por destino, y
+cada grupo trae su selector (ampliar / contenido nuevo / omitir) y su botón en el
+correo. Un grupo **«ya cubierto»** (cuerpo + meta + top 10) recomienda omitir:
+falta posición, no contenido. Las keywords se pueden **desactivar** a mano en el
+panel: quedan tachadas y no vuelven a proponerse.
+
+**Ampliar es mejorar o no hay borrador.** Lo que una sección ya responde se
+**enriquece en su sitio** (op `enriquecer`), no se duplica en otra sección. El juez
+lee `extracto_local` (el esquema de la página + la sección y sus vecinas), no
+`body[:9000]`: sobre `/extremoduro` puntuaba el «antes» con un 18 «porque queda
+truncado». Lo nuevo le llega solo por `spotlight` (si va también en el contexto, lo
+ve dos veces y lo llama repetido). Cada operación pasa por el juez, y si no mejora se
+reescribe con sus motivos delante (2 vueltas) o se quita. Sin válvula.
+
 `seo_queue --watch` (lo lanza `gsc_weekly.sh`) compara a las 4 semanas las
 consultas protegidas de cada fusión aplicada y avisa si alguna cae más de 5
 puestos. Solo avisa: revertir es un botón.
+
+## La voz es nuestra: no se nombra a editores externos
+
+Criterio de David (19-10-2026), al tumbar el primer borrador real de una fusión
+(#40 → `/extremoduro`): «El blog javitojavierito recoge…», «Mikel López Iturriaga,
+en El País…», «el análisis de Juancares en YouTube…». **Nunca.** El contenido es
+propio, hecho con el corpus. No era el modelo: `corpus_for_queries` etiquetaba cada
+pasaje con «cítalo como «…»», contra lo que ya decía `voice.py`.
+
+- **Solo Robe se cita, y con su medio** («Robe contó a RockFM que…»). Excepción
+  obligatoria: setlist.fm y MusicBrainz, cuyos términos exigen la atribución.
+- **Lo propio se afirma, lo ajeno orienta.** `corpus_for_queries.separar_material`
+  parte el dossier por la etiqueta de cada bloque: lo propio es la letra, los
+  créditos, los hechos duros, la biografía autorizada, lo verificado, los versos, el
+  grafo, el consenso destilado y la voz de Robe; el fondo son las transcripciones,
+  los blogs, los foros, Genius y la prensa. El verificador (`_verify_section`) solo ve
+  lo propio.
+- **Un dato ajeno se escribe solo si se corrobora** (`corroborar`): contra lo propio
+  o con `web_verify.classify_fact`, sin aceptar como evidencia el mismo texto. En la
+  primera prueba descartó «la tocaron por última vez el 13-11-2004 en Salamanca»,
+  que solo traía un análisis de YouTube. Lo descartado sale en el antes/después.
+- **`app/services/source_guard.py` lo vigila por texto**, y no lleva red ni LLM. Las
+  fusiones y las ampliaciones quitan la frase (si la sección vivía de la cita, se
+  descarta). En el blog va a revisión con `blocked_by="fuentes"`, porque borrar «según
+  X, el concierto será el 5 de junio» se llevaría el dato. En Instagram es un fallo
+  de estilo con reintento.
+- **Sin barrido** de lo ya publicado: es decisión de David. Se midieron ~100 fichas y
+  15 posts con alguna mención, por patrón (recuento grueso).
+
+Dos trampas de la guarda que conviene no deshacer. Los medios con nombre de frase
+(«El País», «El Mundo», «Público») solo cuentan escritos con su mayúscula, porque
+si no caen «todo el mundo» o «el público cantaba». Y los nombres de
+`sources.yaml` que son frases del tema («La historia de Extremoduro») se ignoran:
+lo que importa de verdad está en `_ANALISTAS`.
 
 ## Un directo no duplica sus canciones
 
@@ -640,10 +692,10 @@ Faltaban tres cosas, y ninguna había que inventarla:
   IG Robe no habla — es del consultorio y ahí se queda.
 - **El material.** `instagram/material` reúne los pasajes del corpus que
   responden al tema y el dossier de las entidades del catálogo. Devuelve dos
-  montones que no son lo mismo: `prompt` (todo, atribuido, para escribir) y
-  `verificable` (solo nuestras fichas, para las guardas). Un análisis de un
-  tercero es buen material para citarlo y una fuente pésima para dar por buena
-  una relación nueva.
+  montones que no son lo mismo: `prompt` (todo, lo ajeno como FONDO sin nombrar,
+  para escribir) y `verificable` (solo nuestras fichas, para las guardas). Un
+  análisis de un tercero orienta de qué hablar y es una fuente pésima para dar
+  por buena una relación nueva.
 - **El juicio de si merece leerse.** `caption_guard` dice si es VERDAD;
   `tono_guard` dice si dice algo. Sus fórmulas son literales medidos en
   producción, y **viajan también al prompt**: que la guarda conozca una lista y

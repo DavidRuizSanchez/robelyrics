@@ -371,6 +371,15 @@ def revisar(
     if especulacion:
         v.estilo.append(f"Especula en vez de contar: {', '.join(especulacion[:3])}.")
 
+    # 4b. La voz es nuestra: ni analistas, ni blogs, ni el medio de la noticia.
+    #     Va a `estilo` y no a `bloqueos` porque se arregla reescribiendo con la
+    #     frase delante («no nombres a Juancares»), que es lo que hace el reintento.
+    from app.services.source_guard import fuentes_nombradas
+
+    for frase, culpa in fuentes_nombradas(texto)[:3]:
+        v.estilo.append(f"Nombra una fuente externa ({culpa}): «{frase[:80]}». "
+                        "Cuéntalo en nuestra voz o quítalo.")
+
     # 5. Versos: ni se inventa una letra ni se atribuye a la canción equivocada.
     #    `blocking` no se publica jamás; `to_review` es zona gris y va a una
     #    persona. Los captions llevan un verso casi siempre, así que esto importa.
