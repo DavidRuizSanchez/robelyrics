@@ -23,11 +23,21 @@ const config: Config = {
           DEFAULT: "rgba(237,228,211,0.08)",
           strong: "rgba(237,228,211,0.15)",
         },
+        // Tonos de ESTADO del panel admin (aditivos: la web pública no los usa).
+        // Contraste AA validado sobre bg/paper/paper-hi (≥7,7:1) y sobre su
+        // propio fondo translúcido (≥6,7:1). Siempre van con texto, nunca solos.
+        ok: { DEFAULT: "#7cc48a", bg: "rgba(124,196,138,0.12)" },
+        warn: { DEFAULT: "#e6b450", bg: "rgba(230,180,80,0.12)" },
+        danger: { DEFAULT: "#ff8a7a", bg: "rgba(255,138,122,0.12)" },
+        info: { DEFAULT: "#8fb8de", bg: "rgba(143,184,222,0.12)" },
       },
       fontFamily: {
         serif: ["var(--font-serif)", "Spectral", "Georgia", "serif"],
         mono: ["var(--font-mono)", "JetBrains Mono", "Courier New", "monospace"],
         hand: ["var(--font-hand)", "Caveat", "cursive"],
+        // Texto de interfaz del admin. NO se redefine `sans`: Preflight lo
+        // aplica a <html> y cambiaría la web pública.
+        ui: ["var(--font-admin)", "Inter", "system-ui", "sans-serif"],
       },
       animation: {
         "fade-up": "fadeUp 600ms ease",
