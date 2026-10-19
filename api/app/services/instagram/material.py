@@ -33,7 +33,7 @@ MAX_DOSSIER_CHARS = 2500
 class Material:
     """Lo que hay detrás del post, en dos montones que NO son lo mismo.
 
-    - `prompt`: todo, con su atribución, para ESCRIBIR.
+    - `prompt`: todo (lo de terceros como FONDO, sin nombrarlo), para ESCRIBIR.
     - `verificable`: solo lo de casa (nuestras propias fichas), para las
       guardas que tienen que decidir si una afirmación está respaldada.
 
@@ -100,11 +100,11 @@ def consultas_para(topic: dict, entidades: list | None = None) -> list[str]:
 
 
 def reunir(db, topic: dict, *, entidades: list | None = None) -> Material:
-    """Material del corpus para este post, ya atribuido.
+    """Material del corpus para este post, separado en lo afirmable y el fondo.
 
     Dos fuentes que se suman, como en el blog:
-      1. Los pasajes que responden a lo que el post trata (`corpus_for_queries`),
-         que llegan con su atribución obligatoria.
+      1. Los pasajes que responden a lo que el post trata (`corpus_for_queries`):
+         lo de terceros llega como FONDO, que no se nombra ni se cita.
       2. El dossier de las entidades del catálogo que el texto menciona
          (`news_research.entity_dossiers`): datos duros de casa (año, disco,
          créditos), no interpretación.

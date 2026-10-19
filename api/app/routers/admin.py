@@ -1379,6 +1379,8 @@ class AdminProposalItem(BaseModel):
     placement: dict | None = None
     placement_headline: str | None = None
     placement_options: list[dict] = []
+    # El reparto por keyword: un grupo por destino, cada uno con su selector.
+    placement_groups: list[dict] = []
     merge_target: str | None = None
     merge_opportunity_id: int | None = None
     created_at: datetime
@@ -1524,7 +1526,9 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         source_name=p.source_name,
         has_body=bool(p.body_md),
         keywords=kws,
-        keyword_volume=sum(int(k.get("volume") or 0) for k in kws),
+        # Solo suman las activas: una keyword desactivada no es demanda de esta pieza.
+        keyword_volume=sum(int(k.get("volume") or 0) for k in kws
+                           if isinstance(k, dict) and not k.get("excluded")),
         target_keyword=getattr(p, "target_keyword", None),
         search_volume=getattr(p, "search_volume", None),
         is_longtail=bool(getattr(p, "is_longtail", False)),
@@ -1535,6 +1539,13 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
             _placement.selector_options(p.placement)
             if getattr(p, "placement", None) else []
         ),
+        placement_groups=[
+            {**{k: g.get(k) for k in ("keywords", "decision", "confidence", "recommended",
+                                      "reasons", "candidates")},
+             "headline": _placement.headline(g),
+             "options": _placement.selector_options(g)}
+            for g in _placement.grupos(getattr(p, "placement", None))
+        ],
         merge_target=getattr(p, "merge_target", None),
         merge_opportunity_id=getattr(p, "merge_opportunity_id", None),
         created_at=p.created_at,
@@ -1677,7 +1688,9 @@ def admin_proposals_bulk_approve(
     # Lo que el análisis propone AMPLIAR no se escribe como post nuevo por un clic
     # en bloque: eso es justo la canibalización que el análisis existe para evitar.
     # Cada una necesita su decisión (fusionar o, a conciencia, «contenido nuevo»).
-    a_ampliar = [p for p in rows if (p.placement or {}).get("decision") == "ampliar"]
+    a_ampliar = [p for p in rows
+                 if any(g.get("decision") in ("ampliar", "cubierto")
+                        for g in _placement.grupos(p.placement))]
     rows = [p for p in rows if p not in a_ampliar]
     for p in rows:
         p.status = "approved"
@@ -1690,6 +1703,20 @@ def admin_proposals_bulk_approve(
 
 class MergeProposalIn(BaseModel):
     target: str  # «ficha:<seo_content_id>» | «post:<id>»
+    keywords: list[str] | None = None  # sin ellas, las del grupo de ese destino
+
+
+class PlanGroupIn(BaseModel):
+    keywords: list[str]
+    target: str  # «ficha:N» | «post:N» | «new» | «skip»
+
+
+class ApplyPlanIn(BaseModel):
+    groups: list[PlanGroupIn]
+
+
+class ExcludeKeywordsIn(BaseModel):
+    excluded: list[str]
 
 
 @router.post("/proposals/{proposal_id}/merge", response_model=AdminProposalItem)
@@ -1711,11 +1738,72 @@ def admin_proposal_merge(
     p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="proposal not found")
+    keywords = payload.keywords
+    if keywords is None:
+        # Sin keywords explícitas, las del grupo que recomienda ese destino.
+        grupo = next((g for g in _placement.grupos(p.placement)
+                      if any(c.get("target") == payload.target
+                             for c in g.get("candidates") or [])), None)
+        keywords = (grupo or {}).get("keywords") or None
     try:
-        opp = start_merge(db, p, payload.target)
+        opp = start_merge(db, p, payload.target, keywords)
     except MergeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     background.add_task(run_prepare, [opp.id])
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/apply-plan", response_model=AdminProposalItem)
+def admin_proposal_apply_plan(
+    proposal_id: int,
+    payload: ApplyPlanIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Ejecuta el reparto: cada grupo de keywords a su página, a un post o fuera.
+
+    Las fusiones solo PREPARAN borradores. Lo que va a «contenido nuevo» se queda
+    en la propuesta, que sigue por validar con esas keywords.
+    """
+    from app.services.content_merge import MergeError, aplicar_plan
+    from app.services.seo_opportunities import run_prepare
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    try:
+        opps = aplicar_plan(db, p, [g.model_dump() for g in payload.groups])
+    except MergeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if opps:
+        background.add_task(run_prepare, [o.id for o in opps])
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/keywords", response_model=AdminProposalItem)
+def admin_proposal_keywords(
+    proposal_id: int,
+    payload: ExcludeKeywordsIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Activa/desactiva keywords objetivo y recalcula el reparto con las activas."""
+    from app.services.content_merge import MergeError, excluir_keywords
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    try:
+        excluir_keywords(p, payload.excluded)
+    except MergeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if p.kind == "evergreen" and p.target_keyword:
+        _placement.store(db, p, _placement.analyze(db, p, use_serp=False))
+    db.commit()
     db.refresh(p)
     return _proposal_to_item(p)
 

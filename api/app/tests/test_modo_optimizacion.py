@@ -111,17 +111,23 @@ def test_el_material_ajeno_viaja_con_su_atribucion():
     assert cq.atribucion(_pasaje(kind="prensa", author="")) is None
 
 
-def test_el_bloque_separa_la_voz_de_robe_del_material_ajeno():
+def test_el_bloque_separa_la_voz_de_robe_del_fondo_ajeno():
+    """Criterio de David (19-10-2026): la voz es nuestra. Lo de terceros es FONDO,
+    que no se nombra ni se cita; solo Robe se cita, y con el medio. Antes este
+    bloque pedía «cítalo como "análisis de Juancares en YouTube"», y así salió el
+    borrador #40."""
     from app.services import corpus_for_queries as cq
 
     bloque = cq.bloque_material([
         {**_pasaje(), "consulta": "x", "atribucion": "análisis de Juancares en YouTube"},
-        {**_pasaje(kind="robe_interview", author="Robe"), "consulta": "x",
+        {**_pasaje(kind="robe_interview", author="Robe", title="RockFM"), "consulta": "x",
          "atribucion": "una entrevista con Robe"},
-    ])
-    assert "MATERIAL DE UN TERCERO" in bloque
-    assert "LO QUE DIJO ROBE" in bloque
-    assert "NUNCA como voz de Robe" in bloque
+    ], verificados=["La tocaron por última vez en 2004."])
+    assert "FONDO" in bloque and "PROHIBIDO nombrar" in bloque
+    assert "PALABRAS DE ROBE" in bloque and "RockFM" in bloque
+    assert "DATOS VERIFICADOS" in bloque
+    assert "Juancares" not in bloque
+    assert "cítalo como" not in bloque
 
 
 def test_el_material_de_la_consulta_no_se_cae_del_corte():
@@ -218,18 +224,27 @@ def motor(monkeypatch):
     return estado
 
 
-def _aumentar(estado, optimizar=True):
-    modo = ad.ModoOptimizacion(consultas=["como buen guerrero"]) if optimizar else None
+def _aumentar(estado, optimizar=True, valvula=False):
+    modo = (ad.ModoOptimizacion(consultas=["como buen guerrero"], valvula=valvula)
+            if optimizar else None)
     return ad.augment_entity(_Db(), object(), "song", _Entidad(), optimizar=modo)
 
 
-def test_lo_que_el_editor_rechaza_sale_igual_con_el_veredicto_colgado(motor):
-    """La válvula que pidió David: no publica nada, enseña lo que hay."""
+def test_lo_que_el_editor_rechaza_ya_no_se_presenta(motor):
+    """Criterio de David (19-10-2026): ampliar una página publicada tiene que
+    mejorarla. Hasta entonces la válvula sacaba el borrador rechazado con el
+    veredicto colgado; ahora un rechazo es `noop`."""
     res = _aumentar(motor)
+    assert res["noop"] is True
+    assert res["after"] == res["before"]
+    assert not (res.get("rigor") or {}).get("forzada")
+
+
+def test_la_valvula_sigue_existiendo_si_se_abre_a_mano(motor):
+    res = _aumentar(motor, valvula=True)
     assert res["noop"] is False
     assert res["rigor"]["forzada"] is True
     assert res["rigor"]["reasons"] == ["es redundante"]
-    assert "Lo nuevo" in res["after"]
 
 
 def test_sin_modo_optimizacion_un_rechazo_sigue_siendo_no_op(motor):
@@ -257,6 +272,7 @@ def test_el_guardia_de_versos_mide_el_delta_y_no_el_estado(motor):
     cita = "Mayéutica es una canción concebida como una sola obra"
     motor["bloqueos_antes"] = [cita]
     motor["bloqueos_despues"] = [cita]
+    motor.update({"antes": 60, "despues": 62, "verdict": "pass"})
     res = _aumentar(motor)
     assert res["noop"] is False, "lo que ya estaba publicado no puede condenar la ampliación"
 
@@ -278,11 +294,11 @@ def test_una_caida_dentro_del_ruido_del_juez_sale_limpia(motor):
 
 
 def test_una_caida_de_verdad_sigue_contando(motor):
-    """La tolerancia no es una barra libre: interludio cayó 65→45 y sigue saliendo
-    marcada como rechazada, no como limpia."""
+    """La tolerancia no es una barra libre: interludio cayó 65→45. Antes salía
+    marcada como rechazada; sin válvula, no sale."""
     motor.update({"antes": 65, "despues": 45, "verdict": "pass"})
     res = _aumentar(motor)
-    assert res["rigor"]["forzada"] is True
+    assert res["noop"] is True
 
 
 # --------------------------------------------------------------------------- #
@@ -307,6 +323,7 @@ def test_una_seccion_que_admite_no_saberlo_no_se_publica(motor):
 def test_una_seccion_con_datos_reales_si_se_publica(motor):
     motor["seccion"] = ("## Lo nuevo\n\nRobe cita a Leño, Marea y La Fuga como "
                         "referencias de aquellos años.", "Lo nuevo")
+    motor.update({"antes": 60, "despues": 64, "verdict": "pass"})
     assert _aumentar(motor)["noop"] is False
 
 

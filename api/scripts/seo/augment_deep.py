@@ -52,8 +52,8 @@ class ModoOptimizacion:
 
       1. El material se busca por la CONSULTA, no solo por la entidad.
       2. No se penaliza crecer: el juez lee lo añadido y el linter va por densidad.
-      3. Si aun así el editor la rechaza, el borrador **sale igual con el veredicto
-         colgado** para que lo juzgue una persona (`valvula`).
+      3. (Hasta el 19-10-2026) si el editor la rechazaba, el borrador salía igual
+         con el veredicto colgado (`valvula`). Ya no: rechazado es `noop`.
 
     Lo que NO cambia ni aquí: la verificación factual, la no-invención, la
     no-pérdida y los versos. Se puede discutir si un texto merece leerse; no se
@@ -62,7 +62,10 @@ class ModoOptimizacion:
 
     consultas: list[str]
     tolerancia_rigor: int = 5
-    valvula: bool = True
+    # Apagada desde el 19-10-2026 (criterio de David: ampliar una página publicada
+    # tiene que mejorarla, nunca empeorarla). Lo que el editor jefe rechaza ya no se
+    # presenta con el veredicto colgado: es un `noop`.
+    valvula: bool = False
 
 
 _YT_LINE = re.compile(
@@ -260,7 +263,24 @@ def _corpus_gap_section(client, subject, current, dossier, existing_heads, prior
     body = _write_section(client, subject, g, existing_heads + [g["heading"]],
                           dossier.hard_facts, material_escritor, kw_block="", prior=prior,
                           tier="premium")
-    body = _verify_section(client, body, dossier.hard_facts + "\n\n" + material_escritor)
+    # El verificador solo ve lo AFIRMABLE: lo propio del dossier, las palabras de
+    # Robe y lo verificado. Si ve el fondo de terceros, da por bueno un dato que
+    # solo trae un análisis ajeno (criterio de David, 19-10-2026).
+    from app.services.corpus_for_queries import parte_afirmable, separar_material
+
+    propio, _fondo = separar_material(dossier.material)
+    body = _verify_section(client, body, dossier.hard_facts + "\n\n" + propio + "\n\n"
+                           + parte_afirmable(material_consulta))
+    from app.services import source_guard
+
+    largo = len(body.strip())
+    body, quitadas = source_guard.limpiar(body)
+    if quitadas:
+        logger.info("[augment] %s: frases que nombraban fuentes quitadas: %s", subject,
+                    " / ".join(q[:60] for q in quitadas[:3]))
+    sin_head = re.sub(r"^##.*$", "", body, flags=re.M).strip()
+    if not sin_head or (largo and len(body) < largo * 0.6):
+        return None, g.get("heading")
     return (body.strip() or None), g.get("heading")
 
 
@@ -422,7 +442,16 @@ def augment_entity(
                 "focus": "; ".join(optimizar.consultas),
                 "repeats_per_1000": 4.0,
             }
-        v_before = editorial_review(current, kind=entity_type, subject=subject,
+        # En optimización el juez lee el CONTEXTO (esquema + la cola de la página,
+        # que es donde va lo añadido), no `body[:9000]`: sobre una ficha larga
+        # puntuaba el «antes» con un 18 «porque el artículo queda truncado».
+        base_juicio = current
+        if optimizar:
+            from scripts.seo.merge_deep import extracto_local, trocear
+
+            ultima = next((b.heading for b in reversed(trocear(current)) if b.heading), "")
+            base_juicio = extracto_local(current, {ultima})
+        v_before = editorial_review(base_juicio, kind=entity_type, subject=subject,
                                     allowed_terms=allowed, **extra)
         if optimizar:
             # El juez ve el cuerpo PUBLICADO y, aparte, lo que se le quiere añadir.
@@ -433,7 +462,7 @@ def augment_entity(
             # frases repetidas. El veredicto era un artefacto de cómo se preguntaba.
             # Así además la comparación es exactamente el delta: el mismo artículo
             # base, con y sin lo añadido.
-            v = editorial_review(current, kind=entity_type, subject=subject,
+            v = editorial_review(base_juicio, kind=entity_type, subject=subject,
                                  allowed_terms=allowed,
                                  spotlight="\n\n".join(added), **extra)
         else:

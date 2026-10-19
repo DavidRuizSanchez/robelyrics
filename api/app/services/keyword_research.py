@@ -155,6 +155,12 @@ def _published_kw_slugs(db: Session) -> set[str]:
     ).all():
         if s:
             slugs.add(s)
+    # Las que David desactivó en una propuesta (o que se fundieron con una página):
+    # no vuelven solas la semana siguiente, ni como principal ni como secundaria.
+    for (kws,) in db.query(ContentProposal.keywords).all():
+        for k in kws or []:
+            if isinstance(k, dict) and k.get("excluded") and k.get("keyword"):
+                slugs.add(kw_slug(k["keyword"]))
     # Y las que ya persigue una ficha, incluidas las que le sumó una fusión: una
     # keyword que es la de `/extremoduro` no es un ángulo de blog, es esa página.
     for target, secundarias in db.query(
@@ -361,7 +367,8 @@ def build_proposal_rows(
         published.add(pslug)
 
         # Ensambla keywords (primary + secundarias) con volumen/señal del pool.
-        all_kw = [primary] + [k for k in (topic.get("secondary_keywords") or []) if k]
+        all_kw = [primary] + [k for k in (topic.get("secondary_keywords") or [])
+                              if k and kw_slug(k) not in published]
         kw_objs, longtail_any = [], False
         for kw in all_kw:
             c = by_norm.get(_norm(kw))

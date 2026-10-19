@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { Placement, ProposalItem } from "./page";
+import type { PlacementGroup, ProposalItem } from "./page";
 
 const KIND_LABEL: Record<string, string> = {
   news: "Noticia",
@@ -71,26 +71,55 @@ export default function BlogPlanner({
   >({});
   // Edición de título a mano inline (id → texto en edición; ausente = no edita).
   const [titleEdit, setTitleEdit] = useState<Record<number, string>>({});
-  // Destino elegido en el selector «ampliar X / contenido nuevo» (id → value).
-  // Sin elección explícita manda lo que recomienda el análisis.
-  const [destino, setDestino] = useState<Record<number, string>>({});
+  // Destino elegido por grupo de keywords (id → índice del grupo → value). Sin
+  // elección explícita manda lo que recomienda el análisis.
+  const [destino, setDestino] = useState<Record<number, Record<number, string>>>({});
 
-  function destinoDe(p: ProposalItem): string {
-    if (p.id in destino) return destino[p.id];
-    return p.placement_options.find((o) => o.recommended)?.value ?? "new";
+  function grupos(p: ProposalItem): PlacementGroup[] {
+    return p.placement_groups ?? [];
   }
 
-  async function merge(p: ProposalItem, target: string) {
-    const opt = p.placement_options.find((o) => o.value === target);
+  function destinoDe(p: ProposalItem, i: number): string {
+    const elegido = destino[p.id]?.[i];
+    if (elegido) return elegido;
+    return grupos(p)[i]?.options.find((o) => o.recommended)?.value ?? "new";
+  }
+
+  // ¿Algún grupo va a una página existente u omite keywords? Entonces el botón
+  // principal aplica el reparto; si todo va a contenido nuevo, es «aprobar».
+  function hayReparto(p: ProposalItem): boolean {
+    return grupos(p).some((_, i) => destinoDe(p, i) !== "new");
+  }
+
+  async function aplicarReparto(p: ProposalItem) {
+    const plan = grupos(p).map((g, i) => ({ keywords: g.keywords, target: destinoDe(p, i) }));
+    const resumen = plan
+      .map((g) => {
+        const opt = grupos(p)
+          .flatMap((x) => x.options)
+          .find((o) => o.value === g.target);
+        const dest =
+          g.target === "new" ? "contenido nuevo" : g.target === "skip" ? "se omiten" : (opt?.path ?? g.target);
+        return `· ${g.keywords.join(", ")} → ${dest}`;
+      })
+      .join("\n");
     if (
       !window.confirm(
-        `¿Ampliar ${opt?.path ?? "esa página"} con «${p.title}»? ` +
-          `Se prepara un borrador con el antes/después (correo y panel de ` +
-          `oportunidades SEO). No se publica nada hasta que lo apruebes.`,
+        `¿Aplicar este reparto?\n\n${resumen}\n\nLas ampliaciones preparan un borrador ` +
+          `con el antes/después; no se publica nada hasta que lo apruebes.`,
       )
     )
       return;
-    await call("merge", p.id, { target });
+    await call("apply-plan", p.id, { groups: plan });
+  }
+
+  async function toggleKeyword(p: ProposalItem, keyword: string) {
+    const excluidas = new Set(
+      p.keywords.filter((k) => k.excluded && !k.merged).map((k) => k.keyword),
+    );
+    if (excluidas.has(keyword)) excluidas.delete(keyword);
+    else excluidas.add(keyword);
+    await call("keywords", p.id, { excluded: [...excluidas] });
   }
 
   function matchesFilter(p: ProposalItem): boolean {
@@ -411,28 +440,74 @@ export default function BlogPlanner({
                               .slice()
                               .sort((a, b) => b.volume - a.volume)
                               .slice(0, 8)
-                              .map((k) => (
-                                <span
-                                  key={k.keyword}
-                                  className="font-mono text-[10px] text-ink-dim border border-divider px-1.5 py-0.5"
-                                >
-                                  {k.keyword}{" "}
-                                  <span className="text-accent">
-                                    {k.volume.toLocaleString("es-ES")}
+                              .map((k) =>
+                                k.merged ? (
+                                  <span
+                                    key={k.keyword}
+                                    title="Ya va a esa página (fusión en curso)"
+                                    className="font-mono text-[10px] text-ink-faint border border-divider px-1.5 py-0.5"
+                                  >
+                                    {k.keyword} → {k.merged}
                                   </span>
-                                </span>
-                              ))}
+                                ) : (
+                                  <button
+                                    type="button"
+                                    key={k.keyword}
+                                    onClick={() => toggleKeyword(p, k.keyword)}
+                                    disabled={busy !== null}
+                                    data-cursor="hover"
+                                    title={
+                                      k.excluded
+                                        ? "Desactivada: no cuenta. Pulsa para reactivarla"
+                                        : "Pulsa para desactivarla (demasiado genérica, no encaja…)"
+                                    }
+                                    className={`font-mono text-[10px] border px-1.5 py-0.5 disabled:opacity-40 ${
+                                      k.excluded
+                                        ? "border-divider text-ink-faint line-through"
+                                        : "border-divider text-ink-dim hover:border-accent"
+                                    }`}
+                                  >
+                                    {k.keyword}{" "}
+                                    <span className={k.excluded ? "" : "text-accent"}>
+                                      {k.volume.toLocaleString("es-ES")}
+                                    </span>
+                                  </button>
+                                ),
+                              )}
                           </div>
                         </div>
                       )}
-                      {p.placement && (
-                        <PlacementBox
-                          p={p}
-                          value={destinoDe(p)}
-                          onChange={(v) => setDestino((d) => ({ ...d, [p.id]: v }))}
-                          onRecalc={() => call("placement", p.id)}
-                          disabled={busy !== null}
-                        />
+                      {grupos(p).length > 0 && (
+                        <div className="mt-3 space-y-3">
+                          {grupos(p).map((g, i) => (
+                            <GroupBox
+                              key={g.keywords.join("|")}
+                              g={g}
+                              value={destinoDe(p, i)}
+                              onChange={(v) =>
+                                setDestino((d) => ({ ...d, [p.id]: { ...(d[p.id] ?? {}), [i]: v } }))
+                              }
+                              disabled={busy !== null}
+                            />
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => call("placement", p.id)}
+                            disabled={busy !== null}
+                            data-cursor="hover"
+                            title="Recalcular con el volcado de GSC actual"
+                            className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent disabled:opacity-40"
+                          >
+                            ↻ recalcular reparto
+                          </button>
+                          {p.placement?.last_merge && (
+                            <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent">
+                              la fusión con {p.placement.last_merge.path} no salió (
+                              {p.placement.last_merge.status})
+                              {p.placement.last_merge.error ? `: ${p.placement.last_merge.error}` : ""}
+                            </p>
+                          )}
+                        </div>
                       )}
                       {!p.target_keyword && (
                         <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-accent">
@@ -473,16 +548,16 @@ export default function BlogPlanner({
                       >
                         {titleBusy === p.id ? "…" : "↻ titular"}
                       </button>
-                      {destinoDe(p) !== "new" ? (
+                      {hayReparto(p) ? (
                         <button
                           type="button"
-                          onClick={() => merge(p, destinoDe(p))}
+                          onClick={() => aplicarReparto(p)}
                           disabled={busy === p.id}
                           data-cursor="hover"
-                          title="Ampliar la página elegida con esta idea (prepara borrador, no publica)"
+                          title="Cada grupo de keywords a su destino (las ampliaciones preparan borrador, no publican)"
                           className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
                         >
-                          {busy === p.id ? "preparando…" : "fusionar"}
+                          {busy === p.id ? "preparando…" : "aplicar reparto"}
                         </button>
                       ) : (
                         <button
@@ -812,45 +887,39 @@ function fmtPos(n: number | null): string {
   return n === null ? "—" : n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
 }
 
-// La recomendación «ampliar / contenido nuevo» con su evidencia y el selector.
-// El selector solo ofrece lo que el motor puede escribir (fichas, posts y
-// /personas); una página de código que ya posiciona se enseña, pero como aviso.
-function PlacementBox({
-  p,
+// Un grupo de keywords que va al mismo destino: su recomendación, su evidencia y
+// su selector. El selector solo ofrece lo que el motor puede escribir (fichas,
+// posts y /personas), además de «contenido nuevo» y «omitir».
+function GroupBox({
+  g,
   value,
   onChange,
-  onRecalc,
   disabled,
 }: {
-  p: ProposalItem;
+  g: PlacementGroup;
   value: string;
   onChange: (v: string) => void;
-  onRecalc: () => void;
   disabled: boolean;
 }) {
-  const pl = p.placement as Placement;
-  const ampliar = pl.decision === "ampliar";
+  const ampliar = g.decision === "ampliar";
   return (
-    <div
-      className={`mt-3 border-l-2 pl-3 py-1 ${ampliar ? "border-accent" : "border-divider"}`}
-    >
-      <p className="font-mono text-[9px] tracking-[2px] uppercase">
-        <span className={ampliar ? "text-accent" : "text-ink-dim"}>
-          propuesta: {p.placement_headline}
-        </span>
-        <span className={CONF_CLASS[pl.confidence] ?? "text-ink-faint"}>
-          {" "}· confianza {pl.confidence}
+    <div className={`border-l-2 pl-3 py-1 ${ampliar ? "border-accent" : "border-divider"}`}>
+      <p className="font-mono text-[10px] text-ink-dim">{g.keywords.join(" · ")}</p>
+      <p className="mt-1 font-mono text-[9px] tracking-[2px] uppercase">
+        <span className={ampliar ? "text-accent" : "text-ink-dim"}>{g.headline}</span>
+        <span className={CONF_CLASS[g.confidence] ?? "text-ink-faint"}>
+          {" "}· confianza {g.confidence}
         </span>
       </p>
-      {pl.reasons.slice(0, 2).map((r, i) => (
+      {g.reasons.slice(0, 2).map((r, i) => (
         <p key={i} className="mt-1 font-serif text-sm text-ink-dim leading-snug">
           {r}
         </p>
       ))}
-      {pl.candidates.length > 0 && (
+      {g.candidates.length > 0 && (
         <ul className="mt-2 space-y-0.5">
-          {pl.candidates.map((c) => (
-            <li key={c.path} className="font-mono text-[10px] text-ink-faint">
+          {g.candidates.map((c) => (
+            <li key={c.path} className="font-mono text-[10px] text-ink-faint break-all">
               <a
                 href={c.path}
                 target="_blank"
@@ -871,12 +940,6 @@ function PlacementBox({
           ))}
         </ul>
       )}
-      {pl.last_merge && (
-        <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-accent">
-          la fusión con {pl.last_merge.path} no salió ({pl.last_merge.status})
-          {pl.last_merge.error ? `: ${pl.last_merge.error}` : ""}
-        </p>
-      )}
       <div className="mt-2 flex items-center gap-2 flex-wrap">
         <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
           destino
@@ -888,23 +951,13 @@ function PlacementBox({
           data-cursor="hover"
           className="bg-transparent border border-divider text-ink font-mono text-[11px] px-2 py-1 focus:outline-none focus:border-accent max-w-full"
         >
-          {p.placement_options.map((o) => (
+          {g.options.map((o) => (
             <option key={o.value} value={o.value} className="bg-[#0d0b0a]">
               {o.label}
               {o.recommended ? " ★" : ""}
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={onRecalc}
-          disabled={disabled}
-          data-cursor="hover"
-          title="Recalcular con el volcado de GSC actual"
-          className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent disabled:opacity-40"
-        >
-          ↻ recalcular
-        </button>
       </div>
     </div>
   );

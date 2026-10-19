@@ -27,14 +27,17 @@ pregunta la gente.
 - **No relaja nada.** Es la doctrina del proyecto aplicada al circuito SEO:
   «potenciar es traer MÁS MATERIAL REAL, nunca aflojar el listón». Lo que devuelve
   entra como material para escribir, y todas las verificaciones siguen igual.
-- **No presta voz a nadie.** El material de terceros viaja con su autor y su tipo, y
-  se cita atribuido —«Manolillo Chinato contó que…»— nunca como voz de Robe ni como
-  verdad del sitio. Un análisis de Juancares no es algo que dijera Robe, y las
-  transcripciones automáticas además traen erratas.
+- **No presta voz a nadie, ni se la da.** Hasta el 19-10-2026 el material de terceros
+  se citaba atribuido («Manolillo Chinato contó que…»), y el primer borrador de una
+  fusión salió lleno de «el blog javitojavierito recoge…» y «el análisis de Juancares
+  en YouTube…». Criterio de David: el texto es NUESTRO. Lo ajeno es FONDO: orienta qué
+  contar, nunca se nombra, y un dato que solo trae un tercero no se afirma salvo que
+  se corrobore (`corroborar`). Solo Robe se cita, y con el medio donde lo dijo.
 """
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -166,26 +169,120 @@ def material_para_consultas(
     return out[:max_pasajes]
 
 
-def bloque_material(pasajes: list[dict]) -> str:
-    """El material, listo para el prompt, con la atribución pegada a cada pasaje.
+def bloque_material(pasajes: list[dict], verificados: list[str] | None = None) -> str:
+    """El material, listo para el prompt, separado en lo que se AFIRMA y lo que no.
 
-    El formato importa: la atribución va DELANTE del texto, para que al escribir no
-    se pueda separar el dato de quién lo dijo.
+    - Lo que dijo Robe: se puede citar entre comillas y nombrando el medio.
+    - Datos verificados: hechos de terceros que `corroborar` confirmó por otra vía.
+    - Fondo: análisis, blogs, anotaciones, prensa. Orienta qué contar; ni se nombra
+      ni se cita, y un dato que solo esté aquí no se escribe.
     """
-    if not pasajes:
+    if not pasajes and not verificados:
         return ""
-    trozos = []
+    robe, fondo = [], []
     for p in pasajes:
-        es_robe = p.get("kind") == "robe_interview"
-        cabecera = (
-            "LO QUE DIJO ROBE" if es_robe
-            else f"MATERIAL DE UN TERCERO — cítalo como «{p['atribucion']}»"
+        frag = (p.get("fragmento") or "").strip()
+        if p.get("kind") == "robe_interview":
+            medio = (p.get("title") or "una entrevista").strip()
+            robe.append(f"[LO QUE DIJO ROBE · {medio} — se puede citar con el medio]\n{frag}")
+        else:
+            fondo.append(f"[FONDO · responde a «{p.get('consulta', '')}»]\n{frag}")
+    partes = []
+    if robe:
+        partes.append("PALABRAS DE ROBE (citables, con el medio):\n\n"
+                      + "\n\n----\n\n".join(robe))
+    if verificados:
+        partes.append("DATOS VERIFICADOS (contrastados por otra vía; se pueden afirmar "
+                      "en nuestra voz, sin decir de dónde salen):\n"
+                      + "\n".join(f"- {v}" for v in verificados))
+    if fondo:
+        partes.append(
+            "FONDO (de terceros: úsalo SOLO para saber de qué hablar. PROHIBIDO nombrar "
+            "o citar a su autor, blog, canal o medio, y PROHIBIDO afirmar un dato que "
+            "solo esté aquí; sus opiniones e hipótesis no son hechos):\n\n"
+            + "\n\n----\n\n".join(fondo))
+    return "\n\n====\n\n".join(partes)
+
+
+# Cabeceras de bloque de `deep_research` que son de TERCEROS (ver `_source_head`).
+_FONDO_RE = re.compile(
+    r"^\[(?:TRANSCRIPCI[OÓ]N|youtube|blog|forum|foro|reddit|genius|prensa|press|fuente"
+    r"|book|thesis|interview|about_robe|directo|concierto)\b", re.I)
+
+
+def separar_material(material: str) -> tuple[str, str]:
+    """(propio, fondo) de un dossier de `deep_research`.
+
+    Propio: letra, créditos, hechos duros, la biografía autorizada, lo verificado
+    externamente, versos, el grafo, el consenso destilado y la voz de Robe. Fondo:
+    transcripciones, blogs, foros, anotaciones y prensa.
+    """
+    propio, fondo = [], []
+    for bloque in (material or "").split("\n\n----\n\n"):
+        if not bloque.strip():
+            continue
+        (fondo if _FONDO_RE.match(bloque.lstrip()) else propio).append(bloque)
+    return "\n\n----\n\n".join(propio), "\n\n----\n\n".join(fondo)
+
+
+def corroborar(client, fondo: str, propio: str, consultas: list[str], *,
+               max_hechos: int = 6) -> tuple[list[str], list[str]]:
+    """Qué datos del fondo se pueden afirmar: (verificados, descartados).
+
+    Criterio de David (19-10-2026): un dato que solo trae un tercero («la tocaron por
+    última vez el 13-11-2004 en Salamanca», de un análisis de YouTube) se escribe solo
+    si se corrobora. Primero contra lo propio (cifras y nombres propios presentes en
+    nuestro material) y después contra la web (`web_verify.classify_fact`), sin
+    aceptar como evidencia el mismo texto que lo afirmaba.
+    """
+    if not (fondo or "").strip():
+        return [], []
+    from app.services import seo_style
+    from scripts.seo.generate_deep import _chat
+
+    try:
+        data = _chat(
+            client,
+            "Del texto de abajo, extrae como máximo "
+            f"{max_hechos} HECHOS CONCRETOS y comprobables (fecha, lugar, nombre, cifra, "
+            "título) que ayuden a responder: " + "; ".join(consultas) + ".\n"
+            "Nada de opiniones, interpretaciones ni hipótesis («quizá», «parece», "
+            "«se cree»). Cada hecho, una frase autónoma y sin decir de dónde sale.\n"
+            f'TEXTO:\n"""{fondo[:8000]}"""\n'
+            'Devuelve JSON {"hechos": ["..."]}.',
+            max_tokens=700, temp=0.0,
         )
-        trozos.append(
-            f"[{cabecera} · responde a «{p['consulta']}»]\n{p['fragmento'].strip()}"
-        )
-    return (
-        "MATERIAL QUE RESPONDE A LO QUE LA GENTE BUSCA (úsalo con su atribución; lo "
-        "de terceros NUNCA como voz de Robe ni como verdad del sitio):\n\n"
-        + "\n\n----\n\n".join(trozos)
-    )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[corroborar] extracción falló: %s", exc)
+        return [], []
+    hechos = [h.strip() for h in (data.get("hechos") or []) if isinstance(h, str) and h.strip()]
+    permitidos = seo_style.tokens_permitidos(propio)
+    verificados, descartados = [], []
+    for h in hechos[:max_hechos]:
+        if not seo_style.verify_no_invention(h, permitidos):
+            verificados.append(h)
+            continue
+        try:
+            from app.services.web_verify import classify_fact
+
+            v = classify_fact(h, query=h)
+        except Exception:  # noqa: BLE001
+            v = {}
+        evidencia = (v.get("evidence") or "").lower()
+        # La evidencia no puede ser el propio texto del que salió el dato.
+        eco = evidencia and evidencia[:80] in (fondo or "").lower()
+        if (v.get("verdict") or "").lower() == "supported" and not eco:
+            verificados.append(h)
+        else:
+            descartados.append(h)
+    return verificados, descartados
+
+
+def parte_afirmable(bloque: str) -> str:
+    """De un `bloque_material`, solo lo que se puede afirmar (Robe y verificados).
+
+    Es lo que recibe el verificador: si ve el FONDO, da por bueno un dato que solo
+    trae un tercero, que es justo lo que no se puede escribir.
+    """
+    return "\n\n".join(p for p in (bloque or "").split("\n\n====\n\n")
+                        if not p.lstrip().startswith("FONDO"))

@@ -317,7 +317,13 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     # va a revisión humana. force_publish solo salta rigor/foco (gustos).
     needs_review = report.to_review + skipped
     lyric_review = lyric_report.to_review
-    if needs_review or lyric_review or review_focus:
+    # 3c. La voz es nuestra (criterio de David, 19-10-2026): un post que nombra a
+    #     un analista, un blog o el medio del que sale la noticia no se publica
+    #     solo. No se borra la frase a ciegas: en una noticia, «según X, el
+    #     concierto será el 5 de junio» se llevaría el dato por delante.
+    from app.services.source_guard import fuentes_nombradas, nombres_de_fuentes
+    fuentes = fuentes_nombradas(post.body_md, nombres_de_fuentes(db))
+    if needs_review or lyric_review or review_focus or fuentes:
         for v in needs_review:
             logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
         for v in lyric_review:
@@ -331,6 +337,11 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
             from app.services.publishing import _motivo_citas
             propose_for_review(db, post, blocked_by="lyrics",
                                reason=_motivo_citas(lyric_report))
+        elif fuentes:
+            propose_for_review(
+                db, post, blocked_by="fuentes",
+                reason="Nombra fuentes externas (la voz es nuestra; solo Robe se cita "
+                       "con su medio): " + " · ".join(f"«{f[:90]}»" for f, _ in fuentes[:3]))
         else:
             propose_for_review(db, post)
         p.status = "used"

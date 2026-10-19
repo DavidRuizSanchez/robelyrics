@@ -138,6 +138,13 @@ INNEGOCIABLE. Si rompes una de estas, el texto se descarta:
 - PROHIBIDO referirte a ti como IA o decir "no puedo confirmar".
 - NUNCA escribas "Robe Iniesta" junto. Es "Robe" o "Roberto Iniesta", según el
   registro, pero nunca los dos nombres cortos pegados.
+- LA VOZ ES NUESTRA. NUNCA nombres ni cites a los analistas, blogs, canales, foros,
+  anotaciones o medios de los que sale el material ("según el blog…", "el análisis
+  de X en YouTube", "como recoge El País", "una anotación de Genius"). Lo de
+  terceros, si es un HECHO contrastado, se cuenta como conocimiento propio; si es su
+  opinión o una hipótesis, no se cuenta. La única voz que se cita con su fuente es
+  la de Robe ("Robe contó a RockFM que…"). Excepción: setlist.fm, porque sus
+  términos obligan a nombrarlo.
 - AUTORÍA: si el material trae un bloque [CRÉDITOS], respétalo AL PIE DE LA LETRA.
   Cuando el texto de una canción sea un poema o adaptación de OTRO autor (p.ej.
   Manolo Chinato), JAMÁS digas que Robe "escribió la letra" ni lo llames su autor:
@@ -309,9 +316,9 @@ REGLAS DE LA CUENTA:
 - Robe falleció: jamás lo presentes hablando en presente ni haciendo
   declaraciones nuevas. Si el material recoge ideas suyas, enmárcalas en pasado
   ("lo que pensaba Robe", "Robe decía", "para Robe era…").
-- El material que viene marcado como de UN TERCERO (una anotación, un análisis,
-  una transcripción) se cita ATRIBUIDO tal y como se te indica, y NUNCA como voz
-  de Robe ni como verdad del sitio."""
+- El material que viene marcado como FONDO (una anotación, un análisis, una
+  transcripción) no se nombra ni se cita: orienta de qué hablar, y un dato que
+  solo esté ahí no se afirma. Nunca es voz de Robe."""
 
 # --------------------------------------------------------------------------- #
 # Foco de sujeto. Por defecto el protagonista del sitio es Robe, pero las

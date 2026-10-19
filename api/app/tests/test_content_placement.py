@@ -113,18 +113,76 @@ def test_sin_dueno_en_gsc_el_parecido_nunca_da_confianza_alta():
 def test_sin_ninguna_senal_es_contenido_nuevo_con_confianza_baja():
     p = cp.decide([])
     assert p.decision == "nuevo" and p.confidence == "baja"
-    assert cp.selector_options(p.to_dict()) == [
-        {"value": "new", "label": "Contenido nuevo", "recommended": True}]
+    opts = cp.selector_options(p.to_dict())
+    assert [o["value"] for o in opts] == ["new", "skip"]
+    assert opts[0]["recommended"] and not opts[1]["recommended"]
 
 
 def test_el_selector_marca_el_recomendado_y_siempre_ofrece_contenido_nuevo():
     opts = cp.selector_options(cp.decide(_candidatos(KW_485), period=PERIODO).to_dict())
     assert opts[0] == {"value": "ficha:/extremoduro", "label": "Ampliar /extremoduro",
                        "path": "/extremoduro", "recommended": True}
-    assert opts[-1]["value"] == "new" and not opts[-1]["recommended"]
+    assert [o["value"] for o in opts[-2:]] == ["new", "skip"]
+    assert not opts[-1]["recommended"] and not opts[-2]["recommended"]
 
 
 def test_las_cifras_salen_con_coma_decimal():
     p = cp.decide(_candidatos(KW_484), period=PERIODO)
     assert "posición media 8,2" in p.reasons[0]
     assert "2026-07-24 → 2026-10-16" in p.reasons[0]
+
+
+# --------------------------------------------------------------------------- #
+# Cada keyword a su página (borrador #40: «necesito droga y amor» acabó en
+# /extremoduro, cuando es de la ficha de la canción)
+# --------------------------------------------------------------------------- #
+CANCION = "/extremoduro/somos-unos-animales/necesito-droga-y-amor-los-camellos-no-me-fian"
+
+
+def _titulo(kw):
+    if "necesito droga y amor" in kw:
+        return CANCION, "Necesito droga y amor"
+    return None
+
+
+def test_485_cada_keyword_a_su_pagina():
+    rutas = dict(cp.repartir(
+        KW_485, por_gsc=lambda kw: cp.dueno_gsc(GSC, kw), por_titulo=_titulo,
+        por_semantica=lambda kw: None))
+    assert rutas["que genero es extremoduro"].path == "/extremoduro"
+    assert rutas["que genero es extremoduro"].via == "gsc"
+    assert rutas["extremoduro necesito droga y amor"].path == CANCION
+    assert rutas["extremoduro necesito droga y amor"].via == "titulo"
+    # «canción de amor» no es de ninguna página: va a su propio grupo.
+    assert rutas["extremoduro cancion de amor"].path is None
+
+
+def test_el_dueno_en_gsc_exige_estar_en_el_top_20():
+    # /discografia/extremoduro recibe impresiones de «componentes de extremoduro»,
+    # pero en la pos. 84: no es de ella. Es de /personas.
+    assert cp.dueno_gsc(GSC, "componentes de extremoduro")[0] == "/personas"
+    assert cp.dueno_gsc({"/x": [{"query": "componentes de extremoduro",
+                                 "impressions": 50, "position": 84.0}]},
+                        "componentes de extremoduro") is None
+
+
+def test_ya_cubierto_es_cuerpo_meta_y_top_10():
+    body = "## El género\n\nExtremoduro hacía rock transgresivo: ese es su género."
+    gsc = [{"query": "que genero es extremoduro", "impressions": 120, "position": 6.6}]
+    assert cp.ya_cubierto(body, "Extremoduro: género y discos", "", ["que genero es extremoduro"],
+                          gsc)
+    # Sin la promesa en el title/description, falta meta, no está «cubierto».
+    assert not cp.ya_cubierto(body, "Extremoduro: discos", "", ["que genero es extremoduro"],
+                              gsc)
+    # Fuera del top 10, tampoco.
+    assert not cp.ya_cubierto(body, "Extremoduro: género", "", ["que genero es extremoduro"],
+                              [{**gsc[0], "position": 14.0}])
+
+
+def test_las_keywords_desactivadas_no_cuentan():
+    class _P:
+        target_keyword = "extremoduro cancion de amor"
+        keywords = [{"keyword": "extremoduro cancion de amor", "excluded": True},
+                    {"keyword": "extremoduro necesito droga y amor"}]
+
+    assert cp.proposal_keywords(_P()) == ["extremoduro necesito droga y amor"]

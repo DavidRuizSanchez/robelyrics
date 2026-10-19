@@ -2555,6 +2555,12 @@ from app.db.models import ContentProposal as _ContentProposal  # noqa: E402
 from app.services.auth import decode_proposal_action_token  # noqa: E402
 
 
+def _placement_activas(p) -> list[str]:
+    from app.services.content_placement import proposal_keywords
+
+    return proposal_keywords(p)
+
+
 @router.get("/proposal-action", response_class=HTMLResponse)
 def proposal_action(
     token: str,
@@ -2584,6 +2590,12 @@ def proposal_action(
         return HTMLResponse(_render_admin_action_page(
             f"La propuesta #{p.id} ya estaba decidida ({p.status}). No se ha tocado nada.",
             success=True))
+    if data["action"] == "merge" and data.get("keywords"):
+        activas = {k.lower() for k in _placement_activas(p)}
+        if not any(k.lower() in activas for k in data["keywords"]):
+            return HTMLResponse(_render_admin_action_page(
+                "Esas keywords ya se repartieron (o se desactivaron). No se ha tocado nada.",
+                success=True))
 
     accion = data["action"]
     if accion == "merge":
@@ -2591,13 +2603,16 @@ def proposal_action(
         from app.services.seo_opportunities import run_prepare
 
         try:
-            opp = start_merge(db, p, data["target"])
+            opp = start_merge(db, p, data["target"], data.get("keywords") or None)
         except MergeError as exc:
             return HTMLResponse(_render_admin_action_page(
                 f"No se puede fundir: {exc}.", success=False), status_code=409)
         background.add_task(run_prepare, [opp.id])
-        msg = (f"✓ Preparando la ampliación de {opp.path} con «{p.title}». Te llega un "
-               "correo con el antes/después; nada se ha publicado.")
+        msg = (f"✓ Preparando la ampliación de {opp.path} con "
+               + ", ".join(f"«{q['query']}»" for q in opp.queries or [])
+               + ". Te llega un correo con el antes/después; nada se ha publicado."
+               + (" El resto de keywords siguen en la propuesta."
+                  if p.status == "proposed" else ""))
     elif accion == "new":
         p.status = "approved"
         p.scheduled_for = None
