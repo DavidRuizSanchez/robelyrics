@@ -73,3 +73,9 @@ def test_un_enlace_en_el_parrafo_no_arrastra_las_frases_buenas():
     assert limpio.startswith("«[Decidí](https://entreinteriores.com/extremoduro/")
     assert "aborda la lucha contra la adversidad." in limpio
     assert quitadas == ["El blog javitojavierito lo sitúa en el rock urbano."]
+
+
+def test_el_metatexto_de_personas_se_quita():
+    limpio, quitadas = sg.limpiar("Uoho fue guitarrista. En una formación citada, Extremoduro "
+                                  "estaba integrada por Robe y Uoho.")
+    assert limpio == "Uoho fue guitarrista." and len(quitadas) == 1

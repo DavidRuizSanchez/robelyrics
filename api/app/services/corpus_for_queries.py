@@ -225,6 +225,15 @@ def separar_material(material: str) -> tuple[str, str]:
     return "\n\n----\n\n".join(propio), "\n\n----\n\n".join(fondo)
 
 
+_HECHO_SOBRE_EL_TEXTO = re.compile(
+    r"\b(?:en el|del|según el) (?:texto|material|fragmento|art[ií]culo|an[aá]lisis)\b"
+    r"|\bcitad[ao]s? en\b|\bse menciona\b|\bse cita\b", re.I)
+_CUALITATIVO = re.compile(
+    r"\b(?:[uú]nic[oa]s?|siempre|nunca|jam[aá]s|el mejor|la mejor|el m[aá]s|la m[aá]s"
+    r"|estable|principal|clave|fundamental|legendari[oa]|m[ií]tic[oa]|todos|ninguno)\b",
+    re.I)
+
+
 def corroborar(client, fondo: str, propio: str, consultas: list[str], *,
                max_hechos: int = 6) -> tuple[list[str], list[str]]:
     """Qué datos del fondo se pueden afirmar: (verificados, descartados).
@@ -259,7 +268,16 @@ def corroborar(client, fondo: str, propio: str, consultas: list[str], *,
     permitidos = seo_style.tokens_permitidos(propio)
     verificados, descartados = [], []
     for h in hechos[:max_hechos]:
-        if not seo_style.verify_no_invention(h, permitidos):
+        # «En una formación citada en el texto…» no es un hecho: es el extractor
+        # hablando del material (visto en /personas, 19-10-2026).
+        if _HECHO_SOBRE_EL_TEXTO.search(h):
+            descartados.append(h)
+            continue
+        # Contra lo propio solo vale un dato DATABLE (año, cifra) cuyos nombres y
+        # cifras estén en nuestro material. Un juicio («Robe fue el único miembro
+        # estable») pasaba igual —sus nombres están todos— y era falso.
+        if (not _CUALITATIVO.search(h) and re.search(r"\d", h)
+                and not seo_style.verify_no_invention(h, permitidos)):
             verificados.append(h)
             continue
         try:

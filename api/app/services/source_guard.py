@@ -79,7 +79,8 @@ _METATEXTO = re.compile(
     r"|\bperiodos? (?:confirmados|registrados)\b|\ben el registro\b"
     r"|\bel fragmento\b|\bel material (?:disponible|no|consultado)\b"
     r"|\bel an[aá]lisis disponible\b|\bel texto disponible\b"
-    r"|\blas fuentes (?:consultadas|disponibles)\b|\bno corresponde adjudic",
+    r"|\blas fuentes (?:consultadas|disponibles)\b|\bno corresponde adjudic"
+    r"|\ben el texto\b|\bformaci[oó]n citada\b|\bseg[uú]n el material\b",
     re.I,
 )
 _FRASE = re.compile(r"[^.!?\n]+[.!?]?")
