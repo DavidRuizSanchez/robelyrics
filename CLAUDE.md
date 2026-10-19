@@ -1131,6 +1131,13 @@ era estructural: no había kit, cada página escribía sus clases a mano.
   IG). Dentro del componente, funciones de render (`renderItem(it)`), no `<Item/>`.
 - Fechas en componentes cliente: siempre `timeZone: "Europe/Madrid"` (SSR en UTC →
   error de hidratación).
+- **La nota del editor jefe en una fusión es de la PÁGINA entera** (sobre 100, «pass»
+  desde 70), con y sin el cambio. «18 → 28 (reject)» no rechaza el cambio: dice que la
+  página sigue bajo 70. Un cambio entra si sube la nota, salvo objeción de hechos
+  (`merge_deep.juzgar`). El panel enseña «✓ Entra / ✗ Descartado» por cambio, cruzando
+  con `draft_notes.descartado`; nunca el veredicto crudo.
+- Las propuestas de Instagram se abren como las de la cola (preview, texto,
+  procedencia) y tienen su aprobar/descartar: «ábrelas una a una» exige poder abrirlas.
 - Publicar/despublicar fichas SEO en bloque: proxy `seo/api/bulk` →
   `/admin/seo/bulk-publish|unpublish` (autorizado por David el 19-10-2026). Hace lo
   mismo que el botón de cada ficha y solo manda las que cambian de estado.
@@ -1143,6 +1150,8 @@ era estructural: no había kit, cada página escribía sus clases a mano.
 - Embeddings: OpenAI `text-embedding-3-large` (provider abstraído para futuro local).
 - Reranker: GPT-4o-mini con structured outputs y citation obligatoria.
 - Auth: tabla users + bcrypt directo (passlib falla con bcrypt 5.x).
+- JWT con **PyJWT** (HS256), no python-jose: jose está abandonada y tenía una crítica
+  sin parche (19-10-2026). `app/tests/test_auth_jwt.py` vigila que no se afloje.
 - Dev workflow: Docker desde día 1, hot-reload con bind mounts.
 - Repo personal: `DavidRuizSanchez/robelyrics`.
 
