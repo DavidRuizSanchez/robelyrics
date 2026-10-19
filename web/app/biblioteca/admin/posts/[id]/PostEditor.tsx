@@ -199,6 +199,7 @@ export default function PostEditor({ post }: { post: AdminPostDetail }) {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
+                    timeZone: "Europe/Madrid",
                   })
                 : "—"}
             </b>

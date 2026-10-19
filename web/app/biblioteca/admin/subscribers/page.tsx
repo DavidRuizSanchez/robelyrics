@@ -3,6 +3,15 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import SubscriberListWithActions from "./SubscriberListWithActions";
+import {
+  AdminPage,
+  Metric,
+  MetricGrid,
+  buttonClass,
+  cx,
+  filterClass,
+  inputClass,
+} from "@/components/admin/ui";
 
 type AdminSubscriberItem = {
   id: number;
@@ -31,11 +40,11 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 const STATUSES = [
-  { value: "all", label: "todos" },
-  { value: "pending", label: "pendientes" },
-  { value: "confirmed", label: "confirmados" },
-  { value: "unsubscribed", label: "bajas" },
-  { value: "bounced", label: "rebotados" },
+  { value: "all", label: "Todos" },
+  { value: "pending", label: "Sin confirmar" },
+  { value: "confirmed", label: "Confirmados" },
+  { value: "unsubscribed", label: "Bajas" },
+  { value: "bounced", label: "Rebotan" },
 ];
 
 export default async function AdminSubscribersPage({
@@ -61,62 +70,50 @@ export default async function AdminSubscribersPage({
   ]);
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
-      <Link
-        href="/biblioteca/admin/sources"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-      >
-        ← admin
-      </Link>
+    <AdminPage
+      title="Suscriptores"
+      intro="La lista de la newsletter. Solo reciben correo los confirmados: los «sin confirmar» dejaron el doble opt-in a medias."
+    >
+      <MetricGrid>
+        <Metric label="Confirmados (reciben correo)" value={stats.confirmed} tone="ok" />
+        <Metric label="Sin confirmar" value={stats.pending} tone={stats.pending > 0 ? "warn" : "neutral"} />
+        <Metric label="Bajas" value={stats.unsubscribed} />
+        <Metric label="Rebotan" value={stats.bounced} tone={stats.bounced > 0 ? "danger" : "neutral"} />
+      </MetricGrid>
+      <p className="-mt-6 text-sm text-ink-faint">Total histórico: {stats.total}.</p>
 
-      <header className="mt-6 mb-10">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          panel admin
-        </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
-          Suscriptores de la newsletter
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
-          Estado y mantenimiento de la lista. Reenvía confirmación a los que
-          dejaron el doble opt-in a medias, marca rebotados, depura.
-        </p>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8 text-center">
-          <Stat label="total" value={stats.total} />
-          <Stat label="confirmados" value={stats.confirmed} />
-          <Stat label="pendientes" value={stats.pending} />
-          <Stat label="bajas" value={stats.unsubscribed} />
-          <Stat label="rebotados" value={stats.bounced} />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-2" aria-label="Filtrar por estado">
+          {STATUSES.map((s) => (
+            <Link
+              key={s.value}
+              href={`/biblioteca/admin/subscribers?status=${s.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              aria-current={status === s.value ? "page" : undefined}
+              className={filterClass(status === s.value)}
+            >
+              {s.label}
+            </Link>
+          ))}
         </div>
-      </header>
-
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-8 font-mono text-[10px] tracking-[2px] uppercase text-ink-faint border-b border-divider pb-4">
-        <span>filtro estado:</span>
-        {STATUSES.map((s) => (
-          <Link
-            key={s.value}
-            href={`/biblioteca/admin/subscribers?status=${s.value}`}
-            data-cursor="hover"
-            className={`hover:text-accent ${status === s.value ? "text-accent" : ""}`}
-          >
-            {s.label}
-          </Link>
-        ))}
+        <form method="get" className="flex items-center gap-2 sm:ml-auto" role="search">
+          <input type="hidden" name="status" value={status} />
+          <label htmlFor="q" className="sr-only">
+            Buscar por correo
+          </label>
+          <input
+            id="q"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Buscar por correo…"
+            className={cx(inputClass, "w-56")}
+          />
+          <button type="submit" className={buttonClass("secondary", "sm")}>
+            Buscar
+          </button>
+        </form>
       </div>
 
       <SubscriberListWithActions items={items} />
-    </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border border-divider py-4">
-      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-        {label}
-      </p>
-      <p className="font-serif text-3xl text-ink mt-1">{value}</p>
-    </div>
+    </AdminPage>
   );
 }

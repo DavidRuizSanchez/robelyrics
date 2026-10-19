@@ -71,7 +71,7 @@ export default function SeoListWithBulk({ items }: { items: SeoListItem[] }) {
                   </span>
                   <span className="block text-xs text-ink-faint">
                     {item.chars.toLocaleString("es-ES")} caracteres · generada{" "}
-                    {new Date(item.generated_at).toLocaleDateString("es-ES")} ·{" "}
+                    {new Date(item.generated_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} ·{" "}
                     <span className="font-mono">{item.generated_by}</span>
                   </span>
                 </span>

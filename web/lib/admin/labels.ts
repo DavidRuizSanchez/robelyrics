@@ -227,6 +227,20 @@ export const ERRATA_TARGET: Record<string, string> = {
   image: "Imagen",
 };
 
+/** Quién avisó, cuando el aviso lo abre un proceso automático y no una persona. */
+export const ERRATA_REPORTER: Record<string, string> = {
+  authorship_consensus: "el motor de consenso (autorías)",
+  audit_images: "la auditoría de imágenes",
+};
+
+/** Qué tipo de dato corrigió solo el consenso (`claim_kind`). */
+export const CLAIM_KIND: Record<string, string> = {
+  song_authorship: "Autoría de canción",
+  album_year: "Año de un disco",
+  lyric_line: "Verso de una letra",
+  album_created: "Disco dado de alta",
+};
+
 // ── Suscriptores ────────────────────────────────────────────────────────────
 
 export const SUBSCRIBER_STATUS: Record<string, Etiqueta> = {

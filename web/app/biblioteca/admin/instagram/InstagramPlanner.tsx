@@ -481,6 +481,7 @@ export default function InstagramPlanner({
                 Sale el{" "}
                 {new Date(cuando).toLocaleString("es-ES", {
                   day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                  timeZone: "Europe/Madrid",
                 })}
               </StatusBadge>
             )}

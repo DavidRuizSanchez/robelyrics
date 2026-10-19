@@ -107,7 +107,7 @@ function AntesDespues({ antes, despues, nota }: { antes: string | null; despues:
         <p className="text-xs text-ink-faint mb-0.5">Antes</p>
         <p className="font-serif text-sm text-ink-dim line-through decoration-ink-faint">{antes || "(vacío)"}</p>
       </div>
-      <div className="rounded border border-ok/30 bg-ok-bg/40 p-2">
+      <div className="rounded border border-ok/30 bg-ok-bg p-2">
         <p className="text-xs text-ok mb-0.5">Después{nota ? ` · ${nota}` : ""}</p>
         <p className="font-serif text-[15px] text-ink">{despues}</p>
       </div>

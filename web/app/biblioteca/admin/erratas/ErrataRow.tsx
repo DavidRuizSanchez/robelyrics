@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ActionBar, Button, Callout, Card, JobStatus, Notice, StatusBadge } from "@/components/admin/ui";
+import { ERRATA_REPORTER, ERRATA_STATUS, ERRATA_TARGET, etiqueta } from "@/lib/admin/labels";
 
 export type ErrataItem = {
   id: number;
@@ -27,14 +29,6 @@ type FixResult = {
   sources: string[];
 };
 
-const TARGET_LABEL: Record<string, string> = {
-  song_lyrics: "Letra",
-  authorship: "Autoría",
-  catalog: "Disco/año",
-  interpretation: "Interpretación",
-  image: "Imagen",
-};
-
 // Los tipos que el Motor de Consenso sabe verificar contra fuentes.
 const FIXABLE = new Set(["song_lyrics", "authorship", "catalog", "image"]);
 
@@ -44,6 +38,8 @@ export default function ErrataRow({ item }: { item: ErrataItem }) {
   const [fixing, setFixing] = useState(false);
   const [fix, setFix] = useState<FixResult | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  // Antes un fallo al resolver no decía nada: el botón volvía a su sitio y ya.
+  const [err, setErr] = useState<string | null>(null);
 
   async function resolve(action: "applied" | "rejected") {
     setBusy(true);
@@ -57,6 +53,7 @@ export default function ErrataRow({ item }: { item: ErrataItem }) {
       setDone(action === "applied" ? "aplicada" : "rechazada");
       router.refresh();
     } catch {
+      setErr("No se pudo guardar la decisión. Vuelve a intentarlo.");
       setBusy(false);
     }
   }
@@ -91,89 +88,107 @@ export default function ErrataRow({ item }: { item: ErrataItem }) {
 
   if (done) {
     return (
-      <div className="border-b border-divider/50 py-3 font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-        Errata #{item.id} {done}.
-      </div>
+      <Card tone="ok">
+        <p className="text-sm text-ink-dim">Errata #{item.id} {done}.</p>
+      </Card>
     );
   }
 
   const fixable = FIXABLE.has(item.target_type);
+  const st = etiqueta(ERRATA_STATUS, item.status);
 
   return (
-    <div className="border-b border-divider/50 py-4 space-y-2">
-      <div className="flex items-center gap-3 font-mono text-[10px] tracking-[2px] uppercase">
-        <span className="text-accent">{TARGET_LABEL[item.target_type] || item.target_type}</span>
-        <span className="text-ink-faint">
-          {item.status} · #{item.target_id ?? "?"} · {item.reporter || "anónimo"}
-        </span>
+    <Card tone={st.tone}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-sm text-ink-dim">
+          <span className="font-medium text-ink">{ERRATA_TARGET[item.target_type] || item.target_type}</span>
+          <span className="text-ink-faint">
+            {" "}
+            · elemento #{item.target_id ?? "?"} · avisó{" "}
+            {item.reporter ? ERRATA_REPORTER[item.reporter] ?? item.reporter : "alguien anónimo"} el{" "}
+            {new Date(item.created_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}
+          </span>
+        </p>
+        <StatusBadge tone={st.tone}>{st.label}</StatusBadge>
       </div>
-      {item.reported_wrong && (
-        <p className="font-serif text-[15px] text-ink">
-          <span className="text-ink-faint">Mal: </span>
-          {item.reported_wrong}
-        </p>
-      )}
-      {item.suggested_right && (
-        <p className="font-serif text-[15px] text-ink">
-          <span className="text-ink-faint">Debería: </span>
-          {item.suggested_right}
-        </p>
-      )}
-      {item.note && <p className="font-serif italic text-[14px] text-ink-dim">{item.note}</p>}
 
-      {fix && (
-        <div className="border-l-2 border-accent/40 pl-3 py-1 space-y-1">
-          <p className="font-serif text-[14px] text-ink">{fix.message}</p>
-          {fix.detail && (
-            // whitespace-pre-line: el detalle trae pasos numerados y snippets YAML
-            // en varias líneas; sin esto se aplastan en un párrafo ilegible.
-            <p className="font-serif italic text-[13px] text-ink-dim whitespace-pre-line">
-              {fix.detail}
-            </p>
-          )}
-          {(fix.verdict || fix.sources.length > 0) && (
-            <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-              {fix.verdict}
-              {fix.confidence !== null ? ` · conf ${fix.confidence.toFixed(2)}` : ""}
-              {fix.sources.length > 0 ? ` · ${fix.sources.join(" · ")}` : ""}
-            </p>
-          )}
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {item.reported_wrong && (
+          <div className="rounded border border-danger/30 bg-danger-bg p-2">
+            <p className="text-xs text-danger mb-0.5">Lo que está mal</p>
+            <p className="font-serif text-[15px] text-ink">{item.reported_wrong}</p>
+          </div>
+        )}
+        {item.suggested_right && (
+          <div className="rounded border border-ok/30 bg-ok-bg p-2">
+            <p className="text-xs text-ok mb-0.5">Lo que debería decir</p>
+            <p className="font-serif text-[15px] text-ink">{item.suggested_right}</p>
+          </div>
+        )}
+      </div>
+      {item.note && <p className="mt-2 font-serif italic text-[14px] text-ink-dim">«{item.note}»</p>}
+
+      {fixing && (
+        <div className="mt-3">
+          <JobStatus label="Comprobando en fuentes externas" hint="tarda unos segundos" />
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        {fixable && (
-          <button
-            onClick={autoFix}
-            disabled={busy || fixing}
-            data-cursor="hover"
-            className="border border-accent text-accent hover:bg-accent hover:text-white disabled:opacity-50 font-mono text-[10px] tracking-[2px] uppercase px-3 py-1 transition-colors"
-          >
-            {fixing ? "Verificando…" : "Arreglar"}
-          </button>
-        )}
-        <button
-          onClick={() => resolve("applied")}
-          disabled={busy || fixing}
-          data-cursor="hover"
-          className="border border-divider text-ink-dim hover:text-ink hover:border-ink-dim disabled:opacity-50 font-mono text-[10px] tracking-[2px] uppercase px-3 py-1 transition-colors"
+      {fix && (
+        <Callout
+          tone={fix.action === "error" ? "danger" : fix.applied ? "ok" : "info"}
+          className="mt-3"
+          title={fix.message}
         >
-          Marcar aplicada
-        </button>
-        <button
-          onClick={() => resolve("rejected")}
-          disabled={busy || fixing}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint hover:text-ink disabled:opacity-50"
-        >
-          Rechazar
-        </button>
-      </div>
-      {fixing && (
-        <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-          Consultando fuentes externas… esto tarda unos segundos.
-        </p>
+          {fix.detail && (
+            // whitespace-pre-line: el detalle trae pasos numerados y snippets YAML
+            // en varias líneas; sin esto se aplastan en un párrafo ilegible.
+            <p className="whitespace-pre-line">{fix.detail}</p>
+          )}
+          {(fix.verdict || fix.sources.length > 0) && (
+            <p className="mt-1 text-xs text-ink-faint">
+              {fix.verdict && <>Veredicto: {fix.verdict}</>}
+              {fix.confidence !== null ? ` · confianza ${fix.confidence.toFixed(2)}` : ""}
+              {fix.sources.length > 0 ? ` · fuentes: ${fix.sources.join(", ")}` : ""}
+            </p>
+          )}
+        </Callout>
       )}
-    </div>
+
+      {err && (
+        <div className="mt-3">
+          <Notice onClose={() => setErr(null)}>{err}</Notice>
+        </div>
+      )}
+
+      <ActionBar
+        primary={
+          fixable ? (
+            <Button
+              variant="primary"
+              onClick={autoFix}
+              disabled={busy || fixing}
+              loading={fixing}
+              loadingLabel="Verificando…"
+              title="Vuelve a comprobarla con las fuentes de ahora y aplica solo lo que esté corroborado"
+            >
+              Arreglar automáticamente
+            </Button>
+          ) : (
+            <span className="text-sm text-ink-faint">Este tipo no se puede verificar solo: decide tú.</span>
+          )
+        }
+        secondary={
+          <Button size="sm" variant="ghost" onClick={() => resolve("applied")} disabled={busy || fixing}>
+            Ya lo corregí a mano
+          </Button>
+        }
+        danger={
+          <Button variant="danger" onClick={() => resolve("rejected")} disabled={busy || fixing}>
+            Rechazar
+          </Button>
+        }
+      />
+    </Card>
   );
 }

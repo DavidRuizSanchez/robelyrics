@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import SourceForm from "./SourceForm";
+import { AdminPage, Card, EmptyState, Section, StatusBadge } from "@/components/admin/ui";
 
 type SourceListItem = {
   id: number;
@@ -36,57 +37,44 @@ export default async function AdminSourcesPage() {
   }
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-16 max-w-5xl mx-auto">
-      <header className="mb-12">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          panel admin
-        </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">
-          Alta de fuentes fan
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg max-w-2xl">
-          Sube nuevos análisis de la comunidad: texto pegado, blog/foro para scrapear, o transcript de un vídeo de YouTube. Tras subir, dispara re-destilación + vectorización para las canciones afectadas.
-        </p>
-      </header>
+    <AdminPage
+      title="Fuentes"
+      intro="Añade análisis de la comunidad (un texto, un blog, un vídeo) al corpus. Es material de fondo: orienta lo que se escribe, pero nunca se cita ni se nombra a su autor."
+    >
+      <Card>
+        <SourceForm />
+      </Card>
 
-      <SourceForm />
-
-      <section className="mt-20">
-        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-ink-dim mb-5">
-          últimas fuentes ({sources.length})
-        </h2>
+      <Section title="Últimas fuentes añadidas" count={sources.length}>
         {sources.length === 0 ? (
-          <p className="font-serif italic text-ink-faint">No hay fuentes registradas todavía.</p>
+          <EmptyState>No hay fuentes registradas todavía.</EmptyState>
         ) : (
-          <ul className="divide-y divide-divider border-t border-divider">
+          <ul className="divide-y divide-divider rounded-md border border-divider">
             {sources.map((s) => (
-              <li key={s.id} className="py-4 flex items-start justify-between gap-6">
+              <li key={s.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="font-serif text-lg text-ink truncate">
-                    {s.title || s.url}
-                  </p>
-                  <p className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint mt-1">
-                    {s.kind} · {s.author || "sin autor"} · {new Date(s.fetched_at).toLocaleDateString("es-ES")}
+                  <p className="font-serif text-lg text-ink truncate">{s.title || s.url}</p>
+                  <p className="text-sm text-ink-faint">
+                    {s.kind} · {s.author || "sin autor"} ·{" "}
+                    {new Date(s.fetched_at).toLocaleDateString("es-ES")}
                   </p>
                   <Link
                     href={s.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-[10px] text-accent hover:underline truncate block"
+                    className="font-mono text-xs text-accent hover:underline truncate block"
                   >
                     {s.url}
                   </Link>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-dim">
-                    {s.n_referenced} canción{s.n_referenced === 1 ? "" : "es"}
-                  </span>
-                </div>
+                <StatusBadge tone={s.n_referenced > 0 ? "info" : "neutral"}>
+                  {s.n_referenced} canción{s.n_referenced === 1 ? "" : "es"}
+                </StatusBadge>
               </li>
             ))}
           </ul>
         )}
-      </section>
-    </main>
+      </Section>
+    </AdminPage>
   );
 }

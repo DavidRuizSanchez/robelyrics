@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
+import { AdminPage, EmptyState, StatusBadge, Table, cx, tdClass } from "@/components/admin/ui";
 
 type UserListItem = {
   id: number;
@@ -35,94 +35,41 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-16 max-w-5xl mx-auto">
-      <header className="mb-12">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-            panel admin
-          </p>
-        </div>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">
-          Usuarios registrados
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg max-w-2xl">
-          Vista de los {users.length} usuario{users.length === 1 ? "" : "s"}{" "}
-          de Entre Interiores. Orden cronológico inverso (los más recientes
-          primero).
-        </p>
-      </header>
-
+    <AdminPage
+      title="Usuarios"
+      intro={`Las ${users.length} cuentas registradas, de la más reciente a la más antigua.`}
+    >
       {users.length === 0 ? (
-        <p className="font-serif italic text-ink-faint">
-          No hay usuarios registrados todavía.
-        </p>
+        <EmptyState>No hay usuarios registrados todavía.</EmptyState>
       ) : (
-        <div className="overflow-x-auto border border-divider">
-          <table className="w-full text-left">
-            <thead className="bg-paper">
-              <tr className="font-mono text-[10px] tracking-[2px] uppercase text-ink-dim">
-                <th className="px-4 py-3">id</th>
-                <th className="px-4 py-3">email</th>
-                <th className="px-4 py-3 text-center">admin</th>
-                <th className="px-4 py-3 text-center">activo</th>
-                <th className="px-4 py-3 text-center">verificado</th>
-                <th className="px-4 py-3">creado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-divider">
-              {users.map((u) => (
-                <tr key={u.id} className="font-serif text-ink">
-                  <td className="px-4 py-3 font-mono text-[12px] text-ink-dim">
-                    {u.id}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-[13px]">{u.email}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge yes={u.is_admin} on="ADMIN" off="·" />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge yes={u.is_active} on="OK" off="OFF" />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge yes={u.email_verified} on="✓" off="pendiente" />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-ink-faint">
-                    {new Date(u.created_at).toLocaleString("es-ES", {
-                      timeZone: "Europe/Madrid",
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table head={["#", "Correo", "Rol", "Cuenta", "Correo verificado", "Alta"]}>
+          {users.map((u) => (
+            <tr key={u.id}>
+              <td className={cx(tdClass, "font-mono text-ink-faint")}>{u.id}</td>
+              <td className={cx(tdClass, "font-mono text-[13px] text-ink")}>{u.email}</td>
+              <td className={tdClass}>
+                {u.is_admin ? <StatusBadge tone="accent">Admin</StatusBadge> : <span className="text-ink-faint">Lector</span>}
+              </td>
+              <td className={tdClass}>
+                {u.is_active ? <StatusBadge tone="ok">Activa</StatusBadge> : <StatusBadge tone="danger">Desactivada</StatusBadge>}
+              </td>
+              <td className={tdClass}>
+                {u.email_verified ? <StatusBadge tone="ok">✓ Sí</StatusBadge> : <StatusBadge tone="warn">Pendiente</StatusBadge>}
+              </td>
+              <td className={cx(tdClass, "text-ink-dim whitespace-nowrap")}>
+                {new Date(u.created_at).toLocaleString("es-ES", {
+                  timeZone: "Europe/Madrid",
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </td>
+            </tr>
+          ))}
+        </Table>
       )}
-    </main>
-  );
-}
-
-function Badge({
-  yes,
-  on,
-  off,
-}: {
-  yes: boolean;
-  on: string;
-  off: string;
-}) {
-  return yes ? (
-    <span className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-      {on}
-    </span>
-  ) : (
-    <span className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-      {off}
-    </span>
+    </AdminPage>
   );
 }
