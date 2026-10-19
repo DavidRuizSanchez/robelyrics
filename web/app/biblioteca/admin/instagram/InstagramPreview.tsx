@@ -83,9 +83,7 @@ export default function InstagramPreview({
 
   return (
     <div className="w-[320px] shrink-0">
-      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-2">
-        así se verá en el feed
-      </p>
+      <p className="text-sm font-medium text-ink-dim mb-2">Así se verá en el feed</p>
 
       <div className="border border-divider bg-[#000] text-[#f5f5f5]">
         {/* Cabecera */}
@@ -167,21 +165,21 @@ export default function InstagramPreview({
           />
         ) : (
           <div className="w-[320px] h-[320px] bg-[#111] flex flex-col items-center justify-center text-center p-5 gap-2">
-            <span className="font-mono text-[9px] tracking-[1px] uppercase text-ink-faint">
+            <span className="text-sm text-ink-dim">
               {formatoPedido === "REELS"
-                ? "vídeo por generar"
+                ? "Vídeo por generar"
                 : formatoPedido === "CAROUSEL"
-                  ? "carrusel por generar"
+                  ? "Carrusel por generar"
                   : formatoPedido === "CLIP"
-                    ? "clip por bajar"
+                    ? "Clip por bajar"
                     : formatoPedido === "PRODUCT"
-                      ? "pieza por componer"
-                      : "sin material"}
+                      ? "Pieza por componer"
+                      : "Sin material"}
             </span>
-            <span className="font-mono text-[9px] leading-relaxed text-ink-faint/70">
+            <span className="text-xs leading-relaxed text-ink-faint">
               {formatoPedido === "CLIP"
-                ? "El clip lo baja el daemon de la Mac (YouTube bloquea la IP del servidor). Cuando esté listo, prepara el post."
-                : "Pulsa «preparar» aquí, o «⚙ generar material» arriba para hacerlo de todos a la vez."}
+                ? "El clip lo baja el ordenador de casa (YouTube bloquea al servidor). Cuando esté listo, prepara el post."
+                : "Pulsa «Preparar material» en este post, o «Generar material pendiente» arriba para hacerlo de todos a la vez."}
             </span>
           </div>
         )}
@@ -220,13 +218,13 @@ export default function InstagramPreview({
         </div>
       </div>
 
-      <p className="mt-2 font-mono text-[9px] leading-relaxed text-ink-faint">
-        Lo resaltado es <span className="text-accent">todo</span> lo que lee
-        quien pasa haciendo scroll: {visible.length} de {caption.length} car.
+      <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+        Lo resaltado es <span className="text-ink">todo</span> lo que lee quien pasa haciendo
+        scroll: {visible.length} de {caption.length} caracteres.
         {hayMas ? " El resto solo lo ve quien pulsa «más»." : ""}
       </p>
       {esVideo && (
-        <p className="mt-1 font-mono text-[9px] text-ink-faint">
+        <p className="mt-1 text-xs text-ink-faint">
           Reel {actual?.duration_s ? `de ${Math.round(actual.duration_s)} s ` : ""}
           · sin audio (la música tiene derechos)
         </p>
