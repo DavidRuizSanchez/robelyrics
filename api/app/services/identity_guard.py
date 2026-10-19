@@ -27,9 +27,9 @@ import logging
 import os
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from app.services.openai_chat import openai_chat_kwargs
 
-MODEL = "gpt-4o"
+logger = logging.getLogger(__name__)
 
 _SYS_CONTRADICCION = (
     "Eres un verificador de imágenes de prensa. Te doy la DESCRIPCIÓN de una "
@@ -85,12 +85,10 @@ def _preguntar(system: str, texto: str, imagenes: list[str]) -> dict | None:
             for b in imagenes
         ]
         resp = OpenAI(api_key=os.environ["OPENAI_API_KEY"]).chat.completions.create(
-            model=MODEL,
             messages=[{"role": "system", "content": system},
                       {"role": "user", "content": contenido}],
             response_format={"type": "json_object"},
-            temperature=0,
-            max_tokens=300,
+            **openai_chat_kwargs("chat", temperature=0, max_completion_tokens=300),
         )
         return json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001

@@ -16,9 +16,8 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from app.config import get_settings
 from app.db.models import Line, Song, SongInterpretation
+from app.services.openai_chat import openai_chat_kwargs
 from app.services.retrieval import Hit
-
-RERANK_MODEL = "gpt-4o-mini"
 
 
 @dataclass
@@ -177,13 +176,12 @@ def fetch_line_neighbors(
 )
 def _call_rerank(client: OpenAI, system: str, user: str) -> str:
     resp = client.chat.completions.create(
-        model=RERANK_MODEL,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         response_format={"type": "json_schema", "json_schema": RERANK_SCHEMA},
-        temperature=0.2,
+        **openai_chat_kwargs("fast", temperature=0.2),
     )
     return resp.choices[0].message.content or "{}"
 

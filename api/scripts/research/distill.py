@@ -39,6 +39,7 @@ from tenacity import (
 
 from app.config import get_settings
 from app.db.models import InterpretationSource, Song, SongInterpretation
+from app.services.openai_chat import openai_chat_kwargs
 from scripts.research.common import get_session, log, normalize
 
 EMBED_MODEL = "text-embedding-3-large"
@@ -47,7 +48,6 @@ VECTOR_FALLBACK_THRESHOLD = 0.40  # cos similarity mínima
 VECTOR_FALLBACK_MIN_SOURCES = 2   # si tras matcher textual hay menos, hacer vector search
 VECTOR_FALLBACK_K = 5              # top-K vectores a considerar
 
-DISTILL_MODEL = "gpt-4o-mini"
 
 # Schema OpenAI structured outputs (JSON Schema dialect 2020-12, subset).
 # Cada claim DEBE incluir source_ids no vacío para anti-alucinación.
@@ -304,13 +304,12 @@ def confidence_for(n_sources: int) -> str:
 )
 def _call_openai(client: OpenAI, system: str, user: str) -> str:
     resp = client.chat.completions.create(
-        model=DISTILL_MODEL,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         response_format={"type": "json_schema", "json_schema": DISTILL_SCHEMA},
-        temperature=0.3,
+        **openai_chat_kwargs("fast", temperature=0.3),
     )
     return resp.choices[0].message.content or "{}"
 

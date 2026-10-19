@@ -32,6 +32,7 @@ from app.config import get_settings
 from app.db.models import SeoContent
 from app.db.session import SessionLocal
 from app.services.editorial_review import review as editorial_review
+from app.services.openai_chat import openai_chat_kwargs
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ def _rewrite(client: OpenAI, name: str, n: int, body: str) -> str | None:
     masked, tokens = _mask(body)
     try:
         r = client.chat.completions.create(
-            model="gpt-4o", temperature=0.3, max_tokens=3200,
+            **openai_chat_kwargs("chat", temperature=0.3, max_completion_tokens=3200),
             messages=[{"role": "user", "content": (
                 _PROMPT.format(name=name, n=n, body=masked)
                 + "\n\nIMPORTANTE: hay marcadores como §V3§, §L2§, §Y1§ que representan "

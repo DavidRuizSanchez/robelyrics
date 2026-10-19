@@ -34,9 +34,9 @@ from app.db.models import (
     Song,
 )
 from scripts.research.common import log
+from app.services.openai_chat import model_for, openai_chat_kwargs
 from app.services.voice import build_system_prompt
 
-MODEL = "gpt-4o"
 # Voz por defecto del sitio. Los generadores con voz propia (persona/grupo/lugar/
 # tema, etc.) pasan su `system_prompt` a call_llm. Ver app/services/voice.py.
 SYSTEM_PROMPT = build_system_prompt(family="seo")
@@ -118,7 +118,6 @@ def _verify_body(client: OpenAI, body_md: str, material: str) -> str:
         return body_md
     try:
         resp = client.chat.completions.create(
-            model=MODEL,
             messages=[
                 {"role": "system", "content": _VERIFY_SYS},
                 {"role": "user", "content":
@@ -126,8 +125,7 @@ def _verify_body(client: OpenAI, body_md: str, material: str) -> str:
                     f"ARTÍCULO:\n\"\"\"{body_md}\"\"\""},
             ],
             response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=4000,
+            **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=4000),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
         verified = (data.get("body_md") or "").strip()
@@ -174,14 +172,13 @@ def call_llm(
     sin db, comportamiento idéntico al de antes.
     """
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        temperature=0.65,  # algo más de expresividad para que asome la voz de fan
-        max_tokens=4000,
+        # algo más de expresividad para que asome la voz de fan
+        **openai_chat_kwargs("chat", temperature=0.65, max_completion_tokens=4000),
     )
     content = resp.choices[0].message.content
     if not content:
@@ -307,7 +304,7 @@ def upsert_seo_content(
         "schema_jsonld": schema_jsonld,
         "entities": ents,
         "generated_at": datetime.now(timezone.utc),
-        "generated_by": MODEL,
+        "generated_by": model_for("chat"),
     }
     # Por defecto, regenerar una ficha la vuelve a borrador (revisión humana).
     # Con SEO_KEEP_PUBLISHED=1 se PRESERVA el estado publicado al regenerar
@@ -328,7 +325,7 @@ def upsert_seo_content(
             schema_jsonld=schema_jsonld,
             entities=ents,
             generated_at=datetime.now(timezone.utc),
-            generated_by=MODEL,
+            generated_by=model_for("chat"),
             reviewed_at=None,
             published=False,
         )

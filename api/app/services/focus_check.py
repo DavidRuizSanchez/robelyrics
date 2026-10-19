@@ -23,9 +23,9 @@ import logging
 import os
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from app.services.openai_chat import openai_chat_kwargs
 
-MODEL = "gpt-4o"
+logger = logging.getLogger(__name__)
 
 # Por debajo de este foco (0-100) se considera que el artículo se desvía y se
 # usa la versión recortada.
@@ -86,14 +86,12 @@ def check_focus(body_md: str, subject: str, focus: str = "") -> FocusReport:
         from openai import OpenAI
 
         resp = OpenAI(api_key=key).chat.completions.create(
-            model=MODEL,
             messages=[
                 {"role": "system", "content": _SYS},
                 {"role": "user", "content": user},
             ],
             response_format={"type": "json_object"},
-            temperature=0.2,
-            max_tokens=3000,
+            **openai_chat_kwargs("chat", temperature=0.2, max_completion_tokens=3000),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001 — no bloquear por fallo del gate

@@ -9,7 +9,7 @@ Dos capas (espejo de `lyric_guard`/`fact_check`):
   - **Confianza por fuente:** el arte editorial propio (generado DEL sujeto) es
     on-topic por construcción → pasa sin visión (coste 0).
   - **Visión (backstop real):** para fotos web/Wikimedia/entidad, se descarga la
-    imagen y se le pregunta a gpt-4o si muestra al sujeto o algo directamente
+    imagen y se le pregunta al modelo de visión si muestra al sujeto o algo directamente
     relacionado. Fail-safe: si falla la descarga o el modelo dice que no, el
     veredicto es NEGATIVO y el caller degrada a arte IA propio (nunca publica una
     imagen sin verificar).
@@ -28,9 +28,9 @@ import logging
 import os
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from app.services.openai_chat import openai_chat_kwargs
 
-MODEL = "gpt-4o"
+logger = logging.getLogger(__name__)
 
 _SYS = (
     "Eres un editor gráfico de Entre Interiores, un sitio sobre Robe y Extremoduro "
@@ -84,7 +84,7 @@ def _entity_names(entities: list[dict] | None) -> str:
 
 
 def _vision_relevance(url: str, subject: str, entities: list[dict] | None) -> HeroVerdict:
-    """Descarga la imagen y pregunta a gpt-4o si es relevante para el sujeto."""
+    """Descarga la imagen y pregunta al modelo de visión si es relevante para el sujeto."""
     if not os.environ.get("OPENAI_API_KEY"):
         # Sin clave no podemos ver la imagen: no bloqueamos (entorno sin LLM).
         return HeroVerdict(True, "sin OPENAI_API_KEY: gate de visión omitido", None)
@@ -109,7 +109,6 @@ def _vision_relevance(url: str, subject: str, entities: list[dict] | None) -> He
 
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         resp = client.chat.completions.create(
-            model=MODEL,
             messages=[
                 {"role": "system", "content": _SYS},
                 {"role": "user", "content": [
@@ -119,8 +118,7 @@ def _vision_relevance(url: str, subject: str, entities: list[dict] | None) -> He
                 ]},
             ],
             response_format={"type": "json_object"},
-            temperature=0,
-            max_tokens=300,
+            **openai_chat_kwargs("chat", temperature=0, max_completion_tokens=300),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001
@@ -145,7 +143,7 @@ def verify_hero(
     - `hero` None / sin url → ok=True (un post sin imagen es válido; no hay nada
       incorrecto que bloquear).
     - Fuente de confianza (arte IA propio / portada) → ok=True sin visión.
-    - Resto → visión gpt-4o. Fail-safe a ok=False si no se puede verificar.
+    - Resto → visión (modelo "chat"). Fail-safe a ok=False si no se puede verificar.
 
     `trusted`: fuérzalo si el caller conoce el origen; si es None se infiere del
     paquete. `HERO_VISION_GATE=0` desactiva la visión (ok=True con aviso).

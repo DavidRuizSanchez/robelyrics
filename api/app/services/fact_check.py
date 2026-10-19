@@ -38,9 +38,9 @@ from openai import OpenAI
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+from app.services.openai_chat import openai_chat_kwargs
 
-MODEL = "gpt-4o"
+logger = logging.getLogger(__name__)
 
 ClaimType = Literal[
     "song_album",   # "X" pertenece al disco "Y"   (canónico en BD)
@@ -373,14 +373,12 @@ def extract_claims(body_md: str, *, max_claims: int = 12, client: OpenAI | None 
     try:
         cli = client or _client()
         resp = cli.chat.completions.create(
-            model=MODEL,
             messages=[
                 {"role": "system", "content": _EXTRACT_SYS},
                 {"role": "user", "content": f"ARTÍCULO:\n\"\"\"{body_md[:12000]}\"\"\""},
             ],
             response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=2000,
+            **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=2000),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001

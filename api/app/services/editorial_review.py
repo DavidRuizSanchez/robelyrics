@@ -29,10 +29,9 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from app.services import robe_facts
+from app.services.openai_chat import openai_chat_kwargs
 
 logger = logging.getLogger(__name__)
-
-MODEL = "gpt-4o"
 
 # Mínimo de palabras de prosa real para que un post sea publicable. NO se rellena
 # para alcanzarlo: si no llega con sustancia, se rechaza (o el admin lo fuerza).
@@ -251,11 +250,9 @@ def review(
         from openai import OpenAI
 
         resp = OpenAI(api_key=key).chat.completions.create(
-            model=MODEL,
             messages=[{"role": "system", "content": sys}, {"role": "user", "content": user}],
             response_format={"type": "json_object"},
-            temperature=0.2,
-            max_tokens=3500,
+            **openai_chat_kwargs("chat", temperature=0.2, max_completion_tokens=3500),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001 — no bloquear por fallo del gate

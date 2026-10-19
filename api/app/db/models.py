@@ -41,6 +41,7 @@ _JSON = _SA_JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.services.openai_chat import model_for
 
 
 # --------------------------------------------------------------------------- #
@@ -639,7 +640,10 @@ class SeoContent(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    generated_by: Mapped[str] = mapped_column(String(32), nullable=False, default="gpt-4o")
+    # Callable: el modelo se lee del entorno al insertar, no al importar.
+    generated_by: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=lambda: model_for("chat")
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published: Mapped[bool] = mapped_column(default=False, nullable=False)
 

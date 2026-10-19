@@ -289,7 +289,7 @@ def aggregate_confidence(sources: list[SourceRef], target: str | None) -> float:
 
 # --------------------------------------------------------------------------- #
 # Adjudicador LLM: dado un claim + candidatos con sus fuentes, decide.
-# Reutiliza el juez barato (gpt-4o-mini) de news_research.
+# Reutiliza el juez barato (modelo "fast" de openai_chat) de news_research.
 # --------------------------------------------------------------------------- #
 _ADJUDICATE_SYS = (
     "Eres un adjudicador de consenso riguroso para un archivo sobre Robe y "

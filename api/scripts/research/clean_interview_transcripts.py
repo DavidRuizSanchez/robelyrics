@@ -1,5 +1,5 @@
 """Limpia las transcripciones de entrevistas (subtítulos automáticos de YouTube)
-con gpt-4o: las deja legibles y FIELES, con los tacos literales, reconstruyendo
+con el modelo "chat": las deja legibles y FIELES, con los tacos literales, reconstruyendo
 lo garbled desde el contexto y OMITIENDO lo ininteligible (sin inventar).
 
 Lee data/robe_interview_transcripts.json (content_clean = subtítulos en bruto),
@@ -17,9 +17,8 @@ import json
 from openai import OpenAI
 
 from app.config import get_settings
+from app.services.openai_chat import openai_chat_kwargs
 from scripts.research.common import DATA_DIR, log
-
-MODEL = "gpt-4o"
 
 _SYS = """\
 Esto son SUBTÍTULOS AUTOMÁTICOS de YouTube de una entrevista (a Robe Iniesta,
@@ -41,12 +40,11 @@ Devuelve una versión LIMPIA, LEGIBLE y FIEL a lo que se dijo:
 
 def clean_one(client: OpenAI, text: str) -> str:
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[
             {"role": "system", "content": _SYS},
             {"role": "user", "content": text[:24000]},
         ],
-        temperature=0.2,
+        **openai_chat_kwargs("chat", temperature=0.2),
     )
     return (resp.choices[0].message.content or "").strip()
 

@@ -29,13 +29,11 @@ from openai import OpenAI, OpenAIError
 
 from app.services import robe_quotes, voice
 from app.services.instagram import tono_guard
+from app.services.openai_chat import openai_chat_kwargs
 from app.services.text_sanitizer import strip_ai_tells
 
 logger = logging.getLogger(__name__)
 
-# gpt-4o, no mini: aquí se decide el texto que ve la gente, y la diferencia
-# entre los dos se nota justo en esto (no repetir el molde, no rellenar).
-_MODEL = "gpt-4o"
 # Tope del artículo que se le pasa al modelo.
 MAX_MATERIAL_CHARS = 4000
 # Tope del material del corpus (pasajes atribuidos). Va aparte del artículo:
@@ -432,12 +430,13 @@ def _generate(
     try:
         client = OpenAI(api_key=api_key)
         resp = client.chat.completions.create(
-            model=_MODEL,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.7,
+            # Nivel "chat", no "fast": aquí se decide el texto que ve la gente, y la
+            # diferencia se nota justo en esto (no repetir el molde, no rellenar).
+            **openai_chat_kwargs("chat", temperature=0.7),
             response_format={"type": "json_schema", "json_schema": _esquema()},
         )
         data = json.loads(resp.choices[0].message.content or "{}")

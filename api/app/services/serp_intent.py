@@ -19,6 +19,8 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from app.services.openai_chat import openai_chat_kwargs
+
 logger = logging.getLogger(__name__)
 
 # Dominios cuya presencia dominante en el top del SERP delata una intención que
@@ -115,12 +117,10 @@ def _llm_verdict(client, keyword: str, titles: list[str]) -> Verdict:
     )
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
             messages=[{"role": "system", "content": _LLM_SYS},
                       {"role": "user", "content": user}],
             response_format={"type": "json_object"},
-            temperature=0.0,
-            max_tokens=200,
+            **openai_chat_kwargs("fast", temperature=0.0, max_completion_tokens=200),
         )
         data = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001

@@ -20,7 +20,7 @@ Cada función devuelve un dict con:
       "meta_description": str (≤155),
     }
 
-Modelo: gpt-4o (consistente con `scripts/seo/common.py`).
+Modelo: nivel "chat" de `openai_chat` (el mismo que `scripts/seo/common.py`).
 Fallback determinista si el LLM falla — devuelve plantilla simple para que el
 post se publique igual con texto "honesto" en vez de bloquear el cron.
 """
@@ -35,11 +35,10 @@ from typing import Any
 from openai import OpenAI, OpenAIError
 
 from app.services import robe_facts
+from app.services.openai_chat import openai_chat_kwargs
 from app.services.voice import build_system_prompt
 
 logger = logging.getLogger(__name__)
-
-MODEL = "gpt-4o"
 
 # La fecha del fallecimiento de Robe es referencia explícita en el system
 # prompt para que el LLM sepa el marco temporal/emocional. Sale de `robe_facts`:
@@ -70,14 +69,12 @@ def _call(
 ) -> dict[str, Any]:
     client = _client()
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        temperature=0.7,
-        max_tokens=max_tokens,
+        **openai_chat_kwargs("chat", temperature=0.7, max_completion_tokens=max_tokens),
     )
     raw = resp.choices[0].message.content or ""
     try:

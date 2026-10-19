@@ -31,6 +31,8 @@ from app.db.models import (
 )
 from app.services.seo_research import KeywordData, keyword_suggestions, search_volume
 
+from app.services.openai_chat import openai_chat_kwargs
+
 logger = logging.getLogger(__name__)
 
 # Una consulta es long-tail si tiene muchas palabras o poco volumen (nicho).
@@ -273,14 +275,12 @@ def cluster_topics(client: OpenAI, pool: list[Candidate], *, max_topics: int = 4
         f"{kw_lines}\n\nAgrúpalas en ideas de artículo según las reglas."
     )
     resp = client.chat.completions.create(
-        model="gpt-4o",
         messages=[
             {"role": "system", "content": CLUSTER_SYSTEM},
             {"role": "user", "content": user},
         ],
         response_format={"type": "json_object"},
-        temperature=0.4,
-        max_tokens=4000,
+        **openai_chat_kwargs("chat", temperature=0.4, max_completion_tokens=4000),
     )
     try:
         data = json.loads(resp.choices[0].message.content or "{}")

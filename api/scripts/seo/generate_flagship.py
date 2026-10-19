@@ -24,8 +24,8 @@ from sqlalchemy import select
 from app.db.models import Album, Artist, InterpretationSource, Person
 from app.services import seo_style
 from app.db.session import SessionLocal
+from app.services.openai_chat import openai_chat_kwargs
 from scripts.seo.common import (
-    MODEL,
     _verify_body,
     apply_catalog_check,
     fetch_distilled_for_artist,
@@ -131,10 +131,10 @@ def _chat(client: OpenAI, system: str, user: str, *, max_tokens: int,
           temp: float = 0.6, jsonmode: bool = True) -> dict | str:
     kw = {"response_format": {"type": "json_object"}} if jsonmode else {}
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[{"role": "system", "content": system},
                   {"role": "user", "content": user}],
-        temperature=temp, max_tokens=max_tokens, **kw,
+        **openai_chat_kwargs("chat", temperature=temp, max_completion_tokens=max_tokens),
+        **kw,
     )
     raw = resp.choices[0].message.content or ("{}" if jsonmode else "")
     return json.loads(raw) if jsonmode else raw

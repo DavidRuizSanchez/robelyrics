@@ -7,7 +7,7 @@ confirma (mejor omitir que arriesgar). Cachea en `data/verification_cache.json`
 para no repetir llamadas web por el mismo par/claim.
 
 Reutiliza `news_research.web_research` (SERP Google vía DataForSEO, ya existente)
-y `news_research._json` (juez LLM gpt-4o-mini, barato).
+y `news_research._json` (juez LLM "fast", barato).
 """
 from __future__ import annotations
 

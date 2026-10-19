@@ -87,7 +87,7 @@ export default function Atribuciones() {
           búsqueda.
         </li>
         <li>
-          <strong>OpenAI</strong> (text-embedding-3-large + GPT-4o-mini) ·
+          <strong>OpenAI</strong> (text-embedding-3-large + GPT-6 Luna) ·
           embeddings semánticos y reranking de resultados.
         </li>
         <li>

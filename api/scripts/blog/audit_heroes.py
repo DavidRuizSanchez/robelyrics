@@ -1,6 +1,6 @@
 """Auditoría y arreglo de imágenes hero YA publicadas.
 
-Pasa el gate de relevancia (`hero_guard.verify_hero`, visión gpt-4o) sobre los
+Pasa el gate de relevancia (`hero_guard.verify_hero`, visión) sobre los
 posts publicados y detecta los que llevan una imagen que NO muestra a su sujeto
 (el caso Rosendo: un óleo de una mujer con el crédito de Robe). Opcionalmente
 corrige: regenera el hero a una imagen relevante (arte propio si no hay foto real

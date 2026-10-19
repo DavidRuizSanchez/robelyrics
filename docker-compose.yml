@@ -46,6 +46,14 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       QDRANT_URL: ${QDRANT_URL}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Modelos y razonamiento de OpenAI (app/services/openai_chat.py). Vacías =
+      # gpt-6-luna con reasoning_effort "none". Para volver atrás o subir el
+      # razonamiento basta con fijarlas en el .env y recrear el contenedor.
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-}
+      OPENAI_FAST_MODEL: ${OPENAI_FAST_MODEL:-}
+      OPENAI_CHAT_EFFORT: ${OPENAI_CHAT_EFFORT:-}
+      OPENAI_FAST_EFFORT: ${OPENAI_FAST_EFFORT:-}
+      OPENAI_REASONING_TOKEN_MARGIN: ${OPENAI_REASONING_TOKEN_MARGIN:-}
       GENIUS_TOKEN: ${GENIUS_TOKEN}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGO: ${JWT_ALGO:-HS256}

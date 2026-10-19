@@ -24,10 +24,10 @@ from sqlalchemy import select
 from app.services import robe_facts
 from app.services.content_generator import _call
 from app.services.instagram import web_image
+from app.services.openai_chat import openai_chat_kwargs
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gpt-4o-mini"
 _SERP = "https://api.dataforseo.com/v3/serp/google/organic/live/advanced"
 _LOCATION_ES = 2724
 _LANG_ES = "es"
@@ -46,14 +46,14 @@ def _json(
         return {}
     try:
         resp = OpenAI(api_key=key).chat.completions.create(
-            model=_MODEL,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
             response_format={"type": "json_object"},
-            temperature=temperature,
-            max_tokens=max_tokens,
+            **openai_chat_kwargs(
+                "fast", temperature=temperature, max_completion_tokens=max_tokens
+            ),
         )
         return json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:  # noqa: BLE001

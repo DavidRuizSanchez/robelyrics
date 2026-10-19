@@ -85,7 +85,7 @@ def _prop(db, titulo, *, dias, kind="evergreen", status="scheduled", **kw) -> Co
 
 @pytest.fixture()
 def gates(monkeypatch):
-    """Neutraliza los gates caros (todos van contra gpt-4o o la web) y registra
+    """Neutraliza los gates caros (todos van contra OpenAI o la web) y registra
     lo que pasó. `rigor` decide por TÍTULO qué se rechaza."""
     estado: dict = {
         "rigor": {},            # título → "reject" | "pass"

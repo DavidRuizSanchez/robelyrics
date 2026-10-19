@@ -19,9 +19,9 @@ from openai import OpenAI
 
 from app.config import get_settings
 from app.db.models import InterpretationSource
+from app.services.openai_chat import openai_chat_kwargs
 from scripts.research.common import get_session, log
 
-MODEL = "gpt-4o"
 MAX_CHARS_PER_SOURCE = 18000  # acota tokens por entrevista
 
 _SYS = """\
@@ -81,12 +81,11 @@ def main() -> None:
     corpus = "\n\n".join(blocks)
     client = OpenAI(api_key=settings.openai_api_key)
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[
             {"role": "system", "content": _SYS},
             {"role": "user", "content": f"TRANSCRIPCIONES:\n\n{corpus}"},
         ],
-        temperature=0.3,
+        **openai_chat_kwargs("chat", temperature=0.3),
     )
     print(resp.choices[0].message.content or "")
 

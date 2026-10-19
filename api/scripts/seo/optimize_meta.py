@@ -29,6 +29,7 @@ from app.config import get_settings
 from app.db.models import SeoContent
 from app.db.session import SessionLocal
 from app.services import seo_style
+from app.services.openai_chat import openai_chat_kwargs
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ def _clean_subject(meta_title: str, slug: str) -> str:
 def _gen_desc(client: OpenAI, subject: str, body: str) -> str | None:
     try:
         r = client.chat.completions.create(
-            model="gpt-4o", temperature=0.3, max_tokens=120,
+            **openai_chat_kwargs("chat", temperature=0.3, max_completion_tokens=120),
             messages=[{"role": "user", "content": (
                 f"Escribe UNA meta description SEO en español (entre {DESC_MIN} y {DESC_MAX} "
                 f"caracteres, ni más ni menos) para la página sobre «{subject}». Resume su "

@@ -6,7 +6,7 @@ Pipeline:
   3. PRAGMÁTICA → lookup EXACTO en BD (Album/Person/Song/Book); el LLM solo lo
      redacta con su voz, sin alterar el dato.
   4. FILOSÓFICA → grounding desde robe_voice_v1 (lo que dijo Robe) + versos (chunks_v1).
-  5. answer_as_robe: gpt-4o con voice.build_system_prompt(family="consultorio").
+  5. answer_as_robe: modelo "chat" (openai_chat) con voice.build_system_prompt(family="consultorio").
 
 Anti-invención: si no hay base, grounded=False y Robe esquiva con su estilo.
 """
@@ -24,6 +24,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from app.config import get_settings
 from app.db.models import Album, Artist, Book, Person, Song
 from app.services.embeddings import get_embedder
+from app.services.openai_chat import openai_chat_kwargs
 from app.services.qdrant_client import get_qdrant
 from app.services.robe_quotes import tone_quotes
 from app.services.robe_style import speech_style
@@ -32,8 +33,6 @@ from app.services.voice import build_system_prompt
 
 ROBE_VOICE_COLLECTION = "robe_voice_v1"
 CHUNKS_COLLECTION = "chunks_v1"
-CLASSIFY_MODEL = "gpt-4o-mini"
-ANSWER_MODEL = "gpt-4o"
 
 _MESES = [
     "", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
@@ -101,13 +100,12 @@ _CLASSIFY_SYS = (
 )
 def classify_question(client: OpenAI, question: str) -> dict:
     resp = client.chat.completions.create(
-        model=CLASSIFY_MODEL,
         messages=[
             {"role": "system", "content": _CLASSIFY_SYS},
             {"role": "user", "content": question},
         ],
         response_format={"type": "json_schema", "json_schema": _CLASSIFY_SCHEMA},
-        temperature=0,
+        **openai_chat_kwargs("fast", temperature=0),
     )
     try:
         data = json.loads(resp.choices[0].message.content or "{}")
@@ -352,13 +350,12 @@ def _build_user_prompt(question: str, facts: list[str], passages: list[Passage])
 )
 def _call_answer(client: OpenAI, system: str, user: str) -> str:
     resp = client.chat.completions.create(
-        model=ANSWER_MODEL,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         response_format={"type": "json_schema", "json_schema": _ANSWER_SCHEMA},
-        temperature=0.8,
+        **openai_chat_kwargs("chat", temperature=0.8),
     )
     return resp.choices[0].message.content or "{}"
 

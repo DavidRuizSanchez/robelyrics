@@ -41,8 +41,9 @@ from app.services.entity_resolver import (
     build_corpus_index,
     load_link_stats,
 )
+from app.services.openai_chat import openai_chat_kwargs
 from app.services.text_sanitizer import strip_ai_tells
-from scripts.seo.common import MODEL, apply_catalog_check, log, upsert_seo_content
+from scripts.seo.common import apply_catalog_check, log, upsert_seo_content
 from scripts.seo.generate_flagship import _sanitize_links
 
 _MODELS = {
@@ -151,9 +152,8 @@ def _section_cap(material: str, tier: str = "standard") -> int:
 
 def _chat(client: OpenAI, user: str, *, max_tokens: int, temp: float = 0.5) -> dict:
     resp = client.chat.completions.create(
-        model=MODEL,
         messages=[{"role": "system", "content": _SYS}, {"role": "user", "content": user}],
-        temperature=temp, max_tokens=max_tokens,
+        **openai_chat_kwargs("chat", temperature=temp, max_completion_tokens=max_tokens),
         response_format={"type": "json_object"},
     )
     try:

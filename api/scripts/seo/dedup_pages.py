@@ -38,6 +38,7 @@ from app.config import get_settings
 from app.db.models import SeoContent
 from app.db.session import SessionLocal
 from app.services.editorial_review import review as editorial_review
+from app.services.openai_chat import openai_chat_kwargs
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -85,9 +86,8 @@ def _facts(body: str) -> tuple[set[str], set[str], set[str]]:
 def _dedup_one(client: OpenAI, subject: str, body: str) -> str | None:
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o",
             messages=[{"role": "user", "content": _PROMPT.format(subject=subject, body=body)}],
-            temperature=0.2, max_tokens=3000,
+            **openai_chat_kwargs("chat", temperature=0.2, max_completion_tokens=3000),
         )
         out = (resp.choices[0].message.content or "").strip()
         # Quita fences ```markdown … ``` si el modelo los mete.
