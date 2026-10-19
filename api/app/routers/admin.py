@@ -1541,7 +1541,7 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         ),
         placement_groups=[
             {**{k: g.get(k) for k in ("keywords", "decision", "confidence", "recommended",
-                                      "reasons", "candidates")},
+                                      "reasons", "candidates", "via")},
              "headline": _placement.headline(g),
              "options": _placement.selector_options(g)}
             for g in _placement.grupos(getattr(p, "placement", None))
@@ -1550,6 +1550,17 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         merge_opportunity_id=getattr(p, "merge_opportunity_id", None),
         created_at=p.created_at,
     )
+
+
+@router.get("/summary")
+def admin_summary(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict[str, dict[str, int]]:
+    """Lo que espera decisión en cada panel, con recuentos exactos (portada del admin)."""
+    from app.services.admin_summary import resumen
+
+    return resumen(db)
 
 
 @router.get("/proposals/stats", response_model=AdminProposalStats)

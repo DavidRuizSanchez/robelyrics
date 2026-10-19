@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Eyebrow, Notice, cx, inputClass } from "@/components/admin/ui";
 
 type Candidate = { title: string; meta_title: string };
 
@@ -73,74 +74,63 @@ export default function TitleEditor({
 
   return (
     <div className="space-y-3">
+      <label htmlFor="titular" className="sr-only">
+        Titular
+      </label>
       <textarea
+        id="titular"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         rows={2}
-        className="w-full bg-transparent border-0 border-b border-divider focus:border-accent focus:outline-none px-0 py-1 font-serif text-3xl md:text-4xl text-ink leading-[1.15] resize-none"
+        className={cx(inputClass, "font-serif text-3xl md:text-4xl leading-[1.15] resize-none")}
       />
 
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => save(title)}
           disabled={busy !== null || !dirty}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+          loading={busy === "save"}
+          loadingLabel="Guardando…"
         >
-          {busy === "save" ? "guardando…" : "guardar titular"}
-        </button>
-        <button
-          type="button"
+          Guardar titular
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={suggest}
           disabled={busy !== null}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
+          loading={busy === "suggest"}
+          loadingLabel="Pensando…"
         >
-          {busy === "suggest"
-            ? "pensando…"
-            : candidates.length
-              ? "↻ otras 3"
-              : "↻ proponer 3 con IA"}
-        </button>
-        {dirty && (
-          <span className="font-mono text-[9px] tracking-[1px] uppercase text-ink-faint">
-            sin guardar
-          </span>
-        )}
+          {candidates.length ? "↻ Proponer otros 3" : "↻ Proponer 3 titulares"}
+        </Button>
+        {dirty && <span className="text-sm text-warn">Cambios sin guardar</span>}
       </div>
 
-      {error && (
-        <p className="text-accent font-mono text-xs tracking-[1px]">✗ {error}</p>
-      )}
+      {error && <Notice onClose={() => setError(null)}>{error}</Notice>}
 
       {candidates.length > 0 && (
-        <ul className="space-y-2 border border-divider p-3">
-          <li className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-            alternativas · pulsa para usar
-          </li>
-          {candidates.map((c, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <button
-                type="button"
-                onClick={() => setTitle(c.title)}
-                data-cursor="hover"
-                className="text-left font-serif text-lg text-ink hover:text-accent leading-snug"
-              >
-                {c.title}
-              </button>
-              <button
-                type="button"
-                onClick={() => save(c.title)}
-                disabled={busy !== null}
-                data-cursor="hover"
-                className="shrink-0 font-mono text-[9px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-2 py-1 disabled:opacity-40"
-              >
-                usar
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-md border border-divider p-3">
+          <Eyebrow>Alternativas · pulsa una para probarla</Eyebrow>
+          <ul className="mt-2 space-y-2">
+            {candidates.map((c, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTitle(c.title)}
+                  className="flex-1 text-left font-serif text-lg text-ink hover:text-accent leading-snug"
+                >
+                  {c.title}
+                </button>
+                <Button size="sm" disabled={busy !== null} onClick={() => save(c.title)}>
+                  Usar este
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

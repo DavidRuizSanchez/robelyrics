@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import PostEditor from "./PostEditor";
+import { kindLabel } from "@/lib/admin/labels";
 
 export type AdminPostDetail = {
   id: number;
@@ -53,22 +54,15 @@ export default async function EditPostPage({
   }
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-14 max-w-[900px] mx-auto">
-      <Link
-        href="/biblioteca/admin/posts"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-      >
-        ← entradas
+    <main className="px-5 md:px-14 py-8 md:py-10 max-w-[900px] mx-auto">
+      <Link href="/biblioteca/admin/blog" className="text-sm text-ink-dim hover:text-ink">
+        ← Volver al blog
       </Link>
 
-      <header className="mt-6 mb-8">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          editar entrada · {post.kind}
-        </p>
-        <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-          /blog/{post.slug}
-        </p>
+      <header className="mt-6 mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-dim">
+        <span className="font-mono text-ink-faint">#{post.id}</span>
+        <span>Entrada · {kindLabel(post.kind)}</span>
+        <span className="font-mono text-ink-faint break-all">/blog/{post.slug}</span>
       </header>
 
       <PostEditor post={post} />

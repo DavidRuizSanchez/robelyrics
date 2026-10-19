@@ -2,6 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  ActionBar,
+  Button,
+  Callout,
+  Card,
+  Notice,
+  StatusBadge,
+  buttonClass,
+  cx,
+  inputClass,
+} from "@/components/admin/ui";
+import { GATE_LABEL, POST_STATUS, etiqueta, kindLabel } from "@/lib/admin/labels";
+import type { Tone } from "@/lib/admin/labels";
 
 type AdminPostItem = {
   id: number;
@@ -19,31 +32,6 @@ type AdminPostItem = {
   stale?: boolean;
   review_blocked_by?: string | null;
   review_blocked_reason?: string | null;
-};
-
-const GATE_LABEL: Record<string, string> = {
-  lyrics: "citas de letra",
-  rigor: "editor jefe",
-  completeness: "completitud",
-  facts: "datos de catálogo",
-};
-
-const KIND_LABEL: Record<string, string> = {
-  editorial: "Editorial",
-  news: "Noticia",
-  anniversary: "Efeméride",
-  "album-anniversary": "Aniversario de disco",
-  spotlight: "Canción de la semana",
-  evergreen: "Reportaje",
-};
-
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  draft: { label: "borrador", cls: "text-ink-faint" },
-  pending_review: { label: "pendiente", cls: "text-accent" },
-  approved: { label: "aprobado", cls: "text-ink" },
-  scheduled: { label: "programado", cls: "text-ink" },
-  published: { label: "publicado", cls: "text-accent" },
-  rejected: { label: "rechazado", cls: "text-ink-faint" },
 };
 
 function formatDate(iso: string): string {
@@ -71,6 +59,7 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
   // Fecha elegida por fila. Sin esto solo se podía publicar YA, y la única forma
   // de programar era entrar a la ficha de cada entrada de una en una.
   const [fechas, setFechas] = useState<Record<number, string>>({});
+  const [error, setError] = useState<{ id: number; msg: string } | null>(null);
 
   async function act(
     id: number,
@@ -78,6 +67,7 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
     body?: unknown,
   ) {
     setBusy(id);
+    setError(null);
     try {
       const res = await fetch(`/biblioteca/admin/posts/api/${action}/${id}`, {
         method: "POST",
@@ -92,29 +82,25 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
       });
       if (!res.ok) {
         const text = await res.text();
-        alert(`Error ${res.status}: ${text}`);
+        setError({ id, msg: `Error ${res.status}: ${text}` });
         return;
       }
       window.location.reload();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError({ id, msg: `Error de red: ${e}` });
     } finally {
       setBusy(null);
     }
   }
 
   if (items.length === 0) {
-    return (
-      <p className="font-serif italic text-ink-dim text-lg mt-6">
-        No hay entradas que coincidan con el filtro.
-      </p>
-    );
+    return <p className="text-ink-faint">No hay entradas que coincidan con el filtro.</p>;
   }
 
   return (
-    <ul className="divide-y divide-divider">
+    <ul className="space-y-3">
       {items.map((p) => {
-        const st = STATUS_LABEL[p.status] ?? { label: p.status, cls: "text-ink-faint" };
+        const st = etiqueta(POST_STATUS, p.status);
         const canPublish = p.status === "pending_review" || p.status === "approved" || p.status === "draft";
         const canReject = p.status === "pending_review" || p.status === "draft";
         const canUnpublish = p.status === "published";
@@ -122,167 +108,173 @@ export default function PostListWithActions({ items }: { items: AdminPostItem[] 
         // cambia desprogramando primero, para no tener dos fechas compitiendo.
         const canSchedule =
           p.status === "pending_review" || p.status === "approved" || p.status === "draft";
+        const bloqueada = !!p.review_blocked_reason;
+        const tone: Tone = bloqueada ? "danger" : st.tone;
         return (
-          <li key={p.id} className="py-5">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-                  {KIND_LABEL[p.kind] || p.kind} · creado {formatDate(p.created_at)}
-                  {p.published_at && ` · publicado ${formatDate(p.published_at)}`}
-                  {p.status === "scheduled" && p.scheduled_for &&
-                    ` · programado ${formatDate(p.scheduled_for)}`}
-                  {/* Los mismos días que dice el correo diario, para poder
-                      emparejar «esperando 124 días» con esta fila. */}
-                  {!!p.days_waiting && ` · esperando ${p.days_waiting} día${p.days_waiting === 1 ? "" : "s"}`}
-                  {p.stale && (
-                    <span className="text-accent"> · ⚠ se está pudriendo</span>
-                  )}
-                  {/* Fecha que quedó de una programación anterior: no publica
-                      nada (solo los `scheduled` entran al cron) pero confunde. */}
-                  {p.status !== "scheduled" && p.scheduled_for && (
-                    <span className="text-ink-faint"> · fecha huérfana {formatDate(p.scheduled_for)}</span>
-                  )}
-                </p>
-                <Link
-                  href={`/biblioteca/admin/posts/${p.id}`}
-                  data-cursor="hover"
-                  className="font-serif text-xl md:text-2xl text-ink leading-tight hover:text-accent"
-                >
-                  {p.title}
-                </Link>
-                {p.excerpt && (
-                  <p className="mt-2 font-serif italic text-ink-dim text-base leading-relaxed max-w-[680px]">
-                    {p.excerpt}
-                  </p>
+          <Card key={p.id} as="li" tone={tone}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim">
+                <span>{kindLabel(p.kind)}</span>
+                <span className="text-ink-faint">· creada {formatDate(p.created_at)}</span>
+                {p.published_at && (
+                  <span className="text-ink-faint">· publicada {formatDate(p.published_at)}</span>
                 )}
-                {/* Por qué la frenó un gate. Programar y publicar vuelven a
-                    pasarlo al pulsar; si el MISMO gate la frena otra vez sin
-                    cambios en el cuerpo, se retira de la cola. */}
-                {p.review_blocked_reason && (
-                  <p className="mt-2 font-mono text-[11px] leading-relaxed text-accent max-w-[680px]">
-                    ⚠ {p.status === "rejected" ? "retirada" : "frenada"}
-                    {p.review_blocked_by && ` por ${GATE_LABEL[p.review_blocked_by] ?? p.review_blocked_by}`}
-                    : {p.review_blocked_reason}
-                  </p>
+                {p.status === "scheduled" && p.scheduled_for && (
+                  <span>
+                    · sale el <b className="text-ink">{formatDate(p.scheduled_for)}</b>
+                  </span>
                 )}
-                {p.source_url && p.source_name && (
-                  <p className="mt-2 font-mono text-[10px] tracking-[1px] text-ink-faint">
-                    Fuente:{" "}
-                    <a
-                      href={p.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:underline"
-                    >
-                      {p.source_name} ↗
-                    </a>
-                  </p>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <StatusBadge tone={st.tone} title={st.hint}>
+                  {st.label}
+                </StatusBadge>
+                {/* Los mismos días que dice el correo diario, para poder
+                    emparejar «esperando 124 días» con esta fila. */}
+                {!!p.days_waiting && (
+                  <StatusBadge tone={p.stale ? "danger" : "neutral"}>
+                    {p.stale ? "⚠ " : ""}Esperando {p.days_waiting} día{p.days_waiting === 1 ? "" : "s"}
+                  </StatusBadge>
                 )}
               </div>
-              <div className="shrink-0 flex flex-col items-end gap-2">
-                <span className={`font-mono text-[10px] tracking-[2px] uppercase ${st.cls}`}>
-                  {st.label}
-                </span>
-                <div className="flex gap-2 flex-wrap justify-end">
-                  <Link
-                    href={`/biblioteca/admin/posts/${p.id}`}
-                    data-cursor="hover"
-                    className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
-                  >
-                    abrir
-                  </Link>
-                  {p.status === "published" && (
-                    <Link
-                      href={`/blog/${p.slug}`}
-                      target="_blank"
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
+            </div>
+            <Link
+              href={`/biblioteca/admin/posts/${p.id}`}
+              className="mt-1 block font-serif text-xl md:text-2xl text-ink leading-tight hover:text-accent"
+            >
+              {p.title}
+            </Link>
+            {p.excerpt && (
+              <p className="mt-2 font-serif italic text-ink-dim leading-relaxed max-w-[680px]">
+                {p.excerpt}
+              </p>
+            )}
+            {/* Por qué la frenó un gate. Programar y publicar vuelven a
+                pasarlo al pulsar; si el MISMO gate la frena otra vez sin
+                cambios en el cuerpo, se retira de la cola. */}
+            {bloqueada && (
+              <Callout
+                tone="danger"
+                className="mt-3"
+                title={`${p.status === "rejected" ? "Retirada" : "Frenada"}${
+                  p.review_blocked_by
+                    ? ` por ${GATE_LABEL[p.review_blocked_by] ?? p.review_blocked_by}`
+                    : ""
+                }`}
+              >
+                {p.review_blocked_reason}
+                <p className="mt-1 text-xs text-ink-faint">
+                  Publicar o programar vuelve a pasar el control: corrige el texto antes.
+                </p>
+              </Callout>
+            )}
+            {/* Fecha que quedó de una programación anterior: no publica
+                nada (solo los `scheduled` entran al cron) pero confunde. */}
+            {p.status !== "scheduled" && p.scheduled_for && (
+              <p className="mt-2 text-xs text-ink-faint">
+                Le queda una fecha antigua ({formatDate(p.scheduled_for)}) que no hace nada.
+              </p>
+            )}
+            {p.source_url && p.source_name && (
+              <p className="mt-2 text-sm text-ink-dim">
+                Fuente:{" "}
+                <a
+                  href={p.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  {p.source_name} ↗
+                </a>
+              </p>
+            )}
+            {error?.id === p.id && (
+              <div className="mt-3">
+                <Notice onClose={() => setError(null)}>{error.msg}</Notice>
+              </div>
+            )}
+            <ActionBar
+              primary={
+                <>
+                  {canPublish && (
+                    <Button
+                      variant={bloqueada ? "secondary" : "primary"}
+                      loading={busy === p.id}
+                      onClick={() => act(p.id, "publish")}
                     >
-                      ver ↗
-                    </Link>
-                  )}
-                  {p.status === "scheduled" && (
-                    <button
-                      type="button"
-                      onClick={() => act(p.id, "unschedule")}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-                    >
-                      desprogramar
-                    </button>
+                      Publicar ya
+                    </Button>
                   )}
                   {/* Programar: publicar YA no siempre es lo que toca. El tope es
                       de 4 por semana, así que lo normal es repartir. */}
                   {canSchedule && (
-                    <span className="flex gap-1.5 items-center">
+                    <span className="flex items-center gap-1.5">
                       <input
                         type="date"
                         min={hoyISO()}
                         value={fechas[p.id] ?? ""}
-                        onChange={(e) =>
-                          setFechas((f) => ({ ...f, [p.id]: e.target.value }))
-                        }
+                        onChange={(e) => setFechas((f) => ({ ...f, [p.id]: e.target.value }))}
                         aria-label={`Fecha para programar «${p.title}»`}
-                        className="bg-bg border border-divider focus:border-accent outline-none text-ink font-mono text-[11px] px-2 py-1.5"
+                        className={cx(inputClass, "w-auto font-mono")}
                       />
-                      <button
-                        type="button"
+                      <Button
+                        disabled={busy === p.id || !fechas[p.id]}
                         onClick={() => {
                           const cuando = fechas[p.id];
-                          if (!cuando) {
-                            alert("Elige antes una fecha.");
-                            return;
-                          }
-                          act(p.id, "schedule", { scheduled_for: cuando });
+                          if (cuando) act(p.id, "schedule", { scheduled_for: cuando });
                         }}
-                        disabled={busy === p.id || !fechas[p.id]}
-                        data-cursor="hover"
-                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
                       >
-                        programar
-                      </button>
+                        Programar
+                      </Button>
                     </span>
                   )}
-                  {canPublish && (
-                    <button
-                      type="button"
-                      onClick={() => act(p.id, "publish")}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                    >
-                      publicar
-                    </button>
+                  {p.status === "scheduled" && (
+                    <Button loading={busy === p.id} onClick={() => act(p.id, "unschedule")}>
+                      Desprogramar
+                    </Button>
                   )}
-                  {canUnpublish && (
-                    <button
-                      type="button"
-                      onClick={() => act(p.id, "unpublish")}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-                    >
-                      despublicar
-                    </button>
+                </>
+              }
+              secondary={
+                <>
+                  <Link href={`/biblioteca/admin/posts/${p.id}`} className={buttonClass("ghost", "sm")}>
+                    {bloqueada ? "Corregir →" : "Abrir y editar"}
+                  </Link>
+                  {p.status === "published" && (
+                    <Link href={`/blog/${p.slug}`} target="_blank" className={buttonClass("ghost", "sm")}>
+                      Ver en el blog ↗
+                    </Link>
                   )}
-                  {canReject && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("¿Rechazar esta entrada?")) act(p.id, "reject");
-                      }}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-                    >
-                      rechazar
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </li>
+                </>
+              }
+              danger={
+                (canUnpublish || canReject) && (
+                  <>
+                    {canUnpublish && (
+                      <Button
+                        variant="danger"
+                        disabled={busy === p.id}
+                        onClick={() => act(p.id, "unpublish")}
+                      >
+                        Despublicar
+                      </Button>
+                    )}
+                    {canReject && (
+                      <Button
+                        variant="danger"
+                        disabled={busy === p.id}
+                        onClick={() => {
+                          if (window.confirm("¿Rechazar esta entrada?")) act(p.id, "reject");
+                        }}
+                      >
+                        Rechazar
+                      </Button>
+                    )}
+                  </>
+                )
+              }
+            />
+          </Card>
         );
       })}
     </ul>

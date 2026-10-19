@@ -1,19 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { T } from "@/lib/theme";
 
 /**
  * Cursor granate personalizado. Solo en `pointer: fine` (desktop con ratón).
  * Se agranda al pasar sobre links/buttons o elementos con [data-cursor=hover].
+ * En el panel admin NO se usa: es una herramienta de trabajo con formularios y
+ * selects, y ocultar el cursor del sistema esconde el de texto.
  */
 export default function InkCursor() {
   const [pos, setPos] = useState({ x: -100, y: -100 });
   const [hovering, setHovering] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const enAdmin = (usePathname() || "").startsWith("/biblioteca/admin");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (enAdmin) {
+      setEnabled(false);
+      return;
+    }
     if (window.matchMedia("(pointer: coarse)").matches) return;
     setEnabled(true);
     document.body.classList.add("ink-cursor-active");
@@ -44,7 +52,7 @@ export default function InkCursor() {
       document.removeEventListener("mouseenter", enter);
       document.body.classList.remove("ink-cursor-active");
     };
-  }, []);
+  }, [enAdmin]);
 
   if (!enabled) return null;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button, Field, StatusBadge, cx, inputClass } from "@/components/admin/ui";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import {
   publishSeoAction,
@@ -85,108 +86,89 @@ export default function EditorForm({ initial }: { initial: SeoOut }) {
   const titleLen = metaTitle.length;
   const descLen = metaDesc.length;
 
+  const estado = published
+    ? { label: "Publicada", tone: "ok" as const }
+    : reviewed
+      ? { label: "Revisada, sin publicar", tone: "warn" as const }
+      : { label: "Sin revisar", tone: "neutral" as const };
+
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
         <div className="space-y-5">
+          <p className="text-sm text-ink-dim">
+            Los campos vacíos usan la plantilla automática (se ve en gris dentro del campo). Escribe
+            solo si quieres cambiarla.
+          </p>
           <SeoField
-            label="h1"
+            label="Título de la página (H1)"
             value={h1}
             onChange={setH1}
             placeholder={initial.resolved_h1}
-            charsHint={`${h1.length} chars`}
+            charsHint={`${h1.length} caracteres`}
           />
           <SeoField
-            label="meta_title"
+            label="Título en Google (meta title)"
             value={metaTitle}
             onChange={setMetaTitle}
             placeholder={initial.resolved_title}
-            charsHint={`${titleLen}/60`}
+            charsHint={`${titleLen} de 60 caracteres`}
             warn={titleLen > 60}
           />
           <SeoField
-            label="meta_description"
+            label="Descripción en Google (meta description)"
             value={metaDesc}
             onChange={setMetaDesc}
             placeholder={initial.resolved_description}
-            charsHint={`${descLen}/160`}
+            charsHint={`${descLen} de 160 caracteres`}
             warn={descLen > 160}
             multiline
             rows={3}
           />
-          <div>
-            <label className="block font-mono text-[10px] tracking-[2px] uppercase text-ink-dim mb-1.5">
-              body_md ({body.length} chars)
-            </label>
+          <Field
+            label={`Texto de la ficha (Markdown) · ${body.length.toLocaleString("es-ES")} caracteres`}
+            htmlFor="seo-body"
+          >
             <textarea
+              id="seo-body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={28}
-              className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-mono text-[13px] text-ink leading-[1.55] resize-y"
+              className={cx(inputClass, "font-mono leading-[1.55] resize-y")}
             />
-          </div>
+          </Field>
         </div>
 
         <div>
-          <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-3">
-            preview
-          </p>
-          <div className="border border-divider p-5 max-h-[80vh] overflow-y-auto">
+          <p className="text-sm font-medium text-ink-dim mb-2">Vista previa</p>
+          <div className="rounded-md border border-divider p-5 max-h-[80vh] overflow-y-auto">
             <MarkdownArticle markdown={body} />
           </div>
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-10 -mx-5 md:-mx-14 px-5 md:px-14 py-4 bg-bg/95 backdrop-blur border-t border-divider flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isPending}
-          data-cursor="hover"
-          className="border border-divider hover:border-accent text-ink-dim hover:text-accent disabled:opacity-50 font-mono text-[11px] tracking-[3px] uppercase px-5 py-3 transition-colors"
-        >
-          {isPending ? "guardando…" : "guardar"}
-        </button>
+      {/* Barra fija: z-30 para quedar por debajo del aviso de erratas y del reproductor flotante. */}
+      <div className="sticky bottom-0 z-30 mt-10 -mx-5 md:-mx-14 px-5 md:px-14 py-3 bg-bg/95 backdrop-blur border-t border-divider flex flex-wrap items-center gap-3">
+        <Button onClick={onSave} disabled={isPending} loading={isPending} loadingLabel="Guardando…">
+          Guardar
+        </Button>
         {!published ? (
-          <button
-            type="button"
-            onClick={onPublish}
-            disabled={isPending}
-            data-cursor="hover"
-            className="border border-accent bg-accent text-white hover:bg-accent-bright disabled:opacity-50 font-mono text-[11px] tracking-[3px] uppercase px-5 py-3 transition-colors"
-          >
-            guardar y publicar
-          </button>
+          <Button variant="primary" onClick={onPublish} disabled={isPending}>
+            Guardar y publicar
+          </Button>
         ) : (
-          <button
-            type="button"
-            onClick={onUnpublish}
-            disabled={isPending}
-            data-cursor="hover"
-            className="border border-accent text-accent hover:bg-accent hover:text-white disabled:opacity-50 font-mono text-[11px] tracking-[3px] uppercase px-5 py-3 transition-colors"
-          >
-            despublicar
-          </button>
+          <Button variant="danger" onClick={onUnpublish} disabled={isPending}>
+            Despublicar
+          </Button>
         )}
 
-        <span className="font-mono text-[10px] tracking-[1.5px] uppercase ml-auto">
-          estado:{" "}
-          {published ? (
-            <span className="text-accent">publicado</span>
-          ) : reviewed ? (
-            <span className="text-accent/70">revisado · sin publicar</span>
-          ) : (
-            <span className="text-ink-faint">sin revisar</span>
-          )}
-        </span>
+        <StatusBadge tone={estado.tone} className="ml-auto">
+          {estado.label}
+        </StatusBadge>
 
         {feedback && (
-          <span
-            className={`font-mono text-[10px] tracking-[1.5px] uppercase ${
-              feedback.ok ? "text-accent" : "text-red-400"
-            }`}
-          >
-            {feedback.ok ? "✓ guardado" : `✗ ${feedback.error}`}
+          <span className={cx("text-sm", feedback.ok ? "text-ok" : "text-danger")} role="status">
+            {feedback.ok ? "✓ Guardado" : `✗ ${feedback.error}`}
           </span>
         )}
       </div>
@@ -214,54 +196,49 @@ function SeoField({
   rows?: number;
 }) {
   const isOverride = value.trim().length > 0;
+  const id = "seo-" + label.replace(/\W+/g, "-").toLowerCase();
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-1.5 gap-3 flex-wrap">
-        <label
-          className={`font-mono text-[10px] tracking-[2px] uppercase ${
-            warn ? "text-accent" : "text-ink-dim"
-          }`}
-        >
-          {label} {charsHint ? `(${charsHint})` : ""}
+      <div className="flex items-baseline justify-between mb-1 gap-3 flex-wrap">
+        <label htmlFor={id} className="text-sm font-medium text-ink-dim">
+          {label}
         </label>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 text-xs">
+          {charsHint && <span className={warn ? "text-warn" : "text-ink-faint"}>{charsHint}{warn ? " · demasiado largo" : ""}</span>}
           {isOverride ? (
             <>
-              <span className="font-mono text-[9px] tracking-[2px] uppercase text-accent">
-                · override personalizado
-              </span>
+              <StatusBadge tone="info">Texto propio</StatusBadge>
               <button
                 type="button"
                 onClick={() => onChange("")}
-                data-cursor="hover"
-                className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent"
+                className="text-ink-faint hover:text-accent"
                 title="Vaciar para usar la plantilla"
               >
-                ↺ restaurar plantilla
+                ↺ Volver a la plantilla
               </button>
             </>
           ) : (
-            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-              · usando plantilla
-            </span>
+            <StatusBadge>Plantilla automática</StatusBadge>
           )}
         </div>
       </div>
       {multiline ? (
         <textarea
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
           placeholder={placeholder}
-          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink resize-y placeholder:italic placeholder:text-ink-faint/70"
+          className={cx(inputClass, "font-serif text-[15px] resize-y placeholder:italic")}
         />
       ) : (
         <input
+          id={id}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-bg border border-divider focus:border-accent focus:outline-none px-3 py-2 font-serif text-[15px] text-ink placeholder:italic placeholder:text-ink-faint/70"
+          className={cx(inputClass, "font-serif text-[15px] placeholder:italic")}
         />
       )}
     </div>

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
+import { CLAIM_KIND } from "@/lib/admin/labels";
 import ErrataRow, { type ErrataItem } from "./ErrataRow";
+import { AdminPage, EmptyState, Section, StatusBadge, Table, cx, tdClass } from "@/components/admin/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -39,57 +41,45 @@ export default async function AdminErratasPage() {
   }
 
   return (
-    <div className="max-w-[820px] space-y-12">
-      <section>
-        <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
-          Erratas por revisar
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          El consenso resuelve solo lo que puede; aquí queda lo que necesita tu criterio.
-        </p>
+    <AdminPage
+      title="Erratas"
+      intro="Avisos de gente que ha visto algo mal. El sistema arregla solo lo que puede comprobar en fuentes; aquí queda lo que necesita tu criterio."
+    >
+      <Section title="Por revisar" count={queue.length}>
         {queue.length === 0 ? (
-          <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-            Nada pendiente. Todo al día.
-          </p>
+          <EmptyState>Nada pendiente. Todo al día.</EmptyState>
         ) : (
-          <div>
+          <div className="space-y-3">
             {queue.map((it) => (
               <ErrataRow key={it.id} item={it} />
             ))}
           </div>
         )}
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
-          Auto-correcciones (auditoría)
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Lo que el consenso corrigió solo. Trazable y reversible.
-        </p>
+      <Section
+        title="Corregidas automáticamente"
+        count={audit.length}
+        help="Lo que el sistema corrigió solo porque varias fuentes coincidían. Queda registrado y se puede revertir."
+      >
         {audit.length === 0 ? (
-          <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-            Aún no hay auto-correcciones registradas.
-          </p>
+          <EmptyState>Aún no hay correcciones automáticas registradas.</EmptyState>
         ) : (
-          <div className="space-y-3">
+          <Table head={["Qué", "Antes", "Ahora", "Confianza", "Estado"]}>
             {audit.map((a) => (
-              <div key={a.id} className="border-b border-divider/40 pb-3 font-serif text-[14px] text-ink">
-                <span className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint mr-2">
-                  {a.claim_kind} · conf {a.confidence.toFixed(2)}
-                  {a.reverted ? " · revertida" : ""}
-                </span>
-                {a.old_value && a.new_value && (
-                  <span>
-                    <span className="text-ink-dim line-through">{a.old_value}</span>{" "}
-                    <span className="text-accent">→ {a.new_value}</span>
-                  </span>
-                )}
-              </div>
+              <tr key={a.id}>
+                <td className={tdClass}>{CLAIM_KIND[a.claim_kind] ?? a.claim_kind}</td>
+                <td className={cx(tdClass, "font-serif text-ink-dim line-through")}>{a.old_value ?? "—"}</td>
+                <td className={cx(tdClass, "font-serif text-ink")}>{a.new_value ?? "—"}</td>
+                <td className={cx(tdClass, "font-mono")}>{a.confidence.toFixed(2)}</td>
+                <td className={tdClass}>
+                  {a.reverted ? <StatusBadge>Revertida</StatusBadge> : <StatusBadge tone="ok">Aplicada</StatusBadge>}
+                </td>
+              </tr>
             ))}
-          </div>
+          </Table>
         )}
-      </section>
-    </div>
+      </Section>
+    </AdminPage>
   );
 }

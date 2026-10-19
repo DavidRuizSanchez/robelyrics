@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { Button, EmptyState, Notice, StatusBadge } from "@/components/admin/ui";
+import type { Tone } from "@/lib/admin/labels";
 
-// Listado de SeoContent con selección múltiple + acciones de bulk publish/unpublish.
-// Componente que faltaba del repo · reconstruido para destrabar build. Si en el
-// futuro se necesita un flujo de bulk más rico (revisar masivamente, regenerar,
-// etc.), extender desde aquí.
+// Listado de SeoContent con selección múltiple para publicar o despublicar en
+// bloque (proxy `seo/api/bulk` → /admin/seo/bulk-publish|unpublish). Publicar
+// así hace lo mismo que el botón de cada ficha: la marca revisada y la publica.
 
 export type SeoListItem = {
   id: number;
@@ -20,18 +21,37 @@ export type SeoListItem = {
   published: boolean;
 };
 
-function statusLabel(item: SeoListItem): { label: string; cls: string } {
-  if (item.published) return { label: "publicado", cls: "text-accent" };
-  if (item.reviewed_at) return { label: "revisado", cls: "text-ink" };
-  return { label: "sin revisar", cls: "text-ink-faint" };
+const TIPO: Record<string, string> = {
+  artist: "Artista",
+  album: "Disco",
+  song: "Canción",
+  person: "Persona",
+  band: "Grupo",
+  theme: "Tema",
+  place: "Lugar",
+  concept: "Concepto",
+  page: "Página",
+};
+
+function statusOf(item: SeoListItem): { label: string; tone: Tone } {
+  if (item.published) return { label: "Publicada", tone: "ok" };
+  if (item.reviewed_at) return { label: "Revisada, sin publicar", tone: "warn" };
+  return { label: "Sin revisar", tone: "neutral" };
 }
 
 export default function SeoListWithBulk({ items }: { items: SeoListItem[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState<"publish" | "unpublish" | null>(null);
+  const [aviso, setAviso] = useState<{ tone: "ok" | "danger"; msg: string } | null>(null);
 
-  const allOnPageIds = useMemo(() => items.map((i) => i.id), [items]);
-  const allSelected =
-    items.length > 0 && allOnPageIds.every((id) => selected.has(id));
+  if (items.length === 0) {
+    return <EmptyState>No hay fichas que coincidan con el filtro.</EmptyState>;
+  }
+
+  const todas = items.every((i) => selected.has(i.id));
+  const elegidas = items.filter((i) => selected.has(i.id));
+  const nPublicar = elegidas.filter((i) => !i.published).length;
+  const nDespublicar = elegidas.filter((i) => i.published).length;
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -42,115 +62,110 @@ export default function SeoListWithBulk({ items }: { items: SeoListItem[] }) {
     });
   }
 
-  function toggleAll() {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(allOnPageIds));
-    }
-  }
-
   async function bulk(action: "publish" | "unpublish") {
-    if (selected.size === 0) return;
-    const ids = Array.from(selected);
-    const confirmed = window.confirm(
-      `¿${action === "publish" ? "Publicar" : "Despublicar"} ${ids.length} entrada(s)?`,
-    );
-    if (!confirmed) return;
+    // Solo las que cambian de verdad: publicar algo ya publicado no hace nada.
+    const ids = elegidas.filter((i) => (action === "publish" ? !i.published : i.published)).map((i) => i.id);
+    if (ids.length === 0) return;
+    const verbo = action === "publish" ? "Publicar" : "Despublicar";
+    const aviso =
+      action === "publish"
+        ? "\n\nSalen en la web tal cual están, igual que con el botón de cada ficha."
+        : "\n\nDejan de verse en la web hasta que las vuelvas a publicar.";
+    if (!window.confirm(`¿${verbo} ${ids.length} ficha${ids.length === 1 ? "" : "s"}?${aviso}`)) return;
+    setBusy(action);
+    setAviso(null);
     try {
-      const res = await fetch(`/biblioteca/admin/seo/api/bulk`, {
+      const res = await fetch("/biblioteca/admin/seo/api/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, action }),
       });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; updated?: number; skipped?: number[] };
       if (!res.ok) {
-        const text = await res.text();
-        alert(`Error ${res.status}: ${text}`);
+        setAviso({ tone: "danger", msg: data.error || `Error ${res.status}` });
         return;
       }
       window.location.reload();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setAviso({ tone: "danger", msg: `Error de red: ${e}` });
+    } finally {
+      setBusy(null);
     }
   }
 
-  if (items.length === 0) {
-    return (
-      <p className="font-serif italic text-ink-dim text-lg mt-12">
-        No hay entradas que coincidan con el filtro.
-      </p>
-    );
-  }
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 font-mono text-[10px] tracking-[2px] uppercase">
-        <label className="flex items-center gap-2 cursor-pointer">
+    <div className="space-y-3">
+      <div className="sticky top-24 z-20 flex flex-wrap items-center gap-3 rounded-md border border-divider bg-paper/95 px-4 py-2 backdrop-blur">
+        <label className="flex items-center gap-2 text-sm text-ink-dim cursor-pointer">
           <input
             type="checkbox"
-            checked={allSelected}
-            onChange={toggleAll}
-            className="accent-accent"
+            checked={todas}
+            onChange={() => setSelected(todas ? new Set() : new Set(items.map((i) => i.id)))}
+            className="h-4 w-4 accent-accent"
           />
-          <span className="text-ink-dim">
-            {selected.size > 0
-              ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"}`
-              : "seleccionar todos"}
-          </span>
+          {selected.size > 0
+            ? `${elegidas.length} seleccionada${elegidas.length === 1 ? "" : "s"}`
+            : "Seleccionar todas las de este filtro"}
         </label>
-        <div className="flex gap-2">
-          <button
-            type="button"
+        <div className="flex flex-wrap gap-2 sm:ml-auto">
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy !== null || nPublicar === 0}
+            loading={busy === "publish"}
+            loadingLabel="Publicando…"
             onClick={() => bulk("publish")}
-            disabled={selected.size === 0}
-            data-cursor="hover"
-            className="border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            publicar
-          </button>
-          <button
-            type="button"
+            Publicar ({nPublicar})
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={busy !== null || nDespublicar === 0}
+            loading={busy === "unpublish"}
+            loadingLabel="Despublicando…"
             onClick={() => bulk("unpublish")}
-            disabled={selected.size === 0}
-            data-cursor="hover"
-            className="border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            despublicar
-          </button>
+            Despublicar ({nDespublicar})
+          </Button>
         </div>
       </div>
-
-      <ul className="divide-y divide-divider">
+      {aviso && (
+        <Notice tone={aviso.tone} onClose={() => setAviso(null)}>
+          {aviso.msg}
+        </Notice>
+      )}
+      <ul className="divide-y divide-divider rounded-md border border-divider">
         {items.map((item) => {
-          const st = statusLabel(item);
+          const st = statusOf(item);
           return (
-            <li key={item.id} className="flex items-center gap-4 py-3">
+            <li key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-paper">
               <input
                 type="checkbox"
                 checked={selected.has(item.id)}
                 onChange={() => toggle(item.id)}
-                className="accent-accent shrink-0"
+                aria-label={`Seleccionar ${item.entity_label}`}
+                className="h-4 w-4 shrink-0 accent-accent"
               />
               <Link
                 href={`/biblioteca/admin/seo/${item.id}`}
-                data-cursor="hover"
-                className="flex-1 min-w-0 group"
+                className="flex flex-1 min-w-0 flex-wrap items-center gap-3 group"
               >
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                    {item.entity_type}
-                  </span>
-                  <span className="font-serif text-base md:text-lg text-ink group-hover:text-accent transition-colors truncate">
+                <span className="w-20 shrink-0 text-sm text-ink-faint">
+                  {TIPO[item.entity_type] ?? item.entity_type}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-serif text-base md:text-lg text-ink group-hover:text-accent transition-colors truncate">
                     {item.entity_label}
                   </span>
-                </div>
-                <p className="font-mono text-[10px] tracking-[1px] text-ink-faint mt-1">
-                  {item.chars} chars · {item.generated_by} · {new Date(item.generated_at).toLocaleDateString("es-ES")}
-                </p>
+                  <span className="block text-xs text-ink-faint">
+                    {item.chars.toLocaleString("es-ES")} caracteres · generada{" "}
+                    {new Date(item.generated_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} ·{" "}
+                    <span className="font-mono">{item.generated_by}</span>
+                  </span>
+                </span>
+                <StatusBadge tone={st.tone}>{st.label}</StatusBadge>
               </Link>
-              <span className={`font-mono text-[10px] tracking-[2px] uppercase shrink-0 ${st.cls}`}>
-                {st.label}
-              </span>
             </li>
           );
         })}

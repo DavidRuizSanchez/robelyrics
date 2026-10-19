@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionBar, Button, Notice, cx, inputClass } from "@/components/admin/ui";
 
 export default function ProposalActions({
   id,
@@ -13,10 +14,12 @@ export default function ProposalActions({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [date, setDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const todayIso = new Date().toISOString().slice(0, 10);
 
   async function call(action: string, body?: Record<string, unknown>) {
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/biblioteca/admin/blog/api/${action}/${id}`, {
         method: "POST",
@@ -25,13 +28,13 @@ export default function ProposalActions({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || `Error ${res.status}`);
+        setError(data.error || `Error ${res.status}`);
         return;
       }
       router.push("/biblioteca/admin/blog");
       router.refresh();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError(`Error de red: ${e}`);
     } finally {
       setBusy(false);
     }
@@ -41,6 +44,7 @@ export default function ProposalActions({
   // evento tarde): el backend devuelve 409; confirmamos y reenviamos replace.
   async function scheduleWithConfirm(chosen: string) {
     setBusy(true);
+    setError(null);
     try {
       const send = (replace: boolean) =>
         fetch(`/biblioteca/admin/blog/api/schedule/${id}`, {
@@ -56,74 +60,85 @@ export default function ProposalActions({
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || `Error ${res.status}`);
+        setError(data.error || `Error ${res.status}`);
         return;
       }
       router.push("/biblioteca/admin/blog");
       router.refresh();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError(`Error de red: ${e}`);
     } finally {
       setBusy(false);
     }
   }
 
-  const btn =
-    "font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40";
-  const primary = `${btn} border-accent text-accent hover:bg-accent hover:text-white`;
-  const ghost = `${btn} border-divider text-ink-dim hover:border-accent hover:text-accent`;
-  const danger = `${btn} border-divider text-ink-faint hover:text-ink`;
+  const vivo = status === "proposed" || status === "approved" || status === "scheduled";
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {status === "proposed" && (
-        <button type="button" disabled={busy} onClick={() => call("approve")} className={primary}>
-          aprobar
-        </button>
+    <div>
+      {error && (
+        <div className="mt-4">
+          <Notice onClose={() => setError(null)}>{error}</Notice>
+        </div>
       )}
-      {(status === "proposed" || status === "approved" || status === "scheduled") && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            if (window.confirm("¿Rechazar esta propuesta?")) call("discard");
-          }}
-          className={danger}
-        >
-          rechazar
-        </button>
-      )}
-      {status === "approved" && (
-        <>
-          <input
-            type="date"
-            min={todayIso}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-bg border border-divider text-ink font-mono text-[12px] px-2 py-1.5"
-          />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              date ? scheduleWithConfirm(date) : alert("Elige una fecha primero")
-            }
-            className={primary}
-          >
-            programar
-          </button>
-        </>
-      )}
-      {status === "scheduled" && (
-        <button type="button" disabled={busy} onClick={() => call("unschedule")} className={ghost}>
-          quitar fecha
-        </button>
-      )}
-      {status === "discarded" && (
-        <button type="button" disabled={busy} onClick={() => call("restore")} className={primary}>
-          recuperar
-        </button>
-      )}
+      <ActionBar
+        primary={
+          <>
+            {status === "proposed" && (
+              <Button variant="primary" loading={busy} onClick={() => call("approve")}>
+                Aprobar idea
+              </Button>
+            )}
+            {status === "approved" && (
+              <span className="flex flex-wrap items-center gap-2">
+                <label htmlFor="fecha" className="sr-only">
+                  Fecha de publicación
+                </label>
+                <input
+                  id="fecha"
+                  type="date"
+                  min={todayIso}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={cx(inputClass, "w-auto font-mono")}
+                />
+                <Button
+                  variant="primary"
+                  loading={busy}
+                  onClick={() =>
+                    date ? scheduleWithConfirm(date) : setError("Elige una fecha primero.")
+                  }
+                >
+                  Programar
+                </Button>
+              </span>
+            )}
+            {status === "scheduled" && (
+              <Button loading={busy} onClick={() => call("unschedule")}>
+                Quitar fecha
+              </Button>
+            )}
+            {status === "discarded" && (
+              <Button variant="primary" loading={busy} onClick={() => call("restore")}>
+                Recuperar idea
+              </Button>
+            )}
+          </>
+        }
+        danger={
+          vivo && (
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm("¿Rechazar esta propuesta?")) call("discard");
+              }}
+            >
+              Rechazar
+            </Button>
+          )
+        }
+      />
     </div>
   );
 }

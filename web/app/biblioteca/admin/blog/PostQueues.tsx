@@ -1,3 +1,4 @@
+import { Details, EmptyState, Section } from "@/components/admin/ui";
 import PostListWithActions from "../posts/PostListWithActions";
 import type { AdminPostItem } from "./page";
 
@@ -32,100 +33,95 @@ export default function PostQueues({ posts }: { posts: AdminPostItem[] }) {
   const rechazadas = grupos.rejected ?? [];
 
   return (
-    <div className="space-y-14">
-      {/* ---------- Esperan decisión: SIEMPRE visible ---------- */}
-      <section id="entradas-revision" className="scroll-mt-8">
-        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-          Entradas · esperan tu decisión · {pendientes.length}
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Textos ya escritos que un control detuvo antes de publicar (un dato sin
-          confirmar, una cita en zona gris, el tema desviado), más los creados a
-          mano. Nada de esto sale a la web hasta que tú lo digas.
-        </p>
-        {/* Sin condicional: cuando esté a cero hay que DECIRLO. Antes la sección
-            desaparecía entera y lo único que se leía arriba era el «0» de las
-            ideas, que es otra cola distinta — de ahí el «no veo nada». */}
+    <div className="space-y-10">
+      {/* Sin condicional: cuando esté a cero hay que DECIRLO. Antes la sección
+          desaparecía entera y lo único que se leía arriba era el «0» de las
+          ideas, que es otra cola distinta — de ahí el «no veo nada». */}
+      <Section
+        id="entradas-revision"
+        title="Entradas que esperan tu decisión"
+        count={pendientes.length}
+        help="Textos ya escritos que un control frenó antes de publicar (un dato sin confirmar, una cita dudosa, el tema desviado), más los creados a mano. Nada sale a la web hasta que tú lo digas."
+      >
         {pendientes.length === 0 ? (
-          <p className="font-serif italic text-ink-faint">
-            Nada esperando tu decisión. La cola está limpia.
-          </p>
+          <EmptyState>Nada esperando tu decisión. La cola está limpia.</EmptyState>
         ) : (
           <PostListWithActions items={pendientes} />
         )}
-      </section>
+      </Section>
 
-      {/* ---------- Programadas ---------- */}
       {programadas.length > 0 && (
-        <section id="entradas-programadas" className="scroll-mt-8">
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Entradas · programadas · {programadas.length}
-          </h2>
-          <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Saldrán solas al llegar su fecha. Desde aquí puedes desprogramarlas y
-            devolverlas a la cola de decisión.
-          </p>
+        <Section
+          id="entradas-programadas"
+          title="Entradas programadas"
+          count={programadas.length}
+          help="Saldrán solas al llegar su fecha. Si las desprogramas vuelven a la cola de decisión."
+        >
           <PostListWithActions items={programadas} />
-        </section>
+        </Section>
       )}
 
-      {/* ---------- Aprobadas sin fecha: el callejón sin salida ---------- */}
       {aprobadas.length > 0 && (
-        <section id="entradas-aprobadas" className="scroll-mt-8">
-          <details>
-            <summary
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[3px] uppercase text-accent cursor-pointer"
-            >
-              Entradas · aprobadas sin fecha · {aprobadas.length}
-            </summary>
-            <p className="font-serif italic text-ink-dim text-sm mt-2 mb-5">
-              Aquí caen las que despublicas. Ningún automatismo las recoge, así
-              que se quedan quietas hasta que las publiques o las programes a
-              mano: si no quieres que vuelvan a salir, déjalas aquí.
-            </p>
-            <PostListWithActions items={aprobadas} />
-          </details>
-        </section>
+        <Plegada
+          id="entradas-aprobadas"
+          titulo="Entradas aprobadas sin fecha"
+          n={aprobadas.length}
+          ayuda="Aquí caen las que despublicas. Ningún automatismo las recoge: se quedan quietas hasta que las publiques o las programes a mano."
+        >
+          <PostListWithActions items={aprobadas} />
+        </Plegada>
       )}
 
-      {/* ---------- Borradores ---------- */}
       {borradores.length > 0 && (
-        <section id="entradas-borradores" className="scroll-mt-8">
-          <details>
-            <summary
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint cursor-pointer"
-            >
-              Entradas · borradores · {borradores.length}
-            </summary>
-            <p className="font-serif italic text-ink-dim text-sm mt-2 mb-5">
-              A medio hacer. Lo normal es que pasen solas a la cola de decisión;
-              si llevan aquí mucho tiempo, es que algo se cortó por el camino.
-            </p>
-            <PostListWithActions items={borradores} />
-          </details>
-        </section>
+        <Plegada
+          id="entradas-borradores"
+          titulo="Borradores"
+          n={borradores.length}
+          ayuda="A medio hacer. Lo normal es que pasen solos a la cola de decisión; si llevan aquí mucho tiempo, algo se cortó por el camino."
+        >
+          <PostListWithActions items={borradores} />
+        </Plegada>
       )}
 
-      {/* ---------- Rechazadas: la papelera ---------- */}
       {rechazadas.length > 0 && (
-        <section id="entradas-rechazadas" className="scroll-mt-8">
-          <details>
-            <summary
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint cursor-pointer"
-            >
-              Entradas · rechazadas · {rechazadas.length}
-            </summary>
-            <p className="font-serif italic text-ink-dim text-sm mt-2 mb-5">
-              No se borran nunca: quedan aquí por si te arrepientes o quieres
-              reescribirlas.
-            </p>
-            <PostListWithActions items={rechazadas} />
-          </details>
-        </section>
+        <Plegada
+          id="entradas-rechazadas"
+          titulo="Entradas rechazadas"
+          n={rechazadas.length}
+          ayuda="No se borran nunca: quedan aquí por si te arrepientes o quieres reescribirlas."
+        >
+          <PostListWithActions items={rechazadas} />
+        </Plegada>
       )}
     </div>
+  );
+}
+
+function Plegada({
+  id,
+  titulo,
+  n,
+  ayuda,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  n: number;
+  ayuda: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-28">
+      <Details
+        summary={
+          <span className="text-base text-ink-dim">
+            {titulo} <span className="font-mono text-ink-faint">{n}</span>
+          </span>
+        }
+      >
+        <p className="mb-3 text-sm text-ink-faint">{ayuda}</p>
+        {children}
+      </Details>
+    </section>
   );
 }

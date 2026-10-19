@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
+import { AdminPage, Eyebrow, Metric, MetricGrid } from "@/components/admin/ui";
 import BlogPlanner from "./BlogPlanner";
 import UrlIngestForm from "./UrlIngestForm";
 import PostQueues, { agruparPorEstado } from "./PostQueues";
@@ -85,6 +86,9 @@ export type PlacementGroup = {
   candidates: PlacementCandidate[];
   headline: string;
   options: PlacementOption[];
+  // Por qué se eligió el destino (gsc | titulo | semantica | ninguna). Solo en
+  // repartos calculados desde que existe; los anteriores no lo traen.
+  via?: string[] | null;
 };
 
 export type PlacementOption = {
@@ -154,58 +158,61 @@ export default async function AdminBlogPage() {
   const nPost = (estado: string) => (porEstado[estado] ?? []).length;
 
   return (
-    <main className="px-5 md:px-14 py-8 md:py-10 max-w-[1100px] mx-auto">
-      <header className="mb-10">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          panel admin
-        </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
-          Blog · flujo editorial
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
-          Dos colas distintas: las <b>entradas</b> son textos ya escritos que
-          esperan tu decisión; las <b>ideas</b> son temas aún sin escribir. Tope
-          de 4 publicaciones por semana.
-        </p>
-
-        {/* Dos filas etiquetadas, no seis contadores seguidos: «por validar 0»
-            (ideas) y «en revisión 13» (entradas) parecían lo mismo, así que un
-            0 arriba se leía como «no hay nada que hacer» teniendo 13 abajo. */}
-        <div className="mt-8">
-          <p className="font-mono text-[9px] tracking-[3px] uppercase text-accent mb-2">
-            entradas · textos escritos
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <Stat label="esperan decisión" value={nPost("pending_review")} href="#entradas-revision" />
-            <Stat label="programadas" value={nPost("scheduled")} href="#entradas-programadas" />
-            <Stat label="publicadas" value={nPost("published")} />
-            <Stat label="rechazadas" value={nPost("rejected")} href="#entradas-rechazadas" />
-          </div>
-          <p className="font-mono text-[9px] tracking-[3px] uppercase text-ink-faint mt-6 mb-2">
-            ideas · temas sin escribir
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <Stat label="por validar" value={stats.proposed} href="#ideas" />
-            <Stat label="aprobadas" value={stats.approved} href="#ideas" />
-            <Stat label="programadas" value={stats.scheduled} href="#ideas" />
-            <Stat label="descartadas" value={stats.discarded} href="#ideas" />
-          </div>
+    <AdminPage
+      title="Blog"
+      intro={
+        <>
+          Dos cosas distintas: las <b className="text-ink">entradas</b> son textos ya escritos
+          que esperan tu decisión; las <b className="text-ink">ideas</b> son temas que aún no
+          se han escrito. Como mucho salen 4 publicaciones por semana.
+        </>
+      }
+    >
+      {/* Dos filas etiquetadas, no seis contadores seguidos: «por validar 0»
+          (ideas) y «en revisión 13» (entradas) parecían lo mismo, así que un
+          0 arriba se leía como «no hay nada que hacer» teniendo 13 abajo. */}
+      <div className="space-y-6">
+        <div>
+          <Eyebrow className="mb-2">Entradas · textos ya escritos</Eyebrow>
+          <MetricGrid>
+            <Metric
+              label="Esperan tu decisión"
+              value={nPost("pending_review")}
+              tone={nPost("pending_review") > 0 ? "warn" : "neutral"}
+              href="#entradas-revision"
+            />
+            <Metric label="Programadas" value={nPost("scheduled")} href="#entradas-programadas" />
+            <Metric label="Publicadas" value={nPost("published")} />
+            <Metric label="Rechazadas" value={nPost("rejected")} href="#entradas-rechazadas" />
+          </MetricGrid>
         </div>
+        <div>
+          <Eyebrow className="mb-2">Ideas · temas sin escribir</Eyebrow>
+          <MetricGrid>
+            <Metric
+              label="Por decidir"
+              value={stats.proposed}
+              tone={stats.proposed > 0 ? "warn" : "neutral"}
+              href="#ideas"
+            />
+            <Metric label="Aprobadas sin fecha" value={stats.approved} href="#ideas" />
+            <Metric label="Programadas" value={stats.scheduled} href="#ideas" />
+            <Metric label="Descartadas" value={stats.discarded} href="#ideas" />
+          </MetricGrid>
+        </div>
+      </div>
 
-        <UrlIngestForm />
-      </header>
+      <UrlIngestForm />
 
       {/* Primero lo que espera decisión; las ideas, después. Al revés, las
           entradas quedaban al fondo detrás de 320 descartadas. */}
       <PostQueues posts={allPosts} />
 
-      <section id="ideas" className="mt-16 scroll-mt-8">
-        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint mb-1">
-          Ideas · temas sin escribir
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-8">
-          El banco de temas. Aquí no hay nada escrito todavía: validas la idea y
-          eliges cuándo se convierte en entrada.
+      <div id="ideas" className="scroll-mt-28 border-t border-divider pt-10">
+        <h2 className="font-serif text-2xl text-ink">Ideas</h2>
+        <p className="mt-1 mb-6 text-ink-dim max-w-2xl">
+          El banco de temas. Aquí no hay nada escrito todavía: validas la idea y eliges cuándo
+          se convierte en entrada.
         </p>
         <BlogPlanner
           proposed={proposed}
@@ -214,39 +221,7 @@ export default async function AdminBlogPage() {
           discarded={discarded}
           discardedTotal={stats.discarded}
         />
-      </section>
-    </main>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: number;
-  href?: string;
-}) {
-  const cuerpo = (
-    <>
-      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-        {label}
-      </p>
-      <p className="font-serif text-3xl text-ink mt-1">{value}</p>
-    </>
-  );
-  // Con ancla, el contador LLEVA a su cola: el salto de la cabecera a la
-  // sección era todo el problema cuando la página mide varias pantallas.
-  return href ? (
-    <a
-      href={href}
-      data-cursor="hover"
-      className="block border border-divider hover:border-accent py-4 transition-colors"
-    >
-      {cuerpo}
-    </a>
-  ) : (
-    <div className="border border-divider py-4">{cuerpo}</div>
+      </div>
+    </AdminPage>
   );
 }

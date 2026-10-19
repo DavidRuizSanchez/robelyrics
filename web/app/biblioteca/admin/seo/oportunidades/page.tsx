@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import OpportunityRow, { type Opportunity } from "./OpportunityRow";
+import { AdminPage, Callout, EmptyState, Section } from "@/components/admin/ui";
 
 export const metadata = {
   title: "Admin · Oportunidades SEO · Entre Interiores",
@@ -17,22 +17,22 @@ export const dynamic = "force-dynamic";
 const SECCIONES: { status: string; titulo: string; nota: string }[] = [
   {
     status: "drafted",
-    titulo: "borradores listos · esperan tu visto bueno",
-    nota: "Esto es lo que se publicaría, tal cual. Nada está en el sitio todavía.",
+    titulo: "Borradores listos: esperan tu visto bueno",
+    nota: "Esto es lo que se publicaría, tal cual. Nada está en la web todavía.",
   },
   {
     status: "detected",
-    titulo: "detectadas · esperan que autorices el borrador",
-    nota: "Aprobar aquí solo PREPARA el texto; publicar es un segundo paso.",
+    titulo: "Detectadas: decide si se prepara un borrador",
+    nota: "«Preparar borrador» solo escribe el texto; publicarlo es un segundo paso.",
   },
   {
     status: "approved",
-    titulo: "preparándose",
+    titulo: "Preparándose",
     nota: "El servidor está escribiendo el borrador. Tarda un par de minutos por página.",
   },
   {
     status: "failed",
-    titulo: "se atascaron",
+    titulo: "Atascadas",
     nota: "Nada se ha tocado en el sitio. El motivo va debajo de cada una.",
   },
 ];
@@ -65,70 +65,54 @@ export default async function AdminSeoOportunidadesPage() {
   const periodo = items.find((i) => i.period)?.period ?? null;
 
   return (
-    <div className="max-w-[860px] space-y-12">
-      <header>
-        <h1 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
-          Oportunidades SEO
-        </h1>
-        <p className="font-serif italic text-ink-dim text-sm">
-          Lo que Search Console dice que se está perdiendo, cruzado con lo que la página
-          cubre de verdad{periodo ? ` · datos de ${periodo}` : ""}.
-        </p>
-        <p className="font-serif italic text-ink-faint text-[13px] mt-2">
-          Lo que ya está respondido en el cuerpo y prometido en la metadata no aparece aquí:
-          ahí no falta contenido, falta posición.
-        </p>
-      </header>
+    <AdminPage
+      title="Oportunidades SEO"
+      intro={
+        <>
+          Lo que Search Console dice que se está perdiendo, cruzado con lo que cada página cubre
+          de verdad{periodo ? ` (datos de ${periodo})` : ""}. Cada una pasa por dos clics:{" "}
+          <b className="text-ink">preparar</b> un borrador y, tras ver el antes/después,{" "}
+          <b className="text-ink">publicarlo</b>.
+        </>
+      }
+    >
+      <Callout tone="info">
+        Lo que la página ya responde y ya promete en Google no aparece aquí: ahí no falta
+        contenido, falta posición.
+      </Callout>
 
       {SECCIONES.map(({ status, titulo, nota }) => {
         const filas = items.filter((i) => i.status === status);
         return (
-          <section key={status}>
-            <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
-              {titulo} ({filas.length})
-            </h2>
-            <p className="font-serif italic text-ink-dim text-sm mb-4">{nota}</p>
+          <Section key={status} title={titulo} count={filas.length} help={nota}>
             {filas.length === 0 ? (
-              <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-                Nada por aquí.
-              </p>
+              <EmptyState>Nada por aquí.</EmptyState>
             ) : (
-              <div>
+              <div className="space-y-3">
                 {filas.map((it) => (
                   <OpportunityRow key={it.id} item={it} />
                 ))}
               </div>
             )}
-          </section>
+          </Section>
         );
       })}
 
-      <section>
-        <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
-          publicadas hace poco ({aplicadas.length})
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-4">
-          Se guardó la página tal como estaba antes de aplicar: «revertir» la deja
-          exactamente así, siempre que nadie la haya tocado después.
-        </p>
+      <Section
+        title="Publicadas hace poco"
+        count={aplicadas.length}
+        help="Se guardó la página tal como estaba antes: «Revertir» la deja exactamente así, siempre que nadie la haya tocado después."
+      >
         {aplicadas.length === 0 ? (
-          <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-            Nada por aquí.
-          </p>
+          <EmptyState>Nada por aquí.</EmptyState>
         ) : (
-          <div>
+          <div className="space-y-3">
             {aplicadas.map((it) => (
               <OpportunityRow key={it.id} item={it} />
             ))}
           </div>
         )}
-      </section>
-
-      <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-        <Link href="/biblioteca/admin/seo" className="hover:text-accent">
-          ← fichas SEO
-        </Link>
-      </p>
-    </div>
+      </Section>
+    </AdminPage>
   );
 }

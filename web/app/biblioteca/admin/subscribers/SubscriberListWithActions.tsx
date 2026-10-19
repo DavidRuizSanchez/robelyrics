@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Notice, StatusBadge, Table, cx, tdClass } from "@/components/admin/ui";
+import { SUBSCRIBER_STATUS, etiqueta } from "@/lib/admin/labels";
 
 type AdminSubscriberItem = {
   id: number;
@@ -13,19 +15,15 @@ type AdminSubscriberItem = {
   last_sent_at: string | null;
 };
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  pending: { label: "pendiente", cls: "text-accent" },
-  confirmed: { label: "confirmado", cls: "text-ink" },
-  unsubscribed: { label: "baja", cls: "text-ink-faint" },
-  bounced: { label: "rebotado", cls: "text-ink-faint" },
-};
-
 function fmt(iso: string | null): string {
-  if (!iso) return "·";
+  if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-ES", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    // Zona fija: el SSR corre en UTC y el navegador en local, y sin esto la
+    // misma fecha salía distinta en cada lado (error de hidratación).
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -35,6 +33,7 @@ export default function SubscriberListWithActions({
   items: AdminSubscriberItem[];
 }) {
   const [busy, setBusy] = useState<number | null>(null);
+  const [aviso, setAviso] = useState<{ tone: "ok" | "danger"; msg: string } | null>(null);
 
   async function act(
     id: number,
@@ -42,115 +41,95 @@ export default function SubscriberListWithActions({
     email?: string,
   ) {
     setBusy(id);
+    setAviso(null);
     try {
       const res = await fetch(`/biblioteca/admin/subscribers/api/${action}/${id}`, {
         method: "POST",
       });
       if (!res.ok) {
         const text = await res.text();
-        alert(`Error ${res.status}: ${text}`);
+        setAviso({ tone: "danger", msg: `Error ${res.status}: ${text}` });
         return;
       }
       if (action === "resend-confirmation") {
         // Reenviar no cambia el estado del suscriptor (sigue pending hasta
         // que confirme). Damos feedback explícito en vez de recargar.
-        alert(
-          `Email de confirmación reenviado a ${email}.\n\n` +
-            "El suscriptor seguirá en «pendiente» hasta que pulse el enlace " +
-            "de confirmación en su correo.",
-        );
+        setAviso({
+          tone: "ok",
+          msg: `Confirmación reenviada a ${email}. Sigue «sin confirmar» hasta que pulse el enlace del correo.`,
+        });
         return;
       }
       window.location.reload();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setAviso({ tone: "danger", msg: `Error de red: ${e}` });
     } finally {
       setBusy(null);
     }
   }
 
   if (items.length === 0) {
-    return (
-      <p className="font-serif italic text-ink-dim text-lg mt-6">
-        No hay suscriptores con ese filtro.
-      </p>
-    );
+    return <p className="text-ink-faint">No hay suscriptores con ese filtro.</p>;
   }
 
   return (
-    <ul className="divide-y divide-divider">
-      {items.map((s) => {
-        const st = STATUS_LABEL[s.status] ?? { label: s.status, cls: "text-ink-faint" };
-        const canResend = s.status === "pending";
-        const canBounce = s.status !== "bounced" && s.status !== "unsubscribed";
-        return (
-          <li key={s.id} className="py-5">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <p className="font-mono text-[12px] text-ink break-all">
-                  {s.email}
-                </p>
-                <p className="mt-2 font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
-                  alta {fmt(s.subscribed_at)}
-                  {s.confirmed_at && ` · confirmó ${fmt(s.confirmed_at)}`}
-                  {s.last_sent_at && ` · último envío ${fmt(s.last_sent_at)}`}
-                  {s.source && ` · origen ${s.source}`}
-                </p>
-              </div>
-              <div className="shrink-0 flex flex-col items-end gap-2">
-                <span
-                  className={`font-mono text-[10px] tracking-[2px] uppercase ${st.cls}`}
-                >
-                  {st.label}
-                </span>
-                <div className="flex gap-2 flex-wrap justify-end">
+    <div className="space-y-3">
+      {aviso && (
+        <Notice tone={aviso.tone} onClose={() => setAviso(null)}>
+          {aviso.msg}
+        </Notice>
+      )}
+      <Table head={["Correo", "Estado", "Alta", "Confirmó", "Último envío", "Origen", "Acciones"]}>
+        {items.map((s) => {
+          const st = etiqueta(SUBSCRIBER_STATUS, s.status);
+          const canResend = s.status === "pending";
+          const canBounce = s.status !== "bounced" && s.status !== "unsubscribed";
+          return (
+            <tr key={s.id}>
+              <td className={cx(tdClass, "font-mono text-[13px] text-ink break-all")}>{s.email}</td>
+              <td className={tdClass}>
+                <StatusBadge tone={st.tone}>{st.label}</StatusBadge>
+              </td>
+              <td className={cx(tdClass, "whitespace-nowrap text-ink-dim")}>{fmt(s.subscribed_at)}</td>
+              <td className={cx(tdClass, "whitespace-nowrap text-ink-dim")}>{fmt(s.confirmed_at)}</td>
+              <td className={cx(tdClass, "whitespace-nowrap text-ink-dim")}>{fmt(s.last_sent_at)}</td>
+              <td className={cx(tdClass, "text-ink-faint")}>{s.source ?? "—"}</td>
+              <td className={tdClass}>
+                <div className="flex flex-wrap gap-1.5">
                   {canResend && (
-                    <button
-                      type="button"
-                      onClick={() => act(s.id, "resend-confirmation", s.email)}
-                      disabled={busy === s.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                    >
-                      reenviar
-                    </button>
+                    <Button size="sm" disabled={busy === s.id} onClick={() => act(s.id, "resend-confirmation", s.email)}>
+                      Reenviar confirmación
+                    </Button>
                   )}
                   {canBounce && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("¿Marcar como rebotado?"))
-                          act(s.id, "mark-bounced");
-                      }}
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       disabled={busy === s.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
+                      onClick={() => {
+                        if (window.confirm("¿Marcar como rebotado?")) act(s.id, "mark-bounced");
+                      }}
                     >
-                      rebotado
-                    </button>
+                      Marcar que rebota
+                    </Button>
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={busy === s.id}
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          `¿Borrar ${s.email}? Esto NO marca unsubscribe, borra el registro.`,
-                        )
-                      )
+                      if (window.confirm(`¿Borrar ${s.email}? Esto NO es darle de baja: borra el registro.`))
                         act(s.id, "delete");
                     }}
-                    disabled={busy === s.id}
-                    data-cursor="hover"
-                    className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
                   >
-                    borrar
-                  </button>
+                    Borrar
+                  </Button>
                 </div>
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+              </td>
+            </tr>
+          );
+        })}
+      </Table>
+    </div>
   );
 }

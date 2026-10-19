@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
 import InstagramPlanner from "./InstagramPlanner";
 import ClipsPanel from "./ClipsPanel";
+import { AdminPage, Callout, StatusBadge } from "@/components/admin/ui";
 
 export type IGItem = {
   id: number;
@@ -97,59 +97,36 @@ export default async function InstagramAdminPage() {
   ]);
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
-      <Link
-        href="/biblioteca/admin/sources"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-      >
-        ← admin
-      </Link>
+    <AdminPage
+      title="Instagram"
+      intro={
+        <>
+          Lo que va a salir en{" "}
+          <span className="font-mono text-ink">@{account.username ?? "entreinterioresrobe"}</span>:
+          propuestas por aprobar, la cola que sale sola y los clips de vídeo.
+        </>
+      }
+      actions={
+        account.ok ? (
+          <StatusBadge tone="ok">✓ Conectado a Instagram</StatusBadge>
+        ) : (
+          <StatusBadge tone="danger">✗ Sin conexión con Instagram</StatusBadge>
+        )
+      }
+    >
+      {!account.ok && (
+        <Callout tone="danger" title="No se puede publicar ahora mismo">
+          {account.message}. Mientras tanto se puede preparar y ordenar la cola, pero no publicar.
+        </Callout>
+      )}
 
-      <header className="mt-6 mb-10">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          panel admin
-        </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-ink leading-[1.1] tracking-[-0.5px]">
-          Cola de Instagram
-        </h1>
-        <p className="font-serif italic text-ink-dim text-lg mt-3 max-w-2xl">
-          Los posts que el sistema ha preparado para{" "}
-          <span className="font-mono not-italic text-[12px] tracking-[1px] text-accent">
-            @{account.username ?? "entreinterioresrobe"}
-          </span>
-          . Puedes encolar a mano, publicar ya o descartar.
-        </p>
-
-        <div
-          className={`mt-5 inline-flex items-center gap-2 border px-3 py-2 ${
-            account.ok
-              ? "border-accent text-accent"
-              : "border-divider text-ink-dim"
-          }`}
-        >
-          <span className="font-mono text-[10px] tracking-[2px] uppercase">
-            cuenta IG
-          </span>
-          <span className="font-mono text-[11px]">
-            {account.ok
-              ? `✓ ${account.username ?? "conectada"}`
-              : `· ${account.message}`}
-          </span>
-        </div>
-      </header>
-
-      <InstagramPlanner
-        queue={queue}
-        candidates={candidates}
-        account={account}
-      />
+      <InstagramPlanner queue={queue} candidates={candidates} account={account} />
 
       <ClipsPanel
         asignables={queue
           .filter((it) => it.status !== "published" && it.status !== "discarded")
           .map((it) => ({ id: it.id, title: it.title }))}
       />
-    </main>
+    </AdminPage>
   );
 }

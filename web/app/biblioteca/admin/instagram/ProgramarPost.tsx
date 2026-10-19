@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Notice, cx, inputClass } from "@/components/admin/ui";
 
 /**
  * Selector de fecha y hora de publicación de un post.
@@ -76,65 +77,64 @@ export default function ProgramarPost({
   // Una efeméride ya tiene su día atado al aniversario: no se reprograma.
   if (publishOn) {
     return (
-      <p className="font-mono text-[9px] tracking-[1px] uppercase text-ink-faint">
-        efeméride · sale el {publishOn}
+      <p className="text-sm text-ink-dim">
+        Efeméride: sale el <b className="text-ink">{publishOn}</b>, el día del aniversario.
       </p>
     );
   }
 
   return (
     <div>
-      <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-        programar
+      <label htmlFor={`prog-${itemId}`} className="text-sm font-medium text-ink-dim">
+        Día y hora de publicación
       </label>
       <div className="mt-1 flex items-center gap-2 flex-wrap">
         <input
+          id={`prog-${itemId}`}
           type="datetime-local"
           value={valor}
           disabled={disabled || guardando}
           onChange={(e) => setValor(e.target.value)}
-          className="bg-transparent border border-divider focus:border-accent outline-none text-ink text-xs font-mono px-2 py-1.5 [color-scheme:dark]"
+          className={cx(inputClass, "w-auto font-mono [color-scheme:dark]")}
         />
-        <button
-          type="button"
+        <Button
+          size="sm"
           disabled={disabled || guardando || !valor}
+          loading={guardando}
           onClick={() =>
             // El input da hora local sin zona; `new Date` la interpreta como
             // local y `toISOString` la pasa a UTC, que es lo que espera la API.
             enviar({ publish_at: new Date(valor).toISOString() })
           }
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
         >
-          {guardando ? "…" : "programar"}
-        </button>
+          Programar
+        </Button>
         {publishAt && (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="ghost"
             disabled={disabled || guardando}
             onClick={() => {
               setValor("");
               enviar({ clear_publish_at: true });
             }}
-            data-cursor="hover"
-            className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
           >
-            quitar
-          </button>
+            Quitar fecha
+          </Button>
         )}
       </div>
 
       {publishAt ? (
-        <p className="mt-1.5 font-mono text-[9px] tracking-[1px] uppercase text-accent">
-          programado · {formatoLargo(publishAt)}
-        </p>
+        <p className="mt-1.5 text-sm text-info">Programado: {formatoLargo(publishAt)}</p>
       ) : (
-        <p className="mt-1.5 font-mono text-[9px] text-ink-faint leading-relaxed">
-          Sin programar entra en el goteo por orden de cola.
+        <p className="mt-1.5 text-xs text-ink-faint">
+          Sin fecha, sale cuando le toque en la cola.
         </p>
       )}
       {error && (
-        <p className="mt-1 font-mono text-[9px] text-red-400">{error}</p>
+        <div className="mt-2">
+          <Notice onClose={() => setError(null)}>{error}</Notice>
+        </div>
       )}
     </div>
   );

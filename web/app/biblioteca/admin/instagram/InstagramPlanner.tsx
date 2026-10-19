@@ -3,35 +3,24 @@
 import { useState } from "react";
 import type { IGAccount, IGItem, IGNewsCandidate } from "./page";
 import InstagramPreview, { type PreviewMedia } from "./InstagramPreview";
+import Term from "@/components/admin/Term";
+import {
+  ActionBar,
+  Button,
+  Callout,
+  Card,
+  Data,
+  Details,
+  EmptyState,
+  Eyebrow,
+  Notice,
+  Section,
+  StatusBadge,
+  cx,
+  inputClass,
+} from "@/components/admin/ui";
+import { IG_CONTENT_TYPE, IG_STATUS, etiqueta, type Tone } from "@/lib/admin/labels";
 import ProgramarPost from "./ProgramarPost";
-
-const STATUS_LABEL: Record<string, string> = {
-  proposed: "Propuesta",
-  pending: "Pendiente",
-  prepared: "Preparado",
-  published: "Publicado",
-  failed: "Fallido",
-  discarded: "Descartado",
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  proposed: "border-accent/50 text-accent/80",
-  pending: "border-divider text-ink-dim",
-  prepared: "border-accent text-accent",
-  published: "border-accent bg-accent/10 text-accent",
-  failed: "border-red-500/60 text-red-400",
-  discarded: "border-divider text-ink-faint",
-};
-
-// Etiqueta legible del tipo de contenido evergreen.
-const CONTENT_TYPE_LABEL: Record<string, string> = {
-  quote: "Frase de canción",
-  ephemeris: "Efeméride",
-  anecdote: "Anécdota",
-  robe_quote: "Cita de Robe",
-  news: "Noticia",
-  blog: "Blog",
-};
 
 // Estados que NO entran en la cola de publicación arrastrable (solo lectura).
 const TERMINAL_ORDER = ["failed", "published", "discarded"];
@@ -93,6 +82,8 @@ export default function InstagramPlanner({
   const [detailLoading, setDetailLoading] = useState(false);
   const [draftCaption, setDraftCaption] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
+  // Error de la última acción (sustituye a los alert de error).
+  const [error, setError] = useState<string | null>(null);
 
   async function call(method: "POST", url: string, body?: unknown) {
     setBusy(url);
@@ -104,12 +95,12 @@ export default function InstagramPlanner({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || `Error ${res.status}`);
+        setError(data.error || `Error ${res.status}`);
         return;
       }
       window.location.reload();
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError(`Error de red: ${e}`);
     } finally {
       setBusy(null);
     }
@@ -359,8 +350,10 @@ export default function InstagramPlanner({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Re-sincroniza con el servidor: el aviso se perdería con la recarga,
+        // así que aquí se mantiene el alert.
         alert(data.error || `Error ${res.status}`);
-        window.location.reload(); // re-sincroniza con el servidor
+        window.location.reload();
       }
     } catch (e) {
       alert(`Error de red: ${e}`);
@@ -385,7 +378,7 @@ export default function InstagramPlanner({
       const res = await fetch(`/biblioteca/admin/instagram/api/queue/${id}`);
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || `Error ${res.status}`);
+        setError(d.error || `Error ${res.status}`);
         setExpandedId(null);
         return;
       }
@@ -397,10 +390,13 @@ export default function InstagramPlanner({
         // Sin esto la preview nunca recibía las piezas, y un reel se veía como
         // «vídeo por generar» aunque estuviera generado y servido bien.
         media: data.media ?? [],
+        // La API la manda desde que existe el panel de procedencia, pero aquí
+        // no se copiaba: la ficha «de dónde sale cada cosa» no se veía nunca.
+        evidence: data.evidence ?? null,
       });
       setDraftCaption(data.caption ?? "");
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError(`Error de red: ${e}`);
       setExpandedId(null);
     } finally {
       setDetailLoading(false);
@@ -417,18 +413,22 @@ export default function InstagramPlanner({
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || `Error ${res.status}`);
+        setError(d.error || `Error ${res.status}`);
         return;
       }
       const data = await res.json();
-      setDetail({
+      // Se conservan las piezas y la evidencia: sin ellas, guardar el caption
+      // dejaba un reel ya generado como «vídeo por generar» en la preview.
+      setDetail((prev) => ({
         caption: data.caption ?? null,
         image_b64: data.image_b64 ?? null,
         image_url: data.image_url ?? null,
-      });
+        media: data.media ?? prev?.media ?? [],
+        evidence: data.evidence ?? prev?.evidence ?? null,
+      }));
       setSavedFlash(true);
     } catch (e) {
-      alert(`Error de red: ${e}`);
+      setError(`Error de red: ${e}`);
     } finally {
       setBusy(null);
     }
@@ -450,7 +450,548 @@ export default function InstagramPlanner({
       .filter((x): x is number => typeof x === "number"),
   );
 
-  type Evidencia = {
+  const sinMaterial = upcoming.filter((it) => !it.is_prepared).length;
+  const porRevisar = queue.filter(
+    (it) => it.needs_human && it.status !== "published" && it.status !== "discarded",
+  ).length;
+
+  // ── Piezas de una fila ────────────────────────────────────────────────────
+  // Funciones de render, NO componentes: definidas aquí dentro, un componente
+  // sería un tipo nuevo en cada render y React remontaría la fila, así que el
+  // textarea del caption perdía el foco a cada tecla.
+
+  function renderItem(it: IGItem) {
+    const st = etiqueta(IG_STATUS, it.status);
+    const cuando = scheduleOf(it);
+    const foto = it.is_prepared ? etiquetaFoto(it) : null;
+    return (
+      <>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim">
+            <span>{IG_CONTENT_TYPE[it.content_type] ?? (it.is_blog ? "Blog" : it.category ?? "Actualidad")}</span>
+            <span className="text-ink-faint">· {formatoDe(it)}</span>
+            {it.source_name && <span className="text-ink-faint">· {it.source_name}</span>}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <StatusBadge tone={st.tone} title={st.hint}>
+              {st.label}
+            </StatusBadge>
+            {cuando && (
+              <StatusBadge tone="info">
+                Sale el{" "}
+                {new Date(cuando).toLocaleString("es-ES", {
+                  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                  timeZone: "Europe/Madrid",
+                })}
+              </StatusBadge>
+            )}
+            {!cuando && it.publish_on && (
+              <StatusBadge tone="info">Sale el {fmtDate(it.publish_on)}</StatusBadge>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => toggleDetail(it.id)}
+          aria-expanded={expandedId === it.id}
+          className="mt-1 text-left font-serif text-lg text-ink leading-tight hover:text-accent transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          {it.title}
+        </button>
+        {it.summary && (
+          <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
+            {it.summary}
+          </p>
+        )}
+
+        {it.needs_human && (
+          <Callout tone="warn" className="mt-3" title="Necesita que lo mires">
+            Una guarda no pudo confirmar algo (la identidad, la foto o una afirmación). Ábrelo
+            para ver qué y apruébalo tú: <Term k="needsHuman">no sale en bloque</Term>.
+          </Callout>
+        )}
+        {it.error && (
+          <Callout tone="danger" className="mt-3" title="Último intento fallido">
+            <span className="font-mono text-xs break-words">{it.error}</span>
+          </Callout>
+        )}
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          {foto && (
+            <span className={cx("inline-flex items-center gap-1", toneClass(foto.tone))} title={it.photo_verdict ?? undefined}>
+              {foto.label}
+            </span>
+          )}
+          {it.is_prepared ? (
+            <span className="text-ok">✓ Material listo</span>
+          ) : (
+            it.status !== "published" &&
+            it.status !== "discarded" && <span className="text-ink-faint">Sin material todavía</span>
+          )}
+          {it.has_caption && <span className="text-ink-faint">✓ Texto escrito</span>}
+          <button
+            type="button"
+            onClick={() => toggleDetail(it.id)}
+            className="text-accent hover:underline"
+          >
+            {expandedId === it.id ? "Ocultar ▲" : "Ver y editar ▼"}
+          </button>
+          {it.ig_media_id && (
+            <a
+              href={`https://www.instagram.com/p/${it.ig_media_id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              Ver en Instagram ↗
+            </a>
+          )}
+          {it.source_url && (
+            <a
+              href={it.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ink-dim hover:text-accent"
+            >
+              Fuente ↗
+            </a>
+          )}
+        </div>
+
+        {expandedId === it.id && (
+          <div className="mt-4 rounded-md border border-divider bg-bg/60 p-4">
+            {detailLoading ? (
+              <p className="text-sm text-ink-faint">Cargando…</p>
+            ) : (
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Vista previa fiel al feed: imagen + caption con su corte
+                    real. Es donde se ve si la primera línea dice algo. */}
+                <InstagramPreview
+                  imageSrc={
+                    detail?.image_b64
+                      ? `data:image/jpeg;base64,${detail.image_b64}`
+                      : detail?.image_url ?? null
+                  }
+                  caption={it.status === "published" ? detail?.caption ?? "" : draftCaption}
+                  media={detail?.media ?? []}
+                  mediaSrc={(pos) => `/biblioteca/admin/instagram/api/queue/${it.id}/media/${pos}`}
+                  formatoPedido={it.media_type}
+                />
+
+                <div className="flex-1 min-w-0 space-y-6">
+                  {detail?.evidence && <EvidenciaPost ev={detail.evidence} />}
+
+                  {/* Editor del caption */}
+                  <div>
+                    <label htmlFor={`caption-${it.id}`} className="text-sm font-medium text-ink-dim">
+                      Texto del post
+                    </label>
+                    {it.status === "published" ? (
+                      <p className="mt-1 font-serif text-sm text-ink-dim whitespace-pre-wrap">
+                        {detail?.caption || "(sin texto)"}
+                      </p>
+                    ) : (
+                      <>
+                        <textarea
+                          id={`caption-${it.id}`}
+                          value={draftCaption}
+                          onChange={(e) => {
+                            setDraftCaption(e.target.value);
+                            setSavedFlash(false);
+                          }}
+                          rows={8}
+                          className={cx(inputClass, "mt-1 font-serif leading-relaxed resize-y")}
+                        />
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={busy !== null || draftCaption === (detail?.caption ?? "")}
+                            loading={busy === "save"}
+                            onClick={() => saveCaption(it.id)}
+                          >
+                            Guardar texto
+                          </Button>
+                          {savedFlash && <span className="text-sm text-ok">Guardado ✓</span>}
+                          <span className="font-mono text-xs text-ink-faint">
+                            {draftCaption.length} caracteres
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-warn">
+                          Ojo: «rehacer material» vuelve a escribir el texto y la imagen desde cero y
+                          pierde esta edición. Edita justo antes de publicar.
+                        </p>
+
+                        <div className="mt-5 border-t border-divider pt-4">
+                          <p className="text-sm font-medium text-ink-dim">Formato</p>
+                          {/*
+                            Un post de clip o de «la web» NO cambia de formato: su
+                            formato ES su tema. Ofrecerlo en el desplegable dejaba
+                            convertir una noticia en «clip externo» y el post se
+                            quedaba esperando un vídeo que nunca iba a tener.
+                          */}
+                          {it.content_type === "clip" || it.content_type === "product" ? (
+                            <p className="mt-1 text-sm text-ink-dim">
+                              {it.content_type === "clip"
+                                ? "🎬 Clip externo: el vídeo es el tema de este post, así que el formato no se cambia."
+                                : "✦ Funcionalidad de la web: la consulta es el tema de este post, así que el formato no se cambia."}
+                            </p>
+                          ) : (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <select
+                                aria-label="Formato del post"
+                                value={it.media_type || "IMAGE"}
+                                disabled={busy !== null}
+                                onChange={async (e) => {
+                                  const nuevo = e.target.value;
+                                  await fetch(`/biblioteca/admin/instagram/api/queue/${it.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ media_type: nuevo }),
+                                  });
+                                  window.location.reload();
+                                }}
+                                className={cx(inputClass, "w-auto")}
+                              >
+                                <option value="IMAGE">Foto única</option>
+                                <option value="CAROUSEL">Carrusel</option>
+                                <option value="REELS">Reel · verso animado</option>
+                              </select>
+                              <span className="text-xs text-ink-faint">
+                                Al cambiarlo hay que rehacer el material.
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-5 border-t border-divider pt-4">
+                          <ProgramarPost
+                            itemId={it.id}
+                            publishAt={scheduleOf(it)}
+                            publishOn={it.publish_on}
+                            disabled={busy !== null}
+                            onSaved={(nuevo) => setSchedules((prev) => ({ ...prev, [it.id]: nuevo }))}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function renderActions(it: IGItem) {
+    if (it.status === "published" || it.status === "discarded") return null;
+    return (
+      <ActionBar
+        primary={
+          it.is_prepared ? (
+            <Button
+              variant="primary"
+              disabled={busy !== null || !account.ok}
+              onClick={() => publish(it.id, false)}
+              title={account.ok ? "" : "La conexión con Instagram no funciona"}
+            >
+              ▶ Publicar ahora
+            </Button>
+          ) : (
+            <Button variant="primary" disabled={busy !== null} onClick={() => prepare(it.id)}>
+              Preparar material
+            </Button>
+          )
+        }
+        secondary={
+          it.is_prepared && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy !== null}
+              onClick={() => prepare(it.id)}
+              title="Vuelve a generar imagen y texto desde cero (cuesta dinero y pierde tus ediciones)"
+            >
+              ↻ Rehacer material
+            </Button>
+          )
+        }
+        danger={
+          <Button variant="danger" disabled={busy !== null} onClick={() => discard(it.id)}>
+            Descartar
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-12">
+      {error && <Notice onClose={() => setError(null)}>{error}</Notice>}
+
+      {porRevisar > 0 && (
+        <Callout tone="warn" title={`${porRevisar} post${porRevisar === 1 ? "" : "s"} necesita${porRevisar === 1 ? "" : "n"} que lo mires`}>
+          Están marcados con «Necesita que lo mires». Ábrelos uno a uno: no se aprueban en bloque.
+        </Callout>
+      )}
+
+      {/* ---------- Propuestas evergreen (aprobación en bloque) ---------- */}
+      {proposed.length > 0 && (
+        <Section
+          title="Propuestas por aprobar"
+          count={proposed.length}
+          help="Material intemporal sacado del corpus: frases, efemérides, anécdotas y citas. Marca las que te gusten y apruébalas: se les genera imagen y texto y pasan a la cola."
+          actions={
+            <>
+              <Button size="sm" variant="ghost" onClick={toggleSelectAll}>
+                {selected.size === proposed.length ? "Quitar selección" : "Seleccionar todas"}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={busy !== null || selected.size === 0}
+                loading={busy !== null && selected.size > 0}
+                loadingLabel="Generando imagen y texto…"
+                onClick={bulkApprove}
+              >
+                ✓ Aprobar ({selected.size})
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busy !== null || selected.size === 0}
+                onClick={bulkDiscard}
+              >
+                Descartar ({selected.size})
+              </Button>
+            </>
+          }
+        >
+          <ul className="space-y-2">
+            {proposed.map((it) => (
+              <Card key={it.id} as="li" tone="warn" className="!p-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(it.id)}
+                    onChange={() => toggleSelected(it.id)}
+                    className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm text-ink-dim">
+                      {IG_CONTENT_TYPE[it.content_type] ?? it.content_type}
+                      {it.publish_on && <> · sale el {fmtDate(it.publish_on)}</>}
+                      {it.source_name && <span className="text-ink-faint"> · {it.source_name}</span>}
+                    </span>
+                    <span className="block font-serif text-lg text-ink leading-tight">{it.title}</span>
+                    {it.summary && (
+                      <span className="mt-1 block font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
+                        {it.summary}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              </Card>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* ---------- Cola de publicación (arrastrable) ---------- */}
+      {upcoming.length > 0 && (
+        <Section
+          title="Próximas publicaciones"
+          count={upcoming.length}
+          help="Salen solas, unas 11 por semana, en este orden: arrastra con el asa ⠿ para cambiarlo. «Programar automáticamente» les pone día y hora."
+        >
+          <div className="mb-4 rounded-md border border-divider bg-paper p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="primary" disabled={busy !== null} onClick={autoSchedule}>
+                🗓 Programar automáticamente
+              </Button>
+              <Button
+                disabled={busy !== null || sinMaterial === 0}
+                onClick={bulkPrepare}
+                title="Genera imagen, carrusel o vídeo de lo que está en cola sin material (tiene coste)"
+              >
+                ⚙ Generar material pendiente ({sinMaterial})
+              </Button>
+            </div>
+            <Details summary="Más herramientas de la cola" className="mt-3">
+              <ul className="space-y-2 text-sm">
+                <li className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" disabled={busy !== null} onClick={shuffleFormats}>
+                    🎲 Variar formatos
+                  </Button>
+                  <span className="text-ink-dim">Reparte foto, carrusel y reel para que el feed no sea monótono. Respeta lo que elegiste a mano.</span>
+                </li>
+                <li className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" disabled={busy !== null} onClick={interleave}>
+                    ⇄ Intercalar tipos
+                  </Button>
+                  <span className="text-ink-dim">Reordena para que no salgan seguidas dos cosas del mismo tipo.</span>
+                </li>
+                <li className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" disabled={busy !== null} onClick={generateProduct}>
+                    ✦ Crear posts sobre la web
+                  </Button>
+                  <span className="text-ink-dim">Consulta el consultorio y el buscador de verdad y propone piezas que enseñan la web.</span>
+                </li>
+              </ul>
+            </Details>
+          </div>
+          <ul className="space-y-3">
+            {upcoming.map((it, index) => (
+              <li
+                key={it.id}
+                onDragOver={(e) => onDragOver(index, e)}
+                onDrop={(e) => e.preventDefault()}
+                className={cx("transition-opacity", dragIndex === index && "opacity-40")}
+              >
+                <Card tone={toneFila(it)}>
+                  <div className="flex items-start gap-3">
+                    {/* Solo el asa es arrastrable: así el clic en el título o los
+                        botones no se lo traga el drag-and-drop. */}
+                    <span
+                      draggable={busy === null}
+                      onDragStart={() => onDragStart(index)}
+                      onDragEnd={persistOrder}
+                      className="select-none text-ink-faint hover:text-accent cursor-grab active:cursor-grabbing pt-0.5 text-lg leading-none"
+                      title="Arrastra para reordenar"
+                      aria-label={`Posición ${index + 1}. Arrastra para reordenar`}
+                    >
+                      ⠿
+                    </span>
+                    <span className="pt-0.5 font-mono text-xs text-ink-faint w-5 shrink-0">{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      {renderItem(it)}
+                      {renderActions(it)}
+                    </div>
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* ---------- Con fecha fija (salen su día) ---------- */}
+      {pinned.length > 0 && (
+        <Section
+          title="Con fecha fija"
+          count={pinned.length}
+          help="Efemérides y posts programados a mano. Cada uno sale su día y hora; no entran en el goteo."
+        >
+          <ul className="space-y-3">
+            {pinned.map((it) => (
+              <Card key={it.id} as="li" tone={toneFila(it)}>
+                {renderItem(it)}
+                {renderActions(it)}
+              </Card>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* ---------- Estados terminales (solo lectura) ---------- */}
+      {TERMINAL_ORDER.map((s) => {
+        const items = byTerminal.get(s) ?? [];
+        if (items.length === 0) return null;
+        const st = etiqueta(IG_STATUS, s);
+        const lista = (
+          <ul className="space-y-3">
+            {items.map((it) => (
+              <Card key={it.id} as="li" tone={s === "failed" ? "danger" : "neutral"}>
+                {renderItem(it)}
+                {renderActions(it)}
+              </Card>
+            ))}
+          </ul>
+        );
+        // Lo fallido se ve abierto (hay que actuar); lo publicado y descartado, plegado.
+        return s === "failed" ? (
+          <Section
+            key={s}
+            title="Fallidas"
+            count={items.length}
+            help="Instagram las rechazó o no se pudieron preparar. Se reintentan solas mientras les queden intentos; si no, rehaz el material o descártalas."
+          >
+            {lista}
+          </Section>
+        ) : (
+          <section key={s}>
+            <Details
+              summary={
+                <span className="text-base text-ink-dim">
+                  {st.label}s <span className="font-mono text-ink-faint">{items.length}</span>
+                </span>
+              }
+            >
+              {lista}
+            </Details>
+          </section>
+        );
+      })}
+
+      {queue.length === 0 && (
+        <EmptyState>
+          La cola está vacía. Encola alguna noticia desde el banco de abajo o espera al proceso
+          diario.
+        </EmptyState>
+      )}
+
+      {/* ---------- Banco de noticias para encolar ---------- */}
+      <Section
+        title="Noticias para encolar"
+        count={candidates.length}
+        help="Lo mejor del último repaso del agregador de noticias. Las que ya están en la cola no se pueden volver a encolar."
+      >
+        {candidates.length === 0 ? (
+          <EmptyState>No hay noticias en el almacén. Hace falta pasar antes el agregador.</EmptyState>
+        ) : (
+          <ul className="divide-y divide-divider rounded-md border border-divider">
+            {candidates.map((n) => {
+              const ya = candidateIdsInQueue.has(n.id);
+              return (
+                <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="flex flex-wrap items-center gap-x-2 text-sm text-ink-dim">
+                      <span>{n.category ?? "Actualidad"}</span>
+                      <span className="text-ink-faint">· {n.source_medium ?? n.source_name}</span>
+                      <span className="text-ink-faint" title="Puntuación de relevancia del agregador">
+                        · relevancia <Data className="text-ink-dim">{n.relevance_score.toFixed(1)}</Data>
+                      </span>
+                      {n.policy === "ig-only" && <StatusBadge>solo Instagram</StatusBadge>}
+                    </p>
+                    <p className="mt-0.5 font-serif text-base text-ink leading-tight">{n.title}</p>
+                    <a
+                      href={n.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-ink-dim hover:text-accent"
+                    >
+                      Ver original ↗
+                    </a>
+                  </div>
+                  {ya ? (
+                    <StatusBadge tone="ok">Ya en la cola</StatusBadge>
+                  ) : (
+                    <Button size="sm" disabled={busy !== null} onClick={() => enqueueNews(n.id)}>
+                      ＋ Encolar
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+type Evidencia = {
   material_url: string | null;
   material_status: string | null;
   material_chars: number;
@@ -474,6 +1015,31 @@ export default function InstagramPlanner({
   avisos: string[];
 };
 
+function toneClass(t: Tone): string {
+  return { ok: "text-ok", warn: "text-warn", danger: "text-danger", info: "text-info", neutral: "text-ink-dim", accent: "text-accent" }[t];
+}
+
+function toneFila(it: IGItem): Tone {
+  if (it.error || it.status === "failed") return "danger";
+  if (it.needs_human) return "warn";
+  return etiqueta(IG_STATUS, it.status).tone;
+}
+
+function formatoDe(it: IGItem): string {
+  switch (it.media_type) {
+    case "CAROUSEL":
+      return `carrusel de ${it.media_count}`;
+    case "REELS":
+      return "reel";
+    case "CLIP":
+      return "clip externo";
+    case "PRODUCT":
+      return "pieza sobre la web";
+    default:
+      return "foto";
+  }
+}
+
 /**
  * De dónde salió cada cosa del post.
  *
@@ -486,114 +1052,100 @@ export default function InstagramPlanner({
  * reconocer la cara y luego abrir la noticia original a mano.
  */
 function EvidenciaPost({ ev }: { ev: Evidencia }) {
-  const linea = "font-mono text-[9px] tracking-[2px] uppercase text-ink-faint";
   return (
-    <div className="flex-1 min-w-0 space-y-4 border-l border-[rgba(237,228,211,0.08)] pl-5">
+    <div className="space-y-4 rounded-md border border-divider p-3">
+      <p className="font-medium text-ink">De dónde sale cada cosa</p>
       {ev.avisos.length > 0 && (
-        <div>
-          <p className={linea}>revisar</p>
-          <ul className="mt-1 space-y-1">
+        <Callout tone="warn" title="Revisar">
+          <ul className="list-disc pl-5 space-y-1">
             {ev.avisos.map((a, i) => (
-              <li key={i} className="text-[13px] text-accent">⚠ {a}</li>
+              <li key={i}>{a}</li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
 
       <div>
-        <p className={linea}>quién es quién</p>
-        {ev.entities.length === 0 && (
-          <p className="mt-1 text-[13px] text-ink-faint">(sin entidades)</p>
-        )}
+        <Eyebrow>Quién es quién</Eyebrow>
+        {ev.entities.length === 0 && <p className="mt-1 text-sm text-ink-faint">Sin personas ni entidades.</p>}
         <ul className="mt-1 space-y-1.5">
-          {ev.entities.map((e, i) => (
-            <li key={i} className="text-[13px] leading-snug">
-              <span className={e.status === "corpus" || e.status === "wikidata"
-                ? "text-ink" : "text-accent"}>
-                {e.label ?? e.surface}
-              </span>
-              {e.description && (
-                <span className="text-ink-faint"> · {e.description}</span>
-              )}
-              {e.qid && (
-                <a
-                  href={`https://www.wikidata.org/wiki/${e.qid}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="ml-1 font-mono text-[10px] text-accent hover:underline"
-                >
-                  {e.qid} ↗
-                </a>
-              )}
-              {(e.status === "ambiguous" || e.status === "unresolved") && (
-                <span className="block text-[12px] text-ink-faint">
-                  silenciado: {e.reason}
-                </span>
-              )}
-            </li>
-          ))}
+          {ev.entities.map((e, i) => {
+            const ok = e.status === "corpus" || e.status === "wikidata";
+            return (
+              <li key={i} className="text-sm leading-snug">
+                <span className={ok ? "text-ok" : "text-warn"}>{ok ? "✓" : "⚠"}</span>{" "}
+                <span className="text-ink">{e.label ?? e.surface}</span>
+                {e.description && <span className="text-ink-faint"> · {e.description}</span>}
+                {e.qid && (
+                  <a
+                    href={`https://www.wikidata.org/wiki/${e.qid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 font-mono text-xs text-accent hover:underline"
+                  >
+                    {e.qid} ↗
+                  </a>
+                )}
+                {(e.status === "ambiguous" || e.status === "unresolved") && (
+                  <span className="block text-xs text-ink-faint">
+                    No se nombra (no se pudo identificar): {e.reason}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
       <div>
-        <p className={linea}>la foto</p>
-        <p className="mt-1 text-[13px]">
-          {ev.photo_source ?? "—"}
-          {ev.photo_verdict && (
-            <span className="text-ink-faint"> · {ev.photo_verdict}</span>
-          )}
+        <Eyebrow>La foto</Eyebrow>
+        <p className="mt-1 text-sm text-ink">
+          {ev.photo_source ? FOTO_ORIGEN[ev.photo_source] ?? ev.photo_source : "—"}
+          {ev.photo_verdict && <span className="text-ink-faint"> · {ev.photo_verdict}</span>}
         </p>
-        {ev.photo_reason && (
-          <p className="text-[12px] text-ink-faint">{ev.photo_reason}</p>
-        )}
-        {ev.photo_query && (
-          <p className="text-[12px] text-ink-faint">
-            se buscó: «{ev.photo_query}»
-          </p>
-        )}
+        {ev.photo_reason && <p className="text-xs text-ink-faint">{ev.photo_reason}</p>}
+        {ev.photo_query && <p className="text-xs text-ink-faint">Se buscó: «{ev.photo_query}»</p>}
         {ev.photo_page_url && (
           <a
             href={ev.photo_page_url}
-            target="_blank" rel="noopener noreferrer"
-            className="font-mono text-[10px] text-accent hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:underline"
           >
-            {ev.photo_site || "de dónde salió"} ↗
+            {ev.photo_site || "De dónde salió"} ↗
           </a>
         )}
       </div>
 
       {ev.claims.length > 0 && (
         <div>
-          <p className={linea}>lo que afirma</p>
-          <ul className="mt-1 space-y-1">
-            {ev.claims.map((c, i) => (
-              <li key={i} className="text-[12px] leading-snug">
-                <span className={c.verdict === "supported" ? "text-ink" : "text-accent"}>
-                  {c.verdict === "supported" ? "✓" : "✗"} {c.claim}
-                </span>
-                {c.evidence && (
-                  <span className="block text-ink-faint">«{c.evidence}»</span>
-                )}
-              </li>
-            ))}
+          <Eyebrow>Lo que afirma el texto</Eyebrow>
+          <ul className="mt-1 space-y-1.5">
+            {ev.claims.map((c, i) => {
+              const ok = c.verdict === "supported";
+              return (
+                <li key={i} className="text-sm leading-snug">
+                  <span className={ok ? "text-ok" : "text-danger"}>{ok ? "✓ Respaldado" : "✗ Sin respaldo"}</span>
+                  <span className="text-ink"> · {c.claim}</span>
+                  {c.evidence && <span className="block text-xs text-ink-faint">«{c.evidence}»</span>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
 
       <div>
-        <p className={linea}>material</p>
-        <p className="mt-1 text-[13px] text-ink-faint">
+        <Eyebrow>Material de partida</Eyebrow>
+        <p className="mt-1 text-sm text-ink-dim">
           {ev.material_chars > 0
-            ? `${ev.material_chars} caracteres del artículo`
-            : "sin artículo"}
+            ? `${ev.material_chars.toLocaleString("es-ES")} caracteres del artículo`
+            : "Sin artículo"}
           {ev.material_url && (
             <>
               {" · "}
-              <a
-                href={ev.material_url}
-                target="_blank" rel="noopener noreferrer"
-                className="font-mono text-[10px] text-accent hover:underline"
-              >
-                fuente ↗
+              <a href={ev.material_url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                Fuente ↗
               </a>
             </>
           )}
@@ -603,6 +1155,13 @@ function EvidenciaPost({ ev }: { ev: Evidencia }) {
   );
 }
 
+const FOTO_ORIGEN: Record<string, string> = {
+  ficha_propia: "De nuestra propia ficha",
+  wikidata_p18: "Wikimedia Commons (foto oficial de la entidad)",
+  google_images: "Búsqueda en la web",
+  arte_propio: "Ilustración propia (no retrata a nadie)",
+};
+
 /**
  * De dónde salió la foto, en vez del «imagen ✓» de antes.
  *
@@ -610,599 +1169,19 @@ function EvidenciaPost({ ev }: { ev: Evidencia }) {
  * noticia que iba de la presidenta de la Junta de Extremadura: decía que HABÍA
  * imagen, no de quién era. Para cazar el fallo había que reconocer la cara.
  */
-function etiquetaFoto(it: IGItem): string {
+function etiquetaFoto(it: IGItem): { label: string; tone: Tone } {
   switch (it.photo_source) {
     case "ficha_propia":
-      return "📷 ficha propia";
+      return { label: "📷 Foto de nuestra ficha", tone: "ok" };
     case "wikidata_p18":
-      return "📷 commons ✓";
+      return { label: "📷 Foto de Commons ✓", tone: "ok" };
     case "google_images":
       return it.photo_verdict === "identidad_sin_mirar"
-        ? "📷 web · sin comprobar"
-        : "📷 web · identidad ✓";
+        ? { label: "📷 Foto de la web · sin comprobar quién es", tone: "warn" }
+        : { label: "📷 Foto de la web · identidad comprobada", tone: "ok" };
     case "arte_propio":
-      return "🎨 arte propio";
+      return { label: "🎨 Ilustración propia", tone: "neutral" };
     default:
-      return "imagen ✓";
+      return { label: "📷 Imagen generada", tone: "neutral" };
   }
-}
-
-function ItemMeta({ it }: { it: IGItem }) {
-    return (
-      <>
-        <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
-          {fmtDate(it.day)} · slot {it.slot} ·{" "}
-          {it.is_blog ? "Blog" : it.category ?? "Actualidad"}
-          {it.source_name && ` · ${it.source_name}`}
-        </p>
-        <button
-          type="button"
-          onClick={() => toggleDetail(it.id)}
-          data-cursor="hover"
-          className="text-left font-serif text-lg text-ink leading-tight hover:text-accent transition-colors"
-          title="Ver / editar el contenido"
-        >
-          {it.title}
-          <span className="ml-2 font-mono text-[10px] text-ink-faint">
-            {expandedId === it.id ? "▲" : "▼"}
-          </span>
-        </button>
-        {it.summary && (
-          <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
-            {it.summary}
-          </p>
-        )}
-        <div className="mt-2 flex items-center gap-3 flex-wrap">
-          <span
-            className={`font-mono text-[9px] tracking-[2px] uppercase border px-1.5 py-0.5 ${STATUS_COLOR[it.status] ?? ""}`}
-          >
-            {STATUS_LABEL[it.status] ?? it.status}
-          </span>
-          {it.media_type && it.media_type !== "IMAGE" && (
-            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-divider text-ink-dim px-1.5 py-0.5">
-              {it.media_type === "CAROUSEL"
-                ? `▣ carrusel · ${it.media_count}`
-                : it.media_type === "CLIP"
-                  ? "🎬 clip externo"
-                  : it.media_type === "PRODUCT"
-                    ? "✦ la web"
-                    : "▶ reel"}
-            </span>
-          )}
-          {scheduleOf(it) && (
-            <span className="font-mono text-[9px] tracking-[2px] uppercase border border-accent/60 text-accent px-1.5 py-0.5">
-              🕒{" "}
-              {new Date(scheduleOf(it) as string).toLocaleString("es-ES", {
-                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-              })}
-            </span>
-          )}
-          {it.needs_human && (
-            <span
-              className="font-mono text-[9px] tracking-[2px] uppercase text-accent"
-              title="Pide que lo mires: despliega para ver por qué"
-            >
-              ⚠ revisar
-            </span>
-          )}
-          {it.is_prepared && (
-            <span
-              className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint"
-              title={it.photo_verdict ?? undefined}
-            >
-              {etiquetaFoto(it)}
-            </span>
-          )}
-          {it.has_caption && (
-            <span className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-              caption ✓
-            </span>
-          )}
-          {it.ig_media_id && (
-            <a
-              href={`https://www.instagram.com/p/${it.ig_media_id}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[10px] text-accent hover:underline"
-            >
-              ver en IG ↗
-            </a>
-          )}
-          {it.source_url && (
-            <a
-              href={it.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[10px] text-ink-dim hover:text-accent"
-            >
-              fuente ↗
-            </a>
-          )}
-        </div>
-        {it.error && (
-          <p className="mt-2 font-mono text-[10px] text-red-400">{it.error}</p>
-        )}
-
-        {expandedId === it.id && (
-          <div className="mt-4 border-l-2 border-accent/40 pl-4">
-            {detailLoading ? (
-              <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                cargando…
-              </p>
-            ) : (
-              <div className="flex flex-col md:flex-row gap-6">
-                {/* Vista previa fiel al feed: imagen + caption con su corte
-                    real. Es donde se ve si la primera línea dice algo. */}
-                <InstagramPreview
-                  imageSrc={
-                    detail?.image_b64
-                      ? `data:image/jpeg;base64,${detail.image_b64}`
-                      : detail?.image_url ?? null
-                  }
-                  caption={
-                    it.status === "published"
-                      ? detail?.caption ?? ""
-                      : draftCaption
-                  }
-                  media={detail?.media ?? []}
-                  mediaSrc={(pos) =>
-                    `/biblioteca/admin/instagram/api/queue/${it.id}/media/${pos}`
-                  }
-                  formatoPedido={it.media_type}
-                />
-
-                {detail?.evidence && <EvidenciaPost ev={detail.evidence} />}
-
-                {/* Editor del caption */}
-                <div className="flex-1 min-w-0">
-                  <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                    caption
-                  </label>
-                  {it.status === "published" ? (
-                    <p className="mt-1 font-serif text-sm text-ink-dim whitespace-pre-wrap">
-                      {detail?.caption || "(sin caption)"}
-                    </p>
-                  ) : (
-                    <>
-                      <textarea
-                        value={draftCaption}
-                        onChange={(e) => {
-                          setDraftCaption(e.target.value);
-                          setSavedFlash(false);
-                        }}
-                        rows={8}
-                        className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-serif leading-relaxed p-2 resize-y"
-                      />
-                      <div className="mt-2 flex items-center gap-3">
-                        <button
-                          type="button"
-                          disabled={busy !== null || draftCaption === (detail?.caption ?? "")}
-                          onClick={() => saveCaption(it.id)}
-                          data-cursor="hover"
-                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                        >
-                          guardar caption
-                        </button>
-                        {savedFlash && (
-                          <span className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-                            guardado ✓
-                          </span>
-                        )}
-                        <span className="font-mono text-[9px] text-ink-faint">
-                          {draftCaption.length} car.
-                        </span>
-                      </div>
-                      <p className="mt-2 font-mono text-[9px] text-ink-faint leading-relaxed">
-                        Ojo: "re-preparar" regenera el caption y la imagen desde
-                        cero (pierde esta edición). Edita justo antes de publicar.
-                      </p>
-
-                      <div className="mt-4 pt-4 border-t border-divider">
-                        <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                          formato
-                        </label>
-                        {/*
-                          Un post de clip o de «la web» NO cambia de formato: su
-                          formato ES su tema. Ofrecerlo en el desplegable dejaba
-                          convertir una noticia en «clip externo» y el post se
-                          quedaba esperando un vídeo que nunca iba a tener.
-                        */}
-                        {it.content_type === "clip" || it.content_type === "product" ? (
-                          <p className="mt-1 font-mono text-[10px] text-ink-dim">
-                            {it.content_type === "clip"
-                              ? "🎬 Clip externo. El vídeo es el tema de este post, así que el formato no se cambia."
-                              : "✦ Funcionalidad de la web. La consulta es el tema de este post, así que el formato no se cambia."}
-                          </p>
-                        ) : (
-                        <div className="mt-1 flex items-center gap-2 flex-wrap">
-                          <select
-                            value={it.media_type || "IMAGE"}
-                            disabled={busy !== null}
-                            onChange={async (e) => {
-                              const nuevo = e.target.value;
-                              await fetch(
-                                `/biblioteca/admin/instagram/api/queue/${it.id}`,
-                                {
-                                  method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ media_type: nuevo }),
-                                },
-                              );
-                              window.location.reload();
-                            }}
-                            className="bg-transparent border border-divider focus:border-accent outline-none text-ink text-xs font-mono px-2 py-1.5"
-                          >
-                            <option value="IMAGE">Foto única</option>
-                            <option value="CAROUSEL">Carrusel</option>
-                            <option value="REELS">Reel · verso animado</option>
-                          </select>
-                          <span className="font-mono text-[9px] text-ink-faint">
-                            al cambiarlo hay que «re-preparar»
-                          </span>
-                        </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 pt-4 border-t border-divider">
-                        <ProgramarPost
-                          itemId={it.id}
-                          publishAt={scheduleOf(it)}
-                          publishOn={it.publish_on}
-                          disabled={busy !== null}
-                          onSaved={(nuevo) =>
-                            setSchedules((prev) => ({ ...prev, [it.id]: nuevo }))
-                          }
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </>
-    );
-  }
-
-  function ItemActions({ it }: { it: IGItem }) {
-    if (it.status === "published" || it.status === "discarded") return null;
-    return (
-      <div className="shrink-0 flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => prepare(it.id)}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-        >
-          {it.is_prepared ? "re-preparar" : "preparar"}
-        </button>
-        {it.is_prepared && (
-          <button
-            type="button"
-            disabled={busy !== null || !account.ok}
-            onClick={() => publish(it.id, false)}
-            data-cursor="hover"
-            title={account.ok ? "" : "El token de IG no es válido"}
-            className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-          >
-            ▶ publicar ahora
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => discard(it.id)}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-        >
-          descartar
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-14">
-      {/* ---------- Propuestas evergreen (aprobación en bloque) ---------- */}
-      {proposed.length > 0 && (
-        <section>
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Propuestas evergreen · {proposed.length}
-          </h2>
-          <p className="font-serif italic text-ink-dim text-sm mb-4">
-            Material intemporal sacado del corpus (frases, efemérides, anécdotas
-            y citas). Marca las que te gusten y apruébalas en bloque: se les
-            generará imagen + caption y pasarán a la cola.
-          </p>
-          <div className="flex items-center gap-3 flex-wrap mb-4">
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
-            >
-              {selected.size === proposed.length ? "deseleccionar todo" : "seleccionar todo"}
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null || selected.size === 0}
-              onClick={bulkApprove}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-            >
-              {busy !== null
-                ? "procesando… (genera imagen+caption)"
-                : `✓ aprobar seleccionadas (${selected.size})`}
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null || selected.size === 0}
-              onClick={bulkDiscard}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-            >
-              ✕ descartar seleccionadas
-            </button>
-          </div>
-          <ul className="divide-y divide-divider">
-            {proposed.map((it) => (
-              <li key={it.id} className="py-4">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(it.id)}
-                    onChange={() => toggleSelected(it.id)}
-                    data-cursor="hover"
-                    className="mt-1.5 accent-accent w-4 h-4 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
-                      <span className="text-accent">
-                        {CONTENT_TYPE_LABEL[it.content_type] ?? it.content_type}
-                      </span>
-                      {it.publish_on && (
-                        <span className="text-accent"> · 📅 {fmtDate(it.publish_on)}</span>
-                      )}
-                      {it.source_name && ` · ${it.source_name}`}
-                    </p>
-                    <p className="font-serif text-lg text-ink leading-tight">
-                      {it.title}
-                    </p>
-                    {it.summary && (
-                      <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
-                        {it.summary}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ---------- Cola de publicación (arrastrable) ---------- */}
-      {upcoming.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-            <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-              Próximas publicaciones · {upcoming.length}
-            </h2>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={interleave}
-              data-cursor="hover"
-              title="Reordena la cola intercalando los tipos para que el goteo salga variado"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-            >
-              ⇄ alternar tipos de publicación
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={autoSchedule}
-              data-cursor="hover"
-              title="Reparte los posts aprobados por las próximas 4 semanas, intercalando tipos y respetando el tope semanal"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-            >
-              🗓 autoprogramar
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={generateProduct}
-              data-cursor="hover"
-              title="Compone piezas del consultorio y del buscador con contenido real y las encola"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-            >
-              ✦ enseñar la web
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={bulkPrepare}
-              data-cursor="hover"
-              title="Genera imagen, carrusel o vídeo de todo lo que esté pendiente y sin material"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-            >
-              ⚙ generar material
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={shuffleFormats}
-              data-cursor="hover"
-              title="Reparte formatos variados (foto / carrusel / reel) para que el feed no salga monótono. Respeta los que hayas elegido a mano."
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-            >
-              🎲 variar formatos
-            </button>
-          </div>
-          <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Goteo de ~11 a la semana. Arrastra para reordenar; el de arriba se
-            publica antes. «Autoprogramar» les pone fecha y hora concretas.
-          </p>
-          <ul className="divide-y divide-divider">
-            {upcoming.map((it, index) => (
-              <li
-                key={it.id}
-                onDragOver={(e) => onDragOver(index, e)}
-                onDrop={(e) => e.preventDefault()}
-                className={`py-5 transition-opacity ${
-                  dragIndex === index ? "opacity-40" : ""
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Solo el asa es arrastrable: así el clic en el título o los
-                      botones no se lo traga el drag-and-drop. */}
-                  <span
-                    aria-hidden
-                    draggable={busy === null}
-                    onDragStart={() => onDragStart(index)}
-                    onDragEnd={persistOrder}
-                    data-cursor="hover"
-                    className="select-none font-mono text-ink-faint hover:text-accent cursor-grab active:cursor-grabbing pt-1 text-lg leading-none"
-                    title="Arrastra para reordenar"
-                  >
-                    ⠿
-                  </span>
-                  <div className="flex-1 min-w-0 flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <ItemMeta it={it} />
-                    </div>
-                    <ItemActions it={it} />
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ---------- Efemérides con fecha fija (salen su día) ---------- */}
-      {pinned.length > 0 && (
-        <section>
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-            Efemérides programadas · {pinned.length}
-          </h2>
-          <p className="font-serif italic text-ink-dim text-sm mb-5">
-            Aniversarios y cumpleaños. Cada uno se publica SOLO el día de su
-            efeméride (no entra en el goteo).
-          </p>
-          <ul className="divide-y divide-divider">
-            {pinned.map((it) => (
-              <li key={it.id} className="py-4">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent mb-1">
-                      📅 {fmtDate(it.publish_on || "")}
-                    </p>
-                    <div className="flex-1 min-w-0">
-                      <ItemMeta it={it} />
-                    </div>
-                  </div>
-                  <ItemActions it={it} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ---------- Estados terminales (solo lectura) ---------- */}
-      {TERMINAL_ORDER.map((s) => {
-        const items = byTerminal.get(s) ?? [];
-        if (items.length === 0) return null;
-        return (
-          <section key={s}>
-            <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
-              {STATUS_LABEL[s] ?? s} · {items.length}
-            </h2>
-            <ul className="divide-y divide-divider">
-              {items.map((it) => (
-                <li key={it.id} className="py-5">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <ItemMeta it={it} />
-                    </div>
-                    <ItemActions it={it} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-
-      {queue.length === 0 && (
-        <p className="font-serif italic text-ink-dim">
-          La cola está vacía. Encola alguna noticia desde el banco de abajo o
-          espera al cron diario.
-        </p>
-      )}
-
-      {/* ---------- Banco de noticias para encolar ---------- */}
-      <section>
-        <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-1">
-          Noticias agregadas · {candidates.length}
-        </h2>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Top noticias del último ciclo del agregador. Las que ya están en
-          cola no se pueden volver a encolar.
-        </p>
-        {candidates.length === 0 ? (
-          <p className="font-serif italic text-ink-faint">
-            No hay noticias en el almacén. Corre primero el agregador.
-          </p>
-        ) : (
-          <ul className="divide-y divide-divider">
-            {candidates.map((n) => {
-              const ya = candidateIdsInQueue.has(n.id);
-              return (
-                <li key={n.id} className="py-4">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
-                        {n.category ?? "Actualidad"} ·{" "}
-                        {n.source_medium ?? n.source_name} · score{" "}
-                        <span className="text-accent">
-                          {n.relevance_score.toFixed(1)}
-                        </span>
-                        {n.policy === "ig-only" && (
-                          <span className="ml-2 text-accent">[ig-only]</span>
-                        )}
-                      </p>
-                      <p className="font-serif text-base text-ink leading-tight">
-                        {n.title}
-                      </p>
-                      <a
-                        href={n.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-[10px] text-ink-dim hover:text-accent"
-                      >
-                        ver original ↗
-                      </a>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busy !== null || ya}
-                      onClick={() => enqueueNews(n.id)}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                    >
-                      {ya ? "ya en cola" : "📷 encolar"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-    </div>
-  );
 }

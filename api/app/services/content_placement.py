@@ -665,6 +665,9 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
         p.reasons = motivos + [r for r in evidencia if r not in motivos]
         d = p.to_dict()
         d["keywords"] = kws
+        # Por qué se eligió el destino (gsc | titulo | semantica | ninguna): el
+        # panel lo explica en claro sin tener que leer los motivos en prosa.
+        d["via"] = sorted({r.via for _, r in miembros})
         salida.append(d)
         # El principal manda; si la keyword objetivo estuviera excluida, el primero.
         if es_principal or placement_principal is None:
@@ -682,22 +685,26 @@ def store(db, proposal, placement: Placement) -> None:
     proposal.placement = placement.to_dict()
 
 
-# Para que el panel y el correo pinten lo mismo con las mismas palabras.
+# Para que el panel y el correo pinten lo mismo con las mismas palabras. Es una
+# FRASE para quien decide, no una etiqueta: dice qué pasa y qué conviene hacer.
 def headline(placement: dict | None) -> str:
     if not placement:
         return ""
     if placement.get("decision") == "cubierto":
         rec = (placement.get("candidates") or [None])[0]
-        return f"Ya lo cubre {rec['path'] if rec else 'una página'} (falta posición)"
+        destino = rec["path"] if rec else "una página tuya"
+        return (f"Ya tienes una página para esto: {destino}. Escribir más no ayuda; "
+                "le falta subir en Google.")
     if placement.get("decision") == "ampliar":
         # `decide` pone siempre el recomendado el primero, también cuando es una
         # página de código (que no tiene target).
         rec = (placement.get("candidates") or [None])[0]
         destino = rec["path"] if rec else "una página existente"
         if rec and not rec.get("mergeable"):
-            return f"Ya lo cubre {destino} (mejora manual)"
-        return f"Ampliar {destino}"
-    return "Contenido nuevo"
+            return (f"{destino} ya responde a esto, pero vive en el código: el motor no "
+                    "puede ampliarla y hay que mejorarla a mano.")
+        return f"Encaja en {destino}: mejor ampliarla que escribir otra página."
+    return "Ninguna página tuya responde a esto: va como contenido nuevo."
 
 
 def short_evidence(placement: dict | None) -> str:
@@ -713,7 +720,7 @@ def selector_options(placement: dict | None) -> list[dict[str, Any]]:
     la propuesta, que es lo que toca cuando la página ya lo cubre).
     """
     if not placement:
-        return [{"value": "new", "label": "Contenido nuevo", "recommended": True}]
+        return [{"value": "new", "label": "Escribirlas en un post nuevo", "recommended": True}]
     out = []
     for c in placement.get("candidates") or []:
         if not c.get("mergeable"):
@@ -721,9 +728,9 @@ def selector_options(placement: dict | None) -> list[dict[str, Any]]:
         out.append({"value": c["target"], "label": f"Ampliar {c['path']}",
                     "path": c["path"],
                     "recommended": c["target"] == placement.get("recommended")})
-    out.append({"value": "new", "label": "Contenido nuevo",
+    out.append({"value": "new", "label": "Escribirlas en un post nuevo",
                 "recommended": placement.get("decision") == "nuevo"})
-    out.append({"value": "skip", "label": "Omitir estas keywords",
+    out.append({"value": "skip", "label": "Quitar estas búsquedas de la idea",
                 "recommended": placement.get("decision") == "cubierto"})
     return out
 

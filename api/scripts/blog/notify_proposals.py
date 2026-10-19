@@ -84,14 +84,18 @@ def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
             botones.append(_boton(_accion_url(p, "merge", opt["value"], kws), label,
                                   principal=bool(opt.get("recommended"))))
         evid = escape(" ".join((g.get("reasons") or [])[:2])[:400])
+        # «cubierto» siempre trae confianza alta (la fuerza el reparto): no informa.
+        conf = ("" if g.get("decision") == "cubierto"
+                else f' <span style="color:#a83a3a;">· seguridad '
+                     f'{escape(g.get("confidence") or "")}</span>')
         bloques.append(
             f'<div style="margin:10px 0 0;padding:8px 0 0;border-top:1px solid '
             f'rgba(237,228,211,0.08);">'
             f'<p style="{mono}font-size:10px;color:rgba(237,228,211,0.55);margin:0;">'
             f'{escape(" · ".join(kws))}</p>'
-            f'<p style="{mono}font-size:10px;letter-spacing:2px;text-transform:uppercase;'
-            f'color:#a83a3a;margin:4px 0 2px;">{escape(cp.headline(g))} · confianza '
-            f'{escape(g.get("confidence") or "")}</p>'
+            # La frase de `headline` se lee como frase: sin mayúsculas ni tracking.
+            f'<p style="font-family:Georgia,serif;font-size:14px;color:#ede4d3;'
+            f'margin:4px 0 2px;line-height:1.45;">{escape(cp.headline(g))}{conf}</p>'
             f'<p style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.6);'
             f'margin:0;line-height:1.5;">{evid}</p>'
             f'<p style="margin:2px 0 0;">{"".join(botones)}</p></div>'

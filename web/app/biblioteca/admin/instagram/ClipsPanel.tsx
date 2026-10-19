@@ -1,6 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  ActionBar,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  JobStatus,
+  Notice,
+  Section,
+  StatusBadge,
+  cx,
+  inputClass,
+} from "@/components/admin/ui";
+import { CLIP_STATUS, etiqueta } from "@/lib/admin/labels";
 
 /**
  * Panel de clips de vídeo de terceros.
@@ -35,24 +49,6 @@ type Clip = {
   retired_at: string | null;
   retired_reason: string | null;
   created_at: string;
-};
-
-const ESTADO_LABEL: Record<string, string> = {
-  requested: "Pedido",
-  downloading: "Descargando",
-  ready: "Listo",
-  published: "Publicado",
-  retired: "Retirado",
-  failed: "Fallido",
-};
-
-const ESTADO_COLOR: Record<string, string> = {
-  requested: "border-divider text-ink-dim",
-  downloading: "border-accent/50 text-accent/80",
-  ready: "border-accent text-accent",
-  published: "border-accent bg-accent/10 text-accent",
-  retired: "border-divider text-ink-faint line-through",
-  failed: "border-red-500/60 text-red-400",
 };
 
 /** "1:23" → 83. También acepta segundos sueltos. */
@@ -220,224 +216,199 @@ export default function ClipsPanel({
   }
 
   return (
-    <section className="mt-16 pt-10 border-t border-divider">
-      <div className="flex items-center gap-4 flex-wrap mb-2">
-        <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent">
-          clips de vídeo · {clips.length}
-        </h2>
-        <button
-          type="button"
-          onClick={() => setAbierto((a) => !a)}
-          data-cursor="hover"
-          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5"
-        >
-          {abierto ? "cerrar" : "+ pedir clip"}
-        </button>
-      </div>
-      <p className="font-serif italic text-ink-dim text-sm mb-5">
-        Fragmentos de YouTube para publicar como reel. La descarga la hace el
-        daemon de la Mac (la IP del servidor está bloqueada por YouTube), así que
-        tarda unos minutos en estar listo.
-      </p>
-
-      {abierto && (
-        <div className="border border-divider p-4 mb-6 max-w-2xl">
-          <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-            url del vídeo
-          </label>
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://youtu.be/…"
-            className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-mono px-2 py-1.5"
-          />
-          <div className="mt-3 flex gap-3 flex-wrap">
-            <div>
-              <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                desde
-              </label>
+    <div className="border-t border-divider pt-10">
+      <Section
+        title="Clips de vídeo"
+        count={clips.length}
+        help="Fragmentos de YouTube para publicar como reel. Los baja el ordenador de casa (YouTube bloquea al servidor), así que tardan unos minutos en estar listos. La procedencia se enseña siempre: si alguien reclama, se retira en un paso."
+        actions={
+          <Button variant={abierto ? "ghost" : "primary"} onClick={() => setAbierto((a) => !a)}>
+            {abierto ? "Cerrar" : "＋ Pedir un clip"}
+          </Button>
+        }
+      >
+        {abierto && (
+          <Card className="mb-6 max-w-2xl space-y-4">
+            <Field label="Enlace del vídeo" htmlFor="clip-url">
               <input
-                value={desde}
-                onChange={(e) => setDesde(e.target.value)}
-                placeholder="0:30"
-                className="mt-1 w-24 bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-mono px-2 py-1.5"
+                id="clip-url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://youtu.be/…"
+                className={cx(inputClass, "font-mono")}
               />
+            </Field>
+            <div className="flex flex-wrap gap-3">
+              <Field label="Desde" htmlFor="clip-desde">
+                <input
+                  id="clip-desde"
+                  value={desde}
+                  onChange={(e) => setDesde(e.target.value)}
+                  placeholder="0:30"
+                  className={cx(inputClass, "w-24 font-mono")}
+                />
+              </Field>
+              <Field label="Hasta" htmlFor="clip-hasta">
+                <input
+                  id="clip-hasta"
+                  value={hasta}
+                  onChange={(e) => setHasta(e.target.value)}
+                  placeholder="0:52"
+                  className={cx(inputClass, "w-24 font-mono")}
+                />
+              </Field>
             </div>
-            <div>
-              <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                hasta
-              </label>
+            {/*
+              El ejemplo va con «p. ej.» delante a propósito: sin eso parecía
+              un campo ya relleno, y como es obligatorio el botón se quedaba
+              apagado sin que se viera por qué.
+            */}
+            <Field
+              label="De qué va (obligatorio)"
+              htmlFor="clip-tema"
+              hint="Es el título de su publicación en la cola."
+            >
               <input
-                value={hasta}
-                onChange={(e) => setHasta(e.target.value)}
-                placeholder="0:52"
-                className="mt-1 w-24 bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-mono px-2 py-1.5"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                de qué va <span className="text-accent">· obligatorio</span>
-              </label>
-              {/*
-                El ejemplo va con «p. ej.» delante a propósito: sin eso parecía
-                un campo ya relleno, y como es obligatorio el botón se quedaba
-                apagado sin que se viera por qué.
-              */}
-              <input
+                id="clip-tema"
                 value={subtitulo}
                 onChange={(e) => setSubtitulo(e.target.value)}
                 placeholder="p. ej. Concierto de Extremoduro en la sala Vértigo, 1993"
-                className="mt-1 w-full bg-transparent border border-divider focus:border-accent outline-none text-ink text-sm font-serif px-2 py-1.5 placeholder:text-ink-faint/50 placeholder:italic"
+                className={cx(inputClass, "placeholder:italic")}
               />
-              <p className="mt-1 font-mono text-[9px] text-ink-faint">
-                es el título de su publicación en la cola
-              </p>
+            </Field>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" disabled={busy || falta.length > 0} loading={busy} onClick={pedir}>
+                Pedir clip
+              </Button>
+              {/*
+                Un botón apagado sin explicación es un callejón sin salida: el
+                placeholder de «de qué va» parecía un valor puesto y no había forma
+                de saber qué faltaba. Ahora se dice.
+              */}
+              <span className="text-sm">
+                {falta.length > 0 ? (
+                  <span className="text-warn">Falta {falta.join(" y ")}.</span>
+                ) : (
+                  <span className="text-ink-faint">
+                    Máximo 60 s · nada de canales oficiales ni discográficas · entra en la cola
+                    como publicación propia.
+                  </span>
+                )}
+              </span>
             </div>
-          </div>
-          <div className="mt-4 flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              disabled={busy || falta.length > 0}
-              onClick={pedir}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-            >
-              {busy ? "…" : "pedir clip"}
-            </button>
-            {/*
-              Un botón apagado sin explicación es un callejón sin salida: el
-              placeholder de «de qué va» parecía un valor puesto y no había forma
-              de saber qué faltaba. Ahora se dice.
-            */}
-            <span className="font-mono text-[9px] text-ink-faint">
-              {falta.length > 0 ? (
-                <span className="text-accent">falta {falta.join(" y ")}</span>
-              ) : (
-                <>
-                  máximo 60 s · nada de canales oficiales ni discográficas · el
-                  clip entra en la cola como publicación propia
-                </>
-              )}
-            </span>
-          </div>
-          {error && (
-            <p className="mt-2 font-mono text-[10px] text-red-400">{error}</p>
-          )}
-        </div>
-      )}
+          </Card>
+        )}
 
-      {cargando ? (
-        <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-          cargando…
-        </p>
-      ) : clips.length === 0 ? (
-        <p className="font-serif italic text-ink-faint text-sm">
-          Todavía no has pedido ningún clip.
-        </p>
-      ) : (
-        <ul className="divide-y divide-divider">
-          {clips.map((c) => (
-            <li key={c.id} className="py-3 flex gap-4 items-start flex-wrap">
-              <div className="flex-1 min-w-[260px]">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span
-                    className={`font-mono text-[9px] tracking-[2px] uppercase border px-1.5 py-0.5 ${ESTADO_COLOR[c.status] ?? ""}`}
-                  >
-                    {ESTADO_LABEL[c.status] ?? c.status}
-                  </span>
-                  <span className="font-mono text-[10px] text-ink-faint">
-                    {Math.round(c.start_s)}–{Math.round(c.end_s)} s
-                  </span>
-                  {c.ig_media_id && (
-                    <span className="font-mono text-[9px] text-accent">
-                      publicado
-                    </span>
+        {error && (
+          <div className="mb-4">
+            <Notice onClose={() => setError(null)}>{error}</Notice>
+          </div>
+        )}
+
+        {cargando ? (
+          <p className="text-sm text-ink-faint">Cargando…</p>
+        ) : clips.length === 0 ? (
+          <EmptyState>Todavía no has pedido ningún clip.</EmptyState>
+        ) : (
+          <ul className="space-y-3">
+            {clips.map((c) => {
+              const st = etiqueta(CLIP_STATUS, c.status);
+              const enCurso = c.status === "requested" || c.status === "downloading";
+              return (
+                <Card key={c.id} as="li" tone={st.tone}>
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex-1 min-w-[240px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {enCurso ? (
+                          <JobStatus label={st.label} hint={st.hint} />
+                        ) : (
+                          <StatusBadge tone={st.tone} title={st.hint}>
+                            {st.label}
+                          </StatusBadge>
+                        )}
+                        <span className="font-mono text-xs text-ink-faint">
+                          tramo {Math.round(c.start_s)}–{Math.round(c.end_s)} s
+                        </span>
+                        {c.ig_media_id && <StatusBadge tone="ok">En Instagram</StatusBadge>}
+                      </div>
+                      {c.subtitle && <p className="mt-2 text-sm text-ink-dim">{c.subtitle}</p>}
+                      <p className="mt-1 font-serif text-ink text-base leading-tight">
+                        {c.video_title ?? c.url}
+                      </p>
+                      {/* La procedencia, siempre visible: es lo que se enseña si
+                          alguien reclama. */}
+                      <p className="mt-1 text-sm text-ink-dim">
+                        Canal:{" "}
+                        {c.channel_url ? (
+                          <a
+                            href={c.channel_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:underline"
+                          >
+                            {c.channel_title ?? "—"}
+                          </a>
+                        ) : (
+                          (c.channel_title ?? "—")
+                        )}{" "}
+                        ·{" "}
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="hover:text-accent">
+                          Ver original ↗
+                        </a>
+                      </p>
+                      {c.queue_item_id && (
+                        <p className="mt-1 text-sm text-info">Va en la publicación #{c.queue_item_id}</p>
+                      )}
+                      {c.retired_reason && (
+                        <p className="mt-1 text-sm text-ink-faint">Retirado: {c.retired_reason}</p>
+                      )}
+                      {c.error && (
+                        <p className="mt-2 font-mono text-xs text-danger break-words">{c.error.slice(0, 200)}</p>
+                      )}
+                    </div>
+
+                    {c.url_cdn && c.status !== "retired" && (
+                      <video
+                        src={c.url_cdn}
+                        controls
+                        playsInline
+                        className="w-[150px] h-[266px] object-contain bg-black rounded border border-divider shrink-0"
+                      />
+                    )}
+                  </div>
+
+                  {c.status !== "retired" && (
+                    <ActionBar
+                      primary={
+                        c.status === "ready" && (
+                          <Button
+                            variant="primary"
+                            disabled={busy}
+                            onClick={() => asignar(c)}
+                            title="Enlaza el clip con una publicación: al prepararla se usará este vídeo, con su sonido"
+                          >
+                            {c.queue_item_id ? "Cambiar de publicación" : "Usar en una publicación"}
+                          </Button>
+                        )
+                      }
+                      danger={
+                        <Button
+                          variant="danger"
+                          disabled={busy}
+                          onClick={() => retirar(c)}
+                          title="Borra el post de Instagram y el fichero, y deja constancia del motivo"
+                        >
+                          Retirar
+                        </Button>
+                      }
+                    />
                   )}
-                </div>
-                <p className="mt-1 font-serif text-ink text-[15px] leading-tight">
-                  {c.video_title ?? c.url}
-                </p>
-                {/* La procedencia, siempre visible: es lo que se enseña si
-                    alguien reclama. */}
-                <p className="mt-0.5 font-mono text-[10px] text-ink-dim">
-                  canal:{" "}
-                  {c.channel_url ? (
-                    <a
-                      href={c.channel_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:underline"
-                    >
-                      {c.channel_title ?? "—"}
-                    </a>
-                  ) : (
-                    (c.channel_title ?? "—")
-                  )}{" "}
-                  ·{" "}
-                  <a
-                    href={c.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-accent"
-                  >
-                    ver original ↗
-                  </a>
-                </p>
-                {c.queue_item_id && (
-                  <p className="mt-1 font-mono text-[10px] text-accent">
-                    enlazado con la publicación #{c.queue_item_id}
-                  </p>
-                )}
-                {c.retired_reason && (
-                  <p className="mt-1 font-mono text-[10px] text-ink-faint">
-                    retirado: {c.retired_reason}
-                  </p>
-                )}
-                {c.error && (
-                  <p className="mt-1 font-mono text-[10px] text-red-400">
-                    {c.error.slice(0, 200)}
-                  </p>
-                )}
-              </div>
-
-              {c.url_cdn && c.status !== "retired" && (
-                <video
-                  src={c.url_cdn}
-                  controls
-                  playsInline
-                  className="w-[150px] h-[266px] object-contain bg-black border border-divider shrink-0"
-                />
-              )}
-
-              {c.status === "ready" && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => asignar(c)}
-                  data-cursor="hover"
-                  title="Enlaza el clip con una publicación: al prepararla se usará este vídeo, con su sonido"
-                  className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40 shrink-0"
-                >
-                  {c.queue_item_id ? "cambiar post" : "usar en un post"}
-                </button>
-              )}
-
-              {c.status !== "retired" && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => retirar(c)}
-                  data-cursor="hover"
-                  title="Borra el post de Instagram y el fichero, y deja constancia del motivo"
-                  className="font-mono text-[10px] tracking-[2px] uppercase border border-red-500/60 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 disabled:opacity-40 shrink-0"
-                >
-                  retirar
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                </Card>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
+    </div>
   );
 }
