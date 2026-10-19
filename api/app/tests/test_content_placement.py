@@ -98,7 +98,8 @@ def test_una_pagina_de_codigo_que_posiciona_frena_el_post_aunque_no_se_pueda_fun
     assert p.decision == "ampliar"
     assert p.recommended is None
     assert p.candidates[0].path == "/personas" and not p.candidates[0].mergeable
-    assert cp.headline(p.to_dict()).startswith("Ya lo cubre /personas")
+    assert cp.headline(p.to_dict()).startswith("/personas ya responde a esto")
+    assert "a mano" in cp.headline(p.to_dict())
     # El selector no ofrece fundir con algo que no se puede escribir.
     assert all(o["value"] != "code" for o in cp.selector_options(p.to_dict()))
 
@@ -124,6 +125,17 @@ def test_el_selector_marca_el_recomendado_y_siempre_ofrece_contenido_nuevo():
                        "path": "/extremoduro", "recommended": True}
     assert [o["value"] for o in opts[-2:]] == ["new", "skip"]
     assert not opts[-1]["recommended"] and not opts[-2]["recommended"]
+
+
+def test_el_titular_del_reparto_es_una_frase_que_dice_que_hacer():
+    """El panel y el correo enseñan la misma frase: tiene que entenderse sola."""
+    cubierto = {"decision": "cubierto", "candidates": [{"path": "/extremoduro"}]}
+    assert cp.headline(cubierto) == ("Ya tienes una página para esto: /extremoduro. "
+                                     "Escribir más no ayuda; le falta subir en Google.")
+    ampliar = {"decision": "ampliar", "candidates": [{"path": "/robe", "mergeable": True}]}
+    assert cp.headline(ampliar).startswith("Encaja en /robe")
+    assert cp.headline({"decision": "nuevo"}).startswith("Ninguna página tuya")
+    assert cp.headline(None) == ""
 
 
 def test_las_cifras_salen_con_coma_decimal():

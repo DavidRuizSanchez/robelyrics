@@ -1541,7 +1541,7 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         ),
         placement_groups=[
             {**{k: g.get(k) for k in ("keywords", "decision", "confidence", "recommended",
-                                      "reasons", "candidates")},
+                                      "reasons", "candidates", "via")},
              "headline": _placement.headline(g),
              "options": _placement.selector_options(g)}
             for g in _placement.grupos(getattr(p, "placement", None))
