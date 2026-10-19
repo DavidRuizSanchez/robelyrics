@@ -99,7 +99,7 @@ export default function PublicHeader() {
         <InstagramLink size={18} className="text-ink-dim hover:text-accent transition-colors" />
         <ForSession
           anon={<Link href="/login" data-cursor="hover" className="border border-accent/60 text-accent hover:bg-accent hover:text-white px-4 py-2 transition-colors">acceder</Link>}
-          admin={<Link href="/biblioteca/admin/sources" data-cursor="hover" className={linkCls}>Admin</Link>}
+          admin={<Link href="/biblioteca/admin" data-cursor="hover" className={linkCls}>Admin</Link>}
           member={
             <form action="/logout" method="post" className="inline">
               <button type="submit" data-cursor="hover" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button>
@@ -132,7 +132,7 @@ export default function PublicHeader() {
           <Link href="/biblioteca/donar" className={linkCls}>Apoyar el proyecto</Link>
           <ForSession
             anon={<Link href="/login" className="text-accent hover:text-ink transition-colors">acceder</Link>}
-            admin={<Link href="/biblioteca/admin/sources" className={linkCls}>Admin</Link>}
+            admin={<Link href="/biblioteca/admin" className={linkCls}>Admin</Link>}
             member={<form action="/logout" method="post"><button type="submit" className="text-ink-faint hover:text-ink transition-colors font-mono uppercase tracking-[2.5px]">salir</button></form>}
           />
           <InstagramLink showHandle className="text-ink-dim hover:text-accent transition-colors pt-2 border-t border-divider/60" />

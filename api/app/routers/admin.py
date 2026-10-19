@@ -1552,6 +1552,17 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
     )
 
 
+@router.get("/summary")
+def admin_summary(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict[str, dict[str, int]]:
+    """Lo que espera decisión en cada panel, con recuentos exactos (portada del admin)."""
+    from app.services.admin_summary import resumen
+
+    return resumen(db)
+
+
 @router.get("/proposals/stats", response_model=AdminProposalStats)
 def admin_proposals_stats(
     db: Session = Depends(get_db),
