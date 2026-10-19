@@ -63,7 +63,14 @@ export type Opportunity = {
     videos_added?: { url: string; section: string }[] | string[];
     descartado?: string[];
     enriched?: { heading: string; texto: string }[];
-    juez?: { op: string; vuelta: number; antes: number; despues: number; veredicto: string }[];
+    juez?: {
+      op: string;
+      vuelta: number;
+      antes: number;
+      despues: number;
+      veredicto: string;
+      motivos?: string[];
+    }[];
     corroboracion?: { verificados: string[]; descartados: string[] };
     protegidas?: number;
     before_len?: number;
@@ -207,7 +214,6 @@ function DiffFusion({ o }: { o: Opportunity }) {
       </ol>
       <div className="mt-2 text-xs text-ink-faint">
         Longitud {n.before_len} → {n.after_len} caracteres
-        {n.rigor ? ` · rigor ${n.rigor.before_score} → ${n.rigor.score} (${n.rigor.verdict})` : ""}
         {` · ${n.protegidas ?? 0} búsquedas protegidas siguen cubiertas`}
       </div>
       {n.intro_rewritten && (
@@ -246,14 +252,38 @@ function DiffFusion({ o }: { o: Opportunity }) {
       ))}
       {juez.size > 0 && (
         <>
-          <Mini>Nota del editor jefe en cada cambio (antes → después)</Mini>
-          <ul className="font-serif text-[13px] text-ink-dim list-disc pl-5">
-            {[...juez.values()].map((j) => (
-              <li key={j.op}>
-                «{j.op}»: {j.antes} → {j.despues} ({j.veredicto}
-                {j.vuelta ? `, tras ${j.vuelta} reescritura${j.vuelta > 1 ? "s" : ""}` : ""})
-              </li>
-            ))}
+          <Mini>Qué ha dicho el editor jefe de cada cambio</Mini>
+          {/* La nota es de la PÁGINA entera (sobre 100; aprueba a partir de 70), con y
+              sin el cambio. Por eso pone «reject» aunque suba: /extremoduro sigue por
+              debajo de 70. Un cambio entra si sube la nota, salvo objeción de hechos. */}
+          <p className="text-xs text-ink-faint mb-2">
+            La nota es de la página entera, sobre 100 (el editor jefe la da por buena a partir
+            de 70). Un cambio entra si la sube, salvo que señale un dato sin respaldo.
+          </p>
+          <ul className="space-y-2">
+            {[...juez.values()].map((j) => {
+              const descartado = (n.descartado || []).some((d) => d.startsWith(`«${j.op}»`));
+              return (
+                <li key={j.op} className="text-sm">
+                  <span className={descartado ? "text-danger" : "text-ok"}>
+                    {descartado ? "✗ Descartado" : "✓ Entra"}
+                  </span>{" "}
+                  <span className="text-ink">«{j.op}»</span>
+                  <span className="text-ink-dim">
+                    {" "}
+                    · la página pasa de {j.antes} a {j.despues}
+                    {j.vuelta ? ` (tras ${j.vuelta} reescritura${j.vuelta > 1 ? "s" : ""})` : ""}
+                  </span>
+                  {descartado && (j.motivos?.length ?? 0) > 0 && (
+                    <ul className="mt-1 list-disc pl-5 text-xs text-ink-faint">
+                      {j.motivos!.map((m) => (
+                        <li key={m}>{m}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
