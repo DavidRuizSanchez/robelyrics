@@ -142,6 +142,8 @@ export const IG_CONTENT_TYPE: Record<string, string> = {
   robe_quote: "Cita de Robe",
   news: "Noticia",
   blog: "Blog",
+  clip: "Clip de vídeo",
+  product: "Pieza sobre la web",
 };
 
 export type ClipStatus = "requested" | "downloading" | "ready" | "published" | "retired" | "failed";

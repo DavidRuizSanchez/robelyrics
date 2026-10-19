@@ -152,22 +152,25 @@ export default function InstagramPlanner({
     );
   }
 
-  function bulkApprove() {
-    const ids = [...selected];
+  function bulkApprove(soloEstas?: number[]) {
+    const ids = soloEstas ?? [...selected];
     if (ids.length === 0) return;
     if (
       !window.confirm(
-        `¿Aprobar ${ids.length} propuesta(s)? Se les generará imagen + caption y entrarán en la cola de publicación.`,
+        ids.length === 1
+          ? "¿Aprobar esta propuesta? Entra en la cola de publicación (si le falta, se le genera imagen y texto)."
+          : `¿Aprobar ${ids.length} propuestas? Entran en la cola de publicación (si les falta, se les genera imagen y texto).`,
       )
     )
       return;
     call("POST", "/biblioteca/admin/instagram/api/queue/bulk/approve", { ids });
   }
 
-  function bulkDiscard() {
-    const ids = [...selected];
+  function bulkDiscard(soloEstas?: number[]) {
+    const ids = soloEstas ?? [...selected];
     if (ids.length === 0) return;
-    if (!window.confirm(`¿Descartar ${ids.length} propuesta(s)?`)) return;
+    if (!window.confirm(ids.length === 1 ? "¿Descartar esta propuesta?" : `¿Descartar ${ids.length} propuestas?`))
+      return;
     call("POST", "/biblioteca/admin/instagram/api/queue/bulk/discard", { ids });
   }
 
@@ -499,11 +502,7 @@ export default function InstagramPlanner({
         >
           {it.title}
         </button>
-        {it.summary && (
-          <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
-            {it.summary}
-          </p>
-        )}
+        {it.summary && <Resumen texto={it.summary} />}
 
         {it.needs_human && (
           <Callout tone="warn" className="mt-3" title="Necesita que lo mires">
@@ -754,14 +753,14 @@ export default function InstagramPlanner({
                 disabled={busy !== null || selected.size === 0}
                 loading={busy !== null && selected.size > 0}
                 loadingLabel="Generando imagen y texto…"
-                onClick={bulkApprove}
+                onClick={() => bulkApprove()}
               >
                 ✓ Aprobar ({selected.size})
               </Button>
               <Button
                 variant="danger"
                 disabled={busy !== null || selected.size === 0}
-                onClick={bulkDiscard}
+                onClick={() => bulkDiscard()}
               >
                 Descartar ({selected.size})
               </Button>
@@ -770,28 +769,31 @@ export default function InstagramPlanner({
         >
           <ul className="space-y-2">
             {proposed.map((it) => (
-              <Card key={it.id} as="li" tone="warn" className="!p-3">
-                <label className="flex items-start gap-3 cursor-pointer">
+              <Card key={it.id} as="li" tone={toneFila(it)}>
+                <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     checked={selected.has(it.id)}
                     onChange={() => toggleSelected(it.id)}
+                    aria-label={`Seleccionar «${it.title}»`}
                     className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
                   />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm text-ink-dim">
-                      {IG_CONTENT_TYPE[it.content_type] ?? it.content_type}
-                      {it.publish_on && <> · sale el {fmtDate(it.publish_on)}</>}
-                      {it.source_name && <span className="text-ink-faint"> · {it.source_name}</span>}
-                    </span>
-                    <span className="block font-serif text-lg text-ink leading-tight">{it.title}</span>
-                    {it.summary && (
-                      <span className="mt-1 block font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">
-                        {it.summary}
-                      </span>
-                    )}
-                  </span>
-                </label>
+                  <div className="flex-1 min-w-0">
+                    {renderItem(it)}
+                    <ActionBar
+                      primary={
+                        <Button variant="primary" disabled={busy !== null} onClick={() => bulkApprove([it.id])}>
+                          ✓ Aprobar
+                        </Button>
+                      }
+                      danger={
+                        <Button variant="danger" disabled={busy !== null} onClick={() => bulkDiscard([it.id])}>
+                          Descartar
+                        </Button>
+                      }
+                    />
+                  </div>
+                </div>
               </Card>
             ))}
           </ul>
@@ -1014,6 +1016,57 @@ type Evidencia = {
   claims: Array<{ claim: string; verdict: string; evidence?: string }>;
   avisos: string[];
 };
+
+// El resumen de un clip llega como una ristra «Vídeo de una canción: … Momento: …
+// Canción: … AVISO: …». Se parte por esas etiquetas para leerlo campo a campo.
+const CAMPOS_RESUMEN = [
+  "Vídeo de una canción",
+  "Vídeo",
+  "Momento",
+  "Canción",
+  "Verso (de nuestra letra)",
+  "Concierto",
+  "Canal",
+  "Verificado",
+  "AVISO",
+];
+
+function partirResumen(texto: string): { campo: string; valor: string }[] {
+  const alternativas = CAMPOS_RESUMEN.map((c) => c.replace(/[()]/g, "\\$&")).join("|");
+  const re = new RegExp(`(?:^|\\s)(${alternativas}):\\s`, "g");
+  const marcas = [...texto.matchAll(re)];
+  if (marcas.length < 2) return [];
+  return marcas.map((m, i) => {
+    const inicio = (m.index ?? 0) + m[0].length;
+    const fin = i + 1 < marcas.length ? marcas[i + 1].index ?? texto.length : texto.length;
+    return { campo: m[1], valor: texto.slice(inicio, fin).trim() };
+  });
+}
+
+function Resumen({ texto }: { texto: string }) {
+  const campos = partirResumen(texto);
+  if (campos.length === 0) {
+    return (
+      <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed line-clamp-2">{texto}</p>
+    );
+  }
+  return (
+    <dl className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+      {campos.map(({ campo, valor }) =>
+        campo === "AVISO" ? (
+          <div key={campo} className="sm:col-span-2">
+            <Callout tone="warn">{valor}</Callout>
+          </div>
+        ) : (
+          <div key={campo} className="contents">
+            <dt className="text-ink-faint">{campo === "Verso (de nuestra letra)" ? "Verso" : campo}</dt>
+            <dd className="text-ink-dim">{valor}</dd>
+          </div>
+        ),
+      )}
+    </dl>
+  );
+}
 
 function toneClass(t: Tone): string {
   return { ok: "text-ok", warn: "text-warn", danger: "text-danger", info: "text-info", neutral: "text-ink-dim", accent: "text-accent" }[t];

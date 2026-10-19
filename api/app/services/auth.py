@@ -1,4 +1,4 @@
-"""Auth: hash de passwords (bcrypt) + JWT (python-jose) + revocation lazy."""
+"""Auth: hash de passwords (bcrypt) + JWT (PyJWT, HS256) + revocation lazy."""
 from __future__ import annotations
 
 import secrets
@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -55,7 +55,7 @@ def decode_token(token: str) -> dict[str, Any] | None:
     settings = get_settings()
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algo])
-    except JWTError:
+    except jwt.InvalidTokenError:
         return None
 
 
