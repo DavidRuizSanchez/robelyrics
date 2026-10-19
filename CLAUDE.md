@@ -1131,8 +1131,9 @@ era estructural: no había kit, cada página escribía sus clases a mano.
   IG). Dentro del componente, funciones de render (`renderItem(it)`), no `<Item/>`.
 - Fechas en componentes cliente: siempre `timeZone: "Europe/Madrid"` (SSR en UTC →
   error de hidratación).
-- Pendiente de OK de David: publicar/despublicar fichas SEO en bloque (la ruta del
-  front no existía; `/admin/seo/bulk-publish` publica sin controles).
+- Publicar/despublicar fichas SEO en bloque: proxy `seo/api/bulk` →
+  `/admin/seo/bulk-publish|unpublish` (autorizado por David el 19-10-2026). Hace lo
+  mismo que el botón de cada ficha y solo manda las que cambian de estado.
 
 ## Decisiones que NO hay que reabrir
 
