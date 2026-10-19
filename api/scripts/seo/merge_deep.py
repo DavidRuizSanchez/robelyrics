@@ -522,6 +522,11 @@ MAX_VUELTAS = 2
 _SECCION_MAX = 3500
 
 
+_OBJECION_FACTUAL = re.compile(
+    r"no est[aá] respaldad|sin respaldo|contradic|err(?:or|[oó]ne[oa])|\bfals[oa]\b"
+    r"|inventad|no consta|no aparece en el material|incorrect|inexact", re.I)
+
+
 def extracto_local(body: str, headings: set[str]) -> str:
     """El esquema de la página entera + las secciones tocadas y sus vecinas.
 
@@ -571,9 +576,14 @@ def juzgar(contexto: str, anadido: str, *, kind: str, subject: str,
     vd = editorial_review(contexto, kind=kind, subject=subject, allowed_terms=allowed,
                           spotlight=anadido, **extra)
     # NUNCA se toma `tightened_body_md`: condensaría el texto publicado.
-    ok = vd.score > va.score or (vd.verdict != "reject"
-                                 and vd.score >= va.score - TOLERANCIA_JUEZ)
-    return Juicio(ok, va.score, vd.score, vd.verdict, list(vd.reasons or []))
+    motivos = list(vd.reasons or [])
+    # Una objeción FACTUAL no la tapa una nota más alta: en /personas el juez dijo
+    # que «Robe fue el único miembro estable» no estaba respaldado y contradecía la
+    # formación, y la nota subía 0 → 58 igual (19-10-2026).
+    factual = vd.verdict == "reject" and any(_OBJECION_FACTUAL.search(m) for m in motivos)
+    ok = not factual and (vd.score > va.score or (
+        vd.verdict != "reject" and vd.score >= va.score - TOLERANCIA_JUEZ))
+    return Juicio(ok, va.score, vd.score, vd.verdict, motivos)
 
 
 # --------------------------------------------------------------------------- #

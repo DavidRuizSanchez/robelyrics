@@ -334,3 +334,21 @@ def test_la_guarda_de_confesiones_no_corre_en_la_generacion_nueva(motor):
                         "grabación, según las fuentes disponibles.", "Lo nuevo")
     motor.update({"antes": 60, "despues": 70, "verdict": "pass"})
     assert _aumentar(motor, optimizar=False)["noop"] is False
+
+
+def test_un_juicio_no_se_corrobora_por_tener_los_nombres_en_casa(monkeypatch):
+    """«Robe fue el único miembro estable» tenía todos sus nombres en nuestro material
+    y pasaba como verificado. Era falso (Uoho, Cantera y Colino hasta 2014)."""
+    from app.services import corpus_for_queries as cq
+
+    monkeypatch.setattr("scripts.seo.generate_deep._chat", lambda *a, **kw: {"hechos": [
+        "Robe fue el único miembro estable de Extremoduro.",
+        "En una formación citada en el texto, Extremoduro era un cuarteto.",
+        "Extremoduro se fundó en Plasencia en 1987.",
+    ]})
+    monkeypatch.setattr("app.services.web_verify.classify_fact",
+                        lambda h, **kw: {"verdict": "not_found"})
+    ok, ko = cq.corroborar(object(), "fondo", "Robe fundó Extremoduro en Plasencia en 1987.",
+                           ["integrantes"])
+    assert ok == ["Extremoduro se fundó en Plasencia en 1987."]
+    assert len(ko) == 2

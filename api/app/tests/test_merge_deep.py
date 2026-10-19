@@ -308,3 +308,19 @@ def test_si_sube_la_nota_vale_aunque_la_pagina_base_siga_rechazada(monkeypatch):
     monkeypatch.setattr("app.services.editorial_review.review",
                         lambda body, **kw: _V("reject", 18))
     assert not md.juzgar("c", "n", kind="artist", subject="E", consultas=[], material="").ok
+
+
+def test_una_objecion_factual_no_la_tapa_una_nota_mas_alta(monkeypatch):
+    """/personas, 19-10-2026: nota 0 → 58, pero el juez decía que «Robe fue el único
+    miembro estable» no estaba respaldado y contradecía la formación."""
+    class _Vf:
+        def __init__(self, score, spot):
+            self.verdict, self.score = ("reject", score)
+            self.reasons = (["La afirmación de que Robe fue el único miembro estable no "
+                             "está respaldada y contradice la continuidad de Uoho."]
+                            if spot else [])
+
+    monkeypatch.setattr("app.services.editorial_review.review",
+                        lambda body, **kw: _Vf(58 if kw.get("spotlight") else 0,
+                                               kw.get("spotlight")))
+    assert not md.juzgar("c", "n", kind="page", subject="E", consultas=[], material="").ok
