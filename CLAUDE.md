@@ -1105,6 +1105,35 @@ Un correo de outreach **no afirma fuentes que no se usaron**: los conciertos sal
 setlist.fm; Wikipedia ES solo se cotejó con las giras de Robe y los blogs de fans de
 `FUENTES_CONCIERTOS.md` están localizados pero no incorporados.
 
+## El panel admin: se entiende o no sirve
+
+El 19-10-2026 David no podía interpretar ninguna pantalla del admin: todo en mono
+de 9-10px, mayúsculas con tracking, jerga del backend («YA LO CUBRE /x (FALTA
+POSICIÓN) · CONFIANZA ALTA») y «rechazar» pesando lo mismo que «aplicar». La causa
+era estructural: no había kit, cada página escribía sus clases a mano.
+
+- **Kit**: `web/components/admin/ui.tsx` (primitivas sin hooks: valen en server y
+  client) y `Term.tsx` (glosario accesible, cliente). **Vocabulario único**:
+  `web/lib/admin/labels.ts` — todo estado, tipo o código del backend se nombra
+  desde ahí. Una pantalla nueva usa el kit; no se escriben clases de botón a mano.
+- **Cada tarjeta: qué es → qué propone el sistema y por qué → qué haces.** Lo
+  técnico va plegado. Acciones en tres niveles distinguibles por FORMA (principal
+  rellena, secundarias, peligrosas aparte). El mono solo para datos.
+- **Fuente `font-ui` (Inter) solo en el árbol de admin**; NO se redefine `sans`
+  (Preflight lo aplica a `<html>` de toda la web). InkCursor se apaga en admin.
+- **`headline()` del reparto es una frase para quien decide** y la comparten panel
+  y correo de propuestas. «Omitir» (`skip`) QUITA las búsquedas de la idea; no es
+  «no hacer nada».
+- **Portada `/biblioteca/admin`** con `GET /admin/summary`: COUNT en BD, nunca el
+  largo de una lista con límite.
+- Trampa medida dos veces: un componente definido DENTRO de un planner remonta en
+  cada render y el textarea pierde el foco a cada tecla (le pasaba al caption de
+  IG). Dentro del componente, funciones de render (`renderItem(it)`), no `<Item/>`.
+- Fechas en componentes cliente: siempre `timeZone: "Europe/Madrid"` (SSR en UTC →
+  error de hidratación).
+- Pendiente de OK de David: publicar/despublicar fichas SEO en bloque (la ruta del
+  front no existía; `/admin/seo/bulk-publish` publica sin controles).
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
