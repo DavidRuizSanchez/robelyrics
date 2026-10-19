@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Button,
+  Callout,
+  Field,
+  JobStatus,
+  Notice,
+  cx,
+  inputClass,
+} from "@/components/admin/ui";
 
 // Un alta manual tarda 2-4 min (investiga, escribe y la juzga el editor jefe), así
 // que no se espera a que termine: el servidor la ejecuta en segundo plano y aquí se
@@ -118,212 +127,169 @@ export default function UrlIngestForm() {
   }
 
   return (
-    <details className="border border-divider mt-8">
-      <summary
-        data-cursor="hover"
-        className="cursor-pointer select-none px-5 py-3 font-mono text-[10px] tracking-[2.5px] uppercase text-accent"
-      >
-        + añadir al banco desde una URL
+    <details className="rounded-md border border-divider bg-paper">
+      <summary className="cursor-pointer select-none list-none px-4 py-3 text-ink hover:bg-paper-hi rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+        <span className="font-medium">＋ Añadir una noticia desde un enlace</span>
+        <span className="ml-2 text-sm text-ink-faint">entra como idea por decidir</span>
       </summary>
 
-      <div className="px-5 pb-6 pt-2 space-y-5 border-t border-divider">
-        <p className="font-serif italic text-ink-dim text-sm">
-          Pega un enlace y entra en «por validar» como una noticia más. Con la
-          reescritura editorial investiga, escribe con nuestra voz y verifica los
-          datos (tarda 1-2 min); sin ella, guarda el texto tal cual.
+      <div className="px-4 pb-5 pt-4 space-y-5 border-t border-divider">
+        <p className="text-sm text-ink-dim max-w-2xl">
+          Pega un enlace y entra en «Ideas por decidir» como una noticia más. Si la reescribes,
+          investiga, escribe con nuestra voz y verifica los datos (tarda 2-4 min); si no, guarda
+          el texto tal cual.
         </p>
 
-        <div>
-          <label
-            htmlFor="ingest-url"
-            className="block font-mono text-[10px] tracking-[2px] uppercase text-ink-dim mb-1.5"
-          >
-            URL del artículo *
-          </label>
+        <Field label="Enlace del artículo *" htmlFor="ingest-url">
           <input
             id="ingest-url"
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
-            className="w-full bg-transparent border-0 border-b border-divider focus:border-accent focus:outline-none px-0 py-2 font-serif text-base text-ink"
+            className={cx(inputClass, "font-mono")}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label
-            htmlFor="ingest-topic"
-            className="block font-mono text-[10px] tracking-[2px] uppercase text-ink-dim mb-1.5"
-          >
-            Tema (opcional)
-          </label>
+        <Field
+          label="Tema (opcional)"
+          htmlFor="ingest-topic"
+          hint="Una pista del protagonista si el título no basta."
+        >
           <input
             id="ingest-topic"
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Pista del protagonista si el título no basta"
-            className="w-full bg-transparent border-0 border-b border-divider focus:border-accent focus:outline-none px-0 py-2 font-serif text-base text-ink"
+            className={inputClass}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label
-            htmlFor="ingest-body"
-            className={`block font-mono text-[10px] tracking-[2px] uppercase mb-1.5 ${
-              needsPaste ? "text-accent" : "text-ink-dim"
-            }`}
-          >
-            Cuerpo del artículo (opcional)
-          </label>
-          <p className="font-serif italic text-ink-dim text-sm mb-2">
-            Solo si el medio no deja descargarlo (error 406/403) o lo esconde
-            tras un muro de pago: abre el enlace, copia el texto y pégalo aquí.
-            Se usa en lugar de la descarga; lo demás va igual.
-          </p>
+        <Field
+          label={
+            <span className={needsPaste ? "text-warn" : undefined}>
+              Texto del artículo (opcional){needsPaste ? " — hace falta pegarlo" : ""}
+            </span>
+          }
+          htmlFor="ingest-body"
+          hint={
+            bodyText.trim()
+              ? `${bodyText.trim().length} caracteres · se usa en lugar de descargar el enlace`
+              : "Solo si el medio no deja descargarlo (error 406/403) o tiene muro de pago: abre el enlace, copia el texto y pégalo aquí."
+          }
+        >
           <textarea
             id="ingest-body"
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
             rows={bodyText || needsPaste ? 8 : 3}
             placeholder="Pega aquí el texto del artículo…"
-            className={`w-full bg-transparent border ${
-              needsPaste ? "border-accent" : "border-divider"
-            } focus:border-accent focus:outline-none px-3 py-2 font-serif text-base text-ink leading-relaxed resize-y`}
+            className={cx(inputClass, "font-serif text-base leading-relaxed resize-y", needsPaste && "border-warn")}
           />
-          {bodyText.trim() && (
-            <p className="mt-1 font-mono text-[10px] tracking-[1px] text-ink-dim">
-              {bodyText.trim().length} caracteres · se ignorará la descarga
-            </p>
-          )}
-        </div>
+        </Field>
 
-        <div className="flex flex-wrap items-center gap-6">
-          <label className="flex items-center gap-2 font-mono text-[11px] tracking-[1px] text-ink-dim" data-cursor="hover">
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm text-ink-dim">
             <input
               type="checkbox"
               checked={rewrite}
               onChange={(e) => setRewrite(e.target.checked)}
               className="accent-accent w-4 h-4"
             />
-            reescribir con voz editorial
+            Reescribirla con nuestra voz (recomendado)
           </label>
-          <label className="flex items-center gap-2 font-mono text-[11px] tracking-[1px] text-ink-dim" data-cursor="hover">
+          <label className="flex items-center gap-2 text-sm text-ink-dim">
             <input
               type="checkbox"
               checked={force}
               onChange={(e) => setForce(e.target.checked)}
               className="accent-accent w-4 h-4"
             />
-            forzar (repetir tema, o retomar una descartada)
+            Forzar: aunque el tema ya exista o se hubiera descartado
           </label>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="primary"
             onClick={() => submit()}
             disabled={busy || !url.trim()}
-            data-cursor="hover"
-            className="border border-accent text-accent hover:bg-accent hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-mono text-[11px] tracking-[3px] uppercase px-7 py-3 transition-colors"
+            loading={busy}
+            loadingLabel={running ? "Trabajando en el servidor…" : "Encolando…"}
           >
-            {running
-              ? "trabajando en el servidor…"
-              : sending
-                ? "encolando…"
-                : "añadir al banco"}
-          </button>
+            Añadir al banco de ideas
+          </Button>
           {/* Sin URL el botón queda muerto: decir por qué, que si no parece roto. */}
-          {!busy && !url.trim() && (
-            <p className="font-mono text-[10px] tracking-[1px] text-ink-faint">
-              falta la URL del artículo
-            </p>
-          )}
+          {!busy && !url.trim() && <p className="text-sm text-ink-faint">Falta el enlace.</p>}
         </div>
 
         {/* EN CURSO. El trabajo vive en el servidor: se puede cerrar la pestaña y
             al volver se retoma el seguimiento solo. */}
         {running && (
-          <div className="border border-divider p-4 space-y-1">
-            <p className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-              ⟳ trabajo #{job!.id} en marcha
-            </p>
-            <p className="font-serif italic text-ink-dim text-sm leading-relaxed">
-              Investigando, escribiendo y pasándola por el editor jefe. Tarda entre 2
-              y 4 minutos. Corre en el servidor: puedes cerrar esta página o irte a
-              otra sección — al volver seguirá aquí.
+          <div className="space-y-2">
+            <JobStatus
+              label={`Trabajo #${job!.id} en marcha`}
+              hint="tarda entre 2 y 4 minutos"
+            />
+            <p className="text-sm text-ink-dim">
+              Investigando, escribiendo y pasándola por el editor jefe. Corre en el servidor:
+              puedes cerrar esta página y al volver seguirá aquí.
             </p>
           </div>
         )}
 
         {/* Fallos: los del envío y los que registra el propio trabajo. */}
-        {!!failMsg && (
-          <p className="text-accent font-mono text-xs tracking-[1px]">✗ {failMsg}</p>
-        )}
+        {!!failMsg && <Notice>{failMsg}</Notice>}
 
         {/* Rechazo del gate de rigor: se muestra por qué, que es lo único que
             permite decidir si merece la pena buscar más material o soltarla. */}
         {job?.status === "rejected" && (
-          <div className="border border-accent/40 bg-accent/5 p-4 space-y-2">
-            <p className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-              ✗ no se ha creado la propuesta
-              {typeof job.score === "number" ? ` · rigor ${job.score}/100` : ""}
-            </p>
-            <p className="font-serif text-base text-ink leading-snug">
-              El editor jefe la rechaza: no hay material para un artículo que aporte
-              algo.
-            </p>
-            <ul className="list-none space-y-1">
+          <Callout
+            tone="danger"
+            title={`No se ha creado la idea${
+              typeof job.score === "number" ? ` · rigor ${job.score}/100` : ""
+            }`}
+          >
+            <p>El editor jefe la rechaza: no hay material para un artículo que aporte algo.</p>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
               {job.reasons.map((r, i) => (
-                <li key={i} className="font-serif italic text-ink-dim text-sm leading-relaxed">
-                  · {r}
-                </li>
+                <li key={i}>{r}</li>
               ))}
             </ul>
-            <p className="font-mono text-[10px] tracking-[1px] text-ink-faint">
+            <p className="mt-2 text-xs text-ink-faint">
               {job.boosted
-                ? "se reintentó con investigación reforzada y siguió sin dar de sí"
-                : "no se pudo reescribir ni con refuerzo"}
-              . Si tienes más material (entrevista, fotos, datos), añádelo al cuerpo y
-              vuelve a intentarlo.
+                ? "Se reintentó con investigación reforzada y siguió sin dar de sí."
+                : "No se pudo reescribir ni con refuerzo."}{" "}
+              Si tienes más material (entrevista, fotos, datos), añádelo al texto y vuelve a
+              intentarlo.
             </p>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="danger"
+              className="mt-3"
               onClick={() => {
                 setForce(true);
                 setUrl(job.url);
                 submit(true);
               }}
               disabled={busy}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
             >
-              guardarla igualmente
-            </button>
-          </div>
+              Guardarla igualmente
+            </Button>
+          </Callout>
         )}
 
         {job?.status === "done" && (
-          <div className="border border-accent/30 bg-accent/5 p-4 space-y-2">
-            <p className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-              ✓ propuesta #{job.proposal_id} creada
-              {job.rewritten ? " · reescrita" : " · texto en crudo"}
-            </p>
-            <p className="font-serif text-base text-ink leading-snug">{job.title}</p>
-            {job.warning && (
-              <p className="font-mono text-[11px] tracking-[0.5px] text-accent">
-                ⚠ {job.warning}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5"
-            >
-              recargar para verla en «por validar»
-            </button>
-          </div>
+          <Callout
+            tone="ok"
+            title={`✓ Idea #${job.proposal_id} creada${job.rewritten ? " y reescrita" : " con el texto en crudo"}`}
+          >
+            <p className="font-serif text-base text-ink">{job.title}</p>
+            {job.warning && <p className="mt-1 text-warn">⚠ {job.warning}</p>}
+            <Button size="sm" className="mt-2" onClick={() => window.location.reload()}>
+              Recargar para verla
+            </Button>
+          </Callout>
         )}
       </div>
     </details>

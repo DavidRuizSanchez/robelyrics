@@ -2,27 +2,38 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Term from "@/components/admin/Term";
+import {
+  ActionBar,
+  Button,
+  Callout,
+  Card,
+  Details,
+  EmptyState,
+  Eyebrow,
+  Notice,
+  Section,
+  StatusBadge,
+  Toggle,
+  cx,
+  filterClass,
+  inputClass,
+} from "@/components/admin/ui";
+import { kindLabel } from "@/lib/admin/labels";
+import PlacementGroupCard from "./PlacementGroupCard";
 import type { PlacementGroup, ProposalItem } from "./page";
-
-const KIND_LABEL: Record<string, string> = {
-  news: "Noticia",
-  anniversary: "Efeméride Robe",
-  "album-anniversary": "Aniversario disco",
-  spotlight: "Análisis canción",
-  evergreen: "Tema de fondo",
-};
 
 // Grupos para el filtro por tipo.
 const FILTERS: { key: string; label: string; kinds: Set<string> | null }[] = [
-  { key: "all", label: "todo", kinds: null },
-  { key: "actualidad", label: "actualidad", kinds: new Set(["news"]) },
+  { key: "all", label: "Todo", kinds: null },
+  { key: "actualidad", label: "Actualidad", kinds: new Set(["news"]) },
   {
     key: "efemerides",
-    label: "efemérides",
+    label: "Efemérides",
     kinds: new Set(["anniversary", "album-anniversary"]),
   },
-  { key: "spotlight", label: "spotlight", kinds: new Set(["spotlight"]) },
-  { key: "evergreen", label: "evergreen", kinds: new Set(["evergreen"]) },
+  { key: "spotlight", label: "Análisis de canción", kinds: new Set(["spotlight"]) },
+  { key: "evergreen", label: "Temas de fondo", kinds: new Set(["evergreen"]) },
 ];
 
 // Formatea en UTC para que SSR (server, UTC) y cliente coincidan: evita el
@@ -74,6 +85,10 @@ export default function BlogPlanner({
   // Destino elegido por grupo de keywords (id → índice del grupo → value). Sin
   // elección explícita manda lo que recomienda el análisis.
   const [destino, setDestino] = useState<Record<number, Record<number, string>>>({});
+  // Error de la última acción, junto a la pieza que lo provocó (null = general).
+  const [error, setError] = useState<{ id: number | null; msg: string } | null>(null);
+  const fail = (id: number | null, e: unknown) =>
+    setError({ id, msg: String(e).replace(/^Error:\s*/, "") });
 
   function grupos(p: ProposalItem): PlacementGroup[] {
     return p.placement_groups ?? [];
@@ -152,10 +167,11 @@ export default function BlogPlanner({
   async function call(action: string, id: number, body?: Record<string, unknown>) {
     setBusy(id);
     try {
+      setError(null);
       await post(`/biblioteca/admin/blog/api/${action}/${id}`, body);
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(id, e);
     } finally {
       setBusy(null);
     }
@@ -187,7 +203,7 @@ export default function BlogPlanner({
         );
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(null, e);
     } finally {
       setBusy(null);
     }
@@ -215,7 +231,7 @@ export default function BlogPlanner({
       alert(`Programadas ${n}.${s ? ` Sin hueco: ${s}.` : ""}`);
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(null, e);
     } finally {
       setBusy(null);
     }
@@ -230,7 +246,7 @@ export default function BlogPlanner({
       };
       setTitleCands((c) => ({ ...c, [id]: data.candidates ?? [] }));
     } catch (e) {
-      alert(String(e));
+      fail(id, e);
     } finally {
       setTitleBusy(null);
     }
@@ -242,7 +258,7 @@ export default function BlogPlanner({
       await post(`/biblioteca/admin/blog/api/title/${id}`, { title });
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(id, e);
     } finally {
       setTitleBusy(null);
     }
@@ -256,7 +272,7 @@ export default function BlogPlanner({
       await post(`/biblioteca/admin/blog/api/title/${id}`, { title: value });
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(id, e);
     } finally {
       setTitleBusy(null);
     }
@@ -286,7 +302,7 @@ export default function BlogPlanner({
       }
       window.location.reload();
     } catch (e) {
-      alert(String(e));
+      fail(id, e);
     } finally {
       setBusy(null);
     }
@@ -310,512 +326,212 @@ export default function BlogPlanner({
   const weeksList = [...byWeek.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const todayIso = new Date().toISOString().slice(0, 10);
 
+  const errorDe = (id: number | null) =>
+    error && error.id === id ? (
+      <Notice onClose={() => setError(null)}>{error.msg}</Notice>
+    ) : null;
+
   return (
-    <div className="space-y-14">
+    <div className="space-y-12">
+      {errorDe(null)}
+
       {/* ---------- Filtro por tipo ---------- */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mr-1">
-          filtro:
-        </span>
+      <div className="flex flex-wrap gap-2 items-center" role="group" aria-label="Filtrar ideas por tipo">
+        <span className="text-sm text-ink-faint mr-1">Mostrar:</span>
         {FILTERS.map((f) => (
           <button
             key={f.key}
             type="button"
+            aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
-            data-cursor="hover"
-            className={`font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 ${
-              filter === f.key
-                ? "border-accent text-accent"
-                : "border-divider text-ink-dim hover:text-accent"
-            }`}
+            className={filterClass(filter === f.key)}
           >
             {f.label}
           </button>
         ))}
       </div>
 
-      {/* ========== ZONA A — Propuestas (validar) ========== */}
-      <section>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-            1 · Ideas por validar · {proposedF.length}
-          </h2>
-          {proposedF.length > 0 && (
-            <button
-              type="button"
+      {/* ========== Propuestas por validar ========== */}
+      <Section
+        title="Ideas por decidir"
+        count={proposedF.length}
+        help="Temas sin escribir. Decide si merecen la pena: lo aprobado pasa al calendario y se escribe cuando llegue su fecha."
+        actions={
+          proposedF.length > 0 && (
+            <Button
+              variant="secondary"
               disabled={busy !== null || selCount === 0}
+              loading={busy === -1}
+              loadingLabel="Aprobando…"
               onClick={() => bulkApprove([...selected])}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+              title="Las que proponen ampliar una página se saltan: esas se deciden una a una"
             >
-              {busy === -1 ? "aprobando…" : `✓ aprobar en bloque (${selCount})`}
-            </button>
-          )}
-        </div>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Revisa y aprueba (o rechaza) el TEMA. Lo aprobado pasa al calendario de abajo y se escribe al llegar su fecha.
-        </p>
+              ✓ Aprobar seleccionadas ({selCount})
+            </Button>
+          )
+        }
+      >
         {proposedF.length === 0 ? (
-          <p className="font-serif italic text-ink-faint">
-            Nada por validar en este filtro.
-          </p>
+          <EmptyState>Nada por decidir con este filtro.</EmptyState>
         ) : (
-          <ul className="divide-y divide-divider">
+          <ul className="space-y-4">
             {proposedF.map((p) => (
-              <li key={p.id} className="py-4">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(p.id)}
-                    onChange={() => toggleSelected(p.id)}
-                    data-cursor="hover"
-                    className="mt-1.5 accent-accent w-4 h-4 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0 flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <Meta p={p} />
-                      {p.id in titleEdit ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <input
-                            type="text"
-                            value={titleEdit[p.id]}
-                            onChange={(e) =>
-                              setTitleEdit((s) => ({ ...s, [p.id]: e.target.value }))
-                            }
-                            className="flex-1 min-w-[200px] bg-transparent border-0 border-b border-accent focus:outline-none px-0 py-1 font-serif text-lg text-ink"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => saveTitle(p.id)}
-                            disabled={titleBusy === p.id}
-                            data-cursor="hover"
-                            className="font-mono text-[9px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-2 py-1 disabled:opacity-40"
-                          >
-                            guardar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setTitleEdit((s) => {
-                                const n = { ...s };
-                                delete n[p.id];
-                                return n;
-                              })
-                            }
-                            data-cursor="hover"
-                            className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-ink px-2 py-1"
-                          >
-                            cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/biblioteca/admin/blog/${p.id}`}
-                          data-cursor="hover"
-                          className="block font-serif text-lg text-ink leading-tight hover:text-accent"
-                        >
-                          {p.title}
-                        </Link>
-                      )}
-                      {p.event_date && (
-                        <p className="mt-1 font-mono text-[9px] tracking-[2px] uppercase text-accent">
-                          evento: {fmtDate(p.event_date)}
-                          {p.recommended_for
-                            ? ` · sugerido ${fmtDate(p.recommended_for)}`
-                            : ""}
-                        </p>
-                      )}
-                      {p.angle && (
-                        <p className="mt-1 font-serif italic text-ink-dim text-sm leading-relaxed">
-                          {p.angle}
-                        </p>
-                      )}
-                      {p.keywords && p.keywords.length > 0 && (
-                        <div className="mt-2">
-                          <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
-                            keywords · {p.keyword_volume.toLocaleString("es-ES")} búsquedas/mes
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {p.keywords
-                              .slice()
-                              .sort((a, b) => b.volume - a.volume)
-                              .slice(0, 8)
-                              .map((k) =>
-                                k.merged ? (
-                                  <span
-                                    key={k.keyword}
-                                    title="Ya va a esa página (fusión en curso)"
-                                    className="font-mono text-[10px] text-ink-faint border border-divider px-1.5 py-0.5"
-                                  >
-                                    {k.keyword} → {k.merged}
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    key={k.keyword}
-                                    onClick={() => toggleKeyword(p, k.keyword)}
-                                    disabled={busy !== null}
-                                    data-cursor="hover"
-                                    title={
-                                      k.excluded
-                                        ? "Desactivada: no cuenta. Pulsa para reactivarla"
-                                        : "Pulsa para desactivarla (demasiado genérica, no encaja…)"
-                                    }
-                                    className={`font-mono text-[10px] border px-1.5 py-0.5 disabled:opacity-40 ${
-                                      k.excluded
-                                        ? "border-divider text-ink-faint line-through"
-                                        : "border-divider text-ink-dim hover:border-accent"
-                                    }`}
-                                  >
-                                    {k.keyword}{" "}
-                                    <span className={k.excluded ? "" : "text-accent"}>
-                                      {k.volume.toLocaleString("es-ES")}
-                                    </span>
-                                  </button>
-                                ),
-                              )}
-                          </div>
-                        </div>
-                      )}
-                      {grupos(p).length > 0 && (
-                        <div className="mt-3 space-y-3">
-                          {grupos(p).map((g, i) => (
-                            <GroupBox
-                              key={g.keywords.join("|")}
-                              g={g}
-                              value={destinoDe(p, i)}
-                              onChange={(v) =>
-                                setDestino((d) => ({ ...d, [p.id]: { ...(d[p.id] ?? {}), [i]: v } }))
-                              }
-                              disabled={busy !== null}
-                            />
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => call("placement", p.id)}
-                            disabled={busy !== null}
-                            data-cursor="hover"
-                            title="Recalcular con el volcado de GSC actual"
-                            className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent disabled:opacity-40"
-                          >
-                            ↻ recalcular reparto
-                          </button>
-                          {p.placement?.last_merge && (
-                            <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent">
-                              la fusión con {p.placement.last_merge.path} no salió (
-                              {p.placement.last_merge.status})
-                              {p.placement.last_merge.error ? `: ${p.placement.last_merge.error}` : ""}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {!p.target_keyword && (
-                        <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-accent">
-                          ⚠ sin KW objetivo — propuesta antigua, posible canibalización
-                        </p>
-                      )}
-                      {p.source_url && (
-                        <a
-                          href={p.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-[10px] text-accent hover:underline block mt-2"
-                        >
-                          fuente original ↗
-                        </a>
-                      )}
-                    </div>
-                    <div className="shrink-0 flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTitleEdit((s) => ({ ...s, [p.id]: p.title }))
-                        }
-                        disabled={busy !== null}
-                        data-cursor="hover"
-                        title="Editar titular a mano"
-                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
-                      >
-                        ✎ a mano
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => suggestTitle(p.id)}
-                        disabled={titleBusy === p.id || busy !== null}
-                        data-cursor="hover"
-                        title="Regenerar titular (propone 3)"
-                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider text-ink-dim hover:border-accent hover:text-accent px-3 py-1.5 disabled:opacity-40"
-                      >
-                        {titleBusy === p.id ? "…" : "↻ titular"}
-                      </button>
-                      {hayReparto(p) ? (
-                        <button
-                          type="button"
-                          onClick={() => aplicarReparto(p)}
-                          disabled={busy === p.id}
-                          data-cursor="hover"
-                          title="Cada grupo de keywords a su destino (las ampliaciones preparan borrador, no publican)"
-                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                        >
-                          {busy === p.id ? "preparando…" : "aplicar reparto"}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => call("approve", p.id)}
-                          disabled={busy === p.id}
-                          data-cursor="hover"
-                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                        >
-                          {busy === p.id ? "generando borrador…" : "aprobar"}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => call("force-publish", p.id)}
-                        disabled={busy === p.id}
-                        data-cursor="hover"
-                        title="Publicar sí o sí (salta el control de calidad/longitud)"
-                        className={`font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40 ${
-                          p.force_publish
-                            ? "border-accent bg-accent text-white"
-                            : "border-divider text-ink-faint hover:border-accent hover:text-accent"
-                        }`}
-                      >
-                        {p.force_publish ? "✓ sí o sí" : "sí o sí"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm("¿Rechazar esta propuesta?"))
-                            call("discard", p.id);
-                        }}
-                        disabled={busy === p.id}
-                        data-cursor="hover"
-                        className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-                      >
-                        rechazar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {titleCands[p.id]?.length > 0 && (
-                  <ul className="mt-3 ml-7 space-y-2 border border-divider p-3">
-                    <li className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-                      titulares alternativos · pulsa «usar»
-                    </li>
-                    {titleCands[p.id].map((c, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <span className="flex-1 font-serif text-base text-ink leading-snug">
-                          {c.title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => chooseTitle(p.id, c.title)}
-                          disabled={titleBusy === p.id}
-                          data-cursor="hover"
-                          className="shrink-0 font-mono text-[9px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-2 py-1 disabled:opacity-40"
-                        >
-                          usar
-                        </button>
-                      </li>
-                    ))}
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => suggestTitle(p.id)}
-                        disabled={titleBusy === p.id}
-                        data-cursor="hover"
-                        className="font-mono text-[9px] tracking-[2px] uppercase text-ink-dim hover:text-accent disabled:opacity-40"
-                      >
-                        ↻ otras 3
-                      </button>
-                    </li>
-                  </ul>
-                )}
-              </li>
+              renderProposal(p)
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
-      {/* ========== ZONA B — Calendario (aprobadas) ========== */}
-      <section>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
-            2 · Calendario de ideas · {approvedF.length} sin fecha · {scheduledF.length} programadas
-          </h2>
-          <div className="flex items-center gap-2">
-            <label className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-              ventana
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={weeks}
-                onChange={(e) => setWeeks(Math.max(1, Number(e.target.value) || 1))}
-                className="ml-2 w-14 bg-bg border border-divider text-ink font-mono text-[12px] px-2 py-1"
-              />
-              <span className="ml-1">sem</span>
+      {/* ========== Aprobadas: calendario ========== */}
+      <Section
+        title="Ideas aprobadas, sin fecha"
+        count={approvedF.length}
+        help="Ya validadas. Dales fecha a mano o deja que el calendario las reparta (intercala tipos, máximo 4 por semana). Se escriben y publican solas al llegar el día."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="weeks" className="text-sm text-ink-dim">
+              Repartir en
             </label>
-            <button
-              type="button"
+            <input
+              id="weeks"
+              type="number"
+              min={1}
+              max={12}
+              value={weeks}
+              onChange={(e) => setWeeks(Math.max(1, Number(e.target.value) || 1))}
+              className={cx(inputClass, "w-16 font-mono")}
+            />
+            <span className="text-sm text-ink-dim">semanas</span>
+            <Button
+              variant="primary"
               disabled={busy !== null || approved.length === 0}
+              loading={busy === -2}
+              loadingLabel="Programando…"
               onClick={autoSchedule}
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
             >
-              {busy === -2 ? "programando…" : "⚡ auto-programar"}
-            </button>
+              Programar automáticamente
+            </Button>
           </div>
-        </div>
-        <p className="font-serif italic text-ink-dim text-sm mb-5">
-          Lo aprobado, listo para fecha. Dale fecha a mano o usa auto-programar
-          (intercala tipos, máx 4/semana). Se publica solo al llegar el día.
-        </p>
-
-        {/* Aprobadas sin fecha */}
+        }
+      >
         {approvedF.length === 0 ? (
-          <p className="font-serif italic text-ink-faint mb-8">
-            Nada aprobado pendiente de fecha.
-          </p>
+          <EmptyState>Nada aprobado pendiente de fecha.</EmptyState>
         ) : (
-          <ul className="divide-y divide-divider mb-10">
+          <ul className="space-y-3">
             {approvedF.map((p) => (
-              <li key={p.id} className="py-4">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
+              <Card key={p.id} as="li" tone={p.has_body ? "ok" : "info"}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <Meta p={p} />
-                    <Link
-                      href={`/biblioteca/admin/blog/${p.id}`}
-                      data-cursor="hover"
-                      className="block font-serif text-lg text-ink leading-tight hover:text-accent"
-                    >
-                      {p.title}
-                    </Link>
-                    <p className="mt-1 font-mono text-[9px] tracking-[2px] uppercase">
+                    <TitleLink p={p} />
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {p.has_body ? (
-                        <span className="text-accent">✓ borrador listo</span>
+                        <StatusBadge tone="ok">✓ Borrador escrito</StatusBadge>
                       ) : (
-                        <span className="text-ink-faint">
-                          sin borrador (reintento automático cada pocos min)
-                        </span>
+                        <StatusBadge tone="info" title="Se reintenta solo cada pocos minutos">
+                          Escribiéndose…
+                        </StatusBadge>
                       )}
-                    </p>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-end gap-1">
+                      {forceBadge(p)}
+                    </div>
                     {p.recommended_for && (
-                      <p className="font-mono text-[9px] tracking-[1px] uppercase text-accent">
-                        sugerido: {fmtDate(p.recommended_for)}
-                        {p.event_date ? ` · evento ${fmtDate(p.event_date)}` : " (efeméride)"}
+                      <p className="mt-2 text-sm text-ink-dim">
+                        Fecha sugerida: <b className="text-ink">{fmtDate(p.recommended_for)}</b>
+                        {p.event_date
+                          ? ` (el evento es el ${fmtDate(p.event_date)})`
+                          : " (efeméride)"}
                       </p>
                     )}
-                    <div className="flex items-center gap-2 flex-wrap">
-                    <input
-                      type="date"
-                      min={todayIso}
-                      value={dates[p.id] ?? p.recommended_for ?? ""}
-                      onChange={(e) =>
-                        setDates((d) => ({ ...d, [p.id]: e.target.value }))
-                      }
-                      className="bg-bg border border-divider text-ink font-mono text-[12px] px-2 py-1.5"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const chosen = dates[p.id] ?? p.recommended_for;
-                        chosen
-                          ? scheduleProposal(p.id, chosen)
-                          : alert("Elige una fecha primero");
-                      }}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                    >
-                      programar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => call("force-publish", p.id)}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      title="Publicar sí o sí (salta el control de calidad/longitud)"
-                      className={`font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40 ${
-                        p.force_publish
-                          ? "border-accent bg-accent text-white"
-                          : "border-divider text-ink-faint hover:border-accent hover:text-accent"
-                      }`}
-                    >
-                      {p.force_publish ? "✓ sí o sí" : "sí o sí"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("¿Descartar esta propuesta?"))
-                          call("discard", p.id);
-                      }}
-                      disabled={busy === p.id}
-                      data-cursor="hover"
-                      className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-divider-strong text-ink-faint hover:text-ink px-3 py-1.5 disabled:opacity-40"
-                    >
-                      descartar
-                    </button>
-                    </div>
                   </div>
                 </div>
-              </li>
+                {errorDe(p.id)}
+                <ActionBar
+                  primary={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="sr-only" htmlFor={`fecha-${p.id}`}>
+                        Fecha de publicación
+                      </label>
+                      <input
+                        id={`fecha-${p.id}`}
+                        type="date"
+                        min={todayIso}
+                        value={dates[p.id] ?? p.recommended_for ?? ""}
+                        onChange={(e) => setDates((d) => ({ ...d, [p.id]: e.target.value }))}
+                        className={cx(inputClass, "w-auto font-mono")}
+                      />
+                      <Button
+                        variant="primary"
+                        loading={busy === p.id}
+                        onClick={() => {
+                          const chosen = dates[p.id] ?? p.recommended_for;
+                          if (chosen) scheduleProposal(p.id, chosen);
+                          else setError({ id: p.id, msg: "Elige una fecha primero." });
+                        }}
+                      >
+                        Programar
+                      </Button>
+                    </div>
+                  }
+                  danger={
+                    <>
+                      {forceToggle(p)}
+                      <Button
+                        variant="danger"
+                        disabled={busy === p.id}
+                        onClick={() => {
+                          if (window.confirm("¿Descartar esta propuesta?")) call("discard", p.id);
+                        }}
+                      >
+                        Descartar
+                      </Button>
+                    </>
+                  }
+                />
+              </Card>
             ))}
           </ul>
         )}
+      </Section>
 
-        {/* Programadas por semana */}
-        <h3 className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-4">
-          Programadas
-        </h3>
+      <Section
+        title="Ideas programadas"
+        count={scheduledF.length}
+        help="Tienen fecha: se escriben y publican solas ese día. Quitarles la fecha las devuelve a «aprobadas»."
+      >
         {weeksList.length === 0 ? (
-          <p className="font-serif italic text-ink-dim">
-            Nada programado todavía.
-          </p>
+          <EmptyState>Nada programado todavía.</EmptyState>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {weeksList.map(([wk, items]) => (
-              <div key={wk} className="border border-divider p-4">
-                <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-3">
-                  semana del {fmtDate(wk)} · {items.length}/4
-                </p>
-                <ul className="space-y-2">
+              <div key={wk} className="rounded-md border border-divider bg-paper p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="font-medium text-ink">Semana del {fmtDate(wk)}</p>
+                  <StatusBadge tone={items.length > 4 ? "danger" : items.length === 4 ? "warn" : "neutral"}>
+                    {items.length} de 4 huecos
+                  </StatusBadge>
+                </div>
+                <ul className="divide-y divide-divider">
                   {items
                     .slice()
-                    .sort((a, b) =>
-                      (a.scheduled_for ?? "").localeCompare(b.scheduled_for ?? ""),
-                    )
+                    .sort((a, b) => (a.scheduled_for ?? "").localeCompare(b.scheduled_for ?? ""))
                     .map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex items-start justify-between gap-4 flex-wrap"
-                      >
+                      <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-mono text-[9px] tracking-[2px] uppercase text-accent">
-                            {KIND_LABEL[p.kind] ?? p.kind} ·{" "}
-                            {p.scheduled_for && fmtDate(p.scheduled_for)}
+                          <p className="text-sm text-ink-dim">
+                            <b className="text-ink">{p.scheduled_for && fmtDate(p.scheduled_for)}</b>{" "}
+                            · {kindLabel(p.kind)}
                           </p>
-                          <Link
-                            href={`/biblioteca/admin/blog/${p.id}`}
-                            data-cursor="hover"
-                            className="block font-serif text-lg text-ink leading-tight hover:text-accent"
-                          >
-                            {p.title}
-                          </Link>
+                          <TitleLink p={p} small />
+                          {errorDe(p.id)}
                         </div>
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={busy === p.id}
                           onClick={() => call("unschedule", p.id)}
-                          disabled={busy === p.id}
-                          data-cursor="hover"
-                          className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
                         >
-                          quitar fecha
-                        </button>
+                          Quitar fecha
+                        </Button>
                       </li>
                     ))}
                 </ul>
@@ -823,159 +539,388 @@ export default function BlogPlanner({
             ))}
           </div>
         )}
-      </section>
+      </Section>
 
       {/* ========== Descartadas ========== */}
       {discardedF.length > 0 && (
         <section>
           {/* Plegada: son cientos y se pintaban enteras, empujando fuera de la
               vista todo lo que venía detrás. Es una papelera, no una cola. */}
-          <details>
-            <summary
-              data-cursor="hover"
-              className="font-mono text-[10px] tracking-[3px] uppercase text-ink-faint cursor-pointer"
-            >
-              Ideas descartadas · {discardedTotal ?? discardedF.length}
-              {(discardedTotal ?? 0) > discardedF.length &&
-                ` (se muestran las ${discardedF.length} más recientes)`}
-            </summary>
-          <p className="font-serif italic text-ink-dim text-sm mt-2 mb-5">
-            Rechazadas. Puedes recuperarlas y vuelven a “por validar”.
-          </p>
-          <ul className="divide-y divide-divider">
-            {discardedF.map((p) => (
-              <li
-                key={p.id}
-                className="py-4 flex items-start justify-between gap-4 flex-wrap opacity-70"
-              >
-                <div className="flex-1 min-w-0">
-                  <Meta p={p} />
-                  <Link
-                    href={`/biblioteca/admin/blog/${p.id}`}
-                    data-cursor="hover"
-                    className="block font-serif text-lg text-ink leading-tight hover:text-accent line-through decoration-ink-faint"
-                  >
-                    {p.title}
-                  </Link>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => call("restore", p.id)}
-                  disabled={busy === p.id}
-                  data-cursor="hover"
-                  className="font-mono text-[10px] tracking-[2px] uppercase border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-40"
-                >
-                  recuperar
-                </button>
-              </li>
-            ))}
-          </ul>
-          </details>
+          <Details
+            summary={
+              <span className="text-base text-ink-dim">
+                Ideas descartadas{" "}
+                <span className="font-mono text-ink-faint">{discardedTotal ?? discardedF.length}</span>
+                {(discardedTotal ?? 0) > discardedF.length &&
+                  ` · se muestran las ${discardedF.length} más recientes`}
+              </span>
+            }
+          >
+            <p className="mb-3 text-sm text-ink-faint">
+              Rechazadas. Si recuperas una, vuelve a «Ideas por decidir».
+            </p>
+            <ul className="divide-y divide-divider">
+              {discardedF.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="flex-1 min-w-0 opacity-75">
+                    <Meta p={p} />
+                    <TitleLink p={p} small />
+                    {errorDe(p.id)}
+                  </div>
+                  <Button size="sm" loading={busy === p.id} onClick={() => call("restore", p.id)}>
+                    Recuperar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Details>
         </section>
       )}
     </div>
   );
-}
 
-const CONF_CLASS: Record<string, string> = {
-  alta: "text-accent",
-  media: "text-ink-dim",
-  baja: "text-ink-faint",
-};
+  // ── Piezas de la tarjeta (cierran sobre el estado del planner) ────────────
+  // Funciones de render, NO componentes: un componente definido aquí dentro
+  // sería un tipo nuevo en cada render y React remontaría la tarjeta, así que
+  // el campo del titular perdería el foco a cada tecla.
 
-function fmtPos(n: number | null): string {
-  return n === null ? "—" : n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
-}
+  function forceBadge(p: ProposalItem) {
+    return p.force_publish ? (
+      <StatusBadge tone="danger">⚡ Se publicará aunque no pase los controles</StatusBadge>
+    ) : null;
+  }
 
-// Un grupo de keywords que va al mismo destino: su recomendación, su evidencia y
-// su selector. El selector solo ofrece lo que el motor puede escribir (fichas,
-// posts y /personas), además de «contenido nuevo» y «omitir».
-function GroupBox({
-  g,
-  value,
-  onChange,
-  disabled,
-}: {
-  g: PlacementGroup;
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  const ampliar = g.decision === "ampliar";
-  return (
-    <div className={`border-l-2 pl-3 py-1 ${ampliar ? "border-accent" : "border-divider"}`}>
-      <p className="font-mono text-[10px] text-ink-dim">{g.keywords.join(" · ")}</p>
-      <p className="mt-1 font-mono text-[9px] tracking-[2px] uppercase">
-        <span className={ampliar ? "text-accent" : "text-ink-dim"}>{g.headline}</span>
-        <span className={CONF_CLASS[g.confidence] ?? "text-ink-faint"}>
-          {" "}· confianza {g.confidence}
+  function forceToggle(p: ProposalItem) {
+    return (
+      // El glosario va FUERA del interruptor: un botón dentro de otro no es HTML válido.
+      <span className="inline-flex items-center gap-1">
+        <Toggle
+          pressed={p.force_publish}
+          disabled={busy === p.id}
+          onClick={() => call("force-publish", p.id)}
+          title="Salta el control de calidad y de longitud al publicar"
+        >
+          Publicar sin controles
+        </Toggle>
+        <span className="text-xs text-ink-faint">
+          <Term k="siOSi">¿qué es?</Term>
         </span>
-      </p>
-      {g.reasons.slice(0, 2).map((r, i) => (
-        <p key={i} className="mt-1 font-serif text-sm text-ink-dim leading-snug">
-          {r}
-        </p>
-      ))}
-      {g.candidates.length > 0 && (
-        <ul className="mt-2 space-y-0.5">
-          {g.candidates.map((c) => (
-            <li key={c.path} className="font-mono text-[10px] text-ink-faint break-all">
+      </span>
+    );
+  }
+
+  function renderProposal(p: ProposalItem) {
+    const gs = grupos(p);
+    const volumes = Object.fromEntries((p.keywords ?? []).map((k) => [k.keyword, k.volume]));
+    const kws = (p.keywords ?? []).slice().sort((a, b) => b.volume - a.volume);
+    const visibles = kws.slice(0, 8);
+    const ocultas = kws.length - visibles.length;
+    const reparto = hayReparto(p);
+    return (
+      <Card key={p.id} as="li" tone="warn">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={selected.has(p.id)}
+            onChange={() => toggleSelected(p.id)}
+            aria-label={`Seleccionar «${p.title}» para aprobar en bloque`}
+            className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <Meta p={p} />
+              <StatusBadge tone="warn">Por decidir</StatusBadge>
+            </div>
+
+            {/* ── Qué es ── */}
+            {p.id in titleEdit ? (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <label htmlFor={`titulo-${p.id}`} className="sr-only">
+                  Titular
+                </label>
+                <input
+                  id={`titulo-${p.id}`}
+                  type="text"
+                  value={titleEdit[p.id]}
+                  onChange={(e) => setTitleEdit((s) => ({ ...s, [p.id]: e.target.value }))}
+                  className={cx(inputClass, "flex-1 min-w-[220px] font-serif text-lg")}
+                />
+                <Button
+                  size="sm"
+                  variant="primary"
+                  loading={titleBusy === p.id}
+                  onClick={() => saveTitle(p.id)}
+                >
+                  Guardar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setTitleEdit((s) => {
+                      const n = { ...s };
+                      delete n[p.id];
+                      return n;
+                    })
+                  }
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <TitleLink p={p} />
+            )}
+            {p.angle && <p className="mt-1 font-serif italic text-ink-dim">{p.angle}</p>}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {forceBadge(p)}
+              {p.event_date && (
+                <StatusBadge tone="info">
+                  Evento: {fmtDate(p.event_date)}
+                  {p.recommended_for ? ` · sugerido ${fmtDate(p.recommended_for)}` : ""}
+                </StatusBadge>
+              )}
+            </div>
+            {!p.target_keyword && (
+              <Callout tone="warn" className="mt-3" title="Sin búsqueda objetivo">
+                Propuesta antigua: puede pisarse con otra página tuya (
+                <Term k="canibalizacion">canibalización</Term>).
+              </Callout>
+            )}
+
+            {/* ── Búsquedas ── */}
+            {kws.length > 0 && (
+              <div className="mt-4">
+                <Eyebrow>
+                  Búsquedas que cubre ·{" "}
+                  <span className="font-mono normal-case tracking-normal text-ink-dim">
+                    {p.keyword_volume.toLocaleString("es-ES")}
+                  </span>{" "}
+                  <Term k="volumen">al mes</Term>
+                </Eyebrow>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {visibles.map((k) =>
+                    k.merged ? (
+                      <span
+                        key={k.keyword}
+                        className="inline-flex items-center gap-1 rounded-md border border-divider px-2 py-1 text-xs text-ink-faint"
+                      >
+                        <span className="font-mono">{k.keyword}</span> → ya va a{" "}
+                        <span className="font-mono">{k.merged}</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        key={k.keyword}
+                        onClick={() => toggleKeyword(p, k.keyword)}
+                        disabled={busy !== null}
+                        aria-pressed={!k.excluded}
+                        title={
+                          k.excluded
+                            ? "Desactivada: no cuenta. Pulsa para reactivarla"
+                            : "Pulsa para desactivarla (demasiado genérica, no encaja…)"
+                        }
+                        className={cx(
+                          "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] transition-colors disabled:opacity-40",
+                          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                          k.excluded
+                            ? "border-divider text-ink-faint line-through"
+                            : "border-divider-strong text-ink hover:border-danger/60",
+                        )}
+                      >
+                        <span className="font-mono">{k.keyword}</span>
+                        <span className={cx("font-mono text-xs", k.excluded ? "" : "text-ink-dim")}>
+                          {k.volume.toLocaleString("es-ES")}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                  {ocultas > 0 && (
+                    <span className="self-center text-xs text-ink-faint">+{ocultas} más</span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-ink-faint">
+                  Pulsa una búsqueda para desactivarla si no encaja.
+                </p>
+              </div>
+            )}
+
+            {/* ── Qué propone el sistema ── */}
+            {gs.length > 0 && (
+              <div className="mt-5">
+                <Eyebrow>Qué propone el sistema</Eyebrow>
+                <div className="mt-2 space-y-3">
+                  {gs.map((g, i) => (
+                    <PlacementGroupCard
+                      key={g.keywords.join("|")}
+                      g={g}
+                      volumes={volumes}
+                      value={destinoDe(p, i)}
+                      onChange={(v) =>
+                        setDestino((d) => ({ ...d, [p.id]: { ...(d[p.id] ?? {}), [i]: v } }))
+                      }
+                      disabled={busy !== null}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy !== null}
+                    onClick={() => call("placement", p.id)}
+                    title="Vuelve a calcular el reparto con los datos de Search Console actuales"
+                  >
+                    ↻ Recalcular con datos actuales
+                  </Button>
+                </div>
+                {p.placement?.last_merge && (
+                  <Callout tone="danger" className="mt-2" title="La última fusión no salió">
+                    Con <span className="font-mono">{p.placement.last_merge.path}</span> (
+                    {p.placement.last_merge.status})
+                    {p.placement.last_merge.error ? `: ${p.placement.last_merge.error}` : ""}
+                  </Callout>
+                )}
+              </div>
+            )}
+
+            {p.source_url && (
               <a
-                href={c.path}
+                href={p.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                data-cursor="hover"
-                className="text-ink-dim hover:text-accent"
+                className="mt-3 inline-block text-sm text-accent hover:underline"
               >
-                {c.path}
+                Ver la fuente original ↗
               </a>
-              {c.kind === "code" && " · en código (mejora manual)"}
-              {c.gsc_impressions > 0 &&
-                ` · ${c.gsc_impressions.toLocaleString("es-ES")} impr. · pos ${fmtPos(c.gsc_position)}`}
-              {c.serp_rank !== null && ` · top ${c.serp_rank} en Google`}
-              {c.similarity !== null &&
-                ` · similitud ${c.similarity.toLocaleString("es-ES", { maximumFractionDigits: 2 })}`}
-              {c.is_anchor && " · ficha de la entidad"}
-            </li>
-          ))}
-        </ul>
+            )}
+
+            {/* ── Titulares alternativos ── */}
+            {titleCands[p.id]?.length > 0 && (
+              <div className="mt-4 rounded-md border border-divider p-3">
+                <Eyebrow>Titulares alternativos</Eyebrow>
+                <ul className="mt-2 space-y-2">
+                  {titleCands[p.id].map((c, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="flex-1 font-serif text-base text-ink leading-snug">{c.title}</span>
+                      <Button
+                        size="sm"
+                        disabled={titleBusy === p.id}
+                        onClick={() => chooseTitle(p.id, c.title)}
+                      >
+                        Usar este
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2"
+                  disabled={titleBusy === p.id}
+                  onClick={() => suggestTitle(p.id)}
+                >
+                  ↻ Proponer otros 3
+                </Button>
+              </div>
+            )}
+
+            {errorDe(p.id)}
+
+            {/* ── Qué haces ── */}
+            <ActionBar
+              primary={
+                reparto ? (
+                  <Button
+                    variant="primary"
+                    loading={busy === p.id}
+                    loadingLabel="Preparando…"
+                    onClick={() => aplicarReparto(p)}
+                    title="Cada grupo de búsquedas a su destino. Las ampliaciones preparan un borrador; no se publica nada."
+                  >
+                    Aplicar este reparto
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    loading={busy === p.id}
+                    loadingLabel="Generando borrador…"
+                    onClick={() => call("approve", p.id)}
+                  >
+                    Aprobar idea
+                  </Button>
+                )
+              }
+              secondary={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy !== null}
+                    onClick={() => setTitleEdit((s) => ({ ...s, [p.id]: p.title }))}
+                  >
+                    ✎ Editar titular
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy !== null}
+                    loading={titleBusy === p.id}
+                    onClick={() => suggestTitle(p.id)}
+                  >
+                    ↻ Proponer titulares
+                  </Button>
+                </>
+              }
+              danger={
+                <>
+                  {forceToggle(p)}
+                  <Button
+                    variant="danger"
+                    disabled={busy === p.id}
+                    onClick={() => {
+                      if (window.confirm("¿Rechazar esta propuesta?")) call("discard", p.id);
+                    }}
+                  >
+                    Rechazar
+                  </Button>
+                </>
+              }
+            />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+}
+
+function TitleLink({ p, small }: { p: ProposalItem; small?: boolean }) {
+  return (
+    <Link
+      href={`/biblioteca/admin/blog/${p.id}`}
+      className={cx(
+        "mt-1 block font-serif text-ink leading-tight hover:text-accent",
+        small ? "text-base" : "text-xl",
       )}
-      <div className="mt-2 flex items-center gap-2 flex-wrap">
-        <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
-          destino
-        </label>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          data-cursor="hover"
-          className="bg-transparent border border-divider text-ink font-mono text-[11px] px-2 py-1 focus:outline-none focus:border-accent max-w-full"
-        >
-          {g.options.map((o) => (
-            <option key={o.value} value={o.value} className="bg-[#0d0b0a]">
-              {o.label}
-              {o.recommended ? " ★" : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
+    >
+      {p.title}
+    </Link>
   );
 }
 
 function Meta({ p }: { p: ProposalItem }) {
   return (
-    <p className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint mb-1">
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim">
       {/* El id, visible: es lo que cita el aviso de duplicado del alta manual. */}
-      <span className="text-ink-dim">#{p.id}</span> ·{" "}
-      {KIND_LABEL[p.kind] ?? p.kind}
-      {p.is_longtail && <span className="text-accent"> · long-tail</span>}
-      {p.has_video && <span className="text-accent"> · 🎬 vídeo</span>}
-      {p.force_publish && <span className="text-accent"> · ⚡ sí o sí</span>}
+      <span className="font-mono text-ink-faint">#{p.id}</span>
+      <span>{kindLabel(p.kind)}</span>
+      {p.is_longtail && <StatusBadge>long-tail</StatusBadge>}
+      {p.has_video && <StatusBadge>🎬 con vídeo</StatusBadge>}
       {p.target_keyword && (
-        <span className="text-ink-dim">
-          {" "}· {p.target_keyword}
-          {p.search_volume ? ` (${p.search_volume}/mes)` : ""}
+        <span>
+          · objetivo: <span className="font-mono text-ink">{p.target_keyword}</span>
+          {p.search_volume ? (
+            <span className="font-mono text-ink-faint"> ({p.search_volume.toLocaleString("es-ES")}/mes)</span>
+          ) : null}
         </span>
       )}
     </p>

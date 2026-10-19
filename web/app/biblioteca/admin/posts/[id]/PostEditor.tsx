@@ -6,15 +6,19 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AdminPostDetail } from "./page";
+import {
+  ActionBar,
+  Button,
+  Field,
+  Notice,
+  StatusBadge,
+  buttonClass,
+  cx,
+  filterClass,
+  inputClass,
+} from "@/components/admin/ui";
+import { POST_STATUS, etiqueta } from "@/lib/admin/labels";
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "borrador",
-  pending_review: "pendiente de revisar",
-  approved: "aprobado",
-  scheduled: "programado",
-  published: "publicado",
-  rejected: "rechazado",
-};
 
 function todayISO(): string {
   // Fecha local en formato YYYY-MM-DD para el min del input y el valor por defecto.
@@ -78,7 +82,7 @@ export default function PostEditor({ post }: { post: AdminPostDetail }) {
       }
       const data = (await res.json()) as { status?: string };
       if (redirectAfter) {
-        router.push("/biblioteca/admin/posts");
+        router.push("/biblioteca/admin/blog");
         return;
       }
       if (data.status) setStatus(data.status);
@@ -91,204 +95,192 @@ export default function PostEditor({ post }: { post: AdminPostDetail }) {
     }
   }
 
-  const inputCls =
-    "w-full bg-transparent border border-divider focus:border-accent outline-none text-ink px-3 py-2 font-serif";
-  const labelCls =
-    "font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-1 block";
-  const btnCls =
-    "font-mono text-[10px] tracking-[2px] uppercase border px-3 py-1.5 disabled:opacity-40";
+  const st = etiqueta(POST_STATUS, status);
+  const msgEsError = !!msg && msg.startsWith("Error");
 
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        <span className="font-mono text-[10px] tracking-[2px] uppercase text-accent">
-          estado: {STATUS_LABEL[status] ?? status}
-        </span>
-        <div className="flex gap-2">
+        <StatusBadge tone={st.tone} title={st.hint}>
+          {st.label}
+        </StatusBadge>
+        <div className="flex gap-2" role="group" aria-label="Modo">
           <button
             type="button"
+            aria-pressed={tab === "read"}
             onClick={() => setTab("read")}
-            data-cursor="hover"
-            className={`${btnCls} ${tab === "read" ? "border-accent text-accent" : "border-divider text-ink-dim"}`}
+            className={filterClass(tab === "read")}
           >
-            leer
+            Leer
           </button>
           <button
             type="button"
+            aria-pressed={tab === "edit"}
             onClick={() => setTab("edit")}
-            data-cursor="hover"
-            className={`${btnCls} ${tab === "edit" ? "border-accent text-accent" : "border-divider text-ink-dim"}`}
+            className={filterClass(tab === "edit")}
           >
-            editar
+            ✎ Editar
           </button>
         </div>
       </div>
 
       {tab === "read" ? (
         <article className="prose-ei">
-          <h1 className="font-serif text-3xl md:text-4xl text-ink leading-tight mb-2">
-            {title}
-          </h1>
-          {excerpt && (
-            <p className="font-serif italic text-ink-dim text-lg mb-6">{excerpt}</p>
-          )}
+          <h1 className="font-serif text-3xl md:text-4xl text-ink leading-tight mb-2">{title}</h1>
+          {excerpt && <p className="font-serif italic text-ink-dim text-lg mb-6">{excerpt}</p>}
           <div className="font-serif text-ink/90 leading-relaxed [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:text-ink [&_h2]:mt-8 [&_h2]:mb-3 [&_p]:mb-4 [&_a]:text-accent [&_a]:underline [&_strong]:text-ink [&_em]:italic">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyMd}</ReactMarkdown>
           </div>
         </article>
       ) : (
         <div className="space-y-5">
-          <div>
-            <label className={labelCls}>título</label>
-            <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div>
-            <label className={labelCls}>extracto</label>
+          <Field label="Título" htmlFor="pe-title">
+            <input
+              id="pe-title"
+              className={cx(inputClass, "font-serif text-lg")}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </Field>
+          <Field label="Extracto" htmlFor="pe-excerpt" hint="El resumen que sale en listados y en la newsletter.">
             <textarea
-              className={`${inputCls} min-h-[70px]`}
+              id="pe-excerpt"
+              className={cx(inputClass, "min-h-[70px] font-serif")}
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
             />
-          </div>
-          <div>
-            <label className={labelCls}>cuerpo (markdown)</label>
+          </Field>
+          <Field label="Cuerpo (Markdown)" htmlFor="pe-body">
             <textarea
-              className={`${inputCls} min-h-[460px] font-mono text-sm leading-relaxed`}
+              id="pe-body"
+              className={cx(inputClass, "min-h-[460px] font-mono leading-relaxed")}
               value={bodyMd}
               onChange={(e) => setBodyMd(e.target.value)}
             />
-          </div>
+          </Field>
           <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>meta title (SEO)</label>
-              <input className={inputCls} value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>meta description (SEO)</label>
+            <Field label="Título en Google (meta title)" htmlFor="pe-mt" hint={`${metaTitle.length} caracteres`}>
+              <input id="pe-mt" className={inputClass} value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} />
+            </Field>
+            <Field
+              label="Descripción en Google (meta description)"
+              htmlFor="pe-md"
+              hint={`${metaDescription.length} caracteres`}
+            >
               <input
-                className={inputCls}
+                id="pe-md"
+                className={inputClass}
                 value={metaDescription}
                 onChange={(e) => setMetaDescription(e.target.value)}
               />
-            </div>
+            </Field>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={save}
             disabled={busy !== null}
-            data-cursor="hover"
-            className={`${btnCls} border-accent text-accent hover:bg-accent hover:text-white`}
+            loading={busy === "save"}
+            loadingLabel="Guardando…"
           >
-            {busy === "save" ? "guardando…" : "guardar cambios"}
-          </button>
+            Guardar cambios
+          </Button>
         </div>
       )}
 
       {/* Barra de acciones de publicación */}
-      <div className="mt-10 pt-6 border-t border-divider">
-        <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mb-3">
-          publicación
-        </p>
-        <div className="flex items-end gap-3 flex-wrap">
-          {status !== "published" && (
-            <button
-              type="button"
-              onClick={() => action("publish", undefined, true)}
-              disabled={busy !== null}
-              data-cursor="hover"
-              className={`${btnCls} border-accent text-accent hover:bg-accent hover:text-white`}
-            >
-              publicar ya
-            </button>
-          )}
-
-          {status !== "scheduled" && status !== "published" && (
-            <div className="flex items-end gap-2">
-              <div>
-                <label className={labelCls}>programar para</label>
-                <input
-                  type="date"
-                  min={todayISO()}
-                  value={scheduleDate}
-                  onChange={(e) => setScheduleDate(e.target.value)}
-                  className="bg-transparent border border-divider focus:border-accent outline-none text-ink px-3 py-1.5 font-mono text-xs"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => action("schedule", { scheduled_for: scheduleDate })}
-                disabled={busy !== null || !scheduleDate}
-                data-cursor="hover"
-                className={`${btnCls} border-divider text-ink-dim hover:border-accent hover:text-accent`}
-              >
-                programar
-              </button>
-            </div>
-          )}
-
-          {status === "scheduled" && (
-            <>
-              <span className="font-mono text-[11px] text-ink-dim">
-                programado para{" "}
-                {post.scheduled_for
-                  ? new Date(post.scheduled_for).toLocaleDateString("es-ES", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })
-                  : "—"}
-              </span>
-              <button
-                type="button"
-                onClick={() => action("unschedule")}
-                disabled={busy !== null}
-                data-cursor="hover"
-                className={`${btnCls} border-divider text-ink-dim hover:border-accent hover:text-accent`}
-              >
-                desprogramar
-              </button>
-            </>
-          )}
-
-          {status === "published" && (
-            <>
-              <Link
-                href={`/blog/${post.slug}`}
-                target="_blank"
-                data-cursor="hover"
-                className={`${btnCls} border-divider text-ink-dim hover:border-accent hover:text-accent`}
-              >
-                ver en el blog ↗
-              </Link>
-              <button
-                type="button"
-                onClick={() => action("unpublish")}
-                disabled={busy !== null}
-                data-cursor="hover"
-                className={`${btnCls} border-divider text-ink-dim hover:border-accent hover:text-accent`}
-              >
-                despublicar
-              </button>
-            </>
-          )}
-
-          {status !== "rejected" && status !== "published" && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("¿Rechazar esta entrada?")) action("reject", undefined, true);
-              }}
-              disabled={busy !== null}
-              data-cursor="hover"
-              className={`${btnCls} border-divider text-ink-faint hover:text-ink`}
-            >
-              rechazar
-            </button>
-          )}
-        </div>
-        {msg && (
-          <p className="mt-4 font-mono text-[11px] tracking-[1px] text-accent">{msg}</p>
+      <div className="mt-10 rounded-md border border-divider bg-paper p-4">
+        <p className="font-medium text-ink">Publicación</p>
+        {status === "scheduled" && (
+          <p className="mt-1 text-sm text-ink-dim">
+            Sale sola el{" "}
+            <b className="text-ink">
+              {post.scheduled_for
+                ? new Date(post.scheduled_for).toLocaleDateString("es-ES", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : "—"}
+            </b>
+            .
+          </p>
         )}
+        {msg && (
+          <div className="mt-3">
+            <Notice tone={msgEsError ? "danger" : "ok"} onClose={() => setMsg(null)}>
+              {msg}
+            </Notice>
+          </div>
+        )}
+        <ActionBar
+          className="mt-3"
+          primary={
+            <>
+              {status !== "published" && (
+                <Button
+                  variant="primary"
+                  onClick={() => action("publish", undefined, true)}
+                  disabled={busy !== null}
+                  loading={busy === "publish"}
+                >
+                  Publicar ya
+                </Button>
+              )}
+              {status !== "scheduled" && status !== "published" && (
+                <span className="flex items-center gap-2">
+                  <label htmlFor="pe-fecha" className="text-sm text-ink-dim">
+                    o programar para
+                  </label>
+                  <input
+                    id="pe-fecha"
+                    type="date"
+                    min={todayISO()}
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className={cx(inputClass, "w-auto font-mono")}
+                  />
+                  <Button
+                    onClick={() => action("schedule", { scheduled_for: scheduleDate })}
+                    disabled={busy !== null || !scheduleDate}
+                    loading={busy === "schedule"}
+                  >
+                    Programar
+                  </Button>
+                </span>
+              )}
+              {status === "scheduled" && (
+                <Button onClick={() => action("unschedule")} disabled={busy !== null}>
+                  Desprogramar
+                </Button>
+              )}
+              {status === "published" && (
+                <Link href={`/blog/${post.slug}`} target="_blank" className={buttonClass("secondary")}>
+                  Ver en el blog ↗
+                </Link>
+              )}
+            </>
+          }
+          danger={
+            <>
+              {status === "published" && (
+                <Button variant="danger" onClick={() => action("unpublish")} disabled={busy !== null}>
+                  Despublicar
+                </Button>
+              )}
+              {status !== "rejected" && status !== "published" && (
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    if (window.confirm("¿Rechazar esta entrada?")) action("reject", undefined, true);
+                  }}
+                  disabled={busy !== null}
+                >
+                  Rechazar
+                </Button>
+              )}
+            </>
+          }
+        />
       </div>
     </div>
   );
