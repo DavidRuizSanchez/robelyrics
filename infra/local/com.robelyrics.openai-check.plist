@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Vigilancia de la migración a gpt-6-luna: diaria a las 10:47 (del 20 al 26-oct,
+  la guarda de fechas va en el wrapper) y una última a las 12:13 del 26-oct, que
+  desactiva el agente. Si el Mac está dormido a esa hora, launchd la lanza al despertar.
+
+  Instalar:
+    cp infra/local/openai_check_daemon.sh infra/local/check_openai_migration.sh \
+       "$HOME/Library/Application Support/robelyrics/"
+    cp infra/local/com.robelyrics.openai-check.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.robelyrics.openai-check.plist
+
+  Informes: ~/Library/Application Support/robelyrics/openai-check/ (history.log + uno por pasada).
+  Mismo gotcha de TCC que clips: el wrapper NO puede vivir en ~/Documents.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.robelyrics.openai-check</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/david.ruiz/Library/Application Support/robelyrics/openai_check_daemon.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>10</integer>
+            <key>Minute</key><integer>47</integer>
+        </dict>
+        <dict>
+            <key>Month</key><integer>10</integer>
+            <key>Day</key><integer>26</integer>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>13</integer>
+        </dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/david.ruiz</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/robelyrics-openai-check.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/robelyrics-openai-check.launchd.err</string>
+</dict>
+</plist>
