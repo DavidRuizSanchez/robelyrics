@@ -47,10 +47,19 @@ export default async function AdminSeoOportunidadesPage() {
   if (!me!.is_admin) redirect("/biblioteca");
 
   let items: Opportunity[] = [];
+  let aplicadas: Opportunity[] = [];
   try {
     items = await apiFetch<Opportunity[]>("/admin/seo-opportunities?status=open");
   } catch {
     // silencioso: la página muestra estado vacío
+  }
+  try {
+    // Lo último publicado, para poder revertirlo con la copia de antes.
+    aplicadas = await apiFetch<Opportunity[]>(
+      "/admin/seo-opportunities?status=applied&limit=15",
+    );
+  } catch {
+    // idem
   }
 
   const periodo = items.find((i) => i.period)?.period ?? null;
@@ -93,6 +102,27 @@ export default async function AdminSeoOportunidadesPage() {
           </section>
         );
       })}
+
+      <section>
+        <h2 className="font-mono text-[11px] tracking-[3px] uppercase text-accent mb-1">
+          publicadas hace poco ({aplicadas.length})
+        </h2>
+        <p className="font-serif italic text-ink-dim text-sm mb-4">
+          Se guardó la página tal como estaba antes de aplicar: «revertir» la deja
+          exactamente así, siempre que nadie la haya tocado después.
+        </p>
+        {aplicadas.length === 0 ? (
+          <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
+            Nada por aquí.
+          </p>
+        ) : (
+          <div>
+            {aplicadas.map((it) => (
+              <OpportunityRow key={it.id} item={it} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <p className="font-mono text-[10px] tracking-[1px] uppercase text-ink-faint">
         <Link href="/biblioteca/admin/seo" className="hover:text-accent">

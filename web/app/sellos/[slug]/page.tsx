@@ -10,6 +10,7 @@ import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  bodyVideoNodes,
   asNode,
   breadcrumbListNode,
   buildGraph,
@@ -58,6 +59,12 @@ type BandDetail = {
   entities: ResolvedEntity[];
   related_videos: PublicRelatedVideo[];
   seo_body: string | null;
+  seo_body_videos?: {
+    youtube_id: string;
+    title: string;
+    kind: string;
+    upload_date: string | null;
+  }[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   schema_jsonld: Record<string, unknown> | null;
@@ -164,6 +171,12 @@ export default async function SelloPage({
   const kindLabel = "sello discográfico";
   const path = `/sellos/${detail.slug}`;
   const jsonLd = buildGraph([
+   ...bodyVideoNodes(
+     detail.seo_body_videos,
+     canonical.band(detail.slug, true),
+     detail.name,
+     detail.related_videos.map((v) => v.youtube_id),
+   ),
     asNode(buildJsonLd(detail)),
     webPageNode({
       path,

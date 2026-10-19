@@ -612,7 +612,9 @@ class SeoContent(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)  # artist|album|song
+    # artist|album|song|person|band|theme|place|concept, y `page` para las páginas
+    # índice que antes vivían en código (/personas): `content_placement.PAGINAS`.
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     slug: Mapped[str] = mapped_column(String(256), nullable=False)
     body_md: Mapped[str] = mapped_column(Text, nullable=False)
@@ -1315,14 +1317,16 @@ class ContentProposal(Base):
     /biblioteca/admin/blog, máximo `WEEKLY_CAP` por semana. Al llegar la fecha, el
     materializador genera el body si falta y crea el `Post`.
 
-    `status`: proposed → approved → scheduled → used (o discarded).
+    `status`: proposed → approved → scheduled → used (o discarded), y `merged`
+    cuando la idea no se escribe como post sino que AMPLÍA una página que ya
+    existe (`merge_target` + `merge_opportunity_id`, ver `content_placement`).
     """
 
     __tablename__ = "content_proposals"
     __table_args__ = (
         CheckConstraint(
             "status IN ('proposed', 'approved', 'scheduled', 'used', "
-            "'discarded')",
+            "'discarded', 'merged')",
             name="ck_content_proposals_status",
         ),
         CheckConstraint(
@@ -1408,6 +1412,16 @@ class ContentProposal(Base):
     post_id: Mapped[int | None] = mapped_column(
         ForeignKey("posts.id", ondelete="SET NULL")
     )
+    # ¿Post nuevo o ampliar una página que ya existe? Lo calcula
+    # `content_placement.analyze` con la evidencia de cada candidato (GSC, entidad,
+    # similitud). Estructura en `content_placement.Placement.to_dict`.
+    placement: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Destino elegido al fusionar («ficha:<seo_content_id>» | «post:<id>») y la
+    # oportunidad que lleva el borrador del antes/después.
+    merge_target: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Sin FK a propósito: los tests del blog montan `content_proposals` sola en
+    # SQLite (`to_metadata`) y una FK a `seo_opportunities` no resolvería.
+    merge_opportunity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -2175,7 +2189,8 @@ class SeoOpportunity(Base):
             "'discarded', 'noop', 'failed')",
             name="ck_seo_opportunities_status",
         ),
-        CheckConstraint("action IN ('meta', 'body')", name="ck_seo_opportunities_action"),
+        CheckConstraint("action IN ('meta', 'body', 'merge')",
+                        name="ck_seo_opportunities_action"),
         Index(
             "uq_seo_opportunities_abierta",
             "path",
@@ -2194,9 +2209,13 @@ class SeoOpportunity(Base):
         String(16), nullable=False, default="detected", index=True
     )
 
+    # `entity_type='post'` + `entity_id=<post.id>` cuando lo que se amplía es un
+    # post del blog (solo en `merge`); en el resto es la entidad de la ficha.
     entity_type: Mapped[str] = mapped_column(String(24), nullable=False)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     seo_content_id: Mapped[int | None] = mapped_column(Integer)
+    # `merge`: la propuesta del blog que se funde con esta página.
+    proposal_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Las consultas que sostienen la oportunidad, con su dato GSC íntegro (query,
     # impressions, clicks, position, ctr). Es la evidencia: sin ella no hay fila.
@@ -2235,6 +2254,34 @@ class SeoOpportunity(Base):
     # Cuándo se avisó por correo de cada fase, para no repetir el mismo aviso.
     notified_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notified_drafted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ContentRevision(Base):
+    """Copia íntegra de una página JUSTO antes de que un borrador la pise.
+
+    `seo_opportunities.before_body` no sirve de backup: se re-sella cada vez que la
+    fila se prepara, así que tras dos preparaciones ya lleva dentro lo añadido y
+    «revertir» no cambiaba nada (medido el 21-09-2026). Esto se escribe UNA vez, en
+    el momento de aplicar, y no lo toca nada más.
+    """
+
+    __tablename__ = "content_revisions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target_kind: Mapped[str] = mapped_column(String(16), nullable=False)  # seo_content|post
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    body_md: Mapped[str] = mapped_column(Text, nullable=False)
+    meta_title: Mapped[str | None] = mapped_column(Text)
+    meta_description: Mapped[str | None] = mapped_column(Text)
+    h1: Mapped[str | None] = mapped_column(Text)
+    # Qué la pisó y cuándo se deshizo (si se deshizo).
+    opportunity_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------- #

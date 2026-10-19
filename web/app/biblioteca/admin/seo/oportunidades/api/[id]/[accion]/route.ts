@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-// Proxy admin: mover una oportunidad SEO (approve | apply | discard).
+// Proxy admin: mover una oportunidad SEO (approve | apply | discard | revert).
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string; accion: string }> },
 ) {
   const { id, accion } = await params;
-  if (!["approve", "apply", "discard"].includes(accion)) {
+  if (!["approve", "apply", "discard", "revert"].includes(accion)) {
     return NextResponse.json({ error: "Acción no válida." }, { status: 400 });
   }
   try {

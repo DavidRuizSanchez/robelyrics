@@ -4,9 +4,14 @@ Lista TODAS las propuestas en estado `proposed`, agrupadas:
   - ACTUALIDAD: noticias, efemérides de Robe, aniversarios de discos.
   - REPOSITORIO: evergreens y spotlights (fondo de armario).
 
-No lleva botones de acción: el admin programa desde el panel unificado
-/biblioteca/admin/blog (tope `WEEKLY_CAP`/semana). El email es un aviso +
-enlace a ese panel. Ojo: /biblioteca/admin/calendario es un redirect.
+Programar se hace desde el panel unificado /biblioteca/admin/blog (tope
+`WEEKLY_CAP`/semana). Ojo: /biblioteca/admin/calendario es un redirect.
+
+Desde el 19-10-2026 cada tema de fondo trae el análisis «¿ampliar o contenido
+nuevo?» (`content_placement`) y botones de un clic: uno por página que se puede
+ampliar, «contenido nuevo» y «rechazar». Un correo no admite un desplegable
+fiable, así que el selector son esos botones. Ninguno publica: fusionar solo
+PREPARA el borrador, que llega en otro correo con el antes/después.
 
 Cron: lunes, después del scraper.
 
@@ -35,6 +40,53 @@ KIND_LABEL = {
     "spotlight": "Análisis de canción",
     "evergreen": "Tema de fondo",
 }
+
+
+def _accion_url(p: ContentProposal, action: str, target: str | None = None) -> str:
+    from app.config import get_settings
+    from app.services.auth import create_proposal_action_token
+
+    token = create_proposal_action_token(p.id, action, target=target)
+    return f"{get_settings().site_url.rstrip('/')}/api/public/proposal-action?token={token}"
+
+
+def _boton(url: str, label: str, *, principal: bool) -> str:
+    color = "#a83a3a" if principal else "rgba(237,228,211,0.45)"
+    return (f'<a href="{url}" style="display:inline-block;padding:6px 10px;margin:6px 6px 0 0;'
+            f'border:1px solid {color};color:{color};text-decoration:none;'
+            f"font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;"
+            f'text-transform:uppercase;">{label}</a>')
+
+
+def _placement_html(p: ContentProposal) -> str:
+    """La recomendación, su evidencia y un botón por opción del selector."""
+    if not p.placement:
+        return ""
+    from html import escape
+
+    from app.services import content_placement as cp
+
+    pl = p.placement
+    rec = cp.headline(pl)
+    conf = pl.get("confidence") or ""
+    evid = cp.short_evidence(pl)
+    botones = []
+    for opt in cp.selector_options(pl):
+        if opt["value"] == "new":
+            url = _accion_url(p, "new")
+        else:
+            url = _accion_url(p, "merge", opt["value"])
+        label = escape(opt["label"]) + (" ★" if opt.get("recommended") else "")
+        botones.append(_boton(url, label, principal=bool(opt.get("recommended"))))
+    botones.append(_boton(_accion_url(p, "discard"), "rechazar", principal=False))
+    return (
+        f'<p style="font-family:\'Courier New\',monospace;font-size:10px;letter-spacing:2px;'
+        f'text-transform:uppercase;color:#a83a3a;margin:10px 0 2px;">propuesta: '
+        f'{escape(rec)} · confianza {escape(conf)}</p>'
+        f'<p style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.6);'
+        f'margin:0;line-height:1.5;">{escape(evid)}</p>'
+        f'<p style="margin:2px 0 0;">{"".join(botones)}</p>'
+    )
 
 
 def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, str]:
@@ -70,7 +122,8 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             f'letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);'
             f'margin:0 0 4px;">{KIND_LABEL.get(p.kind, p.kind)}</p>'
             f'<p style="font-family:Georgia,serif;font-size:16px;color:#ede4d3;'
-            f'margin:0;font-weight:bold;">{p.title}</p>{angle}{kw_html}</li>'
+            f'margin:0;font-weight:bold;">{p.title}</p>{angle}{kw_html}'
+            f'{_placement_html(p)}</li>'
         )
 
     def _section(titulo: str, items: list) -> str:
@@ -118,6 +171,11 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
         text_lines.append(f"== {label} ({len(items)}) ==")
         for p in items:
             text_lines.append(f"· [{KIND_LABEL.get(p.kind, p.kind)}] {p.title}")
+            if p.placement:
+                from app.services import content_placement as cp
+
+                text_lines.append(f"    propuesta: {cp.headline(p.placement)} "
+                                  f"({p.placement.get('confidence')})")
         text_lines.append("")
     text_lines.append(f"Programar en: {admin_url}")
     return html, "\n".join(text_lines)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { ProposalItem } from "./page";
+import type { Placement, ProposalItem } from "./page";
 
 const KIND_LABEL: Record<string, string> = {
   news: "Noticia",
@@ -71,6 +71,27 @@ export default function BlogPlanner({
   >({});
   // Edición de título a mano inline (id → texto en edición; ausente = no edita).
   const [titleEdit, setTitleEdit] = useState<Record<number, string>>({});
+  // Destino elegido en el selector «ampliar X / contenido nuevo» (id → value).
+  // Sin elección explícita manda lo que recomienda el análisis.
+  const [destino, setDestino] = useState<Record<number, string>>({});
+
+  function destinoDe(p: ProposalItem): string {
+    if (p.id in destino) return destino[p.id];
+    return p.placement_options.find((o) => o.recommended)?.value ?? "new";
+  }
+
+  async function merge(p: ProposalItem, target: string) {
+    const opt = p.placement_options.find((o) => o.value === target);
+    if (
+      !window.confirm(
+        `¿Ampliar ${opt?.path ?? "esa página"} con «${p.title}»? ` +
+          `Se prepara un borrador con el antes/después (correo y panel de ` +
+          `oportunidades SEO). No se publica nada hasta que lo apruebes.`,
+      )
+    )
+      return;
+    await call("merge", p.id, { target });
+  }
 
   function matchesFilter(p: ProposalItem): boolean {
     const f = FILTERS.find((x) => x.key === filter);
@@ -124,7 +145,17 @@ export default function BlogPlanner({
     try {
       // Una sola petición: marca todo aprobado al instante. Los borradores
       // (evergreen/spotlight/efeméride) los genera el cron cada pocos minutos.
-      await post("/biblioteca/admin/blog/api/bulk-approve", { ids });
+      const res = await post("/biblioteca/admin/blog/api/bulk-approve", { ids });
+      const data = (await res.json().catch(() => ({}))) as {
+        skipped_merge?: number[];
+      };
+      const saltadas = data.skipped_merge ?? [];
+      if (saltadas.length > 0)
+        alert(
+          `${saltadas.length} no se han aprobado porque el análisis propone ` +
+            `AMPLIAR una página existente (#${saltadas.join(", #")}). ` +
+            `Decide cada una con su selector: fusionar o contenido nuevo.`,
+        );
       window.location.reload();
     } catch (e) {
       alert(String(e));
@@ -394,6 +425,15 @@ export default function BlogPlanner({
                           </div>
                         </div>
                       )}
+                      {p.placement && (
+                        <PlacementBox
+                          p={p}
+                          value={destinoDe(p)}
+                          onChange={(v) => setDestino((d) => ({ ...d, [p.id]: v }))}
+                          onRecalc={() => call("placement", p.id)}
+                          disabled={busy !== null}
+                        />
+                      )}
                       {!p.target_keyword && (
                         <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-accent">
                           ⚠ sin KW objetivo — propuesta antigua, posible canibalización
@@ -433,15 +473,28 @@ export default function BlogPlanner({
                       >
                         {titleBusy === p.id ? "…" : "↻ titular"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => call("approve", p.id)}
-                        disabled={busy === p.id}
-                        data-cursor="hover"
-                        className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
-                      >
-                        {busy === p.id ? "generando borrador…" : "aprobar"}
-                      </button>
+                      {destinoDe(p) !== "new" ? (
+                        <button
+                          type="button"
+                          onClick={() => merge(p, destinoDe(p))}
+                          disabled={busy === p.id}
+                          data-cursor="hover"
+                          title="Ampliar la página elegida con esta idea (prepara borrador, no publica)"
+                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+                        >
+                          {busy === p.id ? "preparando…" : "fusionar"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => call("approve", p.id)}
+                          disabled={busy === p.id}
+                          data-cursor="hover"
+                          className="font-mono text-[10px] tracking-[2px] uppercase border border-accent text-accent hover:bg-accent hover:text-white px-3 py-1.5 disabled:opacity-40"
+                        >
+                          {busy === p.id ? "generando borrador…" : "aprobar"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => call("force-publish", p.id)}
@@ -745,6 +798,114 @@ export default function BlogPlanner({
           </details>
         </section>
       )}
+    </div>
+  );
+}
+
+const CONF_CLASS: Record<string, string> = {
+  alta: "text-accent",
+  media: "text-ink-dim",
+  baja: "text-ink-faint",
+};
+
+function fmtPos(n: number | null): string {
+  return n === null ? "—" : n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
+}
+
+// La recomendación «ampliar / contenido nuevo» con su evidencia y el selector.
+// El selector solo ofrece lo que el motor puede escribir (fichas, posts y
+// /personas); una página de código que ya posiciona se enseña, pero como aviso.
+function PlacementBox({
+  p,
+  value,
+  onChange,
+  onRecalc,
+  disabled,
+}: {
+  p: ProposalItem;
+  value: string;
+  onChange: (v: string) => void;
+  onRecalc: () => void;
+  disabled: boolean;
+}) {
+  const pl = p.placement as Placement;
+  const ampliar = pl.decision === "ampliar";
+  return (
+    <div
+      className={`mt-3 border-l-2 pl-3 py-1 ${ampliar ? "border-accent" : "border-divider"}`}
+    >
+      <p className="font-mono text-[9px] tracking-[2px] uppercase">
+        <span className={ampliar ? "text-accent" : "text-ink-dim"}>
+          propuesta: {p.placement_headline}
+        </span>
+        <span className={CONF_CLASS[pl.confidence] ?? "text-ink-faint"}>
+          {" "}· confianza {pl.confidence}
+        </span>
+      </p>
+      {pl.reasons.slice(0, 2).map((r, i) => (
+        <p key={i} className="mt-1 font-serif text-sm text-ink-dim leading-snug">
+          {r}
+        </p>
+      ))}
+      {pl.candidates.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {pl.candidates.map((c) => (
+            <li key={c.path} className="font-mono text-[10px] text-ink-faint">
+              <a
+                href={c.path}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-cursor="hover"
+                className="text-ink-dim hover:text-accent"
+              >
+                {c.path}
+              </a>
+              {c.kind === "code" && " · en código (mejora manual)"}
+              {c.gsc_impressions > 0 &&
+                ` · ${c.gsc_impressions.toLocaleString("es-ES")} impr. · pos ${fmtPos(c.gsc_position)}`}
+              {c.serp_rank !== null && ` · top ${c.serp_rank} en Google`}
+              {c.similarity !== null &&
+                ` · similitud ${c.similarity.toLocaleString("es-ES", { maximumFractionDigits: 2 })}`}
+              {c.is_anchor && " · ficha de la entidad"}
+            </li>
+          ))}
+        </ul>
+      )}
+      {pl.last_merge && (
+        <p className="mt-2 font-mono text-[9px] tracking-[2px] uppercase text-accent">
+          la fusión con {pl.last_merge.path} no salió ({pl.last_merge.status})
+          {pl.last_merge.error ? `: ${pl.last_merge.error}` : ""}
+        </p>
+      )}
+      <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <label className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint">
+          destino
+        </label>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          data-cursor="hover"
+          className="bg-transparent border border-divider text-ink font-mono text-[11px] px-2 py-1 focus:outline-none focus:border-accent max-w-full"
+        >
+          {p.placement_options.map((o) => (
+            <option key={o.value} value={o.value} className="bg-[#0d0b0a]">
+              {o.label}
+              {o.recommended ? " ★" : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={onRecalc}
+          disabled={disabled}
+          data-cursor="hover"
+          title="Recalcular con el volcado de GSC actual"
+          className="font-mono text-[9px] tracking-[2px] uppercase text-ink-faint hover:text-accent disabled:opacity-40"
+        >
+          ↻ recalcular
+        </button>
+      </div>
     </div>
   );
 }

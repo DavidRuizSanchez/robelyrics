@@ -61,7 +61,7 @@ rsync -az "$REPO/data/gsc_page_queries.json" "$REPO/data/gsc_queries.json" \
   robelyrics:/opt/robelyrics/data/ || { echo "rsync falló"; exit 1; }
 
 echo "[gsc-weekly] detección de oportunidades en prod (email con botones)…"
-ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.seo_queue --detect' \
+ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.seo_queue --detect --watch' \
   || avisar "La detección de oportunidades SEO falló en prod. El volcado de GSC sí se subió."
 
 echo "[gsc-weekly] hecho."

@@ -10,13 +10,16 @@ const VALID_ACTIONS = new Set([
   "suggest-titles",
   "title",
   "force-publish",
+  "merge",
+  "placement",
 ]);
 
 // Acciones que llevan body JSON.
-const BODY_ACTIONS = new Set(["schedule", "title"]);
+const BODY_ACTIONS = new Set(["schedule", "title", "merge"]);
 
 // Proxy POST → /admin/proposals/{id}/{action} con auth via cookie.
-// `schedule` lleva { date }; `title` lleva { title, meta_title? }; el resto sin body.
+// `schedule` lleva { date }; `title` lleva { title, meta_title? }; `merge` lleva
+// { target } (la página que se amplía); el resto sin body.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ action: string; id: string }> },

@@ -269,6 +269,15 @@ def main() -> None:
         n_act = _insert(db, fresh_act)
         n_seo = _insert(db, fresh_seo)
         db.commit()
+
+        # ¿Post nuevo o ampliar algo que ya existe? Se calcula al entrar, para que
+        # el correo de las 09:40 y el panel lo traigan ya puesto.
+        if n_seo:
+            from app.services import content_placement
+
+            hechas = content_placement.analyze_pending(db, client=client)
+            logger.info("Encaje calculado para %d propuestas (%d proponen ampliar)",
+                        len(hechas), sum(1 for _, p in hechas if p.decision == "ampliar"))
         logger.info(
             "Propuestas NUEVAS: %d actualidad + %d SEO-driven = %d",
             n_act, n_seo, n_act + n_seo,

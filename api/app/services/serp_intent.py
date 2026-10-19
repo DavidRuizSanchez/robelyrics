@@ -62,6 +62,9 @@ class Verdict:
     intent: str  # informational|navigational|transactional|lyrics|unknown
     top_titles: list[str] = field(default_factory=list)
     reason: str = ""
+    # URLs del top en orden: `content_placement` mira si una página NUESTRA ya
+    # sale ahí, que es la mejor prueba de a qué página asocia Google la búsqueda.
+    top_urls: list[str] = field(default_factory=list)
 
 
 _CACHE: dict[str, Verdict] = {}
@@ -156,6 +159,7 @@ def classify(keyword: str, *, client=None) -> Verdict:
     if verdict is None:
         titles = [r.get("title", "") for r in serp[:5] if r.get("title")]
         verdict = _llm_verdict(client, keyword, titles)
+    verdict.top_urls = [r.get("url", "") for r in serp if r.get("url")]
     _CACHE[key] = verdict
     logger.info("[serp_intent] '%s' -> intent=%s coverable=%s (%s)",
                 keyword, verdict.intent, verdict.coverable, verdict.reason)

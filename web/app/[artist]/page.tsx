@@ -14,6 +14,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site";
 import {
+  bodyVideoNodes,
   breadcrumbListNode,
   buildGraph,
   canonical,
@@ -224,6 +225,12 @@ export default async function ArtistPublicPage({
             dangerouslySetInnerHTML={{
               __html: safeJsonLd(
                 buildGraph([
+                  ...bodyVideoNodes(
+                    detail.seo_body_videos,
+                    canonical.musicGroup(artist),
+                    detail.name,
+                    (detail.related_videos || []).map((v) => v.youtube_id),
+                  ),
                   {
                     ...musicGroupNode({
                       slug: artist,

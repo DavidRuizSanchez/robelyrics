@@ -2,6 +2,23 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import YoutubeEmbed from "@/components/YoutubeEmbed";
 
+// Imagen dentro del cuerpo (la añade una fusión, con procedencia acreditada y
+// alojada en Cloudinary). El `title` del markdown es el crédito y va de pie de
+// foto: una foto de Commons se publica con su autor o no se publica.
+function Figura({ src, alt, credito }: { src: string; alt: string; credito?: string }) {
+  return (
+    <figure className="my-8">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} loading="lazy" className="w-full h-auto" />
+      {(credito || alt) && (
+        <figcaption className="mt-2 font-mono text-[10px] tracking-[1px] text-ink-faint">
+          {credito || alt}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 // Extrae el id de un vídeo de YouTube de cualquier formato de URL.
 function youtubeId(url: string): string | null {
   const m = url.match(
@@ -45,8 +62,19 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
                 type: string;
                 tagName?: string;
                 value?: string;
-                properties?: { href?: unknown };
+                properties?: { href?: unknown; src?: unknown; alt?: unknown; title?: unknown };
               };
+              // Una imagen sola en su párrafo es una figura: <figure> no puede
+              // ir dentro de <p> (HTML inválido y aviso de hidratación).
+              if (only.type === "element" && only.tagName === "img") {
+                return (
+                  <Figura
+                    src={String(only.properties?.src ?? "")}
+                    alt={String(only.properties?.alt ?? "")}
+                    credito={only.properties?.title ? String(only.properties.title) : undefined}
+                  />
+                );
+              }
               const url =
                 only.type === "element" && only.tagName === "a"
                   ? String(only.properties?.href ?? "")
@@ -146,6 +174,12 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
             >
               {children}
             </td>
+          ),
+          // Imagen en línea con texto alrededor (raro): sin figura, que iría
+          // dentro de un <p>.
+          img: ({ src, alt }) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={String(src ?? "")} alt={alt ?? ""} loading="lazy" className="inline-block max-w-full" />
           ),
           hr: () => <hr className="my-10 border-divider" />,
           code: ({ children }) => (
