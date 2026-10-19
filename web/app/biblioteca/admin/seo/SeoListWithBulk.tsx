@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Callout, EmptyState, StatusBadge } from "@/components/admin/ui";
+import type { Tone } from "@/lib/admin/labels";
 
-// Listado de SeoContent con selección múltiple + acciones de bulk publish/unpublish.
-// Componente que faltaba del repo · reconstruido para destrabar build. Si en el
-// futuro se necesita un flujo de bulk más rico (revisar masivamente, regenerar,
-// etc.), extender desde aquí.
+// Listado de SeoContent. La selección múltiple para publicar en bloque llamaba a
+// una ruta inexistente (`seo/api/bulk`) y se ha retirado hasta decidir si se
+// conecta a /admin/seo/bulk-publish, que publica sin controles.
 
 export type SeoListItem = {
   id: number;
@@ -20,137 +20,63 @@ export type SeoListItem = {
   published: boolean;
 };
 
-function statusLabel(item: SeoListItem): { label: string; cls: string } {
-  if (item.published) return { label: "publicado", cls: "text-accent" };
-  if (item.reviewed_at) return { label: "revisado", cls: "text-ink" };
-  return { label: "sin revisar", cls: "text-ink-faint" };
+const TIPO: Record<string, string> = {
+  artist: "Artista",
+  album: "Disco",
+  song: "Canción",
+  person: "Persona",
+  band: "Grupo",
+  theme: "Tema",
+  place: "Lugar",
+  concept: "Concepto",
+  page: "Página",
+};
+
+function statusOf(item: SeoListItem): { label: string; tone: Tone } {
+  if (item.published) return { label: "Publicada", tone: "ok" };
+  if (item.reviewed_at) return { label: "Revisada, sin publicar", tone: "warn" };
+  return { label: "Sin revisar", tone: "neutral" };
 }
 
 export default function SeoListWithBulk({ items }: { items: SeoListItem[] }) {
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
-  const allOnPageIds = useMemo(() => items.map((i) => i.id), [items]);
-  const allSelected =
-    items.length > 0 && allOnPageIds.every((id) => selected.has(id));
-
-  function toggle(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(allOnPageIds));
-    }
-  }
-
-  async function bulk(action: "publish" | "unpublish") {
-    if (selected.size === 0) return;
-    const ids = Array.from(selected);
-    const confirmed = window.confirm(
-      `¿${action === "publish" ? "Publicar" : "Despublicar"} ${ids.length} entrada(s)?`,
-    );
-    if (!confirmed) return;
-    try {
-      const res = await fetch(`/biblioteca/admin/seo/api/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        alert(`Error ${res.status}: ${text}`);
-        return;
-      }
-      window.location.reload();
-    } catch (e) {
-      alert(`Error de red: ${e}`);
-    }
-  }
-
   if (items.length === 0) {
-    return (
-      <p className="font-serif italic text-ink-dim text-lg mt-12">
-        No hay entradas que coincidan con el filtro.
-      </p>
-    );
+    return <EmptyState>No hay fichas que coincidan con el filtro.</EmptyState>;
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 font-mono text-[10px] tracking-[2px] uppercase">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleAll}
-            className="accent-accent"
-          />
-          <span className="text-ink-dim">
-            {selected.size > 0
-              ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"}`
-              : "seleccionar todos"}
-          </span>
-        </label>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => bulk("publish")}
-            disabled={selected.size === 0}
-            data-cursor="hover"
-            className="border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            publicar
-          </button>
-          <button
-            type="button"
-            onClick={() => bulk("unpublish")}
-            disabled={selected.size === 0}
-            data-cursor="hover"
-            className="border border-divider hover:border-accent hover:text-accent text-ink-dim px-3 py-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            despublicar
-          </button>
-        </div>
-      </div>
-
-      <ul className="divide-y divide-divider">
+    <div className="space-y-3">
+      {/* Publicar/despublicar en bloque: el botón llamaba a una ruta que no
+          existe. El backend sí tiene /admin/seo/bulk-publish, pero publica SIN
+          ningún control, así que activarlo es una decisión aparte (pendiente
+          del OK de David). Mientras, se dice en vez de fallar en silencio. */}
+      <Callout tone="neutral">
+        Publicar o despublicar varias a la vez está desactivado de momento: abre cada ficha para
+        hacerlo.
+      </Callout>
+      <ul className="divide-y divide-divider rounded-md border border-divider">
         {items.map((item) => {
-          const st = statusLabel(item);
+          const st = statusOf(item);
           return (
-            <li key={item.id} className="flex items-center gap-4 py-3">
-              <input
-                type="checkbox"
-                checked={selected.has(item.id)}
-                onChange={() => toggle(item.id)}
-                className="accent-accent shrink-0"
-              />
+            <li key={item.id}>
               <Link
                 href={`/biblioteca/admin/seo/${item.id}`}
-                data-cursor="hover"
-                className="flex-1 min-w-0 group"
+                className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-paper group"
               >
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint">
-                    {item.entity_type}
-                  </span>
-                  <span className="font-serif text-base md:text-lg text-ink group-hover:text-accent transition-colors truncate">
+                <span className="w-20 shrink-0 text-sm text-ink-faint">
+                  {TIPO[item.entity_type] ?? item.entity_type}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-serif text-base md:text-lg text-ink group-hover:text-accent transition-colors truncate">
                     {item.entity_label}
                   </span>
-                </div>
-                <p className="font-mono text-[10px] tracking-[1px] text-ink-faint mt-1">
-                  {item.chars} chars · {item.generated_by} · {new Date(item.generated_at).toLocaleDateString("es-ES")}
-                </p>
+                  <span className="block text-xs text-ink-faint">
+                    {item.chars.toLocaleString("es-ES")} caracteres · generada{" "}
+                    {new Date(item.generated_at).toLocaleDateString("es-ES")} ·{" "}
+                    <span className="font-mono">{item.generated_by}</span>
+                  </span>
+                </span>
+                <StatusBadge tone={st.tone}>{st.label}</StatusBadge>
               </Link>
-              <span className={`font-mono text-[10px] tracking-[2px] uppercase shrink-0 ${st.cls}`}>
-                {st.label}
-              </span>
             </li>
           );
         })}

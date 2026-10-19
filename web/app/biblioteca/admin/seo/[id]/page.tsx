@@ -55,32 +55,19 @@ export default async function EditorPage({
   }
 
   return (
-    <main className="px-5 md:px-14 py-10 md:py-14 max-w-[1100px] mx-auto">
-      <Link
-        href="/biblioteca/admin/seo"
-        data-cursor="hover"
-        className="font-mono text-[11px] tracking-[2px] uppercase text-ink-dim hover:text-ink"
-      >
-        ← lista SEO
+    <main className="px-5 md:px-14 py-8 md:py-10 max-w-[1100px] mx-auto">
+      <Link href="/biblioteca/admin/seo" className="text-sm text-ink-dim hover:text-ink">
+        ← Volver a las fichas
       </Link>
 
       <header className="mt-6 mb-2">
-        <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-2">
-          editor · {detail.entity_type}
-        </p>
-        <h1 className="font-serif text-3xl md:text-4xl text-ink leading-[1.15]">
-          {detail.entity_label}
-        </h1>
-        <p className="font-mono text-[10px] tracking-[1.5px] uppercase text-ink-faint mt-2">
-          generado por {detail.generated_by} ·{" "}
+        <p className="text-sm text-ink-dim mb-1">Ficha SEO · {detail.entity_type}</p>
+        <h1 className="font-serif text-3xl md:text-4xl text-ink leading-[1.15]">{detail.entity_label}</h1>
+        <p className="text-sm text-ink-faint mt-2">
+          Generada por <span className="font-mono">{detail.generated_by}</span> el{" "}
           {new Date(detail.generated_at).toLocaleString("es-ES")} ·{" "}
-          <Link
-            href={detail.public_url}
-            target="_blank"
-            data-cursor="hover"
-            className="text-accent hover:underline"
-          >
-            ver pública (si publicada) ↗
+          <Link href={detail.public_url} target="_blank" className="text-accent hover:underline">
+            Ver en la web (si está publicada) ↗
           </Link>
         </p>
       </header>
