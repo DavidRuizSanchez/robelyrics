@@ -41,37 +41,6 @@ export default async function AdminUsersPage() {
           <p className="font-mono text-[10px] tracking-[3px] uppercase text-accent">
             panel admin
           </p>
-          <nav className="font-mono text-[10px] tracking-[2px] uppercase flex gap-4">
-            <Link
-              href="/biblioteca/admin/sources"
-              data-cursor="hover"
-              className="text-ink-dim hover:text-accent"
-            >
-              fuentes
-            </Link>
-            <Link
-              href="/biblioteca/admin/seo"
-              data-cursor="hover"
-              className="text-ink-dim hover:text-accent"
-            >
-              SEO content
-            </Link>
-            <Link
-              href="/biblioteca/admin/calendario"
-              data-cursor="hover"
-              className="text-ink-dim hover:text-accent"
-            >
-              Calendario
-            </Link>
-            <span className="text-accent">usuarios</span>
-            <Link
-              href="/biblioteca/admin/subscribers"
-              data-cursor="hover"
-              className="text-ink-dim hover:text-accent"
-            >
-              suscriptores
-            </Link>
-          </nav>
         </div>
         <h1 className="font-serif text-4xl md:text-5xl text-ink mb-3">
           Usuarios registrados
