@@ -402,6 +402,30 @@ def coser(client, destino: Destino, cuerpo: str, nuevas: list[str], material: Ma
 # --------------------------------------------------------------------------- #
 # Medios
 # --------------------------------------------------------------------------- #
+_MARCA = {"entre", "interiores"}
+
+
+def title_bloqueado(viejo: str | None, nuevo: str, consulta: str) -> str | None:
+    """Por qué NO se cambia el title en una fusión, o None si se puede.
+
+    - Si el actual ya promete la búsqueda principal, no se toca: es el que hace
+      aparecer la página (en /personas, pos. 7-11) y ese riesgo no se corre.
+    - Si no, el nuevo tiene que seguir diciendo todo lo que decía el viejo (sin
+      contar la marca): estrechar la página es cambiarle el sentido. La primera
+      muestra quitaba «los colegas de Robe» a una página que los lista.
+    """
+    if not viejo:
+        return None
+    if consulta and seo_style.cubre(seo_style.flatten(viejo), consulta):
+        return f"el actual ya promete «{consulta}»; no se toca"
+    plano = seo_style.flatten(nuevo)
+    faltan = [t for t in seo_style.content_tokens(viejo)
+              if t not in _MARCA and not seo_style.cubre(plano, t)]
+    if faltan:
+        return "estrechaba la página (perdía " + ", ".join(faltan[:5]) + ")"
+    return None
+
+
 def imagen_para(db, nombre: str) -> dict | None:
     """Imagen de una entidad del universo, solo si su procedencia la acredita."""
     from app.services import image_guard
@@ -703,6 +727,16 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
         notas["avisos"] += prop.get("avisos") or []
         notas["meta_rechazos"] = prop.get("rechazos") or []
         t, d = prop.get("title"), prop.get("description")
+        # El title de una página que YA promete la búsqueda principal no se toca:
+        # es el que la hace aparecer (en /personas, pos. 7-11) y el riesgo es
+        # justo el que no se quiere correr. Si no la promete, el nuevo tiene que
+        # seguir diciendo todo lo que decía el viejo: estrechar la página
+        # («y los colegas de Robe» fuera) es cambiarle el sentido.
+        if t:
+            motivo = title_bloqueado(destino.title, t, consultas[0] if consultas else "")
+            if motivo:
+                notas["descartado"].append(f"title: {motivo}")
+                t = None
         meta_antes = f"{destino.title or ''} {destino.description or ''}"
         meta_despues = f"{t or destino.title or ''} {d or destino.description or ''}"
         vm = ranking_guard.cobertura_conservada(meta_antes, meta_despues, protegidas, alias)

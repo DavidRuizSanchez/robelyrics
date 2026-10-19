@@ -153,3 +153,28 @@ def test_el_heading_no_se_toca_aunque_nombre_algo_parecido():
 def test_no_se_lleva_por_delante_frases_normales():
     texto = "Grabaron el material en Madrid. Robe buscaba otro sonido."
     assert md.quitar_metatexto(texto) == (texto, [])
+
+
+TITLE_PERSONAS = "Integrantes de Extremoduro y los colegas de Robe · Entre Interiores"
+
+
+def test_el_title_que_ya_gana_la_busqueda_no_se_toca():
+    """Literal de la primera muestra: proponía «Extremoduro: integrantes y miembros
+    de la banda» para /personas, que está en pos. 7-11 con su title actual."""
+    assert md.title_bloqueado(TITLE_PERSONAS, "Extremoduro: integrantes y miembros de la banda",
+                              "integrantes de extremoduro")
+
+
+def test_un_title_nuevo_no_puede_estrechar_la_pagina():
+    viejo = "Extremoduro: historia y discos del grupo de Robe"
+    assert "colegas" not in (md.title_bloqueado(viejo, "Extremoduro: género y estilo",
+                                                "que genero es extremoduro") or "")
+    assert md.title_bloqueado(viejo, "Extremoduro: género y estilo", "que genero es extremoduro")
+    assert md.title_bloqueado(
+        viejo, "Extremoduro: historia, discos y género del grupo de Robe",
+        "que genero es extremoduro") is None
+
+
+def test_la_marca_no_cuenta_como_contenido_del_title():
+    assert md.title_bloqueado("Extremoduro · Entre Interiores", "Extremoduro: género musical",
+                              "que genero es extremoduro") is None

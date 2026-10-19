@@ -28,7 +28,7 @@ from qdrant_client.http.models import Distance, PointIdsList, PointStruct, Vecto
 from app.config import get_settings
 from app.db.models import Post, SeoContent
 from app.services.content_placement import PAGES_COLLECTION, PAGINAS
-from app.services.url_resolver import canonical_path_for
+from app.services.url_resolver import DbCatalog
 from scripts.research.common import get_session, log
 from scripts.research.embed_interpretations import embed_batch
 
@@ -49,6 +49,9 @@ def resumen(title: str | None, description: str | None, body_md: str | None) -> 
 
 
 def paginas(db) -> list[dict]:
+    # Un solo catálogo: `canonical_path_for` monta uno por llamada, y aquí son
+    # cientos de fichas en el cron de las 03:30.
+    catalogo = DbCatalog(db)
     out = []
     for sc in db.query(SeoContent).filter(SeoContent.published.is_(True)).all():
         if not (sc.body_md or "").strip():
@@ -56,7 +59,7 @@ def paginas(db) -> list[dict]:
         if sc.entity_type == "page":
             path = (PAGINAS.get(sc.entity_id) or {}).get("path")
         else:
-            path = canonical_path_for(db, sc.entity_type, sc.entity_id)
+            path = catalogo.canonical_path(sc.entity_type, sc.entity_id)
         if not path:
             continue
         out.append({"path": path, "kind": "ficha", "target": f"ficha:{sc.id}",

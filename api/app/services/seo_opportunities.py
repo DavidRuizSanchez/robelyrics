@@ -725,6 +725,11 @@ def revert_applied(db, opp) -> None:
         r.reverted_at = ahora
     opp.status = "discarded"
     opp.error = "revertida desde el panel"
+    if opp.action == "merge":
+        from app.services.content_merge import release_proposal
+
+        # La idea vuelve al banco: revertir la fusión no tiene por qué tirarla.
+        release_proposal(db, opp)
     db.commit()
 
     from app.services.publishing import revalidate_paths

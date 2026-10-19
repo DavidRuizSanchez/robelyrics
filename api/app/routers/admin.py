@@ -3301,7 +3301,7 @@ class SeoOpportunityOut(BaseModel):
     revertible: bool = False
 
 
-def _opp_to_out(o) -> SeoOpportunityOut:
+def _opp_to_out(o, *, revertible: bool = False) -> SeoOpportunityOut:
     return SeoOpportunityOut(
         id=o.id, path=o.path, action=o.action, status=o.status,
         impressions=o.impressions, period=o.period, gap_hint=o.gap_hint,
@@ -3312,7 +3312,7 @@ def _opp_to_out(o) -> SeoOpportunityOut:
         attempts=o.attempts, created_at=o.created_at, approved_at=o.approved_at,
         drafted_at=o.drafted_at, applied_at=o.applied_at,
         proposal_id=getattr(o, "proposal_id", None),
-        revertible=o.status == "applied" and o.action in ("merge", "body", "meta"),
+        revertible=revertible,
     )
 
 
@@ -3335,7 +3335,23 @@ def list_seo_opportunities(
     orden = ((SeoOpportunity.applied_at.desc(),) if status == "applied"
              else (SeoOpportunity.status.asc(), SeoOpportunity.impressions.desc()))
     rows = q.order_by(*orden).limit(max(1, min(limit, 500))).all()
-    return [_opp_to_out(r) for r in rows]
+    return [_opp_to_out(r, revertible=r.id in _con_copia(db, rows)) for r in rows]
+
+
+def _con_copia(db: Session, rows) -> set[int]:
+    """Ids aplicados que tienen copia SIN revertir en `content_revisions`.
+
+    Las mejoras de antes del 19-10-2026 no la tienen: ofrecerles «revertir» sería
+    un botón que siempre devuelve 409.
+    """
+    from app.db.models import ContentRevision
+
+    ids = [r.id for r in rows if r.status == "applied"]
+    if not ids:
+        return set()
+    return {i for (i,) in db.query(ContentRevision.opportunity_id).filter(
+        ContentRevision.opportunity_id.in_(ids), ContentRevision.reverted_at.is_(None)
+    ).distinct().all()}
 
 
 @router.post("/seo-opportunities/{opp_id}/{accion}", response_model=SeoOpportunityOut)
