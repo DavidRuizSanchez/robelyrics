@@ -641,6 +641,13 @@ pasaje con «cítalo como «…»», contra lo que ya decía `voice.py`.
   de estilo con reintento.
 - **Sin barrido** de lo ya publicado: es decisión de David. Se midieron ~100 fichas y
   15 posts con alguna mención, por patrón (recuento grueso).
+- **Un juicio no se corrobora por tener sus nombres en casa.** El borrador de
+  `/personas` afirmaba que «Robe fue el único miembro estable» (falso: Uoho, Cantera y
+  Colino siguieron hasta 2014). Pasó porque la comprobación contra lo propio solo mira
+  cifras y nombres propios. Ahora contra lo propio solo vale un dato datable; lo
+  cualitativo («único», «siempre», «el mejor»…) va a la web. Y **una objeción factual
+  del juez bloquea aunque suba la nota**: aquí la había señalado y la nota subía de 0 a
+  58.
 
 Dos trampas de la guarda que conviene no deshacer. Los medios con nombre de frase
 («El País», «El Mundo», «Público») solo cuentan escritos con su mayúscula, porque
