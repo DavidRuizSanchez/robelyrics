@@ -219,6 +219,8 @@ export type PublicArtistDetail = PublicArtistOut & {
   image_url: string | null;
   image_attribution: string | null;
   seo_body: string | null;
+  // Vídeos embebidos en el cuerpo con metadatos reales (para su VideoObject).
+  seo_body_videos?: PublicRelatedVideo[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
@@ -242,6 +244,8 @@ export type PublicAlbumDetail = PublicAlbumOut & {
   canonical_path: string;
   release_date: string | null;
   seo_body: string | null;
+  // Vídeos embebidos en el cuerpo con metadatos reales (para su VideoObject).
+  seo_body_videos?: PublicRelatedVideo[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
@@ -293,6 +297,8 @@ export type PublicSongDetail = {
   youtube_published_at: string | null;
   youtube_duration_sec: number | null;
   seo_body: string | null;
+  // Vídeos embebidos en el cuerpo con metadatos reales (para su VideoObject).
+  seo_body_videos?: PublicRelatedVideo[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   seo_h1: string | null;
@@ -331,6 +337,8 @@ export type PublicTaxonomyDetail = {
   image_url: string | null;
   image_attribution: string | null;
   seo_body: string | null;
+  // Vídeos embebidos en el cuerpo con metadatos reales (para su VideoObject).
+  seo_body_videos?: PublicRelatedVideo[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   entities: PublicResolvedEntity[];

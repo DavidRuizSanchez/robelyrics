@@ -312,6 +312,32 @@ export function relatedVideoObjectNode(
   return node;
 }
 
+// VideoObject para los vídeos embebidos DENTRO del cuerpo de una ficha (los que
+// añade una fusión). Solo llegan los que tienen metadatos reales guardados
+// (`seo_body_videos` de la API); los ya emitidos por otro nodo se saltan para no
+// declarar dos veces el mismo vídeo.
+export function bodyVideoNodes(
+  videos: { youtube_id: string; title: string; kind?: string | null; upload_date?: string | null }[]
+    | undefined,
+  aboutId: string,
+  aboutName: string,
+  yaEmitidos: (string | null | undefined)[] = [],
+): Record<string, unknown>[] {
+  const ya = new Set(yaEmitidos.filter(Boolean));
+  return (videos || [])
+    .filter((v) => !ya.has(v.youtube_id))
+    .map((v) =>
+      relatedVideoObjectNode({
+        youtubeId: v.youtube_id,
+        title: v.title,
+        kind: v.kind,
+        uploadDate: v.upload_date,
+        aboutId,
+        aboutName,
+      }),
+    );
+}
+
 export function personNode(person: PersonInput): Record<string, unknown> {
   const node: Record<string, unknown> = {
     "@type": "Person",

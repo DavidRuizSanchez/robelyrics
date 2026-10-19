@@ -352,6 +352,8 @@ def prepare_draft(db, opp) -> str:
     from app.db.models import SeoContent
 
     opp.attempts = (opp.attempts or 0) + 1
+    if opp.action == "merge":
+        return _prepare_merge(db, opp)
     sc = db.query(SeoContent).filter(SeoContent.id == opp.seo_content_id).first()
     if not sc:
         sc = (
@@ -463,49 +465,277 @@ def prepare_draft(db, opp) -> str:
     return "drafted"
 
 
+def _prepare_merge(db, opp) -> str:
+    """Borrador de una fusión propuesta-del-blog → página existente. NO publica."""
+    from openai import OpenAI
+
+    from app.config import get_settings
+    from app.db.models import ContentProposal
+    from app.services.content_merge import release_proposal
+    from scripts.seo.merge_deep import cargar_destino, merge_page
+
+    destino = cargar_destino(db, opp)
+    if destino is None:
+        opp.status = "failed"
+        opp.error = "la página de destino ya no existe"
+        release_proposal(db, opp)
+        db.commit()
+        return "failed"
+    opp.before_title = destino.title
+    opp.before_description = destino.description
+    opp.before_body = destino.body
+    prop = db.get(ContentProposal, opp.proposal_id) if opp.proposal_id else None
+    propuesta = f"{prop.title}. {prop.angle or ''}".strip() if prop else (opp.gap_hint or "")
+    client = OpenAI(api_key=get_settings().openai_api_key)
+    try:
+        res = merge_page(db, client, opp, propuesta=propuesta)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[seo-opp] fallo preparando la fusión %s", opp.path)
+        opp.status = "failed"
+        opp.error = f"{type(exc).__name__}: {exc}"[:500]
+        if (opp.attempts or 0) >= MAX_PREPARE_ATTEMPTS:
+            release_proposal(db, opp)
+        db.commit()
+        return "failed"
+
+    if res.get("noop"):
+        opp.status = "noop"
+        opp.error = res.get("motivo") or "nada que añadir"
+        opp.draft_notes = res.get("notas") or {}
+        # La idea no se pierde: vuelve al banco con el motivo, por si conviene otro
+        # destino o escribirla aparte.
+        release_proposal(db, opp)
+        db.commit()
+        return "noop"
+
+    notas = res.get("notas") or {}
+    if prop is not None and (prop.placement or {}).get("competing"):
+        from scripts.seo.merge_deep import enlaces_entrantes
+
+        # Los posts que competían por la misma búsqueda pasan a apuntar a la página
+        # ampliada: se calcula ya para que salga en el antes/después.
+        notas["enlaces_entrantes"] = enlaces_entrantes(
+            db, opp.path, prop.placement["competing"],
+            [q.get("query", "") for q in opp.queries or []] + [destino.subject])
+    opp.draft_body = res["after"]
+    opp.draft_title = res.get("title")
+    opp.draft_description = res.get("description")
+    opp.draft_notes = notas
+    opp.status = "drafted"
+    opp.drafted_at = datetime.now(UTC)
+    opp.error = None
+    db.commit()
+    return "drafted"
+
+
+class RevertError(Exception):
+    pass
+
+
+def _fila_destino(db, opp):
+    """La fila que el borrador pisa: (`seo_content`|`post`, fila) o (None, None)."""
+    from app.db.models import Post, SeoContent
+
+    if opp.action == "merge" and opp.entity_type == "post":
+        return "post", db.get(Post, opp.entity_id)
+    return "seo_content", (
+        db.query(SeoContent).filter(SeoContent.id == opp.seo_content_id).first()
+        if opp.seo_content_id else None
+    )
+
+
+def _guardar_revision(db, opp, kind: str, fila, path: str | None = None) -> None:
+    from app.db.models import ContentRevision
+
+    db.add(ContentRevision(
+        target_kind=kind, target_id=fila.id, path=path or opp.path,
+        body_md=fila.body_md or "",
+        meta_title=fila.meta_title, meta_description=fila.meta_description,
+        h1=getattr(fila, "h1", None), opportunity_id=opp.id,
+        reason=f"antes de aplicar la oportunidad #{opp.id} ({opp.action})",
+    ))
+
+
+def _metadatos_de_fusion(db, opp, sc) -> None:
+    """Lo que la ficha tiene que saber después de una fusión.
+
+    `secondary_keywords` es lo que lee `_published_kw_slugs`: sin esto, el lunes
+    siguiente se volvería a proponer como post la misma keyword que acaba de entrar
+    en la página. Y `outline` es la estructura que enseña el panel.
+    """
+    notas = opp.draft_notes or {}
+    if notas.get("outline"):
+        sc.outline = list(notas["outline"])
+    actuales = list(sc.secondary_keywords or [])
+    vistas = {(k.get("keyword") if isinstance(k, dict) else k or "").lower()
+              for k in actuales}
+    for q in opp.queries or []:
+        kw = (q.get("query") or "").strip()
+        if kw and kw.lower() not in vistas:
+            actuales.append({"keyword": kw, "volume": q.get("volume"), "via": "merge"})
+            vistas.add(kw.lower())
+    sc.secondary_keywords = actuales
+
+
+def _registrar_videos(db, opp) -> None:
+    """Guarda los metadatos reales de los vídeos que la fusión mete en el cuerpo.
+
+    Sin entidad vinculada a propósito: no se pintan en «vídeos relacionados» (ya
+    están en el texto), solo alimentan el `VideoObject` (`public._body_videos`).
+    """
+    from datetime import date as _date
+
+    from app.db.models import RelatedVideo
+
+    for v in (opp.draft_notes or {}).get("videos_added") or []:
+        if not isinstance(v, dict) or not v.get("youtube_id") or not v.get("title"):
+            continue
+        if db.query(RelatedVideo).filter(RelatedVideo.youtube_id == v["youtube_id"]).first():
+            continue
+        try:
+            subido = _date.fromisoformat(v["upload_date"]) if v.get("upload_date") else None
+        except ValueError:
+            subido = None
+        db.add(RelatedVideo(youtube_id=v["youtube_id"], title=v["title"][:300],
+                            kind="embed", upload_date=subido))
+
+
+def _aplicar_enlaces_entrantes(db, opp) -> list[str]:
+    """Pone en cada post que competía el enlace que enseñó el antes/después.
+
+    Se re-busca la mención en el cuerpo de HOY (pudo cambiar) y, si ya no está o
+    el post ya enlaza a la página, no se toca: nunca se fuerza una frase.
+    """
+    from app.db.models import Post
+    from scripts.seo.merge_deep import enlazar
+
+    tocadas = []
+    for e in (opp.draft_notes or {}).get("enlaces_entrantes") or []:
+        post = db.get(Post, e.get("post_id"))
+        if not post or post.status != "published":
+            continue
+        r = enlazar(post.body_md or "", opp.path, [e.get("anchor") or ""])
+        if r:
+            _guardar_revision(db, opp, "post", post, path=e["path"])
+            post.body_md = r[0]
+            tocadas.append(e["path"])
+    return tocadas
+
+
 # --------------------------------------------------------------------------- #
 # Fase 2 — aplicar (esto sí publica)
 # --------------------------------------------------------------------------- #
 def apply_draft(db, opp) -> bool:
-    """Vuelca el borrador sobre la ficha publicada y revalida la caché de Next."""
-    from app.db.models import SeoContent
+    """Vuelca el borrador sobre la página publicada y revalida la caché de Next.
 
+    Antes de pisar nada guarda la página entera en `content_revisions`: es lo que
+    permite revertir (`revert_applied`). `before_body` no sirve para eso.
+    """
     if opp.status != "drafted":
         return False
-    sc = db.query(SeoContent).filter(SeoContent.id == opp.seo_content_id).first()
-    if not sc:
+    kind, fila = _fila_destino(db, opp)
+    if fila is None:
         opp.status = "failed"
-        opp.error = "la ficha SEO ya no existe"
+        opp.error = "la página ya no existe"
         db.commit()
         return False
 
-    # El cuerpo de la ficha pudo cambiar entre el borrador y el clic (otro cron,
-    # una edición a mano). Aplicar a ciegas se cargaría ese trabajo, así que se
-    # comprueba que el suelo sigue siendo el mismo.
-    if opp.action == "body" and (sc.body_md or "") != (opp.before_body or ""):
+    # El cuerpo pudo cambiar entre el borrador y el clic (otro cron, una edición a
+    # mano). Aplicar a ciegas se cargaría ese trabajo, así que se comprueba que el
+    # suelo sigue siendo el mismo.
+    if opp.action in ("body", "merge") and (fila.body_md or "") != (opp.before_body or ""):
         opp.status = "failed"
         opp.error = ("el contenido cambió después de preparar el borrador; "
                      "hay que volver a prepararlo para no pisar lo nuevo")
         db.commit()
         return False
 
-    if opp.action == "meta":
+    _guardar_revision(db, opp, kind, fila)
+    if opp.action in ("meta", "merge"):
         if opp.draft_title:
-            sc.meta_title = opp.draft_title
+            fila.meta_title = opp.draft_title
         if opp.draft_description:
-            sc.meta_description = opp.draft_description
-    else:
-        sc.body_md = opp.draft_body
-    sc.reviewed_at = datetime.now(UTC)
+            fila.meta_description = opp.draft_description
+    if opp.action in ("body", "merge") and opp.draft_body:
+        fila.body_md = opp.draft_body
+    if opp.action == "merge" and kind == "seo_content":
+        _metadatos_de_fusion(db, opp, fila)
+    otras_rutas: list[str] = []
+    if opp.action == "merge":
+        _registrar_videos(db, opp)
+        otras_rutas = _aplicar_enlaces_entrantes(db, opp)
+    if kind == "seo_content":
+        fila.reviewed_at = datetime.now(UTC)
     opp.status = "applied"
     opp.applied_at = datetime.now(UTC)
+    if opp.action == "merge" and opp.proposal_id:
+        from app.db.models import ContentProposal
+
+        prop = db.get(ContentProposal, opp.proposal_id)
+        if prop is not None:
+            # La idea ya está publicada (dentro de otra página): cuenta como usada
+            # para el dedup de las semanas siguientes.
+            prop.status = "merged"
     db.commit()
 
     from app.services.publishing import revalidate_paths
 
-    revalidate_paths([opp.path])
+    revalidate_paths([opp.path, *otras_rutas])
     logger.info("[seo-opp] aplicada %s (%s)", opp.path, opp.action)
     return True
+
+
+def revert_applied(db, opp) -> None:
+    """Deshace una oportunidad aplicada con la copia de `content_revisions`.
+
+    Solo si la página no ha cambiado desde entonces: revertir encima de una edición
+    posterior también la borraría, y eso tiene que decidirlo una persona a mano.
+    Los enlaces que una fusión puso en otros posts se quitan uno a uno (el texto se
+    queda), sin restaurar esos posts enteros: pudieron editarse después.
+    """
+    from app.db.models import ContentRevision, Post
+    from app.services.url_resolver import _desenlazar
+
+    if opp.status != "applied":
+        raise RevertError(f"solo se revierte lo aplicado (está en {opp.status})")
+    kind, fila = _fila_destino(db, opp)
+    revs = (db.query(ContentRevision)
+            .filter(ContentRevision.opportunity_id == opp.id,
+                    ContentRevision.reverted_at.is_(None))
+            .order_by(ContentRevision.id.asc()).all())
+    rev = next((r for r in revs if fila is not None and r.target_kind == kind
+                and r.target_id == fila.id), None)
+    if rev is None:
+        raise RevertError("no hay copia de antes de aplicar (es anterior a content_revisions)")
+    if opp.action in ("body", "merge") and opp.draft_body and fila.body_md != opp.draft_body:
+        raise RevertError("la página cambió después de aplicar; revertir borraría eso")
+    ahora = datetime.now(UTC)
+    fila.body_md = rev.body_md
+    fila.meta_title = rev.meta_title
+    fila.meta_description = rev.meta_description
+    rev.reverted_at = ahora
+    otras = []
+    for r in revs:
+        if r is rev or r.target_kind != "post":
+            continue
+        post = db.get(Post, r.target_id)
+        if post is not None:
+            post.body_md = _desenlazar(post.body_md or "", opp.path)
+            otras.append(r.path)
+        r.reverted_at = ahora
+    opp.status = "discarded"
+    opp.error = "revertida desde el panel"
+    if opp.action == "merge":
+        from app.services.content_merge import release_proposal
+
+        # La idea vuelve al banco: revertir la fusión no tiene por qué tirarla.
+        release_proposal(db, opp)
+    db.commit()
+
+    from app.services.publishing import revalidate_paths
+
+    revalidate_paths([opp.path, *otras])
+    logger.info("[seo-opp] revertida %s (%s)", opp.path, opp.action)
 
 
 # --------------------------------------------------------------------------- #

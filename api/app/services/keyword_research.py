@@ -27,7 +27,7 @@ from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    Album, Band, Concept, ContentProposal, Person, Place, Post, Song, Theme,
+    Album, Band, Concept, ContentProposal, Person, Place, Post, SeoContent, Song, Theme,
 )
 from app.services.seo_research import KeywordData, keyword_suggestions, search_volume
 
@@ -155,6 +155,16 @@ def _published_kw_slugs(db: Session) -> set[str]:
     ).all():
         if s:
             slugs.add(s)
+    # Y las que ya persigue una ficha, incluidas las que le sumó una fusión: una
+    # keyword que es la de `/extremoduro` no es un ángulo de blog, es esa página.
+    for target, secundarias in db.query(
+        SeoContent.target_keyword, SeoContent.secondary_keywords
+    ).filter(SeoContent.published.is_(True)).all():
+        for kw in [target] + [
+            (k.get("keyword") if isinstance(k, dict) else k) for k in (secundarias or [])
+        ]:
+            if kw:
+                slugs.add(kw_slug(kw))
     return slugs
 
 

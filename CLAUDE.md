@@ -46,6 +46,8 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.instagram.notify_clips       (correo con los clips montados)
 # python -m scripts.research.backfill_segments             (tiempos de las transcripciones; LOCAL)
 # docker compose exec api python -m scripts.graph.embed_entity_bios  (vectoriza bio_long → entities_v1)
+# docker compose exec api python -m scripts.seo.embed_pages          (resumen de cada página → pages_v1)
+# docker compose exec api python -m scripts.blog.placement_backfill --dry-run  (¿ampliar o post nuevo?)
 # docker compose exec api python -m scripts.graph.build_graph        (SIEMPRE el ÚLTIMO: reconstruye entity_edges)
 ```
 
@@ -544,6 +546,55 @@ Tres cosas que conviene no deshacer:
 Un `noop` es un resultado legítimo y frecuente: si el corpus no respalda nada
 nuevo, el gate anti-paja lo tumba (medido: solo 45 de 153 canciones tienen
 material para ampliar). Esos también van en el correo, con su motivo.
+
+## Una propuesta del blog puede ser una ampliación
+
+Criterio de David (19-10-2026): antes de escribir un post por una keyword hay que
+mirar si ya hay una página que la responde o que Google ya asocia a ella. Medido
+ese día en `gsc_page_queries.json`: «integrantes de extremoduro» (#484) la
+posiciona **`/personas`** (886 impresiones de esas variantes, pos. media 8,2) y no
+`/extremoduro`; «qué género es extremoduro» (#485) la gana `/extremoduro` (pos. 6,8)
+y ya había **un post** compitiendo. Ninguna guarda comparaba una propuesta con lo
+publicado: `_covered_tokens` solo conoce canciones y discos.
+
+`app/services/content_placement.py` decide **ampliar X / contenido nuevo** con
+evidencia, determinista y sin «porcentaje de éxito» (no hay con qué medirlo):
+dueño en GSC (≥ 50 % de las impresiones de la propuesta en pos. ≤ 20) → página
+nuestra en el top de la SERP → parecido semántico (`pages_v1`, que llena
+`scripts/seo/embed_pages.py` en el cron de las 03:30). Los umbrales semánticos son
+**provisionales** y esa rama nunca da confianza «alta». Las páginas en código
+(`PAGINAS_CODIGO`) cuentan para no canibalizarlas aunque no se puedan fundir.
+
+El panel y el correo de los lunes traen la recomendación, la evidencia y el
+selector (en el correo, un botón por destino; el destino va DENTRO del JWT).
+**Fusionar solo PREPARA**: crea una `SeoOpportunity` con `action="merge"` y sigue
+el circuito de dos fases de siempre. «Aprobar en bloque» se salta lo que propone
+ampliar, y «publicar los limpios» no se lleva ninguna fusión.
+
+El motor es `scripts/seo/merge_deep.py`: un plan estructurado (insert / rename /
+intro / puente / media) que se monta de forma determinista, así que lo que no se
+toca queda idéntico byte a byte. `app/services/ranking_guard.py` protege lo que
+ya posiciona: un heading solo cambia si el nuevo cubre lo que cubría el viejo, y
+la página entera no puede dejar de cubrir ninguna consulta con clics o en pos.
+≤ 20. **En la primera muestra real retiró una intro reescrita** que soltaba
+«miembros», la palabra que cubre «miembros de extremoduro» (329 impresiones).
+
+Cuatro cosas que conviene no deshacer:
+
+- **`quitar_metatexto`.** La primera muestra escribió «estos nombres responden a
+  las búsquedas «integrantes de Extremoduro»…». Eco de las instrucciones: se
+  limpia por texto, además de prohibirlo en el prompt.
+- **La formación sale de `band_memberships`**, nunca del modelo. Ojo: la BD local
+  está desfasada y CONTRADICE a prod (Salo); las muestras se sacan de prod.
+- **`content_revisions`** guarda la página entera al aplicar y es lo que usa
+  «revertir». `before_body` no sirve de backup (se re-sella al re-preparar).
+- **`/personas` vive en la BD** (`seo_content`, `entity_type='page'`) para poder
+  ampliarse. La migración sembró EXACTAMENTE el title, la description, el H1 y la
+  intro que tenía en código: es la página que posiciona.
+
+`seo_queue --watch` (lo lanza `gsc_weekly.sh`) compara a las 4 semanas las
+consultas protegidas de cada fusión aplicada y avisa si alguna cae más de 5
+puestos. Solo avisa: revertir es un botón.
 
 ## Un directo no duplica sus canciones
 

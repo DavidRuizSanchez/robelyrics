@@ -159,6 +159,8 @@ def main() -> None:
     ap.add_argument("--detect", action="store_true", help="detecta y encola desde el volcado GSC")
     ap.add_argument("--prepare", action="store_true", help="prepara borradores de lo aprobado")
     ap.add_argument("--status", action="store_true", help="resumen de la cola")
+    ap.add_argument("--watch", action="store_true",
+                    help="compara las fusiones aplicadas hace 4+ semanas con el volcado")
     ap.add_argument("--dry-run", action="store_true", help="con --detect: solo cuenta, no encola")
     ap.add_argument("--no-email", action="store_true")
     # Sin valor propio por comando: 25 URLs en un correo se leen, pero preparar 25
@@ -181,7 +183,16 @@ def main() -> None:
         args_prep = argparse.Namespace(**vars(args))
         args_prep.limit = args.limit if args.limit is not None else 5
         cmd_prepare(args_prep)
-    if args.status or not (args.detect or args.prepare):
+    if args.watch:
+        from app.db.session import SessionLocal
+        from app.services import merge_watch
+
+        pages, periodo = _load_pages()
+        with SessionLocal() as db:
+            res = merge_watch.revisar(db, pages, periodo, notify=not args.no_email)
+        logger.info("[merge-watch] %d fusiones revisadas, %d con caídas", len(res),
+                    sum(1 for r in res if r["caidas"]))
+    if args.status or not (args.detect or args.prepare or args.watch):
         cmd_status(args)
 
 

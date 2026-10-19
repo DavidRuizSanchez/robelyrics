@@ -223,6 +223,51 @@ def decode_seo_opportunity_token(token: str) -> dict[str, Any] | None:
     return data
 
 
+_PROPOSAL_ACTIONS = {"merge", "new", "discard"}
+
+
+def create_proposal_action_token(
+    proposal_id: int, action: str, *, target: str | None = None, ttl_hours: int = 336
+) -> str:
+    """JWT para decidir una propuesta del blog desde el correo de los lunes.
+
+    El correo no admite un desplegable fiable, así que el selector son botones: uno
+    por página que se puede ampliar, «contenido nuevo» y «rechazar». El destino va
+    DENTRO del token: reenviar el enlace de «ampliar /personas» no puede acabar
+    ampliando otra página. Y ninguno publica: fusionar solo PREPARA el borrador.
+    """
+    if action not in _PROPOSAL_ACTIONS:
+        raise ValueError(f"acción no permitida: {action}")
+    if action == "merge" and not target:
+        raise ValueError("merge necesita destino")
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "proposal_action",
+        "action": action,
+        "proposal_id": int(proposal_id),
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    if target:
+        payload["target"] = target
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_proposal_action_token(token: str) -> dict[str, Any] | None:
+    """Devuelve el payload solo si es un token válido de proposal_action."""
+    data = decode_token(token)
+    if not data or data.get("purpose") != "proposal_action":
+        return None
+    if data.get("action") not in _PROPOSAL_ACTIONS:
+        return None
+    if not isinstance(data.get("proposal_id"), int):
+        return None
+    if data["action"] == "merge" and not isinstance(data.get("target"), str):
+        return None
+    return data
+
+
 def get_current_user(
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),

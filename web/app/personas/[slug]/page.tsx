@@ -13,6 +13,7 @@ import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  bodyVideoNodes,
   asNode,
   breadcrumbListNode,
   buildGraph,
@@ -82,6 +83,12 @@ type PersonDetail = {
   entities: ResolvedEntity[];
   related_videos: PublicRelatedVideo[];
   seo_body: string | null;
+  seo_body_videos?: {
+    youtube_id: string;
+    title: string;
+    kind: string;
+    upload_date: string | null;
+  }[];
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   schema_jsonld: Record<string, unknown> | null;
@@ -248,6 +255,12 @@ export default async function PersonPage({
   const path = `/personas/${detail.slug}`;
   const personName = detail.stage_name || detail.full_name;
   const jsonLd = buildGraph([
+   ...bodyVideoNodes(
+     detail.seo_body_videos,
+     canonical.person(detail.slug),
+     detail.stage_name || detail.full_name,
+     (detail.related_videos || []).map((v) => v.youtube_id),
+   ),
     asNode(buildJsonLd(detail)),
     webPageNode({
       path,

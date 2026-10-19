@@ -34,7 +34,48 @@ export type ProposalItem = {
   search_volume: number | null;
   is_longtail: boolean;
   signal_source: string | null;
+  // ¿Post nuevo o ampliar una página existente? (`content_placement` en la API)
+  placement: Placement | null;
+  placement_headline: string | null;
+  placement_options: PlacementOption[];
+  merge_target: string | null;
+  merge_opportunity_id: number | null;
   created_at: string;
+};
+
+export type PlacementCandidate = {
+  path: string;
+  kind: "ficha" | "post" | "code";
+  label: string;
+  target: string | null;
+  gsc_impressions: number;
+  gsc_clicks: number;
+  gsc_position: number | null;
+  gsc_queries: { query: string; impressions: number; position: number | null }[];
+  serp_rank: number | null;
+  similarity: number | null;
+  is_anchor: boolean;
+  mergeable: boolean;
+  score: number;
+};
+
+export type Placement = {
+  decision: "ampliar" | "nuevo";
+  confidence: "alta" | "media" | "baja";
+  recommended: string | null;
+  reasons: string[];
+  candidates: PlacementCandidate[];
+  competing: string[];
+  period: string | null;
+  computed_at?: string;
+  last_merge?: { path: string; status: string; error: string };
+};
+
+export type PlacementOption = {
+  value: string; // «ficha:12» | «post:7» | «new»
+  label: string;
+  path?: string;
+  recommended: boolean;
 };
 
 type ProposalStats = {

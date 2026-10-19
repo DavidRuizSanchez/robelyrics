@@ -240,6 +240,96 @@ def _diff_meta(o) -> str:
     return "".join(filas) + _avisos(o)
 
 
+def _parrafo(texto: str, *, tachado: bool = False, n: int = 1600) -> str:
+    estilo = ("color:rgba(237,228,211,0.45);text-decoration:line-through;" if tachado
+              else "color:rgba(237,228,211,0.85);")
+    return (f'<div style="font-family:Georgia,serif;font-size:14px;line-height:1.6;{estilo}'
+            f'background:rgba(237,228,211,0.03);padding:12px;margin:6px 0 0;'
+            f'white-space:pre-wrap;">{_html.escape((texto or "")[:n])}'
+            f'{"…" if len(texto or "") > n else ""}</div>')
+
+
+def _mini(texto: str) -> str:
+    return (f'<div style="font-family:{_MONO};font-size:10px;letter-spacing:2px;'
+            f'text-transform:uppercase;color:rgba(237,228,211,0.45);margin:14px 0 4px;">'
+            f"{texto}</div>")
+
+
+def _diff_fusion(o) -> str:
+    """El antes/después de una fusión, que ya no es «lo añadido va al final».
+
+    Se enseña la página como un mapa: qué secciones son nuevas y dónde caen, qué
+    heading cambia y por qué, la intro antes y después, los puentes, la imagen y el
+    vídeo, y lo que las guardas descartaron. Todo lo que no aparece aquí queda
+    exactamente como está publicado.
+    """
+    from scripts.seo.merge_deep import trocear
+
+    notas = o.draft_notes or {}
+    nuevas = {h.lower() for h in notas.get("added_headings") or []}
+    renombres = {r["new"].lower(): r for r in notas.get("renamed") or []}
+    mapa = []
+    for b in trocear(o.draft_body or ""):
+        if b.heading is None:
+            marca = " · reescrita" if notas.get("intro_rewritten") else ""
+            mapa.append(f"(intro){marca}")
+        elif b.heading.lower() in nuevas:
+            mapa.append(f"<b style='color:{_ACCENT};'>+ {_html.escape(b.heading)}</b>")
+        elif b.heading.lower() in renombres:
+            r = renombres[b.heading.lower()]
+            mapa.append(f"~ {_html.escape(b.heading)} <span style='color:rgba(237,228,211,0.4);'>"
+                        f"(antes «{_html.escape(r['old'])}»)</span>")
+        else:
+            mapa.append(f"<span style='color:rgba(237,228,211,0.45);'>"
+                        f"{_html.escape(b.heading)}</span>")
+    partes = [_mini("estructura resultante"),
+              '<div style="font-family:Georgia,serif;font-size:14px;line-height:1.7;">'
+              + "<br>".join(mapa) + "</div>"]
+    rigor = notas.get("rigor") or {}
+    partes.append(
+        f'<div style="font-family:{_MONO};font-size:10px;color:rgba(237,228,211,0.4);'
+        f'margin:6px 0 0;">{notas.get("before_len")} → {notas.get("after_len")} caracteres'
+        + (f' · rigor {rigor.get("before_score")} → {rigor.get("score")} ({rigor.get("verdict")})'
+           if rigor else "")
+        + f' · {notas.get("protegidas", 0)} búsquedas protegidas siguen cubiertas</div>')
+    if notas.get("intro_rewritten"):
+        intro_nueva = next((b.texto for b in trocear(o.draft_body or "") if b.heading is None),
+                           "")
+        partes += [_mini("intro"), _parrafo(notas.get("intro_before") or "", tachado=True, n=900),
+                   _parrafo(intro_nueva, n=900)]
+    for r in notas.get("renamed") or []:
+        partes += [_mini("heading renombrado"),
+                   f'<div style="font-family:Georgia,serif;font-size:14px;">'
+                   f'<s style="color:rgba(237,228,211,0.45);">{_html.escape(r["old"])}</s> → '
+                   f'{_html.escape(r["new"])}<br><i style="color:rgba(237,228,211,0.5);'
+                   f'font-size:13px;">{_html.escape(r.get("why") or "")}</i></div>']
+    for b in trocear(o.draft_body or ""):
+        if b.heading and b.heading.lower() in nuevas:
+            partes += [_mini(f"sección nueva: {_html.escape(b.heading)}"), _parrafo(b.texto)]
+    for p in notas.get("puentes") or []:
+        partes += [_mini(f"frase puente tras «{_html.escape(p['after'])}»"),
+                   _parrafo(p["texto"], n=400)]
+    for img in notas.get("images_added") or []:
+        partes.append(_mini(f"imagen ({_html.escape(img.get('status', ''))}) en "
+                            f"«{_html.escape(img.get('section', ''))}»: "
+                            f"{_html.escape(img.get('alt', ''))}"))
+    for v in notas.get("videos_added") or []:
+        partes.append(_mini(f"vídeo en «{_html.escape(v.get('section', ''))}»: "
+                            f"{_html.escape(v.get('url', ''))}"))
+    for e in notas.get("enlaces_entrantes") or []:
+        partes.append(_mini(f"enlace entrante desde {_html.escape(e['path'])} con el texto "
+                            f"«{_html.escape(e['anchor'])}»"))
+    if o.draft_title or o.draft_description:
+        partes += [_mini("title y description"), _diff_meta(o).replace(_avisos(o), "")]
+    descartado = notas.get("descartado") or []
+    if descartado:
+        lis = "".join(f"<li>{_html.escape(d)}</li>" for d in descartado[:8])
+        partes += [_mini("lo que las guardas descartaron"),
+                   f'<ul style="font-family:Georgia,serif;font-size:13px;'
+                   f'color:rgba(237,228,211,0.5);margin:0;padding-left:18px;">{lis}</ul>']
+    return "".join(partes) + _avisos(o)
+
+
 def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
     """Correo con el antes/después de cada borrador y el botón que publica.
 
@@ -259,12 +349,14 @@ def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
     site = _site()
 
     def bloque(o) -> str:
-        cuerpo = _diff_meta(o) if o.action == "meta" else _diff_cuerpo(o)
+        cuerpo = (_diff_meta(o) if o.action == "meta"
+                  else _diff_fusion(o) if o.action == "merge" else _diff_cuerpo(o))
         return (
             f'<div style="margin:0 0 24px;padding:0 0 18px;border-bottom:1px solid rgba(237,228,211,0.06);">'
             f'<a href="{site}{o.path}" style="font-family:Georgia,serif;font-size:17px;color:{_PAPEL};text-decoration:none;">{_html.escape(o.path)}</a>'
             f'<div style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:rgba(237,228,211,0.5);margin:4px 0 8px;">'
-            f'por: {_html.escape(o.gap_hint or "")}</div>'
+            f'{"fusión con la propuesta: " if o.action == "merge" else "por: "}'
+            f'{_html.escape(o.gap_hint or "")}</div>'
             f"{cuerpo}"
             f'<div style="margin:12px 0 0;">'
             f'<a href="{_link_accion([o.id], "apply")}" style="font-family:{_MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:{_ACCENT};text-decoration:none;">→ {"publicar igualmente" if _forzada(o) else "publicar este"}</a>'
@@ -276,7 +368,9 @@ def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
     # por delante, la válvula se convertiría en auto-publicación por descuido, que es
     # justo lo que el circuito entero existe para impedir: cada una de esas se
     # publica con su propio clic, después de mirar el diff, o no se publica.
-    limpias = [o for o in opps if not _forzada(o)]
+    # Una fusión tampoco entra: cambia la estructura de una página que ya posiciona y
+    # merece su propio clic después de leer el mapa.
+    limpias = [o for o in opps if not _forzada(o) and o.action != "merge"]
     todos = _link_accion([o.id for o in limpias], "apply") if limpias else ""
     pie = "" if not opps else (
         f'<div style="margin:28px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">'

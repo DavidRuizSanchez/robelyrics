@@ -16,6 +16,7 @@ import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site";
 import {
+  bodyVideoNodes,
   breadcrumbListNode,
   buildGraph,
   canonical,
@@ -328,6 +329,12 @@ export default async function SongPublicPage({
           dangerouslySetInnerHTML={{
             __html: safeJsonLd(
               buildGraph([
+                ...bodyVideoNodes(
+                  detail.seo_body_videos,
+                  canonical.musicComposition(artistSlug, albumSlug, songSlug),
+                  detail.title,
+                  [detail.youtube_id],
+                ),
                 {
                   ...musicCompositionNode({
                     slug: songSlug,

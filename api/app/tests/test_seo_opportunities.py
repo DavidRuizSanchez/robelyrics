@@ -231,9 +231,13 @@ class _FakeDb:
     def __init__(self, row):
         self._row = row
         self.commits = 0
+        self.added: list = []
 
     def query(self, *a, **kw):
         return _FakeQuery(self._row)
+
+    def add(self, obj):
+        self.added.append(obj)
 
     def commit(self):
         self.commits += 1
@@ -275,6 +279,9 @@ def test_aplicar_escribe_y_revalida(monkeypatch):
     assert sc.body_md == opp.draft_body
     assert opp.status == "applied" and isinstance(opp.applied_at, datetime)
     assert revalidadas == [[opp.path]]
+    # La copia de ANTES se guarda una vez, al aplicar: es lo que permite revertir.
+    (rev,) = db.added
+    assert rev.body_md == CUERPO and rev.opportunity_id == opp.id
 
 
 def test_solo_se_aplica_un_borrador():

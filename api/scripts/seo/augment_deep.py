@@ -462,7 +462,11 @@ def augment_entity(
             return {"before": current, "after": current, "added_headings": [],
                     "videos_added": [], "grew": False, "noop": True,
                     "subject": subject, "rigor": rigor}
-        if v.verdict == "revise" and v.tightened_body_md and len(v.tightened_body_md) >= len(current):
+        # En optimización NO: el juez recibe el cuerpo PUBLICADO como artículo y lo
+        # añadido aparte (`spotlight`), así que lo que «tensa» es el cuerpo viejo, y
+        # aceptarlo rompía la no-pérdida y podía tirar justo la sección nueva.
+        if (not optimizar and v.verdict == "revise" and v.tightened_body_md
+                and len(v.tightened_body_md) >= len(current)):
             after = v.tightened_body_md  # tensado, pero nunca por debajo del original
     except Exception as exc:  # noqa: BLE001
         logger.warning("[augment] rigor falló: %s", exc)

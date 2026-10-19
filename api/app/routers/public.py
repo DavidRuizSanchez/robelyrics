@@ -13,6 +13,7 @@ Se mantiene aparte del router auth-only de `catalog.py`. NO duplica código com�
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Response, Depends
@@ -122,6 +123,9 @@ class PublicArtistDetailOut(PublicArtistOut):
     image_url: str | None = None
     image_attribution: str | None = None
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
@@ -141,6 +145,9 @@ class PublicAlbumDetailOut(PublicAlbumOut):
     # /artista-que-sea/disco-que-sea/canción devuelva 200 con datos mezclados.
     canonical_path: str = ""
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
@@ -199,6 +206,9 @@ class PublicSongDetailOut(BaseModel):
     youtube_published_at: str | None = None   # ISO-8601 (uploadDate)
     youtube_duration_sec: int | None = None
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     seo_h1: str | None = None
@@ -245,6 +255,36 @@ def _try_get_seo(db: Session, entity_type: str, entity_id: int) -> dict | None:
         "h1": resolved["h1"] or None,
         "entities": row.entities or [],
     }
+
+
+_YT_EN_CUERPO = re.compile(
+    r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube(?:-nocookie)?\.com/embed/)([\w-]{11})"
+)
+
+
+def _body_videos(db: Session, body_md: str | None) -> list[PublicRelatedVideo]:
+    """Los vídeos del cuerpo que tienen metadatos REALES guardados.
+
+    Un `VideoObject` sin título ni fecha de subida no vale (Google lo marca
+    inválido) y rellenarlos a ojo sería inventar. Por eso solo salen los que
+    `related_videos` conoce: los que añade una fusión se registran al aplicarla con
+    lo que devolvió la API de YouTube.
+    """
+    ids = list(dict.fromkeys(_YT_EN_CUERPO.findall(body_md or "")))
+    if not ids:
+        return []
+    try:
+        from app.db.models import RelatedVideo
+
+        filas = db.query(RelatedVideo).filter(RelatedVideo.youtube_id.in_(ids)).all()
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        return []
+    return [
+        PublicRelatedVideo(youtube_id=v.youtube_id, title=v.title, kind=v.kind,
+                           upload_date=v.upload_date.isoformat() if v.upload_date else None)
+        for v in filas
+    ]
 
 
 def _snippet_lines(db: Session, song_id: int) -> list[str]:
@@ -615,6 +655,7 @@ def public_artist_detail(
         ],
         members=members_out,
         seo_body=seo["body_md"] if seo else None,
+        seo_body_videos=_body_videos(db, seo["body_md"] if seo else None),
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
@@ -751,6 +792,7 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
             for s in songs
         ],
         seo_body=seo["body_md"] if seo else None,
+        seo_body_videos=_body_videos(db, seo["body_md"] if seo else None),
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
@@ -842,6 +884,7 @@ def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
         ),
         youtube_duration_sec=song.youtube_duration_sec,
         seo_body=seo["body_md"] if seo else None,
+        seo_body_videos=_body_videos(db, seo["body_md"] if seo else None),
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         seo_h1=seo["h1"] if seo else None,
@@ -1147,6 +1190,9 @@ class PublicTaxonomyDetailOut(BaseModel):
     image_url: str | None = None
     image_attribution: str | None = None
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     entities: list[PublicResolvedEntity] = []
@@ -1277,6 +1323,7 @@ def _detail_taxonomy(
         image_url=row.image_url,
         image_attribution=row.image_attribution,
         seo_body=seo["body_md"] if seo else None,
+        seo_body_videos=_body_videos(db, seo["body_md"] if seo else None),
         seo_meta_title=seo["meta_title"] if seo else None,
         seo_meta_description=seo["meta_description"] if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
@@ -1451,6 +1498,9 @@ class PublicPersonDetailOut(PublicPersonListItem):
     notable_works: list[PublicWikidataRef] = []
     occupations: list[PublicWikidataRef] = []
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     schema_jsonld: dict | None = None
@@ -1556,6 +1606,7 @@ def public_person_detail(
             PublicWikidataRef(**o) for o in (person.occupations or [])
         ],
         seo_body=seo.body_md if seo else None,
+        seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
         seo_meta_description=seo.meta_description if seo else None,
         schema_jsonld=seo.schema_jsonld if seo else None,
@@ -1586,6 +1637,9 @@ class PublicBandDetailOut(PublicBandListItem):
     image_source_url: str | None = None
     members: list[str] = []
     seo_body: str | None = None
+    # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
+    # VideoObject. Solo los que tienen ficha en `related_videos`.
+    seo_body_videos: list[PublicRelatedVideo] = []
     seo_meta_title: str | None = None
     seo_meta_description: str | None = None
     schema_jsonld: dict | None = None
@@ -1670,6 +1724,7 @@ def public_band_detail(
         image_source_url=band.image_source_url,
         members=_band_members(band.members),
         seo_body=seo.body_md if seo else None,
+        seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
         seo_meta_description=seo.meta_description if seo else None,
         schema_jsonld=seo.schema_jsonld if seo else None,
@@ -2473,9 +2528,13 @@ def seo_opportunity_action(
             msg += (f" {fallidas} no se pudo aplicar (el contenido cambió después "
                     "de preparar el borrador); están en el panel.")
     else:  # discard
+        from app.services.content_merge import release_proposal
+
         for r in rows:
             if r.status in _SEO_VIVAS:
                 r.status = "discarded"
+                # Descartar una fusión no tira la idea: vuelve al banco del blog.
+                release_proposal(db, r)
                 tocadas.append(r)
             else:
                 ignoradas += 1
@@ -2487,3 +2546,101 @@ def seo_opportunity_action(
     if ignoradas:
         msg += f" ({ignoradas} ya estaba{'n' if ignoradas != 1 else ''} resuelta{'s' if ignoradas != 1 else ''}.)"
     return HTMLResponse(_render_admin_action_page(msg, success=True))
+
+
+# --------------------------------------------------------------------------- #
+# Propuestas del blog desde el correo: ampliar una página, post nuevo o rechazar
+# --------------------------------------------------------------------------- #
+from app.db.models import ContentProposal as _ContentProposal  # noqa: E402
+from app.services.auth import decode_proposal_action_token  # noqa: E402
+
+
+@router.get("/proposal-action", response_class=HTMLResponse)
+def proposal_action(
+    token: str,
+    background: _BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """One-click del correo de propuestas. Ningún botón publica nada.
+
+    - `merge`: prepara el borrador que funde la idea con la página del token. El
+      antes/después llega en otro correo y publicar es un segundo clic.
+    - `new`: la aprueba como post nuevo (el cron de borradores la escribe).
+    - `discard`: la rechaza.
+
+    Idempotente: una propuesta ya decidida no se vuelve a mover.
+    """
+    data = decode_proposal_action_token(token)
+    if not data:
+        return HTMLResponse(
+            _render_admin_action_page("Enlace inválido o caducado.", success=False),
+            status_code=400,
+        )
+    p = db.get(_ContentProposal, data["proposal_id"])
+    if p is None:
+        return HTMLResponse(_render_admin_action_page(
+            "Esa propuesta ya no existe.", success=True))
+    if p.status != "proposed":
+        return HTMLResponse(_render_admin_action_page(
+            f"La propuesta #{p.id} ya estaba decidida ({p.status}). No se ha tocado nada.",
+            success=True))
+
+    accion = data["action"]
+    if accion == "merge":
+        from app.services.content_merge import MergeError, start_merge
+        from app.services.seo_opportunities import run_prepare
+
+        try:
+            opp = start_merge(db, p, data["target"])
+        except MergeError as exc:
+            return HTMLResponse(_render_admin_action_page(
+                f"No se puede fundir: {exc}.", success=False), status_code=409)
+        background.add_task(run_prepare, [opp.id])
+        msg = (f"✓ Preparando la ampliación de {opp.path} con «{p.title}». Te llega un "
+               "correo con el antes/después; nada se ha publicado.")
+    elif accion == "new":
+        p.status = "approved"
+        p.scheduled_for = None
+        db.commit()
+        msg = (f"✓ «{p.title}» aprobada como contenido nuevo. El borrador se escribe en "
+               "unos minutos y pasa al calendario del panel.")
+    else:
+        p.status = "discarded"
+        p.scheduled_for = None
+        db.commit()
+        msg = f"✓ «{p.title}» rechazada."
+    return HTMLResponse(_render_admin_action_page(msg, success=True))
+
+
+# --------------------------------------------------------------------------- #
+# Páginas índice con ficha propia (`seo_content.entity_type='page'`)
+# --------------------------------------------------------------------------- #
+class PublicIndexPage(BaseModel):
+    """Lo editable de una página índice como /personas. El listado sigue saliendo
+    de su propio endpoint; esto es el texto, el title y la description, que antes
+    vivían en código y el motor no podía ampliar."""
+    slug: str
+    h1: str | None = None
+    seo_body: str | None = None
+    seo_meta_title: str | None = None
+    seo_meta_description: str | None = None
+    seo_body_videos: list[PublicRelatedVideo] = []
+
+
+@router.get("/pages/{slug}", response_model=PublicIndexPage)
+def get_index_page(slug: str, db: Session = Depends(get_db)) -> PublicIndexPage:
+    from app.services.content_placement import PAGINAS
+
+    pid = next((k for k, v in PAGINAS.items() if v["slug"] == slug), None)
+    if pid is None:
+        raise HTTPException(status_code=404, detail="page not found")
+    row = (db.query(SeoContent)
+           .filter(SeoContent.entity_type == "page", SeoContent.entity_id == pid,
+                   SeoContent.published.is_(True)).first())
+    if not row:
+        raise HTTPException(status_code=404, detail="page not found")
+    return PublicIndexPage(
+        slug=slug, h1=row.h1, seo_body=row.body_md, seo_meta_title=row.meta_title,
+        seo_meta_description=row.meta_description,
+        seo_body_videos=_body_videos(db, row.body_md),
+    )

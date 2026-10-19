@@ -5,9 +5,11 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
-import { apiFetch } from "@/lib/api";
+import MarkdownArticle from "@/components/MarkdownArticle";
+import { apiFetch, ApiError } from "@/lib/api";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
+  bodyVideoNodes,
   breadcrumbListNode,
   buildGraph,
   canonical,
@@ -20,12 +22,62 @@ const SITE_URL =
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+// Desde el 19-10-2026 el texto, el title y la description viven en la BD
+// (`seo_content`, entity_type='page') para que una propuesta del blog pueda
+// AMPLIAR esta página en vez de canibalizarla: es la que posiciona «integrantes
+// de extremoduro». Estos son los valores de antes, que la migración sembró tal
+// cual, y quedan de respaldo.
+const FALLBACK = {
   title: "Integrantes de Extremoduro y los colegas de Robe · Entre Interiores",
   description:
     "Los integrantes de Extremoduro a lo largo de su historia, la banda solista de Robe y las voces amigas del universo: quién es quién y qué tocó cada uno.",
-  alternates: { canonical: `${SITE_URL}/personas` },
+  h1: "Los colegas de Robe",
+  intro:
+    "Los miembros que pasaron por Extremoduro y la banda solista, las voces amigas que el escenario y los discos cruzaron con la suya.",
 };
+
+type IndexPage = {
+  slug: string;
+  h1: string | null;
+  seo_body: string | null;
+  seo_meta_title: string | null;
+  seo_meta_description: string | null;
+  seo_body_videos?: {
+    youtube_id: string;
+    title: string;
+    kind: string;
+    upload_date: string | null;
+  }[];
+};
+
+// Solo un 404 cae al respaldo (instalación sin migrar). Cualquier otro fallo se
+// propaga para que el ISR conserve la versión anterior en vez de cachear la
+// página sin sus secciones.
+async function getPage(): Promise<IndexPage | null> {
+  try {
+    return await apiFetch<IndexPage>("/public/pages/personas", { authenticated: false });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+/** Lo que va antes del primer H2 (la intro) y el resto (las secciones). */
+function partir(body: string | null): { intro: string; secciones: string } {
+  const texto = (body || "").trim();
+  const m = texto.match(/^##(?!#)/m);
+  if (!m || m.index === undefined) return { intro: texto, secciones: "" };
+  return { intro: texto.slice(0, m.index).trim(), secciones: texto.slice(m.index).trim() };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage();
+  return {
+    title: page?.seo_meta_title || FALLBACK.title,
+    description: page?.seo_meta_description || FALLBACK.description,
+    alternates: { canonical: `${SITE_URL}/personas` },
+  };
+}
 
 type PersonListItem = {
   slug: string;
@@ -49,6 +101,12 @@ export default async function PersonasPage() {
   items = await apiFetch<PersonListItem[]>("/public/persons", {
     authenticated: false,
   });
+  const page = await getPage();
+  const h1 = page?.h1 || FALLBACK.h1;
+  const { intro, secciones } = partir(page ? page.seo_body : FALLBACK.intro);
+  // La intro de siempre es texto plano y conserva su estilo; si una ampliación
+  // le mete enlaces o varios párrafos, se pinta como markdown.
+  const introPlana = !/[\[\]*_#>\n]/.test(intro);
 
   return (
     <>
@@ -67,12 +125,18 @@ export default async function PersonasPage() {
             los colegas
           </p>
           <h1 className="font-serif text-5xl md:text-[80px] text-ink leading-[0.95] tracking-[-2px] m-0">
-            Los colegas de Robe
+            {h1}
           </h1>
-          <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
-            Los miembros que pasaron por Extremoduro y la banda solista, las
-            voces amigas que el escenario y los discos cruzaron con la suya.
-          </p>
+          {intro &&
+            (introPlana ? (
+              <p className="font-serif italic text-ink-dim text-lg mt-6 max-w-2xl leading-relaxed">
+                {intro}
+              </p>
+            ) : (
+              <div className="mt-6 max-w-2xl">
+                <MarkdownArticle markdown={intro} />
+              </div>
+            ))}
         </header>
 
         {items.length === 0 ? (
@@ -135,14 +199,24 @@ export default async function PersonasPage() {
             })}
           </ul>
         )}
+        {secciones && (
+          <section className="mt-20">
+            <MarkdownArticle markdown={secciones} />
+          </section>
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: safeJsonLd(
               buildGraph([
+                ...bodyVideoNodes(
+                  page?.seo_body_videos,
+                  canonical.itemList("/personas"),
+                  h1,
+                ),
                 webPageNode({
                   path: "/personas",
-                  name: "Los colegas de Robe",
+                  name: h1,
                   type: "CollectionPage",
                   mainEntityId: canonical.itemList("/personas"),
                 }),

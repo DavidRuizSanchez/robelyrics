@@ -44,6 +44,7 @@ from app.db.models import (
     User,
 )
 from app.db.session import get_db
+from app.services import content_placement as _placement
 from app.services.auth import get_current_admin
 from app.services.rate_limit import limiter
 from app.services.seo_templates import render_with_context, resolve_all
@@ -470,6 +471,9 @@ class TemplatePreviewOut(BaseModel):
 
 def _entity_label_and_url(db: Session, entity_type: str, entity_id: int) -> tuple[str, str]:
     """Devuelve (label legible, ruta pública canónica) para una entidad."""
+    if entity_type == "page":
+        info = _placement.PAGINAS.get(entity_id) or {}
+        return (info.get("label") or "?", info.get("path") or "")
     if entity_type == "artist":
         a = db.query(Artist).filter(Artist.id == entity_id).first()
         if not a:
@@ -522,7 +526,8 @@ def _entity_label_and_url(db: Session, entity_type: str, entity_id: int) -> tupl
 def list_seo(
     status: Literal["all", "unreviewed", "reviewed", "published"] = "all",
     entity_type: Literal[
-        "all", "artist", "album", "song", "person", "band", "theme", "place", "concept"
+        "all", "artist", "album", "song", "person", "band", "theme", "place", "concept",
+        "page",
     ] = "all",
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
@@ -1369,6 +1374,13 @@ class AdminProposalItem(BaseModel):
     search_volume: int | None = None
     is_longtail: bool = False
     signal_source: str | None = None
+    # ¿Post nuevo o ampliar una página? (`content_placement`). `placement_options`
+    # es el selector ya montado: los candidatos ampliables + «contenido nuevo».
+    placement: dict | None = None
+    placement_headline: str | None = None
+    placement_options: list[dict] = []
+    merge_target: str | None = None
+    merge_opportunity_id: int | None = None
     created_at: datetime
 
 
@@ -1387,6 +1399,7 @@ class AdminProposalStats(BaseModel):
     scheduled: int
     used: int
     discarded: int
+    merged: int = 0  # fundidas con una página existente
     # Conteo por estado y tipo: {status: {kind: n}}. Para los filtros por tipo.
     by_kind: dict[str, dict[str, int]] = {}
 
@@ -1516,6 +1529,14 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         search_volume=getattr(p, "search_volume", None),
         is_longtail=bool(getattr(p, "is_longtail", False)),
         signal_source=getattr(p, "signal_source", None),
+        placement=getattr(p, "placement", None),
+        placement_headline=_placement.headline(getattr(p, "placement", None)) or None,
+        placement_options=(
+            _placement.selector_options(p.placement)
+            if getattr(p, "placement", None) else []
+        ),
+        merge_target=getattr(p, "merge_target", None),
+        merge_opportunity_id=getattr(p, "merge_opportunity_id", None),
         created_at=p.created_at,
     )
 
@@ -1541,6 +1562,7 @@ def admin_proposals_stats(
         scheduled=totals.get("scheduled", 0),
         used=totals.get("used", 0),
         discarded=totals.get("discarded", 0),
+        merged=totals.get("merged", 0),
         by_kind=by_kind,
     )
 
@@ -1607,7 +1629,7 @@ def admin_proposal_approve(
     p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="proposal not found")
-    if p.status in ("used", "discarded"):
+    if p.status in ("used", "discarded", "merged"):
         raise HTTPException(
             status_code=409, detail=f"propuesta en estado {p.status}, no aprobable"
         )
@@ -1652,12 +1674,68 @@ def admin_proposals_bulk_approve(
         .filter(_Proposal.status == "proposed")
         .all()
     )
+    # Lo que el análisis propone AMPLIAR no se escribe como post nuevo por un clic
+    # en bloque: eso es justo la canibalización que el análisis existe para evitar.
+    # Cada una necesita su decisión (fusionar o, a conciencia, «contenido nuevo»).
+    a_ampliar = [p for p in rows if (p.placement or {}).get("decision") == "ampliar"]
+    rows = [p for p in rows if p not in a_ampliar]
     for p in rows:
         p.status = "approved"
         p.scheduled_for = None
     db.commit()
     pending_draft = sum(1 for p in rows if not p.body_md)
-    return {"approved": len(rows), "pending_draft": pending_draft}
+    return {"approved": len(rows), "pending_draft": pending_draft,
+            "skipped_merge": [p.id for p in a_ampliar]}
+
+
+class MergeProposalIn(BaseModel):
+    target: str  # «ficha:<seo_content_id>» | «post:<id>»
+
+
+@router.post("/proposals/{proposal_id}/merge", response_model=AdminProposalItem)
+def admin_proposal_merge(
+    proposal_id: int,
+    payload: MergeProposalIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Funde la propuesta con una página existente: PREPARA el borrador (no publica).
+
+    El antes/después llega por correo y a `/biblioteca/admin/seo/oportunidades`, y
+    solo un segundo clic lo aplica.
+    """
+    from app.services.content_merge import MergeError, start_merge
+    from app.services.seo_opportunities import run_prepare
+
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    try:
+        opp = start_merge(db, p, payload.target)
+    except MergeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    background.add_task(run_prepare, [opp.id])
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
+@router.post("/proposals/{proposal_id}/placement", response_model=AdminProposalItem)
+def admin_proposal_placement(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Recalcula el «¿ampliar o nuevo?» con el volcado de GSC de ahora."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if not p.target_keyword:
+        raise HTTPException(status_code=409, detail="la propuesta no tiene keyword objetivo")
+    _placement.store(db, p, _placement.analyze(db, p))
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
 
 
 @router.post("/proposals/{proposal_id}/schedule", response_model=AdminProposalItem)
@@ -3218,9 +3296,12 @@ class SeoOpportunityOut(BaseModel):
     approved_at: datetime | None
     drafted_at: datetime | None
     applied_at: datetime | None
+    proposal_id: int | None = None
+    # Hay copia en `content_revisions` y se puede deshacer desde el panel.
+    revertible: bool = False
 
 
-def _opp_to_out(o) -> SeoOpportunityOut:
+def _opp_to_out(o, *, revertible: bool = False) -> SeoOpportunityOut:
     return SeoOpportunityOut(
         id=o.id, path=o.path, action=o.action, status=o.status,
         impressions=o.impressions, period=o.period, gap_hint=o.gap_hint,
@@ -3230,6 +3311,8 @@ def _opp_to_out(o) -> SeoOpportunityOut:
         draft_body=o.draft_body, draft_notes=o.draft_notes, error=o.error,
         attempts=o.attempts, created_at=o.created_at, approved_at=o.approved_at,
         drafted_at=o.drafted_at, applied_at=o.applied_at,
+        proposal_id=getattr(o, "proposal_id", None),
+        revertible=revertible,
     )
 
 
@@ -3249,16 +3332,32 @@ def list_seo_opportunities(
             ["detected", "approved", "drafted", "failed"]))
     elif status != "all":
         q = q.filter(SeoOpportunity.status == status)
-    rows = (q.order_by(SeoOpportunity.status.asc(),
-                       SeoOpportunity.impressions.desc())
-            .limit(max(1, min(limit, 500))).all())
-    return [_opp_to_out(r) for r in rows]
+    orden = ((SeoOpportunity.applied_at.desc(),) if status == "applied"
+             else (SeoOpportunity.status.asc(), SeoOpportunity.impressions.desc()))
+    rows = q.order_by(*orden).limit(max(1, min(limit, 500))).all()
+    return [_opp_to_out(r, revertible=r.id in _con_copia(db, rows)) for r in rows]
+
+
+def _con_copia(db: Session, rows) -> set[int]:
+    """Ids aplicados que tienen copia SIN revertir en `content_revisions`.
+
+    Las mejoras de antes del 19-10-2026 no la tienen: ofrecerles «revertir» sería
+    un botón que siempre devuelve 409.
+    """
+    from app.db.models import ContentRevision
+
+    ids = [r.id for r in rows if r.status == "applied"]
+    if not ids:
+        return set()
+    return {i for (i,) in db.query(ContentRevision.opportunity_id).filter(
+        ContentRevision.opportunity_id.in_(ids), ContentRevision.reverted_at.is_(None)
+    ).distinct().all()}
 
 
 @router.post("/seo-opportunities/{opp_id}/{accion}", response_model=SeoOpportunityOut)
 def act_on_seo_opportunity(
     opp_id: int,
-    accion: Literal["approve", "apply", "discard"],
+    accion: Literal["approve", "apply", "discard", "revert"],
     background: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
@@ -3285,8 +3384,18 @@ def act_on_seo_opportunity(
         if not apply_draft(db, o):
             db.refresh(o)
             raise HTTPException(status_code=409, detail=o.error or "no se pudo aplicar")
+    elif accion == "revert":
+        from app.services.seo_opportunities import RevertError, revert_applied
+
+        try:
+            revert_applied(db, o)
+        except RevertError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     else:
+        from app.services.content_merge import release_proposal
+
         o.status = "discarded"
+        release_proposal(db, o)
         db.commit()
     db.refresh(o)
     return _opp_to_out(o)
