@@ -9,6 +9,8 @@ Corre en el HOST, no en docker (la clave nunca entra en un contenedor ni en la i
     python3 -I api/scripts/pr/outreach.py reply 2 --texto r.txt --adjunto a.png   # vista previa
     python3 -I api/scripts/pr/outreach.py reply 2 --texto r.txt --adjunto a.png --yes
     python3 -I api/scripts/pr/outreach.py followups
+    python3 -I api/scripts/pr/outreach.py followup 7 --texto data/estudio/followups/7.txt   # vista previa
+    python3 -I api/scripts/pr/outreach.py followup 7 --texto data/estudio/followups/7.txt --yes
 
 Credenciales en ~/.config/correo-personal/credenciales.env, que solo se usan desde
 RobeLyrics y Privado (hook `proteger-correo-personal.py`). Solo librería estándar.
@@ -24,6 +26,9 @@ Reglas que el script hace cumplir, no solo documenta:
     el enlace llega limpio (es el backlink que se busca). Por eso Resend y no Brevo:
     Brevo convierte el texto en HTML y mete un píxel de aperturas por cualquier vía
     (API, SMTP, cabeceras X-Mailin-Track a 0). Medido el 07-10-2026.
+  · `followup` insiste UNA vez y en el hilo del correo original: lo localiza por la copia
+    en BCC que llega al Gmail y se cuelga de su Message-ID. Se niega si el medio ya
+    respondió, si ya se insistió o si no han pasado DIAS_INSISTENCIA días.
   · La lectura es de SOLO LECTURA (`EXAMINE`): no marca nada como leído ni lo mueve.
 """
 from __future__ import annotations
@@ -51,7 +56,7 @@ CREDENCIALES = Path.home() / ".config" / "correo-personal" / "credenciales.env"
 
 REMITENTE = {"name": "David Ruiz · Entre Interiores", "email": "hola@entreinteriores.com"}
 RESEND_URL = "https://api.resend.com/emails"
-EXTRA = ["ID", "messageId", "Última comprobación"]
+EXTRA = ["ID", "messageId", "Última comprobación", "Seguimiento (fecha)"]
 DIAS_INSISTENCIA = 7
 # El Python de python.org en macOS no trae CA raíz: sin esto, HTTPS falla con
 # CERTIFICATE_VERIFY_FAILED, y `imaplib` sin contexto propio NO verifica el
@@ -383,12 +388,99 @@ def cmd_reply(args) -> int:
     return 0
 
 
+def _original_enviado(imap: imaplib.IMAP4_SSL, f: dict) -> email.message.Message | None:
+    """La copia en BCC del primer correo: es la que lleva el Message-ID que vio el medio."""
+    consulta = f"from:hola@entreinteriores.com to:{f['Email'].lower()} newer_than:90d"
+    typ, data = imap.search(None, "X-GM-RAW", f'"{consulta}"')
+    ids = data[0].split() if typ == "OK" and data and data[0] else []
+    asunto = " ".join(f["Asunto"].split())
+    for num in ids:
+        typ, partes = imap.fetch(num, "(BODY.PEEK[])")
+        if typ != "OK" or not partes or not isinstance(partes[0], tuple):
+            continue
+        msg = email.message_from_bytes(partes[0][1])
+        # Un «Re:» nuestro posterior también casa con la búsqueda: solo vale el original.
+        if " ".join(_decodificar(msg.get("Subject")).split()) == asunto:
+            return msg
+    return None
+
+
+def _comprobar_insistible(f: dict) -> str | None:
+    if not f["Mandado (fecha)"]:
+        return "no se ha mandado el primer correo"
+    if f.get("Respuesta"):
+        return f"ya respondió: {f['Respuesta'][:80]}"
+    if f.get("Seguimiento (fecha)"):
+        return f"ya se insistió el {f['Seguimiento (fecha)']}"
+    if "@" not in f["Email"]:
+        return f"sin email válido: «{f['Email']}»"
+    enviado = datetime.strptime(f["Mandado (fecha)"][:10], "%Y-%m-%d").date()
+    if date.today() - enviado < timedelta(days=DIAS_INSISTENCIA):
+        return f"solo han pasado {(date.today() - enviado).days} días"
+    return None
+
+
+def cmd_followup(args) -> int:
+    cols, filas = leer()
+    f = fila(filas, args.id)
+    motivo = _comprobar_insistible(f)
+    if motivo:
+        sys.exit(f"no se insiste: {motivo}")
+    texto = Path(args.texto).read_text(encoding="utf-8").strip() + "\n"
+
+    imap = _abrir_buzon()
+    try:
+        original = _original_enviado(imap, f)
+    finally:
+        with contextlib.suppress(Exception):
+            imap.logout()
+    if original is None:
+        # Sin hilo, el seguimiento llegaría suelto y sin contexto: mejor no mandarlo.
+        sys.exit(f"no encuentro en el Gmail la copia del correo original a {f['Email']}")
+
+    message_id = (original.get("Message-ID") or "").strip()
+    if not message_id:
+        sys.exit("el correo original no tiene Message-ID: el seguimiento iría suelto")
+    asunto = f"Re: {' '.join(f['Asunto'].split())}"
+    nombre = f["Persona"] if f["Persona"] and not f["Persona"].startswith("Redacción") else None
+    para = email.utils.formataddr((nombre, f["Email"])) if nombre else f["Email"]
+
+    print(f"De:      {REMITENTE['name']} <{REMITENTE['email']}>")
+    print(f"Para:    {para}")
+    print(f"Asunto:  {asunto}")
+    print(f"Hilo:    {message_id} ({original.get('Date', '')})")
+    print("-" * 72)
+    print(texto, end="")
+    print("-" * 72)
+    if not args.yes:
+        print(f"vista previa: para mandarlo, followup {f['ID']} --texto {args.texto} --yes")
+        return 0
+
+    remitente = email.utils.formataddr((REMITENTE["name"], REMITENTE["email"]))
+    payload = {
+        "from": remitente,
+        "to": [para],
+        "bcc": [REMITENTE["email"]],
+        "reply_to": remitente,
+        "subject": asunto,
+        "text": texto,
+        "headers": {"In-Reply-To": message_id, "References": message_id},
+    }
+    huella = hashlib.sha256(f"{para}|{asunto}|{texto}".encode()).hexdigest()[:16]
+    cuerpo = _resend(payload, f"followup-{f['ID']}-{huella}")
+
+    f["Seguimiento (fecha)"] = date.today().isoformat()
+    escribir(cols, filas)
+    print(f"seguimiento mandado a {para} · messageId {cuerpo.get('id', '')}")
+    return 0
+
+
 def cmd_followups(_args) -> int:
     _, filas = leer()
     hoy = date.today()
     hay = False
     for f in filas:
-        if not f["Mandado (fecha)"] or f.get("Respuesta"):
+        if not f["Mandado (fecha)"] or f.get("Respuesta") or f.get("Seguimiento (fecha)"):
             continue
         enviado = datetime.strptime(f["Mandado (fecha)"][:10], "%Y-%m-%d").date()
         if hoy - enviado < timedelta(days=DIAS_INSISTENCIA):
@@ -427,6 +519,11 @@ def main() -> int:
     c.add_argument("--yes", action="store_true")
     c.set_defaults(fn=cmd_reply)
     sub.add_parser("followups").set_defaults(fn=cmd_followups)
+    u = sub.add_parser("followup")
+    u.add_argument("id")
+    u.add_argument("--texto", required=True, help="fichero con el cuerpo, en texto plano")
+    u.add_argument("--yes", action="store_true")
+    u.set_defaults(fn=cmd_followup)
     args = ap.parse_args()
     return args.fn(args)
 
