@@ -339,7 +339,13 @@ def cmd_reply(args) -> int:
     if original is None:
         sys.exit(f"no hay ningún correo de {f['Medio']} al que contestar")
 
-    para = original.get("Reply-To") or original.get("From", "")
+    # Se rehace la dirección: Resend rechaza un «<a@b>» sin nombre delante (422).
+    nombre_para, email_para = email.utils.parseaddr(
+        _decodificar(original.get("Reply-To") or original.get("From", ""))
+    )
+    if "@" not in email_para:
+        sys.exit(f"no se entiende la dirección del remitente: «{original.get('From')}»")
+    para = email.utils.formataddr((nombre_para, email_para)) if nombre_para else email_para
     # Un asunto largo llega plegado en varias líneas: se deja en una.
     asunto = " ".join(_decodificar(original.get("Subject")).split()) or f["Asunto"]
     if not asunto.lower().startswith("re:"):
