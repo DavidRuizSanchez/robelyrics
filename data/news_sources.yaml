@@ -183,7 +183,11 @@ sources:
     policy: blog+ig
     tier: trusted
     weight: 0.6
-    enabled: true
+    # Apagado el 24-10-2026: bloquea la IP del servidor (403 desde el 14-09 y
+    # «Server disconnected» desde el 17-10); desde casa responde 200. En ~110
+    # pasadas buenas desde el 25-05 no trajo ni una noticia relevante. No se
+    # disfraza el User-Agent: si levantan el bloqueo, volver a `true`.
+    enabled: false
 
   - key: mariskal_rock
     name: "Mariskal Rock"
