@@ -20,6 +20,7 @@ const GRUPOS: { titulo: string; items: Item[] }[] = [
     titulo: "Calidad",
     items: [
       { href: "/biblioteca/admin/erratas", label: "Erratas" },
+      { href: "/biblioteca/admin/corpus", label: "Corpus" },
       { href: "/biblioteca/admin/sources", label: "Fuentes" },
     ],
   },

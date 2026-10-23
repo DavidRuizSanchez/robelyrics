@@ -276,3 +276,30 @@ export const GLOSARIO = {
 } as const;
 
 export type TerminoGlosario = keyof typeof GLOSARIO;
+
+// ── Corpus (cola de ingesta de YouTube) ─────────────────────────────────────
+
+/** Nivel de confianza que pone `corpus_trust` a cada vídeo que encuentra la búsqueda. */
+export const CORPUS_NIVEL: Record<string, Etiqueta> = {
+  A: { label: "A · habla una voz de casa", tone: "ok", hint: "Robe, un miembro o un amigo, en un canal oficial, de un medio o de un músico, y es una entrevista o charla." },
+  B: { label: "B · reportaje de un medio", tone: "info", hint: "Un medio reconocido habla del universo Robe sin que hable una voz de casa. Entra como fondo." },
+  C: { label: "C · canal de fan", tone: "neutral", hint: "Canal que no conocemos. Puede ser una entrevista buena subida por un fan, o ruido." },
+};
+
+export const CORPUS_STATUS: Record<string, Etiqueta> = {
+  detected: { label: "Por decidir", tone: "warn" },
+  approved: { label: "Aprobado: lo baja tu Mac", tone: "info", hint: "El daemon de la Mac lo transcribe en su próxima pasada (cada 15 min)." },
+  processing: { label: "Transcribiéndose", tone: "info" },
+  done: { label: "En el corpus", tone: "ok" },
+  failed: { label: "Falló", tone: "danger" },
+  retired: { label: "Descartado", tone: "neutral" },
+};
+
+/** Cómo entra en el corpus (`kind`). */
+export const CORPUS_KIND: Record<string, string> = {
+  robe_interview: "Voz de Robe (alimenta también la voz del consultorio)",
+  entorno_interview: "Testimonio del entorno (se afirma, no se cita)",
+  media_report: "Reportaje (fondo)",
+  youtube_transcript: "Análisis o vídeo de fan (fondo)",
+  about_robe: "Sobre Robe, de terceros (fondo)",
+};
