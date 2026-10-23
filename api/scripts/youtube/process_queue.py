@@ -55,6 +55,48 @@ def _base_and_headers() -> tuple[str, dict]:
     return base, {"Authorization": f"Bearer {key}"}
 
 
+def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
+    """Reclama, transcribe y empuja UN vídeo. False si otra pasada lo tiene.
+
+    `transcribe` devuelve `(texto, tramos)` desde que se guardan los tiempos
+    (23-09-2026). Aquí se seguía tratando como texto: `clean_text` recibía la
+    tupla y el primer vídeo aprobado habría fallado tres veces seguidas. Los
+    tramos viajan a prod, que los guarda en `source_segments`.
+    """
+    item_id, vid = it["id"], it["video_id"]
+    title = it.get("title") or vid
+    claim = http.post(f"{base}/ingest/youtube/{item_id}/claim")
+    if claim.status_code == 409:
+        # Otra pasada se lo llevó (el launchd dispara cada 15 min y una
+        # manual puede solaparse). No es un fallo nuestro y no se reporta
+        # como tal: se salta y ya.
+        logger.info("[·] %s lo está haciendo otra pasada: %s",
+                    vid, claim.json().get("detail", "")[:60])
+        return False
+    claim.raise_for_status()
+    with tempfile.TemporaryDirectory() as td:
+        audio = download_audio(vid, td)
+        if not audio:
+            raise RuntimeError("yt-dlp no devolvió audio")
+        dur = audio_duration_s(audio)
+        chunks = split_audio(audio, td)
+        texto_crudo, tramos = transcribe(openai, chunks)
+        text = clean_text(texto_crudo) or ""
+    floor = min_chars_for(dur, ceiling=MIN_CHARS)
+    if len(text) < floor:
+        raise RuntimeError(
+            f"transcripción demasiado corta ({len(text)} chars < {floor} "
+            f"para {dur and round(dur)}s de audio)"
+        )
+    resp = http.post(
+        f"{base}/ingest/youtube/{item_id}/complete",
+        json={"content_clean": text, "title": it.get("title"), "segments": tramos},
+    )
+    resp.raise_for_status()
+    logger.info("[✓] %s · %d chars · %d tramos · %s", vid, len(text), len(tramos), title[:55])
+    return True
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--max", type=int, default=None, help="Tope de vídeos por pasada.")
@@ -76,37 +118,10 @@ def main() -> None:
         for it in items:
             item_id = it["id"]
             vid = it["video_id"]
-            title = it.get("title") or vid
             try:
-                claim = http.post(f"{base}/ingest/youtube/{item_id}/claim")
-                if claim.status_code == 409:
-                    # Otra pasada se lo llevó (el launchd dispara cada 15 min y una
-                    # manual puede solaparse). No es un fallo nuestro y no se reporta
-                    # como tal: se salta y ya.
-                    logger.info("[·] %s lo está haciendo otra pasada: %s",
-                                vid, claim.json().get("detail", "")[:60])
+                if not _procesar(http, base, openai, it):
                     continue
-                claim.raise_for_status()
-                with tempfile.TemporaryDirectory() as td:
-                    audio = download_audio(vid, td)
-                    if not audio:
-                        raise RuntimeError("yt-dlp no devolvió audio")
-                    dur = audio_duration_s(audio)
-                    chunks = split_audio(audio, td)
-                    text = clean_text(transcribe(openai, chunks)) or ""
-                floor = min_chars_for(dur, ceiling=MIN_CHARS)
-                if len(text) < floor:
-                    raise RuntimeError(
-                        f"transcripción demasiado corta ({len(text)} chars < {floor} "
-                        f"para {dur and round(dur)}s de audio)"
-                    )
-                resp = http.post(
-                    f"{base}/ingest/youtube/{item_id}/complete",
-                    json={"content_clean": text, "title": it.get("title")},
-                )
-                resp.raise_for_status()
                 n_ok += 1
-                logger.info("[✓] %s · %d chars · %s", vid, len(text), title[:55])
             except Exception as e:  # noqa: BLE001
                 n_fail += 1
                 msg = f"{type(e).__name__}: {e}"
