@@ -22,7 +22,7 @@ services:
       - robelyrics
 
   qdrant:
-    image: qdrant/qdrant:v1.12.1
+    image: qdrant/qdrant:v1.19.2
     container_name: robelyrics-qdrant
     restart: unless-stopped
     ports:
