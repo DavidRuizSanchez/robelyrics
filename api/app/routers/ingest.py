@@ -66,6 +66,14 @@ class PendingItem(BaseModel):
     target: str
 
 
+class SegmentIn(BaseModel):
+    start_s: float
+    end_s: float
+    text: str
+    no_speech_prob: float | None = None
+    avg_logprob: float | None = None
+
+
 class CompleteIn(BaseModel):
     # Suelo ABSOLUTO, solo contra payloads vacíos o basura. El criterio fino lo
     # aplica el daemon con `min_chars_for`, que es quien conoce la duración del
@@ -76,6 +84,10 @@ class CompleteIn(BaseModel):
     title: str | None = None
     published_at: datetime | None = None
     quality_score: float | None = None
+    # Tramos con tiempo ABSOLUTO (el daemon ya suma el offset de cada trozo).
+    # Opcional a propósito: el api se despliega antes que la Mac, y un daemon
+    # viejo que no los manda no puede recibir un 422.
+    segments: list[SegmentIn] | None = None
 
 
 class FailIn(BaseModel):
@@ -163,11 +175,11 @@ def complete(
     row = _get_or_404(db, item_id)
 
     # Import perezoso: el helper de upsert vive en los scripts de research.
-    from scripts.research.common import clean_text, upsert_source
+    from scripts.research.common import clean_text, guardar_segmentos, upsert_source
 
     content = (payload.content_clean or "").strip()
     default_q = _DEFAULT_QUALITY.get(row.kind, 0.7)
-    upsert_source(
+    source_id = upsert_source(
         db,
         kind=row.kind,
         url=row.url,
@@ -182,7 +194,11 @@ def complete(
     row.status = "done"
     row.error = None
     row.done_at = datetime.now(UTC)
-    db.commit()
+    if payload.segments:
+        # Mismo escritor que backfill_segments; reemplaza los previos y hace commit.
+        guardar_segmentos(db, source_id, [s.model_dump() for s in payload.segments])
+    else:
+        db.commit()
     return OkOut(status=row.status)
 
 
