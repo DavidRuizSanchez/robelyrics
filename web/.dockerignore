@@ -7,3 +7,4 @@ out
 README.md
 Dockerfile
 .dockerignore
+.pnpm-store
