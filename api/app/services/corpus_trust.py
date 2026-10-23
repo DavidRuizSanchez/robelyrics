@@ -103,7 +103,9 @@ def voces_de_yaml(path: Path = VOICES_PATH) -> list[Voz]:
             continue
         voces.append(Voz(
             slug=v["slug"], nombre=v["nombre"], relacion=v.get("relacion", "amigo"),
-            alias=tuple(v.get("alias") or [v["nombre"]]),
+            # `alias: []` explícito = el nombre solo vale con contexto (está en
+            # `alias_ambiguos`); no se rellena con el nombre.
+            alias=tuple(v.get("alias", [v["nombre"]]) or ()),
             alias_ambiguos=tuple(v.get("alias_ambiguos") or []),
         ))
     return voces

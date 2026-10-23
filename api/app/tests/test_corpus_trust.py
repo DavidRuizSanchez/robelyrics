@@ -138,3 +138,18 @@ def test_el_fichero_real_de_medios_carga_sin_ids_repetidos():
     assert all(i.startswith("UC") and len(i) == 24 for i in ids)
     # Los tres medios del veto levantado el 23-10-2026 están dentro.
     assert {"mondosonoro.com", "efeeme.com", "rockdelux.com"} <= set(medios.dominios)
+
+
+def test_un_nombre_comun_solo_cuenta_con_contexto(tmp_path):
+    f = tmp_path / "voces.yaml"
+    f.write_text(
+        "voces:\n"
+        "  - slug: tomas-rodriguez\n    nombre: Tomás Rodríguez\n    alias: []\n"
+        "    alias_ambiguos: [Tomás Rodríguez]\n"
+        "    evidencia:\n      - url: https://ejemplo.org\n        cita: mánager\n",
+        encoding="utf-8",
+    )
+    voces = voces_de_yaml(f)
+    assert voces_en("Tomás Rodríguez, nuevo fichaje del Betis", voces) == []
+    assert [v.slug for v in voces_en("Tomás Rodríguez recuerda los inicios de Extremoduro",
+                                     voces)] == ["tomas-rodriguez"]
