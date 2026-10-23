@@ -51,67 +51,22 @@ _YT_ID = re.compile(
     r"(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)([\w-]{11})"
 )
 
-# Canales de los que NO se cogen clips.
-#
-# Publicar un fragmento de un canal de fan y publicarlo del canal OFICIAL de la
-# banda o de su discográfica no tienen el mismo riesgo: el titular de derechos es
-# justo quien reclamaría, e Instagram detecta audio con derechos y puede tumbar
-# el post sin que intervenga nadie. Los canales de fan, entrevistas y archivo son
-# terreno mucho más tranquilo.
-#
-# Se comprueba sobre el nombre del canal que devuelve yt-dlp, que es el real, no
-# sobre lo que uno crea al pegar la URL.
-# Ojo con «reaccion»/«reacts»: el material de esos canales es el vídeo de OTRO
-# con su comentario encima, así que un clip de ahí publica al youtuber, no a
-# Robe. Salió al proponer: un tramo de «Leo Reaccion» pasó todas las guardas
-# porque el audio original sí era de Robe.
-CANALES_VETADOS = (
-    "reaccion", "reacción", "reacts", "reaction", "reacciona",
-    "oficial", "official", "vevo", " - topic", "records", "discos",
-    "warner", "sony music", "universal music", "dro east west",
+# Canales de los que NO se cogen clips: el oficial de la banda o su sello es
+# justo quien reclamaría, e Instagram tumba el post por audio con derechos. La
+# política vive en `channel_policy` (modo `clip`) porque el corpus la comparte
+# con otro criterio; aquí se re-exporta para no tocar a quien ya la usa.
+from app.services.channel_policy import (  # noqa: E402, F401
+    CANALES_SENSIBLES,
+    CANALES_VETADOS,
+    canal_sensible,
+    canal_vetado,
 )
-
-
-# Un canal que se llama EXACTAMENTE como el artista es su canal, aunque no
-# ponga «oficial» ni «VEVO» por ningún lado. Salió buscando conciertos: el canal
-# «Robe» a secas publica los directos de Mayéutica, y `CANALES_VETADOS` no lo
-# tocaba. Comparación exacta a propósito: «Extremoduro Directos» o «Robe y yo»
-# son de fans y tienen que seguir valiendo.
-_NOMBRES_OFICIALES = ("robe", "extremoduro", "robe iniesta", "roberto iniesta")
-
-
-def canal_vetado(canal: str) -> str | None:
-    """Devuelve el patrón que veta a este canal, o None si se puede usar."""
-    c = (canal or "").casefold().strip()
-    if not c:
-        return None
-    if c in _NOMBRES_OFICIALES:
-        return f"el canal se llama como el artista («{canal.strip()}»)"
-    return next((p for p in CANALES_VETADOS if p in c), None)
 
 
 def extraer_video_id(url: str) -> str | None:
     """El id de 11 caracteres de una URL de YouTube, o None si no lo parece."""
     m = _YT_ID.search(url or "")
     return m.group(1) if m else None
-
-
-# Medios audiovisuales grandes. NO se vetan —no son discográficas ni canales
-# oficiales de artista, y una entrevista de radio o de televisión es justo el
-# material que se busca—, pero se señalan en el correo de aprobación: un clip de
-# Movistar+ o de RTVE se reclama antes que el de un fan, y quien aprueba merece
-# saberlo antes de pulsar. Vetarlos por mi cuenta sería decidir por David.
-CANALES_SENSIBLES = (
-    "movistar", "rtve", "el país", "el pais", "atresmedia", "antena 3",
-    "telecinco", "mediaset", "la sexta", "cadena ser", "cope", "onda cero",
-    "rockfm", "canal extremadura", "tve", "netflix", "hbo", "prisa",
-)
-
-
-def canal_sensible(canal: str) -> str | None:
-    """Medio profesional que conviene mirar dos veces. No veta: avisa."""
-    c = (canal or "").casefold()
-    return next((p for p in CANALES_SENSIBLES if p in c), None)
 
 
 def solicitar(
