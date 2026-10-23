@@ -15,7 +15,7 @@ REPORTS="$BASE/openai-check"
 LABEL="com.robelyrics.openai-check"
 PLIST="/Users/david.ruiz/Library/LaunchAgents/$LABEL.plist"
 DEPLOY_UTC="2026-10-19 09:57:45"
-export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 mkdir -p "$REPORTS"
 
 today=$(TZ=Europe/Madrid date +%Y-%m-%d)
@@ -63,7 +63,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') $slot $verdict calls=$calls openai_errors=$op
 touch "$REPORTS/$slot.done"
 
 sound=$([ "$verdict" = "OK" ] && echo "default" || echo "Basso")
-/usr/local/bin/terminal-notifier -group "robelyrics.openai-check" -sound "$sound" \
+terminal-notifier -group "robelyrics.openai-check" -sound "$sound" \
   -title "RobeLyrics · gpt-6-luna: $verdict" -message "$message" -open "file://${report// /%20}" >/dev/null 2>&1
 
 if [ $is_final -eq 1 ]; then
