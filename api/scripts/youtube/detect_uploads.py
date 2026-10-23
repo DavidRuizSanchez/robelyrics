@@ -19,6 +19,14 @@ Un canal puede no ser monotemático. @juancaraes lo es (`relevance: all`), pero
 menciona a Robe/Extremoduro o un título del catálogo. El MOTIVO de cada match va
 en el email, que es donde se aprueba de verdad.
 
+Además BUSCA en YouTube (`corpus_search`) por las voces de casa y por temas, y
+clasifica cada resultado con `corpus_trust`: A (habla una voz en un canal
+fiable), B (reportaje de un medio), C (canal de fan). En modo SOMBRA (por
+defecto, `CORPUS_AUTO_ENTRY=false`) todo va al correo como siempre; con él
+encendido, A y B entran como `approved` y el correo solo los enseña. Con
+`--backfill` (sin límite de fecha, se lanza una vez) solo se encolan A y B: el
+histórico de fans son cientos de vídeos y ahogarían el correo.
+
 Uso:
     python -m scripts.youtube.detect_uploads
     python -m scripts.youtube.detect_uploads --dry-run        # no inserta, no envía
@@ -26,6 +34,8 @@ Uso:
     python -m scripts.youtube.detect_uploads --only-channel @tesonica
     python -m scripts.youtube.detect_uploads --skip-channel @juancaraes
     python -m scripts.youtube.detect_uploads --no-interviews  # solo canales
+    python -m scripts.youtube.detect_uploads --no-search      # sin búsqueda
+    python -m scripts.youtube.detect_uploads --backfill       # histórico, solo A y B
 """
 from __future__ import annotations
 
@@ -33,6 +43,7 @@ import argparse
 import logging
 import os
 import re
+from datetime import UTC, datetime
 
 import httpx
 import yaml
@@ -52,7 +63,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 # kinds que viven en el corpus por video_id (para dedup contra lo ya ingerido).
-INGESTED_KINDS = ("youtube_transcript", "robe_interview", "about_robe")
+INGESTED_KINDS = ("youtube_transcript", "robe_interview", "about_robe",
+                  "entorno_interview", "media_report")
 
 _VID_RE = re.compile(
     r"(?:v=|youtu\.be/|/shorts/|/embed/)([\w-]{6,})"
@@ -134,6 +146,7 @@ def _channel_candidates(cfg: dict, limit: int | None, vocab) -> list[dict]:
             "kind": "youtube_transcript",
             "author": author,
             "published_at": parse_iso(v.get("published_at")),
+            "descubierto_por": "canal",
             "reasons": reasons,
         })
     logger.info(
@@ -167,8 +180,50 @@ def _robe_interview_candidates() -> list[dict]:
             "kind": "robe_interview" if is_robe else "about_robe",
             "author": entry.get("author"),
             "published_at": None,
+            "descubierto_por": "inventario",
             "reasons": ["inventario robe_interviews.yaml"],
         })
+    return out
+
+
+def _search_candidates(backfill: bool, conocidos: set[str]) -> list[dict]:
+    """Búsqueda en YouTube → filas clasificadas. Lo descartado no se encola."""
+    from scripts.youtube.corpus_search import descubrir
+
+    settings = get_settings()
+    if not settings.youtube_api_key:
+        logger.warning("YOUTUBE_API_KEY no configurada: salto la búsqueda")
+        return []
+    with get_session() as db:
+        resultados = descubrir(db, settings.youtube_api_key, backfill=backfill,
+                               conocidos=conocidos)
+    out, por_nivel = [], {}
+    for video, ver, extra in resultados:
+        por_nivel[ver.nivel] = por_nivel.get(ver.nivel, 0) + 1
+        if ver.nivel == "descartado" or (backfill and ver.nivel == "C"):
+            continue
+        auto = settings.corpus_auto_entry and ver.entra_solo
+        out.append({
+            "video_id": video.video_id,
+            "url": f"https://www.youtube.com/watch?v={video.video_id}",
+            "title": video.title,
+            "channel": video.channel_title,
+            "channel_id": video.channel_id,
+            "target": "robe_voice" if ver.kind == "robe_interview" else "corpus",
+            "kind": ver.kind,
+            "author": video.channel_title,
+            "published_at": parse_iso(extra.get("published_at")),
+            "nivel": ver.nivel,
+            "voces": ver.voces,
+            "motivos": ver.motivos,
+            "descubierto_por": "busqueda",
+            "duration_s": video.duration_s,
+            "status": "approved" if auto else "detected",
+            "reasons": [f"nivel {ver.nivel}", *ver.motivos],
+        })
+    logger.info("búsqueda: %s · se encolan %d%s",
+                " · ".join(f"{k} {v}" for k, v in sorted(por_nivel.items())), len(out),
+                " (histórico: solo A y B)" if backfill else "")
     return out
 
 
@@ -191,10 +246,17 @@ def _send_email(
     voice = [r for r in new_rows if r.target == "robe_voice"]
     # El corpus se agrupa por canal: con varios canales barriéndose, saber de quién
     # es cada vídeo es lo que permite decidir si aprobarlo.
+    voice = [r for r in voice if not r.nivel]
     corpus_by_channel: dict[str, list[YouTubeIngestQueue]] = {}
     for r in new_rows:
-        if r.target == "corpus":
+        if r.target == "corpus" and not r.nivel:
             corpus_by_channel.setdefault(r.channel or "?", []).append(r)
+    # Lo que trajo la búsqueda va por NIVEL, no por canal: son decenas de canales.
+    pendientes_nivel = {n: [r for r in new_rows if r.nivel == n and r.status == "detected"]
+                        for n in ("A", "B", "C")}
+    entraron_solos = [r for r in new_rows if r.nivel and r.status == "approved"]
+    _NOMBRE_NIVEL = {"A": "A · habla una voz de casa", "B": "B · reportaje de un medio",
+                     "C": "C · canal de fan"}
 
     def _why(r: YouTubeIngestQueue) -> str:
         """Motivo del match, en pequeño y bajo el título."""
@@ -240,6 +302,8 @@ def _send_email(
     </p>
     {"".join(_section(f"@{ch} (corpus)", rows) for ch, rows in sorted(corpus_by_channel.items()))}
     {_section("Entrevistas de Robe (voz)", voice)}
+    {"".join(_section(_NOMBRE_NIVEL[n], rows) for n, rows in pendientes_nivel.items())}
+    {_section("Ya entraron solos (para que lo sepas)", entraron_solos)}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
       <a href="{approve_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
         aprobar e ingerir
@@ -251,6 +315,8 @@ def _send_email(
     text_lines = [f"{n} vídeos nuevos para ingerir.", ""]
     secciones = [(f"@{ch}", rows) for ch, rows in sorted(corpus_by_channel.items())]
     secciones.append(("ENTREVISTAS DE ROBE", voice))
+    secciones += [(_NOMBRE_NIVEL[n], rows) for n, rows in pendientes_nivel.items()]
+    secciones.append(("YA ENTRARON SOLOS", entraron_solos))
     for label, rows in secciones:
         if not rows:
             continue
@@ -282,6 +348,9 @@ def main() -> None:
     ap.add_argument("--skip-channel", action="append", default=[], help="Excluir handle (repetible).")
     ap.add_argument("--no-channels", action="store_true", help="Solo entrevistas yaml.")
     ap.add_argument("--no-interviews", action="store_true", help="Solo canales.")
+    ap.add_argument("--no-search", action="store_true", help="Sin búsqueda en YouTube.")
+    ap.add_argument("--backfill", action="store_true",
+                    help="Búsqueda sin límite de fecha; solo encola A y B.")
     # Alias históricos: el cron y la documentación vieja los usan.
     ap.add_argument("--no-juancares", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
@@ -316,6 +385,10 @@ def main() -> None:
 
     with get_session() as db:
         seen = _queued_ids(db) | _already_ingested_ids(db)
+    if not args.no_search:
+        candidates += _search_candidates(args.backfill, seen)
+
+    with get_session() as db:
         # Dedup interno del propio lote (un video_id repetido en yaml).
         fresh: list[dict] = []
         batch_seen: set[str] = set()
@@ -336,8 +409,9 @@ def main() -> None:
         if args.dry_run:
             for c in fresh:
                 logger.info(
-                    "  + [%s/%s · @%s] %s",
+                    "  + [%s/%s · @%s%s] %s",
                     c["target"], c["kind"], c.get("channel") or "?",
+                    f" · nivel {c['nivel']} · {c['status']}" if c.get("nivel") else "",
                     (c["title"] or c["video_id"]),
                 )
                 for r in (c.get("reasons") or [])[:3]:
@@ -347,11 +421,13 @@ def main() -> None:
         # `reasons` es contexto para el email, no una columna del modelo.
         reasons_by_vid = {c["video_id"]: (c.get("reasons") or []) for c in fresh}
         new_rows = [
-            YouTubeIngestQueue(
-                status="detected", **{k: v for k, v in c.items() if k != "reasons"}
-            )
+            YouTubeIngestQueue(**{"status": "detected",
+                                  **{k: v for k, v in c.items() if k != "reasons"}})
             for c in fresh
         ]
+        for r in new_rows:
+            if r.status == "approved":
+                r.approved_at = datetime.now(UTC)
         db.add_all(new_rows)
         db.flush()  # asigna ids antes de firmar el token
         ids = [r.id for r in new_rows]

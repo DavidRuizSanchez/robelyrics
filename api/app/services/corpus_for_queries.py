@@ -65,6 +65,11 @@ _ATRIBUCION = {
     "interview": "una entrevista con {autor}",
     "robe_interview": "una entrevista con Robe",
     "about_robe": "{autor}",
+    # Sin estas dos entradas, sus pasajes se descartaban en silencio
+    # (`material_para_consultas`). La etiqueta orienta al motor; ninguna de las
+    # dos se cita: solo se cita a Robe.
+    "entorno_interview": "testimonio de alguien del entorno de Robe",
+    "media_report": "un reportaje de {autor}",
 }
 
 
@@ -179,18 +184,27 @@ def bloque_material(pasajes: list[dict], verificados: list[str] | None = None) -
     """
     if not pasajes and not verificados:
         return ""
-    robe, fondo = [], []
+    robe, entorno, fondo = [], [], []
     for p in pasajes:
         frag = (p.get("fragmento") or "").strip()
         if p.get("kind") == "robe_interview":
             medio = (p.get("title") or "una entrevista").strip()
             robe.append(f"[LO QUE DIJO ROBE · {medio} — se puede citar con el medio]\n{frag}")
+        elif p.get("kind") == "entorno_interview":
+            entorno.append(f"[TESTIMONIO DEL ENTORNO · responde a «{p.get('consulta', '')}»]"
+                           f"\n{frag}")
         else:
             fondo.append(f"[FONDO · responde a «{p.get('consulta', '')}»]\n{frag}")
     partes = []
     if robe:
         partes.append("PALABRAS DE ROBE (citables, con el medio):\n\n"
                       + "\n\n----\n\n".join(robe))
+    if entorno:
+        # Criterio de David (23-10-2026): lo que cuentan los miembros y los amigos
+        # de Robe es fuente PROPIA (se afirma sin corroborar fuera), pero no se cita.
+        partes.append("TESTIMONIOS DEL ENTORNO DE ROBE (de primera mano: se pueden "
+                      "afirmar en nuestra voz; PROHIBIDO nombrar o citar a quien lo dijo):"
+                      "\n\n" + "\n\n----\n\n".join(entorno))
     if verificados:
         partes.append("DATOS VERIFICADOS (contrastados por otra vía; se pueden afirmar "
                       "en nuestra voz, sin decir de dónde salen):\n"
@@ -207,7 +221,7 @@ def bloque_material(pasajes: list[dict], verificados: list[str] | None = None) -
 # Cabeceras de bloque de `deep_research` que son de TERCEROS (ver `_source_head`).
 _FONDO_RE = re.compile(
     r"^\[(?:TRANSCRIPCI[OÓ]N|youtube|blog|forum|foro|reddit|genius|prensa|press|fuente"
-    r"|book|thesis|interview|about_robe|directo|concierto)\b", re.I)
+    r"|book|thesis|interview|about_robe|directo|concierto|media_report)\b", re.I)
 
 
 def separar_material(material: str) -> tuple[str, str]:

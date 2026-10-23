@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # las transcripciones (solo lo usa el daemon, no la API en sí).
     ingest_api_key: str | None = Field(None, alias="INGEST_API_KEY")
     prod_api_url: str = Field("https://entreinteriores.com/api", alias="PROD_API_URL")
+    # Modo SOMBRA del corpus (por defecto): lo que `corpus_trust` da por bueno (A y
+    # B) va al correo de aprobación igual que lo de un fan. Se enciende cuando David
+    # haya aprobado dos semanas de A sin rechazar ninguno. Vive aquí, y no en la
+    # disciplina de quien despliega, para que no se encienda por olvido.
+    corpus_auto_entry: bool = Field(False, alias="CORPUS_AUTO_ENTRY")
 
     # CORS — orígenes permitidos, separados por coma. En dev: localhost:3000/3001.
     # En prod: https://entreinteriores.com,https://www.entreinteriores.com.
