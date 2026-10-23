@@ -37,9 +37,12 @@ jobs:
 
       - name: pytest
         # Variables de pega: la config se valida al importar, pero ningún test
-        # abre conexión de verdad.
+        # abre conexión de verdad. `data/` va montado como en desarrollo y en
+        # prod (`./data:/app/data:ro`): sin él, los tests que validan los YAML
+        # reales (voces y medios del corpus) no encontraban el fichero.
         run: |
           docker run --rm \
+            -v "$PWD/data:/app/data:ro" \
             -e DATABASE_URL="postgresql+psycopg://u:p@localhost:5432/x" \
             -e QDRANT_URL="http://localhost:6333" \
             -e OPENAI_API_KEY="sk-test" \
