@@ -22,7 +22,9 @@
 #     (@periodicoextremadura, 57 subs): se describen como el medio, pero no hay
 #     forma de saber si son los suyos.
 #   - Maneras de Vivir: el canal homónimo es un programa de radio argentino.
-#   - ABC: @abc es la cadena de EE. UU.; el dominio abc.es sí vale.
+#   - @abc es la cadena de EE. UU.: el del diario es @abc_es (añadido tras la
+#     primera muestra, que trajo una entrevista a Uoho en «Diario ABC»).
+#   - Telesur Madrid (tele local) y Orain Berriak (292 subs, sin descripción).
 
 medios:
   # --- Televisión y radio públicas ---
@@ -111,6 +113,18 @@ medios:
   - nombre: ABC
     nivel: generalista
     dominios: [abc.es]
+    youtube:
+      - {channel_id: UChFgb_m6aDftnqrxTYFO5Xw, handle: "@abc_es"}   # «Cuenta oficial del diario ABC»
+  - nombre: Europa Press
+    nivel: generalista
+    dominios: [europapress.es]
+    youtube:
+      - {channel_id: UCh_chnQ7OJPQ8mZ7vbXFpIQ, handle: "@europapress"}   # «Canal Oficial de Europa Press»
+  - nombre: El Periódico de España
+    nivel: generalista
+    dominios: [epe.es]
+    youtube:
+      - {channel_id: UCmofP1gcUiGaHR2czdlMINQ, handle: "@elperidicodeespana"}
   - nombre: La Razón
     nivel: generalista
     dominios: [larazon.es]
