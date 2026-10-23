@@ -21,6 +21,7 @@ type Summary = {
   clips: { requested: number; downloading: number; ready: number; failed: number };
   oportunidades: { detected: number; approved: number; drafted: number; failed: number };
   erratas: { pending: number; needs_human: number };
+  corpus: { detected: number; approved: number; failed: number };
 };
 
 export const metadata = {
@@ -149,6 +150,16 @@ export default async function AdminHomePage() {
             lineas={[
               { n: s.erratas.needs_human, texto: "necesitan tu criterio", tone: "warn" },
               { n: s.erratas.pending, texto: "sin revisar todavía", tone: "warn" },
+            ]}
+          />
+          <Panel
+            titulo="Corpus"
+            href="/biblioteca/admin/corpus"
+            pendiente={s.corpus.detected + s.corpus.failed}
+            lineas={[
+              { n: s.corpus.detected, texto: "vídeos por decidir", tone: "warn" },
+              { n: s.corpus.failed, texto: "vídeos que no se pudieron transcribir", tone: "danger" },
+              { n: s.corpus.approved, texto: "esperando a tu Mac", tone: "info" },
             ]}
           />
         </div>

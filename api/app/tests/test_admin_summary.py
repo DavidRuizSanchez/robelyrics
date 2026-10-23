@@ -6,7 +6,7 @@ contara esas listas, una cola de 600 diría «500» sin avisar.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import JSON, MetaData, Text, create_engine
+from sqlalchemy import ARRAY, JSON, MetaData, Text, create_engine
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Session
 
@@ -17,11 +17,13 @@ from app.db.models import (
     Post,
     SeoOpportunity,
     VideoClip,
+    YouTubeIngestQueue,
 )
 from app.services.admin_summary import resumen
 from app.services.instagram.config import MAX_PUBLISH_ATTEMPTS
 
-MODELOS = (Post, ContentProposal, InstagramQueueItem, VideoClip, SeoOpportunity, ErrataReport)
+MODELOS = (Post, ContentProposal, InstagramQueueItem, VideoClip, SeoOpportunity, ErrataReport,
+           YouTubeIngestQueue)
 
 
 def _con_dependencias(tablas):
@@ -43,7 +45,7 @@ def db():
     for tabla in _con_dependencias([m.__table__ for m in MODELOS]):
         t = tabla.to_metadata(md)
         for col in t.columns:
-            if isinstance(col.type, JSONB):
+            if isinstance(col.type, (JSONB, ARRAY)):
                 col.type = JSON()
             elif isinstance(col.type, TSVECTOR):
                 col.type = Text()
@@ -62,6 +64,7 @@ def test_vacio_da_ceros_en_todas_las_colas(db):
     assert r["ideas"] == {"proposed": 0, "approved": 0, "scheduled": 0}
     assert r["instagram"]["needs_human"] == 0
     assert r["erratas"] == {"pending": 0, "needs_human": 0}
+    assert r["corpus"] == {"detected": 0, "approved": 0, "failed": 0}
 
 
 def test_cuenta_todo_sin_tope_y_separa_lo_que_pide_una_mano(db):

@@ -1563,6 +1563,35 @@ def admin_summary(
     return resumen(db)
 
 
+@router.get("/corpus/queue")
+def admin_corpus_queue(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """La cola de ingesta de YouTube por estado, con el nivel y el motivo de cada vídeo."""
+    from app.services.corpus_queue import listar
+
+    return listar(db)
+
+
+@router.post("/corpus/queue/{item_id}/{accion}")
+def admin_corpus_queue_decidir(
+    item_id: int,
+    accion: Literal["aprobar", "descartar", "reintentar"],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Aprobar o descartar un vídeo detectado, o reintentar uno que falló."""
+    from app.services.corpus_queue import AccionNoValida, decidir
+
+    try:
+        return decidir(db, item_id, accion)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="vídeo no encontrado") from e
+    except AccionNoValida as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
 @router.get("/proposals/stats", response_model=AdminProposalStats)
 def admin_proposals_stats(
     db: Session = Depends(get_db),

@@ -16,6 +16,7 @@ from app.db.models import (
     Post,
     SeoOpportunity,
     VideoClip,
+    YouTubeIngestQueue,
 )
 from app.services.instagram.config import MAX_PUBLISH_ATTEMPTS
 
@@ -74,4 +75,5 @@ def resumen(db: Session) -> dict[str, dict[str, int]]:
             db, SeoOpportunity, "detected", "approved", "drafted", "failed"
         ),
         "erratas": _por_estado(db, ErrataReport, "pending", "needs_human"),
+        "corpus": _por_estado(db, YouTubeIngestQueue, "detected", "approved", "failed"),
     }
