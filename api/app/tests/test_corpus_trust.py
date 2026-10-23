@@ -73,11 +73,37 @@ def test_la_voz_en_un_canal_de_fan_espera_el_clic():
     assert v.nivel == "C" and v.voces == ["robe-iniesta"]
 
 
-def test_la_voz_sin_senal_de_charla_no_entra_sola():
-    # Un directo en un medio NO es Robe hablando: es Robe cantando.
+def test_una_cancion_no_entra_ni_en_un_medio():
+    # Un directo en un medio NO es Robe hablando: es Robe cantando, y la letra
+    # ya está en la BD.
     v = clasificar(_video("Robe Iniesta - Ama, ama y ensancha el alma (directo)", "RTVE",
                           "UC_RTVE"), VOCES, MEDIOS)
-    assert v.nivel == "B"
+    assert v.nivel == "descartado"
+
+
+# Títulos y canales REALES de la primera muestra (24-10-2026).
+
+def test_el_canal_oficial_sin_charla_es_musica():
+    v = clasificar(_video("Robe - Nada que perder", "Robe", dur=420.0), VOCES, MEDIOS)
+    assert v.nivel == "descartado"
+
+
+def test_robe_a_secas_basta_en_su_canal():
+    v = clasificar(_video("ROBE RUEDA DE PRENSA", "Robe", dur=6600.0), VOCES, MEDIOS)
+    assert v.nivel == "A" and v.voces == ["robe-iniesta"]
+
+
+def test_el_canal_de_un_miembro_es_fiable():
+    woody = Voz(slug="woody-amores", nombre="Woody Amores", relacion="miembro",
+                alias=("Woody Amores",))
+    v = clasificar(_video("ENTREVISTA A ROBE EN CANAL EXTREMADURA RADIO", "Woody Amores",
+                          dur=1860.0), [*VOCES, woody], MEDIOS)
+    assert v.nivel == "A" and v.kind == "robe_interview"
+
+
+def test_un_alias_corto_sigue_sin_contar_en_un_canal_de_fan():
+    v = clasificar(_video("ROBE RUEDA DE PRENSA", "Rockero88"), VOCES, MEDIOS)
+    assert v.nivel == "C" and v.voces == []
 
 
 @pytest.mark.parametrize("canal,dur", [
@@ -153,3 +179,39 @@ def test_un_nombre_comun_solo_cuenta_con_contexto(tmp_path):
     assert voces_en("Tomás Rodríguez, nuevo fichaje del Betis", voces) == []
     assert [v.slug for v in voces_en("Tomás Rodríguez recuerda los inicios de Extremoduro",
                                      voces)] == ["tomas-rodriguez"]
+
+
+def test_si_habla_otro_de_robe_no_es_la_voz_de_robe():
+    v = clasificar(_video("ENTREVISTA | Iñaki “Uoho”: su verdad sobre Robe, Extremoduro y el "
+                          "dolor que no superó", "Diario ABC", "UC_RTVE", dur=1500.0),
+                   VOCES, MEDIOS)
+    assert v.nivel == "A" and v.kind == "entorno_interview"
+
+
+@pytest.mark.parametrize("titulo,kind", [
+    ("Leiva: \"No había podido escuchar a Robe hasta ahora\"", "entorno_interview"),
+    ("Robe: \"No le veo el sentido ir a los conciertos con teléfonos móviles", "robe_interview"),
+])
+def test_una_cita_en_el_titulo_es_alguien_hablando(titulo, kind):
+    v = clasificar(_video(titulo, "RTVE", "UC_RTVE", dur=130.0), VOCES, MEDIOS)
+    assert v.nivel == "A" and v.kind == kind
+
+
+def test_cantar_en_un_homenaje_es_musica():
+    v = clasificar(_video("Leiva canta 'El hombre pájaro' en el Sonorama en homenaje a Robe "
+                          "Iniesta | EL PAÍS", "RTVE", "UC_RTVE", dur=180.0), VOCES, MEDIOS)
+    assert v.nivel == "descartado"
+
+
+def test_el_canal_de_un_musico_sin_charla_es_musica():
+    sucio = Voz(slug="carlos-el-sucio", nombre="el Sucio", relacion="miembro",
+                alias=("el Sucio",))
+    v = clasificar(_video("El Sucio: En el Cosmos (Official Music Video)", "EL SUCIO ",
+                          dur=200.0), [*VOCES, sucio], MEDIOS)
+    assert v.nivel == "descartado"
+
+
+def test_responder_es_hablar():
+    v = clasificar(_video("¿Volverá Extremoduro? Iñaki \"Uoho\" responde", "RTVE", "UC_RTVE",
+                          dur=70.0), VOCES, MEDIOS)
+    assert v.nivel == "A" and v.kind == "entorno_interview"

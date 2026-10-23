@@ -2048,7 +2048,7 @@ class YouTubeIngestQueue(Base):
     __tablename__ = "youtube_ingest_queue"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('detected', 'approved', 'processing', 'done', 'failed')",
+            "status IN ('detected', 'approved', 'processing', 'done', 'failed', 'retired')",
             name="ck_youtube_ingest_status",
         ),
         CheckConstraint(
@@ -2056,7 +2056,8 @@ class YouTubeIngestQueue(Base):
             name="ck_youtube_ingest_target",
         ),
         CheckConstraint(
-            "kind IN ('youtube_transcript', 'robe_interview', 'about_robe')",
+            "kind IN ('youtube_transcript', 'robe_interview', 'about_robe', "
+            "'entorno_interview', 'media_report')",
             name="ck_youtube_ingest_kind",
         ),
         UniqueConstraint("video_id", "target", name="uq_youtube_ingest_video_target"),
@@ -2093,6 +2094,14 @@ class YouTubeIngestQueue(Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Por qué se encoló (`corpus_trust`, migración corpus2026_01). NULL en lo
+    # anterior, que entraba por canal vigilado o por el inventario de entrevistas.
+    channel_id: Mapped[str | None] = mapped_column(String(64))
+    nivel: Mapped[str | None] = mapped_column(String(16))          # A | B | C
+    voces: Mapped[list[str] | None] = mapped_column(ARRAY(String(120)))
+    motivos: Mapped[list | None] = mapped_column(JSONB)
+    descubierto_por: Mapped[str | None] = mapped_column(String(16))  # canal | busqueda | inventario
+    duration_s: Mapped[float | None] = mapped_column(Float)
 
 
 class UrlIngestJob(Base):

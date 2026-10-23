@@ -44,8 +44,25 @@ _SENAL_CHARLA = (
     "entrevista", "entrevistamos", "charla", "conversacion", "conversamos",
     "rueda de prensa", "habla", "hablamos", "nos cuenta", "cuenta como",
     "podcast", "coloquio", "encuentro con", "testimonio", "declaraciones",
-    "documental",
+    "documental", "responde", "explica", "se sincera", "confiesa", "reflexiona",
+    "opina",
 )
+
+# Lo que delata una CANCIÓN, no a alguien hablando. Transcribir una canción no
+# añade nada al corpus: la letra ya está en la BD. Salió en la primera muestra
+# real (24-10-2026): «Robe - Nada que perder», del canal oficial, entraba como
+# reportaje.
+_SENAL_MUSICA = (
+    "directo", "en vivo", "live", "concierto", "videoclip", "video oficial",
+    "official video", "lyric", "letra", "audio", "acustico", "cover", "version",
+    "canta", "cantando", "interpreta", "actuacion", "music video",
+)
+
+# «Leiva: "No había podido escuchar a Robe…"»: una cita introducida por dos
+# puntos o por una barra es alguien hablando, aunque el título no diga
+# «entrevista». Solo tras «:» o «|», para no confundirla con el título de una
+# canción entre comillas.
+_CITA_EN_TITULO = re.compile(r"[:|]\s*[\"“«']")
 
 # Contexto que desambigua un alias de una palabra.
 _CONTEXTO_UNIVERSO = ("extremoduro", "robe iniesta", "roberto iniesta")
@@ -70,18 +87,29 @@ class Voz:
     alias: tuple[str, ...] = ()
     alias_ambiguos: tuple[str, ...] = ()
 
-    def nombrada_en(self, texto_norm: str) -> bool:
-        """¿El texto nombra a esta voz sin ambigüedad?"""
+    def nombrada_en(self, texto_norm: str, canal_fiable: bool = False) -> bool:
+        """¿El texto nombra a esta voz sin ambigüedad?
+
+        En un canal fiable (oficial, de un medio o de una voz de casa) el alias
+        corto basta: «ROBE RUEDA DE PRENSA» en el canal de Robe es él. No se usa
+        `relevante` como contexto porque «robe» a secas ya lo hace relevante.
+        """
         if any(_contiene(texto_norm, a) for a in self.alias if len(a.split()) > 1):
             return True
         cortos = [a for a in self.alias if len(a.split()) == 1] + list(self.alias_ambiguos)
         if not any(_contiene(texto_norm, a) for a in cortos):
             return False
+        if canal_fiable:
+            return True
         # Un alias de una palabra solo vale con el universo al lado. Para Robe,
         # «Robe» y «Extremoduro» juntos ya son contexto suficiente.
         return any(_contiene(texto_norm, c) for c in _CONTEXTO_UNIVERSO) or (
             self.relacion != "robe" and _contiene(texto_norm, "robe")
         )
+
+    def es_su_canal(self, canal: str | None) -> bool:
+        c = normaliza(canal)
+        return bool(c) and c in {normaliza(a) for a in (self.nombre, *self.alias)}
 
     @property
     def kind(self) -> str:
@@ -134,9 +162,9 @@ def cargar_voces(db) -> list[Voz]:
     return voces_de_bd(db) + voces_de_yaml()
 
 
-def voces_en(texto: str, voces: list[Voz]) -> list[Voz]:
+def voces_en(texto: str, voces: list[Voz], canal_fiable: bool = False) -> list[Voz]:
     t = normaliza(texto)
-    return [v for v in voces if v.nombrada_en(t)]
+    return [v for v in voces if v.nombrada_en(t, canal_fiable)]
 
 
 @dataclass
@@ -197,19 +225,37 @@ def clasificar(video: Video, voces: list[Voz], medios: MediosCorpus) -> Veredict
         return Veredicto("descartado", None, motivos=[f"dura {video.duration_s / 3600:.1f} h"])
 
     texto = f"{video.title}\n{video.description}"
-    texto_norm = normaliza(texto)
     oficial = es_canal_oficial(video.channel_title)
     medio = medios.canal(video.channel_id)
+    # El canal de un miembro o amigo (Woody Amores sube entrevistas de Robe).
+    dueno = next((v for v in voces if v.es_su_canal(video.channel_title)), None)
+    fiable = bool(oficial or medio or dueno)
     if oficial:
         motivos.append(f"canal oficial («{video.channel_title}»)")
     elif medio:
         motivos.append(f"medio reconocido ({medio})")
+    elif dueno:
+        motivos.append(f"canal de {dueno.nombre}")
 
-    nombradas = voces_en(texto, voces)
-    charla = next((s for s in _SENAL_CHARLA if _contiene(texto_norm, s)), None)
-    if nombradas and (oficial or medio) and charla:
-        # Si hay varias, manda Robe: es la única voz que se cita.
-        principal = next((v for v in nombradas if v.relacion == "robe"), nombradas[0])
+    nombradas = voces_en(texto, voces, canal_fiable=fiable)
+    # Solo el título: las descripciones de los vídeos musicales hablan a veces
+    # de entrevistas o de otras cosas que no son el vídeo.
+    titulo_norm = normaliza(video.title)
+    charla = next((s for s in _SENAL_CHARLA if _contiene(titulo_norm, s)), None)
+    if not charla and _CITA_EN_TITULO.search(video.title or ""):
+        charla = "cita en el título"
+    musica = next((s for s in _SENAL_MUSICA if _contiene(titulo_norm, s)), None)
+    if not charla and (musica or oficial or dueno):
+        # Sin señal de charla, el canal oficial o el de un músico sube música
+        # aunque el título no lo diga («Robe - Nada que perder»).
+        return Veredicto("descartado", None, motivos=motivos + [
+            f"es música («{musica}»)" if musica else "canal de músico sin señal de charla: música"])
+    if nombradas and fiable and charla:
+        # Robe solo si es la ÚNICA voz nombrada. Desde su muerte casi todos los
+        # títulos le nombran como TEMA: «Iñaki "Uoho": su verdad sobre Robe» es
+        # Uoho hablando, y tomarlo por Robe metería sus palabras en la voz de
+        # Robe (robe_voice_v1), que el consultorio usa para hablar como él.
+        principal = next((v for v in nombradas if v.relacion != "robe"), nombradas[0])
         motivos.append(f"voz: {', '.join(v.nombre for v in nombradas)} · «{charla}»")
         return Veredicto("A", principal.kind, [v.slug for v in nombradas], motivos)
 
@@ -218,7 +264,7 @@ def clasificar(video: Video, voces: list[Voz], medios: MediosCorpus) -> Veredict
     if nombradas:
         motivos.append(f"nombra a {', '.join(v.nombre for v in nombradas)} "
                        f"{'sin señal de charla' if not charla else 'en un canal sin reconocer'}")
-    if medio or oficial:
+    if medio or dueno:
         return Veredicto("B", "media_report", [v.slug for v in nombradas], motivos)
     return Veredicto("C", "youtube_transcript", [v.slug for v in nombradas],
                      motivos + ["canal sin reconocer"])

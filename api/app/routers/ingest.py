@@ -37,6 +37,8 @@ _DEFAULT_QUALITY = {
     "youtube_transcript": 0.7,
     "robe_interview": 0.8,
     "about_robe": 0.5,
+    "entorno_interview": 0.75,   # testimonio de un miembro o amigo: propio, no se cita
+    "media_report": 0.6,         # reportaje de un medio: fondo
 }
 
 
