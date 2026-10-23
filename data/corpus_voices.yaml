@@ -39,3 +39,140 @@ voces:
       - url: "https://www.planetadelibros.com/libro-extremoduro-de-profundis/358250"
         cita: "la biografía autorizada de Extremoduro, De profundis (Libros Cúpula, 2022; Booket, 2025)"
         comprobado: "2026-10-24"
+
+  # --- Alta del 24-10-2026: candidatos de persons.yaml aprobados por David.
+  # Cita comprobada ese día en la fuente. Sin cita, no entra (ver pendientes).
+
+  - slug: fito-cabrales
+    nombre: "Fito Cabrales"
+    alias: ["Fito Cabrales", "Adolfo Cabrales", "Fito & Fitipaldis"]
+    alias_ambiguos: ["Fito"]      # Fito Páez
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Fito_Cabrales"
+        cita: "Especial relevancia tuvo su relación con Roberto Iniesta, líder de Extremoduro, con quien realizaron una gira conjunta en 1996."
+        comprobado: "2026-10-24"
+
+  - slug: manolo-chinato
+    nombre: "Manolo Chinato"
+    alias: ["Manolo Chinato", "Manolillo Chinato"]
+    alias_ambiguos: ["Chinato"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Manolo_Chinato"
+        cita: "Extrechinato y Tú fue un proyecto con el que Roberto Iniesta, vocalista, guitarrista y líder de Extremoduro, quiso homenajear a Chinato grabando un disco con sus poemas."
+        comprobado: "2026-10-24"
+
+  - slug: albert-pla
+    nombre: "Albert Pla"
+    alias: ["Albert Pla"]
+    alias_ambiguos: []
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Albert_Pla"
+        cita: "Ha colaborado con Kase.O, Manolo Kabezabolo, Roberto Iniesta (Extremoduro)"
+        comprobado: "2026-10-24"
+
+  - slug: fermin-muguruza
+    nombre: "Fermín Muguruza"
+    alias: ["Fermín Muguruza", "Fermin Muguruza"]
+    alias_ambiguos: ["Muguruza"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Fermin_Muguruza"
+        cita: "Albert Pla Veintegenarios (con Manolo Kabezabolo y Robe Iniesta (Veintegenarios en Alburquerque, 1997)"
+        comprobado: "2026-10-24"
+
+  - slug: manolo-kabezabolo
+    nombre: "Manolo Kabezabolo"
+    alias: ["Manolo Kabezabolo"]
+    alias_ambiguos: ["Kabezabolo"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Manolo_Kabezabolo"
+        cita: "Albert Pla Veintegenarios (con Fermin Muguruza y Robe Iniesta (Veintegenarios en Alburquerque, 1997)"
+        comprobado: "2026-10-24"
+
+  - slug: rosendo-mercado
+    nombre: "Rosendo"
+    alias: ["Rosendo Mercado"]
+    alias_ambiguos: ["Rosendo"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Extremoduro"
+        cita: "El vocalista y guitarrista Rosendo Mercado, tras recibir unas maquetas que le envió el grupo, apareció en el estudio para colaborar en dos temas aportando su voz y guitarra en sendas grabaciones."
+        contexto: "«Somos unos animales» (1991)."
+        comprobado: "2026-10-24"
+
+  - slug: selu
+    nombre: "Selu"
+    alias: ["José Luis Nieto"]
+    alias_ambiguos: ["Selu"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Extremoduro"
+        cita: "En mayo de 1993, José Luis Nieto «Selu», saxofonista de la banda Reincidentes, propuso a Robe crear un álbum musical compuesto de un solo tema."
+        contexto: "Origen de «Pedrá»."
+        comprobado: "2026-10-24"
+
+  - slug: ventura-rico
+    nombre: "Ventura Rico"
+    alias: ["Ventura Rico"]
+    alias_ambiguos: []
+    relacion: entorno
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Extremoduro"
+        cita: "Finalmente, entraron a grabar el álbum ¿Dónde están mis amigos?, cuya grabación y mezclas se realizaron en tres semanas y, por primera vez, fue producido por un productor profesional, Ventura Rico."
+        comprobado: "2026-10-24"
+
+  - slug: kutxi-romero
+    nombre: "Kutxi Romero"
+    alias: ["Kutxi Romero"]
+    alias_ambiguos: ["Kutxi"]
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Marea_(banda)"
+        cita: "Colaboraron: Robe (\"Extremoduro\") y Fito (\"Platero y Tú\", y \"Fito & Fitipaldis\")"
+        contexto: "Colaboraciones en discos de Marea, la banda de Kutxi Romero."
+        comprobado: "2026-10-24"
+
+  - slug: jon-calvo
+    nombre: "Jon Calvo"
+    alias: []
+    alias_ambiguos: ["Jon Calvo"]   # nombre común
+    relacion: entorno
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Extremoduro"
+        cita: "Mientras tanto, bajo el sello Muxik se publicó La inconsciencia de Uoho; un álbum grabado por el grupo Inconscientes, banda paralela de Iñaki formada junto a Miguel y Cantera además del vocalista Jon Calvo."
+        comprobado: "2026-10-24"
+
+  - slug: alen-ayerdi
+    nombre: "Alén Ayerdi"
+    alias: ["Alén Ayerdi"]
+    alias_ambiguos: ["Ayerdi"]
+    relacion: entorno
+    evidencia:
+      - url: "https://www.eldiario.es/cultura/manager-robe-denuncia-falsos-homenajes-animo-lucro-muerte-musico_1_13058688.html"
+        cita: "El músico y productor Alén Ayerdi, batería de Marea y mánager hasta sus últimos días de Robe Iniesta"
+        contexto: "elDiario.es, 11-03-2026."
+        comprobado: "2026-10-24"
+
+  - slug: tomas-rodriguez
+    nombre: "Tomás Rodríguez"
+    alias: []
+    alias_ambiguos: ["Tomás Rodríguez"]   # homónimos: un político, un futbolista
+    relacion: entorno
+    evidencia:
+      - url: "https://en.wikipedia.org/wiki/Extremoduro"
+        cita: "most of the lyrics are adaptations of the poems by Kiko \"Luna Creciente\", Tomás Rodríguez (the band's manager) and Manolo Chinato."
+        contexto: "«Deltoya» (1992)."
+        comprobado: "2026-10-24"
+
+# PENDIENTES (David los aprobó el 24-10-2026, pero no hay fuente que acredite la
+# relación; no se dan de alta suponiéndola):
+#   - El Drogas (Enrique Villarreal): ni su artículo ni el de Extremoduro ni una
+#     búsqueda web lo relacionan con Robe.
+#   - Rafael Gallego: ninguna fuente le atribuye la portada del debut.
+#   - Raúl Guerrero: sin fuente externa (falleció en 1996).
+#   - Juantxu «Mongol» Olano y Jaime Moreno: la fuente los relaciona con Uoho
+#     (Platero y Tú, Rebrote), no con Robe.
