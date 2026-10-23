@@ -1,0 +1,167 @@
+# Medios reconocidos para el CORPUS (decisión de David, 23-10-2026).
+#
+# Cuenta la tele y la radio públicas y privadas, la prensa generalista, la
+# especializada y el sector, incluidos Mondo Sonoro, Efe Eme y Rockdelux (se
+# levanta el veto del corpus). Lo que publican entra como FONDO (se corrobora y
+# no se nombra), salvo cuando quien habla es una voz de `corpus_voices.yaml` o
+# de la BD.
+#
+# Canales de YouTube por `channel_id`, NUNCA por subcadena del nombre: cualquiera
+# puede llamar a su canal «RTVE Archivo». Cada id se resolvió con la API de
+# YouTube el 24-10-2026 (`channels.list` por handle, o `search.list` + ficha) y
+# solo entra si la ficha acredita que es el canal del medio: se declara oficial,
+# o su handle y su descripción coinciden con el medio, con país ES.
+#
+# `sweep: true` = el detector barre también sus subidas (Fase 2). De momento
+# solo se usa para clasificar lo que encuentra la búsqueda.
+#
+# Pendientes, sin canal acreditado (no se añaden por suponerlo):
+#   - Efe Eme: «Revista Efe Eme» (@revistaefeeme3826) tiene 24 suscriptores,
+#     5 vídeos y ninguna descripción.
+#   - HOY (@hoy_extremadura, 67 subs) y El Periódico Extremadura
+#     (@periodicoextremadura, 57 subs): se describen como el medio, pero no hay
+#     forma de saber si son los suyos.
+#   - Maneras de Vivir: el canal homónimo es un programa de radio argentino.
+#   - ABC: @abc es la cadena de EE. UU.; el dominio abc.es sí vale.
+
+medios:
+  # --- Televisión y radio públicas ---
+  - nombre: RTVE
+    nivel: publico
+    dominios: [rtve.es]
+    youtube:
+      - {channel_id: UCqlsTzBv49Uiu8Z3IseVgQQ, handle: "@rtveplay"}
+      - {channel_id: UC7QZIf0dta-XPXsp9Hv4dTw, handle: "@rtvenoticias"}
+      - {channel_id: UC4JKB8aJtR-ExRjxawcSr6g, handle: "@rtvemusica"}
+      - {channel_id: UCoqdklOdLbSI-pG9a4zdUrw, handle: "@radio3extra"}
+  - nombre: Canal Extremadura
+    nivel: publico
+    dominios: [canalextremadura.es]
+    youtube:
+      - {channel_id: UC7kKUci4lTpIim4LHki10vA, handle: "@canalextremadura"}
+  - nombre: Telemadrid
+    nivel: publico
+    dominios: [telemadrid.es]
+    youtube:
+      - {channel_id: UCv2BcgqxHSrl2QQfIkjR5Eg, handle: "@telemadrid"}
+
+  # --- Televisión y radio privadas ---
+  - nombre: Cadena SER
+    nivel: privado
+    dominios: [cadenaser.com]
+    youtube:
+      - {channel_id: UCQ2Fej5pr1ipVeBWTX8Sc_Q, handle: "@cadenaser"}
+  - nombre: COPE
+    nivel: privado
+    dominios: [cope.es]
+    youtube:
+      - {channel_id: UC-9V-k1ugOGSePgIw3UevTQ, handle: "@cope"}
+  - nombre: Onda Cero
+    nivel: privado
+    dominios: [ondacero.es]
+    youtube:
+      - {channel_id: UCPd-Lf5gQkAJD5XdTmT_GGA, handle: "@ondacero"}
+  - nombre: RockFM
+    nivel: privado
+    dominios: [rockfm.fm]
+    youtube:
+      - {channel_id: UCi3B8FzWhjKHCPrnMt5mWMw, handle: "@rockfm_es"}
+  - nombre: LOS40
+    nivel: privado
+    dominios: [los40.com]
+    youtube:
+      - {channel_id: UCDwjiSF4qEb3aeT3ZLkPc_Q, handle: "@los40spain"}
+  - nombre: Movistar Plus+
+    nivel: privado
+    dominios: [movistarplus.es]
+    youtube:
+      - {channel_id: UCEHD_P5browp_QPhPlbOIbQ, handle: "@movistarplus"}
+  - nombre: laSexta
+    nivel: privado
+    dominios: [lasexta.com]
+    youtube:
+      - {channel_id: UCh1OgMIWOlDBhFEYL3DHWjQ, handle: "@lasexta"}
+  - nombre: Atresmedia
+    nivel: privado
+    dominios: [antena3.com]
+    youtube:
+      - {channel_id: UCMSOVP8zZq8BGwAJ2sEtOHw, handle: "@atresplayer"}
+
+  # --- Prensa generalista ---
+  - nombre: El País
+    nivel: generalista
+    dominios: [elpais.com]
+    youtube:
+      - {channel_id: UCnsvJeZO4RigQ898WdDNoBw, handle: "@elpais"}
+  - nombre: El Mundo
+    nivel: generalista
+    dominios: [elmundo.es]
+    youtube:
+      - {channel_id: UCGXbLrVe8vnkiFv7q2vYv3w, handle: "@elmundo"}
+  - nombre: La Vanguardia
+    nivel: generalista
+    dominios: [lavanguardia.com]
+    youtube:
+      - {channel_id: UClLLRs_mFTsNT5U-DqTYAGg, handle: "@lavanguardia"}
+  - nombre: elDiario.es
+    nivel: generalista
+    dominios: [eldiario.es]
+    youtube:
+      - {channel_id: UCig8aKQHLt8E35_LJKwOscA, handle: "@eldiarioes"}
+  - nombre: ABC
+    nivel: generalista
+    dominios: [abc.es]
+  - nombre: La Razón
+    nivel: generalista
+    dominios: [larazon.es]
+  - nombre: 20minutos
+    nivel: generalista
+    dominios: [20minutos.es]
+  - nombre: HOY
+    nivel: generalista
+    dominios: [hoy.es]
+  - nombre: El Periódico Extremadura
+    nivel: generalista
+    dominios: [elperiodicoextremadura.com]
+
+  # --- Prensa especializada y del sector ---
+  - nombre: Mondo Sonoro
+    nivel: especializado
+    dominios: [mondosonoro.com]
+    youtube:
+      - {channel_id: UCE5YnRKtl8JcaNeMcGW8new, handle: "@mondosonoro"}
+  - nombre: Rockdelux
+    nivel: especializado
+    dominios: [rockdelux.com]
+    youtube:
+      - {channel_id: UCcj1ZrHT-ifZwb35mvKhlPQ, handle: "@rockdelux_oficial"}
+  - nombre: Efe Eme
+    nivel: especializado
+    dominios: [efeeme.com]
+  - nombre: Muzikalia
+    nivel: sector
+    dominios: [muzikalia.com]
+    youtube:
+      - {channel_id: UC4rwz928LdWke1oE39JEZtg, handle: "@muzikalia"}
+  - nombre: Mariskal Rock
+    nivel: sector
+    dominios: [mariskalrock.com]
+    youtube:
+      - {channel_id: UC6epAxOHZ8WjTmjPmHQo-kQ, handle: "@mariskalrocktv"}
+  - nombre: La Ganzúa
+    nivel: sector
+    dominios: [laganzua.net]
+    youtube:
+      - {channel_id: UCn1QFl-jOkNI5cO8FxKaqdQ, handle: "@laganzuanet"}
+  - nombre: Maneras de Vivir
+    nivel: sector
+    dominios: [manerasdevivir.com]
+  - nombre: Dirty Rock Magazine
+    nivel: sector
+    dominios: [dirtyrock.info]
+  - nombre: Science of Noise
+    nivel: sector
+    dominios: [scienceofnoise.net]
+  - nombre: Binaural
+    nivel: sector
+    dominios: [binaural.es]

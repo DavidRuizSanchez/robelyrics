@@ -1,0 +1,41 @@
+# Voces del corpus que NO salen de la BD.
+#
+# Robe, los miembros (`band_memberships`) y el entorno de `persons.yaml` /
+# `bands.relation_type in (family, friend)` se leen de la BD. Aquí van los
+# AMIGOS con relación cercana con Robe que David autoriza (23-10-2026): lo que
+# digan sobre Robe o Extremoduro entra en el corpus como fuente PROPIA, pero NO
+# se cita (solo se cita a Robe; ver «La voz es nuestra» en CLAUDE.md).
+#
+# REGLA: nadie entra sin `evidencia` comprobada, con la cita LITERAL de la fuente
+# y la fecha en que se descargó. Una relación supuesta es como se cuela un
+# homónimo (Fito Páez, Guardiola).
+#
+# `alias`: formas en que se le nombra en títulos y descripciones. Un alias que
+# sea ambiguo por sí solo («Fito», «Salo») va en `alias_ambiguos`: solo cuenta
+# con el nombre completo o con Robe/Extremoduro al lado.
+
+voces:
+  - slug: leiva
+    nombre: "Leiva"
+    alias: ["Leiva", "José Miguel Conejo Torres"]
+    alias_ambiguos: []
+    relacion: amigo
+    evidencia:
+      - url: "https://es.wikipedia.org/wiki/Leiva_(cantante)"
+        cita: "Esta fue la última canción de Robe Iniesta"
+        contexto: "«Caída libre» (2025), dúo de Leiva con Robe."
+        comprobado: "2026-10-24"
+      - url: "https://es.wikipedia.org/wiki/Leiva_(cantante)"
+        cita: "El 31 de diciembre, Leiva hace una aparición en el resumen del año de TVE cantando El Hombre Pájaro en homenaje a Robe."
+        comprobado: "2026-10-24"
+
+  # David lo nombró como «Javier Méndez Flores»; el nombre real es Menéndez.
+  - slug: javier-menendez-flores
+    nombre: "Javier Menéndez Flores"
+    alias: ["Javier Menéndez Flores", "Menéndez Flores"]
+    alias_ambiguos: []
+    relacion: biografo
+    evidencia:
+      - url: "https://www.planetadelibros.com/libro-extremoduro-de-profundis/358250"
+        cita: "la biografía autorizada de Extremoduro, De profundis (Libros Cúpula, 2022; Booket, 2025)"
+        comprobado: "2026-10-24"
