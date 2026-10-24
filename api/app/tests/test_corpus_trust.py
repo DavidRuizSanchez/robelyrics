@@ -197,6 +197,20 @@ def test_una_cita_en_el_titulo_es_alguien_hablando(titulo, kind):
     assert v.nivel == "A" and v.kind == kind
 
 
+def test_una_cita_de_otros_sobre_robe_no_es_su_voz():
+    # Primer backfill real (24-10-2026): la cita es de los locutores.
+    v = clasificar(_video("Las voces de la radio despiden a Robe Iniesta: \"Sus canciones "
+                          "deberían estudiarse en Selectividad\"", "RTVE", "UC_RTVE",
+                          dur=300.0), VOCES, MEDIOS)
+    assert v.nivel == "B" and v.kind == "media_report"
+
+
+def test_quien_firma_la_cita_es_la_voz_principal():
+    v = clasificar(_video("Robe Iniesta: \"Uoho y yo empezamos juntos\"", "RTVE", "UC_RTVE"),
+                   VOCES, MEDIOS)
+    assert v.nivel == "A" and v.kind == "robe_interview"
+
+
 def test_cantar_en_un_homenaje_es_musica():
     v = clasificar(_video("Leiva canta 'El hombre pájaro' en el Sonorama en homenaje a Robe "
                           "Iniesta | EL PAÍS", "RTVE", "UC_RTVE", dur=180.0), VOCES, MEDIOS)
