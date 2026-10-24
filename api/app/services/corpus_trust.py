@@ -61,8 +61,10 @@ _SENAL_MUSICA = (
 # «Leiva: "No había podido escuchar a Robe…"»: una cita introducida por dos
 # puntos o por una barra es alguien hablando, aunque el título no diga
 # «entrevista». Solo tras «:» o «|», para no confundirla con el título de una
-# canción entre comillas.
-_CITA_EN_TITULO = re.compile(r"[:|]\s*[\"“«']")
+# canción entre comillas. Y solo si lo que va delante es el NOMBRE de quien
+# habla: «Las voces de la radio despiden a Robe Iniesta: "Sus canciones…"» es
+# una cita de los locutores (24-10-2026, primer backfill real).
+_CITA_EN_TITULO = re.compile(r"([^:|]*)[:|]\s*[\"“«']")
 
 # Contexto que desambigua un alias de una palabra.
 _CONTEXTO_UNIVERSO = ("extremoduro", "robe iniesta", "roberto iniesta")
@@ -167,6 +169,16 @@ def voces_en(texto: str, voces: list[Voz], canal_fiable: bool = False) -> list[V
     return [v for v in voces if v.nombrada_en(t, canal_fiable)]
 
 
+def quien_cita(titulo: str | None, voces: list[Voz]) -> Voz | None:
+    """La voz que firma una cita del título: su nombre es TODO lo que va antes."""
+    for m in _CITA_EN_TITULO.finditer(titulo or ""):
+        antes = normaliza(m.group(1)).strip(" \"'“”«»")
+        for v in voces:
+            if antes in {normaliza(a) for a in (v.nombre, *v.alias, *v.alias_ambiguos)}:
+                return v
+    return None
+
+
 @dataclass
 class MediosCorpus:
     """Medios reconocidos: canales por `channel_id` y dominios para el texto."""
@@ -242,7 +254,8 @@ def clasificar(video: Video, voces: list[Voz], medios: MediosCorpus) -> Veredict
     # de entrevistas o de otras cosas que no son el vídeo.
     titulo_norm = normaliza(video.title)
     charla = next((s for s in _SENAL_CHARLA if _contiene(titulo_norm, s)), None)
-    if not charla and _CITA_EN_TITULO.search(video.title or ""):
+    hablante = quien_cita(video.title, voces)
+    if not charla and hablante:
         charla = "cita en el título"
     musica = next((s for s in _SENAL_MUSICA if _contiene(titulo_norm, s)), None)
     if not charla and (musica or oficial or dueno):
@@ -255,7 +268,8 @@ def clasificar(video: Video, voces: list[Voz], medios: MediosCorpus) -> Veredict
         # títulos le nombran como TEMA: «Iñaki "Uoho": su verdad sobre Robe» es
         # Uoho hablando, y tomarlo por Robe metería sus palabras en la voz de
         # Robe (robe_voice_v1), que el consultorio usa para hablar como él.
-        principal = next((v for v in nombradas if v.relacion != "robe"), nombradas[0])
+        principal = hablante or next((v for v in nombradas if v.relacion != "robe"),
+                                     nombradas[0])
         motivos.append(f"voz: {', '.join(v.nombre for v in nombradas)} · «{charla}»")
         return Veredicto("A", principal.kind, [v.slug for v in nombradas], motivos)
 
