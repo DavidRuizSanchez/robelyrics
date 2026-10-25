@@ -1577,11 +1577,12 @@ def admin_corpus_queue(
 @router.post("/corpus/queue/{item_id}/{accion}")
 def admin_corpus_queue_decidir(
     item_id: int,
-    accion: Literal["aprobar", "descartar", "reintentar"],
+    accion: Literal["aprobar", "descartar", "reintentar", "retirar"],
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> dict:
-    """Aprobar o descartar un vídeo detectado, o reintentar uno que falló."""
+    """Aprobar o descartar un vídeo detectado, reintentar uno que falló o retirar
+    del corpus uno que ya entró (fuente, tramos y puntos de Qdrant)."""
     from app.services.corpus_queue import AccionNoValida, decidir
 
     try:

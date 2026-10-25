@@ -292,7 +292,7 @@ export const CORPUS_STATUS: Record<string, Etiqueta> = {
   processing: { label: "Transcribiéndose", tone: "info" },
   done: { label: "En el corpus", tone: "ok" },
   failed: { label: "Falló", tone: "danger" },
-  retired: { label: "Descartado", tone: "neutral" },
+  retired: { label: "Descartado o retirado", tone: "neutral" },
 };
 
 /** Cómo entra en el corpus (`kind`). */

@@ -16,6 +16,8 @@ from app.db.models import (
     InstagramQueueItem,
     Post,
     SeoOpportunity,
+    SongInterpretation,
+    SourceSegment,
     VideoClip,
     YouTubeIngestQueue,
 )
@@ -23,7 +25,7 @@ from app.services.admin_summary import resumen
 from app.services.instagram.config import MAX_PUBLISH_ATTEMPTS
 
 MODELOS = (Post, ContentProposal, InstagramQueueItem, VideoClip, SeoOpportunity, ErrataReport,
-           YouTubeIngestQueue)
+           YouTubeIngestQueue, SourceSegment, SongInterpretation)
 
 
 def _con_dependencias(tablas):

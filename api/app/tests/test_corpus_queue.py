@@ -63,3 +63,52 @@ def test_listar_cuenta_exacto_y_ordena_por_nivel(db):  # noqa: F811
     assert datos["cuenta"]["detected"] == 3 and datos["cuenta"]["done"] == 1
     assert [f["video_id"] for f in datos["filas"]["detected"]] == ["a1", "c1", "sin-nivel"]
     assert datos["filas"]["detected"][0]["motivos"] == ["medio reconocido (RockFM)"]
+
+
+class _QdrantFalso:
+    def __init__(self, colecciones=("interpretations_v1", "robe_voice_v1")):
+        self.colecciones, self.borrados = set(colecciones), []
+
+    def collection_exists(self, nombre):
+        return nombre in self.colecciones
+
+    def delete(self, collection_name, points_selector, wait=True):
+        cond = points_selector.filter.must[0]
+        self.borrados.append((collection_name, cond.key, cond.match.value))
+
+
+def test_retirar_saca_la_fuente_sus_tramos_y_sus_vectores(db):  # noqa: F811
+    from sqlalchemy import text
+
+    from app.db.models import InterpretationSource, SourceSegment
+
+    db.execute(text("PRAGMA foreign_keys=ON"))
+    r = _video(db, "spam", status="done")
+    fuente = InterpretationSource(kind=r.kind, url=r.url, title="Un Pais Magico - Tarragona")
+    db.add(fuente)
+    db.flush()
+    db.add(SourceSegment(source_id=fuente.id, idx=0, start_s=0.0, end_s=4.0, text="hola"))
+    db.commit()
+    fid, qdrant = fuente.id, _QdrantFalso()
+
+    fila = decidir(db, r.id, "retirar", qdrant=qdrant)
+
+    assert fila["status"] == "retired"
+    assert fila["retirada"] == {"fuente": fid, "puntos_borrados": True,
+                                "consensos_que_la_citan": []}
+    assert db.get(InterpretationSource, fid) is None
+    assert db.query(SourceSegment).filter_by(source_id=fid).count() == 0
+    assert sorted(qdrant.borrados) == [("interpretations_v1", "source_id", fid),
+                                       ("robe_voice_v1", "source_id", fid)]
+
+
+def test_retirar_sin_fuente_no_rompe(db):  # noqa: F811
+    r = _video(db, "sin-fuente", status="done")
+    fila = decidir(db, r.id, "retirar", qdrant=_QdrantFalso())
+    assert fila["status"] == "retired" and fila["retirada"]["fuente"] is None
+
+
+def test_solo_se_retira_lo_que_entro(db):  # noqa: F811
+    r = _video(db, "pend", status="detected")
+    with pytest.raises(AccionNoValida):
+        decidir(db, r.id, "retirar", qdrant=_QdrantFalso())

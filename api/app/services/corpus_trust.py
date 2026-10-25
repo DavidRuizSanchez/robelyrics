@@ -212,6 +212,8 @@ class Video:
     description: str = ""
     duration_s: float | None = None
     relevante: bool = False          # `youtube_relevance.is_relevant`, ya calculado
+    # Si lo relevante sale del TÍTULO. None = no se sabe (se toma `relevante`).
+    relevante_en_titulo: bool | None = None
 
 
 @dataclass
@@ -249,7 +251,17 @@ def clasificar(video: Video, voces: list[Voz], medios: MediosCorpus) -> Veredict
     elif dueno:
         motivos.append(f"canal de {dueno.nombre}")
 
-    nombradas = voces_en(texto, voces, canal_fiable=fiable)
+    # En un canal sin reconocer solo cuenta el TÍTULO. El 25-10-2026 entraron como
+    # C un documental de Tarragona, sesiones de DJ y trap de «Templario 3.0» y
+    # «RKL REMEMBER SOUNDS»: rellenan la descripción con «Robe Iniesta, Leiva,
+    # Fito Cabrales…» para salir en las búsquedas, y eso bastaba.
+    nombradas = voces_en(texto if fiable else video.title, voces, canal_fiable=fiable)
+    if not fiable and not nombradas:
+        en_titulo = (video.relevante if video.relevante_en_titulo is None
+                     else video.relevante_en_titulo)
+        if video.relevante and not en_titulo:
+            return Veredicto("descartado", None, motivos=[
+                "canal sin reconocer que solo nos nombra en la descripción (relleno de etiquetas)"])
     # Solo el título: las descripciones de los vídeos musicales hablan a veces
     # de entrevistas o de otras cosas que no son el vídeo.
     titulo_norm = normaliza(video.title)

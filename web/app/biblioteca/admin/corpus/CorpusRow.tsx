@@ -25,12 +25,13 @@ export type CorpusItem = {
   done_at: string | null;
 };
 
-type Accion = "aprobar" | "descartar" | "reintentar";
+type Accion = "aprobar" | "descartar" | "reintentar" | "retirar";
 
 const HECHO: Record<Accion, string> = {
   aprobar: "aprobado: tu Mac lo transcribirá en su próxima pasada",
   descartar: "descartado: no volverá a proponerse",
   reintentar: "vuelve a la cola: tu Mac lo intentará otra vez",
+  retirar: "retirado: ya no está en el corpus ni en la búsqueda",
 };
 
 const ORIGEN: Record<string, string> = {
@@ -51,6 +52,12 @@ export default function CorpusRow({ item }: { item: CorpusItem }) {
   const [err, setErr] = useState<string | null>(null);
 
   async function decidir(accion: Accion) {
+    if (
+      accion === "retirar" &&
+      !window.confirm("Se borra su transcripción del corpus y de la búsqueda. No se puede deshacer. ¿Retirarlo?")
+    ) {
+      return;
+    }
     setBusy(accion);
     setErr(null);
     try {
@@ -152,6 +159,17 @@ export default function CorpusRow({ item }: { item: CorpusItem }) {
             <Button variant="danger" onClick={() => decidir("descartar")} loading={busy === "descartar"}
               loadingLabel="Descartando…" disabled={busy !== null}>
               Descartar
+            </Button>
+          }
+        />
+      )}
+
+      {item.status === "done" && (
+        <ActionBar
+          danger={
+            <Button variant="danger" onClick={() => decidir("retirar")} loading={busy === "retirar"}
+              loadingLabel="Retirando…" disabled={busy !== null}>
+              Retirar del corpus
             </Button>
           }
         />

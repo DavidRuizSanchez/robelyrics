@@ -109,3 +109,26 @@ def test_las_filas_casan_con_el_modelo(busqueda):
     busqueda(False)
     for f in detect_uploads._search_candidates(False, set()):
         YouTubeIngestQueue(**{k: v for k, v in f.items() if k != "reasons"})
+
+
+def test_el_correo_no_aprueba_en_lote(monkeypatch):
+    """25-10-2026: un «aprobar e ingerir» del lote entero metió trece vídeos de
+    spam junto a dos buenos. Cada enlace aprueba UN vídeo, y lo ya aprobado no
+    lleva enlace."""
+    from app.services import email as email_mod
+    from app.services.auth import decode_youtube_ingest_token
+
+    enviados = []
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@x.tld")
+    monkeypatch.setattr(email_mod, "send_email", lambda **kw: enviados.append(kw))
+    filas = [YouTubeIngestQueue(id=i, video_id=f"v{i}", url=f"https://youtu.be/v{i}",
+                                title=f"vídeo {i}", target="corpus", kind="youtube_transcript",
+                                nivel=n, status=st)
+             for i, n, st in [(1, "C", "detected"), (2, "C", "detected"), (3, "A", "approved")]]
+    detect_uploads._send_email(filas)
+
+    html = enviados[0]["html"]
+    tokens = re.findall(r"youtube-ingest\?token=([\w.-]+)", html)
+    assert len(tokens) == 2
+    assert sorted(decode_youtube_ingest_token(t)["queue_ids"] for t in tokens) == [[1], [2]]
+    assert "/biblioteca/admin/corpus" in html

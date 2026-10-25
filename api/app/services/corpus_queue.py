@@ -3,7 +3,8 @@
 Hasta el 24-10-2026 la cola no tenía pantalla: un vídeo detectado solo se
 aprobaba con el botón del correo, y si el correo se perdía se quedaba en
 `detected` para siempre (el teaser #50 esperó 11 días). Aquí están las mismas
-decisiones que en el correo, una a una, más reintentar lo que falló.
+decisiones que en el correo, una a una, más reintentar lo que falló y retirar
+lo que ya entró.
 """
 from __future__ import annotations
 
@@ -12,7 +13,11 @@ from datetime import UTC, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import YouTubeIngestQueue
+from app.db.models import InterpretationSource, SongInterpretation, YouTubeIngestQueue
+
+# Donde puede estar vectorizada una fuente. El embed es semanal, así que lo
+# recién entrado puede no tener puntos todavía: borrar cero no es un error.
+COLECCIONES = ("interpretations_v1", "robe_voice_v1")
 
 ESTADOS = ("detected", "approved", "processing", "done", "failed", "retired")
 # Lo que se enseña de cada estado. Lo terminado ocupa mucho y decide poco.
@@ -24,6 +29,7 @@ _ACCIONES = {
     "aprobar": (("detected",), "approved"),
     "descartar": (("detected", "failed"), "retired"),
     "reintentar": (("failed",), "approved"),
+    "retirar": (("done",), "retired"),
 }
 
 
@@ -65,7 +71,33 @@ def listar(db: Session) -> dict:
     return {"cuenta": cuenta, "filas": filas}
 
 
-def decidir(db: Session, item_id: int, accion: str) -> dict:
+def _retirar_fuente(db: Session, r: YouTubeIngestQueue, qdrant) -> dict:
+    """Saca del corpus lo que entró por este vídeo: la fuente, sus tramos
+    (CASCADE) y sus puntos en Qdrant. El consenso destilado que ya la citara no
+    se reescribe aquí: se avisa, porque re-destilar es otra decisión."""
+    fuente = (db.query(InterpretationSource)
+              .filter(InterpretationSource.kind == r.kind, InterpretationSource.url == r.url)
+              .one_or_none())
+    if fuente is None:
+        return {"fuente": None, "puntos_borrados": False, "consensos_que_la_citan": []}
+    if qdrant is None:
+        from app.services.qdrant_client import get_qdrant
+        qdrant = get_qdrant()
+    from qdrant_client.http.models import FieldCondition, Filter, FilterSelector, MatchValue
+
+    filtro = Filter(must=[FieldCondition(key="source_id", match=MatchValue(value=fuente.id))])
+    for coleccion in COLECCIONES:
+        if qdrant.collection_exists(coleccion):
+            qdrant.delete(collection_name=coleccion,
+                          points_selector=FilterSelector(filter=filtro), wait=True)
+    citan = [si.song_id for si in db.query(SongInterpretation).all()
+             if fuente.id in (si.source_ids or [])]
+    fuente_id = fuente.id
+    db.delete(fuente)
+    return {"fuente": fuente_id, "puntos_borrados": True, "consensos_que_la_citan": citan}
+
+
+def decidir(db: Session, item_id: int, accion: str, qdrant=None) -> dict:
     if accion not in _ACCIONES:
         raise AccionNoValida(f"acción desconocida: {accion}")
     desde, hasta = _ACCIONES[accion]
@@ -74,6 +106,7 @@ def decidir(db: Session, item_id: int, accion: str) -> dict:
         raise LookupError(item_id)
     if r.status not in desde:
         raise AccionNoValida(f"no se puede {accion} un vídeo en estado «{r.status}»")
+    retirada = _retirar_fuente(db, r, qdrant) if accion == "retirar" else None
     r.status = hasta
     if hasta == "approved":
         r.approved_at = datetime.now(UTC)
@@ -81,4 +114,7 @@ def decidir(db: Session, item_id: int, accion: str) -> dict:
         r.attempts = 0
         r.error = None
     db.commit()
-    return _fila(r)
+    fila = _fila(r)
+    if retirada is not None:
+        fila["retirada"] = retirada
+    return fila
