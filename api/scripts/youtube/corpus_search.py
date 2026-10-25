@@ -147,11 +147,12 @@ def descubrir(db, key: str, *, backfill: bool = False, pasada: int | None = None
 
     out = []
     for vid, d in info.items():
-        relevante, _ = is_relevant(d["title"], d["description"], vocab=vocab,
-                                   use_description=True)
+        relevante, razones = is_relevant(d["title"], d["description"], vocab=vocab,
+                                         use_description=True)
         video = Video(video_id=vid, title=d["title"], channel_title=d["channel_title"],
                       channel_id=d["channel_id"], description=d["description"],
-                      duration_s=d["duration_s"], relevante=relevante)
+                      duration_s=d["duration_s"], relevante=relevante,
+                      relevante_en_titulo=any(r.startswith("título") for r in razones))
         out.append((video, clasificar(video, voces, medios),
                     {"consulta": encontrados[vid], "published_at": d["published_at"]}))
     return out

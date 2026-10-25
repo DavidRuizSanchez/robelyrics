@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api";
 
-// Proxy admin: aprobar, descartar o reintentar un vídeo de la cola de ingesta.
-const ACCIONES = new Set(["aprobar", "descartar", "reintentar"]);
+// Proxy admin: aprobar, descartar, reintentar o retirar un vídeo de la cola de ingesta.
+const ACCIONES = new Set(["aprobar", "descartar", "reintentar", "retirar"]);
 
 export async function POST(
   _request: Request,

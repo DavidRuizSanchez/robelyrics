@@ -239,8 +239,12 @@ def _send_email(
         return
     settings = get_settings()
     site = settings.site_url.rstrip("/")
-    token = create_youtube_ingest_token([r.id for r in new_rows])
-    approve_url = f"{site}/api/public/youtube-ingest?token={token}"
+    # Un enlace POR VÍDEO, nunca «aprobar todo»: el 25-10-2026 un solo clic
+    # aprobó dos C buenos junto a trece vídeos de spam (documentales, sesiones
+    # de DJ) y cuatro se transcribieron antes de que nadie lo viera.
+    def _approve_url(r: YouTubeIngestQueue) -> str:
+        return f"{site}/api/public/youtube-ingest?token={create_youtube_ingest_token([r.id])}"
+    panel_url = f"{site}/biblioteca/admin/corpus"
 
     reasons_by_vid = reasons_by_vid or {}
     voice = [r for r in new_rows if r.target == "robe_voice"]
@@ -272,9 +276,17 @@ def _send_email(
     def _section(titulo: str, rows: list[YouTubeIngestQueue]) -> str:
         if not rows:
             return ""
+        def _aprobar(r: YouTubeIngestQueue) -> str:
+            if r.status != "detected":
+                return ""
+            return (f' <a href="{_approve_url(r)}" style="font-family:\'Courier New\',monospace;'
+                    f'font-size:10px;letter-spacing:2px;text-transform:uppercase;'
+                    f'color:#a83a3a;">aprobar</a>')
+
         lis = "".join(
             f'<li style="margin:0 0 8px;font-family:Georgia,serif;font-size:15px;'
-            f'color:#ede4d3;">{(r.title or r.video_id)}{_why(r)}</li>'
+            f'color:#ede4d3;"><a href="{r.url}" style="color:#ede4d3;">'
+            f'{(r.title or r.video_id)}</a>{_aprobar(r)}{_why(r)}</li>'
             for r in rows
         )
         return (
@@ -297,16 +309,16 @@ def _send_email(
       {n} vídeo{'s' if n != 1 else ''} nuevo{'s' if n != 1 else ''} para el corpus
     </h1>
     <p style="font-family:Georgia,serif;font-style:italic;color:rgba(237,228,211,0.6);font-size:14px;margin:0 0 8px;line-height:1.6;">
-      Con un click los apruebas. Tu Mac los descargará, transcribirá y subirá sola
-      (IP residencial). Nada se descarga desde el servidor.
+      Cada vídeo se aprueba con su enlace, uno a uno. Tu Mac los descargará,
+      transcribirá y subirá sola (IP residencial). Nada se descarga desde el servidor.
     </p>
     {"".join(_section(f"@{ch} (corpus)", rows) for ch, rows in sorted(corpus_by_channel.items()))}
     {_section("Entrevistas de Robe (voz)", voice)}
     {"".join(_section(_NOMBRE_NIVEL[n], rows) for n, rows in pendientes_nivel.items())}
     {_section("Ya entraron solos (para que lo sepas)", entraron_solos)}
     <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
-      <a href="{approve_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
-        aprobar e ingerir
+      <a href="{panel_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
+        abrir la cola en el panel
       </a>
     </div>
   </div>
@@ -322,12 +334,14 @@ def _send_email(
             continue
         text_lines.append(f"== {label} ({len(rows)}) ==")
         for r in rows:
-            text_lines.append(f"· {(r.title or r.video_id)}")
+            text_lines.append(f"· {(r.title or r.video_id)}  {r.url}")
+            if r.status == "detected":
+                text_lines.append(f"    aprobar: {_approve_url(r)}")
             rs = reasons_by_vid.get(r.video_id) or []
             if rs:
                 text_lines.append(f"    ↳ {' · '.join(rs[:2])}")
         text_lines.append("")
-    text_lines.append(f"Aprobar e ingerir: {approve_url}")
+    text_lines.append(f"La cola en el panel: {panel_url}")
     try:
         send_email(
             to=admin_email,

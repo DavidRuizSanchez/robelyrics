@@ -229,3 +229,36 @@ def test_responder_es_hablar():
     v = clasificar(_video("¿Volverá Extremoduro? Iñaki \"Uoho\" responde", "RTVE", "UC_RTVE",
                           dur=70.0), VOCES, MEDIOS)
     assert v.nivel == "A" and v.kind == "entorno_interview"
+
+
+# Spam REAL del 25-10-2026: canales que rellenan la descripción con nuestros
+# nombres para salir en las búsquedas. Se aprobaron en lote y entraron al corpus.
+_RELLENO = "#robeiniesta #extremoduro Robe Iniesta, Leiva, Fito Cabrales, Platero y Tú"
+
+
+@pytest.mark.parametrize("titulo,canal", [
+    ("Un Pais Magico - Tarragona #documentalesinteresantes #tarragona", "Templario 3.0"),
+    ("THE FIRST REBIRTH - JONES & STEPHENSON #remembermusic #djs #session",
+     "RKL REMEMBER SOUNDS"),
+    ("The Tyets - LÈPIC FINAL DE GIRA #trap #pop #regueton", "Templario 3.0"),
+])
+def test_un_canal_de_fan_que_solo_nos_nombra_en_la_descripcion_no_entra(titulo, canal):
+    v = clasificar(Video(video_id="x", title=titulo, channel_title=canal, description=_RELLENO,
+                         duration_s=2973.0, relevante=True, relevante_en_titulo=False),
+                   VOCES, MEDIOS)
+    assert v.nivel == "descartado" and "descripción" in v.motivos[0]
+
+
+def test_en_un_canal_de_fan_el_titulo_si_cuenta():
+    v = clasificar(Video(video_id="x", title="El Kanka sobre Robe: su voz, su libertad",
+                         channel_title="Cadena Fan", description=_RELLENO, duration_s=300.0,
+                         relevante=True, relevante_en_titulo=True), VOCES, MEDIOS)
+    assert v.nivel == "C"
+
+
+def test_en_un_medio_la_descripcion_sigue_valiendo():
+    v = clasificar(Video(video_id="x", title="Especial: 40 años de rock en Extremadura",
+                         channel_title="RTVE", channel_id="UC_RTVE",
+                         description="Con Robe Iniesta y Extremoduro", duration_s=1800.0,
+                         relevante=True, relevante_en_titulo=False), VOCES, MEDIOS)
+    assert v.nivel == "B"

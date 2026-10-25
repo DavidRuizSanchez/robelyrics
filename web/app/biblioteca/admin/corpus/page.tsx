@@ -81,11 +81,11 @@ export default async function AdminCorpusPage() {
         <Lista items={[...f("processing"), ...f("approved")]} vacio="Nada esperando a tu Mac." />
       </Section>
 
-      <Section title="Últimos que entraron" count={n("done")}>
+      <Section title="Últimos que entraron" count={n("done")} help="Si algo no debía entrar, «Retirar» lo saca del corpus y de la búsqueda.">
         <Lista items={f("done")} vacio="Todavía nada." />
       </Section>
 
-      <Section title="Descartados" count={n("retired")} help="No vuelven a proponerse.">
+      <Section title="Descartados y retirados" count={n("retired")} help="No vuelven a proponerse.">
         <Lista items={f("retired")} vacio="Ninguno." />
       </Section>
     </AdminPage>
