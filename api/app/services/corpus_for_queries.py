@@ -66,6 +66,9 @@ _ATRIBUCION = {
     # dos se cita: solo se cita a Robe.
     "entorno_interview": "testimonio de alguien del entorno de Robe",
     "media_report": "un reportaje de {autor}",
+    # Entrevista en texto a una voz de casa (`corpus_prensa`, Fase 4.1): propia,
+    # no se cita. Sin entrada aquí se descartaría en silencio.
+    "press_interview": "entrevista de {autor} a alguien del entorno de Robe",
 }
 
 

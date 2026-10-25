@@ -423,10 +423,25 @@ def main() -> None:
         if not args.dry_run and not args.no_body:
             cuerpos = fetch_bodies(db)
 
+        # Lo que viene de un medio reconocido pasa al corpus antes de que la purga
+        # de 7 días se lo lleve (Fase 4.1). Un fallo aquí no tumba el agregador.
+        al_corpus: dict[str, int] = {}
+        if not args.dry_run:
+            try:
+                from app.services.corpus_prensa import promover
+
+                al_corpus = promover(db)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("no se pudo pasar la prensa al corpus: %s", exc)
+                db.rollback()
+
     logger.info(
         "Run terminado: %d nuevas · %d relevantes · %d purgadas · %d errores",
         total_new, total_relevant, purged, errors,
     )
+    if al_corpus:
+        logger.info("Prensa al corpus: %d entrevistas · %d reportajes · %d fuera",
+                    al_corpus.get("A", 0), al_corpus.get("B", 0), al_corpus.get("fuera", 0))
     if cuerpos:
         logger.info(
             "Material: %s",
