@@ -87,16 +87,14 @@ def test_un_vecino_semantico_que_no_habla_del_tema_se_descarta(monkeypatch):
     assert cq._es_utilizable(bueno, "donde se rompen las olas significado")[0]
 
 
-def test_la_prensa_vetada_no_entra_aunque_puntue_alto():
-    """Mondo Sonoro, Efe Eme y Rockdelux están fuera del corpus por decisión del
-    proyecto, y sus textos siguen indexados de cuando entraban. Rockdelux se coló
-    a 0.56 en la primera prueba."""
+def test_la_prensa_antes_vetada_entra_como_fondo():
+    """David levantó el veto a Mondo Sonoro, Efe Eme y Rockdelux el 23-10-2026:
+    entran como FONDO. Que no se nombren lo vigila `source_guard`, no este filtro."""
     from app.services import corpus_for_queries as cq
 
     p = _pasaje(url="https://rockdelux.com/discos/agila", score=0.9,
                 fragmento="Extremoduro Agila olas rompen")
-    ok, motivo = cq._es_utilizable(p, "donde se rompen las olas")
-    assert not ok and motivo == "medio vetado"
+    assert cq._es_utilizable(p, "donde se rompen las olas") == (True, "")
 
 
 def test_el_material_ajeno_viaja_con_su_atribucion():

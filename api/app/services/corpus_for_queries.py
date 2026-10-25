@@ -51,10 +51,6 @@ MIN_SCORE = 0.45
 # puede proponer UNA sección por pasada.
 MAX_PASAJES = 8
 
-# La prensa comercial está fuera del corpus por decisión del proyecto, pero sus
-# textos siguen indexados de cuando entraban.
-_MEDIOS_VETADOS = ("mondosonoro.com", "efeeme.com", "rockdelux.com")
-
 # Cómo se nombra a cada tipo de fuente cuando se cita. Sin entrada aquí, no se cita.
 _ATRIBUCION = {
     "youtube_transcript": "análisis de {autor} en YouTube",
@@ -85,11 +81,11 @@ def _embed(texto: str) -> list[float] | None:
 
 
 def _es_utilizable(pasaje: dict, consulta: str) -> tuple[bool, str]:
-    """Dos filtros que el umbral de parecido no cubre.
+    """Un filtro que el umbral de parecido no cubre.
 
-    **El veto de prensa**: Mondo Sonoro, Efe Eme y Rockdelux están fuera del corpus
-    por decisión del proyecto, y sus textos siguen indexados de antes. Un pasaje de
-    Rockdelux entró a 0.56 en la primera prueba.
+    Hasta el 23-10-2026 había otro: el veto a Mondo Sonoro, Efe Eme y Rockdelux.
+    David lo levantó (entran como FONDO, se corroboran y no se nombran), y la
+    regla de no nombrarlos ya la hace cumplir `source_guard`.
 
     **El vecino semántico que no habla de esto**: buscando «donde se rompen las olas»
     salía a 0.54 un corte de Las Mañanas de Radio Nacional, y a 0.56 el menú de
@@ -99,9 +95,6 @@ def _es_utilizable(pasaje: dict, consulta: str) -> tuple[bool, str]:
     """
     from app.services.seo_style import content_tokens, flatten
 
-    url = (pasaje.get("url") or "").lower()
-    if any(dom in url for dom in _MEDIOS_VETADOS):
-        return False, "medio vetado"
     texto = flatten(pasaje.get("fragmento"))
     toks = [t for t in content_tokens(consulta) if len(t) > 3]
     if toks and not any(f" {t}" in texto for t in toks):
