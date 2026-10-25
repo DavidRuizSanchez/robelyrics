@@ -2326,24 +2326,70 @@ from app.db.models import YouTubeIngestQueue  # noqa: E402
 from app.services.auth import decode_youtube_ingest_token  # noqa: E402
 
 
-@router.get("/youtube-ingest", response_class=HTMLResponse)
-def youtube_ingest_approve(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
-    """One-click desde el email de detección. Token JWT firmado con la lista de
-    ids de youtube_ingest_queue y purpose='youtube_ingest'. Marca el batch como
-    `approved` para que el daemon local lo recoja. Idempotente: los que ya no
-    estén en `detected` (ya aprobados/procesados) se ignoran sin romper."""
+def _boton_post(action: str, token: str, etiqueta: str) -> str:
+    """Un formulario de un solo botón: lo que tiene efecto va por POST."""
+    from html import escape
+
+    return (f'<form method="post" action="{action}?token={escape(token)}" '
+            'style="margin:0 0 16px"><button type="submit" style="padding:12px 24px;'
+            'background:#a83a3a;color:#0d0b0a;border:0;font-family:\'Courier New\','
+            'monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;'
+            f'cursor:pointer">{etiqueta}</button></form>')
+
+
+def _pagina_con_boton(texto: str, boton: str) -> str:
+    pagina = _render_admin_action_page(texto, success=True)
+    return pagina.replace('<a href="/biblioteca/admin/posts">Ir al panel</a>',
+                          boton + '<a href="/biblioteca/admin/corpus">Ir al panel</a>')
+
+
+def _filas_del_token(token: str, db: Session):
     data = decode_youtube_ingest_token(token)
     if not data:
+        return None
+    return (db.query(YouTubeIngestQueue)
+            .filter(YouTubeIngestQueue.id.in_(data["queue_ids"])).all())
+
+
+@router.get("/youtube-ingest", response_class=HTMLResponse)
+def youtube_ingest_confirm(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """El enlace del correo de detección. NO aprueba nada: abre una confirmación.
+
+    Aprobar pone al daemon a transcribir, y desde la Fase 3 eso puede ser Whisper
+    (dinero). El 25-10-2026 un lote entero quedó aprobado dos minutos después del
+    correo, y los escáneres de enlaces abren las URLs solos: un GET con efecto
+    aprueba sin que nadie lo decida. Aprueba el POST de esta página.
+    """
+    from html import escape
+
+    rows = _filas_del_token(token, db)
+    if rows is None:
         return HTMLResponse(
             _render_admin_action_page("Enlace inválido o caducado.", success=False),
             status_code=400,
         )
-    ids = data["queue_ids"]
-    rows = (
-        db.query(YouTubeIngestQueue)
-        .filter(YouTubeIngestQueue.id.in_(ids))
-        .all()
-    )
+    pendientes = [r for r in rows if r.status == "detected"]
+    if not pendientes:
+        return HTMLResponse(_render_admin_action_page(
+            "No quedan vídeos pendientes en ese enlace.", success=True))
+    titulos = " · ".join(f"«{escape(r.title or r.video_id)}»" for r in pendientes[:5])
+    resto = f" y {len(pendientes) - 5} más" if len(pendientes) > 5 else ""
+    texto = (f"¿Aprobar {titulos}{resto} para el corpus? El daemon de tu Mac "
+             f"{'lo' if len(pendientes) == 1 else 'los'} transcribirá y subirá solo.")
+    return HTMLResponse(_pagina_con_boton(
+        texto, _boton_post("youtube-ingest", token, "Sí, aprobar")))
+
+
+@router.post("/youtube-ingest", response_class=HTMLResponse)
+def youtube_ingest_approve(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    """Marca como `approved` lo del token para que el daemon lo recoja.
+    Idempotente: lo que ya no esté en `detected` se ignora sin romper."""
+    rows = _filas_del_token(token, db)
+    if rows is None:
+        return HTMLResponse(
+            _render_admin_action_page("Enlace inválido o caducado.", success=False),
+            status_code=400,
+        )
     if not rows:
         return HTMLResponse(
             _render_admin_action_page(
@@ -2376,16 +2422,10 @@ from app.services.auth import decode_corpus_retire_token  # noqa: E402
 def _retire_confirm_page(titulo: str, token: str) -> str:
     """La página que abre el enlace del correo. NO borra nada: los escáneres de
     enlaces de los correos abren las URLs solos, y retirar no se deshace."""
-    pagina = _render_admin_action_page(
+    return _pagina_con_boton(
         f"¿Retirar «{_escape(titulo)}» del corpus? Se borra su transcripción y deja de "
-        "salir en la búsqueda. No se puede deshacer.", success=True)
-    boton = (f'<form method="post" action="corpus-retire?token={_escape(token)}" '
-             'style="margin:0 0 16px"><button type="submit" style="padding:12px 24px;'
-             'background:#a83a3a;color:#0d0b0a;border:0;font-family:\'Courier New\','
-             'monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;'
-             'cursor:pointer">Sí, retirar</button></form>')
-    return pagina.replace('<a href="/biblioteca/admin/posts">Ir al panel</a>',
-                          boton + '<a href="/biblioteca/admin/corpus">Ir al panel</a>')
+        "salir en la búsqueda. No se puede deshacer.",
+        _boton_post("corpus-retire", token, "Sí, retirar"))
 
 
 @router.get("/corpus-retire", response_class=HTMLResponse)
@@ -2419,8 +2459,9 @@ def corpus_retire(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
     except AccionNoValida:
         return HTMLResponse(_render_admin_action_page("Ya estaba retirado.", success=True))
     citan = fila["retirada"]["consensos_que_la_citan"]
-    extra = (f" Ojo: {len(citan)} consenso(s) de canción la citaban y siguen como estaban "
-             f"(canciones {', '.join(map(str, citan))})." if citan else "")
+    extra = (f" {len(citan)} consenso(s) de canción la citaban (canciones "
+             f"{', '.join(map(str, citan))}): se rehacen en la destilación del domingo."
+             if citan else "")
     return HTMLResponse(_render_admin_action_page(
         f"✓ Retirado «{_escape(fila['title'] or fila['video_id'])}».{extra}", success=True))
 

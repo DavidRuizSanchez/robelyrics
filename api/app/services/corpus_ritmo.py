@@ -25,6 +25,9 @@ MAX_DONE_SEMANA = 20
 # Un A con subtítulos AUTOMÁTICOS y corto pasa por Whisper aunque haya
 # subtítulos: la atribución de voz pide calidad, y 20 min son 0,12 $.
 WHISPER_EN_A_HASTA_S = 20 * 60
+# Sin duración conocida (un audio suelto de pódcast, una fila vieja) se supone la
+# de un programa largo: suponer cero es dejar pasar cualquier cosa.
+PEOR_CASO_SIN_DURACION_S = 2 * 60 * 60
 
 # A antes que B antes que C. Lo que no tiene nivel (canales vigilados,
 # inventario) va con C: es como estaba antes de los niveles.
@@ -43,6 +46,17 @@ def minutos_whisper_mes(db: Session, ahora: datetime | None = None) -> float:
                    YouTubeIngestQueue.done_at >= _inicio_de_mes(ahora))
            .scalar())
     return float(seg or 0.0) / 60.0
+
+
+def whisper_sin_duracion_mes(db: Session, ahora: datetime | None = None) -> int:
+    """Lo transcrito con Whisper este mes sin duración apuntada: el gasto no lo
+    cuenta, así que con alguno el gasto es una cota inferior."""
+    ahora = ahora or datetime.now(UTC)
+    return (db.query(func.count(YouTubeIngestQueue.id))
+            .filter(YouTubeIngestQueue.status == "done", YouTubeIngestQueue.via == "whisper",
+                    YouTubeIngestQueue.duration_s.is_(None),
+                    YouTubeIngestQueue.done_at >= _inicio_de_mes(ahora))
+            .scalar()) or 0
 
 
 def gasto_mes_usd(db: Session, ahora: datetime | None = None) -> float:
@@ -66,10 +80,10 @@ def hueco_semana(db: Session, ahora: datetime | None = None) -> int:
 
 
 def whisper_permitido(duracion_s: float | None, restantes_min: float) -> bool:
-    """Si cabe en lo que queda del mes. Sin duración conocida, basta con que quede algo."""
+    """Si cabe en lo que queda del mes. Sin duración conocida, se supone el peor caso."""
     if restantes_min <= 0:
         return False
-    return duracion_s is None or duracion_s / 60.0 <= restantes_min
+    return (duracion_s or PEOR_CASO_SIN_DURACION_S) / 60.0 <= restantes_min
 
 
 def resumen(db: Session, ahora: datetime | None = None) -> dict:
@@ -78,6 +92,7 @@ def resumen(db: Session, ahora: datetime | None = None) -> dict:
         "gasto_mes_usd": gasto_mes_usd(db, ahora),
         "presupuesto_mes_usd": PRESUPUESTO_MES_USD,
         "minutos_whisper_mes": round(minutos_whisper_mes(db, ahora), 1),
+        "whisper_sin_duracion": whisper_sin_duracion_mes(db, ahora),
         "hechos_semana": hechos_semana(db, ahora),
         "max_semana": MAX_DONE_SEMANA,
     }

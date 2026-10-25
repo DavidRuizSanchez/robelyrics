@@ -104,3 +104,11 @@ def test_limpiar_quita_la_cita_del_miembro():
     limpio, quitadas = sg.limpiar(texto, nombres=[])
     assert limpio == "Agila salió en 1996. Fue disco de oro."
     assert quitadas == ["Uoho contó a RockFM que la grabaron en Iruña."]
+
+
+def test_un_nombre_de_una_palabra_en_minuscula_no_es_quien_habla():
+    from app.services.source_guard import _primer_hablante
+
+    assert _primer_hablante("El capi del grupo recordó lo que Robe contó a El País") is None
+    assert _primer_hablante("Capi recordó lo que Robe contó a El País") == "Capi"
+    assert _primer_hablante("UOHO recordó lo que Robe contó a El País") == "Uoho"

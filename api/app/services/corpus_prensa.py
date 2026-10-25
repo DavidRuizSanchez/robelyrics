@@ -12,7 +12,11 @@ un post y se tiraban. Aquí se promueven las que vienen de un dominio de
     B  press            el resto: FONDO, se corrobora y no se nombra
 
 Con `CORPUS_AUTO_ENTRY` apagado (modo sombra) un A entra también como `press`: nada
-llega como voz sin el OK de David, y el texto no se pierde con la purga.
+llega como voz sin el OK de David, y el texto no se pierde con la purga. Al
+encenderlo, `ascender_sombra` vuelve a clasificar lo que entró así y sube los A en
+su sitio. Sin eso la puerta era de un solo sentido: la noticia ya no existe (se
+purga a los 7 días), la búsqueda salta las URLs conocidas y `guardar` no duplicaba,
+así que toda entrevista vista en sombra se quedaba de fondo para siempre.
 """
 from __future__ import annotations
 
@@ -95,6 +99,8 @@ def promover(db, *, auto_entry: bool | None = None, dry_run: bool = False) -> di
         auto_entry = get_settings().corpus_auto_entry
     voces, medios = cargar_voces(db), MediosCorpus.desde_yaml()
     cuenta = {"A": 0, "B": 0, "fuera": 0}
+    if auto_entry and not dry_run:
+        cuenta["ascendidas"] = ascender_sombra(db, voces, medios)
     for n in db.query(NewsItem).filter(NewsItem.body_status == "ok").all():
         url = n.body_url or n.url
         v = clasificar_texto(n.title, n.body_text or "", url, voces, medios)
@@ -117,10 +123,39 @@ def guardar(db, v: VeredictoTexto, *, titulo: str, texto: str, url: str,
     if v.nivel not in ("A", "B"):
         return None
     kind = v.kind if auto_entry else "press"
-    if kind == "press_interview" and db.query(InterpretationSource.id).filter_by(
-            kind="press", url=url).first():
-        return None    # entró en modo sombra como fondo: no se duplica con otro kind
+    if kind == "press_interview":
+        fondo = db.query(InterpretationSource).filter_by(kind="press", url=url).first()
+        if fondo is not None:
+            return _ascender(fondo, v)   # entró en sombra como fondo: se sube, no se duplica
     return upsert_source(db, kind=kind, url=url, title=titulo, author=v.medio,
                          published_at=published_at, content_raw=texto,
                          content_clean=clean_text(texto),
                          quality_score=0.75 if kind == "press_interview" else 0.6)
+
+
+def _ascender(fuente, v: VeredictoTexto) -> int:
+    """`press` → `press_interview` en la misma fila (la unicidad es kind+url). El
+    embebido semanal reescribe el `kind` del payload en Qdrant."""
+    fuente.kind, fuente.author, fuente.quality_score = "press_interview", v.medio, 0.75
+    return fuente.id
+
+
+def ascender_sombra(db, voces: list[Voz], medios: MediosCorpus) -> int:
+    """Sube a `press_interview` lo que entró como `press` y hoy se clasifica como A.
+
+    Se clasifica con `content_raw`: `clean_text` aplana los saltos de línea y con
+    ellos el formato pregunta-respuesta que cuenta como cita.
+    """
+    from app.db.models import InterpretationSource
+
+    subidas = 0
+    for f in db.query(InterpretationSource).filter_by(kind="press").all():
+        v = clasificar_texto(f.title or "", f.content_raw or f.content_clean or "", f.url,
+                             voces, medios)
+        if v.nivel != "A" or db.query(InterpretationSource.id).filter_by(
+                kind="press_interview", url=f.url).first():
+            continue
+        _ascender(f, v)
+        subidas += 1
+        logger.info("[corpus_prensa] sube a entrevista: %s · %s", f.url, v.motivo)
+    return subidas

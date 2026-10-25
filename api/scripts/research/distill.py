@@ -387,6 +387,19 @@ def main() -> None:
             stale_slugs = [r[0] for r in stale]
             if stale_slugs:
                 log(f"stale (fan-content nuevo desde el destilado): {len(stale_slugs)}")
+            # Y los que citan una fuente que ya no existe (se retiró del corpus): un
+            # borrado no deja nada «más nuevo», así que sin esto se quedaban así para
+            # siempre, apoyados en un texto que ya no está.
+            huerfanos = [r[0] for r in db.execute(_sql(
+                "SELECT s.slug FROM songs s "
+                "JOIN song_interpretations si ON si.song_id = s.id "
+                "WHERE EXISTS (SELECT 1 FROM unnest(si.source_ids) AS sid "
+                "WHERE NOT EXISTS (SELECT 1 FROM interpretation_sources src "
+                "WHERE src.id = sid))"
+            )).all()]
+            if huerfanos:
+                log(f"stale (citan una fuente retirada): {len(huerfanos)}")
+            stale_slugs += huerfanos
             slugs = sorted(set(slugs) | set(stale_slugs))
     if not slugs:
         log("Sin canciones que procesar.", "warn")

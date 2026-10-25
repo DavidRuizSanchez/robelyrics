@@ -88,3 +88,27 @@ def test_un_token_de_aprobar_no_retira(db):  # noqa: F811
     resp = public.corpus_retire(create_youtube_ingest_token([r.id]), db)
     assert resp.status_code == 400
     assert db.get(YouTubeIngestQueue, r.id).status == "done"
+
+
+def test_abrir_el_enlace_de_aprobar_no_aprueba(db):  # noqa: F811
+    """Un escáner de enlaces que abre el correo no puede poner a pagar Whisper."""
+    r = _fila(db, "a", status="detected")
+    resp = public.youtube_ingest_confirm(create_youtube_ingest_token([r.id]), db)
+    assert resp.status_code == 200 and b"method=\"post\"" in resp.body
+    assert "Vídeo a" in resp.body.decode()
+    assert db.get(YouTubeIngestQueue, r.id).status == "detected"
+
+
+def test_el_post_aprueba_y_es_idempotente(db):  # noqa: F811
+    r = _fila(db, "b", status="detected")
+    token = create_youtube_ingest_token([r.id])
+    assert "Aprobados 1" in public.youtube_ingest_approve(token, db).body.decode()
+    assert db.get(YouTubeIngestQueue, r.id).status == "approved"
+    assert "Aprobados 0" in public.youtube_ingest_approve(token, db).body.decode()
+
+
+def test_un_token_de_retirar_no_aprueba(db):  # noqa: F811
+    r = _fila(db, "c", status="detected")
+    assert public.youtube_ingest_confirm(create_corpus_retire_token(r.id), db).status_code == 400
+    assert public.youtube_ingest_approve(create_corpus_retire_token(r.id), db).status_code == 400
+    assert db.get(YouTubeIngestQueue, r.id).status == "detected"

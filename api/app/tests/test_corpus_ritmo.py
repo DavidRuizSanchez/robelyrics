@@ -55,11 +55,15 @@ def test_presupuesto_de_whisper(db, monkeypatch):  # noqa: F811
     _fila(db, "mes-pasado", status="done", via="whisper", duration_s=500 * 60,
           done_at=inicio_mes - timedelta(days=1))
     assert ritmo.gasto_mes_usd(db) == 0.48
+    _fila(db, "viejo", status="done", via="whisper", done_at=inicio_mes + timedelta(minutes=3))
+    assert ritmo.resumen(db)["whisper_sin_duracion"] == 1   # el gasto es cota inferior
     _fila(db, "cabe", duration_s=15 * 60, approved_at=AHORA)
     _fila(db, "no-cabe", duration_s=30 * 60, approved_at=AHORA + timedelta(seconds=1))
     _fila(db, "sin-duracion", approved_at=AHORA + timedelta(seconds=2))
     ok = {p.video_id: p.whisper_ok for p in ingest.list_pending(db)}
-    assert ok == {"cabe": True, "no-cabe": False, "sin-duracion": True}
+    # Sin duración se supone el peor caso (2 h), que en 20 min no cabe.
+    assert ok == {"cabe": True, "no-cabe": False, "sin-duracion": False}
+    assert ritmo.whisper_permitido(None, restantes_min=200)
 
 
 def test_complete_apunta_por_donde_fue_y_cuanto_dura(db, monkeypatch):  # noqa: F811
