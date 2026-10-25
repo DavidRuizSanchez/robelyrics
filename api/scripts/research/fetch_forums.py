@@ -13,6 +13,7 @@ Ejecución: docker compose exec api python -m scripts.research.fetch_forums
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 
 import httpx
@@ -103,6 +104,25 @@ def fetch(client: httpx.Client, url: str) -> str | None:
         return None
 
 
+def _urls_por_texto(db, hilo: str) -> dict[str, str]:
+    """Posts de este hilo que ya están en el corpus, por su texto."""
+    from app.db.models import InterpretationSource
+
+    filas = (db.query(InterpretationSource.content_clean, InterpretationSource.url)
+             .filter(InterpretationSource.kind == "forum",
+                     InterpretationSource.url.like(f"{hilo}#post-%")).all())
+    return {texto: u for texto, u in filas if texto}
+
+
+def _clave_post(hilo: str, texto: str, ya: dict[str, str]) -> str:
+    """La URL única de un post. Era `#post-{índice}`, y el índice se mueve en cuanto
+    alguien escribe en el hilo: el mismo post entraba otra vez con otra clave. Si
+    ya está (mismo texto), se reutiliza su URL; si es nuevo, va por hash del texto."""
+    if texto in ya:
+        return ya[texto]
+    return f"{hilo}#post-{hashlib.sha1(texto.encode('utf-8')).hexdigest()[:12]}"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-posts-per-thread", type=int, default=200)
@@ -131,21 +151,22 @@ def main() -> None:
             posts = extract_posts(html_str, url)
             log(f"  {len(posts)} posts candidatos")
 
+            ya = _urls_por_texto(db, url)
             count = 0
-            for i, p in enumerate(posts):
+            for p in posts:
                 if count >= args.max_posts_per_thread:
                     break
                 if not is_relevant(p["text"]):
                     continue
+                limpio = clean_text(p["text"])
                 upsert_source(
                     db,
                     kind="forum",
-                    # url única por post: ancla con índice
-                    url=f"{url}#post-{i}",
+                    url=_clave_post(url, limpio, ya),
                     title=name,
                     author=None,
                     content_raw=p["text"],
-                    content_clean=clean_text(p["text"]),
+                    content_clean=limpio,
                     quality_score=0.5,
                 )
                 total_posts += 1

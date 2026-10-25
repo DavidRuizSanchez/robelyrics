@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -166,7 +167,21 @@ def upsert_source(
     for_seo_only: bool = False,
 ) -> int:
     """Inserta una InterpretationSource o actualiza si (kind,url) ya existe.
-    Devuelve el id."""
+    Devuelve el id.
+
+    Volver a descargar lo mismo no puede parecer material nuevo. Hasta el
+    25-10-2026 cada pasada de blogs y foros re-sellaba `fetched_at` y ponía
+    `referenced_song_ids` a NULL (los fetchers no lo pasan: lo rellena
+    `link_sources_to_songs` después), y `distill` re-destila toda canción con una
+    fuente más reciente que su consenso: un domingo cualquiera re-destilaba sin
+    que nada hubiera cambiado. Ahora `fetched_at` solo se mueve si cambia el
+    texto o los enlaces, y un `referenced_song_ids` sin pasar conserva el que había.
+    """
+    tabla = InterpretationSource.__table__
+    entrante = pg_insert(InterpretationSource).excluded
+    cambia = or_(tabla.c.content_clean.is_distinct_from(entrante.content_clean),
+                 and_(entrante.referenced_song_ids.isnot(None),
+                      tabla.c.referenced_song_ids.is_distinct_from(entrante.referenced_song_ids)))
     stmt = (
         pg_insert(InterpretationSource)
         .values(
@@ -190,10 +205,12 @@ def upsert_source(
                 "published_at": published_at,
                 "content_raw": content_raw,
                 "content_clean": content_clean,
-                "referenced_song_ids": referenced_song_ids,
+                "referenced_song_ids": func.coalesce(entrante.referenced_song_ids,
+                                                     tabla.c.referenced_song_ids),
                 "quality_score": quality_score,
                 "for_seo_only": for_seo_only,
-                "fetched_at": datetime.now(timezone.utc),
+                "fetched_at": case((cambia, datetime.now(timezone.utc)),
+                                   else_=tabla.c.fetched_at),
             },
         )
         .returning(InterpretationSource.id)

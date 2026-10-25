@@ -1145,7 +1145,9 @@ era estructural: no había kit, cada página escribía sus clases a mano.
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).
-- Veto a prensa comercial (Mondo Sonoro, Efe Eme, Rockdelux).
+- ~~Veto a prensa comercial~~ **LEVANTADO por David el 23-10-2026**: Mondo Sonoro, Efe Eme,
+  Rockdelux y cualquier medio reputado entran al corpus como FONDO (se corroboran y no se nombran;
+  lo vigila `source_guard`). En las noticias del blog nunca hubo veto.
 - Reddit fuera del corpus (Responsible Builder Policy).
 - Embeddings: OpenAI `text-embedding-3-large` (provider abstraído para futuro local).
 - Reranker: GPT-4o-mini con structured outputs y citation obligatoria.
