@@ -180,6 +180,11 @@ def complete(
     from scripts.research.common import clean_text, guardar_segmentos, upsert_source
 
     content = (payload.content_clean or "").strip()
+    # Un nivel A se juzga con la transcripción delante ANTES de guardarlo: si
+    # quien el título dice que habla no habla, entra como fondo y no como voz.
+    from app.services.corpus_judge import revisar
+
+    revisar(db, row, content)
     default_q = _DEFAULT_QUALITY.get(row.kind, 0.7)
     source_id = upsert_source(
         db,
