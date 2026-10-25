@@ -131,6 +131,33 @@ def decode_youtube_ingest_token(token: str) -> dict[str, Any] | None:
     return data
 
 
+def create_corpus_retire_token(queue_id: int, *, ttl_hours: int = 336) -> str:
+    """JWT para RETIRAR del corpus un vídeo ya ingerido, desde el correo semanal.
+
+    Purpose propio (`corpus_retire`): un token de aprobar (`youtube_ingest`) no
+    puede borrar nada, ni al revés. Retirar no se deshace, así que el enlace del
+    correo solo abre una confirmación; borra el POST de esa página.
+    """
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": "corpus_retire",
+        "queue_id": int(queue_id),
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algo)
+
+
+def decode_corpus_retire_token(token: str) -> dict[str, Any] | None:
+    data = decode_token(token)
+    if not data or data.get("purpose") != "corpus_retire":
+        return None
+    if not isinstance(data.get("queue_id"), int):
+        return None
+    return data
+
+
 _CLIP_ACTIONS = {"approve", "reject"}
 
 
