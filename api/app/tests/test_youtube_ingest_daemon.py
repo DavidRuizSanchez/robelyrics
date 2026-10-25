@@ -52,6 +52,8 @@ def audio_falso(monkeypatch, tmp_path):
     monkeypatch.setattr(process_queue, "download_audio", lambda vid, td: str(tmp_path / "a.mp3"))
     monkeypatch.setattr(process_queue, "audio_duration_s", lambda path: 2500.0)
     monkeypatch.setattr(process_queue, "split_audio", lambda path, td: trozos)
+    # Sin subtítulos: estos tests son del camino de Whisper, y sin esto saldrían a YouTube.
+    monkeypatch.setattr(process_queue, "fetch_subtitles", lambda vid: None)
     return trozos
 
 
@@ -144,3 +146,48 @@ def test_complete_sin_tramos_no_borra_los_que_hubiera(monkeypatch):
     payload = ingest.CompleteIn.model_validate({"content_clean": "x" * 40})
     assert ingest.complete(50, payload, db).status == "done"
     assert db.commits == 1
+
+
+# --- Fase 3: subtítulos gratis primero, Whisper con presupuesto -------------
+
+_SUBS = ([{"start_s": 0.0, "end_s": 3.0, "text": "Robe: esto lo grabamos"},
+          {"start_s": 3.0, "end_s": 900.0,
+           "text": "en Iruña con mucho frío, y aquella semana no paramos de tocar " * 3}], False)
+
+
+@pytest.mark.parametrize("item,subs,via", [
+    ({"nivel": "C"}, _SUBS, "subtitulos"),
+    ({"nivel": "A", "duration_s": 900.0}, (_SUBS[0], True), "whisper"),     # A, automáticos, corto
+    ({"nivel": "A", "duration_s": 900.0}, _SUBS, "subtitulos"),             # A con subtítulos manuales
+    ({"nivel": "A", "duration_s": 3600.0}, (_SUBS[0], True), "subtitulos"),  # A largo
+    ({"nivel": "A", "duration_s": 900.0, "whisper_ok": False}, (_SUBS[0], True), "subtitulos"),
+    ({"nivel": "B"}, None, "whisper"),
+    ({"nivel": "B", "whisper_ok": False}, None, None),                      # no cabe: espera
+])
+def test_elegir_via(item, subs, via):
+    assert process_queue.elegir_via(item, subs) == via
+
+
+def test_con_subtitulos_no_se_descarga_ni_se_paga(monkeypatch):
+    def no_llamar(*_):
+        raise AssertionError("con subtítulos no se baja audio")
+
+    monkeypatch.setattr(process_queue, "fetch_subtitles", lambda vid: _SUBS)
+    monkeypatch.setattr(process_queue, "download_audio", no_llamar)
+    llamadas: list = []
+    with _cliente(llamadas) as http:
+        assert process_queue._procesar(http, BASE, None, {"id": 7, "video_id": "s1",
+                                                          "nivel": "C"}) is True
+    _, cuerpo = llamadas[-1]
+    assert cuerpo["via"] == "subtitulos" and cuerpo["duration_s"] == 900.0
+    assert cuerpo["segments"][1]["start_s"] == 3.0
+    ingest.CompleteIn.model_validate(cuerpo)
+
+
+def test_sin_subtitulos_ni_presupuesto_ni_se_reclama(monkeypatch):
+    monkeypatch.setattr(process_queue, "fetch_subtitles", lambda vid: None)
+    llamadas: list = []
+    with _cliente(llamadas) as http:
+        assert process_queue._procesar(http, BASE, None, {"id": 8, "video_id": "s2",
+                                                          "whisper_ok": False}) is False
+    assert llamadas == []   # sin claim: no queda en `processing` ni gasta intento

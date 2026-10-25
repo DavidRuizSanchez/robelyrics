@@ -68,7 +68,9 @@ def listar(db: Session) -> dict:
         else:
             q = q.order_by(orden)
         filas[estado] = [_fila(r) for r in q.limit(LIMITES[estado]).all()]
-    return {"cuenta": cuenta, "filas": filas}
+    from app.services.corpus_ritmo import resumen
+
+    return {"cuenta": cuenta, "filas": filas, "ritmo": resumen(db)}
 
 
 def _retirar_fuente(db: Session, r: YouTubeIngestQueue, qdrant) -> dict:

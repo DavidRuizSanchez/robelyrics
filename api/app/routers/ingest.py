@@ -14,6 +14,7 @@ real lo hace el Pipeline 1 semanal (embed_interpretations / embed_robe_voice).
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -66,6 +67,12 @@ class PendingItem(BaseModel):
     url: str
     title: str | None = None
     target: str
+    kind: str | None = None
+    nivel: str | None = None
+    duration_s: float | None = None
+    # ¿Cabe en el presupuesto de Whisper del mes? Si no, el daemon solo prueba
+    # los subtítulos y, sin ellos, lo deja para otro mes sin gastar intento.
+    whisper_ok: bool = True
 
 
 class SegmentIn(BaseModel):
@@ -90,6 +97,10 @@ class CompleteIn(BaseModel):
     # Opcional a propósito: el api se despliega antes que la Mac, y un daemon
     # viejo que no los manda no puede recibir un 422.
     segments: list[SegmentIn] | None = None
+    # Por dónde se transcribió y cuánto dura el audio: de ahí sale el gasto del
+    # mes. Opcionales por lo mismo que `segments`; un daemon viejo solo usa Whisper.
+    via: Literal["subtitulos", "whisper"] | None = None
+    duration_s: float | None = Field(default=None, ge=0)
 
 
 class FailIn(BaseModel):
@@ -106,7 +117,7 @@ class OkOut(BaseModel):
     response_model=list[PendingItem],
     dependencies=[Depends(require_ingest_key)],
 )
-def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
+def list_pending(db: Session = Depends(get_db)) -> list[PendingItem]:
     """Vídeos listos para que el daemon los transcriba: los `approved`, los `failed`
     con margen de reintento (< MAX_ATTEMPTS) por si el fallo fue transitorio
     (yt-dlp/Whisper), y los `processing` con el claim RANCIO.
@@ -117,9 +128,19 @@ def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
     y por tanto sin reintento posible. Pasó en un rebuild: `ejYQ6I0Ef44` quedó
     colgado. Media hora es de sobra para el vídeo más largo del corpus (35 min de
     audio se transcriben en minutos), así que pasado ese plazo se asume abandonado.
+
+    Fase 3 del corpus: A antes que B antes que C, como mucho
+    `corpus_ritmo.MAX_DONE_SEMANA` hechos en 7 días (lo que no cabe espera a la
+    semana siguiente, en la cola) y cada vídeo dice si le cabe Whisper este mes.
     """
+    from app.services import corpus_ritmo
+
+    hueco = corpus_ritmo.hueco_semana(db)
+    if hueco == 0:
+        return []
+    restantes = corpus_ritmo.minutos_whisper_restantes(db)
     stale = datetime.now(UTC) - timedelta(minutes=STALE_CLAIM_MINUTES)
-    return (
+    filas = (
         db.query(YouTubeIngestQueue)
         .filter(
             or_(
@@ -135,9 +156,16 @@ def list_pending(db: Session = Depends(get_db)) -> list[YouTubeIngestQueue]:
                 ),
             )
         )
-        .order_by(YouTubeIngestQueue.approved_at.asc())
+        .order_by(corpus_ritmo.ORDEN_NIVEL, YouTubeIngestQueue.approved_at.asc())
+        .limit(hueco)
         .all()
     )
+    return [
+        PendingItem(id=r.id, video_id=r.video_id, url=r.url, title=r.title, target=r.target,
+                    kind=r.kind, nivel=r.nivel, duration_s=r.duration_s,
+                    whisper_ok=corpus_ritmo.whisper_permitido(r.duration_s, restantes))
+        for r in filas
+    ]
 
 
 def _get_or_404(db: Session, item_id: int) -> YouTubeIngestQueue:
@@ -201,6 +229,10 @@ def complete(
     row.status = "done"
     row.error = None
     row.done_at = datetime.now(UTC)
+    row.via = payload.via or "whisper"
+    if payload.duration_s:
+        # La del audio descargado manda sobre la que dijo la API de YouTube.
+        row.duration_s = payload.duration_s
     if payload.segments:
         # Mismo escritor que backfill_segments; reemplaza los previos y hace commit.
         guardar_segmentos(db, source_id, [s.model_dump() for s in payload.segments])

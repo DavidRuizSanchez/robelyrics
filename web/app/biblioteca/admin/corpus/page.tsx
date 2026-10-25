@@ -11,9 +11,18 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+type Ritmo = {
+  gasto_mes_usd: number;
+  presupuesto_mes_usd: number;
+  minutos_whisper_mes: number;
+  hechos_semana: number;
+  max_semana: number;
+};
+
 type Cola = {
   cuenta: Record<string, number>;
   filas: Record<string, CorpusItem[]>;
+  ritmo?: Ritmo;
 };
 
 function Lista({ items, vacio }: { items: CorpusItem[]; vacio: string }) {
@@ -77,7 +86,24 @@ export default async function AdminCorpusPage() {
         <Lista items={f("failed")} vacio="Ninguno." />
       </Section>
 
-      <Section title="En marcha" count={n("approved") + n("processing")}>
+      <Section
+        title="En marcha"
+        count={n("approved") + n("processing")}
+        help="Primero los subtítulos de YouTube, que son gratis; Whisper solo si no los hay (o para una voz de casa con subtítulos automáticos y menos de 20 min)."
+      >
+        {cola.ritmo && (
+          <p className="mb-3 text-sm text-ink-dim">
+            Esta semana han entrado{" "}
+            <span className="text-ink">
+              {cola.ritmo.hechos_semana} de {cola.ritmo.max_semana}
+            </span>{" "}
+            (lo que no cabe espera a la siguiente). Whisper este mes:{" "}
+            <span className="text-ink">
+              {cola.ritmo.gasto_mes_usd.toFixed(2)} $ de {cola.ritmo.presupuesto_mes_usd} $
+            </span>{" "}
+            ({cola.ritmo.minutos_whisper_mes} min).
+          </p>
+        )}
         <Lista items={[...f("processing"), ...f("approved")]} vacio="Nada esperando a tu Mac." />
       </Section>
 
