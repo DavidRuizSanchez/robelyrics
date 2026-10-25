@@ -176,18 +176,24 @@ def _palabras(texto: str) -> list[str]:
 def quien_cita(titulo: str | None, voces: list[Voz]) -> Voz | None:
     """La voz que firma una cita del título: su nombre es TODO lo que va antes.
 
-    «Todo» son sus palabras: «Iñaki 'Uoho': «Ahora estoy sintiendo…»» (ABC) es
-    Uoho aunque esa combinación no sea ningún alias, porque «iñaki» y «uoho»
-    salen de los suyos. «Las voces de la radio despiden a Robe: "…"» sigue sin
-    ser de Robe: «voces», «radio» o «despiden» no son nombres suyos.
+    Vale un alias completo («Iñaki Antón: …», «Leiva: …») o una mezcla de sus
+    palabras que lleve un alias propio de una sola palabra: «Iñaki 'Uoho': «Ahora
+    estoy sintiendo…»» (ABC) es Uoho porque dice «uoho». Un nombre de pila suelto
+    no basta: «Iñaki: …» o «José Miguel: …» puede ser cualquiera, y un alias
+    ambiguo («Fito», que también es Páez) nunca firma solo. «Las voces de la radio
+    despiden a Robe: "…"» sigue sin ser de Robe: esas palabras no son nombres suyos.
     """
     for m in _CITA_EN_TITULO.finditer(titulo or ""):
         antes = _palabras(m.group(1))
         if not antes:
             continue
         for v in voces:
+            propios = [_palabras(a) for a in (v.nombre, *v.alias)]
+            if antes in propios:
+                return v
+            sueltos = {a[0] for a in propios if len(a) == 1}
             suyas = {p for a in (v.nombre, *v.alias, *v.alias_ambiguos) for p in _palabras(a)}
-            if set(antes) <= suyas:
+            if len(antes) > 1 and set(antes) <= suyas and sueltos & set(antes):
                 return v
     return None
 

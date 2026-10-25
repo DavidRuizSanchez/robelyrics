@@ -15,6 +15,7 @@ type Ritmo = {
   gasto_mes_usd: number;
   presupuesto_mes_usd: number;
   minutos_whisper_mes: number;
+  whisper_sin_duracion?: number;
   hechos_semana: number;
   max_semana: number;
 };
@@ -101,7 +102,11 @@ export default async function AdminCorpusPage() {
             <span className="text-ink">
               {cola.ritmo.gasto_mes_usd.toFixed(2)} $ de {cola.ritmo.presupuesto_mes_usd} $
             </span>{" "}
-            ({cola.ritmo.minutos_whisper_mes} min).
+            ({cola.ritmo.minutos_whisper_mes} min)
+            {cola.ritmo.whisper_sin_duracion
+              ? `; como mínimo: ${cola.ritmo.whisper_sin_duracion} sin duración apuntada`
+              : ""}
+            .
           </p>
         )}
         <Lista items={[...f("processing"), ...f("approved")]} vacio="Nada esperando a tu Mac." />

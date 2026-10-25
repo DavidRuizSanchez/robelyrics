@@ -151,13 +151,27 @@ def _voces_no_robe() -> tuple[str, ...]:
     return tuple(sorted({n for n in out if n and len(n) >= 4}, key=len, reverse=True))
 
 
+def _sin_tildes(s: str) -> str:
+    s = unicodedata.normalize("NFD", s or "")
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
 def _primer_hablante(frase: str) -> str | None:
     """La primera voz que nombra la frase, que es quien habla: «Uoho, compañero de
-    Robe, contó…» es Uoho. Devuelve None si la primera es Robe o no hay ninguna."""
-    plano = _plano(frase)
+    Robe, contó…» es Uoho. Devuelve None si la primera es Robe o no hay ninguna.
+
+    Un nombre de una palabra solo cuenta con su mayúscula, como los medios con
+    nombre de frase: «el capi del equipo», «salo» o «william» en minúscula no son
+    Capi, Salo ni William, y si van delante de Robe tumban una frase buena."""
+    plano, conserva = _plano(frase), _sin_tildes(frase)
     posiciones = []
     for nombre in (*_ALIAS_ROBE, *_voces_no_robe()):
-        m = re.search(r"(?<![\w])" + re.escape(_plano(nombre)) + r"(?![\w])", plano)
+        if " " in nombre or nombre in _ALIAS_ROBE:
+            m = re.search(r"(?<![\w])" + re.escape(_plano(nombre)) + r"(?![\w])", plano)
+        else:
+            m = next((x for x in re.finditer(r"(?<![\w])" + re.escape(_sin_tildes(nombre))
+                                             + r"(?![\w])", conserva, re.I)
+                      if x.group(0)[0].isupper()), None)
         if m:
             posiciones.append((m.start(), nombre))
     if not posiciones:

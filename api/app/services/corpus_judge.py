@@ -13,8 +13,13 @@ BAJAR de nivel: si no, o si duda, el vídeo entra como `media_report` (fondo, no
 voz). `about_robe` no vale como destino porque está en `embed_robe_voice.VOICE_KINDS`.
 
 Ante la duda, NO: atribuir a Robe las palabras de un locutor es peor que perder
-una entrevista suya, que sigue en el corpus como fondo. Si el juez no se puede
-consultar (sin clave, OpenAI caído) también baja, y el motivo lo dice.
+una entrevista suya, que sigue en el corpus como fondo.
+
+Si el juez no se puede consultar (sin clave, OpenAI caído) también baja, pero eso
+no es un veredicto: queda marcado (`PENDIENTE`) y `rejuzgar_pendientes` lo vuelve a
+mirar con el texto ya guardado. Antes una caída de OpenAI dejaba como fondo, para
+siempre y sin marca, a quien sí hablaba (revisión del 25-10-2026). Volver a
+transcribir no es la salida: sería pagar Whisper dos veces.
 """
 from __future__ import annotations
 
@@ -26,6 +31,8 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 DESTINO_SI_NO_PASA = "media_report"
+PENDIENTE = "juez no disponible: pendiente de rejuzgar"
+_KIND_ORIGINAL = re.compile(r"kind original: (\w+)")
 
 # Tres ventanas en vez del arranque: los primeros minutos suelen ser del
 # presentador («bienvenidos a…»), y con ellos solo el juez diría que no habla.
@@ -56,6 +63,7 @@ class Juicio:
     habla: str            # si | no | duda
     de_robe: str          # si | no | duda
     motivo: str
+    juzgado: bool = True  # False = no se pudo consultar: no es un «no»
 
     @property
     def pasa(self) -> bool:
@@ -95,7 +103,7 @@ def juzgar(voz: str, titulo: str | None, canal: str | None, texto: str,
         logger.warning("[corpus_judge] no se pudo consultar al juez: %s", exc)
         data = {}
     if not data:
-        return Juicio("duda", "duda", "no se ha podido consultar al juez")
+        return Juicio("duda", "duda", "no se ha podido consultar al juez", juzgado=False)
     norm = {"si": "si", "sí": "si", "no": "no"}
     return Juicio(norm.get(str(data.get("habla", "")).lower(), "duda"),
                   norm.get(str(data.get("de_robe", "")).lower(), "duda"),
@@ -132,6 +140,64 @@ def revisar(db, row, texto: str, llm: Callable[[str, str], dict] | None = None) 
     if not juicio.pasa:
         row.motivos = [*row.motivos, f"baja de A ({row.kind}) a B ({DESTINO_SI_NO_PASA}): "
                                      "entra como fondo, no como voz"]
+        if not juicio.juzgado:
+            row.motivos = [*row.motivos, f"{PENDIENTE} · kind original: {row.kind}"]
         row.kind = DESTINO_SI_NO_PASA
         row.nivel = "B"
     return juicio
+
+
+def _pendiente(row) -> str | None:
+    """El kind original si la última palabra sobre esta fila es «pendiente»."""
+    for nota in reversed(row.motivos or []):
+        if not isinstance(nota, str):
+            continue
+        if nota.startswith(PENDIENTE):
+            m = _KIND_ORIGINAL.search(nota)
+            return m.group(1) if m else None
+        if nota.startswith("rejuzgado"):
+            return None
+    return None
+
+
+def rejuzgar_pendientes(db, llm: Callable[[str, str], dict] | None = None) -> dict[str, int]:
+    """Vuelve a juzgar lo que bajó porque el juez no respondía, con la transcripción
+    ya guardada. Si pasa, recupera su kind (en la cola y en la fuente: los embeddings
+    semanales lo recogen solos). Si vuelve a no responder, sigue pendiente."""
+    from app.db.models import InterpretationSource, YouTubeIngestQueue
+    from app.services.corpus_trust import cargar_voces
+
+    filas = (db.query(YouTubeIngestQueue)
+             .filter(YouTubeIngestQueue.status == "done",
+                     YouTubeIngestQueue.kind == DESTINO_SI_NO_PASA).all())
+    nombres = None
+    cuenta = {"pasa": 0, "no_pasa": 0, "sigue_pendiente": 0}
+    for row in filas:
+        original = _pendiente(row)
+        if not original:
+            continue
+        fuente = (db.query(InterpretationSource)
+                  .filter_by(kind=DESTINO_SI_NO_PASA, url=row.url).one_or_none())
+        if fuente is None:
+            continue
+        if nombres is None:
+            nombres = {v.slug: v.nombre for v in cargar_voces(db)}
+        voz = voz_principal(original, row.voces, nombres)
+        juicio = (juzgar(voz, row.title, row.channel, fuente.content_clean or "", llm=llm)
+                  if voz else Juicio("duda", "duda", "nivel A sin voz principal"))
+        if not juicio.juzgado:
+            cuenta["sigue_pendiente"] += 1
+            continue
+        if juicio.pasa and db.query(InterpretationSource.id).filter_by(
+                kind=original, url=row.url).first() is None:
+            row.kind = fuente.kind = original
+            row.nivel = "A"
+            row.motivos = [*(row.motivos or []), f"rejuzgado ({voz}): pasa · vuelve a {original}"]
+            cuenta["pasa"] += 1
+        else:
+            row.motivos = [*(row.motivos or []),
+                           f"rejuzgado ({voz or '—'}): no pasa · habla={juicio.habla} · "
+                           f"de Robe={juicio.de_robe}"]
+            cuenta["no_pasa"] += 1
+    db.commit()
+    return cuenta

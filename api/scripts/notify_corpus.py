@@ -113,7 +113,9 @@ def _build_html(data: dict, site: str) -> str:
     r = data["ritmo"]
     p.append(f"<p>Han entrado <b>{r['hechos_semana']}</b> fuentes de vídeo en 7 días "
              f"(tope {r['max_semana']}). Whisper este mes: <b>{r['gasto_mes_usd']:.2f} $</b> de "
-             f"{r['presupuesto_mes_usd']:.0f} $ ({r['minutos_whisper_mes']} min).</p>")
+             f"{r['presupuesto_mes_usd']:.0f} $ ({r['minutos_whisper_mes']} min)"
+             + (f"; como mínimo: {r['whisper_sin_duracion']} sin duración apuntada"
+                if r.get("whisper_sin_duracion") else "") + ".</p>")
     if sequia(data):
         p.append(f"<p style='color:#a83a3a'><b>⚠️ Sequía:</b> en {DIAS_SEQUIA} días no ha entrado "
                  "ni cambiado ninguna fuente del corpus. Mira el log de <code>detect_uploads</code> "
@@ -166,6 +168,11 @@ def main() -> None:
         return
     db = SessionLocal()
     try:
+        if not args.dry_run:
+            # Lo que bajó porque OpenAI no respondía se juzga antes de contarlo.
+            from app.services.corpus_judge import rejuzgar_pendientes
+
+            logger.info("rejuzgados: %s", rejuzgar_pendientes(db))
         data = _gather(db)
         firma = _signature(data)
         enviar, motivo = _should_send(db, data, firma)

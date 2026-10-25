@@ -76,7 +76,8 @@ def listar(db: Session) -> dict:
 def _retirar_fuente(db: Session, r: YouTubeIngestQueue, qdrant) -> dict:
     """Saca del corpus lo que entró por este vídeo: la fuente, sus tramos
     (CASCADE) y sus puntos en Qdrant. El consenso destilado que ya la citara no
-    se reescribe aquí: se avisa, porque re-destilar es otra decisión."""
+    se reescribe aquí: lo rehace el `distill --stale` del domingo, que recoge los
+    consensos que citan una fuente que ya no existe."""
     fuente = (db.query(InterpretationSource)
               .filter(InterpretationSource.kind == r.kind, InterpretationSource.url == r.url)
               .one_or_none())

@@ -272,3 +272,18 @@ def test_la_cita_firmada_con_nombre_y_mote_es_de_esa_voz():
                    "Iñaki “Uoho”: «Robe era así»"):
         assert quien_cita(titulo, VOCES) is UOHO, titulo
     assert quien_cita("Las voces de la radio despiden a Robe: «Un genio»", VOCES) is None
+
+
+def test_un_nombre_de_pila_suelto_no_firma_una_cita():
+    """«Iñaki» casaba con Uoho por estar en su alias «Iñaki Antón» (revisión 25-10-2026)."""
+    from app.services.corpus_trust import quien_cita
+
+    fito = Voz(slug="fito", nombre="Fito Cabrales", relacion="amigo",
+               alias=("Fito Cabrales", "Adolfo Cabrales"), alias_ambiguos=("Fito",))
+    voces = [*VOCES, fito]
+    assert quien_cita("Iñaki Antón: «Robe me llamó»", voces) is UOHO
+    assert quien_cita("Uoho: «Robe me llamó»", voces) is UOHO
+    for titulo in ("Iñaki: «Robe me llamó»", "Antón: «Robe me llamó»", "Fito: «Era único»",
+                   "Fito Páez: «Era único»"):
+        assert quien_cita(titulo, voces) is None, titulo
+    assert quien_cita("Fito Cabrales: «Era único»", voces) is fito

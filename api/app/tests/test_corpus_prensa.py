@@ -62,29 +62,42 @@ def _news(**kw):
 
 
 class _DB:
-    def __init__(self, noticias, prensa_existente=()):
-        self.noticias, self.prensa = noticias, set(prensa_existente)
+    """Las noticias del agregador y las fuentes ya guardadas, filtrables por campo."""
+
+    def __init__(self, noticias, fuentes=()):
+        self.noticias, self.fuentes = noticias, list(fuentes)
 
     def query(self, modelo):
         db = self
+        es_noticia = getattr(modelo, "__name__", "") == "NewsItem"
 
         class Q:
+            filtros: dict = {}
+
             def filter(self, *a, **k):
                 return self
 
-            def filter_by(self, kind, url):
-                self.hit = kind == "press" and url in db.prensa
+            def filter_by(self, **kw):
+                self.filtros = kw
                 return self
 
-            def first(self):
-                return 1 if self.hit else None
-
             def all(self):
-                return db.noticias
+                if es_noticia:
+                    return db.noticias
+                return [f for f in db.fuentes
+                        if all(getattr(f, k) == v for k, v in self.filtros.items())]
+
+            def first(self):
+                return next(iter(self.all()), None)
         return Q()
 
     def commit(self):
         pass
+
+
+def _fuente(kind, url, title, cuerpo):
+    return SimpleNamespace(id=7, kind=kind, url=url, title=title, content_raw=cuerpo,
+                           content_clean=cuerpo, author="HOY", quality_score=0.6)
 
 
 @pytest.fixture
@@ -110,9 +123,34 @@ def test_con_entrada_automatica_la_entrevista_es_propia(subidas):
     assert subidas[0]["url"] == "https://www.hoy.es/a"       # la del medio, no la de Google News
 
 
-def test_lo_que_entro_como_fondo_no_se_duplica_al_encender(subidas):
-    cp.promover(_DB([_news()], prensa_existente={"https://www.hoy.es/a"}), auto_entry=True)
-    assert subidas == []
+def test_lo_que_entro_como_fondo_sube_al_encender_sin_duplicarse(subidas):
+    """La noticia se purga a los 7 días: si al encender no se sube lo visto en
+    sombra, esa entrevista se queda de fondo para siempre."""
+    fondo = _fuente("press", "https://www.hoy.es/a", _news().title, CUERPO_ENTREVISTA)
+    cuenta = cp.promover(_DB([], fuentes=[fondo]), auto_entry=True)
+    assert cuenta["ascendidas"] == 1 and subidas == []
+    assert fondo.kind == "press_interview" and fondo.quality_score == 0.75
+
+
+def test_al_encender_un_reportaje_sigue_siendo_fondo(subidas):
+    fondo = _fuente("press", "https://www.hoy.es/b", "Plasencia pinta un mural de Robe",
+                    CUERPO_REPORTAJE)
+    cp.promover(_DB([], fuentes=[fondo]), auto_entry=True)
+    assert fondo.kind == "press"
+
+
+def test_en_sombra_no_se_asciende_nada(subidas):
+    fondo = _fuente("press", "https://www.hoy.es/a", _news().title, CUERPO_ENTREVISTA)
+    cp.promover(_DB([], fuentes=[fondo]), auto_entry=False)
+    assert fondo.kind == "press"
+
+
+def test_guardar_sube_en_sitio_lo_que_ya_era_fondo():
+    fondo = _fuente("press", "https://www.hoy.es/a", _news().title, CUERPO_ENTREVISTA)
+    v = cp.clasificar_texto(fondo.title, CUERPO_ENTREVISTA, fondo.url, VOCES, MEDIOS)
+    assert cp.guardar(_DB([], fuentes=[fondo]), v, titulo=fondo.title, texto=CUERPO_ENTREVISTA,
+                      url=fondo.url, auto_entry=True) == 7
+    assert fondo.kind == "press_interview"
 
 
 def test_la_entrevista_en_texto_es_propia_y_tiene_atribucion():

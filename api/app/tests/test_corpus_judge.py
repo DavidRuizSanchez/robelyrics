@@ -62,7 +62,7 @@ def test_lo_que_no_pasa_baja_a_fondo_y_nunca_a_la_voz_de_robe(respuesta):
     revisar(None, fila, "texto de la transcripción", llm=_llm(respuesta))
     assert fila.kind == corpus_judge.DESTINO_SI_NO_PASA and fila.nivel == "B"
     assert fila.kind not in VOICE_KINDS
-    assert "baja de A" in fila.motivos[-1]
+    assert any("baja de A" in m for m in fila.motivos)
 
 
 def test_el_testimonio_del_entorno_se_juzga_por_su_voz_no_por_robe():
@@ -85,12 +85,12 @@ def test_solo_se_juzga_el_nivel_a(nivel):
     assert fila.kind == "media_report"
 
 
-def test_una_excepcion_del_juez_cuenta_como_duda():
+def test_una_excepcion_del_juez_cuenta_como_duda_sin_juzgar():
     def roto(*_):
         raise TimeoutError("openai")
 
     assert juzgar("Robe", "t", "c", "texto", llm=roto) == Juicio(
-        "duda", "duda", "no se ha podido consultar al juez")
+        "duda", "duda", "no se ha podido consultar al juez", juzgado=False)
 
 
 def test_el_extracto_no_se_queda_con_la_presentacion():
@@ -130,3 +130,69 @@ def test_el_extracto_lleva_las_menciones_que_las_ventanas_no_ven():
     ex = extracto(texto)
     assert "Robe Cantera" in ex and "extremo duro" in ex
     assert len(ex) < 3 * 1000 + 3 * 500 + 40
+
+
+def test_un_juez_caido_baja_pero_queda_pendiente_y_uno_que_dice_no_no():
+    caido, negado = _fila(), _fila()
+    revisar(None, caido, "Yo escribí Agila…", llm=_llm({}))
+    revisar(None, negado, "Yo escribí Agila…", llm=_llm({"habla": "no", "de_robe": "si"}))
+    assert caido.kind == negado.kind == corpus_judge.DESTINO_SI_NO_PASA
+    assert corpus_judge._pendiente(caido) == "robe_interview"
+    assert corpus_judge._pendiente(negado) is None
+
+
+class _BD:
+    """Lo justo de una sesión: la cola en `done` y sus fuentes por (kind, url)."""
+
+    def __init__(self, filas, fuentes):
+        self.filas, self.fuentes, self.commits = filas, fuentes, 0
+
+    def query(self, *modelo):
+        bd = self
+
+        class Q:
+            clave = None
+
+            def filter(self, *a):
+                return self
+
+            def filter_by(self, kind, url):
+                self.clave = (kind, url)
+                return self
+
+            def all(self):
+                return bd.filas
+
+            def one_or_none(self):
+                return next((f for f in bd.fuentes if (f.kind, f.url) == self.clave), None)
+
+            first = one_or_none
+        return Q()
+
+    def commit(self):
+        self.commits += 1
+
+
+def _pendiente_en_bd():
+    fila = _fila()
+    revisar(None, fila, "x", llm=_llm({}))
+    fila.status = "done"
+    fuente = SimpleNamespace(kind=fila.kind, url=fila.url, content_clean="Yo escribí Agila…")
+    return fila, fuente, _BD([fila], [fuente])
+
+
+def test_rejuzgar_devuelve_su_voz_a_quien_si_hablaba():
+    fila, fuente, bd = _pendiente_en_bd()
+    cuenta = corpus_judge.rejuzgar_pendientes(bd, llm=_llm({"habla": "si", "de_robe": "si"}))
+    assert cuenta["pasa"] == 1
+    assert fila.kind == fuente.kind == "robe_interview" and fila.nivel == "A"
+    # Ya resuelto: una segunda pasada no lo vuelve a tocar.
+    assert corpus_judge._pendiente(fila) is None
+
+
+@pytest.mark.parametrize("respuesta,pendiente", [({}, True), ({"habla": "no", "de_robe": "si"}, False)])
+def test_rejuzgar_no_sube_a_nadie_sin_veredicto(respuesta, pendiente):
+    fila, fuente, bd = _pendiente_en_bd()
+    corpus_judge.rejuzgar_pendientes(bd, llm=_llm(respuesta))
+    assert fila.kind == fuente.kind == corpus_judge.DESTINO_SI_NO_PASA and fila.nivel == "B"
+    assert (corpus_judge._pendiente(fila) is not None) is pendiente
