@@ -5,10 +5,16 @@ Corre en el contenedor api EN LOCAL (lo lanza launchd vía docker exec). Habla
 SOLO con producción por HTTP — NO toca la BD local. Esquiva el antibot de
 YouTube porque la descarga sale por la IP residencial de casa.
 
-Por cada vídeo `approved` en prod:
+Por cada vídeo `approved` en prod (prod ya los da en orden A > B > C y con el
+tope semanal aplicado, ver `app.services.corpus_ritmo`):
+  0. subtítulos de YouTube, que son gratis. Whisper solo si no los hay, o si es
+     un nivel A con subtítulos automáticos de menos de 20 min (la voz pide
+     calidad). Si no hay subtítulos y Whisper ya no cabe en el mes, se deja para
+     otro mes SIN reclamarlo ni gastar intento.
   1. claim   → lo marca `processing` (evita que dos pasadas lo pisen).
   2. yt-dlp (bestaudio) → ffmpeg (16 kHz mono, segmentos 20 min) → Whisper (es).
-  3. complete → POST de la transcripción; prod hace upsert_source (kind correcto).
+  3. complete → POST de la transcripción y de por dónde fue (`via`) con la
+     duración: de ahí sale el gasto del mes.
   Si algo falla → fail (suma intento; se reintenta en la siguiente pasada).
 
 Config (vars de entorno, ya en el .env del contenedor):
@@ -31,7 +37,9 @@ import httpx
 from openai import OpenAI
 
 from app.config import get_settings
+from app.services.corpus_ritmo import WHISPER_EN_A_HASTA_S
 from scripts.research.common import clean_text
+from scripts.research.fetch_youtube import fetch_subtitles
 from scripts.research.transcribe_juancares import (
     audio_duration_s,
     download_audio,
@@ -55,6 +63,26 @@ def _base_and_headers() -> tuple[str, dict]:
     return base, {"Authorization": f"Bearer {key}"}
 
 
+def elegir_via(it: dict, subtitulos: tuple[list[dict], bool] | None) -> str | None:
+    """`subtitulos`, `whisper` o None (no cabe en el mes: se deja para otro)."""
+    whisper_ok = it.get("whisper_ok", True)
+    if subtitulos:
+        tramos, automaticos = subtitulos
+        dur = it.get("duration_s") or (tramos[-1]["end_s"] if tramos else 0.0)
+        if (it.get("nivel") == "A" and automaticos and dur <= WHISPER_EN_A_HASTA_S
+                and whisper_ok):
+            return "whisper"
+        return "subtitulos"
+    return "whisper" if whisper_ok else None
+
+
+def _por_subtitulos(it: dict, subtitulos: tuple[list[dict], bool]) -> tuple[str, list, float]:
+    tramos, _ = subtitulos
+    texto = clean_text(" ".join(t["text"] for t in tramos)) or ""
+    dur = it.get("duration_s") or tramos[-1]["end_s"]
+    return texto, tramos, dur
+
+
 def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
     """Reclama, transcribe y empuja UN vídeo. False si otra pasada lo tiene.
 
@@ -65,6 +93,11 @@ def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
     """
     item_id, vid = it["id"], it["video_id"]
     title = it.get("title") or vid
+    subtitulos = fetch_subtitles(vid)
+    via = elegir_via(it, subtitulos)
+    if via is None:
+        logger.info("[·] %s sin subtítulos y sin presupuesto de Whisper este mes: espera", vid)
+        return False
     claim = http.post(f"{base}/ingest/youtube/{item_id}/claim")
     if claim.status_code == 409:
         # Otra pasada se lo llevó (el launchd dispara cada 15 min y una
@@ -74,14 +107,17 @@ def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
                     vid, claim.json().get("detail", "")[:60])
         return False
     claim.raise_for_status()
-    with tempfile.TemporaryDirectory() as td:
-        audio = download_audio(vid, td)
-        if not audio:
-            raise RuntimeError("yt-dlp no devolvió audio")
-        dur = audio_duration_s(audio)
-        chunks = split_audio(audio, td)
-        texto_crudo, tramos = transcribe(openai, chunks)
-        text = clean_text(texto_crudo) or ""
+    if via == "subtitulos":
+        text, tramos, dur = _por_subtitulos(it, subtitulos)
+    else:
+        with tempfile.TemporaryDirectory() as td:
+            audio = download_audio(vid, td)
+            if not audio:
+                raise RuntimeError("yt-dlp no devolvió audio")
+            dur = audio_duration_s(audio)
+            chunks = split_audio(audio, td)
+            texto_crudo, tramos = transcribe(openai, chunks)
+            text = clean_text(texto_crudo) or ""
     floor = min_chars_for(dur, ceiling=MIN_CHARS)
     if len(text) < floor:
         raise RuntimeError(
@@ -90,10 +126,12 @@ def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
         )
     resp = http.post(
         f"{base}/ingest/youtube/{item_id}/complete",
-        json={"content_clean": text, "title": it.get("title"), "segments": tramos},
+        json={"content_clean": text, "title": it.get("title"), "segments": tramos,
+              "via": via, "duration_s": dur},
     )
     resp.raise_for_status()
-    logger.info("[✓] %s · %d chars · %d tramos · %s", vid, len(text), len(tramos), title[:55])
+    logger.info("[✓] %s · %s · %d chars · %d tramos · %s", vid, via, len(text), len(tramos),
+                title[:55])
     return True
 
 

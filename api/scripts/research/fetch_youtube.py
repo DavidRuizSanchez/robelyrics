@@ -153,6 +153,13 @@ def fetch_transcript_segments(video_id: str) -> list[dict] | None:
     entrevista ya transcrita obligaba a volver a pasarla por Whisper, pagando
     otra vez por un dato que YouTube regala.
     """
+    sub = fetch_subtitles(video_id)
+    return sub[0] if sub else None
+
+
+def fetch_subtitles(video_id: str) -> tuple[list[dict], bool] | None:
+    """Como `fetch_transcript_segments`, y además si son AUTOMÁTICOS (`is_generated`):
+    el daemon del corpus decide con eso si un nivel A merece Whisper."""
     try:
         fetched = _yt_api.fetch(video_id, languages=["es", "es-ES", "en"])
     except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, CouldNotRetrieveTranscript):
@@ -170,7 +177,7 @@ def fetch_transcript_segments(video_id: str) -> list[dict] | None:
             "end_s": inicio + float(getattr(sn, "duration", 0.0) or 0.0),
             "text": sn.text,
         })
-    return out or None
+    return (out, bool(getattr(fetched, "is_generated", True))) if out else None
 
 
 def fetch_transcript(video_id: str) -> str | None:

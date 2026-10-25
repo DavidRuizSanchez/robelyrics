@@ -2102,6 +2102,9 @@ class YouTubeIngestQueue(Base):
     motivos: Mapped[list | None] = mapped_column(JSONB)
     descubierto_por: Mapped[str | None] = mapped_column(String(16))  # canal | busqueda | inventario
     duration_s: Mapped[float | None] = mapped_column(Float)
+    # Cómo se transcribió (corpus2026_02): `subtitulos` (gratis) o `whisper`. De
+    # aquí, con `duration_s`, sale el gasto del mes (`corpus_ritmo`).
+    via: Mapped[str | None] = mapped_column(String(16))
 
 
 class UrlIngestJob(Base):
