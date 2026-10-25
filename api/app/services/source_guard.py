@@ -16,6 +16,9 @@ nombrarlas en el texto», «NUNCA menciones el medio»).
 Lo que SÍ se nombra:
   - **Robe, y el medio donde lo dijo** («Robe contó a RockFM que…»). Es la voz del
     protagonista, no un editor externo (decisión de David, 19-10-2026).
+    Los miembros y amigos del corpus (`corpus_voices.yaml`, la formación de
+    `persons.yaml`) son fuente propia que NO se cita (David, 23-10-2026): «Uoho
+    contó a RockFM que…» cae, aunque luego la frase nombre a Robe.
   - **setlist.fm y MusicBrainz**, cuyos términos exigen la atribución.
 
 Determinista, sin red y sin LLM. Dos usos: `fuentes_nombradas` para bloquear o
@@ -68,6 +71,7 @@ _ROBE_HABLA = re.compile(
     re.I,
 )
 _EXENTAS = ("setlist.fm", "musicbrainz")
+_ALIAS_ROBE = ("robe", "robe iniesta", "roberto iniesta")
 
 # Frases que hablan del PROCESO y no del tema: eco de las instrucciones. Medidas
 # en los borradores reales del 19-10-2026: «Estos nombres responden a las
@@ -126,6 +130,42 @@ def _nombres_yaml() -> tuple[str, ...]:
     return tuple(out)
 
 
+@lru_cache(maxsize=1)
+def _voces_no_robe() -> tuple[str, ...]:
+    """Miembros y amigos cuya palabra no se cita. Sale de los YAML y no de la BD
+    para que valga igual en Instagram, donde la guarda corre sin sesión."""
+    import yaml
+
+    out: list[str] = []
+    for base in (Path("/app/data"), Path(__file__).resolve().parents[3] / "data"):
+        personas, voces = base / "persons.yaml", base / "corpus_voices.yaml"
+        if not personas.exists():
+            continue
+        for p in (yaml.safe_load(personas.read_text(encoding="utf-8")) or {}).get("persons") or []:
+            if p.get("memberships") and p.get("slug") != "robe-iniesta":
+                out += [n for n in (p.get("stage_name"), p.get("full_name")) if n]
+        if voces.exists():
+            for v in (yaml.safe_load(voces.read_text(encoding="utf-8")) or {}).get("voces") or []:
+                out += [v.get("nombre"), *(v.get("alias") or []), *(v.get("alias_ambiguos") or [])]
+        break
+    return tuple(sorted({n for n in out if n and len(n) >= 4}, key=len, reverse=True))
+
+
+def _primer_hablante(frase: str) -> str | None:
+    """La primera voz que nombra la frase, que es quien habla: «Uoho, compañero de
+    Robe, contó…» es Uoho. Devuelve None si la primera es Robe o no hay ninguna."""
+    plano = _plano(frase)
+    posiciones = []
+    for nombre in (*_ALIAS_ROBE, *_voces_no_robe()):
+        m = re.search(r"(?<![\w])" + re.escape(_plano(nombre)) + r"(?![\w])", plano)
+        if m:
+            posiciones.append((m.start(), nombre))
+    if not posiciones:
+        return None
+    _, primero = min(posiciones, key=lambda x: (x[0], -len(x[1])))
+    return None if primero in _ALIAS_ROBE else primero
+
+
 def nombres_de_fuentes(db=None) -> list[str]:
     """Todo nombre de analista, blog o canal que no puede aparecer en el texto.
 
@@ -179,9 +219,12 @@ def _culpa(frase: str, nombres: list[str]) -> str | None:
     medio = next((m for m in _MEDIOS if _busca(m, plano)), None) or next(
         (m for m in _MEDIOS_MAYUS
          if re.search(r"(?<![\w])" + re.escape(m) + r"(?![\w])", frase)), None)
-    if medio and not _ROBE_HABLA.search(frase):
-        return medio
-    return None
+    if not medio:
+        return None
+    otro = _primer_hablante(frase)
+    if otro:
+        return f"{otro} en {medio} (solo se cita a Robe)"
+    return None if _ROBE_HABLA.search(frase) else medio
 
 
 def fuentes_nombradas(texto: str, nombres: list[str] | None = None) -> list[tuple[str, str]]:

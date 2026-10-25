@@ -79,3 +79,28 @@ def test_el_metatexto_de_personas_se_quita():
     limpio, quitadas = sg.limpiar("Uoho fue guitarrista. En una formación citada, Extremoduro "
                                   "estaba integrada por Robe y Uoho.")
     assert limpio == "Uoho fue guitarrista." and len(quitadas) == 1
+
+
+# Miembros y amigos: fuente propia que NO se cita (David, 23-10-2026). Solo Robe.
+
+def test_un_miembro_no_se_cita_con_su_medio():
+    for frase in (
+        "Uoho contó a RockFM que grabaron Agila en Iruña.",
+        "Iñaki Antón, compañero de Robe durante veinte años, contó a RockFM que se iba.",
+        "Leiva explicó en la Cadena SER que Robe le cambió la vida.",
+        "Uoho dijo a ABC que Robe dijo basta.",
+    ):
+        culpa = sg.fuentes_nombradas(frase)
+        assert culpa and "solo se cita a Robe" in culpa[0][1], frase
+
+
+def test_robe_sigue_citandose_aunque_nombre_a_otro():
+    assert sg.fuentes_nombradas("Robe contó a RockFM que Uoho le enseñó a grabar.") == []
+    assert sg.fuentes_nombradas("Robe Iniesta explicó en la Cadena SER que Leiva era familia.") == []
+
+
+def test_limpiar_quita_la_cita_del_miembro():
+    texto = "Agila salió en 1996. Uoho contó a RockFM que la grabaron en Iruña. Fue disco de oro."
+    limpio, quitadas = sg.limpiar(texto, nombres=[])
+    assert limpio == "Agila salió en 1996. Fue disco de oro."
+    assert quitadas == ["Uoho contó a RockFM que la grabaron en Iruña."]
