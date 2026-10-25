@@ -169,12 +169,25 @@ def voces_en(texto: str, voces: list[Voz], canal_fiable: bool = False) -> list[V
     return [v for v in voces if v.nombrada_en(t, canal_fiable)]
 
 
+def _palabras(texto: str) -> list[str]:
+    return re.findall(r"\w+", normaliza(texto))
+
+
 def quien_cita(titulo: str | None, voces: list[Voz]) -> Voz | None:
-    """La voz que firma una cita del título: su nombre es TODO lo que va antes."""
+    """La voz que firma una cita del título: su nombre es TODO lo que va antes.
+
+    «Todo» son sus palabras: «Iñaki 'Uoho': «Ahora estoy sintiendo…»» (ABC) es
+    Uoho aunque esa combinación no sea ningún alias, porque «iñaki» y «uoho»
+    salen de los suyos. «Las voces de la radio despiden a Robe: "…"» sigue sin
+    ser de Robe: «voces», «radio» o «despiden» no son nombres suyos.
+    """
     for m in _CITA_EN_TITULO.finditer(titulo or ""):
-        antes = normaliza(m.group(1)).strip(" \"'“”«»")
+        antes = _palabras(m.group(1))
+        if not antes:
+            continue
         for v in voces:
-            if antes in {normaliza(a) for a in (v.nombre, *v.alias, *v.alias_ambiguos)}:
+            suyas = {p for a in (v.nombre, *v.alias, *v.alias_ambiguos) for p in _palabras(a)}
+            if set(antes) <= suyas:
                 return v
     return None
 

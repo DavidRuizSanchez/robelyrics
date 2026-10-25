@@ -137,7 +137,15 @@ def web_research(query: str, n: int = 6) -> list[dict]:
         with httpx.Client(timeout=30.0) as c:
             r = c.post(_SERP, auth=(login, pwd), json=payload)
             r.raise_for_status()
-            items = r.json()["tasks"][0]["result"][0]["items"] or []
+            tarea = r.json()["tasks"][0]
+        # Una tarea con error llega con `result: null`, y el `[0]` de después
+        # dejaba en el log «'NoneType' object is not subscriptable» (varias veces
+        # al día del 18 al 22-10-2026) en vez del motivo que da DataForSEO.
+        if not tarea.get("result"):
+            logger.warning("[news_research] SERP sin resultado '%s': %s %s", query,
+                           tarea.get("status_code"), tarea.get("status_message"))
+            return []
+        items = tarea["result"][0].get("items") or []
     except Exception as exc:  # noqa: BLE001
         logger.warning("[news_research] SERP falló '%s': %s", query, exc)
         return []

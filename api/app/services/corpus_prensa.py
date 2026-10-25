@@ -88,9 +88,8 @@ def promover(db, *, auto_entry: bool | None = None, dry_run: bool = False) -> di
     """Pasa al corpus las noticias con cuerpo de un medio reconocido. Idempotente
     (upsert por kind+url, y `upsert_source` no re-sella lo que no cambia)."""
     from app.config import get_settings
-    from app.db.models import InterpretationSource, NewsItem
+    from app.db.models import NewsItem
     from app.services.corpus_trust import cargar_voces
-    from scripts.research.common import clean_text, upsert_source
 
     if auto_entry is None:
         auto_entry = get_settings().corpus_auto_entry
@@ -102,14 +101,26 @@ def promover(db, *, auto_entry: bool | None = None, dry_run: bool = False) -> di
         cuenta[v.nivel] += 1
         if v.nivel == "fuera" or dry_run:
             continue
-        kind = v.kind if auto_entry else "press"
-        if kind == "press_interview" and db.query(InterpretationSource.id).filter_by(
-                kind="press", url=url).first():
-            continue    # entró en modo sombra como fondo: no se duplica con otro kind
-        upsert_source(db, kind=kind, url=url, title=n.title, author=v.medio,
-                      published_at=n.published_at, content_raw=n.body_text,
-                      content_clean=clean_text(n.body_text or ""),
-                      quality_score=0.75 if kind == "press_interview" else 0.6)
+        guardar(db, v, titulo=n.title, texto=n.body_text or "", url=url,
+                published_at=n.published_at, auto_entry=auto_entry)
     if not dry_run:
         db.commit()
     return cuenta
+
+
+def guardar(db, v: VeredictoTexto, *, titulo: str, texto: str, url: str,
+            published_at=None, auto_entry: bool = False) -> int | None:
+    """Mete en el corpus un texto ya clasificado. En modo sombra, un A va como fondo."""
+    from app.db.models import InterpretationSource
+    from scripts.research.common import clean_text, upsert_source
+
+    if v.nivel not in ("A", "B"):
+        return None
+    kind = v.kind if auto_entry else "press"
+    if kind == "press_interview" and db.query(InterpretationSource.id).filter_by(
+            kind="press", url=url).first():
+        return None    # entró en modo sombra como fondo: no se duplica con otro kind
+    return upsert_source(db, kind=kind, url=url, title=titulo, author=v.medio,
+                         published_at=published_at, content_raw=texto,
+                         content_clean=clean_text(texto),
+                         quality_score=0.75 if kind == "press_interview" else 0.6)

@@ -350,3 +350,33 @@ def test_un_juicio_no_se_corrobora_por_tener_los_nombres_en_casa(monkeypatch):
                            ["integrantes"])
     assert ok == ["Extremoduro se fundó en Plasencia en 1987."]
     assert len(ko) == 2
+
+
+def test_una_serp_con_error_dice_el_motivo_y_no_revienta(monkeypatch, caplog):
+    """18-22/10/2026: «SERP falló … 'NoneType' object is not subscriptable». Una tarea
+    con error de DataForSEO llega con `result: null`."""
+    import httpx
+
+    from app.services import news_research as nr
+
+    monkeypatch.setenv("DATAFORSEO_LOGIN", "x")
+    monkeypatch.setenv("DATAFORSEO_PASSWORD", "y")
+    respuesta = {"tasks": [{"status_code": 40501, "status_message": "Invalid Field", "result": None}]}
+
+    class _Cliente:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, *a, **k):
+            return httpx.Response(200, json=respuesta, request=httpx.Request("POST", "https://x"))
+
+    monkeypatch.setattr(nr.httpx, "Client", _Cliente)
+    with caplog.at_level("WARNING"):
+        assert nr.web_research("entrevista Uoho") == []
+    assert "40501" in caplog.text and "NoneType" not in caplog.text

@@ -120,3 +120,12 @@ def test_la_entrevista_en_texto_es_propia_y_tiene_atribucion():
     propio, fondo = cfq.separar_material("[press_interview · HOY]\nGrabamos Agila…\n\n----\n\n"
                                          "[press · HOY]\nEl mural…")
     assert "Grabamos Agila" in propio and "El mural" in fondo
+
+
+def test_las_consultas_rotan_y_robe_va_siempre():
+    from scripts.research.fetch_press_interviews import consultas
+
+    otros = [Voz(slug=f"v{i}", nombre=f"Voz{i}", relacion="amigo") for i in range(10)]
+    s1, s2 = consultas([ROBE, *otros], 1, 3), consultas([ROBE, *otros], 2, 3)
+    assert s1[0] == s2[0] == "entrevista Robe Iniesta"
+    assert len(s1) == 4 and set(s1[1:]).isdisjoint(s2[1:])

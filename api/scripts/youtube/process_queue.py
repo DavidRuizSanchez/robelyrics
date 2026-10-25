@@ -32,6 +32,7 @@ import argparse
 import logging
 import os
 import tempfile
+from urllib.parse import urlparse
 
 import httpx
 from openai import OpenAI
@@ -61,6 +62,11 @@ def _base_and_headers() -> tuple[str, dict]:
     if not key:
         raise SystemExit("INGEST_API_KEY no configurado: no puedo hablar con prod")
     return base, {"Authorization": f"Bearer {key}"}
+
+
+def es_youtube(it: dict) -> bool:
+    host = (urlparse(it.get("url") or "").hostname or "").removeprefix("www.")
+    return not host or host in ("youtube.com", "youtu.be", "m.youtube.com")
 
 
 def elegir_via(it: dict, subtitulos: tuple[list[dict], bool] | None) -> str | None:
@@ -93,7 +99,8 @@ def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
     """
     item_id, vid = it["id"], it["video_id"]
     title = it.get("title") or vid
-    subtitulos = fetch_subtitles(vid)
+    # Un audio suelto (un pódcast de iVoox) no tiene subtítulos de YouTube.
+    subtitulos = fetch_subtitles(vid) if es_youtube(it) else None
     via = elegir_via(it, subtitulos)
     if via is None:
         logger.info("[·] %s sin subtítulos y sin presupuesto de Whisper este mes: espera", vid)
@@ -111,7 +118,7 @@ def _procesar(http: httpx.Client, base: str, openai: OpenAI, it: dict) -> bool:
         text, tramos, dur = _por_subtitulos(it, subtitulos)
     else:
         with tempfile.TemporaryDirectory() as td:
-            audio = download_audio(vid, td)
+            audio = download_audio(vid, td, url=None if es_youtube(it) else it["url"])
             if not audio:
                 raise RuntimeError("yt-dlp no devolvió audio")
             dur = audio_duration_s(audio)
