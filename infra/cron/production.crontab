@@ -299,6 +299,11 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # un vídeo y nadie lo supo. Silencio si no hay novedad (firma, recordatorio 14 días).
 30 9 * * 1 cd $APP_DIR && $DC exec -T api python -m scripts.notify_corpus >> /var/log/robelyrics-cron.log 2>&1
 
+# Domingo 06:00 UTC: entrevistas en TEXTO a las voces de casa (25-10-2026). Robe y
+# 6 voces más que rotan cada semana, en Google vía DataForSEO; solo se descarga lo
+# de un medio de corpus_media.yaml. Va antes del lunes para salir en el correo.
+0 6 * * 0 cd $APP_DIR && $DC exec -T api python -m scripts.research.fetch_press_interviews >> /var/log/robelyrics-cron.log 2>&1
+
 # ============================================================================
 # Enriquecimiento del corpus (semanal) — ADQUISICIÓN + DESTILADO
 # ============================================================================

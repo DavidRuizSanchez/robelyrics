@@ -49,7 +49,8 @@ def audio_falso(monkeypatch, tmp_path):
         p = tmp_path / f"chunk_{i}.mp3"
         p.write_bytes(b"\x00")
         trozos.append(str(p))
-    monkeypatch.setattr(process_queue, "download_audio", lambda vid, td: str(tmp_path / "a.mp3"))
+    monkeypatch.setattr(process_queue, "download_audio",
+                        lambda vid, td, url=None: str(tmp_path / "a.mp3"))
     monkeypatch.setattr(process_queue, "audio_duration_s", lambda path: 2500.0)
     monkeypatch.setattr(process_queue, "split_audio", lambda path, td: trozos)
     # Sin subtítulos: estos tests son del camino de Whisper, y sin esto saldrían a YouTube.
@@ -191,3 +192,37 @@ def test_sin_subtitulos_ni_presupuesto_ni_se_reclama(monkeypatch):
         assert process_queue._procesar(http, BASE, None, {"id": 8, "video_id": "s2",
                                                           "whisper_ok": False}) is False
     assert llamadas == []   # sin claim: no queda en `processing` ni gasta intento
+
+
+def test_un_audio_de_ivoox_se_baja_por_su_url_y_sin_subtitulos(monkeypatch, tmp_path):
+    from scripts.youtube.enqueue_audio import clave
+
+    url = "https://www.ivoox.com/extremoduro-robe-especial_rf_164164848_1.html"
+    pedido = {}
+
+    def no_subtitulos(_):
+        raise AssertionError("un audio de iVoox no tiene subtítulos de YouTube")
+
+    monkeypatch.setattr(process_queue, "fetch_subtitles", no_subtitulos)
+    monkeypatch.setattr(process_queue, "download_audio",
+                        lambda vid, td, url=None: pedido.update(url=url) or str(tmp_path / "a"))
+    monkeypatch.setattr(process_queue, "audio_duration_s", lambda path: 3470.0)
+    trozos = []
+    for i in range(2):
+        (tmp_path / f"c{i}").write_bytes(b"\x00")
+        trozos.append(str(tmp_path / f"c{i}"))
+    monkeypatch.setattr(process_queue, "split_audio", lambda path, td: trozos)
+    llamadas: list = []
+    item = {"id": 9, "video_id": clave(url), "url": url, "title": "Especial 2ª parte"}
+    with _cliente(llamadas) as http:
+        assert process_queue._procesar(http, BASE, _FakeWhisper(), item) is True
+    assert pedido["url"] == url
+    assert llamadas[-1][1]["via"] == "whisper" and len(clave(url)) <= 32
+
+
+@pytest.mark.parametrize("url,yt", [
+    ("https://www.youtube.com/watch?v=abc", True), ("https://youtu.be/abc", True),
+    ("", True), ("https://www.ivoox.com/x.html", False),
+])
+def test_es_youtube(url, yt):
+    assert process_queue.es_youtube({"url": url}) is yt

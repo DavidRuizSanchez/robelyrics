@@ -108,8 +108,10 @@ def _flags_runtime_js() -> list[str]:
     return []
 
 
-def download_audio(video_id: str, tmpdir: str) -> str | None:
-    url = f"https://www.youtube.com/watch?v={video_id}"
+def download_audio(video_id: str, tmpdir: str, url: str | None = None) -> str | None:
+    """Audio de un vídeo de YouTube o, con `url`, de cualquier página que yt-dlp
+    sepa leer (un episodio de iVoox, por ejemplo)."""
+    url = url or f"https://www.youtube.com/watch?v={video_id}"
     out_tmpl = os.path.join(tmpdir, "audio.%(ext)s")
     subprocess.run(
         # `--js-runtimes`: YouTube firma las URLs con un desafío en JavaScript y

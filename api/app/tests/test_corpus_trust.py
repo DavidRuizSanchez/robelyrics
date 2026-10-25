@@ -262,3 +262,13 @@ def test_en_un_medio_la_descripcion_sigue_valiendo():
                          description="Con Robe Iniesta y Extremoduro", duration_s=1800.0,
                          relevante=True, relevante_en_titulo=False), VOCES, MEDIOS)
     assert v.nivel == "B"
+
+
+def test_la_cita_firmada_con_nombre_y_mote_es_de_esa_voz():
+    # ABC, 25-10-2026: ni «Iñaki 'Uoho'» ni «Iñaki “Uoho”» son un alias literal.
+    from app.services.corpus_trust import quien_cita
+
+    for titulo in ("Iñaki 'Uoho': «Ahora estoy sintiendo las mismas cosas»",
+                   "Iñaki “Uoho”: «Robe era así»"):
+        assert quien_cita(titulo, VOCES) is UOHO, titulo
+    assert quien_cita("Las voces de la radio despiden a Robe: «Un genio»", VOCES) is None
