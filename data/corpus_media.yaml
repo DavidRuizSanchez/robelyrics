@@ -88,6 +88,23 @@ medios:
     dominios: [antena3.com]
     youtube:
       - {channel_id: UCMSOVP8zZq8BGwAJ2sEtOHw, handle: "@atresplayer"}
+  # Añadidos el 26-10-2026, sin canal (solo texto), por haber publicado sobre
+  # Robe en la cola de IG. Dominio comprobado contra la portada ese día.
+  - nombre: Telecinco
+    nivel: privado
+    dominios: [telecinco.es]
+  - nombre: Radio Interior
+    nivel: privado
+    dominios: [radiointerior.es]
+  - nombre: Cadena Dial
+    nivel: privado
+    dominios: [cadenadial.com]
+  - nombre: Europa FM
+    nivel: privado
+    dominios: [europafm.com]
+  - nombre: Cadena 100
+    nivel: privado
+    dominios: [cadena100.es]
 
   # --- Prensa generalista ---
   - nombre: El País
@@ -137,6 +154,63 @@ medios:
   - nombre: El Periódico Extremadura
     nivel: generalista
     dominios: [elperiodicoextremadura.com]
+  # Añadidos el 26-10-2026 (mismo criterio que arriba): cabeceras nacionales y
+  # regionales con redacción propia. Fuera, a propósito: digitales hiperlocales
+  # (MiCiudadReal, La Voz de Tomelloso, ValdeREC, Digital de León, i-bejar…),
+  # ayuntamientos y fundaciones, agregadores (MSN) y OkDiario.
+  # Pendientes de comprobar (la portada no respondió): Diario de Almería
+  # (diariodealmeria.es) y La Crónica de Badajoz (lacronicadebadajoz.com).
+  - nombre: Diario AS
+    nivel: generalista
+    dominios: [as.com]
+  - nombre: El HuffPost
+    nivel: generalista
+    dominios: [huffingtonpost.es]
+  - nombre: El Economista
+    nivel: generalista
+    dominios: [eleconomista.es]
+  - nombre: El Periódico
+    nivel: generalista
+    dominios: [elperiodico.com]
+  - nombre: Infobae
+    nivel: generalista
+    dominios: [infobae.com]
+  - nombre: Esquire
+    nivel: generalista
+    dominios: [esquire.com]
+  - nombre: Heraldo de Aragón
+    nivel: generalista
+    dominios: [heraldo.es]
+  - nombre: Diario del Alto Aragón
+    nivel: generalista
+    dominios: [diariodelaltoaragon.es]
+  - nombre: Diario de Navarra
+    nivel: generalista
+    dominios: [diariodenavarra.es]
+  - nombre: El Correo
+    nivel: generalista
+    dominios: [elcorreo.com]
+  - nombre: Canarias7
+    nivel: generalista
+    dominios: [canarias7.es]
+  - nombre: Lanza
+    nivel: generalista
+    dominios: [lanzadigital.com]
+  - nombre: La Tribuna de Guadalajara
+    nivel: generalista
+    dominios: [latribunadeguadalajara.es]
+  - nombre: Nueva Alcarria
+    nivel: generalista
+    dominios: [nuevaalcarria.com]
+  - nombre: Heraldo-Diario de Soria
+    nivel: generalista
+    dominios: [heraldodiariodesoria.es]
+  - nombre: lavozdelsur.es
+    nivel: generalista
+    dominios: [lavozdelsur.es]
+  - nombre: Extremadura7dias
+    nivel: generalista
+    dominios: [extremadura7dias.com]
 
   # --- Prensa especializada y del sector ---
   - nombre: Mondo Sonoro
@@ -167,6 +241,9 @@ medios:
     dominios: [laganzua.net]
     youtube:
       - {channel_id: UCn1QFl-jOkNI5cO8FxKaqdQ, handle: "@laganzuanet"}
+  - nombre: Metaltrip
+    nivel: sector
+    dominios: [metaltrip.com]
   - nombre: Maneras de Vivir
     nivel: sector
     dominios: [manerasdevivir.com]
