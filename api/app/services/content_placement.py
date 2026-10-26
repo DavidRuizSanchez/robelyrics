@@ -130,6 +130,8 @@ class Placement:
     # reparto (ver `analyze`); los campos de arriba son los del grupo principal.
     groups: list[dict] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
+    # «cubierto» porque el cuerpo ya lo responde, aunque el title/description no.
+    falta_meta: bool = False
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -164,6 +166,16 @@ def _firma(texto: str) -> frozenset[str]:
     """
     pref = seo_style._PREFIJO
     return frozenset(t[:pref] for t in seo_style.content_tokens(texto))
+
+
+_ANYO = re.compile(r"(19|20)\d{2}")
+
+
+def clave_intencion(texto: str) -> frozenset[str]:
+    """La firma sin años: «ariel rot conciertos», «conciertos ariel rot» y «ariel rot
+    conciertos 2026» son la misma búsqueda y tienen que ir al mismo sitio (los
+    modificadores de búsqueda ya los quita `_firma`). Vacía si no queda nada."""
+    return frozenset(t for t in _firma(texto) if not _ANYO.fullmatch(t))
 
 
 def gsc_matches(pages: dict, keywords: list[str]) -> dict[str, list[dict]]:
@@ -430,8 +442,16 @@ def proposal_keywords(proposal) -> list[str]:
 @dataclass
 class Ruta:
     path: str | None      # None = ninguna página propia la responde
-    via: str              # gsc | titulo | semantica | ninguna
+    via: str              # titulo | verso | gsc | entidad | semantica | ninguna
     motivo: str
+    impresiones: int = 0  # solo por GSC: desempata dentro de la misma búsqueda
+
+
+# De lo más fuerte a lo más débil. El título y el verso van por delante de GSC
+# desde el 26-10-2026: cuando la búsqueda nombra una canción o un disco, que Google
+# enseñe hoy otra página es CANIBALIZACIÓN, no dueño («soy evaristo el rey de la
+# baraja» → /temas/religion, 150 impr., siendo un verso de Jesucristo García).
+_RANGO_VIA = {"titulo": 0, "verso": 0, "gsc": 1, "entidad": 2, "semantica": 3}
 
 
 def dueno_gsc(pages: dict, keyword: str) -> tuple[str, dict] | None:
@@ -449,39 +469,85 @@ def dueno_gsc(pages: dict, keyword: str) -> tuple[str, dict] | None:
     return mejor
 
 
-def repartir(keywords: list[str], *, por_gsc, por_titulo, por_semantica) -> list[tuple[str, Ruta]]:
-    """[(keyword, Ruta)]. Puro: las tres búsquedas llegan inyectadas.
+def repartir(keywords: list[str], *, por_gsc, por_titulo, por_semantica,
+             por_verso=None, por_entidad=None) -> list[tuple[str, Ruta]]:
+    """[(keyword, Ruta)]. Puro: las búsquedas llegan inyectadas.
 
-    De lo más fuerte a lo más débil: lo que Google ya asocia, el título de una
-    canción o un disco (`kw_attribute.dueno`: «extremoduro necesito droga y amor»
-    es de esa canción), y el parecido con lo publicado.
+    Se decide por INTENCIÓN (`clave_intencion`), no keyword a keyword: antes
+    «conciertos ariel rot» pasaba el umbral semántico y «ariel rot conciertos» no,
+    y la misma búsqueda acababa en dos sitios. Todas las variantes toman la ruta más
+    fuerte que consiga cualquiera de ellas: el título de una canción o un disco
+    (`kw_attribute.dueno`) o un verso de su letra (`verse_match`), lo que Google ya
+    asocia, el nombre de una persona o un grupo con ficha y el parecido con lo
+    publicado, que se mide sobre la intención entera.
     """
-    out = []
+    grupos: dict[frozenset[str], list[str]] = {}
     for kw in keywords:
-        g = por_gsc(kw)
-        if g:
-            path, d = g
-            out.append((kw, Ruta(path, "gsc", f"«{kw}» ya la posiciona {path} "
-                                              f"(pos {_n(round(d['position'], 1))}, "
-                                              f"{d['impressions']} impr.)")))
-            continue
-        t = por_titulo(kw)
-        if t:
-            path, titulo = t
-            out.append((kw, Ruta(path, "titulo", f"«{kw}» nombra «{titulo}»: es de su "
-                                                 f"ficha, {path}")))
-            continue
-        sm = por_semantica(kw)
-        if sm:
-            path, sim = sm
-            out.append((kw, Ruta(path, "semantica", f"«{kw}» es de lo que trata {path} "
-                                                    f"(similitud {_n(sim, 2)})")))
-            continue
-        out.append((kw, Ruta(None, "ninguna", f"Ninguna página propia responde «{kw}»")))
-    return out
+        grupos.setdefault(clave_intencion(kw) or frozenset({kw.lower()}), []).append(kw)
+
+    out: dict[str, Ruta] = {}
+    for kws in grupos.values():
+        propias: dict[str, Ruta] = {}
+        for kw in kws:
+            r = _ruta_fuerte(kw, por_gsc, por_titulo, por_verso, por_entidad)
+            if r is not None:
+                propias[kw] = r
+        if propias:
+            lider = min(propias, key=lambda k: (_RANGO_VIA[propias[k].via],
+                                                -propias[k].impresiones, kws.index(k)))
+            ganadora = propias[lider]
+        else:
+            lider = kws[0]
+            texto = " · ".join(kws)
+            sm = por_semantica(texto)
+            if sm:
+                path, sim = sm
+                ganadora = Ruta(path, "semantica", f"«{texto}» es de lo que trata {path} "
+                                                   f"(similitud {_n(sim, 2)})")
+            else:
+                ganadora = Ruta(None, "ninguna", f"Ninguna página propia responde «{texto}»")
+        for kw in kws:
+            propia = propias.get(kw)
+            if propia is not None and propia.path == ganadora.path:
+                out[kw] = propia
+            elif kw == lider or len(kws) == 1:
+                out[kw] = ganadora
+            else:
+                out[kw] = Ruta(ganadora.path, ganadora.via,
+                               f"«{kw}» es la misma búsqueda que «{lider}»: va con ella"
+                               + (f" a {ganadora.path}" if ganadora.path else ""))
+    return [(kw, out[kw]) for kw in keywords]
 
 
-_CONF_VIA = {"gsc": "alta", "titulo": "alta", "semantica": "baja"}
+def _ruta_fuerte(kw: str, por_gsc, por_titulo, por_verso, por_entidad) -> Ruta | None:
+    """La ruta de UNA keyword por las señales deterministas (todo menos el parecido)."""
+    g = por_gsc(kw)
+    canib = (f" Hoy Google enseña {g[0]} ({g[1]['impressions']} impr.): eso es "
+             "canibalización, no dueño." if g else "")
+    t = por_titulo(kw)
+    if t:
+        path, titulo = t
+        return Ruta(path, "titulo", f"«{kw}» nombra «{titulo}»: es de su ficha, {path}."
+                    + (canib if g and g[0] != path else ""))
+    v = por_verso(kw) if por_verso else None
+    if v:
+        path, titulo, cita = v
+        return Ruta(path, "verso", f"«{kw}» cita un verso de «{titulo}» («{cita}»): es de "
+                                   f"su ficha, {path}." + (canib if g and g[0] != path else ""))
+    if g:
+        path, d = g
+        return Ruta(path, "gsc", f"«{kw}» ya la posiciona {path} "
+                                 f"(pos {_n(round(d['position'], 1))}, {d['impressions']} impr.)",
+                    impresiones=int(d["impressions"]))
+    e = por_entidad(kw) if por_entidad else None
+    if e:
+        path, nombre = e
+        return Ruta(path, "entidad", f"«{kw}» nombra a {nombre}, que tiene ficha: {path}")
+    return None
+
+
+_CONF_VIA = {"gsc": "alta", "titulo": "alta", "verso": "alta", "entidad": "media",
+             "semantica": "baja"}
 
 
 def _texto_destino(db, cand: Candidate) -> tuple[str, str, str]:
@@ -574,6 +640,65 @@ def _evaluar(db, keywords: list[str], *, texto: str, target_keyword: str | None,
                   serp_checked=serp_checked, semantic_checked=semantic_checked)
 
 
+def _ruta_de_entidad(db, entity_type: str, ids) -> Candidate | None:
+    """El primer candidato ampliable entre esas filas (o el primero que exista)."""
+    from app.services.url_resolver import canonical_path_for
+
+    primero = None
+    for i in ids:
+        path = canonical_path_for(db, entity_type, i)
+        cand = candidate_for_path(db, path) if path else None
+        if cand and cand.mergeable:
+            return cand
+        primero = primero or cand
+    return primero
+
+
+def indice_entidades(db) -> list[tuple[str, str, int, str]]:
+    """[(forma normalizada, entity_type, id, nombre)] de personas y grupos.
+
+    «ariel rot conciertos» es de /personas/ariel-rot aunque ninguna consulta de GSC
+    llegue al umbral. Fuera quien comparte nombre con la marca (Robe, Uoho): todo
+    el sitio va de ellos y mandaría cualquier búsqueda a su ficha. Las formas de una
+    palabra exigen 4 letras.
+    """
+    from app.db.models import Band, Person
+    from app.services.kw_normalize import BRAND_TOKENS, kw_norm
+
+    out = []
+    filas = [("person", p.id, (p.stage_name, p.full_name)) for p in db.query(Person).all()]
+    filas += [("band", b.id, (b.name,)) for b in db.query(Band).all()]
+    for tipo, ident, nombres in filas:
+        formas = {kw_norm(n) for n in nombres if (n or "").strip()}
+        if any(set(f.split()) & BRAND_TOKENS for f in formas):
+            continue
+        nombre = next(n for n in nombres if (n or "").strip()) if formas else ""
+        out += [(f, tipo, ident, nombre) for f in formas if len(f) >= 4]
+    return out
+
+
+def entidad_de(keyword: str, indice) -> tuple[str, int, str] | None:
+    """(entity_type, id, nombre) si la keyword nombra a UNA sola persona o grupo."""
+    from app.services.kw_normalize import kw_norm
+
+    texto = f" {kw_norm(keyword)} "
+    hits = {(t, i): n for f, t, i, n in indice if f" {f} " in texto}
+    if len(hits) != 1:
+        return None
+    (tipo, ident), nombre = next(iter(hits.items()))
+    return tipo, ident, nombre
+
+
+def _letra(db, cand: Candidate) -> str:
+    """La letra de una canción: está en su ficha aunque no en `body_md`."""
+    if cand.entity_type != "song" or not cand.entity_id:
+        return ""
+    from app.db.models import Line
+
+    return " ".join(t for (t,) in db.query(Line.text).filter(Line.song_id == cand.entity_id)
+                    .order_by(Line.line_index).all())
+
+
 def analyze(db, proposal, *, pages: dict | None = None, period: str | None = None,
             use_serp: bool = True, use_semantic: bool = True, client=None) -> Placement:
     """El análisis completo de una propuesta. No escribe nada en la BD.
@@ -619,8 +744,31 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
             return vecinos[0]["path"], round(vecinos[0]["score"], 3)
         return None
 
+    composiciones = None
+
+    def _por_verso(kw: str):
+        nonlocal composiciones
+        from app.services import verse_match
+
+        if composiciones is None:
+            composiciones = verse_match.cargar(db)
+        v = verse_match.verso_de(kw, composiciones)
+        cand = _ruta_de_entidad(db, "song", v.song_ids) if v else None
+        return (cand.path, v.titulo, v.cita) if cand else None
+
+    entidades = None
+
+    def _por_entidad(kw: str):
+        nonlocal entidades
+        if entidades is None:
+            entidades = indice_entidades(db)
+        e = entidad_de(kw, entidades)
+        cand = _ruta_de_entidad(db, e[0], [e[1]]) if e else None
+        return (cand.path, e[2]) if cand and cand.kind == "ficha" else None
+
     rutas = repartir(keywords, por_gsc=lambda kw: dueno_gsc(pages, kw),
-                     por_titulo=_por_titulo, por_semantica=_por_semantica)
+                     por_titulo=_por_titulo, por_semantica=_por_semantica,
+                     por_verso=_por_verso, por_entidad=_por_entidad)
     grupos: dict[str | None, list[tuple[str, Ruta]]] = {}
     for kw, r in rutas:
         grupos.setdefault(r.path, []).append((kw, r))
@@ -629,17 +777,39 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
     anchor = resolve_central_entity(db, primary_keyword=proposal.target_keyword,
                                     title=proposal.title, angle=proposal.angle)
     principal = (proposal.target_keyword or keywords[0]).lower()
+
+    def _texto(kws: list[str]) -> str:
+        es_principal = principal in {k.lower() for k in kws}
+        return " · ".join(x for x in ((proposal.title if es_principal else ""),
+                                      *kws, (proposal.angle if es_principal else "")) if x)
+
+    # El grupo sin destino puede acabar, evaluado entero, en «ampliar» una página que
+    # ya es destino de otro grupo (Kabezabolo: dos selectores para la misma página, y
+    # la fusión fallaba). Se evalúa antes y, si es así, se funde con ese grupo.
+    previo: dict[str | None, Placement] = {}
+    if None in grupos:
+        kws0 = [k for k, _ in grupos[None]]
+        p0 = _evaluar(db, kws0, texto=_texto(kws0), target_keyword=kws0[0], pages=pages,
+                      period=period, use_serp=use_serp and principal in {k.lower() for k in kws0},
+                      use_semantic=use_semantic, client=client,
+                      anchor=anchor if principal in {k.lower() for k in kws0} else None)
+        destino = p0.candidates[0].path if p0.decision == "ampliar" and p0.candidates else None
+        if destino is not None and destino in grupos:
+            for kw, r in grupos.pop(None):
+                grupos[destino].append((kw, Ruta(destino, r.via, r.motivo + ", y en conjunto "
+                                                 f"es de lo que trata {destino}: van juntas")))
+        else:
+            previo[None] = p0
+
     salida: list[dict] = []
     placement_principal: Placement | None = None
     for path, miembros in grupos.items():
         kws = [k for k, _ in miembros]
         es_principal = principal in {k.lower() for k in kws}
-        texto = " · ".join(x for x in ((proposal.title if es_principal else ""),
-                                       *kws, (proposal.angle if es_principal else "")) if x)
-        p = _evaluar(db, kws, texto=texto, target_keyword=kws[0], pages=pages,
-                     period=period, use_serp=use_serp and es_principal,
-                     use_semantic=use_semantic, client=client,
-                     anchor=anchor if es_principal else None)
+        p = previo.get(path) or _evaluar(
+            db, kws, texto=_texto(kws), target_keyword=kws[0], pages=pages, period=period,
+            use_serp=use_serp and es_principal, use_semantic=use_semantic, client=client,
+            anchor=anchor if es_principal else None)
         motivos = [r.motivo for _, r in miembros]
         decision_evidencia = p.decision
         if path is not None:
@@ -647,12 +817,24 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
                 or candidate_for_path(db, path)
             if cand is not None:
                 body, title, desc = _texto_destino(db, cand)
+                body = f"{body}\n{_letra(db, cand)}"
+                cuerpo = seo_style.expandir_alias(seo_style.flatten(body), alias)
                 if cand.mergeable and ya_cubierto(body, title, desc, kws,
                                                   pages.get(path) or [], alias):
                     p.decision, p.recommended, p.confidence = "cubierto", None, "alta"
                     motivos.append(f"{path} ya lo responde en el cuerpo y lo promete en el "
                                    "title/description, y está en el top 10: falta posición, "
                                    "no contenido.")
+                elif cand.mergeable and all(seo_style.cubre(cuerpo, k) for k in kws):
+                    # Evaristo: la ficha ya tiene el verso. Ampliar el cuerpo no tiene
+                    # nada honesto que añadir; lo que falta es la metadata o posición,
+                    # y eso lo propone el circuito SEO de los lunes.
+                    p.decision, p.recommended, p.confidence = "cubierto", None, "alta"
+                    p.falta_meta = True
+                    motivos.append(f"{path} ya lo responde en el cuerpo (o en la letra): "
+                                   "escribir más no ayuda. Lo que le falta es el "
+                                   "title/description o subir en Google, y eso lo propone "
+                                   "el circuito SEO de los lunes.")
                 else:
                     p.decision = "ampliar"
                     p.recommended = cand.target
@@ -696,6 +878,9 @@ def headline(placement: dict | None) -> str:
     if placement.get("decision") == "cubierto":
         rec = (placement.get("candidates") or [None])[0]
         destino = rec["path"] if rec else "una página tuya"
+        if placement.get("falta_meta"):
+            return (f"{destino} ya lo responde. Escribir más no ayuda: le falta el "
+                    "title/description o subir en Google, y eso va por el circuito SEO.")
         return (f"Ya tienes una página para esto: {destino}. Escribir más no ayuda; "
                 "le falta subir en Google.")
     if placement.get("decision") == "ampliar":
