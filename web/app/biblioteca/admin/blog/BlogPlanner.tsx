@@ -97,7 +97,9 @@ export default function BlogPlanner({
   function destinoDe(p: ProposalItem, i: number): string {
     const elegido = destino[p.id]?.[i];
     if (elegido) return elegido;
-    return grupos(p)[i]?.options.find((o) => o.recommended)?.value ?? "new";
+    // Sin recomendación no se escribe un post nuevo por defecto: podría canibalizar
+    // la página que ya responde. Mejor quitar las búsquedas, que se reactivan.
+    return grupos(p)[i]?.options.find((o) => o.recommended)?.value ?? "skip";
   }
 
   // ¿Algún grupo va a una página existente u omite keywords? Entonces el botón

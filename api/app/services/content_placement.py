@@ -405,7 +405,10 @@ def semantic_neighbours(texto: str, *, k: int = 5) -> list[dict]:
 # Orquestador
 # --------------------------------------------------------------------------- #
 def proposal_keywords(proposal) -> list[str]:
-    """Las keywords ACTIVAS: las que David desmarca en el panel no cuentan."""
+    """Las keywords ACTIVAS: las que David desmarca en el panel no cuentan, y las de
+    descarga de música tampoco (prohibidas: `kw_normalize.es_descarga`)."""
+    from app.services.kw_normalize import es_descarga
+
     kws = [k.get("keyword") for k in (proposal.keywords or [])
            if isinstance(k, dict) and not k.get("excluded")]
     excluidas = {(k.get("keyword") or "").lower() for k in (proposal.keywords or [])
@@ -415,7 +418,7 @@ def proposal_keywords(proposal) -> list[str]:
     vistos, out = set(), []
     for k in kws:
         k = (k or "").strip()
-        if k and k.lower() not in vistos:
+        if k and k.lower() not in vistos and not es_descarga(k):
             vistos.add(k.lower())
             out.append(k)
     return out
@@ -730,8 +733,13 @@ def selector_options(placement: dict | None) -> list[dict[str, Any]]:
                     "recommended": c["target"] == placement.get("recommended")})
     out.append({"value": "new", "label": "Escribirlas en un post nuevo",
                 "recommended": placement.get("decision") == "nuevo"})
+    # Si lo que responde es una página en código (el motor no puede ampliarla), un
+    # post nuevo la canibalizaría: se recomienda quitar las búsquedas, no escribirlas.
+    # Quedan tachadas y se reactivan con un clic cuando la página pase a la BD.
+    en_codigo = (placement.get("decision") == "ampliar"
+                 and not any(o["recommended"] for o in out))
     out.append({"value": "skip", "label": "Quitar estas búsquedas de la idea",
-                "recommended": placement.get("decision") == "cubierto"})
+                "recommended": placement.get("decision") == "cubierto" or en_codigo})
     return out
 
 
