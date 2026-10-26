@@ -48,6 +48,8 @@ docker compose exec api python -m scripts.seed_catalog
 # docker compose exec api python -m scripts.graph.embed_entity_bios  (vectoriza bio_long → entities_v1)
 # docker compose exec api python -m scripts.seo.embed_pages          (resumen de cada página → pages_v1)
 # docker compose exec api python -m scripts.blog.placement_backfill --dry-run  (¿ampliar o post nuevo?)
+# docker compose exec api python -m scripts.blog.excluir_descargas --dry-run  (tacha keywords de descarga)
+# docker compose exec api python -m scripts.seo.monitor_cambios --dry-run --limit 20  (monitor de cambios)
 # docker compose exec api python -m scripts.graph.build_graph        (SIEMPRE el ÚLTIMO: reconstruye entity_edges)
 ```
 
@@ -89,6 +91,11 @@ el botón «Arreglar» del panel de erratas.
 
 Al tocar esto, ojo: **`Person` no tiene campo `name`** (es `stage_name` / `full_name`),
 y leerlo mal dejaba el nombre vacío marcando como falsas TODAS las fotos de personas.
+
+El arte por IA sale de `imaging._openai_background` (blog e Instagram tiran de ahí) con
+`imaging.image_model()`: `OPENAI_IMAGE_MODEL`, por defecto `gpt-image-2`. **`gpt-image-1`
+dejó de generar el 24-10-2026** (400 «does not exist») aunque siga saliendo en
+`models.list()`, y todo caía a pollinations en silencio.
 
 ## Erratas: se arreglan solas o no molestan
 
@@ -613,6 +620,47 @@ reescribe con sus motivos delante (2 vueltas) o se quita. Sin válvula.
 `seo_queue --watch` (lo lanza `gsc_weekly.sh`) compara a las 4 semanas las
 consultas protegidas de cada fusión aplicada y avisa si alguna cae más de 5
 puestos. Solo avisa: revertir es un botón.
+
+## Una búsqueda es una intención, y un verso es de su canción
+
+Revisando el panel del blog (26-10-2026), David encontró la misma búsqueda en dos
+sitios («conciertos ariel rot» a su ficha y «ariel rot conciertos» a un post nuevo),
+un verso mandado a otra página («soy evaristo el rey de la baraja» → /temas/religion)
+y dos ampliaciones de la misma página que daban error. Las causas, y lo que no hay
+que deshacer:
+
+- **Se decide por intención, no keyword a keyword** (`content_placement.clave_intencion`:
+  la firma sin años ni modificadores). Todas las variantes toman la ruta más fuerte que
+  consiga cualquiera de ellas, y el parecido se mide sobre la intención entera. Antes la
+  última señal era el embedding de la keyword SOLA, y el orden de las palabras bastaba
+  para cruzar el umbral.
+- **Un verso es de la ficha de su canción** (`app/services/verse_match.py`): ≥4 palabras
+  seguidas de una línea de UNA composición, con ≥2 palabras de 4+ letras y cubriendo la
+  mitad del contenido de la búsqueda. Medido sobre las 2.526 consultas de GSC: casan 191,
+  y los falsos positivos eran TÍTULOS de disco que también son verso («tú en tu casa,
+  nosotros en la hoguera» → La Hoguera). Por eso **el título va antes que el verso**. Y
+  «no», «me» o «da» no están en ninguna lista de vacías: «y que no me» casaba.
+- **Título y verso van por delante de GSC.** Cuando la búsqueda nombra una canción o un
+  disco, que Google enseñe hoy otra página es CANIBALIZACIÓN, no dueño, y la evidencia lo
+  dice. GSC sigue mandando en todo lo demás («integrantes de extremoduro» → /personas).
+- **Una persona o un grupo con ficha** atrae la búsqueda que lo nombra, con confianza
+  media. Robe y Uoho quedan fuera: todo el sitio va de ellos.
+- **Si el cuerpo (o la letra) ya responde, no se amplía** (`falta_meta`): lo que falta es
+  title/description o posición, y eso es del circuito SEO. La ficha de Jesucristo García
+  ya tiene el verso de Evaristo; ampliarla no tenía nada honesto que añadir.
+- **Un destino, una fusión, todo o nada** (`content_merge.aplicar_plan`): los grupos que
+  van a la misma página se funden antes de llamar a `start_merge`, y si un destino está
+  ocupado no se escribe nada. Una fusión `failed` sin reintentos ya devolvió sus keywords
+  y no bloquea la página.
+- **Las búsquedas de descarga están prohibidas** (`kw_normalize.es_descarga`): no entran al
+  pool, ni a las ideas, ni cuentan en las propuestas guardadas.
+- Si lo que responde es una página **en código**, se recomienda quitar las búsquedas, no
+  escribir un post que la canibalice. Se reactivan con un clic cuando pase a la BD.
+
+Para medir un cambio de reparto **antes de mergear**, contra las propuestas reales de
+prod y sin desplegar: `docker compose … run --rm --no-deps -T -e PYTHONPATH=/app -v
+/tmp/x/content_placement.py:/app/app/services/content_placement.py:ro api python
+/tmp/x/script.py`. Así se vio que cambiaban 3 de 5 propuestas, y cuáles.
 
 ## La voz es nuestra: no se nombra a editores externos
 
@@ -1141,6 +1189,37 @@ era estructural: no había kit, cada página escribía sus clases a mano.
 - Publicar/despublicar fichas SEO en bloque: proxy `seo/api/bulk` →
   `/admin/seo/bulk-publish|unpublish` (autorizado por David el 19-10-2026). Hace lo
   mismo que el botón de cada ficha y solo manda las que cambian de estado.
+
+## El monitor de cambios: una foto al día de toda la web
+
+Nada comparaba lo publicado de un día para otro, y el motor reescribe páginas solo
+(fusiones, relinker, erratas). Desde el 26-10-2026 `scripts/seo/monitor_cambios.py`
+(cron 06:45 UTC) fotografía cada URL del sitemap —status, cadena de redirecciones,
+title, description, robots y `X-Robots-Tag`, canonical, headings, contenido, enlaces,
+JSON-LD, Open Graph, hreflang— y la compara con la del día anterior
+(`app/services/page_monitor.py`, puro y con tests). Se ve en `/biblioteca/admin/cambios`.
+
+- **Severidad**: crítico (deja de dar 200, `noindex` nuevo, canonical a otra página,
+  redirección a otra URL, sale del sitemap), importante (title, description, H1…),
+  contenido y aviso. Lo crítico va con asunto propio en el correo.
+- **Causa**: cada cambio se cruza con lo que hizo el sistema desde la pasada anterior
+  (`content_revisions`, oportunidades aplicadas, posts publicados, fichas regeneradas).
+  Sin causa es inesperado y va primero. **Un deploy no explica nada**: si cambia un title
+  el día de un deploy, es inesperado; si no, el monitor no podría verificar justo lo que
+  tiene que verificar (que pasar páginas a la BD no cambie nada).
+- **Sin ruido**, medido: 0 cambios en las 386 URLs con dos pasadas seguidas. Los bloques
+  que dependen de otras páginas (relacionados, menciones, vídeos) llevan
+  `data-monitor="ignore"` en su componente; los listados (portada, hubs, /blog) se
+  comparan solo por H1 e intro; y `VERSION_PARSER` hace que mejorar el propio monitor no
+  dé «contenido cambiado» en todas las páginas (pasó al pasar el texto a bloques). Si
+  cambia más de un 30 % de golpe, un solo correo resumen.
+- **Modo sombra**: sin `MONITOR_CAMBIOS_CORREO=1` guarda y pinta, pero no manda correo.
+  Primera semana así, para medir el ruido real, como con `CORPUS_AUTO_ENTRY`.
+
+`docker-compose.yml` pasa al api una lista **explícita** de variables: no hay `env_file`.
+Una variable nueva del `.env` no llega al contenedor si no se añade ahí. Le pasaba a
+`CORPUS_AUTO_ENTRY`, que no se habría encendido nunca. Comprobar con
+`docker exec robelyrics-api printenv X`.
 
 ## Decisiones que NO hay que reabrir
 
