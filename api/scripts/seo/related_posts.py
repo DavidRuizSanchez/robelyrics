@@ -121,6 +121,10 @@ def main() -> None:
                     ).points
                     for h in hits:
                         pid = int(h.id)
+                        # posts_v1 conserva los vectores de posts ya despublicados
+                        # (el #7): sin esto, KeyError cada domingo desde el 18-10.
+                        if pid not in post_slug_by_id:
+                            continue
                         cos = max(0.0, float(h.score))
                         scores[pid] = scores.get(pid, 0.0) + W_SEMANTIC * cos
                 except Exception as exc:  # noqa: BLE001

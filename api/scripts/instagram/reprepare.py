@@ -12,7 +12,7 @@ Uso:
     python -m scripts.instagram.reprepare --status prepared,pending
     python -m scripts.instagram.reprepare --limit 5    # tope (sondeos / control de coste)
 
-OJO: regenerar usa el motor de arte IA (OpenAI gpt-image-1) y, en noticias, el
+OJO: regenerar usa el motor de arte IA (OpenAI, `imaging.image_model()`) y, en noticias, el
 reescritor editorial → tiene coste por item. El `--limit` permite acotarlo.
 """
 from __future__ import annotations

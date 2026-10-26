@@ -2,7 +2,7 @@
 
 Estrategia (decisión de producto): primero una imagen REAL de la entidad
 protagonista aún NO usada por otro post/propuesta; si todas están ya usadas, se
-genera arte editorial ÚNICO con gpt-image-1 (estilo "Entre Interiores", granate
+genera arte editorial ÚNICO con OpenAI (estilo "Entre Interiores", granate
 sobre negro) y se sube a Cloudinary. Siempre se devuelve un ALT descriptivo de la
 imagen real (no del título del post) para accesibilidad + SEO.
 
@@ -44,7 +44,7 @@ def _seed(subject: str) -> int:
 
 
 def _ai_hero(subject: str, seed: int, alt_label: str = "") -> dict | None:
-    """Arte editorial ÚNICO con gpt-image-1 subido a Cloudinary. None si no hay
+    """Arte editorial ÚNICO con OpenAI (`imaging.image_model()`) subido a Cloudinary. None si no hay
     API key o falla (el caller degrada a sin-imagen, nunca a una repetida).
 
     `alt_label`: texto legible (título del post) para el ALT; si no se da, cae al
