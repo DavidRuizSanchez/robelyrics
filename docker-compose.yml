@@ -61,6 +61,13 @@ services:
       JWT_TTL_MIN: ${JWT_TTL_MIN:-43200}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
+      # Sin esta línea, poner CORPUS_AUTO_ENTRY=true en el .env no llegaba al
+      # contenedor (verificado en prod el 26-10-2026): la entrada automática del
+      # corpus no se habría encendido nunca.
+      CORPUS_AUTO_ENTRY: ${CORPUS_AUTO_ENTRY:-false}
+      # Monitor de cambios: correo apagado la primera semana (modo sombra).
+      MONITOR_CAMBIOS_CORREO: ${MONITOR_CAMBIOS_CORREO:-}
+      MONITOR_BASE_URL: ${MONITOR_BASE_URL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
       REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}

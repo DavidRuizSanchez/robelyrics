@@ -21,6 +21,7 @@ const GRUPOS: { titulo: string; items: Item[] }[] = [
     items: [
       { href: "/biblioteca/admin/erratas", label: "Erratas" },
       { href: "/biblioteca/admin/corpus", label: "Corpus" },
+      { href: "/biblioteca/admin/cambios", label: "Cambios" },
       { href: "/biblioteca/admin/sources", label: "Fuentes" },
     ],
   },

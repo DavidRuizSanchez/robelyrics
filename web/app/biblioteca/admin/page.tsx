@@ -22,6 +22,7 @@ type Summary = {
   oportunidades: { detected: number; approved: number; drafted: number; failed: number };
   erratas: { pending: number; needs_human: number };
   corpus: { detected: number; approved: number; failed: number };
+  cambios?: { sin_ver: number; inesperados: number; criticos: number };
 };
 
 export const metadata = {
@@ -162,6 +163,18 @@ export default async function AdminHomePage() {
               { n: s.corpus.approved, texto: "esperando a tu Mac", tone: "info" },
             ]}
           />
+          {s.cambios && (
+            <Panel
+              titulo="Cambios en la web"
+              href="/biblioteca/admin/cambios"
+              pendiente={s.cambios.inesperados}
+              lineas={[
+                { n: s.cambios.criticos, texto: "críticos (status, noindex, canonical o sitemap)", tone: "danger" },
+                { n: s.cambios.inesperados, texto: "sin causa conocida", tone: "warn" },
+                { n: s.cambios.sin_ver - s.cambios.inesperados, texto: "explicados por el sistema, sin ver", tone: "info" },
+              ]}
+            />
+          )}
         </div>
       )}
     </AdminPage>

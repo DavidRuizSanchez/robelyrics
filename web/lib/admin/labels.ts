@@ -102,6 +102,8 @@ export const CONFIDENCE_LABEL: Record<"alta" | "media" | "baja", Etiqueta> = {
 export const PLACEMENT_VIA: Record<string, string> = {
   gsc: "Google ya enseña esa página para estas búsquedas",
   titulo: "La búsqueda nombra una canción o un disco que tiene ficha",
+  verso: "La búsqueda cita un verso de una canción que tiene ficha",
+  entidad: "La búsqueda nombra a una persona o un grupo que tiene ficha",
   semantica: "El contenido de la página se parece mucho a lo que se busca",
 };
 
@@ -302,4 +304,50 @@ export const CORPUS_KIND: Record<string, string> = {
   media_report: "Reportaje (fondo)",
   youtube_transcript: "Análisis o vídeo de fan (fondo)",
   about_robe: "Sobre Robe, de terceros (fondo)",
+};
+
+// ── Monitor de cambios ──────────────────────────────────────────────────────
+/** Qué campo de la página cambió (`page_changes.campo`). */
+export const CAMBIO_CAMPO: Record<string, string> = {
+  status: "Código HTTP",
+  redireccion: "Redirección",
+  title: "Title",
+  description: "Description",
+  canonical: "Canonical",
+  h1: "H1",
+  robots: "Meta robots",
+  x_robots: "Cabecera X-Robots-Tag",
+  hreflang: "Hreflang",
+  headings: "Encabezados",
+  contenido: "Contenido",
+  enlaces: "Enlaces internos",
+  jsonld: "Datos estructurados (JSON-LD)",
+  og: "Open Graph",
+  imgs_sin_alt: "Imágenes sin texto alternativo",
+  tiempo: "Tiempo de respuesta",
+  sitemap: "Sitemap",
+  nueva: "Página nueva",
+};
+
+export const CAMBIO_SEVERIDAD: Record<string, Etiqueta> = {
+  critico: {
+    label: "Crítico",
+    tone: "danger",
+    hint: "Puede sacar la página de Google: deja de responder, pasa a noindex, su canonical apunta a otra o sale del sitemap.",
+  },
+  estructural: {
+    label: "Importante",
+    tone: "warn",
+    hint: "Cambia lo que Google lee primero: title, description, H1, canonical o robots.",
+  },
+  contenido: {
+    label: "Contenido",
+    tone: "info",
+    hint: "Cambia el texto, los encabezados o los enlaces de la página.",
+  },
+  aviso: {
+    label: "Aviso",
+    tone: "neutral",
+    hint: "Página nueva, más lenta o con imágenes sin texto alternativo.",
+  },
 };

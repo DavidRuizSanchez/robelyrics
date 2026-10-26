@@ -13,6 +13,7 @@ from app.db.models import (
     ContentProposal,
     ErrataReport,
     InstagramQueueItem,
+    PageChange,
     Post,
     SeoOpportunity,
     VideoClip,
@@ -66,7 +67,15 @@ def resumen(db: Session) -> dict[str, dict[str, int]]:
         or 0
     )
 
+    sin_ver = db.query(PageChange).filter(PageChange.seen_at.is_(None))
+    cambios = {
+        "sin_ver": sin_ver.count(),
+        "inesperados": sin_ver.filter(PageChange.causa.is_(None)).count(),
+        "criticos": sin_ver.filter(PageChange.severidad == "critico").count(),
+    }
+
     return {
+        "cambios": cambios,
         "ideas": _por_estado(db, ContentProposal, "proposed", "approved", "scheduled"),
         "entradas": posts,
         "instagram": ig,

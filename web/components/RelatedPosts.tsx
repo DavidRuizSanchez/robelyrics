@@ -35,7 +35,7 @@ export default async function RelatedPosts({
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-16 border-t border-divider pt-10">
+    <section data-monitor="ignore" className="mt-16 border-t border-divider pt-10">
       <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-6">
         {heading}
       </h2>

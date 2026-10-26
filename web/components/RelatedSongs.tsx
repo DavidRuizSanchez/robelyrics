@@ -12,7 +12,7 @@ export default function RelatedSongs({ songs }: Props) {
   if (songs.length === 0) return null;
 
   return (
-    <section className="mt-16">
+    <section data-monitor="ignore" className="mt-16">
       <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
         Canciones que tocan lo mismo
       </h2>
