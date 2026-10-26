@@ -264,6 +264,15 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 #   python -m scripts.seo.audit_urls --gsc --verbose
 0 5 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.audit_urls --fix --review >> /var/log/robelyrics-cron.log 2>&1
 
+# 06:45 UTC diario: MONITOR DE CAMBIOS (26-10-2026). Foto de cada URL del sitemap y
+# comparación con la del día anterior: status, redirecciones, title, description,
+# robots/X-Robots-Tag, canonical, headings, contenido, enlaces, JSON-LD. Va después
+# de audit_urls (05:00) y del relinker del domingo (06:00), que tocan páginas: así
+# sus cambios salen con causa. La primera pasada es la foto de referencia. Correo
+# solo con MONITOR_CAMBIOS_CORREO=1 (la primera semana, en sombra). Panel:
+# /biblioteca/admin/cambios.
+45 6 * * * cd $APP_DIR && $DC exec -T api python -m scripts.seo.monitor_cambios >> /var/log/robelyrics-cron.log 2>&1
+
 # 05:20 UTC diario: red de seguridad del circuito de aprobación SEO. El clic de
 # «preparar borrador» lanza el trabajo en segundo plano dentro del api, así que un
 # reinicio entre el clic y el borrador (o sea, cualquier deploy) dejaba la

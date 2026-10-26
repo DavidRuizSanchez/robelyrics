@@ -2297,6 +2297,80 @@ class ContentRevision(Base):
 
 
 # --------------------------------------------------------------------------- #
+# Monitor de cambios del sitio (`app/services/page_monitor.py`, 26-10-2026)
+# --------------------------------------------------------------------------- #
+class PageMonitorRun(Base):
+    """Una pasada del monitor: cuántas URLs, cuántas cambiaron y cuántas fallaron.
+
+    `global_event`: cambió más de la cuenta de golpe (un deploy de la plantilla, una
+    caída). Va en UN correo resumen, no en uno por URL.
+    """
+
+    __tablename__ = "page_monitor_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    urls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    changed_urls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    errors: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    baseline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    global_event: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PageSnapshot(Base):
+    """La última foto de cada URL: lo que se compara en la pasada siguiente."""
+
+    __tablename__ = "page_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+    status: Mapped[int] = mapped_column(Integer, nullable=False)
+    final_url: Mapped[str] = mapped_column(Text, nullable=False)
+    cadena: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    campos: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    in_sitemap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PageChange(Base):
+    """Un campo que cambió en una URL entre dos pasadas.
+
+    `causa` sale de lo que el propio sistema hizo en ese intervalo (una fusión
+    aplicada, un post publicado, una ficha regenerada). Sin causa es INESPERADO, y
+    eso es lo que va primero en el correo y en el panel.
+    """
+
+    __tablename__ = "page_changes"
+    __table_args__ = (Index("ix_page_changes_seen_detected", "seen_at", "detected_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("page_monitor_runs.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    path: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    campo: Mapped[str] = mapped_column(String(32), nullable=False)
+    severidad: Mapped[str] = mapped_column(String(16), nullable=False)
+    antes: Mapped[str | None] = mapped_column(Text)
+    despues: Mapped[str | None] = mapped_column(Text)
+    detalle: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    causa: Mapped[str | None] = mapped_column(Text)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --------------------------------------------------------------------------- #
 # Política de nombre (REGLA DURA): la forma "Robe Iniesta" NUNCA debe persistir
 # en contenido (a él no le gustaba). Listeners a nivel ORM → cualquier escritura
 # (scripts, cron, API, manual) sobre estas tablas la convierte en "Robe". No
