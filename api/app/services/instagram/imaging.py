@@ -183,7 +183,7 @@ def _fetch_image(url: str, timeout: float = 60.0) -> Image.Image:
     return _cover(Image.open(io.BytesIO(resp.content)).convert("RGB"))
 
 
-# Variaciones de estilo para dar variedad entre posts del mismo mood (gpt-image-1
+# Variaciones de estilo para dar variedad entre posts del mismo mood (el modelo de imagen
 # no tiene seed; la variedad la mete el propio prompt, rotado por la semilla).
 _AI_STYLES = (
     "painterly oil texture",
@@ -215,15 +215,26 @@ def _ai_prompt(subject: str, seed: int) -> str:
     )
 
 
+# OpenAI retiró gpt-image-1 para generar: desde el 24-10-2026 responde 400 «The
+# model 'gpt-image-1' does not exist» aunque siga saliendo en `models.list()`, y
+# todo caía a pollinations sin que nadie se enterase (lo cazó el vigilante de la
+# migración a gpt-6-luna). Cambiarlo es solo entorno, como el modelo de chat.
+DEFAULT_IMAGE_MODEL = "gpt-image-2"
+
+
+def image_model() -> str:
+    return os.environ.get("OPENAI_IMAGE_MODEL", "").strip() or DEFAULT_IMAGE_MODEL
+
+
 def _openai_background(subject: str, seed: int) -> Image.Image:
-    """Fondo artístico con OpenAI gpt-image-1 (motor principal, fiable). Figurativo
+    """Fondo artístico con OpenAI (`image_model()`, motor principal). Figurativo
     y anclado al tema real (`subject`), no un fondo abstracto."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("sin OPENAI_API_KEY")
     client = OpenAI(api_key=api_key, timeout=120.0)
     resp = client.images.generate(
-        model="gpt-image-1", prompt=_ai_prompt(subject, seed),
+        model=image_model(), prompt=_ai_prompt(subject, seed),
         size="1024x1024", quality="medium", n=1,
     )
     raw = base64.b64decode(resp.data[0].b64_json)
@@ -257,7 +268,7 @@ def _pollinations_background(subject: str, seed: int) -> Image.Image:
 
 def _ai_background(subject: str, seed: int) -> Image.Image:
     """Fondo artístico por IA, FIGURATIVO y afín al tema real (`subject`). Orden:
-    OpenAI gpt-image-1 (principal) → pollinations (respaldo gratis). Si todo falla,
+    OpenAI `image_model()` (principal) → pollinations (respaldo gratis). Si todo falla,
     el caller cae al lienzo editorial (`_gradient_background`)."""
     try:
         return _openai_background(subject, seed)

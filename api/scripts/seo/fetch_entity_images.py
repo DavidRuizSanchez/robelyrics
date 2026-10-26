@@ -140,7 +140,7 @@ def _concrete_image(name: str, *, aliases: list[str] | None = None) -> dict | No
 
 
 def _openai_art_url(subject: str, seed: int) -> str | None:
-    """Arte con gpt-image-1 (el motor que ya usan blog e Instagram) subido a
+    """Arte con OpenAI (`imaging.image_model()`, el motor que ya usan blog e Instagram) subido a
     Cloudinary. Respaldo de pollinations, que falla a menudo."""
     path = None
     try:
@@ -153,7 +153,7 @@ def _openai_art_url(subject: str, seed: int) -> str | None:
         img.convert("RGB").save(path, "JPEG", quality=90)
         return cloudinary_upload.upload(path, folder="entreinteriores-art")
     except Exception as exc:  # noqa: BLE001
-        logger.warning("  gpt-image-1 también falló para «%s»: %s", subject, exc)
+        logger.warning("  el arte de OpenAI también falló para «%s»: %s", subject, exc)
         return None
     finally:
         if path and os.path.exists(path):
@@ -211,9 +211,9 @@ def _ai_art_url(
             data = resp.content
     except Exception as exc:  # noqa: BLE001
         # pollinations lleva tiempo respondiendo 429/524/402: no es un motor fiable.
-        # El proyecto ya usa gpt-image-1 en blog e Instagram, así que se cae ahí en
+        # El proyecto ya usa OpenAI en blog e Instagram, así que se cae ahí en
         # vez de dejar la entidad sin imagen.
-        logger.warning("  pollinations falló para «%s» (%s); probando gpt-image-1", name, exc)
+        logger.warning("  pollinations falló para «%s» (%s); probando OpenAI", name, exc)
         return _openai_art_url(ai_prompt or name, seed)
     tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
     try:
