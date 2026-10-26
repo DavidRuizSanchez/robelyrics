@@ -73,6 +73,11 @@ STATIC_PATHS: frozenset[str] = frozenset({
     "/conceptos", "/personas", "/grupos", "/sellos", "/legal", "/sobre",
     "/registro", "/login", "/logout", "/newsletter", "/olvide-password",
     "/reset-password", "/verificar-email", "/biblioteca", "/estudios",
+    # La discografía por artista vive en código (`web/app/discografia/[artist]`,
+    # solo estos dos). Sin ellas, «/discografia/robe» se resolvía como el disco
+    # «robe» del artista «discografia» —fantasma— y `audit_urls --fix` quitaba
+    # cualquier enlace a la página que posiciona «cuantas canciones tiene extremoduro».
+    "/discografia/extremoduro", "/discografia/robe",
 })
 
 # Los estudios NO viven en la BD: son páginas con su dataset y su componente. Sin

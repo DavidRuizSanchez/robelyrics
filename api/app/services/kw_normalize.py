@@ -113,6 +113,17 @@ def is_brand(s: str) -> bool:
     return bool(BRAND_TOKENS & set(kw_tokens(s)))
 
 
+# Búsquedas de descarga de música. Criterio de David (26-10-2026): prohibidas en
+# cualquier keyword, se pidan como se pidan. «descargar discografía extremoduro»
+# llegaba al panel como idea de post y al reparto como ampliación.
+_DESCARGA_RE = re.compile(
+    r"\b(descarg\w*|download\w*|mp3|torrent\w*|flac|mega|zip|rar)\b")
+
+
+def es_descarga(s: str) -> bool:
+    return bool(_DESCARGA_RE.search(kw_norm(s)))
+
+
 def detect_intent(s: str) -> str | None:
     """Intención léxica. Es una señal barata; la de DataForSEO manda si existe."""
     toks = set(kw_tokens(s))

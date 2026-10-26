@@ -210,6 +210,12 @@ def test_rutas_estaticas_no_se_validan():
         assert ur.resolve_path(_catalogo(), ruta).status == "not_catalog"
 
 
+def test_discografia_por_artista_no_es_un_disco_fantasma():
+    for ruta in ("/discografia/extremoduro", "/discografia/robe"):
+        assert ur.resolve_path(_catalogo(), ruta).status == "not_catalog"
+    assert ur.resolve_path(_catalogo(), "/discografia/inventado").status == "not_found"
+
+
 def test_ruta_de_cuatro_segmentos_es_fantasma():
     res = ur.resolve_path(_catalogo(), "/extremoduro/deltoya/ama/extra")
     assert res.status == "not_found"

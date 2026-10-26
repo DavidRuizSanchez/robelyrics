@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     Album, Band, Concept, ContentProposal, Person, Place, Post, SeoContent, Song, Theme,
 )
+from app.services.kw_normalize import es_descarga
 from app.services.seo_research import KeywordData, keyword_suggestions, search_volume
 
 from app.services.openai_chat import openai_chat_kwargs
@@ -230,6 +231,8 @@ def research_pool(db: Session, *, per_seed: int = 60, min_volume: int = 20) -> l
         slug = kw_slug(keyword)
         if not nk or nk in pool or slug in published:
             return
+        if es_descarga(keyword):
+            return
         if any(tok in nk for tok in covered):  # ya lo capta una página-hub
             return
         pool[nk] = Candidate(
@@ -341,6 +344,10 @@ def build_proposal_rows(
         pslug = kw_slug(primary)
         if pslug in published:
             continue  # memoria: no repetir KW ya usada
+        # El LLM puede devolver keywords que no estaban en el pool: el veto a las
+        # descargas se repite aquí (también en las secundarias), no se presupone.
+        if es_descarga(primary):
+            continue
 
         prim = by_norm.get(_norm(primary))
         prim_vol = prim.volume if prim else 0
@@ -368,7 +375,7 @@ def build_proposal_rows(
 
         # Ensambla keywords (primary + secundarias) con volumen/señal del pool.
         all_kw = [primary] + [k for k in (topic.get("secondary_keywords") or [])
-                              if k and kw_slug(k) not in published]
+                              if k and kw_slug(k) not in published and not es_descarga(k)]
         kw_objs, longtail_any = [], False
         for kw in all_kw:
             c = by_norm.get(_norm(kw))

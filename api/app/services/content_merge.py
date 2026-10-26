@@ -73,13 +73,43 @@ def excluir_keywords(proposal, excluidas: list[str]) -> None:
     recalcular_objetivo(proposal)
 
 
-def start_merge(db, proposal, target: str, keywords: list[str] | None = None):
+def ampliacion_viva(db, path: str):
+    """La fusión que ocupa esa página, si hay alguna.
+
+    Dos borradores sobre la misma página parten del mismo «antes»: aplicar uno
+    invalidaría el otro. Se encadenan, no se cruzan. Una `failed` ocupa mientras le
+    queden reintentos; agotados, ya devolvió sus keywords (`release_proposal`) y
+    dejarla bloqueando la página sería condenarla para siempre.
+    """
+    from app.db.models import SeoOpportunity
+    from app.services.seo_opportunities import MAX_PREPARE_ATTEMPTS
+
+    for o in (db.query(SeoOpportunity)
+              .filter(SeoOpportunity.path == path, SeoOpportunity.action == "merge",
+                      SeoOpportunity.status.in_(["detected", "approved", "drafted", "failed"]))
+              .order_by(SeoOpportunity.id)):
+        if o.status == "failed" and (o.attempts or 0) >= MAX_PREPARE_ATTEMPTS:
+            continue
+        return o
+    return None
+
+
+def _error_ocupada(path: str, viva) -> MergeError:
+    como = ("descártala en Oportunidades SEO para liberar la página"
+            if viva.status == "failed" else "termina esa primero")
+    return MergeError(f"ya hay una ampliación en curso de {path} "
+                      f"(#{viva.id}, {viva.status}); {como}")
+
+
+def start_merge(db, proposal, target: str, keywords: list[str] | None = None, *,
+                commit: bool = True):
     """Deja la oportunidad `approved` y saca esas keywords de la propuesta.
 
     Si quedan keywords activas, la propuesta sigue `proposed` con ellas (son otro
     grupo: otra página o contenido nuevo). Si no queda ninguna, pasa a `merged`.
     No lanza la preparación: eso lo hace quien llama (en segundo plano), porque un
-    borrador tarda minutos y Cloudflare corta a los 100 s.
+    borrador tarda minutos y Cloudflare corta a los 100 s. Con `commit=False` el
+    commit es de quien llama (`aplicar_plan`, que funde todo o nada).
     """
     from app.db.models import SeoContent, SeoOpportunity
 
@@ -89,17 +119,9 @@ def start_merge(db, proposal, target: str, keywords: list[str] | None = None):
     if cand is None:
         raise MergeError("esa página ya no está publicada o no admite ampliación")
 
-    viva = (
-        db.query(SeoOpportunity)
-        .filter(SeoOpportunity.path == cand.path, SeoOpportunity.action == "merge",
-                SeoOpportunity.status.in_(["detected", "approved", "drafted", "failed"]))
-        .first()
-    )
+    viva = ampliacion_viva(db, cand.path)
     if viva:
-        # Dos borradores sobre la misma página parten del mismo «antes»: aplicar uno
-        # invalidaría el otro. Se encadenan, no se cruzan.
-        raise MergeError(f"ya hay una ampliación en curso de {cand.path} "
-                         f"(#{viva.id}, {viva.status}); termina esa primero")
+        raise _error_ocupada(cand.path, viva)
 
     activas = content_placement.proposal_keywords(proposal)
     elegidas = [k for k in (keywords or activas) if k.lower() in {a.lower() for a in activas}]
@@ -153,7 +175,10 @@ def start_merge(db, proposal, target: str, keywords: list[str] | None = None):
     else:
         proposal.status = "merged"
         proposal.scheduled_for = None
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     logger.info("[merge] propuesta #%s → %s con %s (oportunidad #%s)", proposal.id,
                 cand.path, elegidas, opp.id)
     return opp
@@ -164,14 +189,47 @@ def aplicar_plan(db, proposal, elecciones: list[dict]) -> list:
     «post:N» (fundir), «new» (se quedan para un post) o «skip» (se omiten).
 
     Devuelve las oportunidades creadas, para prepararlas en segundo plano.
+
+    Todo o nada: dos grupos que van a la MISMA página son una sola fusión con la
+    unión de sus keywords (antes la segunda chocaba con la primera y el plan quedaba
+    a medias, un grupo fundido y el otro no), y si un destino está ocupado no se
+    escribe nada.
     """
-    opps = []
-    omitidas = [kw for e in elecciones if e.get("target") == "skip"
-                for kw in e.get("keywords") or []]
+    try:
+        return _aplicar_plan(db, proposal, elecciones)
+    except MergeError:
+        db.rollback()
+        raise
+
+
+def _aplicar_plan(db, proposal, elecciones: list[dict]) -> list:
+    # Por página, no por target: dos targets podrían acabar en la misma ruta.
+    por_path: dict[str, dict] = {}
     for e in elecciones:
         t = e.get("target")
-        if t and t not in ("new", "skip"):
-            opps.append(start_merge(db, proposal, t, e.get("keywords") or None))
+        if not t or t in ("new", "skip"):
+            continue
+        cand = content_placement.candidate_for_target(db, t)
+        if cand is None:
+            raise MergeError(f"{t}: esa página ya no está publicada o no admite ampliación")
+        grupo = por_path.setdefault(cand.path, {"target": t, "keywords": []})
+        kws = e.get("keywords") or []
+        if not kws or grupo["keywords"] is None:
+            grupo["keywords"] = None          # sin lista = todas las activas
+        else:
+            vistas = {k.lower() for k in grupo["keywords"]}
+            grupo["keywords"] += [k for k in kws if k.lower() not in vistas]
+
+    # Se comprueba todo antes de escribir nada.
+    for path in por_path:
+        viva = ampliacion_viva(db, path)
+        if viva:
+            raise _error_ocupada(path, viva)
+
+    opps = [start_merge(db, proposal, g["target"], g["keywords"], commit=False)
+            for g in por_path.values()]
+    omitidas = [kw for e in elecciones if e.get("target") == "skip"
+                for kw in e.get("keywords") or []]
     if omitidas:
         restantes = content_placement.proposal_keywords(proposal)
         quedan = [k for k in restantes if k.lower() not in {o.lower() for o in omitidas}]
