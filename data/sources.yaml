@@ -216,6 +216,9 @@ podcasts:
     notes: |
       Repaso narrativo + interpretativo de toda la trayectoria. Audio
       largo, requiere transcripción si se quiere indexar.
+      Parte 1 (hasta 1998, 74:58, 10-12-2025):
+      https://www.ivoox.com/extremoduro-especial-la-gran-travesia-recordando-a-robe-audios-mp3_rf_164121251_1.html
+      Las dos partes se encolaron el 26-10-2026 con `enqueue_audio` (#89 y #90).
     priority: medium
 
   - name: "Fuego y Chinchetas (RNE) — episodio Robe"
