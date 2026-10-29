@@ -17,11 +17,15 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.services.registro_dfs import etiquetar, registrar
+
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://api.dataforseo.com/v3"
 LOCATION_SPAIN = 2724
 LANG_ES = "es"
+# Control de gastos: RobeLyrics usa la cuenta DFS de Convertix con su propio tag (29-oct-2026).
+PROYECTO_DFS = "robelyrics"
 
 
 @dataclass(frozen=True)
@@ -53,9 +57,10 @@ def _post(endpoint: str, payload: list[dict], timeout: float = 60.0) -> dict | N
     """POST a DataForSEO. Devuelve el primer `result` o None si falla."""
     try:
         with httpx.Client(timeout=timeout, headers=_auth_header()) as client:
-            resp = client.post(f"{API_BASE}/{endpoint}", json=payload)
+            resp = client.post(f"{API_BASE}/{endpoint}", json=etiquetar(payload, PROYECTO_DFS))
             resp.raise_for_status()
             data = resp.json()
+        registrar(data, PROYECTO_DFS)
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("DataForSEO %s falló: %s", endpoint, exc)
         return None
