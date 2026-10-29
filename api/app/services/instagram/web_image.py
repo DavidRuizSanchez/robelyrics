@@ -25,6 +25,9 @@ import os
 
 import httpx
 
+from app.services.registro_dfs import etiquetar, registrar
+from app.services.seo_research import PROYECTO_DFS
+
 logger = logging.getLogger(__name__)
 
 _ENDPOINT = "https://api.dataforseo.com/v3/serp/google/images/live/advanced"
@@ -51,9 +54,10 @@ def search(query: str, depth: int = 20) -> list[dict]:
     }]
     try:
         with httpx.Client(timeout=30.0) as client:
-            resp = client.post(_ENDPOINT, auth=(login, password), json=payload)
+            resp = client.post(_ENDPOINT, auth=(login, password), json=etiquetar(payload, PROYECTO_DFS))
             resp.raise_for_status()
             data = resp.json()
+        registrar(data, PROYECTO_DFS)
         items = data["tasks"][0]["result"][0]["items"] or []
     except Exception as exc:  # noqa: BLE001
         logger.warning("[web_image] búsqueda falló para '%s': %s", query, exc)

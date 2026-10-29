@@ -19,6 +19,9 @@ import os
 from typing import Any
 
 import httpx
+
+from app.services.registro_dfs import etiquetar, registrar
+from app.services.seo_research import PROYECTO_DFS
 from sqlalchemy import select
 
 from app.services import robe_facts
@@ -135,9 +138,11 @@ def web_research(query: str, n: int = 6) -> list[dict]:
             "language_code": _LANG_ES, "depth": n,
         }]
         with httpx.Client(timeout=30.0) as c:
-            r = c.post(_SERP, auth=(login, pwd), json=payload)
+            r = c.post(_SERP, auth=(login, pwd), json=etiquetar(payload, PROYECTO_DFS))
             r.raise_for_status()
-            tarea = r.json()["tasks"][0]
+            respuesta = r.json()
+        registrar(respuesta, PROYECTO_DFS)
+        tarea = respuesta["tasks"][0]
         # Una tarea con error llega con `result: null`, y el `[0]` de después
         # dejaba en el log «'NoneType' object is not subscriptable» (varias veces
         # al día del 18 al 22-10-2026) en vez del motivo que da DataForSEO.
