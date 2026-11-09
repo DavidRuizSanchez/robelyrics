@@ -769,6 +769,12 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
     rutas = repartir(keywords, por_gsc=lambda kw: dueno_gsc(pages, kw),
                      por_titulo=_por_titulo, por_semantica=_por_semantica,
                      por_verso=_por_verso, por_entidad=_por_entidad)
+    # Una búsqueda cuya fusión ya dio `noop` en una página no vuelve a ella: es lo
+    # que hacía el bucle de Kabezabolo (4 intentos) y Ariel Rot (2).
+    from app.services.content_merge import paginas_vetadas
+
+    vetadas = paginas_vetadas(proposal)
+    rutas = vetar_rutas(rutas, vetadas)
     grupos: dict[str | None, list[tuple[str, Ruta]]] = {}
     for kw, r in rutas:
         grupos.setdefault(r.path, []).append((kw, r))
@@ -793,6 +799,9 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
                       period=period, use_serp=use_serp and principal in {k.lower() for k in kws0},
                       use_semantic=use_semantic, client=client,
                       anchor=anchor if principal in {k.lower() for k in kws0} else None)
+        vetadas0 = {vetadas[k.lower()] for k in kws0 if k.lower() in vetadas}
+        if vetadas0:
+            _sin_vetadas(p0, vetadas0)
         destino = p0.candidates[0].path if p0.decision == "ampliar" and p0.candidates else None
         if destino is not None and destino in grupos:
             for kw, r in grupos.pop(None):
@@ -864,6 +873,27 @@ def analyze(db, proposal, *, pages: dict | None = None, period: str | None = Non
     assert placement_principal is not None
     placement_principal.groups = salida
     return placement_principal
+
+
+def vetar_rutas(rutas: list[tuple[str, Ruta]], vetadas: dict[str, str]
+                ) -> list[tuple[str, Ruta]]:
+    """La ruta de una keyword no puede ser la página donde su fusión ya dio `noop`."""
+    return [(kw, Ruta(None, "ninguna", f"«{kw}»: ampliar {vetadas[kw.lower()]} ya se "
+                                       "intentó y no había material para hacerlo"))
+            if r.path is not None and vetadas.get(kw.lower()) == r.path else (kw, r)
+            for kw, r in rutas]
+
+
+def _sin_vetadas(p: Placement, vetadas: set[str]) -> None:
+    """Quita de una evaluación las páginas donde la fusión ya dio `noop`."""
+    if not vetadas:
+        return
+    rec = next((c for c in p.candidates if c.target == p.recommended), None)
+    p.candidates = [c for c in p.candidates if c.path not in vetadas]
+    if p.decision == "ampliar" and (rec is None or rec.path in vetadas):
+        p.decision, p.recommended, p.confidence = "nuevo", None, "baja"
+        p.reasons = [f"Ampliar {', '.join(sorted(vetadas))} ya se intentó y no había "
+                     "material: queda como contenido nuevo."] + list(p.reasons or [])
 
 
 def store(db, proposal, placement: Placement) -> None:

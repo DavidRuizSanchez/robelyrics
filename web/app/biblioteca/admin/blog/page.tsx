@@ -73,7 +73,7 @@ export type Placement = {
   competing: string[];
   period: string | null;
   computed_at?: string;
-  last_merge?: { path: string; status: string; error: string };
+  last_merge?: { path: string; status: string; error: string; cerrada?: boolean; causa?: string };
 };
 
 // Un grupo del reparto: keywords que van al mismo destino.

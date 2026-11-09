@@ -281,6 +281,17 @@ class Material:
     pasajes: int
     verificados: list[str] = field(default_factory=list)
     descartados: list[str] = field(default_factory=list)
+    fallos: list[str] = field(default_factory=list)   # técnicos: no dicen nada del corpus
+
+
+class FalloTecnico(Exception):
+    """La fusión no salió por algo que no es del contenido (OpenAI caído, un timeout).
+
+    Se lanza en vez de devolver `noop` porque un `noop` cierra la propuesta y tacha
+    sus búsquedas: cerrarla por un fallo de red sería decir «no hay material» sin
+    haberlo mirado. `_prepare_merge` lo trata como cualquier excepción: `failed` con
+    reintentos.
+    """
 
 
 def reunir_material(db, client, destino: Destino, consultas: list[str]) -> Material:
@@ -292,6 +303,7 @@ def reunir_material(db, client, destino: Destino, consultas: list[str]) -> Mater
     )
 
     hard, propio, fondo = "", "", ""
+    fallos: list[str] = []
     if destino.entity is not None and destino.entity_type:
         from app.services.deep_research import gather_entity_dossier
 
@@ -301,6 +313,7 @@ def reunir_material(db, client, destino: Destino, consultas: list[str]) -> Mater
             propio, fondo = separar_material(d.material)
         except Exception as exc:  # noqa: BLE001
             logger.warning("[merge] dossier falló para %s: %s", destino.path, exc)
+            fallos.append(f"dossier: {type(exc).__name__}: {exc}"[:200])
     form = formacion(db, consultas)
     if form:
         hard = f"{hard}\n\n{form}".strip()
@@ -326,7 +339,8 @@ def reunir_material(db, client, destino: Destino, consultas: list[str]) -> Mater
         propio_total, "DATOS VERIFICADOS:\n" + "\n".join(verificados) if verificados else "")
         if x)
     return Material(escritor=escritor, verificable=verificable, hard=hard,
-                    pasajes=len(pasajes), verificados=verificados, descartados=descartados)
+                    pasajes=len(pasajes), verificados=verificados, descartados=descartados,
+                    fallos=fallos)
 
 
 # --------------------------------------------------------------------------- #
@@ -341,28 +355,59 @@ def _esquema(body: str) -> str:
     return "\n".join(out) or "(la página no tiene texto todavía)"
 
 
-def cobertura_por_seccion(body: str, consultas: list[str]) -> dict[str, str | None]:
+def terminos_del_sujeto(subject: str, alias: dict[str, str] | None = None) -> frozenset[str]:
+    """Los tokens con los que se nombra al sujeto de la página, alias incluidos."""
+    toks = set(seo_style.content_tokens(subject or ""))
+    for t in list(toks):
+        if alias and t in alias:
+            toks.update(seo_style.content_tokens(alias[t]))
+    return frozenset(toks)
+
+
+def sin_sujeto(consulta: str, sujeto: frozenset[str] = frozenset()) -> str:
+    """Lo que la consulta pide ADEMÁS del sujeto de la página.
+
+    En la ficha de una persona el nombre sale en todas las secciones, así que una
+    búsqueda medida con el nombre la «cubría» cualquier heading que lo llevara. Pasó
+    con Kabezabolo (#53, 09-11-2026): «canciones» es un modificador de búsqueda, de
+    «canciones de manolo kabezabolo» quedaba solo el nombre, y las tres secciones
+    nuevas del plan se tiraron por repetir «Los Inicios…».
+    """
+    return " ".join(t for t in seo_style.content_tokens(consulta) if t not in sujeto)
+
+
+def cobertura_por_seccion(body: str, consultas: list[str],
+                          sujeto: frozenset[str] = frozenset()) -> dict[str, str | None]:
     """{consulta: heading de la sección que ya la responde, o None}.
 
     Es lo que impide repetir: el borrador #40 metía una sección «Qué género es
     Extremoduro» en una ficha que ya lo explicaba en «Rock transgresivo: el nombre y
     la filosofía de un género», y el editor jefe lo tumbó con razón.
+
+    Se mide sin el nombre del sujeto (`sin_sujeto`). Si no queda nada («canciones de
+    X» en la ficha de X), la consulta es de la página entera y no la responde ninguna
+    sección en concreto: no bloquea ningún heading.
     """
     out: dict[str, str | None] = {}
     bloques = [b for b in trocear(body) if b.heading]
     for c in consultas:
+        resto = sin_sujeto(c, sujeto)
         out[c] = next((b.heading for b in bloques
-                       if seo_style.cubre(seo_style.flatten(b.texto), c)), None)
+                       if seo_style.cubre(seo_style.flatten(b.texto), resto)),
+                      None) if resto else None
     return out
 
 
 def planificar(client, destino: Destino, consultas: list[str], protegidas: list[dict],
-               material: Material, propuesta: str) -> dict:
+               material: Material, propuesta: str,
+               sujeto: frozenset[str] = frozenset()) -> dict:
+    """El plan del modelo. Si la llamada falla devuelve `{"_fallo": ...}`, que NO es un
+    plan vacío: un plan vacío dice que no hay nada que añadir y cierra la propuesta."""
     from scripts.seo.generate_deep import _chat
 
     prot = "\n".join(f"- «{q['query']}» (pos {q.get('position')}, "
                      f"{q.get('clicks') or 0} clics)" for q in protegidas[:12]) or "- (ninguna)"
-    mapa = cobertura_por_seccion(destino.body, consultas)
+    mapa = cobertura_por_seccion(destino.body, consultas, sujeto)
     cobertura = "\n".join(
         f"- «{c}» → YA la responde «{h}»: enriquece ESA sección, no crees otra"
         if h else f"- «{c}» → ninguna sección la responde todavía"
@@ -397,14 +442,15 @@ def planificar(client, destino: Destino, consultas: list[str], protegidas: list[
         '"rename":[{"old":"...","new":"...","why":"..."}],"rewrite_intro":false,'
         '"intro_why":"","media":[{"section":"<heading nuevo>","type":"video|image",'
         '"query":"...","entity":"..."}]}. Si no hay nada sólido que añadir, '
-        '{"insert":[],"enrich":[]}.'
+        '{"insert":[],"enrich":[],"motivo":"<una frase: qué falta en el material para '
+        'responder a estas búsquedas>"}.'
     )
     try:
         data = _chat(client, prompt, max_tokens=1200, temp=0.3)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[merge] plan falló para %s: %s", destino.path, exc)
-        return {}
-    return data if isinstance(data, dict) else {}
+        return {"_fallo": f"plan: {type(exc).__name__}: {exc}"[:200]}
+    return data if isinstance(data, dict) else {"_fallo": "plan: la respuesta no es un JSON"}
 
 
 def coser(client, destino: Destino, cuerpo: str, nuevas: list[str], material: Material,
@@ -621,10 +667,17 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
 
     material = reunir_material(db, client, destino, consultas)
     if not material.verificable.strip():
-        return {"noop": True, "motivo": "no hay material propio que respalde la ampliación"}
+        if material.fallos:
+            raise FalloTecnico("; ".join(material.fallos))
+        return {"noop": True, "causa": "sin_material",
+                "motivo": "no hay material propio que respalde la ampliación"}
 
+    sujeto = terminos_del_sujeto(destino.subject, alias)
     plan = planificar(client, destino, consultas, protegidas, material,
-                      propuesta or opp.gap_hint or "")
+                      propuesta or opp.gap_hint or "", sujeto)
+    if plan.get("_fallo"):
+        raise FalloTecnico(plan["_fallo"])
+    fallos = list(material.fallos)
     notas: dict[str, Any] = {
         "descartado": [], "avisos": [], "protegidas": len(protegidas),
         "pasajes": material.pasajes, "juez": [],
@@ -638,7 +691,7 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     }
     ops = Operaciones()
     heads = [b.heading for b in trocear(destino.body) if b.heading]
-    mapa = cobertura_por_seccion(destino.body, consultas)
+    mapa = cobertura_por_seccion(destino.body, consultas, sujeto)
     kind = destino.entity_type or "post"
     kw_block = ("Lo que el lector quiere saber (úsalo para ELEGIR qué contar; NUNCA "
                 "menciones búsquedas, palabras clave, registros ni de dónde sale cada "
@@ -706,6 +759,7 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("[merge] enriquecer falló en «%s»: %s", h, exc)
+            fallos.append(f"enriquecer «{h}»: {type(exc).__name__}")
             return None
         texto = (data.get("texto") or "").strip() if isinstance(data, dict) else ""
         if not texto or texto.startswith("#"):
@@ -725,6 +779,7 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
                            material=material.verificable)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("[merge] el juez no pudo correr: %s", exc)
+                fallos.append(f"juez «{etiqueta}»: {type(exc).__name__}")
                 notas["descartado"].append(f"«{etiqueta}»: el editor jefe no pudo juzgarla")
                 return None
             notas["juez"].append({"op": etiqueta, "vuelta": vuelta, "antes": j.antes,
@@ -741,13 +796,22 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
 
     # --- Secciones nuevas: solo para lo que ninguna sección responde ----------- #
     cubiertas = {c for c, h in mapa.items() if h}
+    enrich_plan = [dict(e) for e in (plan.get("enrich") or []) if isinstance(e, dict)]
     for ins in (plan.get("insert") or [])[:MAX_INSERTS]:
         h = (ins.get("heading") or "").strip().strip("<>").strip()
-        if not h or _norm_h(h) in {_norm_h(x) for x in heads + [i["heading"] for i in ops.inserts]}:
+        if not h:
             continue
-        repetida = next((c for c in cubiertas if seo_style.cubre(seo_style.flatten(h), c)), None)
+        if _norm_h(h) in {_norm_h(x) for x in heads + [i["heading"] for i in ops.inserts]}:
+            notas["descartado"].append(f"«{h}»: la página ya tiene una sección con ese título")
+            continue
+        repetida = next((c for c in cubiertas
+                         if seo_style.cubre(seo_style.flatten(h), sin_sujeto(c, sujeto))), None)
         if repetida:
-            notas["descartado"].append(f"«{h}»: «{repetida}» ya la responde «{mapa[repetida]}»; "
+            # Lo que el mensaje promete: se mejora ESA sección, no se tira la idea.
+            destino_h = mapa[repetida]
+            if not any(_norm_h(e.get("heading")) == _norm_h(destino_h) for e in enrich_plan):
+                enrich_plan.append({"heading": destino_h, "covers": ins.get("covers") or h})
+            notas["descartado"].append(f"«{h}»: «{repetida}» ya la responde «{destino_h}»; "
                                        "se mejora esa sección, no se duplica")
             continue
         after = (ins.get("after") or "").strip()
@@ -762,9 +826,12 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
             ops.inserts.append({"after": after, "heading": h_real, "texto": texto})
 
     # --- Enriquecer lo que ya está cubierto, en su sitio ----------------------- #
-    for e in (plan.get("enrich") or [])[:MAX_INSERTS]:
+    for e in enrich_plan[:MAX_INSERTS]:
         h = (e.get("heading") or "").strip()
-        if not h or _buscar(trocear(destino.body), h) in (None, -1):
+        if not h:
+            continue
+        if _buscar(trocear(destino.body), h) in (None, -1):
+            notas["descartado"].append(f"enriquecer «{h}»: la página no tiene esa sección")
             continue
         covers = e.get("covers") or h
         texto = _con_juez(
@@ -773,9 +840,18 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
             ops.enriquecer.append({"heading": h, "texto": texto})
 
     if not ops.inserts and not ops.enriquecer:
+        if fallos:
+            raise FalloTecnico("; ".join(fallos[:3]))
+        propuso = bool(plan.get("insert") or enrich_plan)
+        motivo_plan = str(plan.get("motivo") or "").strip()
+        notas["motivo_plan"] = motivo_plan or None
         return {"noop": True, "notas": notas,
-                "motivo": "no hay nada propio que mejore esta página para estas búsquedas "
-                          "(no se rellena ni se repite lo que ya dice)"}
+                # sin_plan: el modelo no vio nada que añadir con este material.
+                # no_mejora: propuso, pero nada pasó al editor jefe ni a las guardas.
+                "causa": "no_mejora" if propuso else "sin_plan",
+                "motivo": ("no hay nada propio que mejore esta página para estas búsquedas "
+                           "(no se rellena ni se repite lo que ya dice)"
+                           + (f": {motivo_plan}" if motivo_plan and not propuso else ""))}
 
     # --- Medios ---------------------------------------------------------------- #
     ya_videos = set(_YT.findall(destino.body))

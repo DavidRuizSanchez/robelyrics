@@ -2134,7 +2134,14 @@ def admin_proposal_restore(
         raise HTTPException(status_code=404, detail="proposal not found")
     if p.status != "discarded":
         raise HTTPException(status_code=409, detail="la propuesta no está descartada")
+    from app.services.content_merge import reabrir_cerradas
+
     p.status = "proposed"
+    # Una idea que se cerró sola por `noop` tiene todas sus búsquedas tachadas:
+    # recuperarla sin reactivarlas la dejaría vacía. Vuelven sin la página que no
+    # salió (`noop_path`), y el reparto se recalcula para no recomendarla otra vez.
+    if reabrir_cerradas(p) and p.kind == "evergreen" and p.target_keyword:
+        _placement.store(db, p, _placement.analyze(db, p, use_serp=False))
     db.commit()
     db.refresh(p)
     return _proposal_to_item(p)
