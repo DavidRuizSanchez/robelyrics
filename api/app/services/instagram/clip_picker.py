@@ -395,6 +395,7 @@ PESO_TIPO = {
     "habla": 2.0,
     "arranque": 1.6,
     "solo": 1.4,
+    "final": 1.4,
     "canto": 1.0,
 }
 # Un clip de directo dura lo que dura el momento. Este mínimo ya no rellena:

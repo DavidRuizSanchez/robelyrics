@@ -2519,6 +2519,17 @@ def clip_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
                 f"Ese clip ya estaba {item.status}; no se ha tocado nada.",
                 success=True,
             ))
+        if not (item.caption or "").strip():
+            # Se aprueba un TEXTO, no una idea: sin caption escrito (o si no pasó
+            # las guardas) no hay nada que aprobar. Un enlace de un correo viejo
+            # no puede saltarse esto.
+            return HTMLResponse(
+                _render_admin_action_page(
+                    "Este clip todavía no tiene un texto que se pueda publicar. "
+                    "Revísalo en el panel de Instagram.", success=False,
+                ),
+                status_code=409,
+            )
         pos = db.execute(
             _select(_func.coalesce(_func.max(_QueueItem.position), -1))
         ).scalar() or -1

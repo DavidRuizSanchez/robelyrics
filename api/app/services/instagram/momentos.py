@@ -72,7 +72,7 @@ LINEAS_DE_ARRANQUE = 2
 SOLO_MIN_S = 8.0
 SOLO_MAX_S = 90.0
 
-TIPOS = ("estribillo", "habla", "solo", "arranque", "canto")
+TIPOS = ("estribillo", "habla", "solo", "final", "arranque", "canto")
 
 
 @dataclass
@@ -195,53 +195,127 @@ def _es(verso: str | None, indice: dict[str, str]) -> bool:
     return lg.normalize(verso) in indice
 
 
+# Consenso: una canción no la nombra UN segmento, la nombra un bloque. El
+# 08-11-2026 se publicó «El solo de "La Carrera"» en Vigo y un seguidor lo
+# corrigió: era el final de «Destrozares». Reproducido con sus segmentos:
+# seis tramos seguidos casaban con «Destrozares» (0,88-1,00), luego «Si la
+# suerte» casó con «Buitre no come alpiste» (1,00) y «No me queda», 11
+# caracteres, con «La Carrera» (0,91). El solo heredaba la canción del ÚLTIMO
+# segmento suelto. Ahora un segmento solo nombra su canción si, en su ventana,
+# esa canción tiene al menos `CONSENSO` segmentos y es mayoría.
+CONSENSO = 3
+VENTANA_CONSENSO_S = 60.0
+# Un tramo sin voz hereda la canción del bloque aceptado que tiene justo antes,
+# si está a menos de esto. En Vigo, «Destrozares» acaba a 139 s y el tramo sin
+# voz empieza a 169 s.
+HEREDA_MAX_GAP_S = 45.0
+
+
+def _consenso(crudo: list[tuple]) -> list[str | None]:
+    """Por cada entrada de `crudo`, la canción ACEPTADA (o None).
+
+    `crudo`: (clase, seg, cancion, verso, ratio), clase en voz|sin_voz.
+    """
+    ident = [(i, e[1], e[2]) for i, e in enumerate(crudo) if e[0] == "voz" and e[2]]
+    aceptada: list[str | None] = [None] * len(crudo)
+    for i, seg, cancion in ident:
+        ventana = [c for _j, s2, c in ident
+                   if abs(s2.start_s - seg.start_s) <= VENTANA_CONSENSO_S]
+        votos = ventana.count(cancion)
+        if votos >= CONSENSO and votos * 2 > len(ventana):
+            aceptada[i] = cancion
+    return aceptada
+
+
 def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
-    """Qué es cada segmento. Los instrumentales seguidos se funden en un solo.
+    """Qué es cada segmento. Los instrumentales seguidos se funden en un tramo.
 
     `segmentos` son filas de `SourceSegment` (o cualquier objeto con `start_s`,
     `end_s`, `text` y opcionalmente `no_speech_prob`).
+
+    Tres pasadas: cada segmento por su cuenta, el consenso por bloques (ver
+    `CONSENSO`) y después los momentos. Lo que no alcanza consenso no nombra
+    ninguna canción: se queda fuera, que es mejor que un título equivocado.
     """
-    fuera: list[Momento] = []
-    racha: list = []           # instrumentales consecutivos
-
-    def cerrar_racha(cancion: str | None) -> None:
-        """Una racha de instrumental entre partes de una canción es un solo."""
-        if not racha:
-            return
-        inicio, fin = racha[0].start_s, racha[-1].end_s
-        duracion = fin - inicio
-        if SOLO_MIN_S <= duracion <= SOLO_MAX_S:
-            fuera.append(Momento(
-                tipo="solo", start_s=inicio, end_s=fin, cancion=cancion,
-                confianza=min(1.0, duracion / 30.0),
-                motivos=[f"{len(racha)} tramos seguidos sin voz"],
-            ))
-        elif duracion > SOLO_MAX_S:
-            logger.debug("[momentos] %.0fs sin voz en %s: demasiado para ser un "
-                         "solo, no se propone", duracion, cancion or "?")
-        racha.clear()
-
-    ultima_cancion: str | None = None
+    crudo: list[tuple] = []
     for seg in segmentos:
         sin_voz = (getattr(seg, "no_speech_prob", None) or 0.0) > SIN_VOZ
         texto = (getattr(seg, "text", "") or "").strip()
         if sin_voz or not texto:
-            racha.append(seg)
+            # El texto de un tramo sin voz es alucinación de Whisper: en Vigo
+            # escribió «No me queda» dos veces sobre la guitarra. No identifica.
+            crudo.append(("sin_voz", seg, None, None, 0.0))
+            continue
+        cancion, verso, ratio = identificar(texto, catalogo)
+        crudo.append(("voz", seg, cancion, verso, ratio))
+
+    aceptada = _consenso(crudo)
+
+    def vecina(desde: int, paso: int) -> tuple[str | None, float | None]:
+        """La canción aceptada más cercana hacia atrás (-1) o adelante (+1)."""
+        j = desde + paso
+        while 0 <= j < len(crudo):
+            if aceptada[j]:
+                seg = crudo[j][1]
+                return aceptada[j], (seg.end_s if paso < 0 else seg.start_s)
+            j += paso
+        return None, None
+
+    fuera: list[Momento] = []
+    i = 0
+    while i < len(crudo):
+        clase, seg, cancion, verso, ratio = crudo[i]
+
+        if clase == "sin_voz":
+            j = i
+            while j + 1 < len(crudo) and crudo[j + 1][0] == "sin_voz":
+                j += 1
+            inicio, fin = seg.start_s, crudo[j][1].end_s
+            duracion = fin - inicio
+            if SOLO_MIN_S <= duracion <= SOLO_MAX_S:
+                antes, fin_antes = vecina(i, -1)
+                despues, ini_despues = vecina(j, +1)
+                hereda = (antes if antes and fin_antes is not None
+                          and inicio - fin_antes <= HEREDA_MAX_GAP_S else None)
+                tipo = "solo"
+                motivos = [f"{j - i + 1} tramos seguidos sin voz"]
+                if hereda:
+                    vuelve = (despues == hereda and ini_despues is not None
+                              and ini_despues - fin <= HEREDA_MAX_GAP_S)
+                    if not vuelve:
+                        # Después no vuelve la canción: es su cierre, no un solo.
+                        tipo = "final"
+                    motivos.append(f"después de un bloque de «{hereda}»")
+                fuera.append(Momento(
+                    tipo=tipo, start_s=inicio, end_s=fin, cancion=hereda,
+                    confianza=min(1.0, duracion / 30.0), motivos=motivos,
+                ))
+            elif duracion > SOLO_MAX_S:
+                logger.debug("[momentos] %.0fs sin voz: demasiado para ser un solo, "
+                             "no se propone", duracion)
+            i = j + 1
             continue
 
-        cancion, verso, ratio = identificar(texto, catalogo)
-        cerrar_racha(cancion or ultima_cancion)
-
+        i += 1
         if cancion is None:
-            # Hay voz y no es ninguna letra: alguien está hablando. En un
-            # concierto, eso suele ser Robe entre canciones.
+            antes, _ = vecina(i - 1, -1)
+            despues, _ = vecina(i - 1, +1)
+            if antes and antes == despues:
+                # Voz que no casa con nada ENTRE dos trozos de la misma canción:
+                # es letra mal transcrita («Liga esa hora» en mitad de
+                # «Destrozares»), no Robe hablando al público.
+                continue
             fuera.append(Momento(
                 tipo="habla", start_s=seg.start_s, end_s=seg.end_s,
                 confianza=0.5, motivos=["voz que no casa con ninguna letra"],
             ))
             continue
 
-        ultima_cancion = cancion
+        if aceptada[i - 1] is None:
+            logger.debug("[momentos] «%s» casa con «%s» pero sin consenso: no se nombra",
+                         seg.text, cancion)
+            continue
+
         if _es(verso, catalogo.estribillos):
             tipo, motivo = "estribillo", "verso que se repite 3+ veces en su canción"
         elif _es(verso, catalogo.arranques):
@@ -250,8 +324,7 @@ def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
             tipo, motivo = "canto", "casa con la letra"
         fuera.append(Momento(
             tipo=tipo, start_s=seg.start_s, end_s=seg.end_s, cancion=cancion,
-            verso=verso, confianza=ratio, motivos=[motivo],
+            verso=verso, confianza=ratio,
+            motivos=[motivo, f"{CONSENSO}+ tramos del bloque casan con «{cancion}»"],
         ))
-
-    cerrar_racha(ultima_cancion)
     return fuera

@@ -259,9 +259,12 @@ persons:
     wikipedia_url: https://es.wikipedia.org/wiki/Fito_Cabrales
 
   - slug: manolo-kabezabolo
-    full_name: Manuel Galán
+    # Corregido el 09-11-2026: decía «Manuel Galán» y «colaborador histórico de
+    # Extremoduro», sin fuente. El nombre es el de Wikipedia y las obras, las de
+    # Wikidata (P800).
+    full_name: Manuel Méndez Lozano
     stage_name: Manolo Kabezabolo
-    bio_short: Cantante y autor satírico del rock español, colaborador histórico de Extremoduro.
+    bio_short: Cantautor punk zaragozano, autor de «Ya hera ora» y «Resina, agua y ajo».
     wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Kabezabolo
 
   - slug: rosendo-mercado

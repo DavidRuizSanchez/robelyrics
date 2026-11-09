@@ -140,10 +140,17 @@ def _dossier(db, topic: dict) -> str:
     """Datos duros de las canciones/discos del catálogo que el texto menciona."""
     from app.services import news_research
 
-    blob = " ".join(
-        str(topic.get(k) or "")
-        for k in ("title", "summary", "caption_body", "material")
-    ).strip()
+    cancion_clip = (topic.get("corpus") or {}).get("song")
+    if topic.get("content_type") == "clip" and cancion_clip:
+        # Un clip va de SU canción, la que se identificó por consenso. Buscar
+        # títulos en el texto libre traía la de `Song.id` más bajo: un «en la
+        # carrera» cualquiera bastaba para colar los datos de «La Carrera».
+        blob = cancion_clip
+    else:
+        blob = " ".join(
+            str(topic.get(k) or "")
+            for k in ("title", "summary", "caption_body", "material")
+        ).strip()
     if not blob:
         return ""
     try:

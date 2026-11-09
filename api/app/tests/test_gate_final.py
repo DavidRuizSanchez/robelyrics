@@ -212,3 +212,17 @@ def test_una_noticia_que_no_pasa_las_guardas_al_repreparar_se_retiene(db, monkey
 def test_material_como_palabra_normal_pasa(texto):
     """Ampliar las fórmulas de «falta de material» no puede tumbar un disco ni prosa."""
     assert gate_final.revisar(caption=texto).ok
+
+
+@pytest.mark.parametrize("aviso,informativo", [
+    ("Sin foto acreditada de «Milongas Extremas»: va arte propio.", True),
+    ("El texto se reescribió 1 vez/veces: el primero no pasó las guardas.", True),
+    ("una slide repite una frase del comentario", True),
+    ("La foto no se ha podido comprobar con visión: revísala.", False),
+    ("Verso posiblemente mal atribuido: Y no lo siento", False),
+    ("El texto menciona el fallecimiento de Robe: comprueba el tono.", False),
+])
+def test_solo_los_avisos_que_piden_persona_retienen(aviso, informativo):
+    """La IA como último recurso sale sin aprobación (David, 09-11-2026); un
+    verso dudoso o una foto sin comprobar, no."""
+    assert publisher.es_aviso_informativo(aviso) is informativo

@@ -120,10 +120,13 @@ def test_sin_cancion_no_hay_verso(db):
 def test_un_clip_dice_su_cancion_y_su_verso(db):
     from app.db.models import InstagramQueueItem
 
+    # Desde el 09-11-2026 las notas del selector viven en `notas_internas`. Este
+    # test las ponía en `summary` y siguió en verde cuando dejaron de estar ahí:
+    # los clips se quedaron sin verso y nadie se enteró.
     item = InstagramQueueItem(
         media_type="CLIP", content_type="clip", title="x",
-        summary="Tramo 640-658s\nCanción: Si te vas...\nVerso (de nuestra letra): "
-                "Si te vas, me quedo en esta calle sin salida,",
+        notas_internas="Tramo 640-658s\nCanción: Si te vas...\nVerso (de nuestra letra): "
+                       "Si te vas, me quedo en esta calle sin salida,",
     )
     assert robe_quote.cancion_del_post(db, item) == (
         80, "Si te vas, me quedo en esta calle sin salida,")

@@ -18,6 +18,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import html as _html
 import logging
 import os
 
@@ -50,9 +51,71 @@ def _pendientes(db) -> list[tuple[VideoClip, InstagramQueueItem]]:
     return [(c, i) for c, i in filas]
 
 
-def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str) -> str:
+def preparar_texto(db, item: InstagramQueueItem) -> str | None:
+    """Escribe el texto del clip ANTES de pedir el visto bueno.
+
+    Antes el caption se escribía dentro de `publish()`, después de aprobar, y
+    nadie lo veía hasta que estaba en el feed: así salieron «Extremoduro la
+    tocó en Vigo» o «en un tramo sin voz del tema». Ahora se escribe aquí, el
+    correo lo enseña tal cual y, como el clip ya tiene su media, `publish` no
+    vuelve a preparar: sale el texto aprobado (y pasa otra vez el gate final).
+
+    El item vuelve a `proposed` con `needs_human`: `_publicable()` lo excluye,
+    así que no hay ventana en la que pueda salir sin aprobación.
+
+    Devuelve None si hay texto publicable, o el motivo si no lo hay.
+    """
+    from app.services.instagram import publisher
+
+    if not item.caption:
+        try:
+            publisher.prepare(db, item)
+        except Exception as exc:  # noqa: BLE001 — incluye TextoRetenido
+            db.rollback()
+            item.error = f"Sin texto publicable: {exc}"[:2000]
+            db.commit()
+            return str(exc)
+        finally:
+            item.status = "proposed"
+            item.needs_human = True
+            db.commit()
+    veredicto = publisher.revisar_gate(db, item)
+    if not veredicto.ok:
+        item.error = f"Sin texto publicable: {veredicto.motivo}"[:2000]
+        db.commit()
+        return veredicto.motivo
+    return None
+
+
+def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str,
+                problema: str | None = None) -> str:
     aprobar = create_clip_action_token(clip.id, "approve")
     rechazar = create_clip_action_token(clip.id, "reject")
+    if problema:
+        bloque_texto = (
+            f'<p style="font-family:Georgia,serif;font-size:13px;color:{COL_GRANATE};'
+            f'line-height:1.6;margin:12px 0 0;">⚠ No hay un texto que se pueda publicar, '
+            f'así que este clip no se puede aprobar todavía: {_html.escape(problema[:400])}</p>'
+        )
+        boton_publicar = ""
+    else:
+        bloque_texto = (
+            f'<p style="font-family:\'Courier New\',monospace;font-size:10px;'
+            f'letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);'
+            f'margin:14px 0 4px;">Texto que se publicará, tal cual</p>'
+            f'<div style="font-family:Georgia,serif;font-size:13px;color:{COL_PAPEL};'
+            f'line-height:1.6;white-space:pre-wrap;border-left:2px solid {COL_GRANATE};'
+            f'padding:4px 0 4px 12px;">{_html.escape(item.caption or "")}</div>'
+            f'<p style="font-family:Georgia,serif;font-size:13px;color:{COL_PAPEL};'
+            f'margin:10px 0 0;">Rótulo del vídeo: <em>{_html.escape(clip.overlay or "")}</em></p>'
+        )
+        boton_publicar = (
+            f'<a href="{site}/api/public/clip-action?token={aprobar}" '
+            f'style="display:inline-block;background:{COL_GRANATE};color:{COL_FONDO};'
+            f"font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;"
+            f'text-transform:uppercase;text-decoration:none;padding:11px 20px;">'
+            f'Publicar este</a>'
+        )
     resumen = (item.notas_internas or item.summary or "").strip()
     aviso = ""
     if "AVISO:" in resumen:
@@ -84,16 +147,13 @@ def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str) -> str:
      color:rgba(237,228,211,0.6);line-height:1.6;margin:0 0 12px;">
     «{transcripcion[:400]}»</p>
   {aviso}
+  {bloque_texto}
   <p style="margin:14px 0 0;">
     <a href="{clip.url_cdn}" style="font-family:'Courier New',monospace;font-size:12px;
        color:{COL_PAPEL};text-decoration:underline;">▶ Ver el clip montado</a>
   </p>
   <p style="margin:16px 0 0;">
-    <a href="{site}/api/public/clip-action?token={aprobar}"
-       style="display:inline-block;background:{COL_GRANATE};color:{COL_FONDO};
-       font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;
-       text-transform:uppercase;text-decoration:none;padding:11px 20px;">
-       Publicar este</a>
+    {boton_publicar}
     <a href="{site}/api/public/clip-action?token={rechazar}"
        style="display:inline-block;margin-left:10px;color:rgba(237,228,211,0.6);
        font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;
@@ -103,8 +163,9 @@ def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str) -> str:
 </div>"""
 
 
-def _render(pares, site: str) -> tuple[str, str]:
-    fichas = "".join(_ficha_html(c, i, site) for c, i in pares)
+def _render(pares, site: str, problemas: dict | None = None) -> tuple[str, str]:
+    problemas = problemas or {}
+    fichas = "".join(_ficha_html(c, i, site, problemas.get(i.id)) for c, i in pares)
     n = len(pares)
     html = (
         f'<div style="background:{COL_FONDO};padding:32px 24px;max-width:640px;'
@@ -139,8 +200,11 @@ def main() -> None:
             logger.info("No hay clips montados esperando. No se manda nada.")
             return
 
+        # El texto se escribe AHORA, antes del correo. En el ensayo también: sin
+        # él, el ensayo no enseñaría lo que de verdad se iba a aprobar.
+        problemas = {i.id: preparar_texto(db, i) for _c, i in pares}
         site = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
-        html, text = _render(pares, site)
+        html, text = _render(pares, site, problemas)
         if args.dry_run:
             print(text)
             return

@@ -1064,6 +1064,45 @@ Las causas, y lo que no hay que deshacer:
 El gate es la red, no la solución: si el redactor recibe las notas, las
 parafrasea, y ninguna regex caza todas las paráfrasis.
 
+**Reintentar enseña a esquivar.** Dentro del redactor, un acierto del gate
+corta sin segundo intento: al re-preparar el #424, cada reintento conservaba la
+idea («este dato no consta») y cambiaba las palabras («material de casa» → «el
+material sitúa» → «que consta aquí… no se especifica»). Y el prompt deja
+devolver el comentario VACÍO: obligado a escribir sin nada que contar, el modelo
+narraba lo que faltaba.
+
+**El gate mira la forma, no la verdad.** En la cola re-preparada, el #424
+afirmaba que Robe reconoció a Kabezabolo como influencia, y su lista de 1990
+(fuente 769) no lo incluye. Lo dejó pasar `caption_guard`. Contrastar cada
+afirmación con su pasaje del corpus sigue siendo obligatorio antes de reabrir
+una cola.
+
+### Una canción la nombra un bloque, no un segmento
+
+El tramo del #504 (169-202 s, sin voz) heredaba la canción de `ultima_cancion`,
+que la había fijado UN segmento: «No me queda», 11 caracteres, casó con «La
+Carrera» a 0,91, justo después de seis tramos de «Destrozares» a 0,88-1,00.
+Ahora (`momentos.clasificar`, tres pasadas):
+
+- **Consenso**: un segmento nombra su canción solo si, en ±60 s, esa canción
+  suma `CONSENSO` (3) tramos y es mayoría. Lo que no llega no nombra nada.
+- **Sin voz no identifica**: el texto de un tramo con `no_speech_prob` alto es
+  alucinación de Whisper.
+- **Lo instrumental hereda del bloque aceptado ANTERIOR** (≤45 s). Si después
+  no vuelve la canción, es su **final**, no un solo («El final de»).
+- Voz que no casa con nada entre dos trozos de la misma canción es letra mal
+  transcrita, no Robe hablando.
+- Quién toca lo dice el vídeo (`gate_final.interprete_del_video`), nunca el
+  autor de la canción.
+
+Los segmentos reales de Vigo están en `app/tests/fixtures/vigo_2024_destrozares.json`.
+
+**El correo de un clip enseña el texto exacto que se publicará.** `notify_clips`
+lo escribe con `prepare` antes de mandar el correo y devuelve el item a
+`proposed`. Como ya tiene media, `publish` no vuelve a preparar: sale el texto
+aprobado, que vuelve a pasar el gate. Sin texto publicable no hay botón de
+publicar, y el enlace de aprobar lo rechaza.
+
 ## Un post preparado no se entera de que has desplegado
 
 `IMAGES_DIR` (`/tmp/robelyrics_instagram`) **no es efímero en producción**: está
