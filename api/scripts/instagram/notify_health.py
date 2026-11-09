@@ -122,7 +122,23 @@ def _gather(db) -> dict:
         .order_by(InstagramQueueItem.id)
     ).all()
 
+    # Cuánto de lo publicado esta semana lleva arte IA. Se cuenta solo lo que
+    # tiene el origen registrado (desde el 09-11-2026).
+    desde_semana = ahora - timedelta(days=7)
+    origenes = db.execute(
+        select(InstagramQueueItem.image_origin, func.count(InstagramQueueItem.id))
+        .where(
+            InstagramQueueItem.status == "published",
+            InstagramQueueItem.published_at >= desde_semana,
+            InstagramQueueItem.image_origin.is_not(None),
+        )
+        .group_by(InstagramQueueItem.image_origin)
+    ).all()
+    con_origen = sum(n for _o, n in origenes)
+    con_ia = sum(n for o, n in origenes if o == "ia")
+
     return {
+        "ia_semana": (con_ia, con_origen),
         "retenidos": [(int(i), t or "", e or "") for i, t, e in retenidos],
         "bloqueado": bloqueado,
         "motivo": motivo,
@@ -157,6 +173,14 @@ def _problemas(data: dict) -> list[str]:
         )
     if data["publicables"] == 0 and not data["bloqueado"]:
         fuera.append("la cola está vacía: no hay nada que publicar")
+    con_ia, con_origen = data.get("ia_semana", (0, 0))
+    if con_origen >= 4 and con_ia * 2 > con_origen:
+        # Más de la mitad con arte IA: algo en la cadena de fotos se ha roto
+        # (un CDN que no responde, la visión caída). La IA es el último recurso.
+        fuera.append(
+            f"{con_ia} de {con_origen} posts de esta semana han salido con arte IA: "
+            f"revisa por qué no se encuentran portadas ni fotos"
+        )
     for item_id, titulo, error in data.get("retenidos", []):
         fuera.append(
             f"#{item_id} «{titulo[:60]}» está retenido y no saldrá hasta que lo "
@@ -173,6 +197,8 @@ def _signature(data: dict) -> str:
         f"v:{int(data['publicables'] == 0)}",
         # Por IDs: un item retenido avisa UNA vez, no en cada pasada del cron.
         "r:" + ",".join(str(i) for i, _, _ in data.get("retenidos", [])),
+        "ia:" + str(int(data.get("ia_semana", (0, 0))[0] * 2
+                        > data.get("ia_semana", (0, 0))[1] >= 4)),
     ]
     return hashlib.sha256("|".join(partes).encode()).hexdigest()[:64]
 

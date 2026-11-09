@@ -47,22 +47,44 @@ def _load_media() -> dict[str, list[dict]]:
     return _media_cache
 
 
-def find(db: Session, topic: dict) -> dict | None:
-    """Si el tema menciona un disco de la discografía, devuelve {'url','kind'}.
+def _disco_de_cancion(db: Session, song_id: int) -> tuple[str, str, str | None] | None:
+    """(título, slug, portada) del disco ORIGINAL de una canción ya identificada.
 
-    Elige el título más largo que aparezca en el texto (el más específico) y
-    rota entre la portada y las imágenes adicionales de ese disco.
+    La canción tiene que venir identificada (verso del post, clip por consenso,
+    ficha del blog): aquí no se buscan títulos de canción en texto libre, que es
+    donde está la colisión («en la carrera» → «La Carrera»).
+    """
+    from app.db.models import Song
+    from app.services.versiones import version_original
+
+    song = db.get(Song, song_id)
+    if song is None:
+        return None
+    song = version_original(db, song)
+    if song is None or song.album is None:
+        return None
+    return _norm(song.album.title), song.album.slug, song.album.cover_url
+
+
+def find(db: Session, topic: dict, *, song_id: int | None = None) -> dict | None:
+    """Si el tema va de un disco de la discografía, devuelve {'url','kind'}.
+
+    Primero el disco nombrado en el texto (el título más largo que aparezca, el
+    más específico). Si no se nombra ninguno pero el post va de una canción ya
+    identificada (`song_id`), la portada de SU disco: una cita de «Destrozares»
+    va con la portada de «Destrozares», no con arte inventado.
     """
     text = _norm(f"{topic.get('title', '')} {topic.get('summary', '')} "
                  f"{topic.get('headline', '')}")
-    if not text:
-        return None
-    rows = db.execute(select(Album.title, Album.slug, Album.cover_url)).all()
     best = None  # (titulo_norm, slug, cover_url)
-    for title, slug, cover in rows:
-        nt = _norm(title)
-        if len(nt) >= 5 and nt in text and (best is None or len(nt) > len(best[0])):
-            best = (nt, slug, cover)
+    if text:
+        rows = db.execute(select(Album.title, Album.slug, Album.cover_url)).all()
+        for title, slug, cover in rows:
+            nt = _norm(title)
+            if len(nt) >= 5 and nt in text and (best is None or len(nt) > len(best[0])):
+                best = (nt, slug, cover)
+    if best is None and song_id:
+        best = _disco_de_cancion(db, song_id)
     if best is None:
         return None
 

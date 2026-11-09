@@ -31,6 +31,8 @@ export type IGItem = {
   summary: string | null;
   // Notas del selector y de la ingesta: se enseñan aquí y nunca se publican.
   notas_internas?: string | null;
+  // De dónde salió la imagen que se publica de verdad: portada, ficha, ia…
+  image_origin?: string | null;
   source_name: string | null;
   source_url: string | null;
   image_url: string | null;

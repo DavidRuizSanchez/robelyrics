@@ -1579,6 +1579,11 @@ class InstagramQueueItem(Base):
     # vivía en `summary` y cuatro caminos de respaldo lo publicaban: el #487 y el
     # #374 salieron con «Tramo 45-57s… Motivos:… Corte: pausa» en el caption.
     notas_internas: Mapped[str | None] = mapped_column(Text)
+    # De dónde salió la imagen que se publica, de verdad (no la que se intentó):
+    # portada · ficha · foto:<fuente> · hero_blog · ia · video · producto ·
+    # reel_propio. Antes no se guardaba y solo se podía reconstruir a mano: el
+    # 09-11-2026 la reconstrucción dio 12 de 51 posts con IA en un mes.
+    image_origin: Mapped[str | None] = mapped_column(String(32))
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)

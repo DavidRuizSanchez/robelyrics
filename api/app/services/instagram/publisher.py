@@ -51,6 +51,7 @@ from app.services.instagram.evergreen import EVERGREEN_TYPES
 logger = logging.getLogger(__name__)
 
 BLOG_BASE_URL = f"{config.SITE_URL}/blog"
+ROBE_PERSON_SLUG = "robe-iniesta"
 
 
 class SinMaterial(RuntimeError):
@@ -231,6 +232,32 @@ def _sin_desambiguador(song: str, album: str) -> str:
     return s
 
 
+def _hero_es_arte(db: Session, item: InstagramQueueItem) -> bool:
+    """¿El hero del post del blog es arte propio (IA)? Lo dice su `alt`, que
+    `blog_hero` escribe así para el arte generado."""
+    if not item.blog_post_id:
+        return False
+    post = db.get(Post, item.blog_post_id)
+    return bool(post and (post.hero_image_alt or "").startswith("Ilustración editorial"))
+
+
+def _cancion_de_item(db: Session, item: InstagramQueueItem) -> int | None:
+    """La canción de la que va el post, si se SABE (nunca adivinada del texto).
+
+    Un verso (`quote:line_<id>`) es de la canción de esa línea; un clip o una
+    ficha de canción del blog, lo que diga `robe_quote.cancion_del_post`.
+    """
+    key = item.content_key or ""
+    if key.startswith("quote:line_"):
+        try:
+            line = db.get(Line, int(key.rsplit("_", 1)[1]))
+        except (IndexError, ValueError):
+            line = None
+        return line.song_id if line is not None else None
+    sid, _ = robe_quote.cancion_del_post(db, item)
+    return sid
+
+
 def _corpus_context(db: Session, item: InstagramQueueItem) -> dict:
     """Datos ESTRUCTURADOS del corpus para rellenar los moldes del caption.
 
@@ -309,9 +336,14 @@ def _apply_person_photo(
     """
     key = item.content_key or ""
     prefix = "ephemeris:birth_"
-    if not key.startswith(prefix):
+    if key.startswith(prefix):
+        slug = key[len(prefix):].rsplit("_", 1)[0]
+    elif item.content_type == "robe_quote":
+        # Una cita de Robe es de Robe: su foto acreditada de ficha no sugiere
+        # ninguna identidad que no sea la suya. Antes estas salían con arte IA.
+        slug = ROBE_PERSON_SLUG
+    else:
         return
-    slug = key[len(prefix):].rsplit("_", 1)[0]
     if not slug:
         return
     person = db.execute(
@@ -324,6 +356,7 @@ def _apply_person_photo(
         url = config.SITE_URL + url
     topic["image_hint"] = url
     topic["image_kind"] = "photo"
+    topic["image_origin"] = "ficha"
     attribution = _clean_credit(person.image_attribution or "")
     if attribution:
         lic = (person.image_license or "").strip()
@@ -407,6 +440,12 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
             fila.photo_page_url = foto.page_url
             fila.photo_site = foto.site
             fila.photo_evidence = list(foto.evidence or [])
+        elif topic.get("image_origin") == "portada":
+            # Antes caía en el `else` y una portada se registraba como arte
+            # propio: inflaba el recuento de IA del panel.
+            fila.photo_source = "portada"
+            fila.photo_verdict = "accredited"
+            fila.photo_reason = "Portada oficial del disco del que va el post."
         else:
             fila.photo_source = identity_photo.ARTE_PROPIO
             fila.photo_verdict = "own_art"
@@ -568,10 +607,11 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         #   2) Efeméride de una PERSONA (cumpleaños/aniversario natal): SU foto
         #      curada de la ficha de la web (misma imagen, sin homónimos).
         #   3) Si no, arte temático (IA) afín a la categoría.
-        cover = album_cover.find(db, topic)
+        cover = album_cover.find(db, topic, song_id=_cancion_de_item(db, item))
         if cover:
             topic["image_hint"] = cover["url"]
             topic["image_kind"] = "cover"
+            topic["image_origin"] = "portada"
         else:
             _apply_person_photo(db, item, topic)
         # El contenido se basta solo: sin verso ornamental (evita duplicarlo en
@@ -597,6 +637,19 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # El cuerpo del post no se toca (lo escribió el motor profundo), pero
             # sus slides también las escribe alguien ahora.
             _redactar_con_corpus(db, topic)
+            # Sin hero, o con un hero de arte propio, el post salía con IA aunque
+            # su título nombrara un disco: medido el 09-11-2026, 6 de los 15
+            # posts de blog del mes («La Gira 2002 de Yo, minoría absoluta»,
+            # «Robando perchas del hotel (2012)»…). En IG una portada sí puede
+            # repetirse, así que va por delante del arte.
+            if not topic.get("image_hint") or _hero_es_arte(db, item):
+                cover = album_cover.find(db, topic, song_id=_cancion_de_item(db, item))
+                if cover:
+                    topic["image_hint"] = cover["url"]
+                    topic["image_kind"] = "cover"
+                    topic["image_origin"] = "portada"
+            if topic.get("image_hint") and not topic.get("image_origin"):
+                topic["image_origin"] = "hero_blog"
         # SOLO las noticias AJENAS. Dos formas de equivocarse aquí, y las dos
         # han pasado:
         #
@@ -647,6 +700,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             if cover:
                 topic["image_hint"] = cover["url"]
                 topic["image_kind"] = "cover"
+                topic["image_origin"] = "portada"
             else:
                 # Créditos de las fotos recientes: para no repetir imagen.
                 recent_credits = {
@@ -679,6 +733,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                     topic["image_hint_thumb"] = foto.thumb
                     topic["image_credit"] = foto.credit
                     topic["image_kind"] = "photo"
+                    topic["image_origin"] = f"foto:{foto.source}"
                     topic["foto"] = foto
                     if foto.needs_human:
                         topic.setdefault("avisos", []).append(
@@ -756,6 +811,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                 _redactar_con_corpus(db, topic, extra=topic["material_directo"])
             item.image_path = None      # el material vive en Cloudinary
             item.media_type = "CLIP"
+            item.image_origin = "video"
             item.caption = captions.build(db, topic)
             item.status = "prepared"
             item.error = None
@@ -768,6 +824,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         ruta = video.render_verse_reel(topic, slot=item.slot or 1)
         specs, paths, used_hero = [{"layout": "reel"}], [ruta], False
         _sync_media(db, item, paths, specs, kind="video")
+        item.image_origin = "reel_propio"
         item.image_path = ruta
         item.caption = captions.build(db, topic)
         item.status = "prepared"
@@ -806,6 +863,9 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     # licencia; si la generación cayó al fondo IA, no hay crédito que poner.
     if not used_hero:
         topic.pop("image_credit", None)
+    # Lo que se usó DE VERDAD: si la foto no se pudo bajar, `imaging` cae a arte
+    # propio y eso es lo que sale publicado.
+    item.image_origin = (topic.get("image_origin") or "foto") if used_hero else "ia"
 
     _sync_media(db, item, paths, specs)
     item.image_path = paths[0]      # espejo de la diapositiva 0
@@ -875,6 +935,7 @@ def _prepare_product(
 
     _sync_media(db, item, [ruta], [{"layout": "product"}])
     item.image_path = ruta
+    item.image_origin = "producto"
     item.caption = captions.build(db, topic)
     item.status = "prepared"
     item.error = None
