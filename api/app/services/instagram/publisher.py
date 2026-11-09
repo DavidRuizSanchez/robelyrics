@@ -11,6 +11,7 @@ import logging
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, case, or_, select
 from sqlalchemy.orm import Session
@@ -166,9 +167,70 @@ def _retener(db: Session, item: InstagramQueueItem, motivo: str) -> InstagramQue
     return item
 
 
+_MADRID = ZoneInfo("Europe/Madrid")
+_CONTADOR = re.compile(r"Día (\d+) sin Robe")
+
+
+def fecha_de_publicacion(item: InstagramQueueItem) -> date:
+    """El día en que saldrá el post, en Madrid: el fijado, o hoy si va al goteo."""
+    if item.publish_at is not None:
+        cuando = item.publish_at
+        if cuando.tzinfo is None:
+            cuando = cuando.replace(tzinfo=timezone.utc)
+        return cuando.astimezone(_MADRID).date()
+    if item.publish_on is not None:
+        return item.publish_on
+    return datetime.now(_MADRID).date()
+
+
+def contador_desfasado(item: InstagramQueueItem, hoy: date | None = None) -> bool:
+    """¿El «Día N sin Robe» del post no es el de HOY?
+
+    El texto y las imágenes se preparan días (o meses) antes de salir, y el
+    contador se quedaba con el número del día de preparar: 94 de 140 publicados
+    en 60 días salieron con el día equivocado (medido el 09-11-2026).
+    """
+    m = _CONTADOR.search(item.caption or "")
+    if not m:
+        return False
+    return int(m.group(1)) != config.dias_sin_robe(_dia_de_salida(item, hoy))
+
+
+def _dia_de_salida(item: InstagramQueueItem, hoy: date | None = None) -> date:
+    """Hoy, salvo que esté fijado para más adelante (un ensayo en seco de un post
+    programado no tiene que rehacerlo para el día de hoy)."""
+    hoy = hoy or datetime.now(_MADRID).date()
+    return max(hoy, fecha_de_publicacion(item))
+
+
+def _poner_al_dia_el_contador(db: Session, item: InstagramQueueItem) -> None:
+    """Deja el contador con el número de hoy antes de publicar.
+
+    En las imágenes nuestras el número va QUEMADO (cabecera y última tarjeta),
+    así que se vacían y `publish` las vuelve a preparar, gate incluido. Lo que no
+    se puede rehacer (vídeo, piezas subidas a mano, capturas) solo lleva el
+    número en el caption, y ahí basta con cambiarlo.
+    """
+    hoy = config.dias_sin_robe(_dia_de_salida(item))
+    if item.media_type in ("IMAGE", "CAROUSEL") and not item.media_locked:
+        db.query(InstagramQueueMedia).filter(InstagramQueueMedia.item_id == item.id).delete()
+        item.caption = None
+        item.image_url = None
+        item.image_path = None
+        db.commit()
+        db.refresh(item)
+        logger.info("[IG] item %s: contador desfasado, se rehace entero", item.id)
+        return
+    item.caption = _CONTADOR.sub(f"Día {hoy} sin Robe", item.caption or "")
+    db.commit()
+    logger.info("[IG] item %s: contador del caption puesto al día (%s)", item.id, hoy)
+
+
 def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
     """Construye el dict de tema que consumen editorial / imaging / captions."""
     topic = {
+        # El contador «Día N sin Robe» se calcula con el día en que SALE.
+        "fecha_publicacion": fecha_de_publicacion(item),
         "title": item.title,
         "category": item.category or "Actualidad",
         # El `summary` de un clip nunca llega al redactor ni al caption: lo
@@ -1107,6 +1169,9 @@ def publish(
     humano que le da a publicar tiene que poder ver el error real de Meta (y de
     paso ese intento sirve de sondeo).
     """
+    if contador_desfasado(item):
+        _poner_al_dia_el_contador(db, item)
+
     if not _media_lista(item):
         # Preparar puede fallar por motivos legítimos (un post de clip sin clip
         # enlazado, un carrusel sin material). Eso NO puede tumbar el cron: sin

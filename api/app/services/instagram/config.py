@@ -14,8 +14,14 @@ from app.services import robe_facts
 ROBE_DEATH = robe_facts.DEATH_DATE
 
 
-def dias_sin_robe() -> int:
-    return max(0, (date.today() - ROBE_DEATH).days)
+def dias_sin_robe(fecha: date | None = None) -> int:
+    """Días desde la muerte de Robe hasta `fecha` (hoy si no se da).
+
+    Se pasa la fecha de PUBLICACIÓN: el texto y las imágenes se preparan antes,
+    y con `date.today()` a secas el post salía con el número del día en que se
+    preparó (medido el 09-11-2026: 94 de 140 publicados en 60 días, hasta 48 días
+    por detrás)."""
+    return max(0, ((fecha or date.today()) - ROBE_DEATH).days)
 
 # --- Meta / Instagram Graph API ---
 META_APP_ID = os.getenv("META_APP_ID", "")
