@@ -236,7 +236,7 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
                 partes.append(f"Concierto: {donde} (fuente: {asset.event_source or 'título'})")
             if asset.channel_title:
                 partes.append(f"Canal: {asset.channel_title}")
-            item.summary = "\n".join(partes)
+            item.notas_internas = "\n".join(partes)
             db.commit()
     return hechas
 
@@ -347,7 +347,7 @@ def main() -> None:
                 if sensible:
                     partes.append(f"AVISO: medio profesional («{sensible}»)")
                 partes.append(f"Transcripción del tramo: {c.texto[:600]}")
-                item.summary = "\n".join(partes)
+                item.notas_internas = "\n".join(partes)
                 db.commit()
             logger.info("   → clip #%s, post #%s (esperando tu visto bueno)",
                         clip.id, clip.queue_item_id)

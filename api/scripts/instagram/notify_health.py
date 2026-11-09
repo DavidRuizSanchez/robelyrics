@@ -111,7 +111,19 @@ def _gather(db) -> dict:
         .limit(5)
     ).all()
 
+    # Retenidos: lo que el gate final (o una guarda) sacó de la cola hasta que lo
+    # mire una persona. No sale solo, así que si nadie avisa se queda ahí.
+    retenidos = db.execute(
+        select(InstagramQueueItem.id, InstagramQueueItem.title, InstagramQueueItem.error)
+        .where(
+            InstagramQueueItem.needs_human.is_(True),
+            InstagramQueueItem.status.in_(("pending", "prepared", "failed")),
+        )
+        .order_by(InstagramQueueItem.id)
+    ).all()
+
     return {
+        "retenidos": [(int(i), t or "", e or "") for i, t, e in retenidos],
         "bloqueado": bloqueado,
         "motivo": motivo,
         "desde": desde,
@@ -145,6 +157,11 @@ def _problemas(data: dict) -> list[str]:
         )
     if data["publicables"] == 0 and not data["bloqueado"]:
         fuera.append("la cola está vacía: no hay nada que publicar")
+    for item_id, titulo, error in data.get("retenidos", []):
+        fuera.append(
+            f"#{item_id} «{titulo[:60]}» está retenido y no saldrá hasta que lo "
+            f"revises en el panel: {error[:220] or 'pide revisión'}"
+        )
     return fuera
 
 
@@ -154,6 +171,8 @@ def _signature(data: dict) -> str:
         f"t:{_tramo(data['horas_sin_publicar'] / 24)}",
         f"c:{data['condenados']}",
         f"v:{int(data['publicables'] == 0)}",
+        # Por IDs: un item retenido avisa UNA vez, no en cada pasada del cron.
+        "r:" + ",".join(str(i) for i, _, _ in data.get("retenidos", [])),
     ]
     return hashlib.sha256("|".join(partes).encode()).hexdigest()[:64]
 

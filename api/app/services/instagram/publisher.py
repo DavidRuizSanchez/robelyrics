@@ -45,7 +45,7 @@ from app.services.instagram import (
     video,
 )
 from app.services import news_entities
-from app.services.instagram import identity_photo, newsroom
+from app.services.instagram import gate_final, identity_photo, newsroom
 from app.services.instagram.evergreen import EVERGREEN_TYPES
 
 logger = logging.getLogger(__name__)
@@ -77,12 +77,103 @@ class MaterialPendiente(RuntimeError):
     """
 
 
+class TextoRetenido(RuntimeError):
+    """El texto no se puede publicar y no hay respaldo honesto: lo mira una persona.
+
+    No es un fallo de publicación. No se marca `failed` a propósito: el
+    cortacircuitos (`publicacion_bloqueada`) cuenta los `failed` recientes de
+    items distintos como señal de que Meta nos bloquea, y tres textos retenidos
+    seguidos pararían la cola entera acusando a Meta de algo que no ha hecho.
+    """
+
+
+def _catalogo_del_clip(
+    db: Session, clip: VideoClip, item: InstagramQueueItem
+) -> tuple[set[str], set[str]]:
+    """(títulos que el texto PUEDE citar, todos los títulos del catálogo).
+
+    Lo que puede citar es la canción del clip y su disco. La canción sale de
+    `video_clips.song_id` o, si no está, de la línea «Canción:» que dejó el
+    selector en las notas internas.
+    """
+    song = db.get(Song, clip.song_id) if clip.song_id else None
+    if song is None:
+        for linea in (item.notas_internas or item.summary or "").splitlines():
+            clave, _, valor = linea.partition(":")
+            if clave.strip().lower() in ("canción", "cancion") and valor.strip():
+                song = db.execute(
+                    select(Song).where(Song.title == valor.strip())
+                ).scalars().first()
+                break
+    permitidos: set[str] = set()
+    if song is not None:
+        permitidos.add(song.title)
+        if song.album is not None:
+            permitidos.add(song.album.title)
+    catalogo = set(db.execute(select(Song.title)).scalars().all())
+    catalogo |= set(db.execute(select(Album.title)).scalars().all())
+    return permitidos, catalogo
+
+
+def _contexto_clip(db: Session, item: InstagramQueueItem) -> dict | None:
+    """Lo que el gate necesita saber de un clip para comprobar que el texto habla
+    de ESE clip: quién toca, qué canción es y de qué disco, y qué títulos tiene
+    el catálogo (para saber si una cita entre comillas es un título)."""
+    clip = db.execute(
+        select(VideoClip).where(VideoClip.queue_item_id == item.id)
+    ).scalars().first()
+    if clip is None:
+        return None
+    permitidos, catalogo = _catalogo_del_clip(db, clip, item)
+    return {
+        "interprete": gate_final.interprete_del_video(
+            clip.video_title or "", clip.channel_title or ""
+        ),
+        "titulos_permitidos": permitidos,
+        "titulos_catalogo": catalogo,
+        "rotulo": "\n".join(x for x in (clip.overlay, clip.subtitle) if x),
+    }
+
+
+def revisar_gate(db: Session, item: InstagramQueueItem) -> gate_final.VeredictoGate:
+    """El gate final sobre lo que ESTE item va a publicar.
+
+    Falla CERRADO: si no se puede comprobar un clip (la BD no responde, falta el
+    catálogo), el veredicto es «no», nunca «sin comprobar, adelante».
+    """
+    try:
+        ctx = _contexto_clip(db, item) if item.content_type == "clip" else None
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("[gate] no se pudo leer el contexto del clip %s: %s", item.id, exc)
+        return gate_final.VeredictoGate(
+            bloqueos=[f"no se pudo comprobar el clip contra el catálogo: {exc}"[:300]]
+        )
+    return gate_final.revisar(
+        caption=item.caption or "",
+        rotulo=(ctx or {}).get("rotulo", ""),
+        clip=ctx,
+    )
+
+
+def _retener(db: Session, item: InstagramQueueItem, motivo: str) -> InstagramQueueItem:
+    """Saca el item de la cola hasta que lo mire una persona. Ver `TextoRetenido`."""
+    item.needs_human = True
+    item.error = f"Retenido antes de publicar: {motivo}"[:2000]
+    db.commit()
+    logger.warning("[IG] item %s retenido: %s", item.id, motivo)
+    return item
+
+
 def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
     """Construye el dict de tema que consumen editorial / imaging / captions."""
     topic = {
         "title": item.title,
         "category": item.category or "Actualidad",
-        "summary": item.summary or "",
+        # El `summary` de un clip nunca llega al redactor ni al caption: lo
+        # interno vive en `notas_internas`, y si quedara algo en `summary` (un
+        # item anterior a la migración) se trata como interno también.
+        "summary": "" if item.content_type == "clip" else (item.summary or ""),
         "source": item.source_name or "",
         "url": item.source_url or "",
         # Semilla estable de la rotación de moldes del caption: re-preparar un
@@ -323,9 +414,12 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
     Si no hay material, no se llama al modelo: el post sale exactamente como
     salía. La regla no era «no usar IA», era «no inventar».
     """
-    topic["texto_base"] = (
-        topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
-    ).strip()
+    if topic.get("content_type") == "clip":
+        topic["texto_base"] = (topic.get("title") or "").strip()
+    else:
+        topic["texto_base"] = (
+            topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
+        ).strip()
     mat = material_ig.reunir(db, topic)
     if extra:
         # Material que no sale del corpus: los datos del clip de directo (qué
@@ -346,6 +440,10 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
     try:
         avisos = newsroom.escribir(db, topic, [], material=material, verificar_rel=False)
     except newsroom.TextoNoPublicable as exc:
+        if topic.get("content_type") == "clip":
+            # Un clip NO tiene «texto de siempre»: su texto de partida eran las
+            # notas del selector, y publicarlas es justo lo que pasó en el #487.
+            raise TextoRetenido(f"el texto del clip no pasa las guardas: {exc}") from exc
         # Un evergreen no se tira por esto: su texto ya era publicable antes de
         # que existiera el redactor. Se queda sin slides escritas y sigue.
         logger.warning("[prepare] redacción descartada: %s", exc)
@@ -367,15 +465,15 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
 def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> None:
     """Qué se ve en el clip, para que el texto hable de ESO.
 
-    El momento y la canción los dejó escritos `propose_clips` en el `summary`
-    del item (es lo que también se enseña en el correo de aprobación). La fecha
+    El momento y la canción los dejó escritos `propose_clips` en las
+    `notas_internas` del item (es lo que también se enseña en el correo de aprobación). La fecha
     y el sitio salen del catálogo de conciertos, nunca de la transcripción: la
     de un directo está garbleada y solo sirve para ELEGIR el tramo.
 
     Si no hay nada de esto —un clip dado de alta a mano, por ejemplo— no se
     inventa: el post sale como salía.
     """
-    resumen = (item.summary or "")
+    resumen = (item.notas_internas or item.summary or "")
     datos: dict[str, str] = {}
     for linea in resumen.splitlines():
         if ":" in linea:
@@ -929,10 +1027,22 @@ def publish(
             db.rollback()
             logger.info("[IG] item %s todavía no: %s", item.id, esperando)
             return item
+        except (TextoRetenido, newsroom.TextoNoPublicable) as retenido:
+            # El texto no se sostiene: no es una avería ni un fallo de Meta. Con
+            # `_marcar_fallo` quedaría `failed`, gastaría intento y contaría para
+            # la racha del cortacircuitos, que acusaría a Meta en falso.
+            db.rollback()
+            return _retener(db, item, str(retenido))
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             logger.error("[IG] item %s no se pudo preparar: %s", item.id, exc)
             return _marcar_fallo(db, item, f"al preparar: {exc}")
+
+    # La última puerta: TODO lo que va a ver la gente, ya montado. Va antes del
+    # dry-run para que el ensayo diga lo mismo que diría la publicación real.
+    veredicto = revisar_gate(db, item)
+    if not veredicto.ok:
+        return _retener(db, item, veredicto.motivo)
 
     if dry_run:
         item.status = "prepared"
@@ -1063,14 +1173,21 @@ def _publicable():
     diaria pudiera avisar de nada.
     """
     limite = datetime.now(timezone.utc) - timedelta(hours=config.RETRY_COOLDOWN_H)
-    return or_(
-        InstagramQueueItem.status.in_(("pending", "prepared")),
-        and_(
-            InstagramQueueItem.status == "failed",
-            InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
-            or_(
-                InstagramQueueItem.last_attempt_at.is_(None),
-                InstagramQueueItem.last_attempt_at <= limite,
+    # Lo que pide que lo mire una persona NO sale solo. Antes `needs_human` era
+    # solo una etiqueta del panel y el goteo lo publicaba igual; ahora es lo que
+    # usa el gate final para retener, y si el selector no lo saltara elegiría el
+    # mismo item cada 15 minutos y pararía la cola entera detrás de él.
+    return and_(
+        InstagramQueueItem.needs_human.is_(False),
+        or_(
+            InstagramQueueItem.status.in_(("pending", "prepared")),
+            and_(
+                InstagramQueueItem.status == "failed",
+                InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
+                or_(
+                    InstagramQueueItem.last_attempt_at.is_(None),
+                    InstagramQueueItem.last_attempt_at <= limite,
+                ),
             ),
         ),
     )

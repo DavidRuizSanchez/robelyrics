@@ -29,6 +29,8 @@ export type IGItem = {
   title: string;
   category: string | null;
   summary: string | null;
+  // Notas del selector y de la ingesta: se enseñan aquí y nunca se publican.
+  notas_internas?: string | null;
   source_name: string | null;
   source_url: string | null;
   image_url: string | null;

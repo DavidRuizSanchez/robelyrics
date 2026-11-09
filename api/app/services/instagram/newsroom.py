@@ -142,7 +142,7 @@ def escribir(
     `material` por defecto es el artículo de la noticia. Los evergreen y el blog
     pasan el suyo (el corpus propio) y `verificar_rel=False`: ver `caption_guard`.
     """
-    from app.services.instagram import caption_guard, editorial, tono_guard
+    from app.services.instagram import caption_guard, editorial, gate_final, tono_guard
 
     entidades = entidades or []
     topic["entidades"] = entidades
@@ -181,6 +181,10 @@ def escribir(
             pregunta=topic.get("pregunta") or "",
         )
         veredicto.estilo.extend(tono.bloqueos)
+        # Texto del proceso o metatexto («el material disponible no…»): se le
+        # dice al redactor y reescribe. Si insiste, el post no sale. El gate de
+        # `publish` lo vuelve a mirar sobre el caption montado.
+        veredicto.estilo.extend(gate_final.problemas_de_texto(texto, donde="texto"))
         veredicto.avisos.extend(tono.avisos)
         topic["claims"] = veredicto.claims
         avisos = list(veredicto.avisos)

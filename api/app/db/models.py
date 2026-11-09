@@ -1573,6 +1573,12 @@ class InstagramQueueItem(Base):
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))
     summary: Mapped[str | None] = mapped_column(Text)
+    # Lo que se apunta SOBRE el post y no es el post: por qué se eligió un clip,
+    # el corte, la transcripción del tramo, avisos de la ingesta. Lo ven el
+    # correo de aprobación y el panel, y NUNCA un redactor ni un caption. Antes
+    # vivía en `summary` y cuatro caminos de respaldo lo publicaban: el #487 y el
+    # #374 salieron con «Tramo 45-57s… Motivos:… Corte: pausa» en el caption.
+    notas_internas: Mapped[str | None] = mapped_column(Text)
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)
