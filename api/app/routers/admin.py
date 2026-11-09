@@ -1663,21 +1663,45 @@ def admin_proposal_detail(
     )
 
 
+def _generate_draft_bg(proposal_id: int) -> None:
+    """Genera el borrador de una propuesta recién aprobada, fuera de la petición.
+
+    Con su propia sesión: la de la petición ya está cerrada cuando esto corre.
+    Si falla, la propuesta sigue `approved` sin cuerpo y la repesca el cron
+    `generate_approved_drafts` (cada 5 min)."""
+    import logging
+
+    from app.db.session import SessionLocal
+    from app.services.draft_generator import generate_proposal_draft
+
+    log = logging.getLogger(__name__)
+    with SessionLocal() as db:
+        p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+        if not p or p.status != "approved" or p.body_md:
+            return
+        try:
+            generate_proposal_draft(db, p)
+        except Exception:  # noqa: BLE001
+            log.exception(
+                "Generación de borrador falló al aprobar propuesta %s; "
+                "el cron de respaldo reintentará",
+                proposal_id,
+            )
+
+
 @router.post("/proposals/{proposal_id}/approve", response_model=AdminProposalItem)
 def admin_proposal_approve(
     proposal_id: int,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminProposalItem:
     """Valida una propuesta: `proposed`/`scheduled` → `approved` (sin fecha).
-    Al aprobar se genera el borrador de forma SÍNCRONA (cuerpo RAG + foto +
-    saneado), salvo que ya tenga cuerpo (noticias). Puede tardar ~1 min. Si la
-    generación falla, queda `approved` sin cuerpo y el cron
-    `generate_approved_drafts` reintenta."""
-    import logging
 
-    from app.services.draft_generator import generate_proposal_draft
-
+    El borrador (cuerpo RAG + foto + saneado) se genera EN SEGUNDO PLANO, salvo
+    que ya tenga cuerpo (noticias). Tiene que ser así: el motor profundo pasa de
+    los 100 s y Cloudflare corta ahí con un 524, así que en síncrono el panel
+    solo veía el error aunque el servidor siguiera trabajando."""
     p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="proposal not found")
@@ -1691,15 +1715,7 @@ def admin_proposal_approve(
     db.refresh(p)
 
     if not p.body_md:
-        try:
-            generate_proposal_draft(db, p)
-            db.refresh(p)
-        except Exception:  # noqa: BLE001
-            logging.getLogger(__name__).exception(
-                "Generación de borrador falló al aprobar propuesta %s; "
-                "el cron de respaldo reintentará",
-                p.id,
-            )
+        background.add_task(_generate_draft_bg, p.id)
     return _proposal_to_item(p)
 
 
