@@ -387,7 +387,7 @@ def generate(topic: dict, slot: int = 1) -> tuple[str, bool]:
 
     # --- Contador memorial (arriba dcha.): "DÍA N SIN ROBE" en granate ---
     mem_font = _mono(23, bold=True)
-    mem_text = f"DÍA {config.dias_sin_robe()} SIN ROBE"
+    mem_text = f"DÍA {config.dias_sin_robe(topic.get('fecha_publicacion'))} SIN ROBE"
     mem_w = _tracked_width(draw, mem_text, mem_font, 4)
     _draw_tracked(draw, (SIZE[0] - MARGIN - mem_w, ky + 1), mem_text,
                   mem_font, COL_GRANATE, tracking=4)

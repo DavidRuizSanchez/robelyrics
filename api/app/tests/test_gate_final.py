@@ -91,6 +91,14 @@ def db():
         yield s
 
 
+@pytest.fixture(autouse=True)
+def _contador_al_dia(monkeypatch):
+    """Los captions congelados traen el «Día N» del día en que salieron. Aquí se
+    prueba el gate sobre ESE texto, no la puesta al día del contador (que rehace
+    el post: ver `test_contador_dias.py`)."""
+    monkeypatch.setattr(publisher, "contador_desfasado", lambda *a, **k: False)
+
+
 def _item(db, **kw) -> InstagramQueueItem:
     base = dict(
         day=date.today(), slot=1, position=1, content_type="quote",
