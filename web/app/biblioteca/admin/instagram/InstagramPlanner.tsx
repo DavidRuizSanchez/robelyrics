@@ -527,6 +527,12 @@ export default function InstagramPlanner({
           {it.title}
         </button>
         {it.summary && <Resumen texto={it.summary} />}
+        {it.notas_internas && (
+          <div className="mt-2">
+            <p className="text-xs text-ink-faint">Notas internas · no se publican</p>
+            <Resumen texto={it.notas_internas} />
+          </div>
+        )}
 
         {it.needs_human && (
           <Callout tone="warn" className="mt-3" title="Retenido: no sale hasta que lo mires">

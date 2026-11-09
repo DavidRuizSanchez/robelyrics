@@ -2378,6 +2378,8 @@ class AdminIGItem(BaseModel):
     title: str
     category: str | None = None
     summary: str | None = None
+    # Notas del selector y de la ingesta. Se enseñan en el panel; no se publican.
+    notas_internas: str | None = None
     source_name: str | None = None
     source_url: str | None = None
     image_url: str | None = None
@@ -2525,6 +2527,7 @@ def _ig_item_to_model(it: _IGItem, ev=None) -> AdminIGItem:  # noqa: ANN001
         title=it.title,
         category=it.category,
         summary=it.summary,
+        notas_internas=getattr(it, "notas_internas", None),
         source_name=it.source_name,
         source_url=it.source_url,
         image_url=it.image_url,
@@ -2908,6 +2911,9 @@ def admin_ig_prepare(
     except _ig_newsroom.SujetoNoIdentificado as quien:
         # Tampoco es una avería: es que no sabemos de quién habla la noticia.
         raise HTTPException(status_code=422, detail=str(quien)) from quien
+    except _ig_publisher.TextoRetenido as retenido:
+        # Un clip cuyo texto no pasa las guardas: no hay respaldo honesto.
+        raise HTTPException(status_code=422, detail=str(retenido)) from retenido
     except _ig_publisher.SinMaterial as falta:
         # No es una avería del servidor: es que no hay artículo que leer. 422 para
         # que el panel enseñe el motivo (y la salida: pegar el texto a mano) en

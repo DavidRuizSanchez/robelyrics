@@ -1027,7 +1027,10 @@ def publish(
             db.rollback()
             logger.info("[IG] item %s todavía no: %s", item.id, esperando)
             return item
-        except TextoRetenido as retenido:
+        except (TextoRetenido, newsroom.TextoNoPublicable) as retenido:
+            # El texto no se sostiene: no es una avería ni un fallo de Meta. Con
+            # `_marcar_fallo` quedaría `failed`, gastaría intento y contaría para
+            # la racha del cortacircuitos, que acusaría a Meta en falso.
             db.rollback()
             return _retener(db, item, str(retenido))
         except Exception as exc:  # noqa: BLE001

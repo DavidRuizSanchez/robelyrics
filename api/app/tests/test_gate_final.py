@@ -185,3 +185,20 @@ def test_si_no_se_puede_comprobar_el_clip_no_sale(db):
     v = publisher.revisar_gate(db, it)
     assert not v.ok
     assert "no se pudo comprobar" in v.motivo
+
+
+def test_una_noticia_que_no_pasa_las_guardas_al_repreparar_se_retiene(db, monkeypatch):
+    """Si `publish` tiene que re-preparar y el redactor no pasa las guardas, no es
+    un `failed`: eso gastaría intento y alimentaría el cortacircuitos."""
+    from app.services.instagram import newsroom
+
+    def _rechaza(db, item):
+        raise newsroom.TextoNoPublicable("no pasa las guardas")
+
+    monkeypatch.setattr(publisher, "prepare", _rechaza)
+    it = _item(db, content_type="news", image_url=None, status="pending")
+    publisher.publish(db, it)
+    db.refresh(it)
+    assert it.needs_human is True
+    assert it.status == "pending"
+    assert it.attempts == 0
