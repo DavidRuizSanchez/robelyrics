@@ -334,6 +334,24 @@ def _apply_person_photo(
 
 
 
+# Avisos que se ENSEÑAN en el panel pero no retienen el post. Desde el 09-11-2026
+# `needs_human` saca el item de la cola (antes era solo una etiqueta), así que
+# cualquier aviso retenía: una noticia ilustrada con arte propio se quedaba
+# esperando un clic, y la decisión de David es que la IA, como último recurso,
+# salga sin aprobación. Los demás avisos (un verso dudoso, una foto sin
+# comprobar, un año sin verificar, la muerte de Robe) siguen pidiendo persona.
+AVISOS_INFORMATIVOS = (
+    "El texto se reescribió",
+    "Sin foto acreditada de",
+    "una slide repite",
+    "Las slides no pasaron las guardas: el post va con el texto de siempre",
+)
+
+
+def es_aviso_informativo(aviso: str) -> bool:
+    return any((aviso or "").startswith(p) for p in AVISOS_INFORMATIVOS)
+
+
 def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
     """Deja por escrito de dónde salió cada cosa de este post.
 
@@ -396,7 +414,7 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
 
         fila.claims = topic.get("claims") or []
         fila.avisos = topic.get("avisos") or []
-        item.needs_human = bool(fila.avisos)
+        item.needs_human = any(not es_aviso_informativo(a) for a in fila.avisos)
         db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[evidencia] no se pudo guardar la del item %s: %s", item.id, exc)
