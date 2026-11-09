@@ -1253,6 +1253,7 @@ function EvidenciaPost({ ev }: { ev: Evidencia }) {
 }
 
 const FOTO_ORIGEN: Record<string, string> = {
+  portada: "Portada oficial del disco",
   ficha_propia: "De nuestra propia ficha",
   wikidata_p18: "Wikimedia Commons (foto oficial de la entidad)",
   google_images: "Búsqueda en la web",
@@ -1267,7 +1268,27 @@ const FOTO_ORIGEN: Record<string, string> = {
  * imagen, no de quién era. Para cazar el fallo había que reconocer la cara.
  */
 function etiquetaFoto(it: IGItem): { label: string; tone: Tone } {
+  // Lo que se publica DE VERDAD, cuando está registrado (desde el 09-11-2026).
+  // La IA va marcada: es el último recurso, y si abunda algo se ha roto.
+  switch (it.image_origin) {
+    case "ia":
+      return { label: "🎨 Arte IA · último recurso", tone: "danger" };
+    case "portada":
+      return { label: "💿 Portada del disco", tone: "ok" };
+    case "ficha":
+      return { label: "📷 Foto de nuestra ficha", tone: "ok" };
+    case "hero_blog":
+      return { label: "📷 Imagen del artículo del blog", tone: "neutral" };
+    case "video":
+      return { label: "🎬 Vídeo del clip", tone: "ok" };
+    case "producto":
+      return { label: "🖥 Captura de la web", tone: "ok" };
+    case "reel_propio":
+      return { label: "🎞 Verso animado", tone: "neutral" };
+  }
   switch (it.photo_source) {
+    case "portada":
+      return { label: "💿 Portada del disco", tone: "ok" };
     case "ficha_propia":
       return { label: "📷 Foto de nuestra ficha", tone: "ok" };
     case "wikidata_p18":

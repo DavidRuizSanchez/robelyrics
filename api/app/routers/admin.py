@@ -2390,6 +2390,8 @@ class AdminIGItem(BaseModel):
     needs_human: bool = False
     photo_source: str | None = None
     photo_verdict: str | None = None
+    # De dónde salió la imagen que se publica de verdad (portada, ficha, ia…).
+    image_origin: str | None = None
     error: str | None = None
     is_blog: bool = False
     is_prepared: bool = False
@@ -2535,6 +2537,7 @@ def _ig_item_to_model(it: _IGItem, ev=None) -> AdminIGItem:  # noqa: ANN001
         needs_human=bool(getattr(it, "needs_human", False)),
         photo_source=getattr(ev, "photo_source", None),
         photo_verdict=getattr(ev, "photo_verdict", None),
+        image_origin=getattr(it, "image_origin", None),
         error=it.error,
         is_blog=it.blog_post_id is not None,
         is_prepared=bool(it.image_path),
