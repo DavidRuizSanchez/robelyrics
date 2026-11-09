@@ -19,6 +19,8 @@ export type CorpusItem = {
   descubierto_por: string | null;
   duration_s: number | null;
   error: string | null;
+  motivo_abandono?: string | null;
+  whisper_ok?: boolean;
   attempts: number;
   published_at: string | null;
   created_at: string | null;
@@ -38,6 +40,7 @@ const ORIGEN: Record<string, string> = {
   busqueda: "lo encontró la búsqueda",
   canal: "subida de un canal que se vigila",
   inventario: "inventario de entrevistas",
+  manual: "añadido a mano",
 };
 
 function fecha(iso: string | null): string | null {
@@ -134,13 +137,29 @@ export default function CorpusRow({ item }: { item: CorpusItem }) {
         </p>
       )}
 
+      {item.status === "abandoned" && (
+        <p className="mt-2 text-sm text-ink-dim">
+          No se puede transcribir{item.motivo_abandono ? `: ${item.motivo_abandono}` : ""}.
+          {item.error && (
+            <span className="block text-ink-faint">Error literal: {item.error.slice(0, 200)}</span>
+          )}
+        </p>
+      )}
+
+      {item.status === "approved" && item.whisper_ok === false && (
+        <p className="mt-2 text-sm text-warn">
+          Si no tiene subtítulos, espera al mes que viene: no queda presupuesto de Whisper para su
+          duración.
+        </p>
+      )}
+
       {err && (
         <div className="mt-3">
           <Notice onClose={() => setErr(null)}>{err}</Notice>
         </div>
       )}
 
-      {(item.status === "detected" || item.status === "failed") && (
+      {(item.status === "detected" || item.status === "failed" || item.status === "abandoned") && (
         <ActionBar
           primary={
             item.status === "detected" ? (

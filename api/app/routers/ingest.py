@@ -18,7 +18,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -105,6 +105,10 @@ class CompleteIn(BaseModel):
 
 class FailIn(BaseModel):
     error: str = Field(max_length=2000)
+    # La versión de yt-dlp del daemon. Sin ella (un daemon viejo) un fallo de
+    # extractor gasta intento como siempre: no gastarlo y no saber con qué versión
+    # falló sería reintentarlo cada 15 minutos para siempre.
+    ytdlp_version: str | None = Field(default=None, max_length=40)
 
 
 class OkOut(BaseModel):
@@ -117,7 +121,8 @@ class OkOut(BaseModel):
     response_model=list[PendingItem],
     dependencies=[Depends(require_ingest_key)],
 )
-def list_pending(db: Session = Depends(get_db)) -> list[PendingItem]:
+def list_pending(db: Session = Depends(get_db), ytdlp: str | None = None
+                 ) -> list[PendingItem]:
     """Vídeos listos para que el daemon los transcriba: los `approved`, los `failed`
     con margen de reintento (< MAX_ATTEMPTS) por si el fallo fue transitorio
     (yt-dlp/Whisper), y los `processing` con el claim RANCIO.
@@ -132,17 +137,20 @@ def list_pending(db: Session = Depends(get_db)) -> list[PendingItem]:
     Fase 3 del corpus: A antes que B antes que C, como mucho
     `corpus_ritmo.MAX_DONE_SEMANA` hechos en 7 días (lo que no cabe espera a la
     semana siguiente, en la cola) y cada vídeo dice si le cabe Whisper este mes.
+
+    Lo añadido a mano (`descubierto_por='manual'`) va antes que todo y no gasta
+    hueco de la semana. Con `ytdlp` (la versión del daemon) se omiten los fallos de
+    extractor que ya dieron ESA versión: se reintentan cuando el daemon trae otra.
     """
-    from app.services import corpus_ritmo
+    from app.services import corpus_fallos, corpus_ritmo
 
     hueco = corpus_ritmo.hueco_semana(db)
-    if hueco == 0:
-        return []
     restantes = corpus_ritmo.minutos_whisper_restantes(db)
     stale = datetime.now(UTC) - timedelta(minutes=STALE_CLAIM_MINUTES)
-    filas = (
-        db.query(YouTubeIngestQueue)
-        .filter(
+    manual = YouTubeIngestQueue.descubierto_por == "manual"
+
+    def _base(q):
+        q = q.filter(
             or_(
                 YouTubeIngestQueue.status == "approved",
                 and_(
@@ -156,10 +164,18 @@ def list_pending(db: Session = Depends(get_db)) -> list[PendingItem]:
                 ),
             )
         )
-        .order_by(corpus_ritmo.ORDEN_NIVEL, YouTubeIngestQueue.approved_at.asc())
-        .limit(hueco)
-        .all()
-    )
+        if ytdlp:
+            # Sin `coalesce`, un `error` NULL haría NULL la condición entera y el
+            # NOT de NULL dejaría fuera la fila.
+            ya_fallo = func.coalesce(YouTubeIngestQueue.error, "").startswith(
+                corpus_fallos.marca_extractor(ytdlp))
+            q = q.filter(~and_(YouTubeIngestQueue.status == "failed", ya_fallo))
+        return q.order_by(corpus_ritmo.ORDEN_NIVEL, YouTubeIngestQueue.approved_at.asc())
+
+    filas = _base(db.query(YouTubeIngestQueue).filter(manual)).all()
+    if hueco > 0:
+        filas += _base(db.query(YouTubeIngestQueue).filter(
+            or_(YouTubeIngestQueue.descubierto_por.is_(None), ~manual))).limit(hueco).all()
     return [
         PendingItem(id=r.id, video_id=r.video_id, url=r.url, title=r.title, target=r.target,
                     kind=r.kind, nivel=r.nivel, duration_s=r.duration_s,
@@ -256,11 +272,21 @@ def fail(item_id: int, payload: FailIn, db: Session = Depends(get_db)) -> OkOut:
     su `done_at` sellado, y el daemon lo volvía a descargar y transcribir, pagando
     Whisper por algo que ya estaba en el corpus.
     """
+    from app.services import corpus_fallos
+
     row = _get_or_404(db, item_id)
-    row.error = payload.error[:2000]
-    row.attempts = (row.attempts or 0) + 1
+    clase = corpus_fallos.clasificar(payload.error)
+    if clase == "extractor" and payload.ytdlp_version:
+        # Lo arregla actualizar yt-dlp, no reintentar: no gasta intento y espera a
+        # que el daemon traiga otra versión (`list_pending` lo omite mientras tanto).
+        row.error = (corpus_fallos.marca_extractor(payload.ytdlp_version)
+                     + payload.error)[:2000]
+    else:
+        row.error = payload.error[:2000]
+        row.attempts = (row.attempts or 0) + 1
     if row.status != "done":
-        row.status = "failed"
+        row.status = ("abandoned" if clase == "permanente" and row.attempts >= MAX_ATTEMPTS
+                      else "failed")
     db.commit()
     return OkOut(status=row.status)
 

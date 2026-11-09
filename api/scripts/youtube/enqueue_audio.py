@@ -7,7 +7,9 @@ sueltos de iVoox y el de Fuego y Chinchetas está en Spotify, con DRM (yt-dlp se
 niega). Lo que sí sirve es encolar un episodio por su URL, si yt-dlp lo baja.
 
 Entra en `detected`: espera el clic en el panel como cualquier otro, y pasa por
-el mismo tope semanal y el mismo presupuesto de Whisper.
+el mismo tope semanal y el mismo presupuesto de Whisper. Desde el 09-11-2026 lo
+normal es añadirlo desde el panel (`/biblioteca/admin/corpus`), que entra ya
+aprobado y el primero.
 
 Uso:
     python -m scripts.youtube.enqueue_audio --url URL --title "…" --author "La Gran Travesía"
@@ -16,17 +18,14 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import hashlib
 
 from app.db.models import YouTubeIngestQueue
+
+# La misma clave que el alta desde el panel, para que las dos vías no dupliquen.
+from app.services.corpus_manual import clave
 from scripts.research.common import get_session, log
 
 KINDS = ("media_report", "entorno_interview", "robe_interview", "youtube_transcript")
-
-
-def clave(url: str) -> str:
-    """`video_id` sintético: la cola lo exige y es único con `target`."""
-    return "audio:" + hashlib.sha1(url.encode("utf-8")).hexdigest()[:24]
 
 
 def main() -> None:

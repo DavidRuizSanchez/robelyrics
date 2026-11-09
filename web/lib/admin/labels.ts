@@ -295,6 +295,7 @@ export const CORPUS_STATUS: Record<string, Etiqueta> = {
   done: { label: "En el corpus", tone: "ok" },
   failed: { label: "Falló", tone: "danger" },
   retired: { label: "Descartado o retirado", tone: "neutral" },
+  abandoned: { label: "No se puede transcribir", tone: "neutral", hint: "Reintentarlo no lo arregla (restricción de edad, sin habla, privado o borrado). Si algo cambia, «Reintentar» lo devuelve a la cola." },
 };
 
 /** Cómo entra en el corpus (`kind`). */
