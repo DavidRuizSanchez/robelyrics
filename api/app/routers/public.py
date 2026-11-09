@@ -2534,11 +2534,11 @@ def clip_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
 
     # Rechazar: fuera de la cola y el vídeo se retira de Cloudinary. Un clip que
     # no se va a publicar no tiene por qué seguir alojado.
-    if item is not None and item.status in ("proposed", "pending", "prepared"):
-        item.status = "discarded"
     from app.services.instagram import video_clips as _vc
 
-    if clip.status in ("requested", "downloading", "ready"):
+    if item is not None and item.status in ("proposed", "pending", "prepared"):
+        item.status = "discarded"
+    if clip.status in _vc.VIVOS:
         _vc.retire(db, clip, "descartado desde el correo de propuestas")
     db.commit()
     return HTMLResponse(_render_admin_action_page(

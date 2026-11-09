@@ -2903,7 +2903,9 @@ def admin_ig_discard(
         raise HTTPException(status_code=404, detail="item not found")
     if it.status == "published":
         raise HTTPException(status_code=409, detail="ya está publicado")
-    it.status = "discarded"
+    from app.services.instagram import video_clips as _vc
+
+    _vc.descartar(db, it, "descartado desde el panel")
     db.commit()
     db.refresh(it)
     return _ig_item_to_model(it)
@@ -3358,7 +3360,9 @@ def admin_ig_bulk_discard(
         if it.status == "published":
             result.failed.append({"id": item_id, "error": "ya publicado"})
             continue
-        it.status = "discarded"
+        from app.services.instagram import video_clips as _vc
+
+        _vc.descartar(db, it, "descartado en bloque desde el panel")
         db.commit()
         result.ok.append(item_id)
     return result
