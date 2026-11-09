@@ -493,6 +493,20 @@ def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> 
                                "year": fila[2], "artist": fila[3]}
 
     partes = []
+    clip = db.execute(
+        select(VideoClip).where(VideoClip.queue_item_id == item.id)
+    ).scalars().first()
+    interprete = (
+        gate_final.interprete_del_video(clip.video_title or "", clip.channel_title or "")
+        if clip else None
+    )
+    if interprete:
+        # Quién toca lo dice el vídeo, no el autor de la canción: el #504 decía
+        # «Extremoduro la tocó en Vigo» en un concierto de Robe de 2024.
+        partes.append(
+            f"Quién toca en este concierto: {interprete} (lo dice el propio vídeo). "
+            f"Atribuye el directo a {interprete} y a nadie más."
+        )
     if datos.get("momento"):
         partes.append(f"Lo que se ve en el clip: {datos['momento']}"
                       + (f" de «{cancion}»" if cancion else ""))

@@ -64,6 +64,7 @@ def _titulo_post(asset, candidato=None) -> str:
             "estribillo": "El estribillo de",
             "arranque": "Arranca",
             "solo": "El solo de",
+            "final": "El final de",
             "canto": "En directo,",
         }.get(candidato.tipo, "En directo,")
         base = f'{etiqueta} «{candidato.cancion}»'

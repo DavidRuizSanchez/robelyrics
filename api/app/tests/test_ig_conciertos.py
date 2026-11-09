@@ -115,9 +115,16 @@ class _Seg:
         self.no_speech_prob = no_speech
 
 
+def _bloque(*textos, desde=10):
+    """Varios tramos seguidos de la misma canción: una canción la nombra un
+    bloque, no un segmento suelto (ver `momentos.CONSENSO`)."""
+    return [_Seg(desde + i * 4, desde + 4 + i * 4, t) for i, t in enumerate(textos)]
+
+
 def test_un_verso_repetido_es_el_estribillo():
-    ms = momentos.clasificar(
-        [_Seg(10, 14, "ama ama ama y ensancha el alma")], _catalogo())
+    ms = momentos.clasificar(_bloque(
+        "ama ama ama y ensancha el alma", "dejo las ventanas sin cerrar",
+        "y me voy a dar un garbeo"), _catalogo())
     assert ms[0].tipo == "estribillo"
     assert ms[0].cancion == "Interludio"
     # El verso que viaja es el de la BD, no lo que transcribió Whisper.
@@ -125,8 +132,17 @@ def test_un_verso_repetido_es_el_estribillo():
 
 
 def test_la_primera_linea_es_el_arranque():
-    ms = momentos.clasificar([_Seg(10, 14, "dejo las ventanas sin cerrar")], _catalogo())
+    ms = momentos.clasificar(_bloque(
+        "dejo las ventanas sin cerrar", "y me voy a dar un garbeo",
+        "ama ama ama y ensancha el alma"), _catalogo())
     assert ms[0].tipo == "arranque"
+
+
+def test_un_segmento_suelto_no_nombra_una_cancion():
+    """Lo que publicó «El solo de "La Carrera"»: un tramo suelto de 11
+    caracteres casó a 0,91 con otra canción y se llevó el nombre."""
+    assert momentos.clasificar(
+        [_Seg(10, 14, "dejo las ventanas sin cerrar")], _catalogo()) == []
 
 
 def test_lo_que_no_es_letra_es_alguien_hablando():
@@ -142,12 +158,25 @@ def test_un_tramo_sin_voz_seguido_es_un_solo():
     """Aquí está la inversión respecto al picker de entrevistas: esto, que allí
     se descarta por no tener texto, es justo lo que se busca."""
     segs = [
-        _Seg(0, 4, "dejo las ventanas sin cerrar"),
-        *[_Seg(4 + i * 4, 8 + i * 4, "", no_speech=0.95) for i in range(5)],
-        _Seg(24, 28, "y me voy a dar un garbeo"),
+        *_bloque("dejo las ventanas sin cerrar", "y me voy a dar un garbeo",
+                 "ama ama ama y ensancha el alma", desde=0),
+        *[_Seg(12 + i * 4, 16 + i * 4, "", no_speech=0.95) for i in range(5)],
+        *_bloque("y me voy a dar un garbeo", "ama ama ama y ensancha el alma",
+                 "dejo las ventanas sin cerrar", desde=32),
     ]
-    tipos = [m.tipo for m in momentos.clasificar(segs, _catalogo())]
-    assert "solo" in tipos
+    solos = [m for m in momentos.clasificar(segs, _catalogo()) if m.tipo == "solo"]
+    assert solos and solos[0].cancion == "Interludio"
+
+
+def test_sin_voz_y_despues_otra_cosa_es_el_final_no_un_solo():
+    segs = [
+        *_bloque("dejo las ventanas sin cerrar", "y me voy a dar un garbeo",
+                 "ama ama ama y ensancha el alma", desde=0),
+        *[_Seg(12 + i * 4, 16 + i * 4, "", no_speech=0.95) for i in range(5)],
+        _Seg(40, 44, "¡Gracias, Vigo, de verdad, muchísimas gracias!"),
+    ]
+    ms = momentos.clasificar(segs, _catalogo())
+    assert [m.tipo for m in ms if m.cancion] [-1] == "final"
 
 
 def test_un_silencio_corto_no_es_un_solo():
@@ -333,3 +362,51 @@ def test_un_clip_retirado_no_bloquea_su_cancion(db):
     ))
     db.commit()
     assert _canciones_usadas(db, "dQw4w9WgXcQ") == set()
+
+
+# --------------------------------------------------------------------------- #
+# El caso real: Vigo, 09-11-2024 (post #504, corregido por un seguidor)
+# --------------------------------------------------------------------------- #
+def _vigo():
+    import json
+    from pathlib import Path
+
+    from app.services import lyric_guard as lg
+
+    datos = json.loads((Path(__file__).parent / "fixtures" /
+                        "vigo_2024_destrozares.json").read_text("utf-8"))
+    canciones = []
+    for c in datos["canciones"]:
+        lineas = [(t, lg.normalize(t)) for t in c["lines"] if t.strip()]
+        canciones.append({"title": c["title"], "lines": lineas,
+                          "tokens": frozenset(w for _o, n in lineas for w in n.split())})
+    segs = [_Seg(s["start_s"], s["end_s"], s["text"], s["no_speech_prob"] or 0.0)
+            for s in datos["segmentos"]]
+    return segs, momentos.Catalogo(canciones=canciones)
+
+
+def test_vigo_el_tramo_sin_voz_es_el_final_de_destrozares():
+    """Se publicó «El solo de "La Carrera"» sobre 169-202 s. Era el cierre de
+    «Destrozares», que suena de 99 a 148 s."""
+    segs, cat = _vigo()
+    ms = momentos.clasificar(segs, cat)
+    tramo = [m for m in ms if m.start_s <= 170 and m.end_s >= 200]
+    assert len(tramo) == 1
+    assert tramo[0].cancion == "Destrozares"
+    assert tramo[0].tipo == "final"
+
+
+def test_vigo_nadie_nombra_la_carrera_ni_buitre():
+    """Un segmento suelto casaba con cada una (0,91 y 1,00)."""
+    segs, cat = _vigo()
+    nombradas = {m.cancion for m in momentos.clasificar(segs, cat)}
+    assert "La Carrera" not in nombradas
+    assert "Buitre No Come Alpiste" not in nombradas
+
+
+def test_vigo_la_letra_mal_transcrita_no_es_robe_hablando():
+    """«Liga esa hora» (118 s) está en mitad de «Destrozares»: no es habla."""
+    segs, cat = _vigo()
+    hablas = [m for m in momentos.clasificar(segs, cat)
+              if m.tipo == "habla" and 115 <= m.start_s <= 122]
+    assert hablas == []
