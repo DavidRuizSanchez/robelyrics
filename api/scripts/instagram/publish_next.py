@@ -1,10 +1,10 @@
 """Publica el siguiente post pendiente de la cola de Instagram.
 
-Cadencia "cuentagotas": el cron lo dispara cada 15 min, pero solo publica si ha
-pasado el intervalo mínimo desde la última publicación. El vídeo va aparte: un
-carril propio de `VIDEO_PER_DAY` al día por la tarde, encima del goteo. El intervalo se adapta:
-mientras hay atasco (cola > BACKLOG_THRESHOLD) publica cada BACKLOG_INTERVAL_H
-horas para drenarlo; en régimen normal, cada STEADY_INTERVAL_H horas.
+Cadencia "cuentagotas": el cron lo dispara cada 15 min, pero solo publica dentro
+de las franjas fijas (`IG_SLOTS`, 13:30 y 20:30) y una vez por franja. El vídeo va aparte: un
+carril propio de `VIDEO_PER_DAY` al día por la tarde, encima del goteo.
+(Hasta el 09-11-2026 mandaba un intervalo de 12 h —10 h con atasco— desde el
+último post, y la hora caía donde cayera.)
 
 Uso:
     python -m scripts.instagram.publish_next
@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import InstagramQueueItem
 from app.db.session import SessionLocal
-from app.services.instagram import config, publisher
+from app.services.instagram import config, publisher, scheduling
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -73,6 +73,41 @@ def _interval_hours(pending: int) -> int:
 
 
 _TZ = ZoneInfo("Europe/Madrid")
+
+# Horas que dura una franja abierta: si el cron estuvo caído a las 13:30, el post
+# sale en la pasada siguiente, pero no a las 19:00 pisando la franja de la noche.
+VENTANA_FRANJA_H = 3
+
+
+def _turno_del_goteo(db: Session, ahora: datetime | None = None) -> tuple[bool, str]:
+    """¿Toca publicar del goteo? Solo dentro de una franja (`IG_SLOTS`, 13:30 y
+    20:30 por defecto) y si en ella no ha salido aún nada del goteo.
+
+    Antes mandaba un intervalo de 12 h desde el último post, así que la hora la
+    decidía la primera publicación de la cadena: el feed acababa con posts a las
+    01:45. Medido el 09-11-2026 sobre 211 posts, ninguna franja rinde más que
+    otra, así que se fijan dos para que el ritmo sea regular y nada salga de
+    madrugada. Una efeméride o un post fijado que sale en la franja la ocupa.
+    """
+    ahora = ahora or datetime.now(timezone.utc)
+    local = ahora.astimezone(_TZ)
+    abierta = None
+    for franja in sorted(scheduling.slots_diarios()):
+        inicio = datetime.combine(local.date(), franja, tzinfo=_TZ)
+        if inicio <= local < inicio + timedelta(hours=VENTANA_FRANJA_H):
+            abierta = inicio
+    if abierta is None:
+        return False, f"fuera de franja ({local:%H:%M} Madrid)"
+    ya = db.execute(
+        select(func.count(InstagramQueueItem.id)).where(
+            InstagramQueueItem.status == "published",
+            InstagramQueueItem.published_at >= abierta.astimezone(timezone.utc),
+            *publisher._filtro_video(False),
+        )
+    ).scalar_one()
+    if ya:
+        return False, f"la franja de las {abierta:%H:%M} ya tiene post"
+    return True, f"franja de las {abierta:%H:%M}"
 
 
 def _toca_video(db: Session, ahora: datetime | None = None) -> tuple[bool, str]:
@@ -166,23 +201,13 @@ def main() -> None:
             logger.info("No hay posts pendientes en la cola.")
             return
 
-        # Guard de cadencia: respeta el intervalo mínimo (salvo --force).
+        # Guard de franja: el goteo sale a las horas fijas (salvo --force).
         if not args.force and not args.dry_run:
-            pending = _pending_count(db)
-            interval = _interval_hours(pending)
-            hrs = _hours_since_last_publish(db)
-            if hrs is not None and hrs < interval:
-                logger.info(
-                    "Cadencia: solo %.1fh desde la última publicación "
-                    "(mínimo %dh, cola=%d). No se publica todavía.",
-                    hrs, interval, pending,
-                )
+            toca, motivo = _turno_del_goteo(db)
+            if not toca:
+                logger.info("Goteo en espera: %s.", motivo)
                 return
-            modo = "atasco" if pending > config.BACKLOG_THRESHOLD else "régimen"
-            logger.info(
-                "Cadencia OK (modo %s, intervalo %dh, cola=%d).",
-                modo, interval, pending,
-            )
+            logger.info("Goteo: %s (cola=%d).", motivo, _pending_count(db))
 
         logger.info("Publicando item %s: «%s»", item.id, item.title)
         result = publisher.publish(db, item, dry_run=args.dry_run)

@@ -9,7 +9,10 @@ Cubren tres cosas que antes no existían:
 from __future__ import annotations
 
 import importlib
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+MADRID = ZoneInfo("Europe/Madrid")
 
 import pytest
 from sqlalchemy import create_engine
@@ -80,8 +83,41 @@ def test_programado_atrasado_no_se_pierde(db):
 def test_efemerides_siguen_funcionando(db):
     """`publish_on` (día suelto) convive con `publish_at`."""
     it = _add(db, publish_on=date.today(), content_type="ephemeris")
-    assert [x.id for x in publisher.due_pinned(db)] == [it.id]
+    tarde = datetime.combine(date.today(), time(14, 0), tzinfo=MADRID)
+    assert [x.id for x in publisher.due_pinned(db, ahora=tarde)] == [it.id]
     assert publisher.next_pending(db) is None
+
+
+def test_una_efemeride_no_sale_de_madrugada(db):
+    """Con el día a secas salía a las 00:00 UTC (la 01:00 en Madrid)."""
+    _add(db, publish_on=date(2026, 12, 31), content_type="ephemeris")
+    noche = datetime(2026, 12, 31, 1, 0, tzinfo=MADRID)
+    assert publisher.due_pinned(db, ahora=noche) == []
+    franja = datetime(2026, 12, 31, 13, 30, tzinfo=MADRID)
+    assert len(publisher.due_pinned(db, ahora=franja)) == 1
+
+
+def _publicado(db, cuando):
+    return _add(db, status="published", published_at=cuando.astimezone(timezone.utc))
+
+
+def test_el_goteo_solo_sale_en_franja(db):
+    hoy = date(2026, 11, 10)
+    madrugada = datetime.combine(hoy, time(1, 45), tzinfo=MADRID)
+    assert publish_next._turno_del_goteo(db, madrugada)[0] is False
+    assert publish_next._turno_del_goteo(db, datetime.combine(hoy, time(13, 30), tzinfo=MADRID))[0]
+    assert publish_next._turno_del_goteo(db, datetime.combine(hoy, time(20, 45), tzinfo=MADRID))[0]
+    # Pasada la ventana de la franja, espera a la siguiente.
+    assert publish_next._turno_del_goteo(db, datetime.combine(hoy, time(17, 0), tzinfo=MADRID))[0] is False
+
+
+def test_una_franja_da_un_solo_post(db):
+    hoy = date(2026, 11, 10)
+    _publicado(db, datetime.combine(hoy, time(13, 31), tzinfo=MADRID))
+    toca, motivo = publish_next._turno_del_goteo(db, datetime.combine(hoy, time(13, 45), tzinfo=MADRID))
+    assert toca is False and "ya tiene post" in motivo
+    # Lo de la franja anterior no ocupa la siguiente, aunque sean 7 h.
+    assert publish_next._turno_del_goteo(db, datetime.combine(hoy, time(20, 30), tzinfo=MADRID))[0]
 
 
 def test_publicado_no_se_reprograma(db):

@@ -1425,7 +1425,7 @@ def next_pending(db: Session, *, video: bool | None = None) -> InstagramQueueIte
     ).scalar_one_or_none()
 
 
-def due_pinned(db: Session) -> list[InstagramQueueItem]:
+def due_pinned(db: Session, ahora: datetime | None = None) -> list[InstagramQueueItem]:
     """Items con momento fijado que YA toca publicar, al margen del cuentagotas.
 
     Dos formas de fijar el momento, y las dos vencen aquí:
@@ -1438,16 +1438,25 @@ def due_pinned(db: Session) -> list[InstagramQueueItem]:
     Lo que falló con intentos de sobra también vence aquí: un post programado no
     puede evaporarse porque el CDN diera un error a su hora exacta.
     """
-    today = date.today()
-    ahora = datetime.now(timezone.utc)
+    from app.services.instagram import scheduling
+
+    ahora = ahora or datetime.now(timezone.utc)
+    local = ahora.astimezone(_MADRID)
+    # Una efeméride vence en su día, pero no antes de la primera franja: con el
+    # día a secas salía a las 00:00 UTC, la 01:00 en Madrid (09-11-2026).
+    primera = min(scheduling.slots_diarios(), default=None)
+    efemeride_toca = primera is None or local.time() >= primera
+    condiciones = [InstagramQueueItem.publish_at <= ahora]
+    if efemeride_toca:
+        condiciones.append(and_(
+            InstagramQueueItem.publish_on == local.date(),
+            InstagramQueueItem.publish_at.is_(None),
+        ))
     return db.execute(
         select(InstagramQueueItem)
         .where(
             _publicable(),
-            or_(
-                InstagramQueueItem.publish_on == today,
-                InstagramQueueItem.publish_at <= ahora,
-            ),
+            or_(*condiciones),
         )
         .order_by(InstagramQueueItem.position, InstagramQueueItem.created_at)
     ).scalars().all()
