@@ -64,6 +64,17 @@ _VOCABULARIO_PIPELINE = (
 FORMULAS_FALTA_DE_MATERIAL = (
     r"\bel material (?:disponible|que hay|con el que)",
     r"\bmaterial disponible\b",
+    # Parafraseos medidos al re-preparar la cola el 09-11-2026, que pasaban la
+    # versión anterior: «El material no concreta datos…» (#281) y «En el
+    # material de casa, X aparece…» (#424). Se ancla en «el/del material» +
+    # verbo o «de casa» para no tocar «Material defectuoso» (un disco) ni
+    # «material inédito» (#226, prosa legítima).
+    r"\b(?:el|del|nuestro) material\s+(?:no\b|de casa\b|solo\b|apenas\b|recoge\b|"
+    r"indica\b|dice\b|habla\b|confirma\b|concreta\b|permite\b|aporta\b|menciona\b)",
+    r"\bmaterial de casa\b",
+    r"\bno le cuelgo\b",
+    r"\b(?:datos|historias|creditos|cosas) que no constan\b",
+    r"\bno (?:me |nos )?consta(?:n)? (?:en el material|en nuestras fuentes)\b",
     r"\bsin inventar\b",
     r"\bno permite precisar\b",
     r"\bno aporta (?:datos|su letra|informacion)\b",

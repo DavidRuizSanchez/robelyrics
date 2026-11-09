@@ -202,3 +202,13 @@ def test_una_noticia_que_no_pasa_las_guardas_al_repreparar_se_retiene(db, monkey
     assert it.needs_human is True
     assert it.status == "pending"
     assert it.attempts == 0
+
+
+@pytest.mark.parametrize("texto", [
+    "«Material defectuoso» salió en 2011.",
+    "Este material inédito nos recuerda la energía de la banda.",
+    "De las 132 canciones, hay once de las que no consta que sonaran en directo.",
+])
+def test_material_como_palabra_normal_pasa(texto):
+    """Ampliar las fórmulas de «falta de material» no puede tumbar un disco ni prosa."""
+    assert gate_final.revisar(caption=texto).ok
