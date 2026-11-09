@@ -471,7 +471,11 @@ def _prepare_merge(db, opp) -> str:
 
     from app.config import get_settings
     from app.db.models import ContentProposal
-    from app.services.content_merge import release_proposal
+    from app.services.content_merge import (
+        CAUSAS_DE_CIERRE,
+        cerrar_por_noop,
+        release_proposal,
+    )
     from scripts.seo.merge_deep import cargar_destino, merge_page
 
     destino = cargar_destino(db, opp)
@@ -502,9 +506,16 @@ def _prepare_merge(db, opp) -> str:
         opp.status = "noop"
         opp.error = res.get("motivo") or "nada que añadir"
         opp.draft_notes = res.get("notas") or {}
-        # La idea no se pierde: vuelve al banco con el motivo, por si conviene otro
-        # destino o escribirla aparte.
-        release_proposal(db, opp)
+        causa = res.get("causa")
+        if causa in CAUSAS_DE_CIERRE:
+            # No hay nada que añadir: devolverla al banco la re-proponía igual, en
+            # bucle. Se cierra y se reabre a mano si cambia el material.
+            cerrar_por_noop(db, opp, causa)
+            opp.draft_notes = {**opp.draft_notes, "cerrada": True, "causa": causa}
+        else:
+            # Lo tumbó una guarda sobre el texto de esta vuelta: la idea vuelve al
+            # banco con el motivo, por si conviene otro destino o escribirla aparte.
+            release_proposal(db, opp)
         db.commit()
         return "noop"
 

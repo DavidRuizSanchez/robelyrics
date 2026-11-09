@@ -567,6 +567,13 @@ export default function BlogPlanner({
                   <div className="flex-1 min-w-0 opacity-75">
                     <Meta p={p} />
                     <TitleLink p={p} small />
+                    {p.placement?.last_merge?.cerrada && (
+                      <p className="mt-1 text-sm text-ink-faint">
+                        Cerrada sola: ampliar{" "}
+                        <span className="font-mono">{p.placement.last_merge.path}</span> no tenía
+                        material. Al recuperarla, sus búsquedas vuelven sin esa página.
+                      </p>
+                    )}
                     {errorDe(p.id)}
                   </div>
                   <Button size="sm" loading={busy === p.id} onClick={() => call("restore", p.id)}>
@@ -780,6 +787,13 @@ export default function BlogPlanner({
                     Con <span className="font-mono">{p.placement.last_merge.path}</span> (
                     {p.placement.last_merge.status})
                     {p.placement.last_merge.error ? `: ${p.placement.last_merge.error}` : ""}
+                    {p.placement.last_merge.cerrada && (
+                      <>
+                        {" "}
+                        Sus búsquedas se han desactivado y no se volverá a proponer esa página
+                        para ellas. Si cambia el material, reactívalas y elige otro destino.
+                      </>
+                    )}
                   </Callout>
                 )}
               </div>
