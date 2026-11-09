@@ -25,7 +25,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -1572,6 +1572,29 @@ def admin_corpus_queue(
     from app.services.corpus_queue import listar
 
     return listar(db)
+
+
+class CorpusManualIn(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
+    tipo: Literal["robe_interview", "entorno_interview", "media_report", "youtube_transcript"]
+    titulo: str | None = Field(default=None, max_length=500)
+    autor: str | None = Field(default=None, max_length=120)
+
+
+@router.post("/corpus/queue/manual")
+def admin_corpus_queue_manual(
+    payload: CorpusManualIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Añade una URL a mano: entra aprobada, la primera y sin gastar hueco semanal."""
+    from app.services.corpus_manual import ManualError, anadir
+
+    try:
+        return anadir(db, payload.url, payload.tipo, titulo=payload.titulo,
+                      autor=payload.autor)
+    except ManualError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.post("/corpus/queue/{item_id}/{accion}")

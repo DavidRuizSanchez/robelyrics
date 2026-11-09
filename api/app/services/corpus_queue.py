@@ -19,16 +19,16 @@ from app.db.models import InterpretationSource, SongInterpretation, YouTubeInges
 # recién entrado puede no tener puntos todavía: borrar cero no es un error.
 COLECCIONES = ("interpretations_v1", "robe_voice_v1")
 
-ESTADOS = ("detected", "approved", "processing", "done", "failed", "retired")
+ESTADOS = ("detected", "approved", "processing", "done", "failed", "retired", "abandoned")
 # Lo que se enseña de cada estado. Lo terminado ocupa mucho y decide poco.
 LIMITES = {"detected": 300, "approved": 100, "processing": 50, "failed": 100,
-           "done": 30, "retired": 30}
+           "done": 30, "retired": 30, "abandoned": 50}
 
 _ACCIONES = {
     # acción → (estados de los que se puede salir, estado al que se llega)
     "aprobar": (("detected",), "approved"),
-    "descartar": (("detected", "failed"), "retired"),
-    "reintentar": (("failed",), "approved"),
+    "descartar": (("detected", "failed", "abandoned"), "retired"),
+    "reintentar": (("failed", "abandoned"), "approved"),
     "retirar": (("done",), "retired"),
 }
 
@@ -38,7 +38,10 @@ class AccionNoValida(ValueError):
 
 
 def _fila(r: YouTubeIngestQueue) -> dict:
+    from app.services.corpus_fallos import motivo
+
     return {
+        "motivo_abandono": motivo(r.error) if r.status == "abandoned" else None,
         "id": r.id, "video_id": r.video_id, "url": r.url, "title": r.title,
         "channel": r.channel, "kind": r.kind, "target": r.target, "status": r.status,
         "nivel": r.nivel, "voces": r.voces or [], "motivos": r.motivos or [],
@@ -68,7 +71,13 @@ def listar(db: Session) -> dict:
         else:
             q = q.order_by(orden)
         filas[estado] = [_fila(r) for r in q.limit(LIMITES[estado]).all()]
-    from app.services.corpus_ritmo import resumen
+    from app.services.corpus_ritmo import minutos_whisper_restantes, resumen, whisper_permitido
+
+    # Lo que espera a la Mac dice si le cabe Whisper: sin subtítulos y sin
+    # presupuesto, espera al mes siguiente, y añadido a mano hay que saberlo.
+    restantes = minutos_whisper_restantes(db)
+    for f in filas["approved"]:
+        f["whisper_ok"] = whisper_permitido(f["duration_s"], restantes)
 
     return {"cuenta": cuenta, "filas": filas, "ritmo": resumen(db)}
 

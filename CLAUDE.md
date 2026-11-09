@@ -320,11 +320,24 @@ en cualquier deploy):
   intento. Se vio en directo: 31 fallos seguidos durante un rebuild y los 30 vídeos
   siguieron en `approved` con `attempts = 0`.
 
-Los fallos permanentes conviene marcarlos a mano con su motivo en `error` y
-`attempts = 3` para que no consuman reintentos en balde. Hay tres así: un directo que
-nunca se emitió, un tráiler con 51 caracteres en 36 s (casi sin habla) y una entrevista
-de Robe en RockFM con **restricción de edad** — yt-dlp pediría cookies y no se usan; la
-salida para esa es pegar el texto en el alta manual del blog.
+**Lo que no tiene arreglo se aparta solo** (09-11-2026, `app/services/corpus_fallos.py`).
+La pregunta no es «¿lo arregla reintentar?» sino «¿lo arregla algo que hagamos?»:
+restricción de edad (pediría cookies, que no se usan), casi sin habla, privado o
+borrado → al gastar el último intento pasa a **`abandoned`**, plegado en el panel con
+su motivo y con «Reintentar». Un **extractor de yt-dlp roto** NO es permanente: no
+gasta intento, queda marcado con la versión que falló y `pending?ytdlp=` lo omite
+hasta que el daemon trae otra. Para todo esto `download_audio` sube a prod el
+`ERROR:` real de yt-dlp; antes solo llegaba «exit status 1». Lo desconocido es
+transitorio, a propósito: clasificar de más escondería algo.
+
+iVoox (La Gran Travesía): **subir yt-dlp no lo arregla**, medido con 2026.8.19 y
+2026.10.26. La página responde 502 y luego el extractor revienta. No se disfraza el
+cliente; la salida es otra URL del mismo episodio o pegar el texto.
+
+**Añadir a mano** desde `/biblioteca/admin/corpus` (`corpus_manual`): un YouTube
+entra con su `video_id` real (`videos.list`, 1 unidad) y `detect_uploads` no lo
+duplica. Entra `approved` con `descubierto_por="manual"`, sale el primero y **no
+cuenta para el tope semanal**, pero sí respeta el presupuesto de Whisper.
 
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
@@ -662,6 +675,18 @@ prod y sin desplegar: `docker compose … run --rm --no-deps -T -e PYTHONPATH=/a
 /tmp/x/content_placement.py:/app/app/services/content_placement.py:ro api python
 /tmp/x/script.py`. Así se vio que cambiaban 3 de 5 propuestas, y cuáles.
 
+**Una ampliación sin material se cierra, no vuelve** (09-11-2026). Kabezabolo se
+intentó 4 veces y Ariel Rot 2: el `noop` llamaba a `release_proposal`, el reparto
+volvía a recomendar la misma página y el correo invitaba a aprobarla otra vez. Ahora,
+si la causa es `sin_material`, `sin_plan` o `no_mejora`, `cerrar_por_noop` tacha las
+búsquedas con su causa y `noop_path`. La propuesta sigue con sus otros grupos o pasa a
+`discarded`, y «Recuperar» las reactiva sin esa página (`vetar_rutas`). Los `noop` de
+una guarda sobre el texto siguen devolviendo la idea al banco. **Un fallo de OpenAI
+no es un `noop`**: `planificar` devolvía `{}` y eso era «nada que añadir». Ahora
+`FalloTecnico` → `failed`, y el cron de las 05:20 lo reintenta. Y en la ficha de una
+persona la cobertura se mide **sin su nombre** (`sin_sujeto`): «canciones de X» se
+quedaba solo en el nombre y tiraba todas las secciones del plan.
+
 ## La voz es nuestra: no se nombra a editores externos
 
 Criterio de David (19-10-2026), al tumbar el primer borrador real de una fusión
@@ -818,6 +843,13 @@ sale de la procedencia (vídeo y canal), no de resumir la transcripción, que tr
 erratas conocidas. Y los medios grandes (Movistar+, RTVE, EL PAÍS, RockFM) no se
 vetan —no son discográficas— pero sí se **marcan** en el correo: se reclaman
 antes que el clip de un fan, y quien aprueba merece saberlo.
+
+**Un tramo rechazado no vuelve** (09-11-2026). `_tramos_usados` cuenta `retired`
+(solo se llega ahí por decisión de una persona). Antes el tramo volvía como clip
+nuevo y 5 acabaron publicados con un clic en la copia. `_canciones_usadas` **no**
+cuenta `retired`, a propósito (23-09): tras rechazar un corte malo, otro corte de esa
+canción puede salir. Descartar desde el panel pasa por `video_clips.descartar`, que
+retira el clip igual que el correo.
 
 ### Cuando un clip no se baja, el orden de diagnóstico
 

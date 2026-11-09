@@ -2048,7 +2048,8 @@ class YouTubeIngestQueue(Base):
     __tablename__ = "youtube_ingest_queue"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('detected', 'approved', 'processing', 'done', 'failed', 'retired')",
+            "status IN ('detected', 'approved', 'processing', 'done', 'failed', 'retired', "
+            "'abandoned')",
             name="ck_youtube_ingest_status",
         ),
         CheckConstraint(
