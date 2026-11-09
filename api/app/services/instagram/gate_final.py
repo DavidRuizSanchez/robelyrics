@@ -64,13 +64,15 @@ _VOCABULARIO_PIPELINE = (
 FORMULAS_FALTA_DE_MATERIAL = (
     r"\bel material (?:disponible|que hay|con el que)",
     r"\bmaterial disponible\b",
-    # Parafraseos medidos al re-preparar la cola el 09-11-2026, que pasaban la
-    # versión anterior: «El material no concreta datos…» (#281) y «En el
-    # material de casa, X aparece…» (#424). Se ancla en «el/del material» +
-    # verbo o «de casa» para no tocar «Material defectuoso» (un disco) ni
-    # «material inédito» (#226, prosa legítima).
-    r"\b(?:el|del|nuestro) material\s+(?:no\b|de casa\b|solo\b|apenas\b|recoge\b|"
-    r"indica\b|dice\b|habla\b|confirma\b|concreta\b|permite\b|aporta\b|menciona\b)",
+    # «el material» + cualquier cosa, salvo los usos legítimos de la palabra.
+    # Al re-preparar la cola el 09-11-2026 el modelo parafraseó tres veces
+    # seguidas: «El material no concreta…» (#281), «En el material de casa…» y
+    # «El material sitúa…» (#424). Perseguir verbos no acaba nunca. Medido sobre
+    # los 411 captions de prod: solo casa con los cinco que hablaban de nuestras
+    # fuentes; «Este material inédito» (#226) y «Material defectuoso» (un disco)
+    # quedan fuera por la lista blanca.
+    r"\b(?:el|del|en el|nuestro|ese|este) material\b(?!\s+(?:defectuoso|inedito|original|"
+    r"de archivo|grabado|audiovisual|nuevo|en directo))",
     r"\bmaterial de casa\b",
     r"\bno le cuelgo\b",
     r"\b(?:datos|historias|creditos|cosas) que no constan\b",
