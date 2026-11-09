@@ -3,7 +3,7 @@
 Medido el 09-11-2026: 94 de 140 posts publicados en 60 días llevaban otro número,
 hasta 48 días por detrás, porque se calculaba con `date.today()` al preparar.
 """
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 from app.services.instagram import config, publisher
@@ -21,7 +21,7 @@ def test_contador_con_fecha():
 def test_fecha_de_publicacion_prefiere_lo_fijado():
     assert publisher.fecha_de_publicacion(_item("", publish_on=date(2026, 12, 31))) == date(2026, 12, 31)
     # 23:30 UTC del 31-12 ya es 1 de enero en Madrid.
-    cuando = datetime(2026, 12, 31, 23, 30, tzinfo=timezone.utc)
+    cuando = datetime(2026, 12, 31, 23, 30, tzinfo=UTC)
     assert publisher.fecha_de_publicacion(_item("", publish_at=cuando)) == date(2027, 1, 1)
 
 
