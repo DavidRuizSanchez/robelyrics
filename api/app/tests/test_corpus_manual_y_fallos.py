@@ -97,6 +97,20 @@ def test_un_video_que_youtube_no_devuelve_pide_titulo(db):  # noqa: F811
                              detalles=_detalles)
 
 
+def test_sin_cuota_de_youtube_no_dice_que_el_video_no_existe(db):  # noqa: F811
+    from scripts.youtube.corpus_search import CuotaAgotada
+
+    def _sin_cuota(vid):
+        raise CuotaAgotada("quotaExceeded")
+
+    with pytest.raises(corpus_manual.ManualError, match="cuota"):
+        corpus_manual.anadir(db, JUANCARES, "youtube_transcript", detalles=_sin_cuota)
+    # Con título, entra igual.
+    r = corpus_manual.anadir(db, JUANCARES, "youtube_transcript", titulo="Capítulo 64",
+                             detalles=_sin_cuota)
+    assert r["estado"] == "nuevo"
+
+
 def test_lo_manual_va_primero_y_no_gasta_hueco(db, monkeypatch):  # noqa: F811
     monkeypatch.setattr(ritmo, "MAX_DONE_SEMANA", 2)
     _fila(db, "a", nivel="A", approved_at=AHORA - timedelta(days=3))

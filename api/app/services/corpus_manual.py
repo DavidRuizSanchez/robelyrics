@@ -101,13 +101,23 @@ def anadir(db: Session, url: str, tipo: str, *, titulo: str | None = None,
 
     info = {}
     if not vid.startswith("audio:"):
+        from scripts.youtube.corpus_search import CuotaAgotada
+
+        sin_cuota = False
         try:
             info = (detalles or _detalles_youtube)(vid)
+        except CuotaAgotada:
+            sin_cuota = True
         except Exception as exc:  # noqa: BLE001
             logger.warning("[corpus-manual] videos.list falló para %s: %s", vid, exc)
         if not info and not titulo:
-            raise ManualError("YouTube no devuelve ese vídeo (¿privado o borrado?). "
-                              "Si existe, escribe tú el título.")
+            # Un 403 de cuota no dice nada del vídeo: decir «¿privado o borrado?»
+            # sería mentir. La cuota se reinicia a las 09:00 de Madrid.
+            raise ManualError(
+                "Se ha agotado la cuota diaria de YouTube (vuelve a las 9:00). Escribe tú "
+                "el título o prueba entonces." if sin_cuota else
+                "YouTube no devuelve ese vídeo (¿privado o borrado?). Si existe, escribe tú "
+                "el título.")
     elif not titulo:
         raise ManualError("Un audio que no es de YouTube necesita título.")
     publicado = info.get("published_at")
