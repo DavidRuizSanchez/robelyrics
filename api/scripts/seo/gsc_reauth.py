@@ -88,7 +88,9 @@ def main() -> int:
     if not (client_id and client_secret):
         print("El token previo no tiene client_id/client_secret.", file=sys.stderr)
         return 1
-    scopes = viejo.get("scopes") or SCOPES_DEFAULT
+    # Unión, no sustitución: GA4 (`ga4_client`) tira de este mismo token, y un token
+    # viejo emitido solo con Search Console arrastraría para siempre la falta del scope.
+    scopes = list(dict.fromkeys([*(viejo.get("scopes") or []), *SCOPES_DEFAULT]))
 
     puerto = _puerto_libre()
     redirect_uri = f"http://localhost:{puerto}"
