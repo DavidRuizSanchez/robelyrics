@@ -338,8 +338,14 @@ def cerrar_por_noop(db, opp, causa: str) -> None:
     pl = dict(prop.placement or {})
     pl["last_merge"] = {"path": opp.path, "status": opp.status, "causa": causa,
                         "cerrada": True, "error": (opp.error or "")[:300]}
+    # El grupo cerrado no puede seguir en el panel con su «Ampliar X»: es el botón
+    # que se acaba de pulsar y ahora no tiene keywords activas.
+    activas = {k.lower() for k in content_placement.proposal_keywords(prop)}
+    if pl.get("groups"):
+        pl["groups"] = [g for g in pl["groups"]
+                        if any((kw or "").lower() in activas for kw in g.get("keywords") or [])]
     prop.placement = pl
-    if content_placement.proposal_keywords(prop):
+    if activas:
         recalcular_objetivo(prop)
         if prop.status == "merged":
             prop.status = "proposed"

@@ -178,6 +178,18 @@ def test_si_quedan_busquedas_de_otro_grupo_la_idea_sigue_con_ellas(db):
     assert p.target_keyword == "kabezabolo letras"
 
 
+def test_el_grupo_cerrado_desaparece_del_panel(db):
+    p = _propuesta(db)
+    p.placement = {"groups": [
+        {"keywords": ["kabezabolo extremoduro", "kabezabolo robe"], "recommended": "ficha:1"},
+        {"keywords": ["kabezabolo letras", "platero y tu robe"], "recommended": None}]}
+    db.commit()
+    opp = _fusion(db, p, ["kabezabolo extremoduro", "kabezabolo robe"])
+    cm.cerrar_por_noop(db, opp, "sin_plan")
+    assert [g["keywords"] for g in p.placement["groups"]] == [
+        ["kabezabolo letras", "platero y tu robe"]]
+
+
 def test_las_tachadas_por_noop_no_vuelven_a_proponerse(db):
     from app.services.keyword_research import kw_slug
 
