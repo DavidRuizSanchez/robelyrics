@@ -1125,18 +1125,25 @@ Y el texto que sale se puede MEDIR sin publicarlo: `tono_guard.moldes_en`
 corre sobre el caption guardado, no hace falta adivinar si una cola «lleva las
 mejoras». Así se vio que de 25 posts en cola solo uno traía molde.
 
-### El cuentagotas no mira la hora del día
+### El goteo sale a horas fijas
 
-`publish_next` publica cuando pasa el intervalo desde la última vez, así que el
-feed acaba con posts a las 02:31 y a las 23:16. Los `IG_SLOTS` (13:30 y 20:30)
-**solo gobiernan lo autoprogramado**: quien reparte por horas decentes es
-`scheduling.apply_plan`, desde el panel.
+Hasta el 09-11-2026 `publish_next` publicaba cuando pasaban 12 h desde el último
+post, así que la hora la decidía la cadena (posts a las 01:45, a las 02:31) y las
+efemérides (`publish_on`) vencían a las 00:00 UTC, la 01:00 en Madrid.
 
-Si se programa toda la cola, `next_pending` pasa a devolver `None` y el goteo
-deja de mandar: todo sale por `due_pinned` a su hora. Dos cosas que conviene no
-olvidar en ese modo — `due_pinned` publica **de una tacada todo lo vencido**
-(una caída larga del cron vuelca varios posts juntos al volver), y lo que
-encola `prepare_daily` entra SIN fecha, o sea que vuelve al goteo. Conviven.
+Ahora el goteo solo sale en las franjas de `IG_SLOTS` (13:30 y 20:30), un post por
+franja y con `VENTANA_FRANJA_H` (3 h) para recuperar una pasada del cron perdida.
+Las efemérides vencen en su día **a partir de la primera franja**. El carril de
+vídeo sigue en su franja de tarde (`IG_VIDEO_DESDE_HORA`).
+
+Medido antes de decidirlo, sobre 211 posts publicados desde el 01-08 y comparando
+cada post con los de su mismo formato de esa semana: **ninguna franja rinde más
+que otra** (índices de 0,86 a 1,16 con los márgenes solapados; la madrugada, 1,06).
+Las horas fijas son por ritmo y para no publicar de madrugada, no porque rindan
+más. `online_followers` de la API de Instagram devuelve vacío.
+
+`due_pinned` sigue publicando **de una tacada todo lo vencido** con `publish_at`
+(una caída larga del cron vuelca varios posts juntos al volver).
 
 ## Un botón que no puede funcionar no se ofrece
 
