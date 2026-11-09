@@ -199,7 +199,7 @@ def cancion_del_post(db: Session, item) -> tuple[int | None, str | None]:
 
     Solo dos casos la saben con certeza, y por eso solo esos llevan verso:
       - un CLIP de concierto: `propose_clips` dejó «Canción:» y el verso de
-        nuestra letra en el `summary`;
+        nuestra letra en las `notas_internas`;
       - un post del blog que es la ficha de una canción (`spotlight:song_<id>`).
     Una noticia que NOMBRA una canción no va de ella: no se adivina.
     """
@@ -207,7 +207,10 @@ def cancion_del_post(db: Session, item) -> tuple[int | None, str | None]:
 
     if (item.media_type or "") == "CLIP" or (item.content_type or "") == "clip":
         datos: dict[str, str] = {}
-        for linea in (item.summary or "").splitlines():
+        # Las notas del selector viven en `notas_internas` desde el 09-11-2026
+        # (antes en `summary`). Sin leerlas, los clips se quedaban sin verso.
+        notas = getattr(item, "notas_internas", None) or item.summary or ""
+        for linea in notas.splitlines():
             if ":" in linea:
                 k, v = linea.split(":", 1)
                 datos[k.strip().lower()] = v.strip()
