@@ -181,10 +181,19 @@ def escribir(
             pregunta=topic.get("pregunta") or "",
         )
         veredicto.estilo.extend(tono.bloqueos)
-        # Texto del proceso o metatexto («el material disponible no…»): se le
-        # dice al redactor y reescribe. Si insiste, el post no sale. El gate de
-        # `publish` lo vuelve a mirar sobre el caption montado.
-        veredicto.estilo.extend(gate_final.problemas_de_texto(texto, donde="texto"))
+        # Texto del proceso o metatexto («el material disponible no…»): NO se
+        # reintenta. Medido el 09-11-2026 al re-preparar el #424: cada vez que el
+        # gate cazaba una fórmula, el reintento conservaba la idea («este dato
+        # no consta») y cambiaba solo las palabras: «material de casa» → «el
+        # material sitúa» → «que consta aquí… no se especifica». Reintentar
+        # entrena al modelo para esquivar la regex. Quien llama decide: un
+        # evergreen cae a su texto de siempre, un clip se retiene.
+        metatexto = gate_final.problemas_de_texto(texto, donde="texto")
+        if metatexto:
+            raise TextoNoPublicable(
+                "El texto habla del proceso o de lo que falta, y eso no se "
+                "reescribe: " + " · ".join(metatexto)
+            )
         veredicto.avisos.extend(tono.avisos)
         topic["claims"] = veredicto.claims
         avisos = list(veredicto.avisos)
