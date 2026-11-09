@@ -2491,6 +2491,10 @@ class AdminIGUpdateIn(BaseModel):
     clear_publish_at: bool = False
     # Formato: IMAGE | CAROUSEL | REELS. Cambiarlo exige re-preparar.
     media_type: str | None = None
+    # «Lo he revisado, que salga»: quita la retención (`needs_human`). Solo se
+    # concede si el texto, ya con la edición aplicada, pasa el gate final:
+    # revisar a mano no es saltarse la puerta.
+    revisado: bool = False
 
 
 class AdminIGAccount(BaseModel):
@@ -2730,6 +2734,17 @@ def admin_ig_update(
         if programado.tzinfo is None:
             programado = programado.replace(tzinfo=timezone.utc)
         it.publish_at = programado
+    if payload.revisado:
+        veredicto = _ig_publisher.revisar_gate(db, it)
+        if not veredicto.ok:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"El texto sigue sin pasar el gate final: {veredicto.motivo}",
+            )
+        it.needs_human = False
+        if (it.error or "").startswith("Retenido antes de publicar"):
+            it.error = None
     db.commit()
     db.refresh(it)
     return _ig_detail_model(it, db)

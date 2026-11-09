@@ -1025,6 +1025,45 @@ palabras**. Vetada «huella imborrable», el modelo escribió «una marca
 indeleble»; vetada «la esencia», escribió «su esencia pura». Si se persigue el
 sustantivo, basta cambiar el sustantivo.
 
+## Nada sale a Instagram sin pasar el gate final
+
+El 08-11-2026 un seguidor corrigió en público un clip: «No es "La Carrera", sino
+"Destrozares"». Al tirar del hilo salieron 14 posts con errores sobre 411: el
+#487 y el #374 con las notas del selector en el caption («Tramo 45-57s… Motivos:…
+Corte: pausa»), cuatro clips con esas notas parafraseadas («seis segmentos
+seguidos sin voz»), cuatro posts con «el material disponible no confirma…», tres
+clips con un verso de otra canción y un directo de Robe atribuido a Extremoduro.
+
+Las causas, y lo que no hay que deshacer:
+
+- **`summary` era a la vez notas internas y texto del post.** En los clips era
+  entero notas, y cuatro caminos de respaldo lo publicaban. Ahora lo interno
+  vive en `instagram_queue.notas_internas` (migración `iggate2026_01`), que leen
+  el correo de aprobación, el panel y `_contexto_de_directo`, y **nunca** un
+  redactor. `_topic_from_item` vacía el `summary` de cualquier clip.
+- **Un clip no tiene «texto de siempre».** Si su redacción no pasa las guardas,
+  `TextoRetenido`: se queda para que lo mire una persona. Antes se publicaba
+  `texto_base`, que eran las notas.
+- **`gate_final`** corre dentro de `newsroom.escribir` (el redactor reescribe con
+  el motivo delante) y en `publisher.publish` **justo antes de Meta**, sobre el
+  caption ya montado y el rótulo quemado del vídeo. En un clip comprueba además
+  que quien toca es quien declara el vídeo y que todo título citado es la
+  canción del clip o su disco. Es determinista y persigue **sintagmas**: con
+  `re.I`, «TODO» tumbaba 70 posts buenos («todo el universo de Robe»); «error» y
+  «no consta» son legítimos (#402, #408). Los captions reales, buenos y malos,
+  están congelados en `app/tests/fixtures/gate_final_captions.json`.
+- **Retener NO es `failed`.** El cortacircuitos cuenta los `failed` de items
+  distintos como bloqueo de Meta: tres retenidos seguidos pararían la cola
+  acusando a Meta. `_retener` pone `needs_human` y deja el estado, y
+  `_publicable()` **excluye `needs_human`** (antes era solo una etiqueta y el
+  goteo lo publicaba igual). Se libera con «Lo he revisado: que salga» en el
+  panel, que vuelve a pasar el gate: revisar a mano no es saltarse la puerta.
+- **Falla cerrado**: si no se puede leer el catálogo, el clip no sale.
+- `notify_health` avisa de cada retenido **una vez** (los IDs van en la firma).
+
+El gate es la red, no la solución: si el redactor recibe las notas, las
+parafrasea, y ninguna regex caza todas las paráfrasis.
+
 ## Un post preparado no se entera de que has desplegado
 
 `IMAGES_DIR` (`/tmp/robelyrics_instagram`) **no es efímero en producción**: está

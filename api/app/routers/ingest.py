@@ -433,8 +433,8 @@ def clips_complete(
         if item is not None and item.status != "published":
             item.source_name = clip.channel_title or item.source_name
             item.source_url = clip.channel_url or clip.url or item.source_url
-            if not (item.summary or "").strip() and clip.video_title:
-                item.summary = clip.video_title[:500]
+            if not (item.notas_internas or "").strip() and clip.video_title:
+                item.notas_internas = clip.video_title[:500]
             if payload.verso:
                 # La prueba de que el tramo es el estribillo de ESA canción: el
                 # verso de nuestra letra con el que casó lo que se oye. Va al
@@ -442,15 +442,15 @@ def clips_complete(
                 nota = (f"Verificado: en {payload.start_s:.0f}-{payload.end_s:.0f}s se oye "
                         f"«{payload.verso}» ({payload.tramos_cancion or 0} tramos casan "
                         f"con la letra)")
-                item.summary = f"{(item.summary or '').strip()}\n{nota}".strip()
+                item.notas_internas = f"{(item.notas_internas or '').strip()}\n{nota}".strip()
             if payload.imagen_fija:
-                # Va al `summary`, que es de donde `notify_clips` saca lo que
+                # Va a `notas_internas`, que es de donde `notify_clips` saca lo que
                 # enseña en el correo. No se veta el vídeo: se marca y decide
                 # una persona, que es lo que pidió David.
                 aviso = ("AVISO: el vídeo no tiene imágenes de directo, es una "
                          "imagen fija con el audio encima")
-                if aviso not in (item.summary or ""):
-                    item.summary = f"{(item.summary or '').strip()}\n{aviso}".strip()
+                if aviso not in (item.notas_internas or ""):
+                    item.notas_internas = f"{(item.notas_internas or '').strip()}\n{aviso}".strip()
                 item.needs_human = True
 
     if payload.imagen_fija is not None:

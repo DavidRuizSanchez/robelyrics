@@ -53,7 +53,7 @@ def _pendientes(db) -> list[tuple[VideoClip, InstagramQueueItem]]:
 def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str) -> str:
     aprobar = create_clip_action_token(clip.id, "approve")
     rechazar = create_clip_action_token(clip.id, "reject")
-    resumen = (item.summary or "").strip()
+    resumen = (item.notas_internas or item.summary or "").strip()
     aviso = ""
     if "AVISO:" in resumen:
         aviso = (

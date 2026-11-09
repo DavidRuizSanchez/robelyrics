@@ -14,6 +14,16 @@ from app.db.models import InstagramQueueItem, InstagramQueueMedia, VideoClip
 from app.services.instagram import video_clips as vc
 
 
+@pytest.fixture(autouse=True)
+def _catalogo_vacio(monkeypatch):
+    """El gate final coteja los títulos del clip con el catálogo, y `songs` no se
+    puede crear en SQLite (TSVECTOR). Aquí no se prueba el gate: catálogo vacío.
+    El gate tiene sus propios tests en `test_gate_final.py`."""
+    from app.services.instagram import publisher
+
+    monkeypatch.setattr(publisher, "_catalogo_del_clip", lambda db, clip, item: (set(), set()))
+
+
 @pytest.fixture()
 def db():
     engine = create_engine("sqlite://")
