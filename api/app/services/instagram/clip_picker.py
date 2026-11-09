@@ -161,12 +161,21 @@ def _hits_catalogo(texto: str, vocab) -> list[str]:
         return []
 
 
+# Un clip `retired` cuenta como usado: solo llega ahí por decisión de una persona
+# (rechazo desde el correo, descarte en el panel o retirada por reclamación). Sin
+# esto, el tramo rechazado volvía como propuesta nueva en la pasada siguiente y se
+# leía como otra distinta: «Arranca Segundo Movimiento» se propuso 4 veces, y 5
+# tramos rechazados acabaron publicados con un clic en la copia (medido 09-11-2026).
+# `failed` NO cuenta: es un fallo técnico de la descarga o el montaje.
+ESTADOS_USADOS = ("requested", "downloading", "ready", "published", "retired")
+
+
 def _tramos_usados(db: Session, video_id: str) -> list[tuple[float, float]]:
-    """Lo que ya se publicó de este vídeo: no se repite ni se solapa."""
+    """Lo que ya se publicó o se rechazó de este vídeo: no se repite ni se solapa."""
     filas = db.execute(
         select(VideoClip.start_s, VideoClip.end_s).where(
             VideoClip.video_id == video_id,
-            VideoClip.status.in_(("requested", "downloading", "ready", "published")),
+            VideoClip.status.in_(ESTADOS_USADOS),
         )
     ).all()
     return [(float(a), float(b)) for a, b in filas]
@@ -181,6 +190,9 @@ def _canciones_usadas(db: Session, video_id: str) -> set[str]:
     El nombre sale del título que escribió `propose_clips`, que lo pone entre
     comillas angulares.
     """
+    # Aquí `retired` NO cuenta, a propósito (23-09-2026): rechazar un corte malo
+    # —el «estribillo» que no cantaba el estribillo— tiene que dejar salir otro
+    # corte mejor de esa canción. El MISMO tramo no vuelve: eso es `_tramos_usados`.
     filas = db.execute(
         select(VideoClip.subtitle).where(
             VideoClip.video_id == video_id,

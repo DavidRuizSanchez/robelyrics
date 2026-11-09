@@ -504,3 +504,56 @@ def test_el_clip_se_publica_con_la_url_que_ya_tenia(db, monkeypatch):
 
     publisher.publish(db, item)
     assert enviadas == [CDN]
+
+
+# --------------------------------------------------------------------------- #
+# Un solo descarte (09-11-2026): el panel marcaba el post y dejaba el clip
+# `ready` con su vídeo en Cloudinary (clips 22, 23 y 24).
+# --------------------------------------------------------------------------- #
+def test_descartar_desde_el_panel_retira_el_clip(db, monkeypatch):
+    from app.services.instagram import cloudinary_upload
+
+    borrados = []
+
+    def destroy(public_id, **kw):
+        # No más blando que la realidad: Cloudinary no borra un None.
+        if not public_id:
+            raise TypeError("public_id requerido")
+        borrados.append(public_id)
+        return True
+
+    monkeypatch.setattr(cloudinary_upload, "destroy", destroy)
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    clip.status = "ready"
+    clip.cloudinary_public_id = "clips/abc"
+    db.commit()
+    item = db.get(InstagramQueueItem, clip.queue_item_id)
+
+    vc.descartar(db, item, "descartado desde el panel")
+    db.commit()
+    assert item.status == "discarded"
+    assert clip.status == "retired" and clip.retired_reason == "descartado desde el panel"
+    assert borrados == ["clips/abc"]
+
+
+def test_descartar_un_post_que_no_es_clip_no_toca_nada_mas(db):
+    from datetime import date
+
+    item = InstagramQueueItem(title="Un carrusel", content_type="evergreen",
+                              status="pending", position=0, day=date(2026, 11, 9))
+    db.add(item)
+    db.commit()
+    assert vc.descartar(db, item, "x") is None
+    assert item.status == "discarded"
+
+
+def test_descartar_un_clip_ya_retirado_no_lo_retira_dos_veces(db, monkeypatch):
+    from app.services.instagram import cloudinary_upload
+
+    monkeypatch.setattr(cloudinary_upload, "destroy",
+                        lambda *a, **k: pytest.fail("no debe volver a borrar"))
+    clip = vc.solicitar(db, URL, 0, 20, subtitle=TEMA)
+    clip.status = "retired"
+    db.commit()
+    vc.descartar(db, db.get(InstagramQueueItem, clip.queue_item_id), "x")
+    assert clip.status == "retired"

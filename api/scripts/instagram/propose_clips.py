@@ -175,6 +175,11 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
         )).all()}
     videos_fallidos = {v for (v,) in db.execute(
         select(VideoClip.video_id).where(VideoClip.status == "failed")).all()}
+    # Esta canción de ESTE concierto ya se rechazó: no vuelve nunca, pasen los días
+    # que pasen. La misma canción de otro concierto sí, tras los 120 días.
+    rechazadas = {(sid, vid) for sid, vid in db.execute(
+        select(VideoClip.song_id, VideoClip.video_id).where(
+            VideoClip.song_id.is_not(None), VideoClip.status == "retired")).all()}
     assets = db.execute(
         select(VideoAsset).where(VideoAsset.kind == "live_song",
                                  VideoAsset.vetado.is_(False),
@@ -188,7 +193,12 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
             break
         if asset.song_id in usadas or asset.youtube_id in videos_fallidos:
             continue
+        if (asset.song_id, asset.youtube_id) in rechazadas:
+            continue
         song = version_original(db, db.get(Song, asset.song_id))
+        # El clip guarda la versión ORIGINAL de la canción, no la del catálogo del vídeo.
+        if (song.id, asset.youtube_id) in rechazadas:
+            continue
         letra = [(ln.text or "").strip() for ln in song.lines if (ln.text or "").strip()]
         i = _estribillo(letra)
         if i is None:
