@@ -270,13 +270,14 @@ persons:
   - slug: rosendo-mercado
     full_name: Rosendo Mercado Ruiz
     stage_name: Rosendo
-    bio_short: Guitarrista y cantante, referente del rock urbano madrileño que ha colaborado en directo con Extremoduro.
+    bio_short: Guitarrista y cantante, referente del rock urbano madrileño.
     wikipedia_url: https://es.wikipedia.org/wiki/Rosendo_Mercado
 
   # Entidades detectadas y aprobadas 2026-06-02 (universo Robe/Extremoduro).
   - slug: manolo-chinato
     full_name: Manuel Chinato
     stage_name: Manolo Chinato
+    bio_short: Poeta nacido en Puerto de Béjar (Salamanca) en 1952, aunque dice sentirse extremeño.
     wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Chinato
 
   - slug: enrique-el-drogas
