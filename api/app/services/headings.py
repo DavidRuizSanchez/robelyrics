@@ -52,6 +52,9 @@ def reescribir_headings(client, subject: str, headings: list[str], resumenes: li
         f"{seo_style.PROMPT_HEADING_RULES}\nEjemplos (la FORMA, no la frase):\n"
         f"{seo_style.EJEMPLOS_ORO_HEADINGS}\n"
         + (f"Lo que falla ahora: {'; '.join(motivos)}\n" if motivos else "")
+        + f"OBLIGATORIO: «{subject}» aparece, con naturalidad, en UNO de los headings (dos "
+        "como mucho), por ejemplo en el que presenta quién o qué es; en los demás, no. "
+        "Nunca como «" + subject + ": …».\n"
         + f"HEADINGS:\n{lista}\n"
         f'Devuelve JSON {{"headings": [exactamente {len(headings)} textos, en el mismo orden]}}.'
     )
@@ -110,6 +113,12 @@ def proponer(client, *, body_md: str, subject: str, protegidas: list[dict],
         return prop
     nuevos = reescribir_headings(client, subject, antes, _resumenes(body_md),
                                  motivos=va.motivos + va.avisos) or antes
+    vn = seo_style.heading_verdict(nuevos, subject=subject)
+    if not vn.ok:
+        # Segunda vuelta con lo que sigue fallando delante (10-11-2026: en 118 de 134
+        # páginas el modelo quitó el nombre de todos los headings a la primera).
+        nuevos = reescribir_headings(client, subject, nuevos, _resumenes(body_md),
+                                     motivos=vn.motivos) or nuevos
     from scripts.seo.merge_deep import terminos_del_sujeto
 
     sujeto = terminos_del_sujeto(subject, alias)

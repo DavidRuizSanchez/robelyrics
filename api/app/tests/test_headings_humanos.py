@@ -124,3 +124,19 @@ def test_se_aplican_las_mejoras_aunque_un_heading_se_quede_por_posicionamiento(m
     p = headings.proponer(None, body_md=b, subject="Agila", protegidas=protegidas)
     assert p.despues == ["Qué significa «Agila»: el castúo de Robe", "Las canciones clave del disco"]
     assert p.veredicto_despues_bloquea and p.aplicable
+
+
+def test_si_la_primera_propuesta_quita_el_nombre_hay_una_segunda_vuelta(monkeypatch):
+    llamadas = []
+
+    def falso(client, subject, headings_, resumenes, *, motivos=None):
+        llamadas.append(motivos)
+        if len(llamadas) == 1:
+            return ["De Sabadell al escenario", "Los discos"]          # sin el nombre
+        return ["Albert Pla, de Sabadell al escenario", "Los discos"]
+
+    monkeypatch.setattr(headings, "reescribir_headings", falso)
+    b = "## Los Inicios de Albert Pla: De Sabadell\n\nuno\n\n## La Trayectoria de Albert Pla\n\ndos"
+    p = headings.proponer(None, body_md=b, subject="Albert Pla", protegidas=[])
+    assert len(llamadas) == 2 and any("ningún heading" in m for m in llamadas[1])
+    assert p.despues == ["Albert Pla, de Sabadell al escenario", "Los discos"] and p.aplicable
