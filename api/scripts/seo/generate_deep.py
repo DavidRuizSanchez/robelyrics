@@ -291,6 +291,28 @@ def _polish(client: OpenAI, subject: str, body: str, allowed_terms: set[str] | N
     return v if len(v) > 200 else body
 
 
+def _material_afirmable(client: OpenAI, dossier, consultas: list[str]) -> str:
+    """Lo que el verificador puede dar por bueno: lo propio + lo ajeno corroborado.
+
+    Hasta el 10-11-2026 el verificador recibía `hard_facts + material` con el FONDO
+    dentro (transcripciones, blogs, foros, prensa), así que aceptaba un dato que
+    solo traía un tercero: lo contrario de «La voz es nuestra» (CLAUDE.md), que
+    `merge_deep` ya cumplía. El escritor sigue viendo todo el material para saber de
+    qué hablar; lo que cambia es qué se puede AFIRMAR.
+    """
+    from app.services.corpus_for_queries import corroborar, separar_material
+
+    propio, fondo = separar_material(dossier.material)
+    base = f"{dossier.hard_facts}\n\n{propio}"
+    verificados, descartados = corroborar(client, fondo, base, consultas)
+    if descartados:
+        log(f"  · fondo sin corroborar (no se puede afirmar): {len(descartados)} dato(s)")
+    if verificados:
+        base += ("\n\n----\n\n[DATOS DE TERCEROS CORROBORADOS (se pueden afirmar, sin "
+                 "nombrar de dónde salen)]\n" + "\n".join(f"- {h}" for h in verificados))
+    return base
+
+
 def _verify_section(client: OpenAI, section_md: str, material: str) -> str:
     """Verifica una sección contra el material: quita afirmaciones no respaldadas."""
     if not section_md.strip():
@@ -422,7 +444,7 @@ def generate_for_entity(
         log("el outline salió vacío; abortando", "err")
         return False
     headings = [s["heading"] for s in outline]
-    full = f"{dossier.hard_facts}\n\n{dossier.material}"
+    full = _material_afirmable(client, dossier, [dossier.subject, *headings[:4]])
     parts: list[str] = []
     for s in outline:
         # `prior` = lo ya escrito → cada sección evita repetir datos/encuadre.

@@ -77,13 +77,17 @@ def _resolve_one(
 
     # --- lookup en corpus por tipo ---
     if e_type in {"Person"}:
+        # Solo personas con ficha publicada: sin ella no existen para el público
+        # y su @id apuntaría a un 404 (person_visibility).
+        from app.services.person_visibility import persona_publicada
         q = db.query(Person).filter(
-            (Person.slug == slug_hint) if slug_hint else (Person.full_name.ilike(name))
+            (Person.slug == slug_hint) if slug_hint else (Person.full_name.ilike(name)),
+            persona_publicada(),
         )
         person = q.first()
         if person is None and slug_hint is None:
             # fuzzy por stage_name o full_name normalizado
-            for p in db.query(Person).all():
+            for p in db.query(Person).filter(persona_publicada()).all():
                 if _normalize(p.stage_name or "") == norm_name or _normalize(p.full_name) == norm_name:
                     person = p
                     break
@@ -381,7 +385,9 @@ def build_corpus_index(
             # Alias sin el sufijo de álbum/directo: «Jesucristo García
             # (Rock Transgresivo)» también enlaza al citarse «Jesucristo García».
             add(_clean_title(s.title), url, "song")
-    for p in db.query(Person).all():
+    # Sin ficha publicada no se enlaza: el enlace daría 404 (person_visibility).
+    from app.services.person_visibility import persona_publicada
+    for p in db.query(Person).filter(persona_publicada()).all():
         purl = f"{base}/personas/{p.slug}"
         add(p.full_name, purl, "person")
         if p.stage_name and p.stage_name != p.full_name:

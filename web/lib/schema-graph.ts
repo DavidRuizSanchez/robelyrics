@@ -110,7 +110,7 @@ export type ArtistInput = {
 };
 
 export type SongCreditInput = {
-  role: string; // letra | musica | adaptacion | poema_original | ...
+  role: string; // letra | musica | adaptacion | poema_original | ... | coros | voces
   name: string;
   person_slug: string | null;
 };
@@ -194,6 +194,10 @@ export function musicCompositionNode(
   const credits = song.credits || [];
   const lyricCredit = credits.find((c) => c.role === "poema_original" || c.role === "letra" || c.role === "adaptacion");
   const musicCredit = credits.find((c) => c.role === "musica");
+  // Coros y voces son de la GRABACIÓN, no de la composición. Sin nodo
+  // MusicRecording propio, `contributor` (de CreativeWork) es lo más cerca que se
+  // puede decir sin afirmar autoría.
+  const vocalCredits = credits.filter((c) => c.role === "coros" || c.role === "voces");
 
   return {
     "@type": "MusicComposition",
@@ -208,6 +212,7 @@ export function musicCompositionNode(
     // si no, composer = el grupo (comportamiento previo).
     ...(lyricCredit ? { lyricist: personRef(lyricCredit) } : {}),
     composer: musicCredit ? personRef(musicCredit) : { "@id": canonical.musicGroup(song.artistSlug) },
+    ...(vocalCredits.length > 0 ? { contributor: vocalCredits.map(personRef) } : {}),
     // isPartOf (de CreativeWork) en vez de inAlbum (que es de MusicRecording,
     // no de MusicComposition, y daba warning de validación).
     isPartOf: { "@id": canonical.musicAlbum(song.artistSlug, song.albumSlug) },

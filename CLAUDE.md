@@ -728,6 +728,33 @@ si no caen «todo el mundo» o «el público cantaba». Y los nombres de
 `sources.yaml` que son frases del tema («La historia de Extremoduro») se ignoran:
 lo que importa de verdad está en `_ANALISTAS`.
 
+## Una persona sin ficha publicada no existe
+
+Hasta el 10-11-2026, dar de alta a alguien en `persons` para preparar su ficha la
+publicaba al instante: `/personas/<slug>` respondía 200 con solo Wikidata, y la
+persona entraba en el hub, en los miembros del grupo, en la formación de los discos,
+en el buscador y en el autolink de todos los cuerpos. `app/services/person_visibility.py`
+es la única regla y todos esos caminos tiran de ella: **sin `seo_content` publicado,
+404 y nadie la enlaza**. Es lo mismo que ya hacía `url_resolver._publicado` con los
+enlaces. Ese día las 48 personas de prod estaban publicadas, así que no cambió nada
+visible.
+
+`song_credits` guarda también **coros y voces** (`data/vocal_credits.yaml` →
+`scripts/seed_vocal_credits.py`, de los créditos de Wikipedia). Eso es interpretación,
+no autoría: `credit_roles.ROLES_INTERPRETACION` impide que cierre una errata de
+autoría o que el consenso dé a alguien por «ya acreditado». Salen como `contributor`
+en el JSON-LD de la canción y como arista `vocals_by`. **No pasan por el consenso**,
+que no es reproducible.
+
+`generate_deep` verifica cada sección contra **lo propio más lo ajeno corroborado**
+(`_material_afirmable`). Antes el verificador veía el fondo (transcripciones, blogs,
+prensa) y daba por bueno lo que solo traía un tercero.
+
+Los testimonios de primera mano que David aprueba van a `data/reference/` (ver
+`testimonios_plasencia_1987.md`). Entran al dossier como material propio y se escriben
+como lo que esa persona cuenta. Ojo: el motor lee **toda línea de más de 40 caracteres
+que nombre a la entidad**, así que en la cabecera no puede haber nombres ni rutas.
+
 ## Un directo no duplica sus canciones
 
 Los discos que **no** son de estudio (`kind` en `live | compilation | single`) no

@@ -1882,7 +1882,8 @@ class EntityEdge(Base):
     los JSONB (Person.other_bands, SeoContent/Post.entities). Consultable en
     ambos sentidos (índices en src y dst). `edge_type` ∈ {song_of_album,
     album_of_artist, song_theme, song_place, song_concept, member_of,
-    other_band, video_of, mentions, lyrics_by, music_by, adapted_from}.
+    other_band, video_of, mentions, lyrics_by, music_by, adapted_from,
+    vocals_by}. `vocals_by` (coros/voces de la grabación) también sale de `SongCredit`.
 
     Los tres últimos (autoría) los genera `build_graph.py` desde `SongCredit`:
     conectan una canción con la persona que firma su letra/música o el poema

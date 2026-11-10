@@ -264,8 +264,10 @@ def process(db, entry: dict, *, apply: bool) -> None:
     # 0,80 / 0,67 en pasadas seguidas), así que re-verificar cada noche solo
     # sirve para que una pasada con suerte acabe aplicando. Lo ya acreditado no
     # se vuelve a preguntar, y lo que una persona rechazó, tampoco.
+    from app.services.credit_roles import ROLES_INTERPRETACION
     ya = db.execute(select(SongCredit.id).where(
-        SongCredit.song_id == song.id, SongCredit.credited_name == author)).first()
+        SongCredit.song_id == song.id, SongCredit.credited_name == author,
+        SongCredit.credit_role.notin_(ROLES_INTERPRETACION))).first()  # coros no es autoría
     if ya:
         logger.info("«%s»: %s ya acreditado; no se re-verifica", song.title, author)
         return
