@@ -181,7 +181,7 @@ class PublicSongCredit(BaseModel):
     """Crédito de autoría de la canción (letra/música/poema original adaptado).
     Nace del vuelco editorial: p.ej. «Ama, ama y ensancha el alma» es un poema de
     Manolo Chinato musicado por Robe."""
-    role: str           # letra | musica | adaptacion | poema_original | arreglos | colaboracion
+    role: str           # letra | musica | adaptacion | poema_original | arreglos | colaboracion | coros | voces
     role_label: str     # etiqueta legible ("Poema original", "Música"...)
     name: str
     person_slug: str | None = None   # si el autor tiene ficha en el site
@@ -345,10 +345,11 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
     """Miembros del artista cuya `era` cubre el `year` del álbum. Best-effort:
     filas con `era` no parseable se omiten (no se inventa formación)."""
     from app.db.models import BandMembership as _BM, Person as _P  # lazy
+    from app.services.person_visibility import persona_publicada  # lazy
     rows = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
-        .filter(_BM.artist_id == artist_id)
+        .filter(_BM.artist_id == artist_id, persona_publicada())
         .order_by(_BM.position, _BM.era)
         .all()
     )
@@ -377,9 +378,13 @@ _CREDIT_ROLE_LABEL = {
     "poema_original": "Poema original",
     "arreglos": "Arreglos",
     "colaboracion": "Colaboración",
+    # Intérpretes de la grabación, no autores: van detrás de la autoría.
+    "coros": "Coros",
+    "voces": "Voces",
 }
 # Orden de presentación (lo autoral primero).
-_CREDIT_ROLE_ORDER = ["poema_original", "letra", "adaptacion", "musica", "arreglos", "colaboracion"]
+_CREDIT_ROLE_ORDER = ["poema_original", "letra", "adaptacion", "musica", "arreglos", "colaboracion",
+                      "coros", "voces"]
 
 
 def _credits_for_song(db: Session, song_id: int) -> list["PublicSongCredit"]:
@@ -397,9 +402,13 @@ def _credits_for_song(db: Session, song_id: int) -> list["PublicSongCredit"]:
         return _CREDIT_ROLE_ORDER.index(sc.credit_role) if sc.credit_role in _CREDIT_ROLE_ORDER else 99
     # Resolución por nombre cuando el FK person_id es nulo (el crédito puede haberse
     # creado antes de sembrar a la persona, o con un slug distinto al de la ficha).
+    from app.services.person_visibility import ids_publicadas, persona_publicada  # lazy
+    publicadas = ids_publicadas(db)
+    # Un crédito enlaza a la ficha solo si la ficha se ve (person_visibility).
+    rows = [(sc, p if p is not None and p.id in publicadas else None) for sc, p in rows]
     by_name: dict[str, str] = {}
     if any(p is None for _, p in rows):
-        for pp in db.query(_P).all():
+        for pp in db.query(_P).filter(persona_publicada()).all():
             for nm in (pp.stage_name, pp.full_name):
                 if nm:
                     by_name[nm.strip().lower()] = pp.slug
@@ -598,10 +607,11 @@ def public_artist_detail(
     # Robe es el protagonista del sitio: va siempre primero en la lista de
     # miembros (tanto en su proyecto en solitario como en Extremoduro), y
     # luego el resto por position/era.
+    from app.services.person_visibility import persona_publicada  # lazy
     members_raw = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
-        .filter(_BM.artist_id == artist.id)
+        .filter(_BM.artist_id == artist.id, persona_publicada())
         .order_by(
             _case((_P.slug == "robe-iniesta", 0), else_=1),
             _BM.position,
@@ -1105,8 +1115,11 @@ def public_search(
         """
         SELECT slug, full_name, stage_name
         FROM persons
-        WHERE unaccent(full_name) ILIKE unaccent(:pattern)
-           OR unaccent(COALESCE(stage_name, '')) ILIKE unaccent(:pattern)
+        WHERE (unaccent(full_name) ILIKE unaccent(:pattern)
+           OR unaccent(COALESCE(stage_name, '')) ILIKE unaccent(:pattern))
+          -- sin ficha publicada no existe para el público (person_visibility)
+          AND EXISTS (SELECT 1 FROM seo_content sc WHERE sc.entity_type = 'person'
+                      AND sc.entity_id = persons.id AND sc.published)
         ORDER BY full_name
         LIMIT 8
         """
@@ -1457,8 +1470,9 @@ def _internal_url_for(db: Session, wikidata_id: str | None, name: str | None) ->
         band = next((b for b in bq.all() if b.name.strip().lower() == norm), None)
     if band:
         return f"/grupos/{band.slug}"
-    # 3) Person (por wikidata_id o nombre/stage_name)
-    pq = db.query(Person)
+    # 3) Person (por wikidata_id o nombre/stage_name), solo si tiene ficha publicada
+    from app.services.person_visibility import persona_publicada  # lazy
+    pq = db.query(Person).filter(persona_publicada())
     per = None
     if wikidata_id:
         per = pq.filter(Person.wikidata_id == wikidata_id).first()
@@ -1514,8 +1528,10 @@ def public_persons_list(
     db: Session = Depends(get_db),
 ) -> list[PublicPersonListItem]:
     _set_cache(response)
+    from app.services.person_visibility import persona_publicada  # lazy
     persons = (
         db.query(Person)
+        .filter(persona_publicada())
         .order_by(Person.full_name)
         .all()
     )
@@ -1539,7 +1555,10 @@ def public_person_detail(
     db: Session = Depends(get_db),
 ) -> PublicPersonDetailOut:
     _set_cache(response)
-    person = db.query(Person).filter(Person.slug == slug).first()
+    from app.services.person_visibility import persona_publicada  # lazy
+    # Sin ficha publicada, la persona no existe para el público: 404, no una
+    # página con solo los datos de Wikidata (person_visibility).
+    person = db.query(Person).filter(Person.slug == slug, persona_publicada()).first()
     if not person:
         raise HTTPException(status_code=404, detail="person not found")
 

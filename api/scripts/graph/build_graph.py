@@ -151,6 +151,9 @@ def main() -> None:
             "musica": "music_by",
             "poema_original": "adapted_from",
             "adaptacion": "adapted_from",
+            # Intérpretes de la grabación (no autores): coros / voces adicionales.
+            "coros": "vocals_by",
+            "voces": "vocals_by",
         }
         persons_by_name = {}
         for p in persons.values():

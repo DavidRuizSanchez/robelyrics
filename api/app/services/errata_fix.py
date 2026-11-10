@@ -168,8 +168,12 @@ def _fix_authorship(db, errata: ErrataReport) -> FixOutcome:
         return FixOutcome("not_supported", "La errata no dice de quién es la autoría.")
 
     # ¿El crédito ya existe? Entonces esto ya se aplicó y la errata sobra.
+    from app.services.credit_roles import ROLES_INTERPRETACION
     existing = db.execute(
-        select(SongCredit).where(SongCredit.song_id == song.id)
+        select(SongCredit).where(
+            SongCredit.song_id == song.id,
+            SongCredit.credit_role.notin_(ROLES_INTERPRETACION),  # coros no es autoría
+        )
     ).scalars().all()
     if any(best_ratio(normalize(author), normalize(c.credited_name or "")) >= 0.9 for c in existing):
         _close(errata, f"Ya aplicado: «{song.title}» acredita a {author} en song_credits.")

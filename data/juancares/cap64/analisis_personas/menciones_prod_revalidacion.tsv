@@ -1,0 +1,26 @@
+id	nombre	n_fuentes	kinds	source_ids	fichas_publicadas	posts_publicados
+E-018	Mariño	0				
+E-019	Cándido Cabrera	0				
+E-020	Elia Blanco	3	press,youtube_transcript	366,726,780		
+E-028	José Luis Díaz	3	press,youtube_transcript	57,366,726		
+E-029	Fernando Pizarro	6	youtube_transcript	57,196,223,590,716,726		
+E-030	José Antonio Hernández	0				
+E-031	Enrique Tornero	1	press	366		
+E-032	Virgilio	0				
+E-037	Juano	7	youtube_transcript	586,616,632,676,772,775,780	person:robe-iniesta	robe-de-chapista-a-icono-del-rock-espanol
+E-039	Paco Dóniga	10	youtube_transcript	57,586,590,616,676,702,726,763,769,772		robe-de-chapista-a-icono-del-rock-espanol
+E-040	Ángel (primer batería)	5	about_robe,youtube_transcript	404,472,632,729,761	band:los-suaves	
+E-046	Cholo	3	youtube_comment,youtube_transcript	319,632,767		
+E-047	Paramio	6	blog,press,youtube_transcript	366,382,702,763,767,773		
+E-048	Javi Génesis	3	youtube_transcript	598,676,773		
+E-049	Belén (corista)	8	youtube_transcript	595,612,648,664,704,716,719,1765		
+E-050	María (corista)	7	youtube_transcript	57,590,595,612,660,704,1765	song:mi-espiritu-imperecedero	
+E-051	Marcos Peral	3	youtube_transcript	590,664,780		
+E-052	Pedro (Simetría)	2	youtube_transcript	766,767		
+E-053	Félix (Gibson)	0				
+E-055	Susi Iglesias	0				
+E-056	Gustavo (buitre)	1	youtube_transcript	767		
+E-057	Cori	0				
+E-060	Raúl (mánager)	23	blog,press,youtube_transcript	68,222,228,372,373,595,603,612,616,630,631,643,657,664,676,688,693,694,709,726,729,730,748	band:pasion,person:raul-guerrero,person:tomas-rodriguez	
+E-068	Jesús Mateos Brea	3	prensa,youtube_transcript	225,431,535	person:manolo-chinato,place:extremadura,place:plasencia	primeras-flores-amarillas-plasencia-cumple-robe-2026
+(24 rows)

@@ -99,6 +99,20 @@ persons:
         era: "1987"
         position: 7
 
+  # Primer batería de Extremoduro (1987): unos cuatro meses con Robe y Kaíto, y le
+  # sustituyó William. Fuente: Wikipedia ES «Extremoduro» (según Ángel Lorenzo al
+  # periodista Juan Carlos Ramos) y Robe citado por Trembol; ver
+  # data/juancares/cap64/analisis_personas/SOURCES.md A-05. Sin artículo propio
+  # ni QID: sembrar con --no-enrich. No se ve hasta que su ficha esté publicada
+  # (app/services/person_visibility.py).
+  - slug: angel-lorenzo
+    full_name: Ángel Lorenzo
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: "1987"
+        position: 7
+
   - slug: salo
     full_name: Gonzalo Muñoz
     stage_name: Salo
