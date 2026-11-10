@@ -1,7 +1,9 @@
-<!-- fuente: testimonio de primera mano en entrevista (2026) -->
+<!-- fuente: testimonio de primera mano -->
 # Testimonios de primera mano (2026)
 
 <!-- Testimonios en primera persona: se escriben como lo que esa persona cuenta. -->
+<!-- La etiqueta no lleva fecha ni «entrevista»: el redactor escribía «en una entrevista de 2026»
+     y el editor jefe lo castigaba por no identificarla (previsualización de la fase 3, 10-11-2026). -->
 <!-- Aprobados por David el 10-11-2026. Trazabilidad: T-01 a T-14. -->
 <!-- Material interno para generación; no se sirve literal. -->
 
