@@ -18,6 +18,17 @@ Cada página se descargó el 10-11-2026. Las de Mateos Brea se descargaron **dos
 | W-12 | https://es.wikipedia.org/wiki/Deltoya | — | «María Timón – Voces en Sol de invierno, Con un latido del reloj, Papel secante y Ama, ama, ama y ensancha el alma» |
 | W-13 | https://www.discogs.com/release/4025591-Extremoduro-Deltoya (LP de 1992) | — | «Gracias a: Rafa Kas,María,Belén,Ariel Rot,…» (leído por la API de Discogs; la web da 403) |
 | W-14 | https://es.wikipedia.org/wiki/Grandes_%C3%A9xitos_y_fracasos | — | «Voces de Belén y María de las pistas originales.» |
+| W-15 | *Hoy*, «La nueva avenida del Berrocal de Plasencia llevará el nombre de Roberto Iniesta» (Juan Carlos Ramos), https://www.hoy.es/plasencia/nueva-avenida-berrocal-plasencia-llevara-nombre-roberto-20250201103657-nt.html | 01-02-2025 | «Pizarro también manifestó que ha llegado a un acuerdo con artista urbano Jesús Mateos Brea para que pueda convertir las paredes de la plaza Puerto de Béjar (al lado de Carrefour) en un galería de grafitis dedicada a las poesías de Manolillo Chinato» |
+| W-16 | *El Periódico Extremadura*, «El sur y el norte de Plasencia se une con la apertura de la Avenida de Roberto Iniesta» (Mónica Meneses), https://www.elperiodicoextremadura.com/plasencia/2025/08/09/sur-norte-plasencia-une-apertura-avenida-arqueologico-restos-cementeriojudio-120469191.html | 09-08-2025 | «El ayuntamiento de Plasencia ha abierto al tráfico la nueva avenida que bordea el cementerio judío de la ciudad. Esta nueva avenida se llama Roberto Iniesta» · «consta de medio kilómetro de longitud» |
+| W-17 | *El País*, «Radiografía del Robe más desconocido: la primera canción que escribió se llamó 'Cepillo de dientes'» (Carlos Marcos), https://elpais.com/cultura/2026-11-09/radiografia-del-robe-mas-desconocido-la-primera-cancion-que-escribio-se-llamo-cepillo-de-dientes.html | 09-11-2026 | «Lo cuenta en el documental Paco Dóniga, bajista de Dosis Letal» · «'Mira, Roberto, creo que las canciones las debes cantar tú, porque las tienes en la cabeza'. Y él: 'Joder, si a mí lo que me gusta es tocar la guitarra'». **Ojo: la fuente del artículo es el propio documental de Juancares**: vale como cita literal limpia del testimonio, no como corroboración independiente. Lo corrobora Casañas (W-10). |
+
+Las páginas de W-15 a W-17 y los artículos de *Hoy* de 2021 y 2024 los descargó David el 10-11-2026 (hoy.es y elpais.com bloquean las herramientas). Su texto se extrajo en local y no se versiona.
+
+## Lo que aportan las descargas de David y no entra como dato
+
+- **Juancares es Juan Carlos Ramos** (El País, W-17: «un hercúleo trabajo que está llevando a cabo Juan Carlos Ramos»). Los artículos de *Hoy* firmados por él son del mismo autor que los vídeos: no corroboran lo que dicen los vídeos.
+- **Ángel Lorenzo**: *Hoy* 18-07-2024 (Ramos) solo dice «primero con William y Kaíto y luego con Salo y Fanta», y no lo nombra. El País reproduce su testimonio del documental. Sigue sin fuente independiente.
+- **Paramio** es **Ángel Paramio**, «fundador a su vez de otro grupo histórico del rock placentino como 'Los Castores'» e «íntimo amigo» de Salo (*Hoy*, 13-07-2021, Ramos). El «cofundador de Extremoduro» de Mondo Sonoro parece un error: [HIPÓTESIS] sin una tercera fuente.
 
 ## Lo que se buscó y NO se ha podido sostener (no entra)
 
