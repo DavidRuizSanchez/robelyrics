@@ -88,7 +88,30 @@ def _rehost(db, types: list[str]) -> None:
         db.commit()
 
 
-def _concrete_image(name: str, *, aliases: list[str] | None = None) -> dict | None:
+# Lo que Commons tiene que decir de la foto para aceptarla como retrato de alguien
+# de ESTE universo. Estricto a propósito: el 10-11-2026 la búsqueda por nombre puso en
+# prod 15 fotos de otros (el skyline de Nueva York para «Capi», una central eléctrica
+# de Salo, Finlandia, para Salo; un emperador mongol para «Mongol»; un jugador de
+# balonmano para Aitor Ariño). La acreditación casaba el nombre; nada decía que fuera
+# un músico. «stage» o «escenario» no valen: salen en cualquier foto.
+_MUSICA_ESTRICTA = (
+    "musician", "musico", "singer", "cantante", "vocalist", "vocalista", "guitarist",
+    "guitarrista", "bassist", "bajista", "drummer", "bateria", "baterista", "saxophonist",
+    "saxofonista", "keyboardist", "teclista", "violinist", "violinista", "sound engineer",
+    "tecnico de sonido", "record producer", "productor musical", "rock band", "grupo de rock",
+    "extremoduro", "concert", "concierto",
+)
+
+
+def es_de_la_musica(categorias: list[str], descripcion: str) -> bool:
+    from app.services.image_guard import _norm
+
+    texto = _norm(" ".join(categorias) + " " + (descripcion or ""))
+    return any(_norm(t) in texto for t in _MUSICA_ESTRICTA)
+
+
+def _concrete_image(name: str, *, aliases: list[str] | None = None,
+                    retrato_musico: bool = False, dry_run: bool = False) -> dict | None:
     """Foto CC real de ESTA entidad: Wikidata P18 y, si falla, búsqueda en Commons.
 
     Dos guardas que antes no había y que son el origen de los fallos repetidos:
@@ -127,7 +150,16 @@ def _concrete_image(name: str, *, aliases: list[str] | None = None) -> dict | No
         if not verdict.publishable:
             logger.info("  ✗ descartada para «%s»: %s", name, verdict.reason)
             continue
+        if retrato_musico:
+            fname = image_guard.commons_filename(img["url"], img.get("source"))
+            ev = image_guard.commons_evidence(fname) if fname else None
+            if not ev or not es_de_la_musica(ev.get("categories", []), ev.get("description", "")):
+                logger.info("  ✗ descartada para «%s»: Commons no dice que sea alguien de la "
+                            "música (%s)", name, ", ".join((ev or {}).get("categories", [])[:3]))
+                continue
         origen = img["url"]
+        if dry_run:
+            return img          # en seco: ni se re-aloja ni se guarda
         hosted = _rehost_to_cloudinary(origen) if image_guard.must_rehost(origen) else origen
         if not hosted:
             logger.warning("  ✗ «%s»: no se pudo re-alojar la foto; no se guarda un hot-link", name)
@@ -232,6 +264,9 @@ def main() -> None:
     ap.add_argument("--types", default="artist,place,theme,concept",
                     help="Coma-separado: artist,place,theme,concept")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="dice qué foto pondría a cada una, sin re-alojar ni escribir nada "
+                         "(revisar SIEMPRE antes de aplicar en bloque: gotcha del 10-11-2026)")
     ap.add_argument("--sample", type=int, default=0,
                     help="Solo procesa N entidades (para revisión).")
     ap.add_argument("--limit", type=int, default=0)
@@ -304,9 +339,14 @@ def main() -> None:
                     aliases = [a for a in (getattr(e, "stage_name", None),
                                            getattr(e, "full_name", None)) if a]
                     nombre = getattr(e, "name", None) or (aliases[0] if aliases else e.slug)
-                    img = _concrete_image(nombre, aliases=aliases)
+                    img = _concrete_image(nombre, aliases=aliases,
+                                          retrato_musico=(t == "person"), dry_run=args.dry_run)
                     if not img:
                         logger.info("  %s «%s»: sin foto CC acreditada", t, getattr(e, "name", e.slug))
+                        continue
+                    if args.dry_run:
+                        logger.info("  ? %s «%s» → %s · %s", t, nombre, img["credit"],
+                                    img.get("source") or img["url"])
                         continue
                     db.execute(update(model).where(model.id == e.id).values(
                         image_url=img["url"],
