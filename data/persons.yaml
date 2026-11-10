@@ -113,6 +113,26 @@ persons:
         era: "1987"
         position: 7
 
+  # Entidades del cap. 64 (plan del 10-11-2026, fase 5). Ninguna tiene artículo
+  # propio en Wikipedia: grafía tomada de Wikipedia donde las nombra (criterio de
+  # David) y sembradas con --no-enrich. No se ven hasta que su ficha esté publicada
+  # (person_visibility). Evidencia: data/juancares/cap64/analisis_personas/SOURCES.md.
+
+  # Bajista puntual de Dosis Letal, el primer grupo de Robe (Wikipedia ES
+  # «Extremoduro» y «Roberto Iniesta»: «Paco Doniga»). Testimonios T-04 a T-06.
+  - slug: paco-doniga
+    full_name: Paco Doniga
+
+  # Corista: coros en «Somos unos animales» y voces en «Deltoya» (créditos de
+  # Wikipedia; data/vocal_credits.yaml). Testimonio T-07 (de Belén).
+  - slug: maria-timon
+    full_name: María Timón
+
+  # Artista placentino, autor del macromural de Plasencia sobre Robe y Manolo
+  # Chinato (Forbes, 11-03-2025; data/reference/robe_solo_y_entorno). Testimonio T-14.
+  - slug: jesus-mateos-brea
+    full_name: Jesús Mateos Brea
+
   - slug: salo
     full_name: Gonzalo Muñoz
     stage_name: Salo
