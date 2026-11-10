@@ -171,8 +171,12 @@ _MADRID = ZoneInfo("Europe/Madrid")
 _CONTADOR = re.compile(r"Día (\d+) sin Robe")
 
 
-def fecha_de_publicacion(item: InstagramQueueItem) -> date:
-    """El día en que saldrá el post, en Madrid: el fijado, o hoy si va al goteo."""
+def fecha_de_publicacion(item: InstagramQueueItem, hoy: date | None = None) -> date:
+    """El día en que saldrá el post, en Madrid: el fijado, o hoy si va al goteo.
+
+    `hoy` existe para que quien ya fijó el día (`_dia_de_salida`, los tests) no
+    mezcle dos relojes: sin él, el test del contador solo pasaba el 09-11-2026.
+    """
     if item.publish_at is not None:
         cuando = item.publish_at
         if cuando.tzinfo is None:
@@ -180,7 +184,7 @@ def fecha_de_publicacion(item: InstagramQueueItem) -> date:
         return cuando.astimezone(_MADRID).date()
     if item.publish_on is not None:
         return item.publish_on
-    return datetime.now(_MADRID).date()
+    return hoy or datetime.now(_MADRID).date()
 
 
 def contador_desfasado(item: InstagramQueueItem, hoy: date | None = None) -> bool:
@@ -200,7 +204,7 @@ def _dia_de_salida(item: InstagramQueueItem, hoy: date | None = None) -> date:
     """Hoy, salvo que esté fijado para más adelante (un ensayo en seco de un post
     programado no tiene que rehacerlo para el día de hoy)."""
     hoy = hoy or datetime.now(_MADRID).date()
-    return max(hoy, fecha_de_publicacion(item))
+    return max(hoy, fecha_de_publicacion(item, hoy))
 
 
 def _poner_al_dia_el_contador(db: Session, item: InstagramQueueItem) -> None:
