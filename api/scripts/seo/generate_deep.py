@@ -493,6 +493,15 @@ def generate_for_entity(
     )
     log(f"  ensamblado: {len(body)} chars")
 
+    # Lo que admite no saber no informa: frases y secciones fuera, por texto
+    # (source_guard.quitar_confesiones). Visto el 10-11-2026 en las fichas nuevas:
+    # «No hay información sobre otras bandas…», «El material no documenta…».
+    from app.services import source_guard
+    body, confesiones = source_guard.quitar_confesiones(body)
+    body, metatexto = source_guard.quitar_metatexto(body)
+    if confesiones or metatexto:
+        log(f"  quitado por confesar o hablar del material: {len(confesiones) + len(metatexto)} frase(s)")
+
     # Red de seguridad anti-alucinación: corrige errores de catálogo (canción↔
     # álbum↔año) contra la BD antes de persistir. Determinista, no reescribe.
     body = apply_catalog_check(db, body)

@@ -145,7 +145,11 @@ def anchor_prompt(db=None) -> str:
         f"Su debut fue «{EXTREMODURO_DEBUT[0]}» ({EXTREMODURO_DEBUT[1]}); "
         f"«Rock Transgresivo» (1994) es la regrabación que lo sustituyó, no el "
         f"debut. Si enumeras discos, usa los del material y llega hasta el "
-        f"último.{cola}"
+        f"último.{cola} "
+        f"ALCANCE: esto obliga cuando el texto recorre la trayectoria de Robe o de "
+        f"Extremoduro. Si trata de OTRA cosa (otra persona, un lugar, una obra, un "
+        f"homenaje), úsalo solo para no equivocarte de tiempo verbal: no añadas su "
+        f"muerte, el tromboembolismo ni la disolución si no son el tema."
     )
 
 

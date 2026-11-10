@@ -18,6 +18,7 @@
 - El alcalde de Plasencia, Fernando Pizarro, anunció en febrero de 2025 el acuerdo con Jesús Mateos Brea para convertir las paredes de la plaza Puerto de Béjar en una galería dedicada a las poesías de Manolo Chinato que inspiraron canciones de Extremoduro. (W-15)
 
 ## Robe y Plasencia
+- En Plasencia hay un segundo mural de Robe, distinto del de Jesús Mateos Brea: el del artista urbano lucense Primo (que firma Primo.asecas), en una de las fachadas de la plaza de San Martín, que muestra a Robe acompañado de tres buitres, hecho en tinta china sobre papel kraft; se dio a conocer a finales de diciembre de 2025. (W-18)
 - En agosto de 2025 Plasencia abrió al tráfico la avenida Roberto Iniesta, un vial de medio kilómetro que bordea el cementerio judío y une la calle Juan Vázquez con el ferial del Berrocal. (W-16)
 - Plasencia aprobó de forma definitiva el 8 de abril de 2026, con el apoyo unánime de la corporación municipal, el nombramiento de Robe como Hijo Predilecto de la ciudad. (W-09)
 

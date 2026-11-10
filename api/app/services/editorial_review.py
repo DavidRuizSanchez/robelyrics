@@ -36,6 +36,15 @@ logger = logging.getLogger(__name__)
 # Mínimo de palabras de prosa real para que un post sea publicable. NO se rellena
 # para alcanzarlo: si no llega con sustancia, se rechaza (o el admin lo fuerza).
 MIN_WORDS = 250
+# Una persona con un papel acotado en la historia (quien tocó en un concierto, un
+# muralista, una corista) no da para 250 palabras de sustancia, y pedírselas era
+# pedir relleno: las fichas del cap. 64 se rechazaban «por cortas» con todo
+# verificado. Criterio de David (10-11-2026): una ficha breve vale si todo es concreto.
+MIN_WORDS_POR_TIPO = {"person": 150}
+
+
+def _min_words(kind: str) -> int:
+    return MIN_WORDS_POR_TIPO.get(kind, MIN_WORDS)
 
 Verdict = Literal["pass", "revise", "reject"]
 
@@ -88,7 +97,12 @@ _RUBRIC: dict[str, str] = {
         "Aniversario de disco. Exige canciones clave, contexto de grabación, sello, "
         "sonido, lugar en la trayectoria. Sin concreción → reject."
     ),
-    "person": "Persona: discografía y proyectos con NOMBRE, hechos datados, relación real con Robe.",
+    # No a todos se les pide discografía: a un muralista le quitaba puntos por no
+    # tener discos (10-11-2026). Lo que se exige es su obra o su papel, con nombre.
+    "person": ("Persona: su obra o su papel con NOMBRE (discos y proyectos si es músico; "
+               "obras si es artista; cargos si es figura pública), hechos datados y relación "
+               "real con Robe. Una ficha breve es válida si todo lo que dice es concreto: no "
+               "se penaliza que alguien con un papel acotado no tenga trayectoria larga."),
     "band": "Banda: historia, miembros, discos célebres con nombre, vínculo real con Robe/Extremoduro.",
     "album": "Disco: canciones clave, grabación, sonido, contexto. Sin concreción → reject.",
     "song": "Canción: versos citados, significado, música, lugar en el disco.",
@@ -215,7 +229,7 @@ def review(
         "4. VALOR DIFERENCIAL: ¿aporta algo que un fan no encuentre ya en una ficha "
         "o un cartel genérico?\n"
         "5. DESARROLLO: un post de apenas unas frases, sin desarrollo, NO es "
-        "publicable aunque sea correcto (mínimo ~250 palabras de sustancia real). "
+        f"publicable aunque sea correcto (mínimo ~{_min_words(kind)} palabras de sustancia real). "
         "Si no hay material para desarrollarlo, es 'reject' (jamás se rellena).\n"
         "6. SOBRE-INTERPRETACIÓN / PSEUDO-ERUDICIÓN: NO vale llamar 'metáfora' o "
         "'símbolo' a lo que es una afirmación DIRECTA (p.ej. una crítica social "
@@ -298,8 +312,9 @@ def review(
     if verdict in ("pass", "revise"):
         final_body = tightened if verdict == "revise" else body
         words = _word_count(final_body)
-        if words < MIN_WORDS:
-            if verdict == "revise" and _word_count(body) >= MIN_WORDS:
+        minimo = _min_words(kind)
+        if words < minimo:
+            if verdict == "revise" and _word_count(body) >= minimo:
                 # El ORIGINAL sí llega al suelo y es la TIJERA la que se ha pasado.
                 # Antes esto era `reject`, y castigaba al editor por hacer bien su
                 # trabajo: un post de 256 palabras condensado a 188/242/246 salía
@@ -309,12 +324,12 @@ def review(
                 verdict, tightened = "pass", None
                 reasons = (reasons or []) + [
                     f"la versión condensada se quedaba en {words} palabras (< "
-                    f"{MIN_WORDS}): se mantiene el original, que sí llega"
+                    f"{minimo}): se mantiene el original, que sí llega"
                 ]
             else:
                 verdict, tightened = "reject", None
                 reasons = (reasons or []) + [
-                    f"demasiado corto ({words} palabras < {MIN_WORDS}); "
+                    f"demasiado corto ({words} palabras < {minimo}); "
                     "sin material para ampliarlo con sustancia"
                 ]
 
