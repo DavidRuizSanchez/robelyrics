@@ -10,7 +10,7 @@
 
 images:
   - target: person:jesus-mateos-brea
-    section: "El macromural dedicado a Robe y Manolo Chinato"   # se ajusta tras humanizar headings
+    section: "El mural de Robe y Manolo Chinato"
     url: "https://www.plasencia.es/web/images/stories/noticias26/20260504-muralbrea.jpg"
     alt: "Uno de los primeros bodegones del mural de Robe y Manolo Chinato en la plaza Puerto de Béjar"
     attribution: "Foto: Ayuntamiento de Plasencia (mayo de 2026)"
@@ -19,3 +19,13 @@ images:
     identity: "Mateos Brea"
     # En la foto salen dos personas delante del mural que la fuente no identifica:
     # el pie habla del mural, no de ellas.
+
+  - target: person:paco-doniga
+    section: "La dedicatoria de Robe"
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794346011/entreinteriores-art/tfuoha6fw9qg8oqnzv8g.jpg"
+    alt: "Dedicatoria manuscrita de Robe: «Desde los Dosis hasta aquí», junto al buitre de «Buitre no come alpiste»"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=2381s"
+    license: derechos de su autor
+    identity: "Plasencia y Robe"
+    identity_evidence: "la dedicatoria se lee en el fotograma (0:39:41), mientras habla Paco Dóniga"

@@ -97,7 +97,9 @@ def main() -> None:
                     log(f"  {slug}: no se aplica ({motivo})", "warn")
                     failed += 1
                     continue
-            rehosted = _rehost_to_cloudinary(url)
+            # Una foto que ya está en casa (p. ej. un fotograma subido a mano) no se
+            # vuelve a subir: _rehost_to_cloudinary devuelve None con las de Cloudinary.
+            rehosted = url if image_guard.is_own_host(url) else _rehost_to_cloudinary(url)
             if not rehosted:
                 log(f"  fallo re-alojando {slug} ({url[:60]}…)", "warn")
                 failed += 1
