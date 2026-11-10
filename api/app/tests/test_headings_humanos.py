@@ -15,15 +15,19 @@ MALOS = [
      "Mi espíritu imperecedero"),
     (["Quién es Jesús Mateos Brea: de los grafitis al grabado",
       "El macromural de Jesús Mateos Brea sobre Robe y Manolo Chinato"], "Jesús Mateos Brea"),
-    (["Paco Doniga y el paso de Robe al micrófono", "La dedicatoria de Robe a Paco Doniga"],
-     "Paco Doniga"),
+    (["Paco Doniga y el paso de Robe al micrófono", "La dedicatoria de Robe a Paco Doniga",
+      "Paco Doniga en Indecisión Momentánea"], "Paco Doniga"),
+    # Ninguno lo nombra: también falla (criterio de David, 10-11-2026).
+    (["Antes de Dosis Letal", "El concierto de 1983", "La dedicatoria de Robe"], "Paco Doniga"),
 ]
 BUENOS = [
-    (["Antes de Dosis Letal: Indecisión Momentánea", "El concierto de 1983",
+    (["Cuando Paco Doniga entró en Dosis Letal", "El concierto de 1983",
       "Cuando Robe se puso a cantar", "«Cepillo de dientes»"], "Paco Doniga"),
-    (["Qué cuenta la letra", "Cómo suena en Agila", "En directo"], "La Carrera"),
-    (["Del Jazz a la Casa de la Salud", "El primer batería (1987)"], "Ángel Lorenzo"),
-    (["De los grafitis al grabado", "El mural de Robe y Manolo Chinato"], "Jesús Mateos Brea"),
+    (["Qué cuenta la letra de «La Carrera»", "Cómo suena en Agila", "En directo"], "La Carrera"),
+    (["Del Jazz a la Casa de la Salud", "Ángel Lorenzo, el primer batería (1987)"],
+     "Ángel Lorenzo"),
+    (["Jesús Mateos Brea, de los grafitis al grabado", "El mural de Robe y Manolo Chinato"],
+     "Jesús Mateos Brea"),
 ]
 
 
@@ -86,11 +90,13 @@ def test_generate_deep_reescribe_un_esquema_forzado(monkeypatch):
 
     monkeypatch.setattr(generate_deep, "log", lambda *a, **k: None)
     monkeypatch.setattr(headings, "reescribir_headings",
-                        lambda *a, **k: ["Antes de Dosis Letal", "Cuando Robe se puso a cantar"])
+                        lambda *a, **k: ["Cuando Paco Doniga entró en Dosis Letal",
+                                         "Cuando Robe se puso a cantar"])
     outline = [{"heading": "Paco Doniga antes de Dosis Letal: su etapa", "covers": "a"},
                {"heading": "Paco Doniga y el micrófono", "covers": "b"}]
     nuevo = generate_deep._headings_humanos(None, "Paco Doniga", outline)
-    assert [s["heading"] for s in nuevo] == ["Antes de Dosis Letal", "Cuando Robe se puso a cantar"]
+    assert [s["heading"] for s in nuevo] == ["Cuando Paco Doniga entró en Dosis Letal",
+                                             "Cuando Robe se puso a cantar"]
     assert [s["covers"] for s in nuevo] == ["a", "b"]
 
 
