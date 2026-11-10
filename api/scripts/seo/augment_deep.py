@@ -27,6 +27,7 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
+from app.services import seo_style
 from app.services.deep_research import gather_entity_dossier
 from app.services.entity_resolver import (
     autolink_corpus,
@@ -241,8 +242,10 @@ def _corpus_gap_section(client, subject, current, dossier, existing_heads, prior
         f"{pista}\n\n"
         "Lista SOLO hechos/ángulos VERACES del material que NO estén ya cubiertos en el "
         "texto y merezcan una sección nueva con sustancia (fechas, obras, colaboraciones, "
-        "hechos concretos). NADA que ya esté en el texto. Máximo 1. Devuelve JSON "
-        '{"gaps":[{"heading":"<H2 concreto>","covers":"<qué cubre, nuevo>"}]}. '
+        "hechos concretos). NADA que ya esté en el texto. Máximo 1.\n"
+        + seo_style.PROMPT_HEADING_RULES +
+        'Devuelve JSON {"gaps":[{"heading":"<H2 natural, sin repetir el nombre del '
+        'protagonista>","covers":"<qué cubre, nuevo>"}]}. '
         'Si no hay hueco real, {"gaps":[]}.',
         max_tokens=600,
     )

@@ -179,10 +179,12 @@ Propón ENTRE 2 Y {cap} secciones H2, SOLO las que el material real permita llen
 con sustancia (datos, historias, hechos concretos). Si hay poco material, propón
 MENOS secciones y más densas: NO inventes secciones de relleno ni temas sin soporte.
 Cada sección debe cubrir algo DISTINTO y tratar SOBRE {subject}.
-ENCABEZADOS: específicos y con sentido sobre {subject}; NADA de títulos forzados,
-genéricos o sin coherencia semántica (mal: «El Rock Transgresivo: Un Género
-Extremadura»). Todo el esquema debe girar en torno a {subject}.
-Devuelve JSON {{"sections":[{{"heading":"<H2 concreto sobre {subject}>","covers":"<qué cubre, distinto>"}}]}}.
+NADA de títulos forzados, genéricos o sin coherencia semántica (mal: «El Rock
+Transgresivo: Un Género Extremadura»).
+{seo_style.PROMPT_HEADING_RULES}
+Ejemplos (la FORMA, no la frase):
+{seo_style.EJEMPLOS_ORO_HEADINGS}
+Devuelve JSON {{"sections":[{{"heading":"<H2 natural, como lo escribiría una persona>","covers":"<qué cubre, distinto>"}}]}}.
 """
     data = _chat(client, user, max_tokens=1200)
     secs = data.get("sections") if isinstance(data, dict) else None
@@ -291,6 +293,28 @@ def _polish(client: OpenAI, subject: str, body: str, allowed_terms: set[str] | N
     return v if len(v) > 200 else body
 
 
+def _headings_humanos(client: OpenAI, subject: str, outline: list[dict]) -> list[dict]:
+    """Si el esquema trae headings forzados, se piden reescritos UNA vez.
+
+    `seo_style.heading_verdict` es la guarda (el nombre como mucho en uno, nada de
+    «Sujeto: tema»). Si la reescritura sigue fallando o cambia el número de
+    secciones, se queda el esquema original y se avisa: no se bloquea la ficha.
+    """
+    from app.services.headings import reescribir_headings
+
+    viejos = [s["heading"] for s in outline]
+    v = seo_style.heading_verdict(viejos, subject=subject)
+    if v.ok:
+        return outline
+    nuevos = reescribir_headings(client, subject, viejos, [s.get("covers", "") for s in outline],
+                                 motivos=v.motivos)
+    if nuevos and seo_style.heading_verdict(nuevos, subject=subject).ok:
+        log(f"  headings reescritos por forzados: {'; '.join(v.motivos)[:160]}")
+        return [{**s, "heading": h} for s, h in zip(outline, nuevos)]
+    log(f"  headings forzados que no se han podido arreglar: {'; '.join(v.motivos)[:160]}", "warn")
+    return outline
+
+
 def _material_afirmable(client: OpenAI, dossier, consultas: list[str]) -> str:
     """Lo que el verificador puede dar por bueno: lo propio + lo ajeno corroborado.
 
@@ -397,8 +421,8 @@ def generate_for_entity(
     kw_block = ""
     if target_keyword:
         kw_block = (
-            f"KEYWORD OBJETIVO: «{target_keyword}» (úsala con naturalidad "
-            "en el título y algún H2). "
+            f"KEYWORD OBJETIVO: «{target_keyword}» (úsala con naturalidad en el "
+            "título y el texto; en los headings, solo si encaja sola). "
             + (f"SECUNDARIAS: {', '.join(secondary)}. " if secondary else "")
             + "Construye los headings teniéndolas en cuenta, pero NO fuerces ni "
             "rellenes: prima el conocimiento real del corpus.\n"
@@ -443,6 +467,7 @@ def generate_for_entity(
     if not outline:
         log("el outline salió vacío; abortando", "err")
         return False
+    outline = _headings_humanos(client, dossier.subject, outline)
     headings = [s["heading"] for s in outline]
     full = _material_afirmable(client, dossier, [dossier.subject, *headings[:4]])
     parts: list[str] = []

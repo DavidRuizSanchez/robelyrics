@@ -537,9 +537,11 @@ KEYWORDS OBJETIVO (lo que la gente teclea en Google, con su volumen):
 INSTRUCCIONES:
 - Responde de verdad a la intención de búsqueda de la keyword principal
   («{primary}»). Si alguien busca eso, este artículo debe resolverlo.
-- Usa la keyword principal en el primer párrafo y en algún H2, con
-  naturalidad. Las secundarias, repártelas sin forzar. NADA de
-  keyword-stuffing.
+- Usa la keyword principal en el primer párrafo, con naturalidad (en los
+  headings solo si encaja sola). Las secundarias, repártelas sin forzar. NADA
+  de keyword-stuffing.
+- Headings humanos: el protagonista, como mucho en uno; nada de moldes
+  «Nombre: tema»; mayúscula solo al principio y en nombres propios.
 - 500-900 palabras. 2-4 secciones con H2 concretos.
 - Si el tema es sensible (fallecimiento, familia), trátalo con respeto y
   solo con información pública y asumida. Sin morbo.

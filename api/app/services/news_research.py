@@ -21,7 +21,7 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
-from app.services import robe_facts
+from app.services import robe_facts, seo_style
 from app.services.content_generator import _call
 from app.services.instagram import web_image
 from app.services.openai_chat import openai_chat_kwargs
@@ -715,9 +715,10 @@ def research_and_write(
     )
     target_kw = subject  # KW primaria del post = el protagonista de la noticia
     kw_block = (
-        f"KEYWORD OBJETIVO: «{target_kw}» (úsala con naturalidad en el título y "
-        "algún H2). Construye los headings teniéndola en cuenta, sin forzar; "
-        "prima el conocimiento real del material.\n"
+        f"KEYWORD OBJETIVO: «{target_kw}» (úsala con naturalidad en el título y el "
+        "texto; en los headings, solo si encaja sola). "
+        + seo_style.PROMPT_HEADING_RULES
+        + "Prima el conocimiento real del material.\n"
     )
 
     # Generación PROFUNDA: mismo motor que las páginas SEO (outline adaptativo +

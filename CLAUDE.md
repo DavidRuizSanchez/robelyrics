@@ -522,6 +522,27 @@ Cuatro cosas que conviene no deshacer:
   publicada de Barricada tiene verbos, cabe y cita el diferencial, y aun así es un
   resumen. Eso es un **aviso** que viaja al correo y al panel, nunca un bloqueo.
 
+## Los headings son para el lector, siempre
+
+Criterio de David (10-11-2026): «Paco Doniga antes de Dosis Letal: su etapa en
+Indecisión Momentánea» no es natural. Los headings tienen que sonar humanos **siempre**.
+Otra vez lo ordenaba el motor: el esquema de `generate_deep` pedía «<H2 concreto sobre
+{subject}>» y los bloques de keyword pedían meterla «en algún H2». Medido ese día: 47 de
+50 fichas de persona y 131 de 153 canciones repetían el sujeto en dos o más H2.
+
+- La regla vive en **`seo_style.PROMPT_HEADING_RULES`** (+ `EJEMPLOS_ORO_HEADINGS`), y
+  la usan todos los caminos que escriben headings: `generate_deep`, `augment_deep`,
+  `merge_deep`, `news_research`, `content_generator` y `generate_flagship`.
+- **`seo_style.heading_verdict`** es la guarda determinista. Bloquea el nombre del
+  protagonista en más de un heading y el molde «Sujeto: tema». Avisa de las mayúsculas
+  tras dos puntos. `generate_deep` reescribe el esquema UNA vez si bloquea.
+- **`ranking_guard.renombre_permitido(..., sujeto=)`** mide la cobertura sin el nombre:
+  quitarlo de un H2 no pierde ninguna búsqueda, porque ya va en el title y el H1. Sin
+  esto, ningún heading forzado se podía arreglar.
+- `scripts/seo/humanize_headings.py` reescribe los de lo ya publicado. Solo cambia las
+  líneas `## ` (comprobado línea a línea), conserva el heading que perdería una
+  búsqueda protegida y guarda `content_revisions` antes de aplicar.
+
 ## Lo que Google dice que falta no siempre es contenido
 
 El correo de los lunes llevaba meses siendo **solo un informe**: listaba URLs en
