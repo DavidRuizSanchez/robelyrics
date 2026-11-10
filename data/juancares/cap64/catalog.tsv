@@ -1,0 +1,242 @@
+person	salo	Salo	Gonzalo Muñoz
+person	jose-ignacio-cantera	Iñaki Cantera	José Ignacio Cantera
+person	selu		Selu
+person	miguel-colino		Miguel Colino
+person	frank-zappa		Frank Zappa
+person	robe-iniesta	Robe	Roberto Iniesta
+person	alen-ayerdi		Alén Ayerdi
+person	freddie-mercury		Freddie Mercury
+person	ara-malikian		Ara Malikian
+person	ariel-rot		Ariel Rot
+person	rosendo-mercado	Rosendo	Rosendo Mercado Ruiz
+person	enrique-el-drogas	El Drogas	Enrique Villarreal
+person	alvaro-rodriguez-barroso		Álvaro Rodríguez Barroso
+person	lorenzo-gonzalez		Lorenzo González
+person	kaito		Kaíto
+person	william-extremoduro		William
+person	luis-von-fanta	von Fanta	Luis Iglesias
+person	mon-sogas	Mon	Ramón Sogas
+person	carlitos-perez		Carlitos Pérez
+person	miguel-ferreras		Miguel Ferreras
+person	uge-ortiz	Uge	Eugenio Ortiz
+person	david-lerman		David Lerman
+person	inaki-milindris	Milindris	Iñaki Setién
+person	capi-gil	Capi	Alberto Gil
+person	diego-garay		Diego Garay
+person	alber-fuentes		Alber Fuentes
+person	carlos-el-sucio	el Sucio	Carlos Jiménez
+person	jorge-el-moja	el Moja	Jorge Pérez
+person	kutxi-romero		Kutxi Romero
+person	manolo-chinato	Manolo Chinato	Manuel Chinato
+person	manolo-kabezabolo	Manolo Kabezabolo	Manuel Méndez Lozano
+person	camaron	Camarón de la Isla	José Monje Cruz
+person	woody-amores		Woody Amores
+person	raul-guerrero		Raúl Guerrero
+person	jon-calvo		Jon Calvo
+person	jaime-moreno		Jaime Moreno
+person	mikel-irazoki		Mikel Irazoki
+person	aitor-arino		Aitor Ariño
+person	tomas-rodriguez		Tomás Rodríguez
+person	ventura-rico		Ventura Rico
+person	rafael-gallego		Rafael Gallego
+person	juantxu-mongol-olano	Mongol	Juantxu Olano
+person	manolete	Manolete	Manuel Laureano Rodríguez Sánchez
+person	inaki-uoho-anton	Uoho	Iñaki Antón
+person	fermin-muguruza		Fermín Muguruza
+person	albert-pla		Albert Pla
+person	fito-cabrales	Fito	Adolfo Cabrales Mato
+person	leiva	Leiva	José Miguel Conejo Torres
+artist	extremoduro	Extremoduro	
+artist	robe	Robe	
+album	rock-transgresivo	Rock Transgresivo	1994 extremoduro
+album	somos-unos-animales	Somos unos animales	1991 extremoduro
+album	iros-todos-a-tomar-por-culo	Iros todos a tomar por culo	1997 extremoduro
+album	yo-minoria-absoluta	Yo, minoría absoluta	2002 extremoduro
+album	lo-que-aletea-en-nuestras-cabezas	Lo que aletea en nuestras cabezas	2015 robe
+album	destrozares	Destrozares, Canciones para el Final de los Tiempos	2016 robe
+album	deltoya	Deltoya	1992 extremoduro
+album	donde-estan-mis-amigos	¿Dónde están mis amigos?	1993 extremoduro
+album	pedra	Pedrá	1995 extremoduro
+album	grandes-exitos-y-fracasos-episodio-primero	Grandes éxitos y fracasos: Episodio primero	2004 extremoduro
+album	agila	Agila	1996 extremoduro
+album	canciones-prohibidas	Canciones prohibidas	1998 extremoduro
+album	la-ley-innata	La ley innata	2008 extremoduro
+album	material-defectuoso	Material defectuoso	2011 extremoduro
+album	para-todos-los-publicos	Para todos los públicos	2013 extremoduro
+album	mayeutica	Mayéutica	2021 robe
+album	se-nos-lleva-el-aire	Se nos lleva el aire	2023 robe
+album	tu-en-tu-casa-nosotros-en-la-hoguera	Tú en tu casa, nosotros en la hoguera	1990 extremoduro
+album	grandes-exitos-y-fracasos-episodio-segundo	Grandes éxitos y fracasos: Episodio segundo	2004 extremoduro
+album	bienvenidos-al-temporal	Bienvenidos al temporal	2018 robe
+song	pedra	Pedrá	pedra
+song	la-pedra-fragmento-en-directo	La Pedrá (Fragmento) [En Directo]	iros-todos-a-tomar-por-culo
+song	ruptura-leve	Ruptura leve	lo-que-aletea-en-nuestras-cabezas
+song	a-fuego	A Fuego	yo-minoria-absoluta
+song	la-hoguera	La hoguera	tu-en-tu-casa-nosotros-en-la-hoguera
+song	extremaydura	Extremaydura	tu-en-tu-casa-nosotros-en-la-hoguera
+song	romperas	Romperás	tu-en-tu-casa-nosotros-en-la-hoguera
+song	amor-castuo	Amor castúo	tu-en-tu-casa-nosotros-en-la-hoguera
+song	decidi	Decidí	tu-en-tu-casa-nosotros-en-la-hoguera
+song	jesucristo-garcia	Jesucristo García	tu-en-tu-casa-nosotros-en-la-hoguera
+song	emparedado	Emparedado	tu-en-tu-casa-nosotros-en-la-hoguera
+song	arrebato	Arrebato	tu-en-tu-casa-nosotros-en-la-hoguera
+song	la-hoguera-en-directo	La Hoguera (En Directo)	iros-todos-a-tomar-por-culo
+song	jesucristo-garcia-en-directo	Jesucristo García (En Directo)	iros-todos-a-tomar-por-culo
+song	desidia	Desidia	somos-unos-animales
+song	standby	Standby	yo-minoria-absoluta
+song	necesito-droga-y-amor-los-camellos-no-me-fian	Necesito Droga y Amor (Los Camellos No Me Fían)	somos-unos-animales
+song	te-juzgaran-solo-por-tus-errores-yo-no	Te juzgarán sólo por tus errores (Yo no)	rock-transgresivo
+song	adios-abanico-que-llego-el-aire	Adiós Abanico, Que Llego el Aire	rock-transgresivo
+song	extremaydura-rock-transgresivo	Extremaydura (Rock Transgresivo)	rock-transgresivo
+song	emparedado-rock-transgresivo	Emparedado (Rock Transgresivo)	rock-transgresivo
+song	decidi-rock-transgresivo	Decidí (Rock Transgresivo)	rock-transgresivo
+song	romperas-rock-transgresivo	Romperás (Rock Transgresivo)	rock-transgresivo
+song	con-un-latido-del-reloj	Con Un Latido Del Reloj	deltoya
+song	arrebato-rock-transgresivo	Arrebato (Rock Transgresivo)	rock-transgresivo
+song	jesucristo-garcia-rock-transgresivo	Jesucristo García (Rock Transgresivo)	rock-transgresivo
+song	la-hoguera-rock-transgresivo	La Hoguera (Rock Transgresivo)	rock-transgresivo
+song	caballero-andante-no-me-dejeis-asiii	Caballero andante (¡No me dejéis asíii!)	rock-transgresivo
+song	tu-corazon	Tu Corazón	somos-unos-animales
+song	la-cancion-de-los-oficios	La Canción de los Oficios	somos-unos-animales
+song	quemando-tus-recuerdos	Quemando Tus Recuerdos	somos-unos-animales
+song	v-centenario	V Centenario	somos-unos-animales
+song	j-d-la-central-nuclear	J.D. La Central Nuclear	somos-unos-animales
+song	ni-principes-ni-princesas	Ni Príncipes Ni Princesas	somos-unos-animales
+song	perro-callejero	Perro Callejero	somos-unos-animales
+song	resolucion	Resolución	somos-unos-animales
+song	puta	Puta	yo-minoria-absoluta
+song	sol-de-invierno	Sol de Invierno	deltoya
+song	de-acero	De Acero	deltoya
+song	el-duende-del-parque	El Duende del Parque	donde-estan-mis-amigos
+song	ultima-generacion	Última Generación	deltoya
+song	lucha-contigo-hoy-quiero-ganar-una-batalla-solo-una-pa-empezar	Lucha Contigo (Hoy quiero ganar una batalla, sólo una pa’ empezar)	deltoya
+song	bulerias-de-la-sangre-caliente-polla-dura-no-cree-en-dios	Bulerías de la sangre caliente (Polla dura no cree en Dios)	deltoya
+song	deltoya	Deltoya	deltoya
+song	relacion-convencional	Relación Convencional	deltoya
+song	volando-solo	Volando Solo	deltoya
+song	pepe-botika-donde-estan-mis-amigos	Pepe Botika (¿Dónde están mis amigos?)	donde-estan-mis-amigos
+song	ama-ama-ama-y-ensancha-el-alma	Ama, Ama, Ama y Ensancha el Alma	deltoya
+song	papel-secante	Papel secante	deltoya
+song	estado-policial-un-madero-mil-lapiceros	Estado Policial (Un ”madero”, mil lapiceros)	deltoya
+song	no-me-calientes-que-me-hundo	No Me Calientes que Me Hundo	donde-estan-mis-amigos
+song	cabezabajo	Cabezabajo	agila
+song	sin-dios-ni-amo	Sin Dios Ni Amo	donde-estan-mis-amigos
+song	estoy-muy-bien	Estoy Muy Bien	donde-estan-mis-amigos
+song	bri-bri-bli-bli-en-el-mas-sucio-rincon-de-mi-negro-corazon	Bri, bri, bli, bli (En el más sucio rincón de mi negro corazón)	donde-estan-mis-amigos
+song	malos-pensamientos	Malos Pensamientos	donde-estan-mis-amigos
+song	posado-en-un-nenufar	Posado en un Nenúfar	donde-estan-mis-amigos
+song	buscando-una-luna	Buscando una Luna	agila
+song	islero-shirlero-o-ladron	Islero, shirlero o ladrón	donde-estan-mis-amigos
+song	historias-prohibidas-nos-tiramos-a-joder	Historias Prohibidas (Nos Tiramos a Joder)	donde-estan-mis-amigos
+song	quemando-tus-recuerdos-en-directo	Quemando Tus Recuerdos (En Directo)	iros-todos-a-tomar-por-culo
+song	los-tengo-todos	Los Tengo Todos	donde-estan-mis-amigos
+song	primer-movimiento-el-sueno	Primer Movimiento: El Sueño	la-ley-innata
+song	prometeo	Prometeo	agila
+song	sucede	Sucede	agila
+song	la-vereda-de-la-puerta-de-atras	La Vereda de la Puerta de Atrás	yo-minoria-absoluta
+song	so-payaso	So Payaso	agila
+song	el-dia-de-la-bestia	El Día de la Bestia	agila
+song	segundo-movimiento-lo-de-fuera	Segundo Movimiento: Lo de Fuera	la-ley-innata
+song	tomas	Tomás	agila
+song	que-sonrisa-tan-rara	¡Qué Sonrisa Tan Rara!	agila
+song	abreme-el-pecho-y-registra	Ábreme el Pecho y Registra	agila
+song	todos-me-dicen	Todos Me Dicen	agila
+song	correcaminos-estate-al-loro	Correcaminos ¡Estate al loro!	agila
+song	la-carrera	La Carrera	agila
+song	otra-inutil-cancion-para-la-paz	Otra inútil canción para la paz	material-defectuoso
+song	me-estoy-quitando	Me Estoy Quitando	agila
+song	buscando-una-luna-en-directo	Buscando una Luna (En Directo)	iros-todos-a-tomar-por-culo
+song	de-acero-en-directo	De Acero (En Directo)	iros-todos-a-tomar-por-culo
+song	amor-castuo-en-directo	Amor castúo (En Directo)	iros-todos-a-tomar-por-culo
+song	correcaminos-estate-al-loro-en-directo	Correcaminos (Estate al loro) [En Directo]	iros-todos-a-tomar-por-culo
+song	pepe-botika-donde-estan-mis-amigos-en-directo	Pepe Botika (¿Dónde están mis amigos?) [En Directo]	iros-todos-a-tomar-por-culo
+song	tu-corazon-en-directo	Tu Corazón (En Directo)	iros-todos-a-tomar-por-culo
+song	bri-bri-bli-bli-en-el-mas-sucio-rincon-de-mi-negro-corazon-en-directo	Bri bri bli bli (En el más sucio rincón de mi negro corazón) [En Directo]	iros-todos-a-tomar-por-culo
+song	la-carrera-en-directo	La carrera (En Directo)	iros-todos-a-tomar-por-culo
+song	deltoya-en-directo	Deltoya (En Directo)	iros-todos-a-tomar-por-culo
+song	ama-ama-ama-y-ensancha-el-alma-en-directo	Ama, ama, ama y ensancha el alma (En directo)	iros-todos-a-tomar-por-culo
+song	su-culo-es-miel	Su Culo Es Miel	canciones-prohibidas
+song	salir	Salir	canciones-prohibidas
+song	esclarecido	Esclarecido	canciones-prohibidas
+song	erase-una-vez	Érase una Vez	canciones-prohibidas
+song	golfa	Golfa	canciones-prohibidas
+song	la-vieja-cancion-sordida	La Vieja (Canción Sórdida)	yo-minoria-absoluta
+song	extraterrestre	Extraterrestre	canciones-prohibidas
+song	autorretrato	Autorretrato	canciones-prohibidas
+song	enemigo	Enemigo	canciones-prohibidas
+song	villancico-del-rey-de-extremadura-vaya-puta-mierda-de-villancico-colega	Villancico del Rey de Extremadura (Vaya Puta Mierda de Villancico, Colega)	canciones-prohibidas
+song	hoy-te-la-meto-hasta-las-orejas	Hoy Te La Meto Hasta Las Orejas	yo-minoria-absoluta
+song	menamoro	Menamoro	yo-minoria-absoluta
+song	luce-la-oscuridad	Luce la Oscuridad	yo-minoria-absoluta
+song	cerca-del-suelo	Cerca del Suelo	yo-minoria-absoluta
+song	buitre-no-come-alpiste	Buitre No Come Alpiste	yo-minoria-absoluta
+song	dulce-introduccion-al-caos	Dulce Introducción al Caos	la-ley-innata
+song	si-te-vas	Si te vas...	material-defectuoso
+song	tercer-movimiento-lo-de-dentro	Tercer Movimiento: Lo de Dentro	la-ley-innata
+song	cuarto-movimiento-la-realidad	Cuarto Movimiento: La Realidad	la-ley-innata
+song	el-camino-de-las-utopias	El Camino de las Utopías	para-todos-los-publicos
+song	coda-flamenca-otra-realidad	Coda Flamenca (Otra Realidad)	la-ley-innata
+song	desarraigo	Desarraigo	material-defectuoso
+song	mi-espiritu-imperecedero	Mi espíritu imperecedero	material-defectuoso
+song	tango-suicida	Tango suicida	material-defectuoso
+song	calle-esperanza-s-n	Calle Esperanza S/N	material-defectuoso
+song	locura-transitoria	Locura Transitoria	para-todos-los-publicos
+song	entre-interiores	Entre Interiores	para-todos-los-publicos
+song	primer-movimiento-despues-de-la-catarsis	Primer movimiento: Después de la catarsis	mayeutica
+song	que-borde-era-mi-valle	¡Qué borde era mi valle!	para-todos-los-publicos
+song	un-suspiro-acompasado	Un suspiro acompasado	lo-que-aletea-en-nuestras-cabezas
+song	poema-sobrecogido	Poema sobrecogido	para-todos-los-publicos
+song	manue-iv	Manué IV	para-todos-los-publicos
+song	mama	Mama	para-todos-los-publicos
+song	mi-voluntad	Mi voluntad	para-todos-los-publicos
+song	pequeno-rocanrol-endemico	Pequeño rocanrol endémico	para-todos-los-publicos
+song	guerrero	Guerrero	lo-que-aletea-en-nuestras-cabezas
+song	y-rozar-contigo	...Y rozar contigo	lo-que-aletea-en-nuestras-cabezas
+song	nana-cruel	Nana cruel	lo-que-aletea-en-nuestras-cabezas
+song	de-manera-urgente	De manera urgente	lo-que-aletea-en-nuestras-cabezas
+song	por-ser-un-pervertido	Por ser un pervertido	lo-que-aletea-en-nuestras-cabezas
+song	contra-todos	Contra todos	lo-que-aletea-en-nuestras-cabezas
+song	hoy-al-mundo-renuncio	Hoy al mundo renuncio	destrozares
+song	el-cielo-cambio-de-forma	El cielo cambió de forma	destrozares
+song	querre-lo-prohibido	Querré lo prohibido	destrozares
+song	viajando-por-el-interior	Viajando por el interior	se-nos-lleva-el-aire
+song	cartas-desde-gaia	Cartas desde Gaia	destrozares
+song	del-tiempo-perdido	Del tiempo perdido	destrozares
+song	por-encima-del-bien-y-del-mal	Por encima del bien y del mal	destrozares
+song	donde-se-rompen-las-olas	Donde se rompen las olas	destrozares
+song	puta-humanidad	Puta humanidad	destrozares
+song	la-cancion-mas-triste	La canción más triste	destrozares
+song	destrozares	Destrozares	destrozares
+song	interludio	Interludio	mayeutica
+song	segundo-movimiento-mierda-de-filosofia	Segundo movimiento: Mierda de filosofía	mayeutica
+song	tercer-movimiento-un-instante-de-luz	Tercer movimiento: Un instante de luz	mayeutica
+song	cuarto-movimiento-yo-no-soy-el-dueno-de-mis-emociones	Cuarto movimiento: Yo no soy el dueño de mis emociones	mayeutica
+song	coda-feliz	Coda feliz	mayeutica
+song	el-hombre-pajaro	El hombre pájaro	se-nos-lleva-el-aire
+song	nada-que-perder	Nada que perder	se-nos-lleva-el-aire
+song	a-la-orilla-del-rio	A la orilla del río	se-nos-lleva-el-aire
+song	el-poder-del-arte	El poder del arte	se-nos-lleva-el-aire
+song	haz-que-tiemble-el-suelo	Haz que tiemble el suelo	se-nos-lleva-el-aire
+song	puntos-suspensivos	Puntos suspensivos	se-nos-lleva-el-aire
+song	ininteligible	Ininteligible	se-nos-lleva-el-aire
+song	adios-cielo-azul-llego-la-tormenta	Adiós, cielo azul, llegó la tormenta	se-nos-lleva-el-aire
+song	esto-no-esta-pasando	Esto no está pasando	se-nos-lleva-el-aire
+place	extremadura	Extremadura	region
+place	caceres	Cáceres	city
+place	badajoz	Badajoz	city
+place	colombia	Colombia	country
+place	el-piornal	El Piornal	village
+place	la-mancha	La Mancha	region
+place	plasencia	Plasencia	city
+place	valle-del-jerte	Valle del Jerte	region
+place	monfrague	Monfragüe	park
+place	madrid	Madrid	city
+place	bilbao	Bilbao	city
+place	barakaldo	Barakaldo	city
+place	muxika	Muxika	village
+place	berriz	Berriz	village
+place	merida	Mérida	city
+place	pamplona	Pamplona	city
+place	la-zubia	La Zubia	village
+place	carabanchel	Carabanchel	place
+place	marte	Marte	place

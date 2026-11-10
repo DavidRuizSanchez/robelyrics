@@ -1,0 +1,43 @@
+person:salo
+person:robe-iniesta
+person:lorenzo-gonzalez
+person:kaito
+person:william-extremoduro
+person:luis-von-fanta
+person:carlitos-perez
+person:david-lerman
+person:alber-fuentes
+person:carlos-el-sucio
+person:manolo-chinato
+person:rafael-gallego
+artist:extremoduro
+artist:robe
+album:rock-transgresivo 1994
+album:somos-unos-animales 1991
+album:deltoya 1992
+album:pedra 1995
+album:mayeutica 2021
+album:tu-en-tu-casa-nosotros-en-la-hoguera 1990
+song:la-cancion-de-los-oficios
+song:necesito-droga-y-amor-los-camellos-no-me-fian
+song:quemando-tus-recuerdos
+song:tu-corazon
+song:deltoya
+song:golfa
+song:buitre-no-come-alpiste
+song:standby
+song:nana-cruel
+song:un-suspiro-acompasado
+song:primer-movimiento-despues-de-la-catarsis
+song:del-tiempo-perdido
+song:pedra
+song:decidi
+song:extremaydura
+song:jesucristo-garcia
+song:la-hoguera
+song:romperas
+place:caceres
+place:plasencia
+place:valle-del-jerte
+place:monfrague
+place:merida

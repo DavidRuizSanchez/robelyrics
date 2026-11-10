@@ -1,0 +1,958 @@
+{
+ "extraido": "2026-11-10 16:31 UTC",
+ "endpoint": "keywords_data/google_ads/search_volume/live",
+ "location_code": 2724,
+ "language_code": "es",
+ "status": [
+  20000,
+  "Ok."
+ ],
+ "coste_usd": 0.09,
+ "por_persona": {
+  "E-020": {
+   "elia blanco": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 30
+     }
+    ]
+   },
+   "elia blanco extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "elia blanco robe": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "elia maria blanco": {
+    "search_volume": 40,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 50
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 170
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 30
+     }
+    ]
+   }
+  },
+  "E-028": {
+   "jose luis diaz plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "jose luis diaz extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "alcalde plasencia extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "E-037": {
+   "juano dosis letal": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "juano extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "dosis letal": {
+    "search_volume": 170,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 110
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 170
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 590
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 140
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 170
+     }
+    ]
+   },
+   "dosis letal robe": {
+    "search_volume": 70,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 480
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "dosis letal extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   }
+  },
+  "E-039": {
+   "paco doniga": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 70
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "paco doniga extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "paco doniga robe": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "E-040": {
+   "angel lorenzo extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "angel lorenzo bateria": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "primer bateria de extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "E-049/E-050": {
+   "maria timon": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "maria timon extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "coristas de extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "belen extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 50
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   }
+  },
+  "E-055": {
+   "susi iglesias": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "susi iglesias extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "portada rock transgresivo": {
+    "search_volume": 50,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 260
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   }
+  },
+  "E-048": {
+   "bar genesis plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "javi genesis plasencia": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "E-047": {
+   "paramio extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "la cuadra plasencia": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "E-068": {
+   "jesus mateos brea": {
+    "search_volume": 40,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 70
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 20
+     }
+    ]
+   },
+   "mateos brea": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "mural robe plasencia": {
+    "search_volume": 170,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 110
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 390
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 210
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 210
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "mural extremoduro plasencia": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   }
+  }
+ }
+}
