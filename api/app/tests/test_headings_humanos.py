@@ -92,3 +92,29 @@ def test_generate_deep_reescribe_un_esquema_forzado(monkeypatch):
     nuevo = generate_deep._headings_humanos(None, "Paco Doniga", outline)
     assert [s["heading"] for s in nuevo] == ["Antes de Dosis Letal", "Cuando Robe se puso a cantar"]
     assert [s["covers"] for s in nuevo] == ["a", "b"]
+
+
+def test_un_heading_no_puede_meter_un_dato_que_su_seccion_no_dice(monkeypatch):
+    """Muestra del 10-11-2026: «Estudios de grabación en Madrid» → «La grabación del
+    debut en los estudios M-20», en una sección que no nombra M-20."""
+    b = ("## Estudios de grabación en Madrid\n\nExtremoduro grabó varios discos en Madrid.\n\n"
+         "## Conciertos icónicos en Madrid: escenarios de leyenda\n\nTocaron en Madrid.")
+    monkeypatch.setattr(headings, "reescribir_headings", lambda *a, **k: [
+        "La grabación del debut en los estudios M-20", "Los conciertos en la capital"])
+    p = headings.proponer(None, body_md=b, subject="Madrid", protegidas=[])
+    assert p.despues[0] == "Estudios de grabación en Madrid"     # conservado
+    assert p.despues[1] == "Los conciertos en la capital"
+    assert any("m-20" in m.lower() or "m 20" in m.lower() for m in p.mantenidos)
+
+
+def test_se_aplican_las_mejoras_aunque_un_heading_se_quede_por_posicionamiento(monkeypatch):
+    """Agila, 10-11-2026: dos headings se quedaban por búsquedas protegidas y la página
+    entera dejaba de aplicarse."""
+    b = ("## Qué significa «Agila»: el castúo de Robe\n\nEl título es castúo.\n\n"
+         "## Las canciones de «Agila»: temas clave del disco\n\nLas canciones clave del disco.")
+    monkeypatch.setattr(headings, "reescribir_headings", lambda *a, **k: [
+        "El castúo detrás del título", "Las canciones clave del disco"])
+    protegidas = [{"query": "agila significado", "clicks": 3, "position": 6.0}]
+    p = headings.proponer(None, body_md=b, subject="Agila", protegidas=protegidas)
+    assert p.despues == ["Qué significa «Agila»: el castúo de Robe", "Las canciones clave del disco"]
+    assert p.veredicto_despues_bloquea and p.aplicable
