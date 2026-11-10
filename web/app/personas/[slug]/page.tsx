@@ -92,6 +92,8 @@ type PersonDetail = {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   schema_jsonld: Record<string, unknown> | null;
+  // Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id por la API.
+  jsonld_relaciones?: Record<string, unknown> | null;
 };
 
 async function fetchPerson(slug: string): Promise<PersonDetail | null> {
@@ -230,6 +232,21 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
       ? (schema.knowsAbout as Record<string, unknown>[])
       : [];
     schema.knowsAbout = [...prev, ...newMentions];
+  }
+
+  // Relaciones curadas: las que no caben en los campos de Wikidata (grupos sin
+  // Q-ID, colegas, obras de un artista visual…). Se suman a lo que ya hubiera; un
+  // valor suelto y una lista se combinan en lista.
+  for (const [clave, valor] of Object.entries(detail.jsonld_relaciones || {})) {
+    const previo = schema[clave];
+    if (previo === undefined) {
+      schema[clave] = valor;
+    } else if (clave === "@reverse" && typeof previo === "object" && typeof valor === "object") {
+      schema[clave] = { ...(previo as object), ...(valor as object) };
+    } else {
+      const lista = (v: unknown) => (Array.isArray(v) ? v : [v]);
+      schema[clave] = [...lista(previo), ...lista(valor)];
+    }
   }
 
   return schema;

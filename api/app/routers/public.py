@@ -1520,6 +1520,9 @@ class PublicPersonDetailOut(PublicPersonListItem):
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
     related_videos: list[PublicRelatedVideo] = []
+    # Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id. El frontend
+    # las fusiona en el nodo Person.
+    jsonld_relaciones: dict | None = None
 
 
 @router.get("/persons", response_model=list[PublicPersonListItem])
@@ -1546,6 +1549,18 @@ def public_persons_list(
         )
         for p in persons
     ]
+
+
+def _relaciones_curadas(db: Session, slug: str) -> dict | None:
+    """Las relaciones de data/person_jsonld.yaml. Un yaml roto no tumba la ficha."""
+    from app.services.person_jsonld import relaciones  # lazy
+
+    try:
+        return relaciones(db, slug)
+    except Exception:  # noqa: BLE001
+        logger.warning("person_jsonld: no se pudieron resolver las relaciones de %s", slug,
+                       exc_info=True)
+        return None
 
 
 @router.get("/persons/{slug}", response_model=PublicPersonDetailOut)
@@ -1624,6 +1639,7 @@ def public_person_detail(
         occupations=[
             PublicWikidataRef(**o) for o in (person.occupations or [])
         ],
+        jsonld_relaciones=_relaciones_curadas(db, person.slug),
         seo_body=seo.body_md if seo else None,
         seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
