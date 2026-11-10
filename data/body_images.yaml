@@ -1,0 +1,21 @@
+# ============================================================
+# Fotos dentro del cuerpo de las fichas
+# ============================================================
+# Las inserta `python -m scripts.seo.apply_body_images` (en seco por defecto) bajo
+# el heading `section`, con su crédito como pie. Pasan `image_guard`: re-alojadas en
+# casa, y libres o de TERCEROS con crédito (license: derechos de su autor, decisión de
+# David del 10-11-2026), con la identidad comprobada en `source_url`.
+# Nunca agencias (EFE, Europa Press, Getty, Cordon Press, Servimedia…) ni marcas de agua.
+# Si en la foto sale gente que la fuente no identifica, el pie NO la nombra.
+
+images:
+  - target: person:jesus-mateos-brea
+    section: "El macromural dedicado a Robe y Manolo Chinato"   # se ajusta tras humanizar headings
+    url: "https://www.plasencia.es/web/images/stories/noticias26/20260504-muralbrea.jpg"
+    alt: "Uno de los primeros bodegones del mural de Robe y Manolo Chinato en la plaza Puerto de Béjar"
+    attribution: "Foto: Ayuntamiento de Plasencia (mayo de 2026)"
+    source_url: "https://www.plasencia.es/web/noticias/3386-el-mural-homenaje-a-roberto-iniesta-y-manolo-chinato-avanza-en-la-plaza-puerto-de-bejar-con-los-primeros-bodegones-ya-visibles"
+    license: derechos de su autor
+    identity: "Mateos Brea"
+    # En la foto salen dos personas delante del mural que la fuente no identifica:
+    # el pie habla del mural, no de ellas.
