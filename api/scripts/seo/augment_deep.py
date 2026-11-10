@@ -79,12 +79,9 @@ _YT_LINE = re.compile(
 # Rojos» y dentro decía «no se detalla los nombres específicos de los miembros». Una
 # sección que promete en el título y se desdice en el cuerpo es PEOR que no tenerla:
 # el lector que buscaba eso entra, lo ve prometido y se va sin respuesta.
-_CONFESIONES = (
-    "no se detalla", "no se especifica", "no hay confirmación", "no hay constancia",
-    "no se conocen", "se desconoce", "no está documentado", "no se menciona",
-    "no se dispone", "no hay información", "no se ha confirmado", "sin confirmación",
-    "no se precisa", "no consta", "no se sabe", "no hay datos",
-)
+# La lista vive en `source_guard.CONFESIONES` (10-11-2026), que también la usan
+# `generate_deep` y el blog: aquí sigue siendo el criterio para descartar la sección.
+from app.services.source_guard import CONFESIONES as _CONFESIONES  # noqa: E402
 
 
 def confiesa_no_saber(seccion: str) -> str | None:

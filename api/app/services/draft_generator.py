@@ -396,6 +396,11 @@ def _post_process(db, body_md: str, entities: list, subject: str = "",
     from app.services.text_sanitizer import normalize_headings, strip_ai_tells
 
     hero = build_unique_hero(db, entities or [], subject, alt_label=title or subject)
+    # Lo que admite no saber no informa (source_guard.quitar_confesiones): el
+    # 10-11-2026 un borrador traía «El material no detalla el programa…».
+    from app.services import source_guard
+    body_md, _confesiones = source_guard.quitar_confesiones(body_md)
+    body_md, _metatexto = source_guard.quitar_metatexto(body_md)
     # Versos citados SIEMPRE completos: expande cada cita a la línea real del corpus.
     body_md = complete_verses(db, body_md) or body_md
     body_md = strip_ai_tells(body_md) or body_md
