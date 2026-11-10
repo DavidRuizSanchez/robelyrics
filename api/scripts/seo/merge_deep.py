@@ -433,6 +433,7 @@ def planificar(client, destino: Destino, consultas: list[str], protegidas: list[
         "no tenga.\n"
         f"- rename (máx {MAX_RENAMES}): solo si un heading existente gana claridad o "
         "cubre mejor una búsqueda SIN dejar de cubrir lo que ya cubre. Si dudas, no.\n"
+        + seo_style.PROMPT_HEADING_RULES +
         "- rewrite_intro: true solo si la intro ya no anuncia bien lo que la página "
         "pasa a contener. Se conservarán todos sus datos.\n"
         "- media: para una sección nueva, un vídeo (query de YouTube concreta) o la "
@@ -896,9 +897,15 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
         viejo, nuevo_h = (r.get("old") or "").strip(), (r.get("new") or "").strip()
         if not viejo or not nuevo_h or _buscar(trocear(destino.body), viejo) is None:
             continue
-        v = ranking_guard.renombre_permitido(viejo, nuevo_h, protegidas, alias)
+        v = ranking_guard.renombre_permitido(
+            viejo, nuevo_h, protegidas, alias,
+            sujeto=terminos_del_sujeto(destino.subject, alias))
         if not v.ok:
             notas["descartado"].append(f"rename {v.motivo}")
+            continue
+        h = seo_style.heading_verdict([nuevo_h], subject=destino.subject)
+        if not h.ok:
+            notas["descartado"].append(f"rename «{nuevo_h}»: {'; '.join(h.motivos)}")
             continue
         ops.renames.append({"old": viejo, "new": nuevo_h, "why": r.get("why") or ""})
 

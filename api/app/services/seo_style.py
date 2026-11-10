@@ -577,3 +577,90 @@ def meta_limpio(meta: dict, *, subject: str, body: str) -> tuple[str | None, str
         logger.warning("[meta] %s: la description no cabe limpia (%d c), se deja vacía",
                        subject, len(meta.get("meta_description") or ""))
     return t, d
+
+
+# --------------------------------------------------------------------------- #
+# Los headings (H2/H3)
+# --------------------------------------------------------------------------- #
+# Criterio de David (10-11-2026), al revisar las primeras fichas del cap. 64:
+# «Paco Doniga antes de Dosis Letal: su etapa en Indecisión Momentánea» no es
+# natural, y los headings tienen que ser humanos SIEMPRE. No era el modelo: el
+# esquema de `generate_deep` pedía «<H2 concreto sobre {subject}>» y los bloques de
+# keyword pedían meterla «en algún H2». Medido ese día en prod: 47 de 50 fichas de
+# persona y 131 de 153 canciones repetían el sujeto en dos o más H2.
+#
+# La keyword se cubre en el title, el H1 y el cuerpo. Un heading es para el lector:
+# dice qué viene en la sección, como lo diría alguien que cuenta la historia.
+
+PROMPT_HEADING_RULES = """\
+HEADINGS (H2/H3), regla dura: escríbelos como un humano que cuenta la historia, no
+como un SEO. Dicen qué hay en la sección, en pocas palabras y con naturalidad.
+- El nombre del protagonista de la página va COMO MUCHO en un heading (ya está en
+  el título): no lo repitas en cada sección.
+- Nada de moldes «Nombre: tema», «Tema de Nombre: subtema» ni «X y su relación con Y».
+- Capitalización española: mayúscula solo al principio y en nombres propios.
+- No metas la keyword en los headings: si encaja sola en uno, bien; si no, no se fuerza.
+"""
+
+EJEMPLOS_ORO_HEADINGS = """\
+✗ «Paco Doniga antes de Dosis Letal: su etapa en Indecisión Momentánea»
+✓ «Antes de Dosis Letal: Indecisión Momentánea»
+✗ «Quién es Jesús Mateos Brea: de los grafitis al grabado»
+✓ «De los grafitis al grabado»
+✗ «La Carrera: Letra y significado»  /  «La música de La Carrera en el contexto de Agila»
+✓ «Qué cuenta la letra»  /  «Cómo suena en Agila»
+✗ «El macromural de Jesús Mateos Brea sobre Robe y Manolo Chinato»
+✓ «El mural de Robe y Manolo Chinato»
+"""
+
+# Palabras que pueden ir en mayúscula sin ser Title Case (inicio tras dos puntos o
+# comillas, siglas…) — la comprobación mira palabras comunes, no nombres propios.
+_COMUNES_TITULO = {
+    "analisis", "letra", "significado", "musica", "contexto", "historia", "vida",
+    "carrera", "legado", "obra", "relacion", "conexion", "etapa", "influencia",
+    "impacto", "estilo", "sonido", "composicion", "trayectoria", "origen", "origenes",
+    "papel", "temas", "interpretaciones", "directo", "evolucion", "colaboracion",
+}
+
+
+def _nombres_sujeto(subject: str, alias: list[str] | None) -> list[str]:
+    out = []
+    for n in [subject, *(alias or [])]:
+        p = flatten(n or "").strip()
+        p = re.sub(r"\s*\(.*?\)\s*", " ", p).strip()      # «Pepe Botika (¿Dónde…?)»
+        if len(p) >= 3:
+            out.append(p)
+    return out
+
+
+def _nombra(heading_plano: str, nombres: list[str]) -> bool:
+    return any(re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", heading_plano) for n in nombres)
+
+
+def heading_verdict(headings: list[str], *, subject: str,
+                    alias: list[str] | None = None) -> MetaVerdict:
+    """¿Estos headings los escribiría una persona? Determinista, sin red.
+
+    Bloquea lo que se ve sin dudar: el sujeto repetido en más de un heading y la
+    cabeza «Sujeto: …». El Title Case es aviso: los nombres propios llevan mayúscula
+    y una regla dura daría falsos positivos.
+    """
+    v = MetaVerdict()
+    nombres = _nombres_sujeto(subject, alias)
+    planos = [flatten(h or "") for h in headings]
+    con_sujeto = [h for h, p in zip(headings, planos) if _nombra(p, nombres)]
+    if len(con_sujeto) > 1:
+        v.bloquear(f"el nombre de «{subject}» se repite en {len(con_sujeto)} headings "
+                   f"(máximo uno): " + " | ".join(con_sujeto[:4]))
+    for h, p in zip(headings, planos):
+        cabeza, _ = parse_title(h)
+        if cabeza != h.strip() and _nombra(flatten(cabeza), nombres):
+            v.bloquear(f"«{h}» usa el molde «{cabeza}: …»")
+        tras = re.split(r"[:—–]\s*", h, maxsplit=1)
+        cola = tras[1] if len(tras) > 1 else h
+        # Tras los dos puntos, en castellano, va minúscula: esa también cuenta.
+        palabras = re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", cola)[0 if len(tras) > 1 else 1:]
+        mayus = [w for w in palabras if w[:1].isupper() and flatten(w).strip() in _COMUNES_TITULO]
+        if mayus:
+            v.avisos.append(f"«{h}» parece Title Case ({', '.join(mayus[:3])})")
+    return v
