@@ -28,7 +28,48 @@ type PersonDataTableDetail = {
   occupations: WikidataRef[];
   other_bands: WikidataRef[];
   memberships: Membership[];
+  // Relaciones curadas (data/person_jsonld.yaml), ya resueltas por la API: lo que
+  // Wikidata no tiene (grupos sin Q-ID, colegas, obras de un artista visual…).
+  jsonld_relaciones?: Record<string, unknown> | null;
 };
+
+type Nodo = Record<string, unknown>;
+
+const SITE = /^https?:\/\/[^/]+/;
+
+function lista(v: unknown): Nodo[] {
+  if (!v) return [];
+  return (Array.isArray(v) ? v : [v]).filter(
+    (x): x is Nodo => typeof x === "object" && x !== null,
+  );
+}
+
+function texto(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+/** Nombre del nodo, enlazado a su ficha si la tiene (la API solo pone `url` si se ve). */
+function enlace(n: Nodo, key: string): ReactNode {
+  const nombre = texto(n.name) || "";
+  const url = texto(n.url);
+  return url ? (
+    <Link key={key} href={url.replace(SITE, "")} data-cursor="hover"
+          className="text-accent hover:underline">
+      {nombre}
+    </Link>
+  ) : (
+    <span key={key}>{nombre}</span>
+  );
+}
+
+function separados(nodos: ReactNode[]): ReactNode {
+  return nodos.map((n, i) => (
+    <span key={`s-${i}`}>
+      {i > 0 && <span className="text-ink-faint"> · </span>}
+      {n}
+    </span>
+  ));
+}
 
 function formatDateEs(iso: string | null): string | null {
   if (!iso) return null;
@@ -71,19 +112,32 @@ export default function PersonDataTable({
     .map((m) => `${m.role} de ${m.artist_name}${m.era ? ` (${m.era})` : ""}`)
     .join("; ");
 
+  const rel = detail.jsonld_relaciones || {};
   const rows: Row[] = [];
 
   rows.push({ label: "Nombre real", value: detail.full_name });
 
-  if (detail.stage_name && detail.stage_name !== detail.full_name) {
-    rows.push({ label: "Alias", value: detail.stage_name });
+  const alias = detail.stage_name && detail.stage_name !== detail.full_name
+    ? detail.stage_name
+    : texto(rel.alternateName);
+  if (alias) {
+    rows.push({ label: "Alias", value: alias });
   }
 
+  // Solo el año cuando es lo único que consta (schema.org lo admite; la columna no).
+  const anyo = texto(rel.birthDate);
   if (birth) {
     rows.push({
       label: "Nacimiento",
       value: `${birth}${detail.birth_place ? ` · ${detail.birth_place}` : ""}`,
     });
+  } else if (anyo && /^\d{4}$/.test(anyo)) {
+    rows.push({ label: "Nacimiento", value: anyo });
+  }
+
+  const ciudad = lista(rel.homeLocation)[0];
+  if (ciudad) {
+    rows.push({ label: "Ciudad", value: enlace(ciudad, "ciudad") });
   }
 
   if (death) {
@@ -94,10 +148,27 @@ export default function PersonDataTable({
     rows.push({ label: "Instrumentos", value: detail.instruments.join(" · ") });
   }
 
-  if (detail.occupations.length > 0) {
+  const oficios = [
+    ...detail.occupations.map((o) => o.name),
+    ...lista(rel.hasOccupation).map((o) => texto(o.name) || ""),
+  ].filter((o, i, todos) => o && todos.findIndex((x) => x.toLowerCase() === o.toLowerCase()) === i);
+  if (oficios.length > 0) {
+    rows.push({ label: "Oficios", value: oficios.join(" · ") });
+  }
+
+  const formacion = lista(rel.alumniOf);
+  if (formacion.length > 0) {
     rows.push({
-      label: "Oficios",
-      value: detail.occupations.map((o) => o.name).join(" · "),
+      label: "Formación",
+      value: separados(formacion.map((f, i) => {
+        const lugar = lista(f.location)[0];
+        return (
+          <span key={`f-${i}`}>
+            {texto(f.name)}
+            {lugar ? <span className="text-ink-dim"> ({texto(lugar.name)})</span> : null}
+          </span>
+        );
+      })),
     });
   }
 
@@ -122,6 +193,53 @@ export default function PersonDataTable({
               <span className="text-ink-dim">— {describeMembership(m)}</span>
             </li>
           ))}
+        </ul>
+      ),
+    });
+  }
+
+  // Grupos curados: un OrganizationRole lleva el grupo dentro, con su papel y su año.
+  const grupos = lista(rel.memberOf).map((m, i) => {
+    const grupo = m["@type"] === "OrganizationRole" ? lista(m.memberOf)[0] || {} : m;
+    const papel = [texto(m.roleName), texto(m.startDate)].filter(Boolean).join(", ");
+    return (
+      <li key={`g-${i}`}>
+        {enlace(grupo, `gn-${i}`)}
+        {papel && <span className="text-ink-dim"> — {papel}</span>}
+      </li>
+    );
+  });
+  if (grupos.length > 0) {
+    rows.push({ label: "Grupos", value: <ul className="space-y-1">{grupos}</ul> });
+  }
+
+  const colegas = lista(rel.colleague);
+  if (colegas.length > 0) {
+    rows.push({
+      label: "Tocó con",
+      value: separados(colegas.map((c, i) => enlace(c, `c-${i}`))),
+    });
+  }
+
+  const obras = lista((rel["@reverse"] as Nodo | undefined)?.creator);
+  if (obras.length > 0) {
+    rows.push({
+      label: "Obras",
+      value: (
+        <ul className="space-y-1">
+          {obras.map((o, i) => {
+            const lugar = lista(o.locationCreated)[0];
+            const donde = lugar ? texto(lugar.name) : null;
+            const dentro = lugar ? lista(lugar.containedInPlace)[0] : undefined;
+            const extra = [donde, dentro ? texto(dentro.name) : null, texto(o.dateCreated)]
+              .filter(Boolean).join(", ");
+            return (
+              <li key={`o-${i}`}>
+                {texto(o.name)}
+                {extra && <span className="text-ink-dim"> — {extra}</span>}
+              </li>
+            );
+          })}
         </ul>
       ),
     });

@@ -326,7 +326,7 @@ export default async function PersonPage({
                 <div className="aspect-[3/4] overflow-hidden bg-divider/30 relative">
                   <Image
                     src={detail.image_url}
-                    alt={`${detail.stage_name || detail.full_name}${detail.birth_place ? `, ${detail.birth_place}` : ""}${detail.birth_date ? ` · fotografía libre vía Wikimedia Commons` : ""}`}
+                    alt={`${detail.stage_name || detail.full_name}${detail.birth_place ? `, ${detail.birth_place}` : ""}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 280px"
                     priority

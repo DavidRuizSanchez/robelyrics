@@ -1435,6 +1435,11 @@ class PublicPersonListItem(BaseModel):
     birth_date: str | None = None
     death_date: str | None = None
     image_url: str | None = None
+    # Para que todas las tarjetas del hub digan lo mismo (petición de David,
+    # 10-11-2026): su papel, cuando el nombre real no aporta nada, y el año de
+    # nacimiento si solo consta el año (data/person_jsonld.yaml).
+    papel: str | None = None
+    birth_year: str | None = None
 
 
 class PublicWikidataRef(BaseModel):
@@ -1538,17 +1543,51 @@ def public_persons_list(
         .order_by(Person.full_name)
         .all()
     )
-    return [
-        PublicPersonListItem(
+    papeles = _papeles(db, persons)
+    from app.services.person_jsonld import _cargar as _curadas  # lazy
+    curadas = _curadas()
+    out = []
+    for p in persons:
+        anyo = str((curadas.get(p.slug) or {}).get("birthDate") or "")
+        out.append(PublicPersonListItem(
             slug=p.slug,
             full_name=p.full_name,
             stage_name=p.stage_name,
             birth_date=p.birth_date.isoformat() if p.birth_date else None,
             death_date=p.death_date.isoformat() if p.death_date else None,
             image_url=p.image_url,
-        )
-        for p in persons
-    ]
+            papel=papeles.get(p.id),
+            birth_year=anyo if len(anyo) == 4 and anyo.isdigit() else None,
+        ))
+    return out
+
+
+def _papeles(db: Session, persons: list) -> dict[int, str]:
+    """El papel de cada persona en una frase corta, para la tarjeta del hub.
+
+    Primero su membresía principal en el corpus («Batería de Extremoduro»); si no
+    tiene, su oficio (Wikidata o data/person_jsonld.yaml). Si no consta nada, nada:
+    no se inventa.
+    """
+    from app.services.person_jsonld import _cargar as _curadas  # lazy
+
+    out: dict[int, str] = {}
+    filas = (db.query(BandMembership, Artist)
+             .join(Artist, BandMembership.artist_id == Artist.id)
+             .order_by(BandMembership.position, BandMembership.era).all())
+    for m, a in filas:
+        if m.person_id not in out and m.role:
+            out[m.person_id] = f"{m.role[:1].upper()}{m.role[1:]} de {a.name}"
+    curadas = _curadas()
+    for p in persons:
+        if p.id in out:
+            continue
+        oficios = [o.get("name") for o in (p.occupations or []) if o.get("name")]
+        oficios += [o.get("name") for o in (curadas.get(p.slug) or {}).get("hasOccupation") or []
+                    if isinstance(o, dict) and o.get("name")]
+        if oficios:
+            out[p.id] = f"{oficios[0][:1].upper()}{oficios[0][1:]}"
+    return out
 
 
 def _relaciones_curadas(db: Session, slug: str) -> dict | None:
