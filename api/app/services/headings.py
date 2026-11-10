@@ -73,11 +73,25 @@ class Propuesta:
     veredicto_antes: list[str] = field(default_factory=list)
     veredicto_despues: list[str] = field(default_factory=list)
     veredicto_despues_bloquea: bool = False
+    avisos_despues: list[str] = field(default_factory=list)
     body_nuevo: str = ""
 
     @property
     def cambia(self) -> bool:
         return self.antes != self.despues
+
+    @property
+    def aplicable(self) -> bool:
+        """Se aplica si mejora algo. Si queda un bloqueo, solo vale cuando lo causa un
+        heading que se ha conservado a propósito (posicionamiento o invención): las
+        mejoras del resto no tienen por qué esperar."""
+        if not self.cambia:
+            return False
+        if not self.veredicto_despues_bloquea:
+            return True
+        conservados = {m.split(": ", 1)[0] for m in self.mantenidos}
+        return all(any(h in mot for h in conservados) for mot in self.veredicto_despues
+                   if mot not in self.avisos_despues)
 
 
 def _resumenes(body_md: str) -> list[str]:
@@ -99,10 +113,21 @@ def proponer(client, *, body_md: str, subject: str, protegidas: list[dict],
     from scripts.seo.merge_deep import terminos_del_sujeto
 
     sujeto = terminos_del_sujeto(subject, alias)
+    secciones = _resumenes(body_md)
     finales = []
-    for viejo, nuevo in zip(antes, nuevos, strict=True):
+    for i, (viejo, nuevo) in enumerate(zip(antes, nuevos, strict=True)):
         if nuevo == viejo:
             finales.append(viejo)
+            continue
+        # Un heading no puede afirmar lo que su sección no dice (10-11-2026: «Estudios
+        # de grabación en Madrid» → «La grabación del debut en los estudios M-20»).
+        permitidos = seo_style.tokens_permitidos(secciones[i] if i < len(secciones) else "",
+                                                 viejo, subject)
+        inventado = seo_style.verify_no_invention(nuevo, permitidos)
+        if inventado:
+            finales.append(viejo)
+            prop.mantenidos.append(f"{viejo}: el nuevo metía {', '.join(inventado[:3])}, "
+                                   "que su sección no dice")
             continue
         r = ranking_guard.renombre_permitido(viejo, nuevo, protegidas, alias, sujeto=sujeto)
         if r.ok:
@@ -114,6 +139,7 @@ def proponer(client, *, body_md: str, subject: str, protegidas: list[dict],
     prop.despues = finales
     prop.veredicto_despues = vd.motivos + vd.avisos
     prop.veredicto_despues_bloquea = not vd.ok
+    prop.avisos_despues = list(vd.avisos)
     prop.body_nuevo = reemplazar(body_md, finales)
     assert solo_cambian_headings(body_md, prop.body_nuevo)
     return prop

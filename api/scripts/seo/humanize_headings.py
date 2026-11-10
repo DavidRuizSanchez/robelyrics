@@ -106,7 +106,7 @@ def main() -> None:
             prop = headings.proponer(client, body_md=sc.body_md, subject=sujeto,
                                      protegidas=protegidas)
             aplicado = False
-            if args.apply and prop.cambia and not prop.veredicto_despues_bloquea:
+            if args.apply and prop.aplicable:
                 db.add(ContentRevision(target_kind="seo_content", target_id=sc.id, path=ruta,
                                        body_md=sc.body_md, meta_title=sc.meta_title,
                                        meta_description=sc.meta_description, h1=sc.h1,

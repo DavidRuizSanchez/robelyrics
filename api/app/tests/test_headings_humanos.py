@@ -15,15 +15,19 @@ MALOS = [
      "Mi espíritu imperecedero"),
     (["Quién es Jesús Mateos Brea: de los grafitis al grabado",
       "El macromural de Jesús Mateos Brea sobre Robe y Manolo Chinato"], "Jesús Mateos Brea"),
-    (["Paco Doniga y el paso de Robe al micrófono", "La dedicatoria de Robe a Paco Doniga"],
-     "Paco Doniga"),
+    (["Paco Doniga y el paso de Robe al micrófono", "La dedicatoria de Robe a Paco Doniga",
+      "Paco Doniga en Indecisión Momentánea"], "Paco Doniga"),
+    # Ninguno lo nombra: también falla (criterio de David, 10-11-2026).
+    (["Antes de Dosis Letal", "El concierto de 1983", "La dedicatoria de Robe"], "Paco Doniga"),
 ]
 BUENOS = [
-    (["Antes de Dosis Letal: Indecisión Momentánea", "El concierto de 1983",
+    (["Cuando Paco Doniga entró en Dosis Letal", "El concierto de 1983",
       "Cuando Robe se puso a cantar", "«Cepillo de dientes»"], "Paco Doniga"),
-    (["Qué cuenta la letra", "Cómo suena en Agila", "En directo"], "La Carrera"),
-    (["Del Jazz a la Casa de la Salud", "El primer batería (1987)"], "Ángel Lorenzo"),
-    (["De los grafitis al grabado", "El mural de Robe y Manolo Chinato"], "Jesús Mateos Brea"),
+    (["Qué cuenta la letra de «La Carrera»", "Cómo suena en Agila", "En directo"], "La Carrera"),
+    (["Del Jazz a la Casa de la Salud", "Ángel Lorenzo, el primer batería (1987)"],
+     "Ángel Lorenzo"),
+    (["Jesús Mateos Brea, de los grafitis al grabado", "El mural de Robe y Manolo Chinato"],
+     "Jesús Mateos Brea"),
 ]
 
 
@@ -86,9 +90,37 @@ def test_generate_deep_reescribe_un_esquema_forzado(monkeypatch):
 
     monkeypatch.setattr(generate_deep, "log", lambda *a, **k: None)
     monkeypatch.setattr(headings, "reescribir_headings",
-                        lambda *a, **k: ["Antes de Dosis Letal", "Cuando Robe se puso a cantar"])
+                        lambda *a, **k: ["Cuando Paco Doniga entró en Dosis Letal",
+                                         "Cuando Robe se puso a cantar"])
     outline = [{"heading": "Paco Doniga antes de Dosis Letal: su etapa", "covers": "a"},
                {"heading": "Paco Doniga y el micrófono", "covers": "b"}]
     nuevo = generate_deep._headings_humanos(None, "Paco Doniga", outline)
-    assert [s["heading"] for s in nuevo] == ["Antes de Dosis Letal", "Cuando Robe se puso a cantar"]
+    assert [s["heading"] for s in nuevo] == ["Cuando Paco Doniga entró en Dosis Letal",
+                                             "Cuando Robe se puso a cantar"]
     assert [s["covers"] for s in nuevo] == ["a", "b"]
+
+
+def test_un_heading_no_puede_meter_un_dato_que_su_seccion_no_dice(monkeypatch):
+    """Muestra del 10-11-2026: «Estudios de grabación en Madrid» → «La grabación del
+    debut en los estudios M-20», en una sección que no nombra M-20."""
+    b = ("## Estudios de grabación en Madrid\n\nExtremoduro grabó varios discos en Madrid.\n\n"
+         "## Conciertos icónicos en Madrid: escenarios de leyenda\n\nTocaron en Madrid.")
+    monkeypatch.setattr(headings, "reescribir_headings", lambda *a, **k: [
+        "La grabación del debut en los estudios M-20", "Los conciertos en la capital"])
+    p = headings.proponer(None, body_md=b, subject="Madrid", protegidas=[])
+    assert p.despues[0] == "Estudios de grabación en Madrid"     # conservado
+    assert p.despues[1] == "Los conciertos en la capital"
+    assert any("m-20" in m.lower() or "m 20" in m.lower() for m in p.mantenidos)
+
+
+def test_se_aplican_las_mejoras_aunque_un_heading_se_quede_por_posicionamiento(monkeypatch):
+    """Agila, 10-11-2026: dos headings se quedaban por búsquedas protegidas y la página
+    entera dejaba de aplicarse."""
+    b = ("## Qué significa «Agila»: el castúo de Robe\n\nEl título es castúo.\n\n"
+         "## Las canciones de «Agila»: temas clave del disco\n\nLas canciones clave del disco.")
+    monkeypatch.setattr(headings, "reescribir_headings", lambda *a, **k: [
+        "El castúo detrás del título", "Las canciones clave del disco"])
+    protegidas = [{"query": "agila significado", "clicks": 3, "position": 6.0}]
+    p = headings.proponer(None, body_md=b, subject="Agila", protegidas=protegidas)
+    assert p.despues == ["Qué significa «Agila»: el castúo de Robe", "Las canciones clave del disco"]
+    assert p.veredicto_despues_bloquea and p.aplicable

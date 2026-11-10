@@ -595,8 +595,10 @@ def meta_limpio(meta: dict, *, subject: str, body: str) -> tuple[str | None, str
 PROMPT_HEADING_RULES = """\
 HEADINGS (H2/H3), regla dura: escríbelos como un humano que cuenta la historia, no
 como un SEO. Dicen qué hay en la sección, en pocas palabras y con naturalidad.
-- El nombre del protagonista de la página va COMO MUCHO en un heading (ya está en
-  el título): no lo repitas en cada sección.
+- El nombre del protagonista de la página (persona, grupo, disco, canción, lugar)
+  va en UNO o, como mucho, DOS headings, metido con naturalidad, como lo diría
+  alguien al contarlo («Cuando Paco Doniga entró en Dosis Letal»). Ni ausente del
+  todo ni repetido en cada sección.
 - Nada de moldes «Nombre: tema», «Tema de Nombre: subtema» ni «X y su relación con Y».
 - Capitalización española: mayúscula solo al principio y en nombres propios.
 - No metas la keyword en los headings: si encaja sola en uno, bien; si no, no se fuerza.
@@ -604,7 +606,7 @@ como un SEO. Dicen qué hay en la sección, en pocas palabras y con naturalidad.
 
 EJEMPLOS_ORO_HEADINGS = """\
 ✗ «Paco Doniga antes de Dosis Letal: su etapa en Indecisión Momentánea»
-✓ «Antes de Dosis Letal: Indecisión Momentánea»
+✓ «Antes de Dosis Letal: Indecisión Momentánea»  /  «Cuando Paco Doniga entró en Dosis Letal»
 ✗ «Quién es Jesús Mateos Brea: de los grafitis al grabado»
 ✓ «De los grafitis al grabado»
 ✗ «La Carrera: Letra y significado»  /  «La música de La Carrera en el contexto de Agila»
@@ -649,9 +651,13 @@ def heading_verdict(headings: list[str], *, subject: str,
     nombres = _nombres_sujeto(subject, alias)
     planos = [flatten(h or "") for h in headings]
     con_sujeto = [h for h, p in zip(headings, planos) if _nombra(p, nombres)]
-    if len(con_sujeto) > 1:
+    # Criterio de David (10-11-2026): el nombre va, con naturalidad, en uno o dos
+    # headings; ni en todos (suena a SEO) ni en ninguno.
+    if len(con_sujeto) > 2:
         v.bloquear(f"el nombre de «{subject}» se repite en {len(con_sujeto)} headings "
-                   f"(máximo uno): " + " | ".join(con_sujeto[:4]))
+                   f"(máximo dos): " + " | ".join(con_sujeto[:4]))
+    if headings and len(headings) >= 2 and not con_sujeto:
+        v.bloquear(f"ningún heading nombra a «{subject}»: mételo en uno, con naturalidad")
     for h, p in zip(headings, planos):
         cabeza, _ = parse_title(h)
         if cabeza != h.strip() and _nombra(flatten(cabeza), nombres):

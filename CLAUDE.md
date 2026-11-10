@@ -533,9 +533,12 @@ Otra vez lo ordenaba el motor: el esquema de `generate_deep` pedía «<H2 concre
 - La regla vive en **`seo_style.PROMPT_HEADING_RULES`** (+ `EJEMPLOS_ORO_HEADINGS`), y
   la usan todos los caminos que escriben headings: `generate_deep`, `augment_deep`,
   `merge_deep`, `news_research`, `content_generator` y `generate_flagship`.
-- **`seo_style.heading_verdict`** es la guarda determinista. Bloquea el nombre del
-  protagonista en más de un heading y el molde «Sujeto: tema». Avisa de las mayúsculas
-  tras dos puntos. `generate_deep` reescribe el esquema UNA vez si bloquea.
+- **`seo_style.heading_verdict`** es la guarda determinista. El nombre del protagonista
+  va en **uno o dos** headings, metido con naturalidad (David, 10-11-2026: «mete el
+  nombre o la entidad objetivo de manera natural»): bloquea si está en más de dos, en
+  ninguno, o en el molde «Sujeto: tema». Avisa de las mayúsculas tras dos puntos.
+  `generate_deep` reescribe el esquema UNA vez si bloquea. Un heading nuevo tampoco
+  puede meter un nombre o una cifra que su sección no diga.
 - **`ranking_guard.renombre_permitido(..., sujeto=)`** mide la cobertura sin el nombre:
   quitarlo de un H2 no pierde ninguna búsqueda, porque ya va en el title y el H1. Sin
   esto, ningún heading forzado se podía arreglar.
