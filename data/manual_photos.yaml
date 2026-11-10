@@ -5,6 +5,17 @@
 # kind: person (default) | album | band.
 
 photos:
+  # === Fotos de terceros con crédito (decisión de David, 10-11-2026) ===
+  # Fotograma del documental, re-alojado a mano en Cloudinary. La identidad NO la da
+  # la página (YouTube no nombra a Paco): la da el rótulo en pantalla del mismo plano.
+  - slug: paco-doniga
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794346011/entreinteriores-art/w8sbktkueorbslzwbl4r.jpg"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=2337s"
+    identity: "Plasencia y Robe"
+    identity_evidence: "rótulo en pantalla «Paco Dóniga · Bajista de Dosis Letal» en el mismo plano (0:38:53)"
+
   # === Personas (retrato individual limpio, verificado) ===
   - slug: alvaro-rodriguez-barroso
     url: "https://lagranbellezaproducciones.com/wp-content/uploads/2019/10/alvaro-rodriguez-barroso-artista-la-gran-belleza.jpg"
