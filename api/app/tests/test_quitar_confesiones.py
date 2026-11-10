@@ -59,3 +59,14 @@ def test_augment_usa_la_misma_lista():
 
     assert augment_deep._CONFESIONES is source_guard.CONFESIONES
     assert augment_deep.confiesa_no_saber("Se desconoce la fecha.") == "se desconoce"
+
+
+def test_la_vara_de_las_personas_no_pide_discografia_a_todos():
+    """Criterio de David (10-11-2026): a un muralista no se le piden discos y una
+    ficha breve vale si todo es concreto. El resto de tipos sigue con 250."""
+    from app.services import editorial_review as er
+
+    assert er._min_words("person") == 150
+    assert er._min_words("blog") == er.MIN_WORDS == 250
+    rubrica = er._rubric_for("person")
+    assert "obras si es artista" in rubrica and "ficha breve" in rubrica
