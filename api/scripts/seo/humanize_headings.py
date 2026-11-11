@@ -40,6 +40,10 @@ _MODELOS = {"person": Person, "album": Album, "song": Song, "artist": Artist, "p
 _PREFIJO = {"person": "personas", "place": "lugares", "theme": "temas", "concept": "conceptos"}
 
 
+# Temas y conceptos se llaman con un nombre común: se reconocen por la raíz.
+NOMBRE_COMUN = frozenset({"theme", "concept"})
+
+
 def sujeto_y_ruta(ent, entity_type: str) -> tuple[str, str]:
     nombre = (getattr(ent, "stage_name", None) or getattr(ent, "title", None)
               or getattr(ent, "name", None) or getattr(ent, "full_name", None) or ent.slug)
@@ -104,7 +108,8 @@ def main() -> None:
             sujeto, ruta = sujeto_y_ruta(ent, sc.entity_type)
             protegidas = ranking_guard.consultas_protegidas(gsc.get(ruta) or [])
             prop = headings.proponer(client, body_md=sc.body_md, subject=sujeto,
-                                     protegidas=protegidas)
+                                     protegidas=protegidas,
+                                     comun=sc.entity_type in NOMBRE_COMUN)
             aplicado = False
             if args.apply and prop.aplicable:
                 db.add(ContentRevision(target_kind="seo_content", target_id=sc.id, path=ruta,

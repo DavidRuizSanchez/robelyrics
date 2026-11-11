@@ -140,3 +140,83 @@ def test_si_la_primera_propuesta_quita_el_nombre_hay_una_segunda_vuelta(monkeypa
     p = headings.proponer(None, body_md=b, subject="Albert Pla", protegidas=[])
     assert len(llamadas) == 2 and any("ningún heading" in m for m in llamadas[1])
     assert p.despues == ["Albert Pla, de Sabadell al escenario", "Los discos"] and p.aplicable
+
+
+# --- Falsos positivos de la tanda del 11-11-2026 (literales de prod) ---
+
+def test_un_titulo_citado_no_es_title_case():
+    v = seo_style.heading_verdict(["Qué cuenta «Relación Convencional»", "Cómo encaja en «Deltoya»"],
+                                  subject="Relación Convencional")
+    assert v.ok and not v.avisos, v.motivos + v.avisos
+
+
+def test_el_titulo_de_otra_obra_no_nombra_al_sujeto():
+    hs = ["El amor en las canciones de Robe",
+          "«Ama, ama, ama y ensancha el alma», un canto a la libertad",
+          "Las contradicciones de «Amor castúo»",
+          "El deseo en «Menamoro» y «Y rozar contigo»", "El amor en el rock transgresivo"]
+    v = seo_style.heading_verdict(hs, subject="Amor", comun=True)
+    assert v.ok and not v.avisos, v.motivos + v.avisos
+
+
+def test_un_tema_se_reconoce_por_la_raiz():
+    hs = ["Extremoduro frente al poder en «Estado Policial»", "Qué cuestiona «V Centenario»",
+          "El autorretrato político de Robe", "La frustración institucional en «Manué IV»",
+          "La decepción de Robe en «Mama»"]
+    assert seo_style.heading_verdict(hs, subject="Política e instituciones", comun=True).ok
+    # Sin `comun`, el nombre del tema es una etiqueta y nadie la escribe tal cual.
+    assert not seo_style.heading_verdict(hs, subject="Política e instituciones").ok
+
+
+def test_un_tema_repetido_sigue_bloqueando():
+    hs = ["La tormenta como paisaje emocional", "Lo que expresa en las letras",
+          "La imagen de la tormenta en «Decidí»", "La tormenta que anuncia el final"]
+    assert not seo_style.heading_verdict(hs, subject="La tormenta", comun=True).ok
+
+
+def test_el_nombre_no_cubre_por_prefijo_lo_que_no_es():
+    """«Extremoduro» cubría «extremadura» y «Barricada» la errata «barrigada»."""
+    for viejo, nuevo, q, suj in [
+        ("Las portadas de los discos de Extremoduro", "Quién dibujó las portadas de los discos",
+         "extremadura rock", {"extremoduro"}),
+        ("El homenaje de Robe a Barricada", "El homenaje de Robe a la banda",
+         "barrigada", {"barricada"}),
+    ]:
+        protegidas = [{"query": q, "clicks": 2, "position": 9.0}]
+        assert ranking_guard.renombre_permitido(viejo, nuevo, protegidas,
+                                                sujeto=frozenset(suj)).ok
+
+
+def test_una_palabra_buscada_sigue_protegida():
+    protegidas = [{"query": "guerrero significado", "clicks": 4, "position": 7.0}]
+    suj = frozenset({"guerrero"})
+    viejo = "El Significado de Guerrero: Lucha y Resistencia"
+    assert not ranking_guard.renombre_permitido(viejo, "Qué cuenta «Guerrero»", protegidas,
+                                                sujeto=suj).ok
+    assert ranking_guard.renombre_permitido(viejo, "Qué significa «Guerrero»", protegidas,
+                                            sujeto=suj).ok
+
+
+def test_tercera_vuelta_con_las_palabras_que_se_buscan(monkeypatch):
+    llamadas = []
+
+    def falso(client, subject, headings_, resumenes, *, motivos=None):
+        llamadas.append(motivos or [])
+        if len(llamadas) == 1:
+            return ["Qué cuenta «Guerrero»", "De la calma a las explosiones"]
+        return ["Qué significa «Guerrero»", "Otra cosa"]
+
+    monkeypatch.setattr(headings, "reescribir_headings", falso)
+    b = ("## El Significado de Guerrero: Lucha y Resistencia\n\nLa lucha.\n\n"
+         "## De la calma a las explosiones sonoras\n\nSuena.")
+    protegidas = [{"query": "guerrero significado", "clicks": 4, "position": 7.0}]
+    p = headings.proponer(None, body_md=b, subject="Guerrero", protegidas=protegidas)
+    assert len(llamadas) == 2 and any("significado" in m for m in llamadas[1])
+    # Solo cambia la posición conservada; la otra se queda con lo de la primera vuelta.
+    assert p.despues == ["Qué significa «Guerrero»", "De la calma a las explosiones"]
+    assert p.aplicable and not p.veredicto_despues_bloquea
+
+
+def test_un_nombre_de_dos_letras_tambien_cuenta():
+    hs = ["De Fresa al rock duro", "La influencia de Ñu en el rock español"]
+    assert seo_style.heading_verdict(hs, subject="Ñu").ok

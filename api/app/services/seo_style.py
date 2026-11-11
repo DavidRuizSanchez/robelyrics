@@ -630,7 +630,7 @@ def _nombres_sujeto(subject: str, alias: list[str] | None) -> list[str]:
     for n in [subject, *(alias or [])]:
         p = flatten(n or "").strip()
         p = re.sub(r"\s*\(.*?\)\s*", " ", p).strip()      # «Pepe Botika (¿Dónde…?)»
-        if len(p) >= 3:
+        if len(p) >= 2:                                   # «Ñu» se queda en «nu»
             out.append(p)
     return out
 
@@ -639,8 +639,26 @@ def _nombra(heading_plano: str, nombres: list[str]) -> bool:
     return any(re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", heading_plano) for n in nombres)
 
 
+_TITULO_CITADO = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"|'[^']*'")
+
+
+def _sin_titulos_ajenos(heading: str, nombres: list[str]) -> str:
+    """Quita los títulos entre comillas que NO son el sujeto: «Amor castúo» en la página
+    del tema «Amor» nombra una canción, no el tema (11-11-2026)."""
+    def _cambio(m: re.Match) -> str:
+        dentro = re.sub(r"\s*\(.*?\)\s*", " ", flatten(m.group(0)[1:-1])).strip()
+        return m.group(0) if dentro in nombres else " "
+    return _TITULO_CITADO.sub(_cambio, heading)
+
+
+def _raices(subject: str) -> list[str]:
+    """Un tema o un concepto es un nombre común: «político» nombra «Política e
+    instituciones» y «el amor», «Amor». Se reconoce por la raíz de cada palabra."""
+    return [t[:5] for t in content_tokens(subject) if len(t) >= 4]
+
+
 def heading_verdict(headings: list[str], *, subject: str,
-                    alias: list[str] | None = None) -> MetaVerdict:
+                    alias: list[str] | None = None, comun: bool = False) -> MetaVerdict:
     """¿Estos headings los escribiría una persona? Determinista, sin red.
 
     Bloquea lo que se ve sin dudar: el sujeto repetido en más de un heading y la
@@ -649,8 +667,14 @@ def heading_verdict(headings: list[str], *, subject: str,
     """
     v = MetaVerdict()
     nombres = _nombres_sujeto(subject, alias)
-    planos = [flatten(h or "") for h in headings]
-    con_sujeto = [h for h, p in zip(headings, planos) if _nombra(p, nombres)]
+    planos = [flatten(_sin_titulos_ajenos(h or "", nombres)) for h in headings]
+    if comun and (raices := _raices(subject)):
+        def _lo_nombra(p: str) -> bool:
+            return any(re.search(rf"(?<![\w]){re.escape(r)}", p) for r in raices)
+    else:
+        def _lo_nombra(p: str) -> bool:
+            return _nombra(p, nombres)
+    con_sujeto = [h for h, p in zip(headings, planos) if _lo_nombra(p)]
     # Criterio de David (10-11-2026): el nombre va, con naturalidad, en uno o dos
     # headings; ni en todos (suena a SEO) ni en ninguno.
     if len(con_sujeto) > 2:
@@ -662,8 +686,10 @@ def heading_verdict(headings: list[str], *, subject: str,
         cabeza, _ = parse_title(h)
         if cabeza != h.strip() and _nombra(flatten(cabeza), nombres):
             v.bloquear(f"«{h}» usa el molde «{cabeza}: …»")
-        tras = re.split(r"[:—–]\s*", h, maxsplit=1)
-        cola = tras[1] if len(tras) > 1 else h
+        # Un título citado lleva sus mayúsculas: «Relación Convencional» no es Title Case.
+        sin_citas = _TITULO_CITADO.sub(" ", h)
+        tras = re.split(r"[:—–]\s*", sin_citas, maxsplit=1)
+        cola = tras[1] if len(tras) > 1 else sin_citas
         # Tras los dos puntos, en castellano, va minúscula: esa también cuenta.
         palabras = re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", cola)[0 if len(tras) > 1 else 1:]
         mayus = [w for w in palabras if w[:1].isupper() and flatten(w).strip() in _COMUNES_TITULO]
