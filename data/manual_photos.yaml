@@ -15,6 +15,44 @@ photos:
     source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=2337s"
     identity: "Plasencia y Robe"
     identity_evidence: "rótulo en pantalla «Paco Dóniga · Bajista de Dosis Letal» en el mismo plano (0:38:53)"
+  # Fotogramas de entrevistas del mismo canal (juancaraes), 10-11-2026. Solo plano
+  # propio del canal con el rótulo del entrevistado; nunca metraje de archivo ajeno.
+  # `identity` es como el TÍTULO del vídeo nombra a la persona.
+  - slug: jesus-mateos-brea
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348262/entreinteriores-art/midacsi2pljksccw0diw.jpg"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=12290s"
+    identity: "Plasencia y Robe"
+    identity_evidence: "rótulo en pantalla «Jesús Mateos Brea · Artista urbano» en el mismo plano (3:24:50)"
+  - slug: capi-gil
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348260/entreinteriores-art/m5mlrpir1cwdnpj3myt4.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 39 (Juan Carlos Ramos, 2023)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=q1vl-sUTzNY&t=226s"
+    identity: "Vida y obra de Capi"
+    identity_evidence: "rótulo en pantalla «alberto gil 'capi'» en el mismo plano (3:46)"
+  - slug: juantxu-mongol-olano
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348262/entreinteriores-art/ykcxtyzstz9qjyf13zgb.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 29 (Juan Carlos Ramos, 2022)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=UuXYkYB1hmk&t=130s"
+    identity: "Juantxu Olano"
+    identity_evidence: "rótulo en pantalla «Juantxu Olano» en el mismo plano (2:10)"
+  - slug: inaki-milindris
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348261/entreinteriores-art/rgq31xkskbz3fkmpm5rl.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 35 (Juan Carlos Ramos, 2022)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=IhWZgdevuQQ&t=344s"
+    identity: "Iñaki Setién"
+    identity_evidence: "rótulo en pantalla «Iñaki Setién» en el mismo plano (5:44)"
+  - slug: david-lerman
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348261/entreinteriores-art/xrgc52da1lknsvevbafv.jpg"
+    attribution: "Fotograma de una entrevista de Juan Carlos Ramos (2021)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=kWDK1uvcWWM&t=142s"
+    identity: "David Lerman"
+    identity_evidence: "rótulo en pantalla «David Lerman» en el mismo plano (2:22)"
 
   # === Personas (retrato individual limpio, verificado) ===
   - slug: alvaro-rodriguez-barroso
@@ -26,9 +64,6 @@ photos:
   - slug: woody-amores
     url: "https://xn--guitarraespaola-9qb.net/wp-content/uploads/2021/09/27500256_1742183679159345_8487985572212521363_o.jpeg"
     attribution: "M. Rubialls Photography"
-  - slug: david-lerman
-    url: "https://www.canalextremadura.es/sites/default/files/Media/Images/2021-09/lerman.jpg"
-    attribution: "Canal Extremadura"
 
   # === Portada de single ===
   - slug: pedra
