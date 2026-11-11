@@ -104,26 +104,63 @@ def _resumenes(body_md: str) -> list[str]:
 
 
 def proponer(client, *, body_md: str, subject: str, protegidas: list[dict],
-             alias: dict[str, str] | None = None) -> Propuesta:
+             alias: dict[str, str] | None = None, comun: bool = False) -> Propuesta:
+    """`comun`: el sujeto es un nombre común (temas y conceptos), ver `heading_verdict`."""
+    def veredicto(hs: list[str]) -> seo_style.MetaVerdict:
+        return seo_style.heading_verdict(hs, subject=subject, comun=comun)
+
     antes = extraer(body_md)
-    va = seo_style.heading_verdict(antes, subject=subject)
+    va = veredicto(antes)
     prop = Propuesta(antes=antes, despues=list(antes), veredicto_antes=va.motivos + va.avisos)
     if not antes or (va.ok and not va.avisos):
         prop.body_nuevo = body_md
         return prop
-    nuevos = reescribir_headings(client, subject, antes, _resumenes(body_md),
+    secciones = _resumenes(body_md)
+    nuevos = reescribir_headings(client, subject, antes, secciones,
                                  motivos=va.motivos + va.avisos) or antes
-    vn = seo_style.heading_verdict(nuevos, subject=subject)
+    vn = veredicto(nuevos)
     if not vn.ok:
         # Segunda vuelta con lo que sigue fallando delante (10-11-2026: en 118 de 134
         # páginas el modelo quitó el nombre de todos los headings a la primera).
-        nuevos = reescribir_headings(client, subject, nuevos, _resumenes(body_md),
+        nuevos = reescribir_headings(client, subject, nuevos, secciones,
                                      motivos=vn.motivos) or nuevos
     from scripts.seo.merge_deep import terminos_del_sujeto
 
     sujeto = terminos_del_sujeto(subject, alias)
-    secciones = _resumenes(body_md)
-    finales = []
+    finales, mantenidos, faltan = _filtrar(antes, nuevos, secciones, subject, sujeto,
+                                           protegidas, alias)
+    if faltan:
+        # Tercera vuelta (11-11-2026): un heading que se conserva porque el nuevo soltaba
+        # una búsqueda protegida no se queda feo por eso. Se pide otra vez CON esas
+        # palabras dentro («Qué significa «Guerrero»» sigue cubriendo «significado»).
+        # Solo cambian esas posiciones; lo ya bueno no se vuelve a tocar.
+        motivos = [f"el heading {i + 1} («{antes[i]}») tiene que seguir diciendo: "
+                   f"{', '.join(pal)}" for i, pal in sorted(faltan.items())]
+        otra = reescribir_headings(client, subject, finales, secciones,
+                                   motivos=motivos + veredicto(finales).motivos)
+        if otra:
+            mezcla = [otra[i] if i in faltan else h for i, h in enumerate(finales)]
+            f2, m2, _ = _filtrar(antes, mezcla, secciones, subject, sujeto, protegidas, alias)
+            if len(veredicto(f2).motivos) <= len(veredicto(finales).motivos):
+                finales, mantenidos = f2, m2
+    prop.mantenidos = mantenidos
+    vd = veredicto(finales)
+    prop.despues = finales
+    prop.veredicto_despues = vd.motivos + vd.avisos
+    prop.veredicto_despues_bloquea = not vd.ok
+    prop.avisos_despues = list(vd.avisos)
+    prop.body_nuevo = reemplazar(body_md, finales)
+    assert solo_cambian_headings(body_md, prop.body_nuevo)
+    return prop
+
+
+def _filtrar(antes, nuevos, secciones, subject, sujeto, protegidas, alias
+             ) -> tuple[list[str], list[str], dict[int, list[str]]]:
+    """Cada heading nuevo pasa la no-invención y el posicionamiento; si no, se queda el
+    viejo. Devuelve también, por posición, las palabras de búsqueda que faltaban."""
+    finales: list[str] = []
+    mantenidos: list[str] = []
+    faltan: dict[int, list[str]] = {}
     for i, (viejo, nuevo) in enumerate(zip(antes, nuevos, strict=True)):
         if nuevo == viejo:
             finales.append(viejo)
@@ -135,20 +172,14 @@ def proponer(client, *, body_md: str, subject: str, protegidas: list[dict],
         inventado = seo_style.verify_no_invention(nuevo, permitidos)
         if inventado:
             finales.append(viejo)
-            prop.mantenidos.append(f"{viejo}: el nuevo metía {', '.join(inventado[:3])}, "
-                                   "que su sección no dice")
+            mantenidos.append(f"{viejo}: el nuevo metía {', '.join(inventado[:3])}, "
+                              "que su sección no dice")
             continue
         r = ranking_guard.renombre_permitido(viejo, nuevo, protegidas, alias, sujeto=sujeto)
         if r.ok:
             finales.append(nuevo)
         else:
             finales.append(viejo)
-            prop.mantenidos.append(f"{viejo}: {r.motivo}")
-    vd = seo_style.heading_verdict(finales, subject=subject)
-    prop.despues = finales
-    prop.veredicto_despues = vd.motivos + vd.avisos
-    prop.veredicto_despues_bloquea = not vd.ok
-    prop.avisos_despues = list(vd.avisos)
-    prop.body_nuevo = reemplazar(body_md, finales)
-    assert solo_cambian_headings(body_md, prop.body_nuevo)
-    return prop
+            mantenidos.append(f"{viejo}: {r.motivo}")
+            faltan[i] = list(r.perdidas)
+    return finales, mantenidos, faltan

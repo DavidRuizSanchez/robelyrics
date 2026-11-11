@@ -21,7 +21,8 @@ with SessionLocal() as db:
         if ent is None:
             continue
         sujeto, _ = hh.sujeto_y_ruta(ent, sc.entity_type)
-        v = seo_style.heading_verdict(headings.extraer(sc.body_md), subject=sujeto)
+        v = seo_style.heading_verdict(headings.extraer(sc.body_md), subject=sujeto,
+                                          comun=sc.entity_type in hh.NOMBRE_COMUN)
         if not v.ok or v.avisos:
             por_tipo[sc.entity_type].append(f"{sc.entity_type}:{sc.slug}")
 for t in TANDAS:
