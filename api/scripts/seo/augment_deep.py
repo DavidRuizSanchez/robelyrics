@@ -383,7 +383,7 @@ def augment_entity(
     after = strip_ai_tells(after) or after
     after = autolink_corpus(
         after, corpus_index if corpus_index is not None else build_corpus_index(db),
-        max_links=6, exclude_slug=entity.slug,
+        exclude_slug=entity.slug,
         link_stats=link_stats if link_stats is not None else load_link_stats(),
     )
 

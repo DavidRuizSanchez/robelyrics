@@ -879,11 +879,27 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
 
     # --- Enlazado: solo en lo nuevo, validado contra la BD --------------------- #
     nuevos_textos = ops.inserts + ops.enriquecer
+    # El tope de 3 es de la PÁGINA entera (link_policy), no de cada sección: lo
+    # que ya enlaza el cuerpo y lo que van enlazando las secciones nuevas cuenta.
     try:
+        from app.services.entity_resolver import load_anchor_stats
+        from app.services.link_policy import contexto_de, contexto_post, rutas_del_cuerpo
+
         indice, stats = build_corpus_index(db), load_link_stats()
+        if destino.kind == "post":
+            ctx = contexto_post(destino.slug)
+        elif destino.row.entity_type == "page":
+            ctx = contexto_de(db, None, None)
+            ctx.origen = destino.path
+        else:
+            ctx = contexto_de(db, destino.row.entity_type, destino.row.entity_id)
+        en_pagina = list(rutas_del_cuerpo(destino.body))
         for sec in nuevos_textos:
-            sec["texto"] = autolink_corpus(sec["texto"], indice, max_links=2,
-                                           exclude_slug=destino.slug, link_stats=stats)
+            sec["texto"] = autolink_corpus(sec["texto"], indice, exclude_slug=destino.slug,
+                                           link_stats=stats, contexto=ctx,
+                                           ya_en_pagina=en_pagina,
+                                           anchor_stats=load_anchor_stats())
+            en_pagina += rutas_del_cuerpo(sec["texto"])
     except Exception as exc:  # noqa: BLE001
         logger.warning("[merge] autolink falló: %s", exc)
     for sec in nuevos_textos:

@@ -229,8 +229,8 @@ def upsert_seo_content(
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
 
-    # Enlazado interno automático: enlaza hasta 4 menciones a entidades del
-    # corpus (las más relevantes) a su página local. No enlaza la propia
+    # Enlazado interno automático (link_policy: 3 en el cuerpo, sin repetir la
+    # plantilla, taxonomías solo relacionadas) a la página local de cada entidad. No enlaza la propia
     # página de este seo_content. Va ANTES del guard de enlaces (11-11-2026):
     # al revés, lo que añadía el autolinker se guardaba sin validar.
     if body_md:
@@ -238,11 +238,16 @@ def upsert_seo_content(
             autolink_corpus,
             autolink_sources,
             build_corpus_index,
+            load_anchor_stats,
             load_link_stats,
         )
+        from app.services.link_policy import contexto_de
+
         body_md = autolink_corpus(
-            body_md, build_corpus_index(db), max_links=4,
+            body_md, build_corpus_index(db),
             exclude_slug=slug, link_stats=load_link_stats(),
+            contexto=contexto_de(db, entity_type, entity_id),
+            anchor_stats=load_anchor_stats(),
         )
         # Enlazado externo a medios citados: si una fuente (Mondo Sonoro, Efe
         # Eme…) se nombra en el cuerpo, enlaza el medio a su url de origen.

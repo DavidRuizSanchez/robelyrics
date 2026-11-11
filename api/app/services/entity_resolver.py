@@ -19,12 +19,26 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.db.models import Album, Artist, Concept, Person, Place, Song, Theme
+from app.services.link_policy import (
+    HUBS,
+    MAX_BODY_LINKS,
+    MAX_HUBS_POR_PAGINA,
+    PESO_TIPO,
+    PREFIJOS,
+    ContextoEnlazado,
+    artista_de,
+    fold,
+    presupuesto,
+    relevancia,
+    rutas_del_cuerpo,
+)
 
 SITE_URL_DEFAULT = "https://entreinteriores.com"
 
@@ -32,16 +46,22 @@ SITE_URL_DEFAULT = "https://entreinteriores.com"
 # autolinker lo usa para potenciar las páginas más débiles. {path: inbound}.
 _LINK_STATS_PATH = Path("/app/data/internal_link_stats.json")
 _link_stats_cache: dict[str, int] | None = None
+_anchor_stats_cache: dict[str, dict[str, int]] | None = None
 
 
 def load_link_stats() -> dict[str, int]:
-    """Carga (cacheado) el snapshot de enlaces internos. {} si no existe."""
-    global _link_stats_cache
+    """Carga (cacheado) el snapshot de enlaces internos. {} si no existe.
+
+    El snapshot trae además `__anchors__` ({path: {anchor: n}}), que se separa
+    aquí para que `link_stats.get(path, 0)` siga devolviendo un entero."""
+    global _link_stats_cache, _anchor_stats_cache
     if _link_stats_cache is None:
         try:
-            _link_stats_cache = json.loads(_LINK_STATS_PATH.read_text())
+            raw = json.loads(_LINK_STATS_PATH.read_text())
         except Exception:  # noqa: BLE001 — ausente o ilegible
-            _link_stats_cache = {}
+            raw = {}
+        _anchor_stats_cache = raw.pop("__anchors__", None) or {}
+        _link_stats_cache = {k: v for k, v in raw.items() if isinstance(v, int)}
     return _link_stats_cache
 
 
@@ -301,10 +321,7 @@ _AUTOLINK_MIN_LEN = 5
 # Afinidad de tipo: cuán "enlazable de valor" es el destino. Sirve para dos
 # cosas: desempatar colisiones de nombre (se queda el de más peso) y ponderar
 # la relevancia del destino (contenido > taxonomía incidental).
-_TYPE_WEIGHT = {
-    "album": 7, "song": 6, "artist": 5, "person": 4, "band": 4,
-    "place": 3, "theme": 2, "concept": 1,
-}
+_TYPE_WEIGHT = PESO_TIPO  # una sola tabla: link_policy
 
 # Fronteras de palabra que tratan el subrayado de Markdown (_cursiva_) como
 # límite, no como letra: `\w` incluye '_', así que un título en cursiva
@@ -415,89 +432,153 @@ def build_corpus_index(
             add(b.name, f"{base}/{seccion}/{b.slug}", "band")
     except Exception:  # noqa: BLE001
         pass
+    # Hubs (páginas índice en código): solo variantes de varias palabras.
+    for path, hub in HUBS.items():
+        for variante in hub["variantes"]:
+            add(variante, f"{base}{path}", "hub")
     return list(by_norm.values())
+
+
+def load_anchor_stats() -> dict[str, dict[str, int]]:
+    """Anchors entrantes por destino ({path: {anchor_plegado: n}}), del mismo
+    snapshot que `load_link_stats` (clave `__anchors__`). {} si no hay."""
+    load_link_stats()
+    return _anchor_stats_cache or {}
+
+
+# Tipos cuyo nombre es propio: solo casa si la mención lleva alguna mayúscula
+# («rock transgresivo» es el estilo, no el disco; «pasión», la palabra, no el
+# sello). Medido en el ensayo de prod del 11-11-2026: 26 de 240 enlaces nuevos.
+_NOMBRE_PROPIO = frozenset({"album", "song", "artist", "person", "band", "place"})
+
+
+def _inicio_de_frase(body_md: str, pos: int) -> bool:
+    antes = body_md[:pos].rstrip(" \t*_\"«“(¿¡")
+    return not antes or antes[-1] in ".!?:\n" or antes.endswith(("- ", "-"))
+
+
+def _ocurrencias(body_md: str, nombres: list[str], prefijos: tuple[str, ...],
+                 tipo: str = "") -> list[tuple[int, int, str]]:
+    """Menciones enlazables (fuera de enlaces, código y encabezados): el nombre
+    solo y, si ya está escrito delante, el nombre con su prefijo («el disco
+    *Agila*»). No inventa texto: solo elige qué trozo existente es el anchor.
+
+    Mayúsculas: un nombre propio exige alguna mayúscula en la mención, y un tema
+    escrito con mayúscula a mitad de frase es parte de otro nombre («Calle
+    Esperanza»), así que no cuenta."""
+    out: list[tuple[int, int, str]] = []
+    pref = "|".join(re.escape(x) for x in sorted(prefijos, key=len, reverse=True))
+    for nombre in nombres:
+        patrones = [re.compile(_LB + "(?P<n>" + re.escape(nombre) + ")" + _LA, re.IGNORECASE)]
+        if pref:
+            patrones.append(re.compile(
+                _LB + rf"(?:{pref})\s+(?P<em>[*_]{{0,2}})(?P<n>" + re.escape(nombre) + r")(?P=em)" + _LA,
+                re.IGNORECASE,
+            ))
+        for pat in patrones:
+            for m in pat.finditer(body_md):
+                ini = body_md.rfind("\n", 0, m.start()) + 1
+                if body_md[ini:m.start()].lstrip().startswith("#"):
+                    continue  # nunca dentro de un encabezado
+                n = m.group("n")
+                if tipo in _NOMBRE_PROPIO and not any(c.isupper() for c in n):
+                    continue
+                if tipo == "theme" and n[:1].isupper() and not _inicio_de_frase(body_md, m.start("n")):
+                    continue
+                out.append((m.start(), m.end(), m.group(0)))
+    return sorted(set(out))
 
 
 def autolink_corpus(
     body_md: str,
     index: list[dict[str, Any]],
     *,
-    max_links: int = 4,
+    max_links: int = MAX_BODY_LINKS,
     exclude_url: str | None = None,
     exclude_slug: str | None = None,
     link_stats: dict[str, int] | None = None,
     weak_k: float = 60.0,
+    contexto: ContextoEnlazado | None = None,
+    ya_en_pagina: Iterable[str] = (),
+    anchor_stats: dict[str, dict[str, int]] | None = None,
 ) -> str:
-    """Enlaza hasta `max_links` menciones a entidades del corpus, eligiendo las
-    más relevantes.
+    """Enlaza menciones a entidades del corpus según `link_policy`.
 
-    Selección (cuando hay más candidatos que `max_links`):
-      1. Relevancia anchor↔destino: el anchor más específico gana (coincidencia
-         exacta del título + nº de palabras + longitud).
-      2. Desempate origen↔destino: cuán central es la entidad en el texto
-         (frecuencia de mención) y el peso del tipo de destino.
-    Conservador: primera ocurrencia por entidad, respeta links/código ya
-    presentes, no enlaza la propia página (`exclude_url`).
+    - Tope: `MAX_BODY_LINKS` (3) rutas internas distintas en el cuerpo, contando
+      las que ya hay y las de `ya_en_pagina` (el resto de la página, para quien
+      enlaza por secciones). Un `max_links` mayor se recorta a ese tope.
+    - No enlaza lo que ya enlaza la plantilla (`contexto.plantilla`), ni la propia
+      página, ni un destino ya enlazado.
+    - Taxonomías solo con relación en el grafo (`contexto.admite`). Sin contexto,
+      ninguna.
+    - Hubs: como mucho uno, el del artista de la página, sin impulso de débil.
+    - Anchor: entre los alias y las ampliaciones ya escritas, el menos usado.
+
+    Selección por relevancia: frecuencia de mención, peso del tipo, longitud del
+    nombre y, a igualdad, impulso a las páginas que reciben menos enlaces.
     """
     if not body_md or not index:
         return body_md
-
-    # Enlaces ya presentes: no duplicamos destino y contamos los que apuntan al
-    # corpus contra el tope (idempotente: re-ejecutar no acumula enlaces).
-    # Se compara por RUTA normalizada: el índice da URLs absolutas y el guard
-    # deja relativas. En crudo no casaban y cada pasada añadía un enlace más.
-    existing_paths = {
-        p for p in (_url_path(u) for u in re.findall(r"\]\((\S+?)\)", body_md))
-        if p.startswith("/")
-    }
-    index_paths = {_url_path(e["url"]) for e in index}
-    budget = max_links - len(existing_paths & index_paths)
+    ctx = contexto or ContextoEnlazado()
+    tope = min(max_links, MAX_BODY_LINKS)
+    ya = {p for p in (_url_path(u) for u in ya_en_pagina) if p.startswith("/")}
+    budget = presupuesto(body_md, ctx.plantilla, ya, tope)
     if budget <= 0:
         return body_md
 
+    vistos = set(rutas_del_cuerpo(body_md)) | ya | set(ctx.plantilla) | set(ctx.migas)
+    if ctx.origen:
+        vistos.add(ctx.origen)
     exclude_path = _url_path(exclude_url) if exclude_url else None
-    # 1) Candidatos realmente mencionados (y enlazables) en el cuerpo.
-    cand: list[dict[str, Any]] = []
-    seen_paths: set[str] = set(existing_paths)
+    artista_pagina = artista_de(ctx.origen)
+    hubs_puestos = sum(1 for p in set(rutas_del_cuerpo(body_md)) | ya if p in HUBS)
+
+    # Agrupa los alias por destino (el índice tiene una entrada por nombre).
+    grupos: dict[str, dict[str, Any]] = {}
     for ent in index:
-        url = ent["url"]
-        path = _url_path(url)
-        if path == exclude_path or path in seen_paths:
+        path = _url_path(ent["url"])
+        g = grupos.setdefault(path, {"url": ent["url"], "type": ent["type"], "names": []})
+        g["names"].append(ent["name"])
+
+    cand: list[dict[str, Any]] = []
+    for path, g in grupos.items():
+        if path in vistos or path == exclude_path:
             continue
-        # No auto-enlazar la propia página (su seo_content).
         if exclude_slug and path.endswith("/" + exclude_slug):
             continue
-        hits = _mention_re(ent["name"]).findall(body_md)
+        if not ctx.admite(path):
+            continue
+        es_hub = g["type"] == "hub"
+        if es_hub:
+            hub_artista = HUBS.get(path, {}).get("artista")
+            if hubs_puestos >= MAX_HUBS_POR_PAGINA:
+                continue
+            if hub_artista and artista_pagina and hub_artista != artista_pagina:
+                continue
+        hits = sum(len(_mention_re(n).findall(body_md)) for n in g["names"])
         if not hits:
             continue
-        seen_paths.add(path)
-        # Relevancia: todas las menciones son coincidencia EXACTA del nombre
-        # (relevancia anchor↔destino uniforme y máxima), así que la selección
-        # la decide la relevancia origen↔destino:
-        #   - frecuencia: cuán central es la entidad en el texto (peso alto),
-        #   - afinidad de tipo: contenido (disco/canción/artista) > taxonomía
-        #     incidental (un lugar nombrado de pasada),
-        #   - longitud: especificidad del anchor como último desempate.
-        score = (
-            len(hits) * 30
-            + _TYPE_WEIGHT.get(ent["type"], 0) * 10
-            + len(ent["norm"]) * 0.5
-        )
-        # Boost a las páginas DÉBILES: a igualdad de relevancia, enlaza antes
-        # a las que reciben menos enlaces internos (reparte link juice).
-        if link_stats is not None:
-            inbound = link_stats.get(_url_path(url), 0)
-            score += weak_k / (1 + inbound)
-        cand.append({**ent, "score": score})
-
-    if not cand:
-        return body_md
+        score = relevancia(hits, g["type"], max(len(_normalize(n)) for n in g["names"]))
+        if link_stats is not None and not es_hub:
+            score += weak_k / (1 + link_stats.get(path, 0))
+        cand.append({**g, "path": path, "score": score, "hub": es_hub})
 
     cand.sort(key=lambda c: c["score"], reverse=True)
-
-    # 3) Enlazar los mejores hasta agotar el presupuesto (1ª ocurrencia c/u).
-    for c in cand[:budget]:
-        body_md, _ = _safe_link_first(body_md, c["name"], c["url"])
+    anchors = anchor_stats or {}
+    puestos = 0
+    for c in cand:
+        if puestos >= budget:
+            break
+        if c["hub"] and hubs_puestos >= MAX_HUBS_POR_PAGINA:
+            continue
+        occ = _ocurrencias(body_md, c["names"], PREFIJOS.get(c["type"], ()), c["type"])
+        if not occ:
+            continue
+        usados = anchors.get(c["path"], {})
+        ini, fin, texto = min(occ, key=lambda o: (usados.get(fold(o[2]), 0), o[0]))
+        body_md = body_md[:ini] + f"[{texto}]({c['url']})" + body_md[fin:]
+        puestos += 1
+        hubs_puestos += c["hub"]
     return body_md
 
 

@@ -19,21 +19,19 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import re
 from collections import Counter
 from pathlib import Path
 
 from app.db.models import Post, SeoContent
 from app.db.session import SessionLocal
 from app.services.entity_resolver import build_corpus_index
-from app.services.link_policy import norm_path
+from app.services.link_policy import ENLACE, fold, norm_path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 # `data/` es read-only en prod; escribe a /tmp y se copia a data/.
 OUT_PATH = Path("/tmp/internal_link_stats.json")
-_HREF = re.compile(r"\]\((https?://[^)\s]+|/[^)\s]+)\)")
 
 
 def _to_path(url: str) -> str | None:
@@ -57,13 +55,20 @@ def main() -> None:
 
         bodies = [b for (b,) in db.query(Post.body_md).all() if b]
         bodies += [b for (b,) in db.query(SeoContent.body_md).all() if b]
+        # Anchors entrantes por destino: el autolinker elige la variante menos
+        # usada (regla 4 de link_policy). Van en el mismo fichero, bajo
+        # `__anchors__`, para no tocar el cron que lo copia a data/.
+        anchors: dict[str, Counter[str]] = {}
         for body in bodies:
-            for m in _HREF.finditer(body):
-                p = _to_path(m.group(1))
+            for anchor, url in ENLACE.findall(body):
+                p = _to_path(url)
                 if p in counts:
                     counts[p] += 1
+                    anchors.setdefault(p, Counter())[fold(anchor)] += 1
 
-    OUT_PATH.write_text(json.dumps(dict(counts), ensure_ascii=False, indent=2))
+    snapshot: dict = dict(counts)
+    snapshot["__anchors__"] = {p: dict(c) for p, c in anchors.items()}
+    OUT_PATH.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2))
     total_links = sum(counts.values())
     orphans = [p for p, c in counts.items() if c == 0]
     logger.info(

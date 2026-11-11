@@ -365,7 +365,7 @@ def main() -> None:
         # el autolink), externos solo del material. Luego enlazado interno.
         body = _sanitize_links(body, allowed_urls)
         body = autolink_corpus(
-            body, build_corpus_index(db), max_links=10,
+            body, build_corpus_index(db), 
             exclude_slug=artist.slug, link_stats=load_link_stats(),
         )
         log(f"  ✓ {subject}: {len(body)} chars")

@@ -270,7 +270,7 @@ def propose_for_review(
         from app.services.text_sanitizer import normalize_headings
         new_body = normalize_headings(post.body_md) or post.body_md
         new_body = autolink_corpus(
-            new_body, build_corpus_index(db), max_links=4,
+            new_body, build_corpus_index(db), 
             link_stats=load_link_stats(),
         )
         # Después del autolink, no antes: el autolink también mete URLs (esas,

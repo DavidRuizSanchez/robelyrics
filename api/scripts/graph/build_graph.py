@@ -170,6 +170,24 @@ def main() -> None:
             add("song", c.song_id, et, "person", pid, weight=2.5,
                 meta={"role": c.credit_role, "credited_name": c.credited_name})
 
+        # 4c) Lugar de nacimiento: person→place cuando `birth_place` nombra un lugar
+        # del catálogo («Plasencia, Cáceres» → Plasencia, el primero que aparece).
+        # Es la relación que necesita `link_policy` para enlazar el lugar desde
+        # la ficha de la persona (regla de relación de las taxonomías, 11-11-2026).
+        lugares_norm = [(_norm(pl.name), pl.id) for pl in places.values() if pl.name]
+        for p in persons.values():
+            texto = _norm(p.birth_place or "")
+            if not texto:
+                continue
+            hallados = []
+            for nombre, plid in lugares_norm:
+                m = re.search(rf"(?<!\w){re.escape(nombre)}(?!\w)", texto)
+                if m:
+                    hallados.append((m.start(), -len(nombre), plid))
+            if hallados:
+                add("person", p.id, "born_in", "place", min(hallados)[2],
+                    meta={"birth_place": p.birth_place})
+
         # 5) mentions: páginas (seo_content/posts) → entidades del corpus
         def resolve_url(url: str) -> tuple[str, int] | None:
             if not url:
