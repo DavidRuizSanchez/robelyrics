@@ -889,5 +889,5 @@ song_matches_lyrics:
     el-arbol: ["árbol", "cerezo", "sauce"]
     cristo: ["jesucristo", "cristo"]
     el-diablo: ["diablo", "demonio", "lucifer"]
-    don-quijote: ["quijote", "molino"]
+    don-quijote: ["quijote", "molino", "molinos"]  # \m…\M: «molino» no casa con «molinos» (Locura transitoria)
   themes: {}
