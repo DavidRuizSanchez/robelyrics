@@ -53,6 +53,29 @@ photos:
     source_url: "https://www.youtube.com/watch?v=kWDK1uvcWWM&t=142s"
     identity: "David Lerman"
     identity_evidence: "rótulo en pantalla «David Lerman» en el mismo plano (2:22)"
+  # Prensa e instituciones, sin Juancares (David, 11-11-2026). Vistas a mano: una
+  # sola persona y sin marca de agua. Ninguna página indica autor ni licencia.
+  - slug: woody-amores
+    url: "https://pmextremadura.es/wp-content/uploads/2024/02/Woody-Amores-web.jpg"
+    attribution: "Premios de la Música Extremeña"
+    license: derechos de su autor
+    source_url: "https://pmextremadura.es/mejor-solista-destacado-2024/"
+    identity: "Woody Amores"
+    identity_evidence: "alt=«Woody Amores» en su entrada de Mejor solista destacado 2024"
+  - slug: lorenzo-gonzalez
+    url: "https://static.eldiario.es/clip/ee23208e-c867-4896-b27c-c719ec83e581_16-9-discover-aspect-ratio_default_0.jpg"
+    attribution: "eldiario.es (17-03-2026)"
+    license: derechos de su autor
+    source_url: "https://www.eldiario.es/extremadura/cultura/bulo-nueva-banda-formada-musicos-acompanaron-robe-ultimos-doce-anos-encuentra-propia-voz_1_13044524.html"
+    identity: "Loren González"
+    identity_evidence: "pie y alt «Loren González, momentos después de la entrevista»"
+  - slug: alen-ayerdi
+    url: "https://a1.elespanol.com/cronicaglobal/2015/03/12/culemania/culemaniacos/culemaniacos_17508356_311280_1024x576.jpg"
+    attribution: "Marea, vía Crónica Global (09-05-2023)"
+    license: derechos de su autor
+    source_url: "https://cronicaglobal.elespanol.com/culemania/culemaniacos/20230509/alen-ayerdi-marea-lo-que-messi-increible/762423787_0.html"
+    identity: "Alén Ayerdi"
+    identity_evidence: "pie «Alén Ayerdi lo da todo durante un concierto de Marea en directo / MAREA»"
 
   # === Personas ===
   # Retiradas el 11-11-2026: Álvaro Rodríguez Barroso (La Gran Belleza), Lorenzo
