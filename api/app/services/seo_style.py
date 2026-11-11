@@ -630,7 +630,7 @@ def _nombres_sujeto(subject: str, alias: list[str] | None) -> list[str]:
     for n in [subject, *(alias or [])]:
         p = flatten(n or "").strip()
         p = re.sub(r"\s*\(.*?\)\s*", " ", p).strip()      # «Pepe Botika (¿Dónde…?)»
-        if len(p) >= 3:
+        if len(p) >= 2:                                   # «Ñu» se queda en «nu»
             out.append(p)
     return out
 

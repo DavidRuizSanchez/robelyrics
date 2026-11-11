@@ -215,3 +215,8 @@ def test_tercera_vuelta_con_las_palabras_que_se_buscan(monkeypatch):
     # Solo cambia la posición conservada; la otra se queda con lo de la primera vuelta.
     assert p.despues == ["Qué significa «Guerrero»", "De la calma a las explosiones"]
     assert p.aplicable and not p.veredicto_despues_bloquea
+
+
+def test_un_nombre_de_dos_letras_tambien_cuenta():
+    hs = ["De Fresa al rock duro", "La influencia de Ñu en el rock español"]
+    assert seo_style.heading_verdict(hs, subject="Ñu").ok
