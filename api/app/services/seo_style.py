@@ -325,6 +325,24 @@ def keyword_pegada(title: str, target_keyword) -> bool:
     return False
 
 
+def quitar_comillas_envolventes(texto: str) -> str:
+    """Quita las comillas que envuelven TODO el texto, y solo esas.
+
+    El 11-11-2026 un `.strip("«»")` se comió la comilla de apertura de 8 titles
+    publicados («Perro Callejero», de Extremoduro… → «Perro Callejero», de…): el
+    title empezaba por un título citado, no estaba envuelto.
+    """
+    t = (texto or "").strip()
+    for a, c in (("«", "»"), ('"', '"'), ("“", "”")):
+        if len(t) > 1 and t[0] == a and t[-1] == c and a not in t[1:-1] and c not in t[1:-1]:
+            return t[1:-1].strip()
+    return t
+
+
+def comillas_desparejadas(title: str) -> bool:
+    return (title or "").count("«") != (title or "").count("»")
+
+
 def formulas_vacias(title: str) -> list[str]:
     plano = flatten(title)
     return [f for f in FORMULAS_VACIAS_TITLE if f" {f} " in plano]
@@ -497,6 +515,8 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
     # totalmente antinatural»), las fórmulas vacías y el Title Case.
     if title_pattern(nuevo) == "antinatural" or keyword_pegada(nuevo, target_keyword):
         v.bloquear(f"«{nuevo}» pega la keyword en crudo; no se lee natural")
+    if comillas_desparejadas(nuevo):
+        v.bloquear("comillas «» desparejadas")
     for f in formulas_vacias(nuevo):
         v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
     malas = mayusculas_indebidas(nuevo, body_md or "", nombres=[subject or "", *nombres])
