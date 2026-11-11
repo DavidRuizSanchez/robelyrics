@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Seguimiento a 1-4 semanas de los headings humanizados (11-11-2026). Cada día a las
+  10:30; el informe solo sale cuando GSC tiene la semana entera. Se desinstala solo
+  tras mandar la semana 4.
+
+  Instalar:
+    cp infra/local/seguimiento_headings.sh "$HOME/Library/Application Support/robelyrics/"
+    chmod +x "$HOME/Library/Application Support/robelyrics/seguimiento_headings.sh"
+    cp infra/local/com.robelyrics.seguimiento-headings.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.robelyrics.seguimiento-headings.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.robelyrics.seguimiento-headings</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/david.ruiz/Library/Application Support/robelyrics/seguimiento_headings.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>10</integer>
+        <key>Minute</key><integer>30</integer>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/robelyrics-seguimiento-headings.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/robelyrics-seguimiento-headings.log</string>
+</dict>
+</plist>

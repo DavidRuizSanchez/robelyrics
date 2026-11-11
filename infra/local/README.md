@@ -119,3 +119,17 @@ docker exec robelyrics-api python -m scripts.instagram.process_clips
 Un clip que falla se reintenta hasta 3 veces y luego queda en `failed` con el
 motivo en la columna `error` de `video_clips`. El daemon sale en silencio si
 Docker está apagado o la Mac dormida: no es un error.
+
+## Seguimiento de los headings humanizados (11-11-2026 → ~mediados de diciembre)
+
+`seguimiento_headings.sh` + `com.robelyrics.seguimiento-headings.plist`: cada día a las
+10:30 pide a prod qué páginas cambiaron (`content_revisions`), baja GSC (page+date,
+page+query+date e inspección de URL) y, cuando GSC ya cubre la semana 1, 2, 3 o 4 tras
+el cambio, prod manda el informe a `ADMIN_EMAIL` (cambiadas frente a control, por tipo,
+consultas protegidas que caen más de 5 puestos, si Google ya lo ha rastreado). Tras la
+semana 4 se desinstala solo. Datos, estado (`enviadas.txt`) y copia de cada informe en
+`~/Library/Application Support/robelyrics/seguimiento_headings/`.
+
+**Nada que lea launchd puede estar en `~/Documents`**: TCC deja a python pero no a
+`rsync` («Operation not permitted»). Por eso `gsc_weekly.sh` copia los JSON a
+`gsc_staging/` antes de subirlos; hasta el 11-11-2026 el volcado no llegaba a prod.
