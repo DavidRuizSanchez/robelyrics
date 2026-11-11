@@ -33,6 +33,7 @@ SITE = "https://entreinteriores.com"
 LAG_DIAS = 3  # GSC con dataState final no trae los últimos ~3 días
 MARGEN_ANTES = 7 * 4 + 2
 REASON = "headings humanos%"
+REASON_TITLES = "titles humanos%"
 
 
 def _dir_datos() -> Path:
@@ -44,12 +45,20 @@ def _dir_datos() -> Path:
 
 # ------------------------------------------------------------------ exportar
 
-def cmd_exportar(_args) -> None:
+def cmd_exportar(args) -> None:
     from sqlalchemy import text
 
     from app.db.session import SessionLocal
 
     db = SessionLocal()
+    if getattr(args, "titles", False):
+        # Seguimiento conjunto (11-11-2026): cuándo se le cambió el title a cada página.
+        filas = db.execute(text(
+            "select path, min(created_at) from content_revisions where reason like :r "
+            "group by path"), {"r": REASON_TITLES}).fetchall()
+        json.dump({p: a.isoformat() for p, a in filas}, sys.stdout, ensure_ascii=False)
+        logger.info("%d páginas con el title cambiado", len(filas))
+        return
     filas = db.execute(text(
         "select r.path, min(r.created_at), max(r.created_at), max(s.entity_type) "
         "from content_revisions r left join seo_content s "
@@ -187,6 +196,8 @@ def cmd_informe(args) -> None:
     carpeta = Path(args.dir) if args.dir else _dir_datos()
     cambios = json.loads((carpeta / "cambios.json").read_text(encoding="utf-8"))
     gsc = json.loads((carpeta / "gsc.json").read_text(encoding="utf-8"))
+    f_titles = carpeta / "titles.json"
+    titles = json.loads(f_titles.read_text(encoding="utf-8")) if f_titles.exists() else None
     enviadas = [x for x in (args.enviadas or "").split(",") if x.strip()]
 
     k = args.semana or sh.semana_pendiente(cambios, gsc["fin"], enviadas)
@@ -197,7 +208,7 @@ def cmd_informe(args) -> None:
     if not sh.semana_cubierta(cambios, gsc["fin"], k) and not args.force:
         raise SystemExit(f"los datos (hasta {gsc['fin']}) no cubren la semana {k}")
 
-    res = sh.analizar(cambios, gsc, k)
+    res = sh.analizar(cambios, gsc, k, titles)
     meta = {
         "site": gsc["site"], "fin": gsc["fin"], "fetched_at": gsc["fetched_at"],
         "primer_cambio": min(c["primero"][:10] for c in cambios.values()),
@@ -240,7 +251,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("exportar")
+    e = sub.add_parser("exportar")
+    e.add_argument("--titles", action="store_true",
+                   help="fecha del cambio de title por página (seguimiento conjunto)")
     d = sub.add_parser("descargar")
     d.add_argument("--cambios", required=True)
     d.add_argument("--out", required=True)

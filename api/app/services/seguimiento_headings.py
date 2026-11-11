@@ -118,10 +118,36 @@ def _en(dia: date, intervalo: tuple[date, date]) -> bool:
     return intervalo[0] <= dia <= intervalo[1]
 
 
-def analizar(cambios: dict, gsc: dict, semanas: int) -> dict:
+def apartadas_por_title(cambios: dict, titles: dict | None, semanas: int) -> tuple[set, set]:
+    """Páginas cuyo TITLE cambió antes de que acabe su ventana «después».
+
+    Decisión de David (11-11-2026): los titles se rehacen por tandas semanales y el
+    seguimiento es conjunto. Una página con title nuevo ya no mide solo los
+    headings, y tampoco sirve de control: se aparta y se cuenta. Las de las tandas
+    siguientes siguen midiendo headings limpios hasta que les toque.
+    """
+    if not titles:
+        return set(), set()
+    primero_global = min(_d(c["primero"]) for c in cambios.values())
+    ultimo_global = max(_d(c["ultimo"]) for c in cambios.values())
+    fin_control = ventanas(primero_global, ultimo_global, semanas)[1][1]
+    cam, con = set(), set()
+    for path, cuando in titles.items():
+        dia = _d(cuando)
+        if path in cambios:
+            if dia <= ventanas(cambios[path]["primero"], cambios[path]["ultimo"],
+                               semanas)[1][1]:
+                cam.add(path)
+        elif dia <= fin_control:
+            con.add(path)
+    return cam, con
+
+
+def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None) -> dict:
     """Todas las cifras del informe de la semana `semanas`, desde las filas crudas.
 
     `cambios`: {path: {"primero", "ultimo", "tipo"}} (de `content_revisions`).
+    `titles`: {path: fecha del primer cambio de title} (reason «titles humanos»).
     `gsc`: {"page_daily": [[path, fecha, clics, imp, pos]],
             "page_query_daily": [[path, query, fecha, clics, imp, pos]],
             "inspeccion": {path: {"lastCrawlTime": iso|None, ...}}, "fin": fecha}.
@@ -132,6 +158,8 @@ def analizar(cambios: dict, gsc: dict, semanas: int) -> dict:
     v_pag = {p: ventanas(c["primero"], c["ultimo"], semanas) for p, c in cambios.items()}
 
     inspeccion = gsc.get("inspeccion") or {}
+    fuera_cam, fuera_con = apartadas_por_title(cambios, titles, semanas)
+    fuera = fuera_cam | fuera_con
 
     def rastreada(path: str) -> bool | None:
         info = inspeccion.get(path)
@@ -146,6 +174,8 @@ def analizar(cambios: dict, gsc: dict, semanas: int) -> dict:
     vistas: dict[str, set[str]] = defaultdict(set)
 
     for path, fecha, clics, imp, pos in gsc.get("page_daily") or []:
+        if path in fuera:
+            continue
         dia = _d(fecha)
         if path in cambios:
             antes, despues = v_pag[path]
@@ -183,7 +213,7 @@ def analizar(cambios: dict, gsc: dict, semanas: int) -> dict:
     q_antes: dict[tuple[str, str], Totales] = defaultdict(Totales)
     q_despues: dict[tuple[str, str], Totales] = defaultdict(Totales)
     for path, query, fecha, clics, imp, pos in gsc.get("page_query_daily") or []:
-        if path not in cambios:
+        if path not in cambios or path in fuera:
             continue
         antes, despues = v_pag[path]
         dia = _d(fecha)
@@ -236,6 +266,7 @@ def analizar(cambios: dict, gsc: dict, semanas: int) -> dict:
         "protegidas": protegidas,
         "paginas": filas_pagina,
         "n_cambios": len(cambios),
+        "apartadas_title": {"cambiadas": len(fuera_cam), "control": len(fuera_con)},
         "rastreo": {
             "inspeccionadas": total_rastreables,
             "tras_el_cambio": sum(1 for p in cambios if rastreada(p) is True),
@@ -298,6 +329,12 @@ def lectura(res: dict) -> list[str]:
                f"{CAIDA_POSICIONES:.0f} puestos {len(caen)}, mejoran más de "
                f"{CAIDA_POSICIONES:.0f} {mejoran} y {sin} no tienen impresiones suficientes "
                "en el «después» para compararlas.")
+    ap = res.get("apartadas_title") or {}
+    if ap.get("cambiadas") or ap.get("control"):
+        out.append(
+            f"Apartadas por tener el title nuevo dentro de la ventana: {ap['cambiadas']} "
+            f"páginas con headings y {ap['control']} del control. Ya no miden solo los "
+            "headings; los titles llevan su propio seguimiento.")
     if res["semanas"] == 1:
         out.append("Una semana es muy poco para concluir nada: es la foto de partida.")
     return out

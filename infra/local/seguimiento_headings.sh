@@ -50,11 +50,17 @@ ssh robelyrics "cd /opt/robelyrics && $DC exec -T api python -m scripts.seo.segu
   > "$DIR/cambios.json.tmp" && mv "$DIR/cambios.json.tmp" "$DIR/cambios.json" \
   || { avisar "No se pudo leer de prod qué páginas se cambiaron"; exit 1; }
 
+# Seguimiento conjunto (11-11-2026): las páginas a las que se cambia el title por
+# tandas se apartan del informe de headings desde ese día.
+ssh robelyrics "cd /opt/robelyrics && $DC exec -T api python -m scripts.seo.seguimiento_headings exportar --titles" \
+  > "$DIR/titles.json.tmp" && mv "$DIR/titles.json.tmp" "$DIR/titles.json" \
+  || { avisar "No se pudo leer de prod qué titles se cambiaron"; exit 1; }
+
 PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.seguimiento_headings descargar \
   --cambios "$DIR/cambios.json" --out "$DIR/gsc.json" \
   || { avisar "Falló la descarga de GSC. Si es invalid_grant: python -m scripts.seo.gsc_reauth"; exit 1; }
 
-rsync -az "$DIR/cambios.json" "$DIR/gsc.json" robelyrics:/opt/robelyrics/data/seguimiento_headings/ \
+rsync -az "$DIR/cambios.json" "$DIR/titles.json" "$DIR/gsc.json" robelyrics:/opt/robelyrics/data/seguimiento_headings/ \
   || { avisar "rsync a prod falló"; exit 1; }
 
 SALIDA=$(ssh robelyrics "cd /opt/robelyrics && $DC exec -T api python -m scripts.seo.seguimiento_headings informe --enviadas '$ENVIADAS'") \

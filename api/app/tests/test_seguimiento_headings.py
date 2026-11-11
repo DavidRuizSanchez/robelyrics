@@ -94,3 +94,27 @@ def test_informe_cita_fuentes_y_marca_la_hipotesis():
     assert "content_revisions" in texto and "Search Analytics" in texto
     assert "«barricada grupo»" in texto
     assert "semana 1/4" in sh.asunto(res)
+
+
+def test_seguimiento_conjunto_aparta_lo_que_cambio_de_title():
+    """David, 11-11-2026: titles por tandas y seguimiento conjunto. Barricada cambia
+    de title el 13-11, dentro de su «después» de la semana 1: ya no mide solo los
+    headings. Diego Garay cambia el 01-12, fuera de esa ventana: sigue contando.
+    /blog/x (control) cambia el 14-11: deja de servir de control."""
+    titles = {"/grupos/barricada": "2026-11-13T05:00:00+00:00",
+              "/personas/diego-garay": "2026-12-01T05:00:00+00:00",
+              "/blog/x": "2026-11-14T05:00:00+00:00"}
+    res = sh.analizar(CAMBIOS, _gsc(), 1, titles)
+    cam, con = res["grupos"]["cambiadas"], res["grupos"]["control"]
+    assert res["apartadas_title"] == {"cambiadas": 1, "control": 1}
+    assert cam.paginas == 1 and (cam.antes.clics, cam.despues.clics) == (1, 0)
+    assert con.paginas == 0
+    assert all(p["path"] != "/grupos/barricada" for p in res["protegidas"])
+    assert any("Apartadas por tener el title nuevo" in x for x in sh.lectura(res))
+    # A 4 semanas, Diego Garay también queda dentro de su ventana y se aparta.
+    assert sh.apartadas_por_title(CAMBIOS, titles, 4)[0] == {"/grupos/barricada",
+                                                             "/personas/diego-garay"}
+
+
+def test_sin_titles_el_informe_no_cambia():
+    assert sh.analizar(CAMBIOS, _gsc(), 1, None)["grupos"]["cambiadas"].paginas == 2
