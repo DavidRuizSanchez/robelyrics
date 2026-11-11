@@ -229,6 +229,26 @@ def upsert_seo_content(
     body_md = strip_ai_tells(body_md) or body_md
     body_md = normalize_headings(body_md) or body_md
 
+    # Enlazado interno automático: enlaza hasta 4 menciones a entidades del
+    # corpus (las más relevantes) a su página local. No enlaza la propia
+    # página de este seo_content. Va ANTES del guard de enlaces (11-11-2026):
+    # al revés, lo que añadía el autolinker se guardaba sin validar.
+    if body_md:
+        from app.services.entity_resolver import (
+            autolink_corpus,
+            autolink_sources,
+            build_corpus_index,
+            load_link_stats,
+        )
+        body_md = autolink_corpus(
+            body_md, build_corpus_index(db), max_links=4,
+            exclude_slug=slug, link_stats=load_link_stats(),
+        )
+        # Enlazado externo a medios citados: si una fuente (Mondo Sonoro, Efe
+        # Eme…) se nombra en el cuerpo, enlaza el medio a su url de origen.
+        if sources:
+            body_md = autolink_sources(body_md, sources)
+
     # Enlaces internos: cada ruta se valida contra la BD antes de guardar. Es el
     # cuello por el que pasan TODOS los generadores SEO, así que engancharlo aquí
     # los cubre de golpe. Hacía falta porque el LLM se inventaba rutas
@@ -277,24 +297,6 @@ def upsert_seo_content(
             return existing.id
 
     ents = entities or []
-    # Enlazado interno automático: enlaza hasta 4 menciones a entidades del
-    # corpus (las más relevantes) a su página local. No enlaza la propia
-    # página de este seo_content.
-    if body_md:
-        from app.services.entity_resolver import (
-            autolink_corpus,
-            autolink_sources,
-            build_corpus_index,
-            load_link_stats,
-        )
-        body_md = autolink_corpus(
-            body_md, build_corpus_index(db), max_links=4,
-            exclude_slug=slug, link_stats=load_link_stats(),
-        )
-        # Enlazado externo a medios citados: si una fuente (Mondo Sonoro, Efe
-        # Eme…) se nombra en el cuerpo, enlaza el medio a su url de origen.
-        if sources:
-            body_md = autolink_sources(body_md, sources)
 
     update_set = {
         "slug": slug,

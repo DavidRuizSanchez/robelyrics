@@ -25,7 +25,8 @@ from pathlib import Path
 
 from app.db.models import Post, SeoContent
 from app.db.session import SessionLocal
-from app.services.entity_resolver import SITE_URL_DEFAULT, build_corpus_index
+from app.services.entity_resolver import build_corpus_index
+from app.services.link_policy import norm_path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -35,10 +36,8 @@ OUT_PATH = Path("/tmp/internal_link_stats.json")
 _HREF = re.compile(r"\]\((https?://[^)\s]+|/[^)\s]+)\)")
 
 
-def _to_path(url: str, base: str) -> str:
-    if url.startswith(base):
-        url = url[len(base):]
-    return "/" + url.strip("/")
+def _to_path(url: str) -> str | None:
+    return norm_path(url)
 
 
 def main() -> None:
@@ -46,14 +45,13 @@ def main() -> None:
     ap.add_argument("--top", type=int, default=20)
     args = ap.parse_args()
 
-    base = SITE_URL_DEFAULT.rstrip("/")
     with SessionLocal() as db:
         index = build_corpus_index(db)
         # Inicializa a 0 todas las entidades (las huérfanas también cuentan).
         counts: Counter[str] = Counter()
         url_by_path = {}
         for e in index:
-            p = _to_path(e["url"], base)
+            p = _to_path(e["url"])
             counts[p] = 0
             url_by_path[p] = e
 
@@ -61,7 +59,7 @@ def main() -> None:
         bodies += [b for (b,) in db.query(SeoContent.body_md).all() if b]
         for body in bodies:
             for m in _HREF.finditer(body):
-                p = _to_path(m.group(1), base)
+                p = _to_path(m.group(1))
                 if p in counts:
                     counts[p] += 1
 

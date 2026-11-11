@@ -44,7 +44,7 @@ from app.services import seo_style
 
 logger = logging.getLogger(__name__)
 
-SITE_HOSTS = ("entreinteriores.com", "www.entreinteriores.com")
+from app.services.link_policy import SITE_HOSTS  # noqa: E402 — una sola fuente
 
 # Páginas índice con ficha propia (`seo_content.entity_type='page'`). La clave es
 # el `entity_id`. Se amplían como cualquier ficha.

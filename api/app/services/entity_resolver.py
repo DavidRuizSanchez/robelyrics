@@ -46,10 +46,10 @@ def load_link_stats() -> dict[str, int]:
 
 
 def _url_path(url: str) -> str:
-    base = SITE_URL_DEFAULT.rstrip("/")
-    if url.startswith(base):
-        url = url[len(base):]
-    return "/" + url.strip("/")
+    """Ruta comparable de un enlace (ver `link_policy.norm_path`)."""
+    from app.services.link_policy import norm_path
+
+    return norm_path(url) or url
 
 
 def _normalize(s: str) -> str:
@@ -409,7 +409,10 @@ def build_corpus_index(
     try:
         from app.db.models import Band  # noqa: PLC0415
         for b in db.query(Band).all():
-            add(b.name, f"{base}/grupos/{b.slug}", "band")
+            # Los sellos viven en /sellos/: indexarlos en /grupos/ hacía que el
+            # guard los reescribiera y el autolinker no reconociera su enlace.
+            seccion = "sellos" if b.kind == "label" else "grupos"
+            add(b.name, f"{base}/{seccion}/{b.slug}", "band")
     except Exception:  # noqa: BLE001
         pass
     return list(by_norm.values())
@@ -441,26 +444,33 @@ def autolink_corpus(
 
     # Enlaces ya presentes: no duplicamos destino y contamos los que apuntan al
     # corpus contra el tope (idempotente: re-ejecutar no acumula enlaces).
-    existing_urls = set(re.findall(r"\]\((\S+?)\)", body_md))
-    index_urls = {e["url"] for e in index}
-    budget = max_links - len(existing_urls & index_urls)
+    # Se compara por RUTA normalizada: el índice da URLs absolutas y el guard
+    # deja relativas. En crudo no casaban y cada pasada añadía un enlace más.
+    existing_paths = {
+        p for p in (_url_path(u) for u in re.findall(r"\]\((\S+?)\)", body_md))
+        if p.startswith("/")
+    }
+    index_paths = {_url_path(e["url"]) for e in index}
+    budget = max_links - len(existing_paths & index_paths)
     if budget <= 0:
         return body_md
 
+    exclude_path = _url_path(exclude_url) if exclude_url else None
     # 1) Candidatos realmente mencionados (y enlazables) en el cuerpo.
     cand: list[dict[str, Any]] = []
-    seen_urls: set[str] = set(existing_urls)
+    seen_paths: set[str] = set(existing_paths)
     for ent in index:
         url = ent["url"]
-        if url == exclude_url or url in seen_urls:
+        path = _url_path(url)
+        if path == exclude_path or path in seen_paths:
             continue
         # No auto-enlazar la propia página (su seo_content).
-        if exclude_slug and url.rstrip("/").endswith("/" + exclude_slug):
+        if exclude_slug and path.endswith("/" + exclude_slug):
             continue
         hits = _mention_re(ent["name"]).findall(body_md)
         if not hits:
             continue
-        seen_urls.add(url)
+        seen_paths.add(path)
         # Relevancia: todas las menciones son coincidencia EXACTA del nombre
         # (relevancia anchor↔destino uniforme y máxima), así que la selección
         # la decide la relevancia origen↔destino:
