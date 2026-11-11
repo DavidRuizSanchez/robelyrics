@@ -45,6 +45,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.services import content_placement as _placement
+from app.services import seo_style
 from app.services.auth import get_current_admin
 from app.services.rate_limit import limiter
 from app.services.seo_templates import render_with_context, resolve_all
@@ -2247,7 +2248,14 @@ def admin_proposal_set_title(
 
     if payload.meta_title is not None:
         meta = (enforce_name_policy(strip_ai_tells(payload.meta_title)) or "").strip()
-        p.meta_title = (meta or title)[:60]
+        # Nunca se corta (`seo_style`): el `[:60]` de aquí partía palabras a mitad.
+        # Sin meta propio, el titular si cabe entero; si no, NULL y la plantilla.
+        if meta and seo_style.fit_or_none(meta, seo_style.TITLE_HARD_MAX) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"el meta title pasa de {seo_style.TITLE_HARD_MAX} caracteres",
+            )
+        p.meta_title = meta or seo_style.fit_or_none(title, seo_style.TITLE_HARD_MAX)
 
     db.commit()
     db.refresh(p)
