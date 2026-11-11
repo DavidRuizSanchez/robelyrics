@@ -140,11 +140,10 @@ export default async function SongPublicPage({
   const backdropSrc = detail.cover_url || detail.album.cover_url || null;
 
   // Destinos que ya enlaza la plantilla: el cuerpo no los repite (lib/enlazado.ts).
-  // La anterior y la siguiente las enlaza TrackNav; en «Más canciones» van como texto.
+  // TrackNav (anterior/siguiente) es navegación, como las migas: no cuenta, y
+  // «Más canciones» enlaza todas sus filas (una fila muerta parecía rota).
   const albumPath = `/${artistSlug}/${albumSlug}`;
   const pistas = albumDetail?.tracks ?? [];
-  const idx = pistas.findIndex((t) => t.slug === songSlug);
-  const vecinas = idx === -1 ? [] : [pistas[idx - 1], pistas[idx + 1]].filter(Boolean).map((t) => t.slug);
   const enlacesPlantilla = [
     albumPath,
     ...detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`),
@@ -338,7 +337,6 @@ export default async function SongPublicPage({
             albumTitle={detail.album.title}
             currentSlug={songSlug}
             tracks={albumDetail.tracks}
-            sinEnlace={vecinas}
           />
         )}
 

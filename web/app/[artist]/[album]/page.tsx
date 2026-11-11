@@ -165,8 +165,9 @@ export default async function AlbumPublicPage({
           <MarkdownArticle
             markdown={detail.seo_body}
             yaEnlazados={[
-              // Lo que ya enlaza la plantilla: artista (ficha), tracklist y «Más discos».
+              // Lo que ya enlaza la plantilla: artista, discografía, tracklist y «Más discos».
               `/${artistSlug}`,
+              `/discografia/${artistSlug}`,
               ...detail.tracks
                 .filter((t) => t.path || t.from_album !== null || t.slug !== "")
                 .map((t) => t.path ?? `/${artistSlug}/${albumSlug}/${t.slug}`),
@@ -247,6 +248,19 @@ export default async function AlbumPublicPage({
             currentAlbumSlug={albumSlug}
           />
         )}
+
+        {/* Hub de la discografía: desde el cuerpo casi no recibía enlaces (2 en
+            todo el sitio, medido el 11-11-2026), así que lo enlaza la plantilla. */}
+        <p className="mt-10 font-serif text-lg">
+          <Link
+            href={`/discografia/${artistSlug}`}
+            data-cursor="hover"
+            className="text-accent hover:underline"
+          >
+            Discografía completa de {detail.artist.name}
+          </Link>
+          <span className="text-ink-dim">: discos de estudio, directos y recopilatorios, por décadas.</span>
+        </p>
 
         <script
           type="application/ld+json"
