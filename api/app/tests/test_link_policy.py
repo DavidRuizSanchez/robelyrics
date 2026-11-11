@@ -224,9 +224,9 @@ def test_no_enlaza_lo_que_ya_enlaza_la_plantilla_ni_lo_cuenta():
     assert presupuesto(out, ctx.plantilla) == 0
 
 
-def test_sin_contexto_no_enlaza_taxonomias():
+def test_sin_contexto_no_enlaza_temas_pero_si_lugares():
     out = autolink_corpus("Hubo mucha lucha en Plasencia.", INDICE_RICO)
-    assert rutas_del_cuerpo(out) == []
+    assert rutas_del_cuerpo(out) == ["/lugares/plasencia"]
 
 
 def test_taxonomia_solo_con_relacion_en_el_grafo():
@@ -234,8 +234,10 @@ def test_taxonomia_solo_con_relacion_en_el_grafo():
                       "/temas/lucha": {"/extremoduro/agila/so-payaso"},
                       "/lugares/plasencia": {"/extremoduro/otra"}})
     ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso", relaciones=rel)
-    out = autolink_corpus("Hubo mucha lucha en Plasencia.", INDICE_RICO, contexto=ctx)
-    assert rutas_del_cuerpo(out) == ["/temas/lucha"]
+    out = autolink_corpus("Hubo mucha lucha en Pedrá.", INDICE_RICO, contexto=ctx)
+    assert sorted(rutas_del_cuerpo(out)) == ["/extremoduro/pedra", "/temas/lucha"]
+    otro = ContextoEnlazado(origen="/extremoduro/agila/sucede", relaciones=rel)
+    assert rutas_del_cuerpo(autolink_corpus("Hubo mucha lucha.", INDICE_RICO, contexto=otro)) == []
 
 
 def test_las_aristas_mentions_no_relacionan():

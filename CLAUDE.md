@@ -1427,16 +1427,20 @@ todo camino que enlace (autolinker, relinker, `merge_deep`, generadores):
 - **3 en el cuerpo** (`MAX_BODY_LINKS`): cuentan todas las rutas internas del cuerpo
   salvo las de la plantilla. Ningún llamador lleva tope propio; `merge_deep` cuenta
   la página entera (`ya_en_pagina`).
-- **Relación, solo para temas, conceptos y lugares**, y nunca por aristas `mentions`
-  (sería circular). Aplicada a todo, quitaba enlaces que el texto respalda (Albert
-  Pla → Extremoduro): el grafo es estructural y no sabe de sellos ni de lugares.
+- **Relación, solo para temas y conceptos**, y nunca por aristas `mentions` (sería
+  circular). Ahí el ruido son palabras comunes («lucha», «libertad»). Aplicada a
+  más, quitaba enlaces que el texto respalda (Albert Pla → Extremoduro, Robe →
+  Plasencia): el grafo es estructural y no sabe de sellos ni de lugares.
+- **Navegación exenta:** las migas y anterior/siguiente (`TrackNav`) no cuentan
+  para «1 por destino»; el autolinker tampoco rellena con las migas.
 - **Anchors:** alias del índice + prefijo ya escrito («el disco *Agila*»); se elige el
   menos usado (`__anchors__` en `internal_link_stats.json`). Un nombre propio solo
   casa con alguna mayúscula («rock transgresivo» es el estilo, no el disco).
 
 `scripts/seo/limpiar_enlaces.py` aplica todo eso a lo publicado en UNA pasada
 revisada (recorta y rellena hasta 3, con `content_revisions`), y el relinker del
-domingo queda en punto fijo. Ensayo de prod del 11-11: quita 720, añade 236.
+domingo queda en punto fijo. No borra lo que repite la plantilla (se pinta como
+texto al servir) y el tope protege a los destinos poco enlazados.
 
 ## Decisiones que NO hay que reabrir
 

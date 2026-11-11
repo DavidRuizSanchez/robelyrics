@@ -18,7 +18,7 @@ Reglas de David (11-11-2026), medidas en `data/seo_plan_autoridad/MEDICIONES_FAS
    todas las rutas internas distintas del cuerpo salvo las que ya cubre la
    plantilla (esas se pintan como texto). Sustituye los 4/6/8/10/2 que tenía
    cada llamador.
-3. **Relación, solo para destinos de taxonomía** (temas, conceptos, lugares).
+3. **Relación, solo para temas y conceptos** (los lugares no: ver `_EXIGEN_RELACION`).
    Medido: el 100 % de lo que caía por esta regla en otros destinos eran enlaces
    que el propio texto respalda (Albert Pla → Extremoduro, Barricada → El
    Drogas); en taxonomías, casi todo era una palabra común («lucha»,
@@ -50,6 +50,11 @@ MAX_HUBS_POR_PAGINA = 1
 _ABSOLUTA = re.compile(r"^(?:https?:)?//([^/?#]+)(.*)$", re.IGNORECASE)
 _NO_NAVEGABLE = ("mailto:", "tel:", "javascript:", "#")
 _TAXONOMIA = frozenset({"temas", "conceptos", "lugares"})
+# Solo temas y conceptos exigen relación (David, 11-11-2026): ahí el ruido son
+# palabras comunes («lucha», «libertad»). Un lugar es nombre propio (exige
+# mayúscula) y el grafo no sabe dónde nació o se formó nadie: la regla quitaba
+# 37 enlaces que el texto respalda (Robe → Plasencia, Marea → Pamplona).
+_EXIGEN_RELACION = frozenset({"temas", "conceptos"})
 _ARISTAS_QUE_NO_RELACIONAN = frozenset({"mentions"})
 _ARTISTAS = frozenset({"robe", "extremoduro"})
 
@@ -86,6 +91,11 @@ def rutas_del_cuerpo(md: str | None) -> list[str]:
 def es_taxonomia(path: str) -> bool:
     partes = path.strip("/").split("/")
     return len(partes) == 2 and partes[0] in _TAXONOMIA
+
+
+def exige_relacion(path: str) -> bool:
+    partes = path.strip("/").split("/")
+    return len(partes) == 2 and partes[0] in _EXIGEN_RELACION
 
 
 def artista_de(path: str | None) -> str | None:
@@ -182,8 +192,8 @@ class ContextoEnlazado:
         return frozenset("/" + "/".join(partes[:i]) for i in range(1, len(partes)))
 
     def admite(self, destino: str) -> bool:
-        """Regla 3: un destino de taxonomía exige relación en el grafo."""
-        if not es_taxonomia(destino):
+        """Regla 3: un tema o un concepto exige relación en el grafo."""
+        if not exige_relacion(destino):
             return True
         return self.relaciones is not None and self.relaciones.relacionados(self.origen, destino)
 
@@ -404,7 +414,7 @@ def recortar(md: str, ctx: ContextoEnlazado, *, tipo_de: dict[str, str] | None =
              maximo: int = MAX_BODY_LINKS) -> Recorte:
     """Aplica las reglas a un cuerpo ya publicado quitando ENLACES (el texto se
     queda). Motivos: `repetido` (se queda el primero), `propia` (la página a sí
-    misma), `sin_relacion` (taxonomía sin arista) y `tope` (pasa de 3: se quedan
+    misma), `sin_relacion` (tema o concepto sin arista) y `tope` (pasa de 3: se quedan
     los de más relevancia, con impulso a los destinos que reciben menos enlaces,
     como en el autolinker).
 
