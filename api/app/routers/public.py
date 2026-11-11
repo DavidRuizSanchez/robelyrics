@@ -106,6 +106,9 @@ class PublicArtistMember(BaseModel):
     era: str | None = None
     is_founder: bool = False
     image_url: str | None = None
+    # Sin ficha publicada se nombra pero no se enlaza (person_visibility): Ángel
+    # Lorenzo fue el primer batería y no tiene ficha (criterio de David, 11-11-2026).
+    has_page: bool = True
 
 
 class PublicRelatedVideo(BaseModel):
@@ -166,6 +169,7 @@ class PublicLineupMember(BaseModel):
     slug: str
     name: str
     role: str
+    has_page: bool = True
 
 
 class PublicRelatedSong(BaseModel):
@@ -345,11 +349,12 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
     """Miembros del artista cuya `era` cubre el `year` del álbum. Best-effort:
     filas con `era` no parseable se omiten (no se inventa formación)."""
     from app.db.models import BandMembership as _BM, Person as _P  # lazy
-    from app.services.person_visibility import persona_publicada  # lazy
+    from app.services.person_visibility import ids_publicadas  # lazy
+    publicadas = ids_publicadas(db)
     rows = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
-        .filter(_BM.artist_id == artist_id, persona_publicada())
+        .filter(_BM.artist_id == artist_id)
         .order_by(_BM.position, _BM.era)
         .all()
     )
@@ -366,6 +371,7 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
                 slug=p.slug,
                 name=p.stage_name or p.full_name,
                 role=m.role,
+                has_page=p.id in publicadas,
             )
         )
     return out
@@ -607,11 +613,14 @@ def public_artist_detail(
     # Robe es el protagonista del sitio: va siempre primero en la lista de
     # miembros (tanto en su proyecto en solitario como en Extremoduro), y
     # luego el resto por position/era.
-    from app.services.person_visibility import persona_publicada  # lazy
+    # Quien no tiene ficha publicada sale en la formación, pero sin enlace
+    # (person_visibility): la formación incompleta es un dato falso.
+    from app.services.person_visibility import ids_publicadas  # lazy
+    publicadas = ids_publicadas(db)
     members_raw = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
-        .filter(_BM.artist_id == artist.id, persona_publicada())
+        .filter(_BM.artist_id == artist.id)
         .order_by(
             _case((_P.slug == "robe-iniesta", 0), else_=1),
             _BM.position,
@@ -629,7 +638,10 @@ def public_artist_detail(
             _merged[p.slug] = {
                 "slug": p.slug, "full_name": p.full_name,
                 "stage_name": p.stage_name, "roles": [], "eras": [],
-                "is_founder": False, "image_url": p.image_url,
+                "is_founder": False,
+                "has_page": p.id in publicadas,
+                # Sin ficha no hay foto revisada que enseñar.
+                "image_url": p.image_url if p.id in publicadas else None,
             }
             _member_order.append(p.slug)
         d = _merged[p.slug]
@@ -644,6 +656,7 @@ def public_artist_detail(
             role=" · ".join(d["roles"]) if d["roles"] else None,
             era=_span_eras(d["eras"]),
             is_founder=d["is_founder"], image_url=d["image_url"],
+            has_page=d["has_page"],
         )
         for d in (_merged[s] for s in _member_order)
     ]

@@ -176,6 +176,44 @@ def _fallecimientos_de_miembros(db: Session, band_id: int) -> list[str]:
     return out
 
 
+def _creditos_de_persona(db: Session, persona, subject: str) -> list[str]:
+    """Lo que la persona firmó o cantó, de `song_credits` (con su disco y su año).
+
+    El dossier de una persona no leía esta tabla: a María Timón, corista en dos
+    discos, el motor le escribía «no constan créditos» (10-11-2026). Coros y voces
+    son interpretación, no autoría (`credit_roles.ROLES_INTERPRETACION`), y así se
+    dice, para que nadie la haga autora de una letra.
+    """
+    from sqlalchemy import func, or_
+
+    from app.db.models import Album, Song, SongCredit
+    from app.services.credit_roles import ROLES_INTERPRETACION
+
+    nombres = {n.strip().lower() for n in (persona.stage_name, persona.full_name) if n}
+    filas = db.execute(
+        select(SongCredit.credit_role, Song.title, Album.title, Album.year)
+        .join(Song, SongCredit.song_id == Song.id)
+        .join(Album, Song.album_id == Album.id)
+        .where(or_(SongCredit.person_id == persona.id,
+                   func.lower(func.trim(SongCredit.credited_name)).in_(nombres)))
+        .order_by(Album.year, Song.title)
+    ).all()
+    por_rol: dict[str, list[str]] = {}
+    for rol, cancion, disco, anio in filas:
+        item = f"«{cancion}» ({disco}, {anio})"
+        if item not in por_rol.setdefault(rol, []):
+            por_rol[rol].append(item)
+    out = []
+    for rol, items in por_rol.items():
+        etiqueta = rol.replace("_", " ")
+        if rol in ROLES_INTERPRETACION:
+            out.append(f"{subject} canta {etiqueta} (interpretación, no autoría) en: "
+                       + ", ".join(items) + ".")
+        else:
+            out.append(f"Crédito de {etiqueta} de {subject} en: " + ", ".join(items) + ".")
+    return out
+
+
 def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
     facts: list[str] = []
     if entity_type == "person":
@@ -206,6 +244,7 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
         # otra al revés. Así salía un texto que recorría su obra y no decía que
         # había muerto, o que hablaba de su muerte sin nombrar sus discos.
         facts.extend(_obra_del_artista_vinculado(db, entity.slug, subject))
+        facts.extend(_creditos_de_persona(db, entity, subject))
     elif entity_type == "band":
         bits = [f"{subject} ({entity.kind})."]
         if entity.founded_year:

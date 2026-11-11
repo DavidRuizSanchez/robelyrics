@@ -195,6 +195,8 @@ export type PublicArtistMember = {
   era: string | null;
   is_founder: boolean;
   image_url: string | null;
+  // Sin ficha publicada: se nombra, pero no se enlaza (person_visibility).
+  has_page?: boolean;
 };
 
 export type PublicResolvedEntity = {
@@ -262,6 +264,7 @@ export type PublicLineupMember = {
   slug: string;
   name: string;
   role: string;
+  has_page?: boolean;
 };
 
 export type PublicRelatedSong = {

@@ -81,3 +81,31 @@ def relaciones(db: Session, slug: str, *, site_url: str | None = None) -> dict |
     if not datos:
         return None
     return _resolver(db, datos, (site_url or SITE_URL_DEFAULT).rstrip("/"))
+
+
+def papeles(db: Session, person) -> list[str]:
+    """Qué es esta persona, con lo que consta: oficios curados del yaml, los de
+    Wikidata y su papel en cada grupo de la BD («bajo en Extremoduro»).
+
+    Lo usa el editor jefe para juzgar una ficha por el oficio REAL de la persona:
+    con una rúbrica genérica a un muralista le pedía discos (10-11-2026).
+    """
+    from app.db.models import Artist, BandMembership
+
+    out: list[str] = []
+
+    def poner(x: str | None) -> None:
+        x = (x or "").strip()
+        if x and x.lower() not in {o.lower() for o in out}:
+            out.append(x)
+
+    for o in (_cargar().get(person.slug) or {}).get("hasOccupation") or []:
+        poner(o.get("name") if isinstance(o, dict) else str(o))
+    for o in person.occupations or []:
+        poner(o.get("name") if isinstance(o, dict) else str(o))
+    filas = (db.query(BandMembership.role, Artist.name)
+             .join(Artist, BandMembership.artist_id == Artist.id)
+             .filter(BandMembership.person_id == person.id).all())
+    for rol, grupo in filas:
+        poner(f"{rol} en {grupo}" if rol else f"miembro de {grupo}")
+    return out

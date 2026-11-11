@@ -124,6 +124,37 @@ def _rubric_for(kind: str) -> str:
     return _RUBRIC.get(kind, "Contenido general: exige hechos concretos, nombres y datos; nada genérico.")
 
 
+def foco_persona(subject: str) -> str:
+    """El oficio REAL de la persona, para que la rúbrica `person` se aplique a lo que
+    hace: la obra de un muralista, los discos de un bajista, los cargos de un
+    alcalde. Vacío si no se encuentra (la rúbrica genérica sigue valiendo)."""
+    try:
+        from sqlalchemy import func, or_
+
+        from app.db.models import Person
+        from app.db.session import SessionLocal
+        from app.services.person_jsonld import papeles
+
+        nombre = (subject or "").strip().lower()
+        if not nombre:
+            return ""
+        db = SessionLocal()
+        try:
+            p = (db.query(Person)
+                 .filter(or_(func.lower(Person.stage_name) == nombre,
+                             func.lower(Person.full_name) == nombre)).first())
+            lista = papeles(db, p) if p else []
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — sin BD, rúbrica genérica
+        return ""
+    if not lista:
+        return ""
+    return ("Lo que consta de su papel: " + "; ".join(lista[:6]) + ". Juzga su obra según "
+            "ESE papel: no le pidas discos si no es músico ni trayectoria larga si su papel "
+            "fue acotado.")
+
+
 def review(
     body_md: str,
     *,
@@ -142,6 +173,8 @@ def review(
     body = (body_md or "").strip()
     if not body:
         return EditorialVerdict("reject", 0, ["cuerpo vacío"], None)
+    if kind == "person" and not focus:
+        focus = foco_persona(subject)
 
     key = os.environ.get("OPENAI_API_KEY")
     if not key:

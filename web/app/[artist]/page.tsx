@@ -25,7 +25,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import type { PublicArtistDetail } from "@/lib/types";
+import type { PublicArtistDetail, PublicArtistMember } from "@/lib/types";
 
 // Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
 export const revalidate = 3600;
@@ -93,6 +93,42 @@ export default async function ArtistPublicPage({
 
   // Si no hay seo_content publicado, página = 404 para crawlers
   if (!detail.seo_body) notFound();
+
+  // Función de render (no componente): la tarjeta es la misma con o sin enlace.
+  const renderMember = (m: PublicArtistMember) => (
+    <>
+      <div className="aspect-square bg-divider/30 overflow-hidden relative">
+        {m.image_url ? (
+          <Image
+            src={m.image_url}
+            alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
+          />
+        ) : (
+          <PersonAvatar
+            name={
+              m.stage_name && m.stage_name !== m.full_name
+                ? m.stage_name
+                : m.full_name
+            }
+            slug={m.slug}
+          />
+        )}
+      </div>
+      <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
+        {m.stage_name && m.stage_name !== m.full_name
+          ? m.stage_name
+          : m.full_name}
+      </p>
+      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+        {m.role}
+        {m.era && ` · ${m.era}`}
+        {m.is_founder && " · fundador"}
+      </p>
+    </>
+  );
 
   return (
     <>
@@ -177,42 +213,18 @@ export default async function ArtistPublicPage({
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {detail.members.map((m) => (
                 <li key={`${m.slug}-${m.era ?? ""}`}>
-                  <Link
-                    href={`/personas/${m.slug}`}
-                    data-cursor="hover"
-                    className="group block"
-                  >
-                    <div className="aspect-square bg-divider/30 overflow-hidden relative">
-                      {m.image_url ? (
-                        <Image
-                          src={m.image_url}
-                          alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                        />
-                      ) : (
-                        <PersonAvatar
-                          name={
-                            m.stage_name && m.stage_name !== m.full_name
-                              ? m.stage_name
-                              : m.full_name
-                          }
-                          slug={m.slug}
-                        />
-                      )}
-                    </div>
-                    <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
-                      {m.stage_name && m.stage_name !== m.full_name
-                        ? m.stage_name
-                        : m.full_name}
-                    </p>
-                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
-                      {m.role}
-                      {m.era && ` · ${m.era}`}
-                      {m.is_founder && " · fundador"}
-                    </p>
-                  </Link>
+                  {m.has_page === false ? (
+                    // Sin ficha publicada: se nombra, pero no se enlaza.
+                    <div className="block">{renderMember(m)}</div>
+                  ) : (
+                    <Link
+                      href={`/personas/${m.slug}`}
+                      data-cursor="hover"
+                      className="group block"
+                    >
+                      {renderMember(m)}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -247,6 +259,7 @@ export default async function ArtistPublicPage({
                         slug: m.slug,
                         fullName: m.full_name,
                         stageName: m.stage_name,
+                        hasPage: m.has_page !== false,
                       })),
                     }),
                     ...(mentionsArray(detail.entities).length > 0
@@ -262,7 +275,7 @@ export default async function ArtistPublicPage({
                       coverUrl: a.cover_url,
                     }),
                   ),
-                  ...detail.members.map((m) =>
+                  ...detail.members.filter((m) => m.has_page !== false).map((m) =>
                     personNode({
                       slug: m.slug,
                       fullName: m.full_name,
