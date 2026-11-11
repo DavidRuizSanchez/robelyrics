@@ -2,7 +2,7 @@
 
 Solo quita ENLACES; el texto se queda byte a byte (`solo_cambian_enlaces`, que
 se comprueba página a página: si falla, esa página no se toca). Motivos:
-`plantilla`, `repetido` (se queda el primero), `propia`, `sin_relacion`
+`repetido` (se queda el primero), `propia`, `sin_relacion`
 (taxonomía sin arista en el grafo) y `tope` (más de 3: se quedan los de más
 relevancia, con el mismo criterio que el autolinker).
 
@@ -105,7 +105,8 @@ def main() -> None:
                                   relaciones=relaciones)
             if ctx.origen:
                 plantillas[ctx.origen] = sorted(ctx.plantilla)
-            r = recortar(row.body_md, ctx, tipo_de=tipo_de, nombres_de=nombres_de)
+            r = recortar(row.body_md, ctx, tipo_de=tipo_de, nombres_de=nombres_de,
+                         link_stats=stats)
             final = autolink_corpus(r.md, indice, exclude_slug=row.slug, link_stats=stats,
                                     contexto=ctx, anchor_stats=anchors)
             if final == row.body_md:

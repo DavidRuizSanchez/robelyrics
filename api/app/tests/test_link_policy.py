@@ -266,11 +266,11 @@ def test_como_mucho_un_hub_por_pagina():
 
 
 def test_el_hub_no_recibe_el_impulso_de_pagina_debil():
-    md = "Los discos de Extremoduro empiezan con Agila."
+    md = "Los discos de Extremoduro empiezan con Pedrá."
     ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso")
     out = autolink_corpus(md, INDICE_RICO, contexto=ctx, max_links=1,
-                          link_stats={"/discografia/extremoduro": 0, "/extremoduro/agila": 500})
-    assert rutas_del_cuerpo(out) == ["/extremoduro/agila"]
+                          link_stats={"/discografia/extremoduro": 0, "/extremoduro/pedra": 500})
+    assert rutas_del_cuerpo(out) == ["/extremoduro/pedra"]
 
 
 def test_anchor_ampliado_si_el_corto_esta_gastado():
@@ -380,7 +380,7 @@ def test_plantilla_de_un_disco_incluye_mas_discos(bd):
     c = _catalogo(bd)
     p = plantilla_de(bd, "album", c.agila.id, rutas_de_nodos(bd))
     assert {"/extremoduro", "/extremoduro/agila/so-payaso", "/extremoduro/deltoya",
-            "/extremoduro/rock-transgresivo"} <= p
+            "/extremoduro/rock-transgresivo", "/discografia/extremoduro"} <= p
     assert "/extremoduro/agila" not in p
 
 
@@ -422,13 +422,39 @@ def test_recorte_se_queda_el_primer_enlace_de_cada_destino():
     assert r.md == "Primero [Agila](/extremoduro/agila), luego el disco Agila."
 
 
-def test_recorte_quita_lo_de_la_plantilla_y_la_taxonomia_sin_relacion():
-    md = "En [Agila](/extremoduro/agila) hay [lucha](/temas/lucha) y [Pedrá](/extremoduro/pedra)."
+def test_recorte_quita_la_taxonomia_sin_relacion_y_no_toca_lo_de_la_plantilla():
+    """Lo que repite la plantilla se pinta como texto al servir: no se borra de
+    la BD ni gasta tope (asesor, 11-11-2026)."""
+    md = ("En [Agila](/extremoduro/agila) hay [lucha](/temas/lucha), [Pedrá](/extremoduro/pedra), "
+          "[Deltoya](/extremoduro/deltoya) y [Somos](/extremoduro/somos-unos-animales).")
     ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso",
                            plantilla=frozenset({"/extremoduro/agila"}))
     r = recortar(md, ctx)
-    assert r.md == "En Agila hay lucha y [Pedrá](/extremoduro/pedra)."
-    assert {q[2] for q in r.quitados} == {"plantilla", "sin_relacion"}
+    assert "[Agila](/extremoduro/agila)" in r.md and "[lucha]" not in r.md
+    assert [q[2] for q in r.quitados] == ["sin_relacion"]
+
+
+def test_el_tope_protege_al_destino_poco_enlazado():
+    md = "[A](/a) [B](/b) [C](/c) [D](/sellos/avispa)."
+    stats = {"/a": 300, "/b": 300, "/c": 300, "/sellos/avispa": 0}
+    r = recortar(md, ContextoEnlazado(), link_stats=stats)
+    assert "/sellos/avispa" in rutas_del_cuerpo(r.md)
+    assert len(rutas_del_cuerpo(r.md)) == MAX_BODY_LINKS
+
+
+def test_las_migas_no_se_usan_para_rellenar():
+    """Una canción ya enlaza su artista y su disco en las migas."""
+    indice = [_ent("Extremoduro", "/extremoduro", "artist")] + INDICE_RICO
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso")
+    assert ctx.migas == {"/extremoduro", "/extremoduro/agila"}
+    out = autolink_corpus("Extremoduro grabó Agila y luego Pedrá.", indice, contexto=ctx)
+    assert rutas_del_cuerpo(out) == ["/extremoduro/pedra"]
+
+
+def test_un_enlace_del_cuerpo_a_las_migas_si_cuenta_para_el_tope():
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso")
+    md = "[Extremoduro](/extremoduro), [Pedrá](/extremoduro/pedra), [Deltoya](/extremoduro/deltoya)."
+    assert presupuesto(md, ctx.plantilla) == 0
 
 
 def test_recorte_no_toca_externos_ni_imagenes():

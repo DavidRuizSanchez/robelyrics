@@ -169,6 +169,18 @@ class ContextoEnlazado:
     plantilla: frozenset[str] = frozenset()
     relaciones: Relaciones | None = None
 
+    @property
+    def migas(self) -> frozenset[str]:
+        """Lo que enlazan las migas de pan: cada ruta madre de la página
+        (`/extremoduro/agila/so-payaso` → `/extremoduro`, `/extremoduro/agila`).
+        El autolinker no rellena con ellas: una canción ya enlaza su artista y su
+        disco arriba (asesor, 11-11-2026: 24 de 236 enlaces nuevos iban ahí).
+        No cuentan como plantilla en el recorte: el enlace del cuerpo se ve."""
+        if not self.origen:
+            return frozenset()
+        partes = self.origen.strip("/").split("/")
+        return frozenset("/" + "/".join(partes[:i]) for i in range(1, len(partes)))
+
     def admite(self, destino: str) -> bool:
         """Regla 3: un destino de taxonomía exige relación en el grafo."""
         if not es_taxonomia(destino):
@@ -267,6 +279,9 @@ def plantilla_de(db, entity_type: str, entity_id: int,
         if al is None:
             return frozenset()
         r("artist", al.artist_id)
+        # Bloque «Discografía completa» de la ficha de disco (web/app/[artist]/[album]).
+        if rutas.get(("artist", al.artist_id)):
+            out.add("/discografia" + rutas[("artist", al.artist_id)])
         for (sid,) in db.query(Song.id).filter(Song.album_id == al.id):
             r("song", sid)
         for t in db.query(AlbumTrack).filter(AlbumTrack.album_id == al.id):
@@ -294,6 +309,8 @@ def plantilla_de(db, entity_type: str, entity_id: int,
         for m in db.query(BandMembership).filter(BandMembership.person_id == entity_id):
             r("artist", m.artist_id)
     elif entity_type == "artist":
+        if rutas.get(("artist", entity_id)):
+            out.add("/discografia" + rutas[("artist", entity_id)])
         for (alid,) in db.query(Album.id).filter(Album.artist_id == entity_id):
             r("album", alid)
         for m in db.query(BandMembership).filter(BandMembership.artist_id == entity_id):
@@ -378,14 +395,23 @@ class Recorte:
         return bool(self.quitados)
 
 
+IMPULSO_DEBIL = 60.0  # mismo `weak_k` que el autolinker
+
+
 def recortar(md: str, ctx: ContextoEnlazado, *, tipo_de: dict[str, str] | None = None,
              nombres_de: dict[str, list[str]] | None = None,
+             link_stats: dict[str, int] | None = None,
              maximo: int = MAX_BODY_LINKS) -> Recorte:
     """Aplica las reglas a un cuerpo ya publicado quitando ENLACES (el texto se
-    queda). Motivos: `plantilla` (lo enlaza la plantilla), `repetido` (se queda
-    el primero), `propia` (la página a sí misma), `sin_relacion` (taxonomía sin
-    arista) y `tope` (pasa de 3: se quedan los de más relevancia)."""
-    tipo_de, nombres_de = tipo_de or {}, nombres_de or {}
+    queda). Motivos: `repetido` (se queda el primero), `propia` (la página a sí
+    misma), `sin_relacion` (taxonomía sin arista) y `tope` (pasa de 3: se quedan
+    los de más relevancia, con impulso a los destinos que reciben menos enlaces,
+    como en el autolinker).
+
+    Lo que ya enlaza la plantilla NO se quita (asesor, 11-11-2026): al servir se
+    pinta como texto (`web/lib/enlazado.ts`) y borrarlo ataría el cuerpo a una
+    plantilla que cambia. Tampoco cuenta para el tope."""
+    tipo_de, nombres_de, link_stats = tipo_de or {}, nombres_de or {}, link_stats or {}
     plano = ENLACE.sub(r"\1", md)
     vistos: set[str] = set()
     quitar: dict[int, str] = {}
@@ -395,7 +421,7 @@ def recortar(md: str, ctx: ContextoEnlazado, *, tipo_de: dict[str, str] | None =
         if not p:
             continue
         if p in ctx.plantilla:
-            quitar[m.start()] = "plantilla"
+            pass  # se pinta como texto al servir; ni se quita ni cuenta
         elif p in vistos:
             quitar[m.start()] = "repetido"
         elif ctx.origen and p == ctx.origen:
@@ -412,7 +438,11 @@ def recortar(md: str, ctx: ContextoEnlazado, *, tipo_de: dict[str, str] | None =
             menciones = sum(len(re.findall(rf"(?<!\w){re.escape(n)}(?!\w)", plano, re.I))
                             for n in nombres if n)
             largo = max(len(fold(n)) for n in nombres)
-            return (-relevancia(menciones, tipo_de.get(p, "otro"), largo), m.start())
+            tipo = tipo_de.get(p, "otro")
+            puntos = relevancia(menciones, tipo, largo)
+            if tipo != "hub":
+                puntos += IMPULSO_DEBIL / (1 + link_stats.get(p, 0))
+            return (-puntos, m.start())
         for m, _ in sorted(candidatos, key=puntos)[maximo:]:
             quitar[m.start()] = "tope"
     out, quitados, cursor = [], [], 0

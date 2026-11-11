@@ -526,12 +526,12 @@ def autolink_corpus(
     if budget <= 0:
         return body_md
 
-    vistos = set(rutas_del_cuerpo(body_md)) | ya | set(ctx.plantilla)
+    vistos = set(rutas_del_cuerpo(body_md)) | ya | set(ctx.plantilla) | set(ctx.migas)
     if ctx.origen:
         vistos.add(ctx.origen)
     exclude_path = _url_path(exclude_url) if exclude_url else None
     artista_pagina = artista_de(ctx.origen)
-    hubs_puestos = sum(1 for p in vistos - set(ctx.plantilla) if p in HUBS)
+    hubs_puestos = sum(1 for p in set(rutas_del_cuerpo(body_md)) | ya if p in HUBS)
 
     # Agrupa los alias por destino (el índice tiene una entrada por nombre).
     grupos: dict[str, dict[str, Any]] = {}
