@@ -241,11 +241,149 @@ class MetaVerdict:
 
 
 # Sustantivos que, pegados a un nombre propio y sin preposición, delatan la
-# keyword metida en crudo: «Barricada grupo», «Libertad significado», «Inconscientes
-# banda». `letra` NO está aquí, y no es un olvido: «<Canción> letra: …» es el patrón
-# canónico de 99 fichas y es como se busca. Decisión de David, 22-09-2026.
+# keyword metida en crudo: «Barricada grupo», «Libertad significado», «Avispa sello».
+# `letra` ENTRA desde el 11-11-2026: «Desarraigo letra: …» era el patrón de 121
+# fichas y David lo descartó («analizar caso a caso, con corrección léxica»). La
+# excepción anterior, del 22-09-2026, queda superada.
 _GENERICOS_PEGADOS = ("grupo", "banda", "disco", "album", "álbum", "significado",
-                      "biografia", "biografía", "historia")
+                      "biografia", "biografía", "historia", "letra", "sello",
+                      "discografica", "discográfica")
+
+# Los modificadores con los que el `target_keyword` se pegaba en crudo. Aquí sí van
+# los nombres de casa («Selu Extremoduro», «Leiva Robe», «Plasencia Robe»), que no
+# pueden ir en la regex de arriba: «Así Robe…» o «Extremoduro Robe…» no son keyword.
+# Por eso solo se miran con la keyword de la página delante.
+_DETERMINANTES = _STOP | {"unos", "unas", "este", "esta", "ese", "esa", "otro",
+                            "otra", "mi", "tu", "nuestro", "nuestra", "aquel", "aquella"}
+
+_MOD_PEGABLES = frozenset({
+    "extremoduro", "robe", "grupo", "banda", "sello", "discografica", "disco",
+    "album", "significado", "letra", "letras", "biografia", "historia",
+})
+
+# Fórmulas que valen para cualquier página y no dicen nada de esta. Son SINTAGMAS,
+# no palabras (la lección de `tono_guard`: si se persigue el sustantivo, basta
+# cambiar el sustantivo). Medidas el 11-11-2026 sobre los 361 titles publicados:
+# «Robe explora» 18, «su impacto» 10, «conexión con» 8. Van también al prompt.
+FORMULAS_VACIAS_TITLE = (
+    "explora", "legado musical",
+    "su impacto", "impacto y legado", "y su legado", "conexion con", "conexiones",
+    "viaje musical", "viaje sonoro", "un viaje", "la esencia", "su esencia",
+    "un recorrido", "huella", "icono del", "pilar del",
+)
+
+
+def _plano_crudo(texto: str) -> str:
+    """Minúsculas y sin acentos, pero CON la puntuación: una coma rompe la
+    contigüidad. «La ley innata, disco de 2008» está bien escrito; aplanado sería
+    «innata disco» y caería."""
+    s = unicodedata.normalize("NFD", (texto or "").lower())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
+def keywords_de(target_keyword) -> list[str]:
+    """`target_keyword` llega a veces como lista serializada («['Deltoya extremoduro',
+    'Deltoya extremoduro']»): 3 fichas de disco en prod el 11-11-2026."""
+    if isinstance(target_keyword, (list, tuple)):
+        return [str(k) for k in target_keyword if k]
+    t = (target_keyword or "").strip()
+    if t.startswith("[") and t.endswith("]"):
+        import ast
+        try:
+            return [str(k) for k in ast.literal_eval(t) if k]
+        except (ValueError, SyntaxError):
+            pass
+    return [t] if t else []
+
+
+def keyword_pegada(title: str, target_keyword) -> bool:
+    """¿Lleva el title el `target_keyword` pegado en crudo?
+
+    Solo si la keyword tiene dos o más palabras y una punta es un modificador
+    («plasencia robe», «desarraigo letra»). Se mira la JUNTA —la palabra contigua al
+    modificador— con solo espacio entre medias, en los dos órdenes: así cae «Mierda
+    de filosofía letra» aunque el title parta la keyword con dos puntos, y pasan
+    «Letra de Desarraigo» (lleva «de») y «La ley innata, disco de 2008» (la coma).
+    """
+    t = _plano_crudo(title)
+    for kw in keywords_de(target_keyword):
+        toks = re.findall(r"[a-z0-9]+", _plano_crudo(kw))
+        if len(toks) < 2:
+            continue
+        if toks[-1] in _MOD_PEGABLES and toks[-2] not in _MOD_PEGABLES:
+            junta, mod = toks[-2], toks[-1]
+        elif toks[0] in _MOD_PEGABLES and toks[1] not in _MOD_PEGABLES:
+            junta, mod = toks[1], toks[0]
+        else:
+            continue
+        if junta in _STOP:
+            continue                          # «letra de desarraigo» ya es natural
+        j, m = re.escape(junta), re.escape(mod)
+        if (re.search(rf"(?<![a-z0-9]){j}\s+{m}(?![a-z0-9])", t)
+                or re.search(rf"(?<![a-z0-9]){m}\s+{j}(?![a-z0-9])", t)):
+            return True
+    return False
+
+
+def formulas_vacias(title: str) -> list[str]:
+    plano = flatten(title)
+    return [f for f in FORMULAS_VACIAS_TITLE if f" {f} " in plano]
+
+
+_MARCADO = "«»\"'()[]*_¡¿“”‘’ \t"
+
+
+def _en_mitad_de_frase(prosa: str, palabra: str) -> bool:
+    """¿Sale `palabra`, con su mayúscula, detrás de algo que no cierra frase?
+
+    Se salta el marcado que la rodea: en el cuerpo los nombres van en enlaces
+    (`[Extremoduro](/extremoduro)`), en cursiva (`*Yo, minoría absoluta*`) o entre
+    comillas, y sin saltarlo «Extremoduro» parecía Title Case en 54 páginas.
+    """
+    for m in re.finditer(rf"(?<![\wáéíóúñÁÉÍÓÚÑ]){re.escape(palabra)}(?![\wáéíóúñ])", prosa):
+        k = m.start() - 1
+        while k >= 0 and prosa[k] in _MARCADO:
+            k -= 1
+        if k >= 0 and prosa[k] not in ".!?:\n#":
+            return True
+    return False
+
+
+# Los de casa: salen en casi todos los titles y no todos los cuerpos los escriben en
+# mitad de una frase (las fichas de tema dicen «Robe» y no «Extremoduro»).
+NOMBRES_DE_CASA = ("Extremoduro", "Robe", "Roberto Iniesta", "Uoho")
+
+
+def mayusculas_indebidas(title: str, fuentes: str, nombres=()) -> list[str]:
+    """Palabras en mayúscula que no abren el title y no son nombres propios.
+
+    Tras los dos puntos va minúscula («Barricada: miembros, historia…», el title de
+    David). Un nombre propio se reconoce porque las fuentes lo escriben con
+    mayúscula EN MITAD DE UNA FRASE, o porque es uno de `nombres` (el sujeto, el
+    catálogo). `nombres` son FRASES enteras y se enmascaran enteras: por palabras
+    sueltas, «La Carrera» blanquearía cualquier «La».
+    Los headings no cuentan: muchos están en Title Case («## Miembros Clave de
+    Barricada») y lo blanquearían. Sin fuentes no se juzga: con `fuentes=""` todo
+    nombre propio parecería Title Case.
+    """
+    if not (fuentes or "").strip():
+        return []
+    if isinstance(nombres, str):
+        nombres = [nombres]
+    t = title or ""
+    for n in sorted({x.strip() for x in (*nombres, *NOMBRES_DE_CASA) if x and x.strip()},
+                    key=len, reverse=True):
+        t = re.sub(rf"(?<![\wáéíóúñ]){re.escape(n)}(?![\wáéíóúñ])", "§", t)
+    prosa = "\n".join(l for l in fuentes.split("\n") if not l.lstrip().startswith("#"))
+    malas = []
+    for i, w in enumerate(t.split()):
+        nucleo = w.strip(".,;:!?«»\"'()¿¡-—“”‘’")
+        if (i == 0 or len(nucleo) < 2 or not nucleo[:1].isupper() or nucleo.isupper()):
+            continue
+        if not _en_mitad_de_frase(prosa, nucleo):
+            malas.append(nucleo)
+    return malas
+
 
 # Facetas que describen el GÉNERO de la página, no un tema suyo. Se aceptan sin
 # respaldo léxico porque una ficha de grupo cuenta su historia aunque no escriba la
@@ -278,14 +416,14 @@ def parse_title(title: str) -> tuple[str, list[str]]:
 
 
 def title_pattern(title: str) -> str:
-    """`antinatural` si lleva la keyword pegada en crudo; `canonical` si es el
-    patrón «<algo> letra: …» del sitio; `ok` en lo demás."""
+    """`antinatural` si lleva un genérico pegado en crudo a un nombre propio
+    («Barricada grupo», «Desarraigo letra»); `ok` en lo demás."""
     t = (title or "").strip()
     for gen in _GENERICOS_PEGADOS:
-        if re.search(rf"[A-ZÁÉÍÓÚÑ][\wáéíóúñ'´]*\s+{gen}\b", t):
-            return "antinatural"
-    if re.search(r"\bletras?\b", flatten(t)):
-        return "canonical"
+        for m in re.finditer(rf"([A-ZÁÉÍÓÚÑ][\wáéíóúñ'´]*)\s+(?i:{gen})\b", t):
+            # «Un álbum conceptual», «Su historia»: un determinante no es un nombre.
+            if flatten(m.group(1)).strip() not in _DETERMINANTES:
+                return "antinatural"
     return "ok"
 
 
@@ -314,8 +452,10 @@ def cubre_termino(title: str, target_keyword: str | None) -> bool:
 
 def title_verdict(nuevo: str, *, body_md: str, subject: str,
                   entity_type: str = "", anterior: str | None = None,
-                  target_keyword: str | None = None) -> MetaVerdict:
-    """¿Este title representa el contenido de la página?"""
+                  target_keyword: str | None = None, nombres=()) -> MetaVerdict:
+    """¿Este title representa el contenido de la página?
+
+    `nombres`: títulos y nombres del catálogo, para no tomarlos por Title Case."""
     v = MetaVerdict()
     nuevo = (nuevo or "").strip()
     body_plano = flatten(body_md)
@@ -353,9 +493,15 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
         if not _faceta_respaldada(f, body_plano, headings_plano, genero):
             v.bloquear(f"el title promete «{f}» y la página no lo cubre")
 
-    # C — la keyword metida en crudo.
-    if title_pattern(nuevo) == "antinatural":
+    # C — la keyword metida en crudo (David, 11-11-2026: «Plasencia Robe es
+    # totalmente antinatural»), las fórmulas vacías y el Title Case.
+    if title_pattern(nuevo) == "antinatural" or keyword_pegada(nuevo, target_keyword):
         v.bloquear(f"«{nuevo}» pega la keyword en crudo; no se lee natural")
+    for f in formulas_vacias(nuevo):
+        v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
+    malas = mayusculas_indebidas(nuevo, body_md or "", nombres=[subject or "", *nombres])
+    if malas:
+        v.bloquear(f"mayúsculas de Title Case: {', '.join(malas)}")
 
     # D — no se fuerza el término principal, pero si no se cubre, se avisa: el
     # title sigue siendo válido (David: «si no se puede, no se fuerza»).
@@ -492,12 +638,16 @@ TITLE (≤{TITLE_TARGET} caracteres, nunca más de {TITLE_HARD_MAX}, sin cortar 
 - REPRESENTA EL CONTENIDO de la página. Nunca cambies su sentido para colocar un
   término: si la página va de un grupo, el title va del grupo, no de sus miembros.
 - La entidad principal abre el title, antes de los dos puntos.
-- Cubre el término principal con NATURALIDAD. Cubrir no es pegar: «Barricada grupo»
-  está mal escrito; «Barricada: … del grupo de rock español» lo cubre y se lee.
+- Cubre el término principal con NATURALIDAD. Cubrir no es pegar: «Barricada grupo»,
+  «Plasencia Robe», «Desarraigo letra» o «Selu Extremoduro» están mal escritos;
+  «Barricada: … del grupo de rock español», «La Plasencia de Robe…» y «Letra de
+  Desarraigo, de Extremoduro» lo cubren y se leen. Español correcto siempre.
 - Si además se puede hilar otro término, bien. SI NO SE PUEDE, NO SE FUERZA.
 - Las facetas se enumeran en lenguaje corriente («miembros, historia y legado») y
   cada una tiene que existir de verdad en la página.
-- Capitalización española: mayúscula inicial y en nombres propios. Nada de Title Case.
+- Capitalización española: mayúscula inicial y en nombres propios. Nada de Title Case,
+  tampoco tras los dos puntos («Barricada: miembros…», no «Barricada: Miembros…»).
+- Nada de fórmulas que valdrían para cualquier página: {", ".join(f"«{f}»" for f in FORMULAS_VACIAS_TITLE)}.
 
 DESCRIPTION ({DESC_TARGET[0]}-{DESC_TARGET[1]} caracteres):
 - NO es un elemento de ranking: es lo que capta el clic. Se escribe para que alguien
@@ -525,6 +675,11 @@ EJEMPLOS (de esta misma web, revisados a mano):
   → cambia el SENTIDO: la página va del grupo, no de sus miembros.
 ✓ «Barricada: miembros, historia y legado del grupo de rock español»
   → el sujeto sigue siendo el grupo, y «miembros» entra como una faceta más.
+✗ «Plasencia Robe: Cuna de Extremoduro y su legado»
+  → «Plasencia Robe» no es español, «Cuna» va en minúscula y «su legado» no dice nada.
+✓ «La Plasencia de Robe: …» (David, 11-11-2026)
+✗ «Desarraigo letra: Robe explora la soledad»
+✓ «Letra de Desarraigo, de Extremoduro: …» → cubre «desarraigo letra» sin pegarla.
 
 ✗ «Barricada, grupo musical de Pamplona. Miembros clave: El Drogas y Alfredo
    Piedrafita. Influencia en bandas como Extremoduro.»

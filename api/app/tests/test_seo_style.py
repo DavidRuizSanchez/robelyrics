@@ -74,19 +74,75 @@ def test_la_keyword_no_se_pega_en_crudo():
     assert any("en crudo" in m for m in v.motivos)
 
 
-def test_el_patron_canonico_de_cancion_no_se_veta():
-    """Las 99 fichas de canción usan «<Canción> letra: …» y se quedan como están:
-    es como se busca. Vetar «letra» junto a «grupo» es el error fácil de cometer
-    aquí, y encolaría 99 páginas que funcionan.
-
-    Los ejemplos llevan «letra» PEGADA al nombre propio, que es la forma real que
-    tienen en producción: con «… de Extremoduro: letra y significado» el test
-    estaría verde aunque alguien vetara la palabra, porque ahí no va pegada.
-    """
-    assert st.title_pattern("Desarraigo letra: Robe explora soledad") == "canonical"
-    assert st.title_pattern("La Carrera letra: crítica social en Agila") == "canonical"
+def test_letra_pegada_ya_no_es_canonica():
+    """Hasta el 11-11-2026 «<Canción> letra: …» era el patrón del sitio (121 fichas).
+    David lo descartó al ver «Plasencia Robe»: la keyword se cubre, no se pega."""
+    assert st.title_pattern("Desarraigo letra: Robe explora soledad") == "antinatural"
+    assert st.title_pattern("La Carrera letra: crítica social en Agila") == "antinatural"
     assert st.title_pattern("Barricada grupo: historia y legado") == "antinatural"
     assert st.title_pattern("Libertad significado en la obra de Robe") == "antinatural"
+    assert st.title_pattern("Avispa Sello: Primer Hogar de Extremoduro") == "antinatural"
+
+
+def test_un_determinante_delante_del_generico_no_es_keyword():
+    assert st.title_pattern("Robe y La ley innata: un álbum conceptual") == "ok"
+    assert st.title_pattern("Un disco de 1996 y sus canciones") == "ok"
+
+
+# --- Casos reales del 11-11-2026 ---------------------------------------------
+PEGADOS_PUBLICADOS = [
+    ("Plasencia Robe: Cuna de Extremoduro y su legado", "Plasencia robe"),
+    ("Selu Extremoduro: Su Impacto y Legado Musical", "Selu extremoduro"),
+    ("El abismo significado en la obra de Robe: análisis", "El abismo significado"),
+    ("Se nos lleva el aire disco: Último trabajo de Robe", "Se nos lleva el aire disco"),
+    ("Segundo movimiento: Mierda de filosofía letra y análisis",
+     "Segundo movimiento Mierda de filosofía letra"),
+    ("La hoguera extremoduro: significado y contexto",
+     "['La hoguera extremoduro', 'La hoguera el fuego la mecha extremoduro']"),
+]
+
+
+@pytest.mark.parametrize("title,kw", PEGADOS_PUBLICADOS)
+def test_la_keyword_pegada_se_caza_con_la_keyword_de_la_pagina(title, kw):
+    assert st.keyword_pegada(title, kw), title
+
+
+@pytest.mark.parametrize("title,kw", [
+    ("La Plasencia de Robe: cuna de Extremoduro", "Plasencia robe"),   # David
+    ("Letra de Desarraigo - Extremoduro", "Desarraigo letra"),          # David
+    ("La ley innata, disco de 2008", "La ley innata disco"),           # la coma corta
+    ("Puta humanidad de Robe: letra y significado", "Puta humanidad Robe letra"),
+    ("Uoho en Extremoduro: guitarra y producción", "Uoho extremoduro"),
+    (TITLE_ORO, "Barricada grupo"),
+])
+def test_cubrir_la_keyword_con_naturalidad_no_es_pegarla(title, kw):
+    assert not st.keyword_pegada(title, kw), title
+
+
+def test_una_keyword_de_una_palabra_nunca_esta_pegada():
+    assert not st.keyword_pegada("Extremoduro: origen, género y evolución", "Extremoduro")
+
+
+def test_formulas_vacias():
+    assert "explora" in st.formulas_vacias("Menamoro letra: Robe explora el amor y la libertad")
+    assert "su impacto" in st.formulas_vacias("Selu Extremoduro: Su Impacto y Legado Musical")
+    assert not st.formulas_vacias(TITLE_ORO)
+
+
+def test_title_case_tras_los_dos_puntos_bloquea():
+    v = _title("Barricada: Miembros, historia y legado del grupo de rock español")
+    assert not v.ok
+    assert any("Title Case" in m for m in v.motivos)
+
+
+def test_un_nombre_propio_tras_los_dos_puntos_no_es_title_case():
+    """«El Drogas» sale capitalizado en el cuerpo: es un nombre, no Title Case."""
+    assert "El Drogas" in CUERPO or "Drogas" in CUERPO
+    assert not st.mayusculas_indebidas("Barricada: El Drogas y Piedrafita", CUERPO)
+
+
+def test_sin_fuentes_no_se_juzga_la_capitalizacion():
+    assert st.mayusculas_indebidas("Barricada: Miembros e Historia", "") == []
 
 
 def test_el_title_no_puede_prometer_lo_que_la_pagina_no_tiene():
@@ -220,3 +276,14 @@ def test_la_capitalizacion_baja_el_title_case_ingles():
 @pytest.mark.parametrize("texto", [TITLE_ORO, DESC_ORO])
 def test_los_textos_de_david_sobreviven_a_la_capitalizacion(texto):
     assert st.spanish_case(texto, CUERPO) == texto
+
+
+def test_un_nombre_en_enlace_o_cursiva_no_es_title_case():
+    """Medido en prod el 11-11-2026: sin saltarse el marcado, «Extremoduro» salía
+    como Title Case en «El tejado en la obra de Extremoduro y Robe»."""
+    cuerpo = ("Lo cantó Robe con [Extremoduro](/extremoduro) en *Yo, minoría absoluta* "
+              "y en «Agila».")
+    assert not st.mayusculas_indebidas("El tejado en la obra de Extremoduro y Robe",
+                                       cuerpo, nombres="El tejado")
+    assert not st.mayusculas_indebidas("Gira 2002 de Yo, minoría absoluta: en vivo", cuerpo)
+    assert st.mayusculas_indebidas("Agila: La Metáfora", cuerpo) == ["La", "Metáfora"]

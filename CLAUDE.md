@@ -516,8 +516,17 @@ Cuatro cosas que conviene no deshacer:
   125 que exigía el prompt: **las constantes contradecían el criterio**.
 - **La anti-invención mira cifras y nombres propios, no todas las palabras.** Su
   primera versión tumbó la description de David por «todos», «datos» y «mítico».
-- **`letra` NO está en la lista de genéricos vetados.** «Barricada grupo» se veta,
-  «Desarraigo letra: …» no: son 99 fichas y es como se busca.
+- **`letra` SÍ se veta pegada (David, 11-11-2026)**: la excepción del 22-09 quedó
+  superada al ver «Plasencia Robe: Cuna de Extremoduro…». La keyword se CUBRE, caso a
+  caso y en español correcto («Letra de Desarraigo, de Extremoduro», «La Plasencia de
+  Robe…»). `seo_style.keyword_pegada` mira la JUNTA del `target_keyword` con su
+  modificador (extremoduro, robe, grupo, sello, letra, significado…) sobre el title
+  crudo: la coma de «La ley innata, disco de 2008» la rompe. También bloquean las
+  `FORMULAS_VACIAS_TITLE` («explora», «su impacto»…) y el Title Case, también tras los
+  dos puntos; un nombre propio se reconoce por salir en mayúscula en mitad de una frase
+  del cuerpo (saltando enlaces y cursivas) o por ser del catálogo. Lo publicado lo
+  repasa `scripts/seo/humanize_titles.py` por tandas (reason «titles humanos»): cada
+  title nuevo cubre todas las consultas protegidas de GSC que cubría el viejo.
 - **Lo que no se puede verificar va al prompt, no a una guarda.** La description
   publicada de Barricada tiene verbos, cabe y cita el diferencial, y aun así es un
   resumen. Eso es un **aviso** que viaja al correo y al panel, nunca un bloqueo.
