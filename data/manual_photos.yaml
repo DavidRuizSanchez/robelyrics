@@ -76,6 +76,36 @@ photos:
     source_url: "https://cronicaglobal.elespanol.com/culemania/culemaniacos/20230509/alen-ayerdi-marea-lo-que-messi-increible/762423787_0.html"
     identity: "Alén Ayerdi"
     identity_evidence: "pie «Alén Ayerdi lo da todo durante un concierto de Marea en directo / MAREA»"
+  - slug: alvaro-rodriguez-barroso
+    url: "https://lagranbellezaproducciones.com/wp-content/uploads/2019/10/alvaro-rodriguez-barroso-artista-la-gran-belleza.jpg"
+    attribution: "La Gran Belleza Producciones"
+    license: derechos de su autor
+    source_url: "https://lagranbellezaproducciones.com/artista/alvaro-rodriguez-barroso/"
+    identity: "Álvaro Rodríguez Barroso"
+    identity_evidence: "alt «Álvaro Rodríguez Barroso» en su página de artista"
+  - slug: salo
+    url: "https://www.canalextremadura.es/sites/default/files/Media/Images/2021-07/salook.jpg"
+    attribution: "Canal Extremadura"
+    license: derechos de su autor
+    source_url: "https://www.canalextremadura.es/noticias/extremadura/muere-de-cancer-los-67-anos-gonzalo-salo-miembro-fundador-de-extremoduro"
+    identity: "Salo"
+    identity_evidence: "alt «Salo tocando la guitarra», en la noticia sobre Gonzalo «Salo», fundador de Extremoduro"
+  # Recortes de fotos de grupo, subidos a mano a Cloudinary (11-11-2026). El pie de
+  # la página de origen dice quién es quién; el recorte deja solo a la persona.
+  - slug: raul-guerrero
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794408507/entreinteriores-art/kg81liv54pzwvmzotzvm.jpg"
+    attribution: "Hemeroteca «Si miro a las nubes» (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.simiroalasnubes.giveevig.com/raul-guerrero/"
+    identity: "Raúl Guerrero"
+    identity_evidence: "pie «Raúl Guerrero, entre Robe e Iñaki 'Uoho', en una foto de años atrás»: el del centro"
+  - slug: alber-fuentes
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794408508/entreinteriores-art/eqxvvhv6ymaftmqc7qys.jpg"
+    attribution: "Redes de Fernando Pizarro, vía MariskalRock (recorte)"
+    license: derechos de su autor
+    source_url: "https://mariskalrock.com/actualidad/robe-reaparece-en-publico-para-reunirse-con-el-alcalde-de-plasencia-donde-tendra-una-avenida-a-su-nombre/"
+    identity: "Alber Fuentes"
+    identity_evidence: "pie «Fernando Pizarro, Robe y Alber Fuentes»: el de la derecha, con Robe en el centro"
 
   # === Personas ===
   # Retiradas el 11-11-2026: Álvaro Rodríguez Barroso (La Gran Belleza), Lorenzo
