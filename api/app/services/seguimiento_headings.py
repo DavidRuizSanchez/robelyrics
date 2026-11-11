@@ -118,29 +118,39 @@ def _en(dia: date, intervalo: tuple[date, date]) -> bool:
     return intervalo[0] <= dia <= intervalo[1]
 
 
-def apartadas_por_title(cambios: dict, titles: dict | None, semanas: int) -> tuple[set, set]:
-    """Páginas cuyo TITLE cambió antes de que acabe su ventana «después».
+# Un title cambiado como mucho este número de días después del último cambio de
+# headings es el MISMO cambio: las 270 páginas de titles se rehicieron el 11-11-2026,
+# un día después de los headings (10 y 11-11), y apartarlas vaciaba el informe.
+DIAS_SIMULTANEO = 1
 
-    Decisión de David (11-11-2026): los titles se rehacen por tandas semanales y el
-    seguimiento es conjunto. Una página con title nuevo ya no mide solo los
-    headings, y tampoco sirve de control: se aparta y se cuenta. Las de las tandas
-    siguientes siguen midiendo headings limpios hasta que les toque.
+
+def apartadas_por_title(cambios: dict, titles: dict | None, semanas: int
+                        ) -> tuple[set, set, set]:
+    """(apartadas de las cambiadas, apartadas del control, simultáneas).
+
+    Decisión de David (11-11-2026): seguimiento conjunto. Si una página cambió de
+    title a la vez que de headings, se mide el cambio CONJUNTO (no hay forma de
+    separarlos) y se cuenta en `simultaneas`. Si el title cambió después, dentro de
+    su ventana «después», ya no mide lo mismo y se aparta. Una página con title
+    nuevo tampoco sirve de control.
     """
     if not titles:
-        return set(), set()
+        return set(), set(), set()
     primero_global = min(_d(c["primero"]) for c in cambios.values())
     ultimo_global = max(_d(c["ultimo"]) for c in cambios.values())
     fin_control = ventanas(primero_global, ultimo_global, semanas)[1][1]
-    cam, con = set(), set()
+    cam, con, sim = set(), set(), set()
     for path, cuando in titles.items():
         dia = _d(cuando)
         if path in cambios:
-            if dia <= ventanas(cambios[path]["primero"], cambios[path]["ultimo"],
-                               semanas)[1][1]:
+            c = cambios[path]
+            if dia <= _d(c["ultimo"]) + timedelta(days=DIAS_SIMULTANEO):
+                sim.add(path)
+            elif dia <= ventanas(c["primero"], c["ultimo"], semanas)[1][1]:
                 cam.add(path)
         elif dia <= fin_control:
             con.add(path)
-    return cam, con
+    return cam, con, sim
 
 
 def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None) -> dict:
@@ -158,7 +168,7 @@ def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None)
     v_pag = {p: ventanas(c["primero"], c["ultimo"], semanas) for p, c in cambios.items()}
 
     inspeccion = gsc.get("inspeccion") or {}
-    fuera_cam, fuera_con = apartadas_por_title(cambios, titles, semanas)
+    fuera_cam, fuera_con, simultaneas = apartadas_por_title(cambios, titles, semanas)
     fuera = fuera_cam | fuera_con
 
     def rastreada(path: str) -> bool | None:
@@ -168,7 +178,8 @@ def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None)
         return _d(info["lastCrawlTime"]) > _d(cambios[path]["ultimo"])
 
     grupos = {"cambiadas": Comparacion(), "control": Comparacion(),
-              "rastreadas": Comparacion(), "sin_rastrear": Comparacion()}
+              "rastreadas": Comparacion(), "sin_rastrear": Comparacion(),
+              "solo_headings": Comparacion(), "headings_y_title": Comparacion()}
     por_tipo: dict[str, Comparacion] = defaultdict(Comparacion)
     por_pagina: dict[str, Comparacion] = defaultdict(Comparacion)
     vistas: dict[str, set[str]] = defaultdict(set)
@@ -181,6 +192,9 @@ def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None)
             antes, despues = v_pag[path]
             destinos = [grupos["cambiadas"], por_tipo[cambios[path].get("tipo") or "—"],
                         por_pagina[path]]
+            if titles:
+                destinos.append(grupos["headings_y_title" if path in simultaneas
+                                      else "solo_headings"])
             r = rastreada(path)
             if r is True:
                 destinos.append(grupos["rastreadas"])
@@ -202,6 +216,9 @@ def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None)
         c.paginas = 1
     grupos["cambiadas"].paginas = len(vistas["cambiadas"])
     grupos["control"].paginas = len(vistas["control"])
+    if titles:
+        grupos["headings_y_title"].paginas = len(vistas["cambiadas"] & simultaneas)
+        grupos["solo_headings"].paginas = len(vistas["cambiadas"] - simultaneas)
     for nombre in ("rastreadas", "sin_rastrear"):
         grupos[nombre].paginas = sum(1 for p in vistas["cambiadas"]
                                      if rastreada(p) is (nombre == "rastreadas"))
@@ -266,7 +283,8 @@ def analizar(cambios: dict, gsc: dict, semanas: int, titles: dict | None = None)
         "protegidas": protegidas,
         "paginas": filas_pagina,
         "n_cambios": len(cambios),
-        "apartadas_title": {"cambiadas": len(fuera_cam), "control": len(fuera_con)},
+        "apartadas_title": {"cambiadas": len(fuera_cam), "control": len(fuera_con),
+                            "simultaneas": len(simultaneas & set(cambios))},
         "rastreo": {
             "inspeccionadas": total_rastreables,
             "tras_el_cambio": sum(1 for p in cambios if rastreada(p) is True),
@@ -330,6 +348,11 @@ def lectura(res: dict) -> list[str]:
                f"{CAIDA_POSICIONES:.0f} {mejoran} y {sin} no tienen impresiones suficientes "
                "en el «después» para compararlas.")
     ap = res.get("apartadas_title") or {}
+    if ap.get("simultaneas"):
+        out.append(
+            f"{ap['simultaneas']} de las páginas cambiadas estrenaron title a la vez que los "
+            "headings (como mucho un día después): en ellas se mide el cambio CONJUNTO de "
+            "headings y title, sin forma de separar uno del otro.")
     if ap.get("cambiadas") or ap.get("control"):
         out.append(
             f"Apartadas por tener el title nuevo dentro de la ventana: {ap['cambiadas']} "
@@ -344,10 +367,14 @@ def informe_texto(res: dict, meta: dict) -> str:
     g = res["grupos"]
     k = res["semanas"]
     vc_antes, vc_despues = res["ventana_control"]
-    L = [f"HEADINGS HUMANOS · SEMANA {k} DE 4", ""]
+    titulo = ("HEADINGS Y TITLES HUMANOS" if (res.get("apartadas_title") or {}).get("simultaneas")
+              else "HEADINGS HUMANOS")
+    L = [f"{titulo} · SEMANA {k} DE 4", ""]
     L += [f"- {x}" for x in lectura(res)]
     L += ["", "GRUPOS (clics · impresiones · CTR · posición media; antes → después)"]
     for nombre, etiqueta in (("cambiadas", "Páginas cambiadas"), ("control", "Control"),
+                             ("solo_headings", "Solo headings"),
+                             ("headings_y_title", "Headings y title a la vez"),
                              ("rastreadas", "Cambiadas y ya rastreadas"),
                              ("sin_rastrear", "Cambiadas sin rastrear aún")):
         c = g[nombre]
