@@ -332,14 +332,10 @@ export default async function DiscografiaArtistaPage({
                           <td className="py-3 pr-4 font-mono text-[13px] text-ink-faint align-top">
                             {alb.year}
                           </td>
+                          {/* Sin enlace: la cuadrícula de arriba ya enlaza cada disco
+                              (1 enlace por destino, lib/enlazado.ts). */}
                           <td className="py-3 pr-4 font-serif text-[17px] text-ink align-top">
-                            <Link
-                              href={`/${artist}/${alb.slug}`}
-                              data-cursor="hover"
-                              className="hover:text-accent"
-                            >
-                              {alb.title}
-                            </Link>
+                            {alb.title}
                           </td>
                           <td className="py-3 font-mono text-[11px] tracking-[1px] uppercase text-ink-faint align-top">
                             {KIND_LABEL[alb.kind] || alb.kind}

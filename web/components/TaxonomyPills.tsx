@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { PublicTaxonomyPill } from "@/lib/types";
 
-const HUB_PATH: Record<PublicTaxonomyPill["kind"], string> = {
+export const HUB_PATH: Record<PublicTaxonomyPill["kind"], string> = {
   theme: "/temas",
   place: "/lugares",
   concept: "/conceptos",

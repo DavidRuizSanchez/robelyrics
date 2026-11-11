@@ -171,7 +171,15 @@ export default async function ArtistPublicPage({
             </figure>
           )}
 
-          <MarkdownArticle markdown={detail.seo_body} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[
+              // Lo que ya enlaza la plantilla: discografía y miembros con ficha.
+              `/discografia/${artist}`,
+              ...detail.albums.map((a) => `/${artist}/${a.slug}`),
+              ...(detail.members ?? []).filter((m) => m.has_page !== false).map((m) => `/personas/${m.slug}`),
+            ]}
+          />
           <EnDirectoArtista slug={detail.slug} />
         </article>
 
@@ -203,6 +211,16 @@ export default async function ArtistPublicPage({
               </Link>
             ))}
           </div>
+          {/* Hub de la discografía: lo enlaza la plantilla (11-11-2026). */}
+          <p className="mt-8 font-serif text-lg">
+            <Link
+              href={`/discografia/${artist}`}
+              data-cursor="hover"
+              className="text-accent hover:underline"
+            >
+              Todos los discos de {detail.name}, año a año
+            </Link>
+          </p>
         </section>
 
         {detail.members && detail.members.length > 0 && (

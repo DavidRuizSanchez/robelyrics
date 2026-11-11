@@ -127,7 +127,10 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
         {detail.seo_body ? (
           <section className="mb-12">
-            <MarkdownArticle markdown={detail.seo_body} />
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={detail.songs.map((s) => s.url_path)}
+            />
           </section>
         ) : (
           detail.description && (

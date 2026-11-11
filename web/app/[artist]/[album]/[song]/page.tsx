@@ -13,6 +13,7 @@ import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
 import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
+import { HUB_PATH } from "@/components/TaxonomyPills";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site";
 import {
@@ -138,6 +139,20 @@ export default async function SongPublicPage({
   // Si no, caemos a la del álbum. Algunas no tienen ninguna → sin backdrop.
   const backdropSrc = detail.cover_url || detail.album.cover_url || null;
 
+  // Destinos que ya enlaza la plantilla: el cuerpo no los repite (lib/enlazado.ts).
+  // TrackNav (anterior/siguiente) es navegación, como las migas: no cuenta, y
+  // «Más canciones» enlaza todas sus filas (una fila muerta parecía rota).
+  const albumPath = `/${artistSlug}/${albumSlug}`;
+  const pistas = albumDetail?.tracks ?? [];
+  const enlacesPlantilla = [
+    albumPath,
+    ...detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`),
+    ...detail.lineup.filter((m) => m.slug).map((m) => `/personas/${m.slug}`),
+    ...pistas.filter((t) => t.slug !== songSlug).map((t) => `${albumPath}/${t.slug}`),
+    ...detail.related_songs.map((s) => s.url_path),
+    ...[...detail.themes, ...detail.places, ...detail.concepts].map((t) => `${HUB_PATH[t.kind]}/${t.slug}`),
+  ];
+
   return (
     <div className="relative">
       {backdropSrc && (
@@ -246,10 +261,11 @@ export default async function SongPublicPage({
           detail={detail}
           path={`/${artistSlug}/${albumSlug}/${songSlug}`}
           titulo={detail.title}
+          yaEnlazados={detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`)}
         />
 
         <article className="mb-12">
-          <MarkdownArticle markdown={detail.seo_body} />
+          <MarkdownArticle markdown={detail.seo_body} yaEnlazados={enlacesPlantilla} />
         </article>
 
         <RelatedSongs songs={detail.related_songs} />

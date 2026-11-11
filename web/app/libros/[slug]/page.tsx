@@ -224,7 +224,10 @@ export default async function LibroPage({
             }}
           />
 
-          {detail.body_md && <MarkdownArticle markdown={detail.body_md} />}
+          {detail.body_md && (
+            // «En este libro» ya enlaza a Robe / Extremoduro: el cuerpo no lo repite.
+            <MarkdownArticle markdown={detail.body_md} yaEnlazados={detail.about.map((s) => `/${s}`)} />
+          )}
         </article>
 
         {detail.about.length > 0 && (
