@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { normPath, rutas } from "@/lib/enlazado";
 
 type Membership = {
   artist_slug: string;
@@ -49,10 +50,22 @@ function texto(v: unknown): string | null {
 }
 
 /** Nombre del nodo, enlazado a su ficha si la tiene (la API solo pone `url` si se ve). */
-function enlace(n: Nodo, key: string): ReactNode {
+// Destinos ya enlazados en la página (cabecera + esta tabla, en orden): un
+// destino repetido se pinta como texto (lib/enlazado.ts, regla del 11-11-2026).
+type Vistos = Set<string>;
+
+function primeraVez(vistos: Vistos, href: string | null | undefined): boolean {
+  const p = normPath(href);
+  if (!p) return true;
+  if (vistos.has(p)) return false;
+  vistos.add(p);
+  return true;
+}
+
+function enlace(n: Nodo, key: string, vistos: Vistos): ReactNode {
   const nombre = texto(n.name) || "";
   const url = texto(n.url);
-  return url ? (
+  return url && primeraVez(vistos, url.replace(SITE, "")) ? (
     <Link key={key} href={url.replace(SITE, "")} data-cursor="hover"
           className="text-accent hover:underline">
       {nombre}
@@ -96,11 +109,29 @@ type Row = {
   value: ReactNode;
 };
 
+/** Rutas internas que puede enlazar esta tabla: el cuerpo no las repite. */
+export function enlacesPersonDataTable(detail: PersonDataTableDetail): string[] {
+  const rel = detail.jsonld_relaciones || {};
+  const grupos = lista(rel.memberOf).map((m) =>
+    m["@type"] === "OrganizationRole" ? lista(m.memberOf)[0] || {} : m,
+  );
+  const nodos = [lista(rel.homeLocation)[0], ...grupos, ...lista(rel.colleague)];
+  return [
+    ...nodos.map((n) => (n ? texto(n.url)?.replace(SITE, "") : null)),
+    ...detail.memberships.map((m) => `/${m.artist_slug}`),
+    ...detail.other_bands.map((b) => b.internal_url),
+  ].filter((h): h is string => !!h);
+}
+
 export default function PersonDataTable({
   detail,
+  yaEnlazados,
 }: {
   detail: PersonDataTableDetail;
+  // Lo que ya enlaza la cabecera de la ficha: aquí va como texto.
+  yaEnlazados?: Iterable<string>;
 }) {
+  const vistos: Vistos = rutas(yaEnlazados ?? []);
   const birth = formatDateEs(detail.birth_date);
   const death = formatDateEs(detail.death_date);
 
@@ -137,7 +168,7 @@ export default function PersonDataTable({
 
   const ciudad = lista(rel.homeLocation)[0];
   if (ciudad) {
-    rows.push({ label: "Ciudad", value: enlace(ciudad, "ciudad") });
+    rows.push({ label: "Ciudad", value: enlace(ciudad, "ciudad", vistos) });
   }
 
   if (death) {
@@ -183,13 +214,17 @@ export default function PersonDataTable({
         <ul className="space-y-1">
           {detail.memberships.map((m, i) => (
             <li key={`mem-${i}`}>
-              <Link
-                href={`/${m.artist_slug}`}
-                data-cursor="hover"
-                className="text-accent hover:underline"
-              >
-                {m.artist_name}
-              </Link>{" "}
+              {primeraVez(vistos, `/${m.artist_slug}`) ? (
+                <Link
+                  href={`/${m.artist_slug}`}
+                  data-cursor="hover"
+                  className="text-accent hover:underline"
+                >
+                  {m.artist_name}
+                </Link>
+              ) : (
+                <span>{m.artist_name}</span>
+              )}{" "}
               <span className="text-ink-dim">— {describeMembership(m)}</span>
             </li>
           ))}
@@ -204,7 +239,7 @@ export default function PersonDataTable({
     const papel = [texto(m.roleName), texto(m.startDate)].filter(Boolean).join(", ");
     return (
       <li key={`g-${i}`}>
-        {enlace(grupo, `gn-${i}`)}
+        {enlace(grupo, `gn-${i}`, vistos)}
         {papel && <span className="text-ink-dim"> — {papel}</span>}
       </li>
     );
@@ -217,7 +252,7 @@ export default function PersonDataTable({
   if (colegas.length > 0) {
     rows.push({
       label: "Tocó con",
-      value: separados(colegas.map((c, i) => enlace(c, `c-${i}`))),
+      value: separados(colegas.map((c, i) => enlace(c, `c-${i}`, vistos))),
     });
   }
 
@@ -252,7 +287,9 @@ export default function PersonDataTable({
         <ul className="space-y-1">
           {detail.other_bands.map((b) => (
             <li key={b.wikidata_id}>
-              {b.internal_url ? (
+              {b.internal_url && !primeraVez(vistos, b.internal_url) ? (
+                <span>{b.name}</span>
+              ) : b.internal_url ? (
                 <Link
                   href={b.internal_url}
                   data-cursor="hover"

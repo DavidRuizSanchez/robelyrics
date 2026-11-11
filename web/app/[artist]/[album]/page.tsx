@@ -6,7 +6,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
-import MoreFromArtist from "@/components/MoreFromArtist";
+import MoreFromArtist, { discosVecinos } from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
@@ -162,7 +162,19 @@ export default async function AlbumPublicPage({
         </header>
 
         <article className="mb-4">
-          <MarkdownArticle markdown={detail.seo_body} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[
+              // Lo que ya enlaza la plantilla: artista (ficha), tracklist y «Más discos».
+              `/${artistSlug}`,
+              ...detail.tracks
+                .filter((t) => t.path || t.from_album !== null || t.slug !== "")
+                .map((t) => t.path ?? `/${artistSlug}/${albumSlug}/${t.slug}`),
+              ...(artistDetail
+                ? discosVecinos(artistDetail.albums, albumSlug).map((a) => `/${artistSlug}/${a.slug}`)
+                : []),
+            ]}
+          />
         </article>
 
         <AlbumDataTable detail={detail} />

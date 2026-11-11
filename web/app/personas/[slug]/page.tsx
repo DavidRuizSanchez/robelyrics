@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PersonAvatar from "@/components/PersonAvatar";
-import PersonDataTable from "@/components/PersonDataTable";
+import PersonDataTable, { enlacesPersonDataTable } from "@/components/PersonDataTable";
 import RelatedPosts from "@/components/RelatedPosts";
 import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
@@ -303,6 +303,14 @@ export default async function PersonPage({
     ),
   ]);
 
+  // Destinos que enlaza la cabecera (pertenencias, otros grupos, obras): la
+  // tabla y el cuerpo no los repiten (lib/enlazado.ts, regla del 11-11-2026).
+  const enlacesCabecera = [
+    ...detail.memberships.map((m) => `/${m.artist_slug}`),
+    ...detail.other_bands.map((b) => b.internal_url),
+    ...detail.notable_works.map((w) => w.internal_url),
+  ].filter((h): h is string => !!h);
+
   return (
     <>
       <PublicHeader />
@@ -421,13 +429,18 @@ export default async function PersonPage({
                   <ul className="space-y-2">
                     {detail.memberships.map((m, i) => (
                       <li key={i} className="font-serif text-ink-dim">
-                        <Link
-                          href={`/${m.artist_slug}`}
-                          data-cursor="hover"
-                          className="text-accent hover:underline"
-                        >
-                          {m.artist_name}
-                        </Link>{" "}
+                        {/* Dos etapas en el mismo grupo: se enlaza solo la primera. */}
+                        {detail.memberships.findIndex((x) => x.artist_slug === m.artist_slug) === i ? (
+                          <Link
+                            href={`/${m.artist_slug}`}
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {m.artist_name}
+                          </Link>
+                        ) : (
+                          <span>{m.artist_name}</span>
+                        )}{" "}
                         · {m.role}
                         {m.era && ` (${m.era})`}
                         {m.is_founder && (
@@ -524,10 +537,13 @@ export default async function PersonPage({
             </div>
           </header>
 
-          <PersonDataTable detail={detail} />
+          <PersonDataTable detail={detail} yaEnlazados={enlacesCabecera} />
 
           {detail.seo_body && (
-            <MarkdownArticle markdown={detail.seo_body} />
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
+            />
           )}
         </article>
 

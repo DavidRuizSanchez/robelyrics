@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { rutas } from "@/lib/enlazado";
 import { ESTUDIO_PATH, SETLISTFM, datoCancion, es } from "@/components/estudio/en-directo";
 import type {
   PublicArtistOut,
@@ -92,12 +93,16 @@ export default function SongDataTable({
   detail,
   path,
   titulo,
+  yaEnlazados,
 }: {
   detail: SongDataTableDetail;
   /** Ruta y título de la ficha, para el dato del estudio del repertorio. */
   path?: string;
   titulo?: string;
+  /** Lo que ya enlaza la cabecera (créditos): aquí va como texto (lib/enlazado.ts). */
+  yaEnlazados?: Iterable<string>;
 }) {
+  const ya = rutas(yaEnlazados ?? []);
   const rows: Row[] = [];
 
   rows.push({
@@ -134,8 +139,8 @@ export default function SongDataTable({
           <ul className="space-y-1">
             {detail.lineup.map((m) => (
               <li key={m.slug}>
-                {m.has_page === false ? (
-                  // Sin ficha publicada: se nombra, pero no se enlaza.
+                {m.has_page === false || ya.has(`/personas/${m.slug}`) ? (
+                  // Sin ficha publicada, o ya enlazada en los créditos: se nombra sin enlace.
                   <span className="text-ink">{m.name}</span>
                 ) : (
                   <Link

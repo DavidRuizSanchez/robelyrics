@@ -171,7 +171,14 @@ export default async function ArtistPublicPage({
             </figure>
           )}
 
-          <MarkdownArticle markdown={detail.seo_body} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[
+              // Lo que ya enlaza la plantilla: discografía y miembros con ficha.
+              ...detail.albums.map((a) => `/${artist}/${a.slug}`),
+              ...(detail.members ?? []).filter((m) => m.has_page !== false).map((m) => `/personas/${m.slug}`),
+            ]}
+          />
           <EnDirectoArtista slug={detail.slug} />
         </article>
 
