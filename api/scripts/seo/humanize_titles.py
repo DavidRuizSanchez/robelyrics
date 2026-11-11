@@ -116,9 +116,10 @@ def _veredicto(pg: Pagina, nuevo: str, protegidas: list[dict], antes_cubre: set[
                                 entity_type=pg.tipo, target_keyword=pg.target_keyword,
                                 nombres=NOMBRES)
     motivos = list(v.motivos)
-    for kw in seo_style.keywords_de(pg.target_keyword):
-        if not seo_style.cubre_termino(nuevo, kw):
-            motivos.append(f"no cubre el término principal «{kw}»")
+    # Cubrir el término principal NO bloquea (David: «si no se puede, no se
+    # fuerza»). El 11-11-2026 exigirlo hizo escribir «de extremoduro a CIRA» sobre
+    # alguien que nunca estuvo en Extremoduro. Lo que bloquea es perder una
+    # consulta protegida, que mide lo que Google ya asocia de verdad.
     ahora = ranking_guard.cubiertas(nuevo, protegidas, alias)
     for q in sorted(antes_cubre - ahora):
         motivos.append(f"deja de cubrir la consulta protegida «{q}»")
@@ -133,7 +134,8 @@ def _prompt(pg: Pagina, protegidas_titulo: list[str], motivos_previos: list[str]
         f"Tipo de página: {pg.tipo}. Sujeto: «{pg.sujeto or pg.h1}». H1: «{pg.h1}».\n"
         f"Title actual: «{pg.title}»\n"
         f"Lo que falla: {'; '.join(problemas(pg)) or 'nada grave'}\n"
-        f"Término principal que tiene que CUBRIR (no pegar): {kws}\n"
+        f"Término principal (cúbrelo sin pegarlo SI la página lo respalda; si el cuerpo "
+        f"no habla de algo de él, NO lo metas): {kws}\n"
         + (f"Búsquedas reales que el title actual cubre y el nuevo TIENE que seguir "
            f"cubriendo (todas sus palabras): {', '.join(f'«{q}»' for q in protegidas_titulo)}\n"
            if protegidas_titulo else "")

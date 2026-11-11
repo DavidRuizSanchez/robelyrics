@@ -304,3 +304,20 @@ def test_solo_se_quitan_las_comillas_que_envuelven_todo(modelo, esperado):
 def test_comillas_desparejadas_bloquean():
     v = _title("Barricada», de Pamplona: miembros, historia y legado")
     assert any("desparejadas" in m for m in v.motivos)
+
+
+def test_un_nombre_de_casa_que_la_pagina_no_nombra_bloquea():
+    """11-11-2026: «Álvaro Rodríguez Barroso: de extremoduro a CIRA» sobre un
+    músico de la banda de Robe. El cuerpo no nombra a Extremoduro ni una vez."""
+    cuerpo = ("Álvaro Rodríguez Barroso se unió a la banda de Robe en 2013 como teclista. "
+              "Produjo [Mayéutica](https://entreinteriores.com/robe/mayeutica), enlazada "
+              "desde [la discografía](https://entreinteriores.com/extremoduro). "
+              "En 2019 publicó CIRA.")
+    v = st.title_verdict("Álvaro Rodríguez Barroso: de extremoduro a CIRA", body_md=cuerpo,
+                         subject="Álvaro Rodríguez Barroso", entity_type="person")
+    assert any("mayúscula" in m for m in v.motivos)
+    assert any("la página no" in m for m in v.motivos)
+    ok = st.title_verdict("Álvaro Rodríguez Barroso: teclista y productor de Robe",
+                          body_md=cuerpo, subject="Álvaro Rodríguez Barroso",
+                          entity_type="person")
+    assert ok.ok, ok.motivos
