@@ -137,6 +137,8 @@ export type PersonInput = {
   wikipediaUrl?: string | null;
   wikidataId?: string | null;
   memberOf?: { artistSlug: string; artistName: string }[];
+  // false = sin ficha publicada: va como nombre, sin @id ni url (darían 404).
+  hasPage?: boolean;
 };
 
 // --------------------------------------------------------------------------- //
@@ -156,9 +158,11 @@ export function musicGroupNode(artist: ArtistInput): Record<string, unknown> {
     }));
   }
   if (artist.members && artist.members.length > 0) {
-    node.member = artist.members.map((m) => ({
-      "@id": canonical.person(m.slug),
-    }));
+    node.member = artist.members.map((m) =>
+      m.hasPage === false
+        ? { "@type": "Person", name: m.stageName || m.fullName }
+        : { "@id": canonical.person(m.slug) },
+    );
   }
   return node;
 }

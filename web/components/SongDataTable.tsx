@@ -134,13 +134,18 @@ export default function SongDataTable({
           <ul className="space-y-1">
             {detail.lineup.map((m) => (
               <li key={m.slug}>
-                <Link
-                  href={`/personas/${m.slug}`}
-                  data-cursor="hover"
-                  className="text-accent hover:underline"
-                >
-                  {m.name}
-                </Link>{" "}
+                {m.has_page === false ? (
+                  // Sin ficha publicada: se nombra, pero no se enlaza.
+                  <span className="text-ink">{m.name}</span>
+                ) : (
+                  <Link
+                    href={`/personas/${m.slug}`}
+                    data-cursor="hover"
+                    className="text-accent hover:underline"
+                  >
+                    {m.name}
+                  </Link>
+                )}{" "}
                 <span className="text-ink-dim">({m.role})</span>
               </li>
             ))}

@@ -180,3 +180,61 @@ def test_el_verificador_no_ve_el_fondo_sin_corroborar(monkeypatch):
     assert "verso propio" in afirmable and "HECHOS DUROS" in afirmable
     assert "campo de fútbol" not in afirmable and "Dato de un blog" not in afirmable
     assert "Dosis Letal se formó en 1983" in afirmable
+
+
+def _formacion(db, kaito, angel):
+    art = Artist(slug="extremoduro", name="Extremoduro")
+    db.add(art)
+    db.flush()
+    db.add_all([
+        BandMembership(artist_id=art.id, person_id=kaito.id, role="bajo", era="1989-1991",
+                       position=2),
+        BandMembership(artist_id=art.id, person_id=angel.id, role="batería", era="1987",
+                       position=1),
+    ])
+    db.commit()
+    return art
+
+
+def test_la_formacion_nombra_sin_enlazar_a_quien_no_tiene_ficha(db, personas):
+    """Ángel Lorenzo fue el primer batería y no tiene ficha: sin él, la formación de
+    1987 era un dato falso. Sale, pero sin enlace (criterio de David, 11-11-2026)."""
+    kaito, angel, _ = personas
+    art = _formacion(db, kaito, angel)
+    linea = {m.slug: m for m in public._lineup_for_album(db, art.id, 1987)}
+    assert linea["angel-lorenzo"].has_page is False
+    linea = {m.slug: m for m in public._lineup_for_album(db, art.id, 1990)}
+    assert linea["kaito"].has_page is True and "angel-lorenzo" not in linea
+
+
+def test_el_dossier_de_una_persona_lee_sus_creditos(db, personas):
+    from app.services.deep_research import _creditos_de_persona
+
+    _, angel, sin_ficha = personas
+    art = Artist(slug="extremoduro", name="Extremoduro")
+    db.add(art)
+    db.flush()
+    alb = Album(slug="deltoya", title="Deltoya", year=1992, artist_id=art.id)
+    db.add(alb)
+    db.flush()
+    song = Song(slug="papel-secante", title="Papel secante", album_id=alb.id)
+    db.add(song)
+    db.flush()
+    db.add_all([
+        SongCredit(song_id=song.id, person_id=None, credit_role="coros", credited_name="María Timón"),
+        SongCredit(song_id=song.id, person_id=angel.id, credit_role="musica", credited_name="Á. L."),
+    ])
+    db.commit()
+    hechos = _creditos_de_persona(db, sin_ficha, "María Timón")
+    assert hechos == ["María Timón canta coros (interpretación, no autoría) en: "
+                      "«Papel secante» (Deltoya, 1992)."]
+    # Por person_id aunque el nombre acreditado sea otro.
+    assert "«Papel secante»" in _creditos_de_persona(db, angel, "Ángel Lorenzo")[0]
+
+
+def test_la_vara_de_persona_lleva_su_papel(db, personas):
+    from app.services.person_jsonld import papeles
+
+    kaito, angel, _ = personas
+    _formacion(db, kaito, angel)
+    assert papeles(db, angel) == ["batería en Extremoduro"]
