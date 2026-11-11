@@ -106,7 +106,7 @@ def test_seguimiento_conjunto_aparta_lo_que_cambio_de_title():
               "/blog/x": "2026-11-14T05:00:00+00:00"}
     res = sh.analizar(CAMBIOS, _gsc(), 1, titles)
     cam, con = res["grupos"]["cambiadas"], res["grupos"]["control"]
-    assert res["apartadas_title"] == {"cambiadas": 1, "control": 1}
+    assert res["apartadas_title"] == {"cambiadas": 1, "control": 1, "simultaneas": 0}
     assert cam.paginas == 1 and (cam.antes.clics, cam.despues.clics) == (1, 0)
     assert con.paginas == 0
     assert all(p["path"] != "/grupos/barricada" for p in res["protegidas"])
@@ -114,6 +114,22 @@ def test_seguimiento_conjunto_aparta_lo_que_cambio_de_title():
     # A 4 semanas, Diego Garay también queda dentro de su ventana y se aparta.
     assert sh.apartadas_por_title(CAMBIOS, titles, 4)[0] == {"/grupos/barricada",
                                                              "/personas/diego-garay"}
+
+
+def test_title_cambiado_a_la_vez_que_los_headings_cuenta_como_cambio_conjunto():
+    """11-11-2026: las 270 páginas de titles se rehicieron el día siguiente a los
+    headings. Apartarlas vaciaba el informe; se miden juntas y se dice."""
+    titles = {"/grupos/barricada": "2026-11-12T05:00:00+00:00",   # ultimo 11-11 + 1 día
+              "/personas/diego-garay": "2026-11-11T20:00:00+00:00",
+              "/blog/x": "2026-11-11T20:00:00+00:00"}               # control: fuera
+    res = sh.analizar(CAMBIOS, _gsc(), 1, titles)
+    assert res["apartadas_title"] == {"cambiadas": 0, "control": 1, "simultaneas": 2}
+    assert res["grupos"]["cambiadas"].paginas == 2
+    assert res["grupos"]["control"].paginas == 0
+    assert any("CONJUNTO" in x for x in sh.lectura(res))
+    assert sh.informe_texto(res, {}).startswith("HEADINGS Y TITLES HUMANOS")
+    assert res["grupos"]["headings_y_title"].paginas == 2
+    assert res["grupos"]["solo_headings"].paginas == 0
 
 
 def test_sin_titles_el_informe_no_cambia():
