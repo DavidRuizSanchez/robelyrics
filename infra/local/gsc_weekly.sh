@@ -56,9 +56,18 @@ if ! PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.gsc_fetch_page_qu
   exit 1
 fi
 
+# rsync NO puede leer de ~/Documents cuando lo lanza launchd (TCC: «Operation not
+# permitted»), y python sí. Así que python copia los JSON a Application Support y
+# rsync sube desde allí. Visto el 11-11-2026: el log del 09-11 trae el fetch bien y
+# el rsync fallando, y prod seguía con un volcado que acaba el 02-10.
+STAGING="$HOME/Library/Application Support/robelyrics/gsc_staging"
+mkdir -p "$STAGING"
 echo "[gsc-weekly] rsync del JSON a prod…"
-rsync -az "$REPO/data/gsc_page_queries.json" "$REPO/data/gsc_queries.json" \
-  robelyrics:/opt/robelyrics/data/ || { echo "rsync falló"; exit 1; }
+arch -arm64 python3 -c 'import shutil,sys; [shutil.copy(f, sys.argv[-1]) for f in sys.argv[1:-1]]' \
+  "$REPO/data/gsc_page_queries.json" "$REPO/data/gsc_queries.json" "$STAGING" \
+  && rsync -az "$STAGING/gsc_page_queries.json" "$STAGING/gsc_queries.json" \
+       robelyrics:/opt/robelyrics/data/ \
+  || { avisar "No se pudo subir el volcado de GSC a prod (rsync)"; exit 1; }
 
 echo "[gsc-weekly] detección de oportunidades en prod (email con botones)…"
 ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.seo_queue --detect --watch' \
