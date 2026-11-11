@@ -54,16 +54,10 @@ photos:
     identity: "David Lerman"
     identity_evidence: "rótulo en pantalla «David Lerman» en el mismo plano (2:22)"
 
-  # === Personas (retrato individual limpio, verificado) ===
-  - slug: alvaro-rodriguez-barroso
-    url: "https://lagranbellezaproducciones.com/wp-content/uploads/2019/10/alvaro-rodriguez-barroso-artista-la-gran-belleza.jpg"
-    attribution: "La Gran Belleza Producciones"
-  - slug: lorenzo-gonzalez
-    url: "https://static.eldiario.es/clip/ee23208e-c867-4896-b27c-c719ec83e581_16-9-discover-aspect-ratio_default_0.jpg"
-    attribution: "eldiario.es"
-  - slug: woody-amores
-    url: "https://xn--guitarraespaola-9qb.net/wp-content/uploads/2021/09/27500256_1742183679159345_8487985572212521363_o.jpeg"
-    attribution: "M. Rubialls Photography"
+  # === Personas ===
+  # Retiradas el 11-11-2026: Álvaro Rodríguez Barroso (La Gran Belleza), Lorenzo
+  # González (eldiario.es) y Woody Amores (M. Rubiales, con marca de agua). Sin fuente
+  # ni licencia no pasan la guarda de fotos de terceros, y en prod estaban vacías.
 
   # === Portada de single ===
   - slug: pedra
