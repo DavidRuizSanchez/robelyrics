@@ -1398,6 +1398,24 @@ Una variable nueva del `.env` no llega al contenedor si no se añade ahí. Le pa
 `CORPUS_AUTO_ENTRY`, que no se habría encendido nunca. Comprobar con
 `docker exec robelyrics-api printenv X`.
 
+## Enlazado interno: una ruta, un destino, y el cron es un punto fijo
+
+`/personas/alen-ayerdi` llegó a enlazar **6 veces** a El Dromedario Records con el
+mismo anchor (medido el 11-11-2026). El índice del corpus ponía los sellos en
+`/grupos/`, el guard los reescribía a `/sellos/` relativo y `autolink_corpus`
+comparaba URLs en crudo: no veía el enlace que ya había y enlazaba la siguiente
+mención. Uno más por pasada.
+
+- **Toda comparación de enlaces pasa por `link_policy.norm_path`** (sin dominio,
+  query, fragmento ni barra final). Allí viven también `SITE_HOSTS` y, en un PR
+  aparte, las reglas de David del 11-11 (1 por destino, 3 en el cuerpo, solo
+  entidades relacionadas, anchors variados).
+- **`relink_existing` valida y completa; ya no desnuda.** Desnudar y re-elegir
+  cada domingo hacía bailar los enlaces con `link_stats` y perdía los que no eran
+  una variante exacta del índice. `test_link_policy.py` exige punto fijo sobre el
+  cuerpo real de Alén Ayerdi (`fixtures/alen_ayerdi_body.md`).
+- En `upsert_seo_content` el autolinker corre **antes** del guard de enlaces.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

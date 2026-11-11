@@ -52,7 +52,7 @@ from app.services.estudios import ESTUDIO_SLUGS
 logger = logging.getLogger(__name__)
 
 # Dominio propio: el LLM a veces escribe la URL absoluta en vez de la ruta.
-SITE_HOSTS = ("entreinteriores.com", "www.entreinteriores.com")
+from app.services.link_policy import SITE_HOSTS  # noqa: E402 — una sola fuente
 
 # Secciones de catálogo fuera del árbol /artista/disco/canción. La clave es el
 # primer segmento de la URL; el valor, el `entity_type` de `seo_content`.
