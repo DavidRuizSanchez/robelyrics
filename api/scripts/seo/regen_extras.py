@@ -105,7 +105,7 @@ def main() -> None:
                     continue
                 nb = normalize_headings(nb) or nb
                 nb = autolink_corpus(
-                    nb, build_corpus_index(db), max_links=4,
+                    nb, build_corpus_index(db), 
                     exclude_slug=p.slug, link_stats=load_link_stats(),
                 )
                 p.title = out["title"][:240]

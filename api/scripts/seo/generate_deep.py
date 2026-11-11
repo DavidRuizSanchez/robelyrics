@@ -513,7 +513,7 @@ def generate_for_entity(
     body = _sanitize_links(body, dossier.allowed_urls)
     body = autolink_corpus(
         body, corpus_index if corpus_index is not None else build_corpus_index(db),
-        max_links=8, exclude_slug=entity.slug,
+        exclude_slug=entity.slug,
         link_stats=link_stats if link_stats is not None else load_link_stats(),
     )
     log(f"  ensamblado: {len(body)} chars")

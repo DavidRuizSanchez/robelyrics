@@ -167,3 +167,317 @@ def test_relink_no_pierde_ningun_enlace_del_cuerpo_real():
     md = _semana(ALEN, 0)
     assert _ENLACE.sub(r"\1", md) == _ENLACE.sub(r"\1", ALEN)  # mismo texto
     assert sorted(_destinos(md)) == sorted(_destinos(_guard_relativiza(ALEN)))
+
+
+# --------------------------------------------------------------------------- #
+# Reglas de David del 11-11-2026 (link_policy)
+# --------------------------------------------------------------------------- #
+from types import SimpleNamespace  # noqa: E402
+
+from app.services.link_policy import (  # noqa: E402
+    MAX_BODY_LINKS,
+    ContextoEnlazado,
+    Relaciones,
+    cargar_relaciones,
+    presupuesto,
+    rutas_del_cuerpo,
+)
+
+INDICE_RICO = [
+    _ent("Agila", "/extremoduro/agila", "album"),
+    _ent("Pedrá", "/extremoduro/pedra", "album"),
+    _ent("Deltoya", "/extremoduro/deltoya", "album"),
+    _ent("La ley innata", "/extremoduro/la-ley-innata", "album"),
+    _ent("Somos unos animales", "/extremoduro/somos-unos-animales", "album"),
+    _ent("Lucha", "/temas/lucha", "theme"),
+    _ent("Plasencia", "/lugares/plasencia", "place"),
+    _ent("discografía de Extremoduro", "/discografia/extremoduro", "hub"),
+    _ent("discos de Extremoduro", "/discografia/extremoduro", "hub"),
+    _ent("discografía de Robe", "/discografia/robe", "hub"),
+]
+TEXTO_RICO = ("Agila, Pedrá, Deltoya, La ley innata y Somos unos animales son discos. "
+              "Hubo mucha lucha en Plasencia.")
+
+
+def test_tope_de_3_en_el_cuerpo():
+    out = autolink_corpus(TEXTO_RICO, INDICE_RICO)
+    assert len(set(rutas_del_cuerpo(out))) == MAX_BODY_LINKS
+
+
+def test_un_max_links_mayor_se_recorta_al_tope():
+    out = autolink_corpus(TEXTO_RICO, INDICE_RICO, max_links=10)
+    assert len(set(rutas_del_cuerpo(out))) == MAX_BODY_LINKS
+
+
+def test_cuentan_los_enlaces_que_no_son_del_indice():
+    md = "[A](/libros/a), [B](/estudios/b) y [C](/blog/c). Agila y Pedrá."
+    assert autolink_corpus(md, INDICE_RICO) == md
+
+
+def test_no_enlaza_lo_que_ya_enlaza_la_plantilla_ni_lo_cuenta():
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso",
+                           plantilla=frozenset({"/extremoduro/agila"}))
+    md = "[Agila](/extremoduro/agila) es de 1996. Pedrá, Deltoya y La ley innata vinieron luego."
+    out = autolink_corpus(md, INDICE_RICO, contexto=ctx)
+    propios = set(rutas_del_cuerpo(out)) - ctx.plantilla
+    assert len(propios) == MAX_BODY_LINKS  # el de la plantilla no gastó presupuesto
+    assert presupuesto(out, ctx.plantilla) == 0
+
+
+def test_sin_contexto_no_enlaza_taxonomias():
+    out = autolink_corpus("Hubo mucha lucha en Plasencia.", INDICE_RICO)
+    assert rutas_del_cuerpo(out) == []
+
+
+def test_taxonomia_solo_con_relacion_en_el_grafo():
+    rel = Relaciones({"/extremoduro/agila/so-payaso": {"/temas/lucha"},
+                      "/temas/lucha": {"/extremoduro/agila/so-payaso"},
+                      "/lugares/plasencia": {"/extremoduro/otra"}})
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso", relaciones=rel)
+    out = autolink_corpus("Hubo mucha lucha en Plasencia.", INDICE_RICO, contexto=ctx)
+    assert rutas_del_cuerpo(out) == ["/temas/lucha"]
+
+
+def test_las_aristas_mentions_no_relacionan():
+    """Si contaran, la propia mención justificaría el enlace (circular)."""
+    edges = [SimpleNamespace(src_type="song", src_id=1, dst_type="theme", dst_id=2,
+                             edge_type="mentions"),
+             SimpleNamespace(src_type="song", src_id=1, dst_type="place", dst_id=3,
+                             edge_type="song_place")]
+    db = SimpleNamespace(query=lambda _m: SimpleNamespace(all=lambda: edges))
+    rutas = {("song", 1): "/x/y/z", ("theme", 2): "/temas/lucha", ("place", 3): "/lugares/plasencia"}
+    rel = cargar_relaciones(db, rutas)
+    assert not rel.relacionados("/x/y/z", "/temas/lucha")
+    assert rel.relacionados("/x/y/z", "/lugares/plasencia")
+
+
+def test_hub_solo_el_del_artista_de_la_pagina():
+    md = "Repasa la discografía de Robe y la discografía de Extremoduro."
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso")
+    assert rutas_del_cuerpo(autolink_corpus(md, INDICE_RICO, contexto=ctx)) == [
+        "/discografia/extremoduro"]
+
+
+def test_como_mucho_un_hub_por_pagina():
+    md = "Repasa la discografía de Robe y la discografía de Extremoduro."
+    ctx = ContextoEnlazado(origen="/blog/un-post")  # sin artista: valdrían los dos
+    out = autolink_corpus(md, INDICE_RICO, contexto=ctx)
+    assert len([p for p in rutas_del_cuerpo(out) if p.startswith("/discografia/")]) == 1
+
+
+def test_el_hub_no_recibe_el_impulso_de_pagina_debil():
+    md = "Los discos de Extremoduro empiezan con Agila."
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso")
+    out = autolink_corpus(md, INDICE_RICO, contexto=ctx, max_links=1,
+                          link_stats={"/discografia/extremoduro": 0, "/extremoduro/agila": 500})
+    assert rutas_del_cuerpo(out) == ["/extremoduro/agila"]
+
+
+def test_anchor_ampliado_si_el_corto_esta_gastado():
+    md = "Así sonaba el disco *Agila* en 1996."
+    gastado = {"/extremoduro/agila": {"agila": 40}}
+    out = autolink_corpus(md, INDICE_RICO, anchor_stats=gastado)
+    assert "[el disco *Agila*](https://entreinteriores.com/extremoduro/agila)" in out
+    assert _ENLACE.sub(r"\1", out) == md  # no se reescribe ninguna palabra
+
+
+def test_sin_estadisticas_usa_el_nombre():
+    md = "Así sonaba el disco Agila en 1996."
+    out = autolink_corpus(md, INDICE_RICO)
+    assert "el disco [Agila](" in out or "[el disco Agila](" in out
+    assert _ENLACE.sub(r"\1", out) == md
+
+
+def test_el_tope_es_de_la_pagina_entera():
+    """merge_deep enlaza por secciones: lo ya enlazado en la página cuenta."""
+    out = autolink_corpus("Agila y Pedrá.", INDICE_RICO,
+                          ya_en_pagina=["/a", "/b", "/extremoduro/deltoya"])
+    assert rutas_del_cuerpo(out) == []
+
+
+@pytest.fixture()
+def bd():
+    from sqlalchemy import ARRAY, JSON, MetaData, Text, create_engine
+    from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
+    from sqlalchemy.orm import Session
+
+    from app.db.models import (
+        Album,
+        AlbumTrack,
+        Artist,
+        BandMembership,
+        Concept,
+        EntityEdge,
+        Person,
+        Place,
+        SeoContent,
+        Song,
+        SongConcept,
+        SongCredit,
+        SongPlace,
+        SongTheme,
+        Theme,
+    )
+    from app.tests.test_admin_summary import _con_dependencias
+
+    md = MetaData()
+    modelos = (Artist, Album, Song, AlbumTrack, Person, Band, BandMembership, SongCredit,
+               Theme, Place, Concept, SongTheme, SongPlace, SongConcept, EntityEdge, SeoContent)
+    for tabla in _con_dependencias([m.__table__ for m in modelos]):
+        t = tabla.to_metadata(md)
+        for col in t.columns:
+            if isinstance(col.type, (JSONB, ARRAY)):
+                col.type = JSON()
+            elif isinstance(col.type, TSVECTOR):
+                col.type = Text()
+            sd = col.server_default
+            if sd is not None and "::" in str(getattr(sd, "arg", "")):
+                col.server_default = None
+        t.indexes.clear()
+    engine = create_engine("sqlite://")
+    md.create_all(engine)
+    with Session(engine) as s:
+        yield s
+
+
+def _catalogo(bd):
+    from app.db.models import Album, Artist, EntityEdge, Song, SongTheme, Theme
+
+    art = Artist(slug="extremoduro", name="Extremoduro")
+    bd.add(art)
+    bd.flush()
+    discos = [Album(slug=s, title=s.title(), year=y, artist_id=art.id)
+              for s, y in (("rock-transgresivo", 1989), ("somos-unos-animales", 1991),
+                           ("deltoya", 1992), ("agila", 1996))]
+    bd.add_all(discos)
+    bd.flush()
+    agila = discos[-1]
+    so, sucede = (Song(slug="so-payaso", title="So Payaso", album_id=agila.id, track_number=4),
+                  Song(slug="sucede", title="Sucede", album_id=agila.id, track_number=3))
+    lucha, amor = Theme(slug="lucha", name="Lucha"), Theme(slug="amor", name="Amor")
+    bd.add_all([so, sucede, lucha, amor])
+    bd.flush()
+    bd.add(SongTheme(song_id=so.id, theme_id=lucha.id))
+    bd.add(EntityEdge(src_type="song", src_id=sucede.id, src_slug="sucede", edge_type="song_theme",
+                      dst_type="theme", dst_id=amor.id, dst_slug="amor", weight=1.0))
+    bd.add(EntityEdge(src_type="song", src_id=so.id, src_slug="so-payaso", edge_type="mentions",
+                      dst_type="theme", dst_id=amor.id, dst_slug="amor", weight=0.5))
+    bd.flush()
+    return SimpleNamespace(art=art, agila=agila, so=so, sucede=sucede)
+
+
+def test_plantilla_de_una_cancion(bd):
+    from app.services.link_policy import plantilla_de, rutas_de_nodos
+
+    c = _catalogo(bd)
+    p = plantilla_de(bd, "song", c.so.id, rutas_de_nodos(bd))
+    assert p == {"/extremoduro/agila", "/extremoduro/agila/sucede", "/temas/lucha"}
+
+
+def test_plantilla_de_un_disco_incluye_mas_discos(bd):
+    from app.services.link_policy import plantilla_de, rutas_de_nodos
+
+    c = _catalogo(bd)
+    p = plantilla_de(bd, "album", c.agila.id, rutas_de_nodos(bd))
+    assert {"/extremoduro", "/extremoduro/agila/so-payaso", "/extremoduro/deltoya",
+            "/extremoduro/rock-transgresivo"} <= p
+    assert "/extremoduro/agila" not in p
+
+
+def test_contexto_de_una_cancion_relaciona_por_aristas_reales(bd):
+    from app.services.link_policy import contexto_de
+
+    c = _catalogo(bd)
+    ctx = contexto_de(bd, "song", c.sucede.id)
+    assert ctx.origen == "/extremoduro/agila/sucede"
+    assert ctx.admite("/temas/amor")             # arista song_theme real
+    assert not ctx.admite("/temas/lucha")        # no es suyo
+    assert not contexto_de(bd, "song", c.so.id).admite("/temas/amor")  # solo `mentions`
+
+
+# --------------------------------------------------------------------------- #
+# Limpieza de lo publicado (recortar)
+# --------------------------------------------------------------------------- #
+from app.services.link_policy import recortar, solo_cambian_enlaces  # noqa: E402
+
+TIPOS_ALEN = {"/grupos/marea": "band", "/extremoduro": "artist", DROMEDARIO: "band",
+              "/robe/lo-que-aletea-en-nuestras-cabezas": "album"}
+
+
+def test_recorte_de_alen_ayerdi():
+    r = recortar(ALEN, ContextoEnlazado(origen="/personas/alen-ayerdi"), tipo_de=TIPOS_ALEN)
+    assert solo_cambian_enlaces(ALEN, r.md)
+    assert _destinos(r.md).count(DROMEDARIO) == 1
+    assert [q[2] for q in r.quitados].count("repetido") == 5
+    assert len(set(_destinos(r.md))) == MAX_BODY_LINKS
+    # Sale el de menos menciones: «Lo que aletea…» (2) frente a Marea (6),
+    # Extremoduro (4) y Dromedario (7).
+    assert [q[1] for q in r.quitados if q[2] == "tope"] == [
+        "/robe/lo-que-aletea-en-nuestras-cabezas"]
+
+
+def test_recorte_se_queda_el_primer_enlace_de_cada_destino():
+    md = "Primero [Agila](/extremoduro/agila), luego [el disco Agila](/extremoduro/agila)."
+    r = recortar(md, ContextoEnlazado())
+    assert r.md == "Primero [Agila](/extremoduro/agila), luego el disco Agila."
+
+
+def test_recorte_quita_lo_de_la_plantilla_y_la_taxonomia_sin_relacion():
+    md = "En [Agila](/extremoduro/agila) hay [lucha](/temas/lucha) y [Pedrá](/extremoduro/pedra)."
+    ctx = ContextoEnlazado(origen="/extremoduro/agila/so-payaso",
+                           plantilla=frozenset({"/extremoduro/agila"}))
+    r = recortar(md, ctx)
+    assert r.md == "En Agila hay lucha y [Pedrá](/extremoduro/pedra)."
+    assert {q[2] for q in r.quitados} == {"plantilla", "sin_relacion"}
+
+
+def test_recorte_no_toca_externos_ni_imagenes():
+    md = ("![Portada](/album-covers/agila.jpg) Según [Genius](https://genius.com/x), "
+          "[A](/a) [B](/b) [C](/c) [D](/d).")
+    r = recortar(md, ContextoEnlazado())
+    assert solo_cambian_enlaces(md, r.md)
+    assert "![Portada](/album-covers/agila.jpg)" in r.md and "[Genius](https://genius.com/x)" in r.md
+    assert len(rutas_del_cuerpo(r.md)) == MAX_BODY_LINKS
+
+
+def test_recorte_es_idempotente():
+    ctx = ContextoEnlazado(origen="/personas/alen-ayerdi")
+    una = recortar(ALEN, ctx, tipo_de=TIPOS_ALEN).md
+    assert not recortar(una, ctx, tipo_de=TIPOS_ALEN).cambia
+
+
+def test_el_invariante_caza_un_cambio_de_texto():
+    assert not solo_cambian_enlaces("Un [disco](/a) bueno.", "Un disco malo.")
+    assert not solo_cambian_enlaces("Un disco.", "Un [disco](/a).")  # no añade
+
+
+# --------------------------------------------------------------------------- #
+# Mayúsculas: falsos positivos medidos en el ensayo de prod (26 de 240)
+# --------------------------------------------------------------------------- #
+def test_un_nombre_propio_no_casa_en_minuscula():
+    indice = [_ent("Rock transgresivo", "/extremoduro/rock-transgresivo", "album"),
+              _ent("Pasión", "/sellos/pasion", "band")]
+    md = "Hacían rock transgresivo con mucha pasión."
+    assert autolink_corpus(md, indice) == md
+
+
+def test_un_nombre_propio_casa_con_su_mayuscula_y_con_articulo_en_minuscula():
+    indice = [_ent("Rock transgresivo", "/extremoduro/rock-transgresivo", "album"),
+              _ent("La Mancha", "/lugares/la-mancha", "place")]
+    md = "Grabaron Rock transgresivo lejos de la Mancha."
+    out = autolink_corpus(md, indice, contexto=ContextoEnlazado(
+        origen="/x", relaciones=Relaciones({"/x": {"/lugares/la-mancha"},
+                                            "/lugares/la-mancha": {"/x"}})))
+    assert rutas_del_cuerpo(out) == ["/extremoduro/rock-transgresivo", "/lugares/la-mancha"]
+
+
+def test_un_tema_en_mayuscula_a_mitad_de_frase_es_otro_nombre():
+    ctx = ContextoEnlazado(origen="/x", relaciones=Relaciones(
+        {"/x": {"/temas/esperanza"}, "/temas/esperanza": {"/x"}}))
+    indice = [_ent("Esperanza", "/temas/esperanza", "theme")]
+    assert rutas_del_cuerpo(autolink_corpus("Vivía en Calle Esperanza S/N.", indice,
+                                            contexto=ctx)) == []
+    assert rutas_del_cuerpo(autolink_corpus("Queda la esperanza.", indice, contexto=ctx)) == [
+        "/temas/esperanza"]
+    assert rutas_del_cuerpo(autolink_corpus("Esperanza, al final.", indice, contexto=ctx)) == [
+        "/temas/esperanza"]

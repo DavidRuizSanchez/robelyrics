@@ -115,7 +115,7 @@ def _regen(db, client, etype, ent, corpus_index, link_stats) -> str | None:
     allowed = _allowed_terms(ent, subject)
     body = _polish(client, subject, body, allowed_terms=allowed) or body
     body = _sanitize_links(body, dossier.allowed_urls)
-    body = autolink_corpus(body, corpus_index, max_links=8, exclude_slug=ent.slug,
+    body = autolink_corpus(body, corpus_index, exclude_slug=ent.slug,
                            link_stats=link_stats)
     body = apply_catalog_check(db, body)
     body = strip_ai_tells(body) or body

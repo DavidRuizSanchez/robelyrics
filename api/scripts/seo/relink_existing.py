@@ -1,5 +1,5 @@
 """Retroactivo: re-aplica jerarquía de headings (H1→H2→H3) y COMPLETA el
-enlazado interno al corpus (máx. 4 enlaces relevantes) en todo el contenido ya
+enlazado interno al corpus (link_policy: máx. 3 en el cuerpo) en todo el contenido ya
 publicado: posts del blog + seo_content.
 
 Valida y completa; NO desnuda (11-11-2026). Antes quitaba cada domingo los
@@ -27,27 +27,36 @@ from app.db.session import SessionLocal
 from app.services.entity_resolver import (
     autolink_corpus,
     build_corpus_index,
+    load_anchor_stats,
     load_link_stats,
 )
-from app.services.link_policy import norm_path
+from app.services.link_policy import (
+    MAX_BODY_LINKS,
+    cargar_relaciones,
+    contexto_de,
+    contexto_post,
+    norm_path,
+    rutas_de_nodos,
+)
 from app.services.text_sanitizer import normalize_headings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-MAX_LINKS = 4
+MAX_LINKS = MAX_BODY_LINKS
 
 
 def _path(url: str) -> str:
     return norm_path(url) or (url or "").strip()
 
 
-def _clean(md, index, stats, *, exclude_slug=None):
+def _clean(md, index, stats, *, exclude_slug=None, contexto=None, anchors=None):
     if not md:
         return md
     out = normalize_headings(md) or md             # H1→H2→H3
     out = autolink_corpus(
-        out, index, max_links=MAX_LINKS, exclude_slug=exclude_slug, link_stats=stats
+        out, index, max_links=MAX_LINKS, exclude_slug=exclude_slug, link_stats=stats,
+        contexto=contexto, anchor_stats=anchors,
     )
     return out
 
@@ -62,13 +71,17 @@ def main() -> None:
     with SessionLocal() as db:
         index = build_corpus_index(db)
         stats = load_link_stats()
+        anchors = load_anchor_stats()
+        rutas = rutas_de_nodos(db)
+        relaciones = cargar_relaciones(db, rutas)
         logger.info("Índice de corpus: %d entidades · stats de enlaces: %d",
                     len(index), len(stats))
 
         posts = db.query(Post).filter(Post.body_md.isnot(None)).all()
         changed_posts: list[str] = []
         for p in posts:
-            new = _clean(p.body_md, index, stats)
+            new = _clean(p.body_md, index, stats, anchors=anchors,
+                         contexto=contexto_post(p.slug, relaciones))
             if new != p.body_md:
                 changed_posts.append(p.slug)
                 if not args.dry_run:
@@ -77,7 +90,10 @@ def main() -> None:
         secs = db.query(SeoContent).filter(SeoContent.body_md.isnot(None)).all()
         changed_secs = 0
         for s in secs:
-            new = _clean(s.body_md, index, stats, exclude_slug=s.slug)
+            ctx = contexto_de(db, s.entity_type, s.entity_id, rutas=rutas,
+                              relaciones=relaciones)
+            new = _clean(s.body_md, index, stats, exclude_slug=s.slug, contexto=ctx,
+                         anchors=anchors)
             if new != s.body_md:
                 changed_secs += 1
                 if not args.dry_run:

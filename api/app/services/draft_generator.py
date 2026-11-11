@@ -409,7 +409,7 @@ def _post_process(db, body_md: str, entities: list, subject: str = "",
     from app.services.text_sanitizer import embed_youtube_links
     body_md = embed_youtube_links(body_md) or body_md
     body_md = autolink_corpus(
-        body_md, build_corpus_index(db), max_links=4, link_stats=load_link_stats()
+        body_md, build_corpus_index(db), link_stats=load_link_stats()
     )
     return body_md, hero
 

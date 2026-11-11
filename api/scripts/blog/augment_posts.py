@@ -87,7 +87,7 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats,
         nuevo = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", gap_body, flags=re.M)
         nuevo = normalize_headings(nuevo) or nuevo
         nuevo = strip_ai_tells(nuevo) or nuevo
-        nuevo = autolink_corpus(nuevo, corpus_index, max_links=6,
+        nuevo = autolink_corpus(nuevo, corpus_index, 
                                 exclude_slug=anchor.entity.slug, link_stats=link_stats)
         after = current.rstrip() + "\n\n" + nuevo.strip() + "\n"
     else:
@@ -95,7 +95,7 @@ def augmentar(db, client: OpenAI, post: Post, *, corpus_index, link_stats,
         after = re.sub(r"^(#{2,3}\s*)<\s*(.+?)\s*>\s*$", r"\1\2", after, flags=re.M)
         after = normalize_headings(after) or after
         after = strip_ai_tells(after) or after
-        after = autolink_corpus(after, corpus_index, max_links=6,
+        after = autolink_corpus(after, corpus_index, 
                                 exclude_slug=anchor.entity.slug, link_stats=link_stats)
 
     # GATE ANTI-PAJA: la ampliación solo vale si MEJORA. Si el añadido es relleno,
