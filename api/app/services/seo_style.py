@@ -515,6 +515,18 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
     # totalmente antinatural»), las fórmulas vacías y el Title Case.
     if title_pattern(nuevo) == "antinatural" or keyword_pegada(nuevo, target_keyword):
         v.bloquear(f"«{nuevo}» pega la keyword en crudo; no se lee natural")
+    # Los de casa: con su mayúscula, y solo si la página habla de ellos. El 11-11-2026
+    # la keyword «Álvaro Rodríguez Barroso extremoduro» empujó a escribir «de
+    # extremoduro a CIRA» sobre un músico de la banda de Robe que nunca estuvo en
+    # Extremoduro, y cuyo cuerpo no lo nombra.
+    # Sin las URLs de los enlaces: `](…/extremoduro/…)` no es nombrarlo.
+    plano_body = flatten(re.sub(r"\]\([^)]*\)", "]", body_md or ""))
+    for casa in NOMBRES_DE_CASA:
+        if re.search(rf"(?<![\wáéíóúñ]){re.escape(casa)}(?![\wáéíóúñ])", nuevo, re.I):
+            if not re.search(rf"(?<![\wáéíóúñ]){re.escape(casa)}(?![\wáéíóúñ])", nuevo):
+                v.bloquear(f"«{casa}» va con mayúscula")
+            if body_md and f" {flatten(casa).strip()} " not in plano_body:
+                v.bloquear(f"el title nombra a «{casa}» y la página no")
     if comillas_desparejadas(nuevo):
         v.bloquear("comillas «» desparejadas")
     for f in formulas_vacias(nuevo):
