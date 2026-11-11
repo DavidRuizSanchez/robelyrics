@@ -287,3 +287,20 @@ def test_un_nombre_en_enlace_o_cursiva_no_es_title_case():
                                        cuerpo, nombres="El tejado")
     assert not st.mayusculas_indebidas("Gira 2002 de Yo, minoría absoluta: en vivo", cuerpo)
     assert st.mayusculas_indebidas("Agila: La Metáfora", cuerpo) == ["La", "Metáfora"]
+
+
+@pytest.mark.parametrize("modelo,esperado", [
+    ("«Perro Callejero», de Extremoduro: letra y colaboración de Rosendo",
+     "«Perro Callejero», de Extremoduro: letra y colaboración de Rosendo"),
+    ("Pasión: el sello que publicó «Somos unos Animales»",
+     "Pasión: el sello que publicó «Somos unos Animales»"),
+    ("«Barricada: miembros e historia»", "Barricada: miembros e historia"),
+])
+def test_solo_se_quitan_las_comillas_que_envuelven_todo(modelo, esperado):
+    """Medido el 11-11-2026: un strip de «» publicó 8 titles con la comilla rota."""
+    assert st.quitar_comillas_envolventes(modelo) == esperado
+
+
+def test_comillas_desparejadas_bloquean():
+    v = _title("Barricada», de Pamplona: miembros, historia y legado")
+    assert any("desparejadas" in m for m in v.motivos)

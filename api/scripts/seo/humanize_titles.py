@@ -163,7 +163,7 @@ def proponer(client, pg: Pagina, alias: dict) -> dict:
         except Exception as exc:  # noqa: BLE001
             return {"elegido": None, "error": f"OpenAI: {exc}", "descartes": descartes}
         for t in data.get("titles") or []:
-            t = seo_style.spanish_case(str(t).strip().strip("«»\"").strip(),
+            t = seo_style.spanish_case(seo_style.quitar_comillas_envolventes(str(t)),
                                        f"{pg.body_md} {pg.sujeto} {pg.h1}")
             motivos, ahora = _veredicto(pg, t, protegidas, antes_cubre, alias)
             if not motivos:
