@@ -74,6 +74,7 @@ def _campos_texto(kind: str) -> tuple[str, ...]:
 def main() -> None:
     from app.db.models import Album, Artist, ContentRevision, Post, SeoContent, Song
     from app.db.session import SessionLocal
+    from app.services.link_policy import rutas_de_nodos
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--apply", action="store_true")
@@ -121,6 +122,7 @@ def main() -> None:
         # Los más largos primero: «La Hoguera (Rock Transgresivo)» antes que «La Hoguera».
         pares.sort(key=lambda p: -len(p[0]))
         muestra = []
+        rutas = rutas_de_nodos(db)  # la ruta va en la revisión: el seguimiento la lee
         filas = [("post", p) for p in db.query(Post).all()]
         filas += [("seo_content", s) for s in db.query(SeoContent).all()]
         for kind, row in filas:
@@ -143,7 +145,9 @@ def main() -> None:
                                 "despues": cambios["meta_title"]})
             if args.apply:
                 db.add(ContentRevision(
-                    target_kind=kind, target_id=row.id, path="",
+                    target_kind=kind, target_id=row.id,
+                    path=(f"/blog/{row.slug}" if kind == "post"
+                          else rutas.get((row.entity_type, row.entity_id), "")),
                     body_md=row.body_md, meta_title=row.meta_title,
                     meta_description=row.meta_description,
                     h1=getattr(row, "h1", None) if kind == "seo_content" else row.title,
