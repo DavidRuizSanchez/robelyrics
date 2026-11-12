@@ -1,13 +1,12 @@
 """Títulos de canción con mayúsculas a la española (David, 12-11-2026)."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import yaml
 
-from scripts.normalizar_titulos import reemplazar_titulo
+from scripts.normalizar_titulos import _CANDIDATOS, reemplazar_titulo
 
-YAML = Path(__file__).resolve().parents[3] / "data" / "titulos_canciones.yaml"
+# En CI el repo vive en /app y data/ va montado en /app/data: misma búsqueda que el script.
+YAML = next(p for p in _CANDIDATOS if p.exists())
 
 
 def test_distintivo_se_cambia_en_cualquier_sitio():
