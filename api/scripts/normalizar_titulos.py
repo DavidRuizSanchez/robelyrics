@@ -121,7 +121,7 @@ def main() -> None:
 
         # Los más largos primero: «La Hoguera (Rock Transgresivo)» antes que «La Hoguera».
         pares.sort(key=lambda p: -len(p[0]))
-        muestra = []
+        muestra, tocadas = [], []
         rutas = rutas_de_nodos(db)  # la ruta va en la revisión: el seguimiento la lee
         filas = [("post", p) for p in db.query(Post).all()]
         filas += [("seo_content", s) for s in db.query(SeoContent).all()]
@@ -156,6 +156,10 @@ def main() -> None:
                 for f, nuevo in cambios.items():
                     setattr(row, f, nuevo)
                 db.commit()
+                ruta = (f"/blog/{row.slug}" if kind == "post"
+                        else rutas.get((row.entity_type, row.entity_id)))
+                if ruta:
+                    tocadas.append(ruta)
 
     if args.apply and not args.sin_qdrant and qdrant_titulos:
         from qdrant_client.models import FieldCondition, Filter, MatchValue
@@ -171,10 +175,13 @@ def main() -> None:
     print(json.dumps(informe, ensure_ascii=False, indent=1))
     for m in muestra:
         print(json.dumps(m, ensure_ascii=False))
-    if args.apply:
+    if args.apply and tocadas:
         from app.services.publishing import revalidate_paths
 
-        revalidate_paths([], layouts=["/"])
+        # Rutas concretas: vaciar la caché entera dejó las discografías en 404
+        # el 12-11-2026. Las fichas de canción que solo cambian de H1 se ven al
+        # caducar la caché (revalidate = 3600).
+        revalidate_paths(sorted(set(tocadas)) + ["/blog"])
 
 
 if __name__ == "__main__":
