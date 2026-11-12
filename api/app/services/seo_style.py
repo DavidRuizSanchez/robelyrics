@@ -305,9 +305,16 @@ def estructura(texto: str, *, cola: bool = True) -> list[str]:
         out.append(f"acaba en un verbo suelto («{ultima[0]}»): la frase queda a medias")
     if cola:
         _, facetas = parse_title(t)
-        if len(facetas) == 1 and len(re.findall(r"[^\W\d_]+", facetas[0])) == 1:
+        palabras = re.findall(r"[^\W_]+", facetas[0]) if len(facetas) == 1 else []
+        # «…: significado» o «…: análisis» sí dicen qué hay (David los aprobó el
+        # 11-11 en las fichas de canción); «…: crítica» o «…: símbolo», no.
+        if len(palabras) == 1 and flatten(palabras[0]).strip() not in _COLA_INFORMATIVA:
             out.append(f"tras los dos puntos solo hay «{facetas[0]}»: no dice nada")
     return out
+
+
+_COLA_INFORMATIVA = frozenset({"significado", "analisis", "letra", "letras", "biografia",
+                               "historia", "discografia", "tracklist"})
 
 
 def _plano_crudo(texto: str) -> str:
