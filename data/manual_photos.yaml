@@ -182,6 +182,45 @@ photos:
     identity: "Sogas"
     identity_evidence: "foto de su página de artista en Discogs («Ramón Sogas», Extremoduro y Sinvergüenza). Subida por un usuario, sin autor"
 
+  # Fotos de terceros (12-11-2026, segunda búsqueda: Google Imágenes por nombre completo,
+  # mismas reglas). Una fotografía de prensa con su pie, no un fotograma de Juancares.
+  - slug: carlos-el-sucio
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518693/entreinteriores-art/vurwvr6wr253mauiyyuu.jpg"
+    attribution: "E. Botella, El Correo / Diario Vasco (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.diariovasco.com/culturas/musica/extremoduro-cancela-gira-20210827094900-nt.html"
+    identity: "Sucio"
+    identity_evidence: "pie «Karlos 'El Sucio' en 2012, cuando apareció en la serie de verano 'Propios y extraños'. (E. Botella)»; foto individual"
+  - slug: jaime-moreno
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518694/entreinteriores-art/xkvmtyuaubdgfgc2chqg.jpg"
+    attribution: "Mike Caster, vía El Comercio (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.elcomercio.es/aviles/intentado-sonido-inicio-20200131003417-ntvo.html"
+    identity: "Jaime Moreno"
+    identity_evidence: "pie «Jaime Moreno en una imagen promocional. (MIKE CASTER)», en una entrevista con él como cantante de The Electric Alley"
+  - slug: selu
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518721/entreinteriores-art/jpqymlmne1yvcrgq1zst.jpg"
+    attribution: "NAIZ (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.naiz.eus/es/info/noticia/20200728/fallece-el-saxofonista-de-reincidentes-y-extremoduro-jose-luis-nieto-selu"
+    identity: "Selu"
+    identity_evidence: "pie «Selu Nieto con su saxofón. (NAIZ)» en su necrológica; ojo: «Selu Nieto» en redes es su hijo, el actor, y esas fotos se descartaron"
+  # Estas dos, con el visto bueno expreso de David (12-11-2026) pese a sus pegas.
+  - slug: uge-ortiz
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518956/entreinteriores-art/acla53vi9snv8at9h7j4.jpg"
+    attribution: "El Rock de la Urbe (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.rockdelaurbe.com/2010/04/entrevista-uge.html"
+    identity: "Uge"
+    identity_evidence: "única imagen de la entrevista dedicada a él («Eugenio Ortiz 'Uge' vuelve a sus raíces…»); recorte de la foto promocional de su banda"
+  - slug: miguel-ferreras
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518958/entreinteriores-art/kvh964qp7dhlzrk30epw.jpg"
+    attribution: "Canal oficial de Mon Sogas en YouTube (fotograma, recorte)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=Fblj_fg1o_Y"
+    identity: "Miguel Ferreras"
+    identity_evidence: "vídeo «Mon Sogas - Tengo Miedo (con Miguel Ferreras)» del canal Mon Sogas Oficial (no de Juancares); Ferreras es el del bajo, a la derecha (Mon toca la acústica). La posición la deduce el instrumento: ningún pie la da"
+
   # === Personas ===
   # Álvaro Rodríguez Barroso, Lorenzo González y Woody Amores tenían aquí, hasta el
   # 11-11-2026, entradas sin fuente ni licencia (una con marca de agua). Se retiraron;
