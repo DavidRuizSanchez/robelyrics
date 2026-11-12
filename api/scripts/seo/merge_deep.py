@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.services import ranking_guard, seo_style
+from app.services.link_policy import ANCHOR
 from app.services.source_guard import quitar_metatexto  # noqa: F401 (API de este módulo)
 
 logger = logging.getLogger(__name__)
@@ -1083,7 +1084,7 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
 # --------------------------------------------------------------------------- #
 # Enlaces entrantes: los posts que competían apuntan a la página ampliada
 # --------------------------------------------------------------------------- #
-_ENLACE_MD = re.compile(r"\[[^\]]*\]\([^)]*\)")
+_ENLACE_MD = re.compile(r"\[" + ANCHOR + r"\]\([^)]*\)")
 
 
 def _primera_mencion(body: str, terminos: list[str]) -> tuple[int, int, str] | None:

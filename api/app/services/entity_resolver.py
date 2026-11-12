@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Album, Artist, Concept, Person, Place, Song, Theme
 from app.services.link_policy import (
+    DENTRO_DE_ANCHOR,
     HUBS,
     MAX_BODY_LINKS,
     MAX_HUBS_POR_PAGINA,
@@ -296,7 +297,7 @@ def linkify_body_md(
         pattern = re.compile(
             r"(?<![\[`/\w])"
             + escaped
-            + r"(?![^\[\n]{0,200}?\])"
+            + r"(?!" + DENTRO_DE_ANCHOR + r")"
             r"(?![\w`])",
             re.IGNORECASE,
         )
@@ -327,7 +328,7 @@ _TYPE_WEIGHT = PESO_TIPO  # una sola tabla: link_policy
 # límite, no como letra: `\w` incluye '_', así que un título en cursiva
 # (`_Agila_`) no se matcheaba. `[^\W_]` = alfanumérico SIN guion bajo.
 _LB = r"(?<![\[`/]|[^\W_])"                       # antes: no link/code/letra
-_LA = r"(?![^\[\n]{0,200}?\])(?![^\W_]|`)"        # no dentro de link + después
+_LA = r"(?!" + DENTRO_DE_ANCHOR + r")(?![^\W_]|`)"  # no dentro de link + después
 
 
 def _mention_re(name: str) -> "re.Pattern[str]":

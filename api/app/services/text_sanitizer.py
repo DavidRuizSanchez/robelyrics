@@ -18,6 +18,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from math import ceil
 
+from app.services.link_policy import ANCHOR
+
 # --------------------------------------------------------------------------- #
 # Reglas de sustitución de dashes
 # --------------------------------------------------------------------------- #
@@ -53,7 +55,7 @@ def enforce_name_policy(text: str | None) -> str | None:
 # solo EMBEBE una URL de YouTube cuando va sola en su línea; un enlace markdown
 # no se embebe. Convertimos esos enlaces en URL desnuda para que se reproduzcan.
 _RE_YT_MD_LINK = re.compile(
-    r"\[[^\]]*\]\((https?://(?:www\.)?(?:youtube\.com/watch\?[^)\s]*v=[\w-]+[^)\s]*"
+    r"\[(?:" + ANCHOR + r")?\]\((https?://(?:www\.)?(?:youtube\.com/watch\?[^)\s]*v=[\w-]+[^)\s]*"
     r"|youtu\.be/[\w-]+[^)\s]*|youtube\.com/(?:embed|shorts)/[\w-]+[^)\s]*))\)"
 )
 
@@ -185,7 +187,7 @@ def _strip_markup(text: str) -> str:
     """Quita URLs, enlaces markdown y bloques de código para no contar sus tokens."""
     out = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
     out = re.sub(r"`[^`]*`", " ", out)
-    out = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", out)   # [txt](url) → txt
+    out = re.sub(r"\[(" + ANCHOR + r")\]\([^)]+\)", r"\1", out)   # [txt](url) → txt
     out = re.sub(r"https?://\S+", " ", out)
     return out
 
@@ -291,7 +293,7 @@ def normalize_headings(body_md: str | None) -> str | None:
     # 0) Regla global: NUNCA enlazar dentro de un heading. Quita los enlaces
     # markdown de las líneas de encabezado (conserva el texto). Siempre, aunque
     # luego no haya que desplazar niveles.
-    _link_re = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+    _link_re = re.compile(r"\[(" + ANCHOR + r")\]\([^)]+\)")
     in_code = False
     for i, ln in enumerate(lines):
         if ln.lstrip().startswith("```"):
