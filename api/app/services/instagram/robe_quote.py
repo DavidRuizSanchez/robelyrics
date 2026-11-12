@@ -9,6 +9,7 @@ import logging
 import re
 import unicodedata
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import Song
@@ -216,7 +217,9 @@ def cancion_del_post(db: Session, item) -> tuple[int | None, str | None]:
                 datos[k.strip().lower()] = v.strip()
         titulo = datos.get("canción") or datos.get("cancion")
         if titulo:
-            sid = db.query(Song.id).filter(Song.title == titulo).order_by(Song.id).scalar()
+            # Sin mayúsculas: las notas guardan el título del día en que se escribieron.
+            sid = (db.query(Song.id).filter(func.lower(Song.title) == titulo.lower())
+                   .order_by(Song.id).scalar())
             if sid:
                 return sid, datos.get("verso (de nuestra letra)")
         return None, None

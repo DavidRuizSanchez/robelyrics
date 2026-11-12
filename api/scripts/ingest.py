@@ -147,9 +147,11 @@ def upsert_song_with_lyrics(db, album_id: int, track: FetchedTrack, track_index:
         )
         .on_conflict_do_update(
             constraint="uq_songs_album_slug",
+            # El título NO se pisa: el de la BD es el revisado a mano
+            # (data/titulos_canciones.yaml, mayúsculas a la española). Genius lo
+            # trae en Title Case y reingestar deshacía la corrección.
             set_={
                 "track_number": track.track_number,
-                "title": title,
                 "lyrics_raw": raw,
                 "lyrics_clean": clean,
                 "genius_id": track.genius_id,

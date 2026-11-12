@@ -13,7 +13,7 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, case, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -104,7 +104,7 @@ def _catalogo_del_clip(
             clave, _, valor = linea.partition(":")
             if clave.strip().lower() in ("canción", "cancion") and valor.strip():
                 song = db.execute(
-                    select(Song).where(Song.title == valor.strip())
+                    select(Song).where(func.lower(Song.title) == valor.strip().lower())
                 ).scalars().first()
                 break
     permitidos: set[str] = set()
@@ -609,7 +609,7 @@ def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> 
             select(Song.title, Album.title, Album.year, Artist.name)
             .join(Album, Song.album_id == Album.id)
             .join(Artist, Album.artist_id == Artist.id)
-            .where(Song.title == cancion)
+            .where(func.lower(Song.title) == cancion.lower())
         ).first()
         if fila:
             topic["corpus"] = {"song": fila[0], "album": fila[1],
