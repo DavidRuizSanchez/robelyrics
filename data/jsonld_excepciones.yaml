@@ -1,0 +1,41 @@
+# Fallos del JSON-LD que YA estaban publicados el día de la línea base (fase 0 del plan
+# de datos estructurados). Declararlos aquí hace que la auditoría y el monitor avisen
+# solo de lo NUEVO. Cada entrada dice por qué está y qué fase la arregla; cuando esa
+# fase lo arregle, la auditoría avisa de que la excepción ya no cubre nada y se quita.
+#
+#   regla:   contencion | colgante | vocabulario | nombre | rayas | invalido
+#   paths:   patrón fnmatch sobre la ruta (/extremoduro/*)
+#   detalle: expresión regular sobre el detalle del fallo
+excepciones:
+  - regla: vocabulario
+    paths: "/*/*"
+    detalle: "#musicalbum: track → MusicComposition fuera de rango"
+    motivo: >-
+      Las fichas de disco ponen sus canciones en `track` como MusicComposition, y el
+      rango de `track` es MusicRecording o ItemList. 153 pistas en la línea base.
+    fase: "fase 2: pistas (MusicRecording con recordingOf → MusicComposition)"
+
+  - regla: colgante
+    paths: "/*/*"
+    detalle: "#musiccomposition \\(la página .* no está\\)"
+    motivo: >-
+      Directos y recopilatorios citan sus cortes con la ruta del propio disco
+      (/extremoduro/grandes-exitos-y-fracasos-episodio-primero/a-fuego), que no existe:
+      la canción vive en su disco de estudio (`album_tracks`). 42 en la línea base.
+    fase: "fase 2: pistas de directos y recopilatorios"
+
+  - regla: colgante
+    paths: "/blog/*"
+    detalle: "^/blog#blog \\(no está definido en /blog\\)"
+    motivo: >-
+      Los posts dicen `isPartOf: /blog#blog`, y el `Blog` de /blog va sin `@id`. 30 en
+      la línea base. Hallazgo de la fase 0, no estaba en el plan.
+    fase: "fase 2: un solo constructor (el nodo Blog en /blog)"
+
+  - regla: vocabulario
+    paths: "/robe"
+    detalle: "#musicgroup: mentions no vale para MusicGroup"
+    motivo: >-
+      `mentions` es de CreativeWork; en un grupo lo que toca es `subjectOf` (las piezas
+      que hablan de él). Hallazgo de la fase 0, no estaba en el plan.
+    fase: "fase 2: un solo constructor"
