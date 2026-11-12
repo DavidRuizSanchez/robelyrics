@@ -18,6 +18,18 @@ Por defecto es un ensayo que imprime un JSON por página.
     python -m scripts.seo.humanize_titles --pages place:plasencia,post:mi-slug
     python -m scripts.seo.humanize_titles --exposicion > tandas.json  # orden sin LLM
     python -m scripts.seo.humanize_titles --pages ... --apply         # revisión + aplica
+
+v2 (12-11-2026):
+
+    python -m scripts.seo.humanize_titles --auditar > auditoria.json  # todo lo que falla
+    python -m scripts.seo.humanize_titles --aprobados tanda.jsonl     # ensayo
+    python -m scripts.seo.humanize_titles --aprobados tanda.jsonl --apply
+
+`--auditar` cubre también el título de los posts (su H1 y el de sus tarjetas),
+que la v1 no miraba. `--aprobados` aplica el TEXTO EXACTO que David aprobó, una
+línea JSON por cambio: {"pagina": "song:x" | "post:x", "campo": "meta_title" | "h1",
+"texto": "…"}. Lo revalida con las mismas guardas y la cobertura de las consultas
+protegidas; si algo falla, esa línea no se aplica y sale con su motivo.
 """
 from __future__ import annotations
 
@@ -38,6 +50,7 @@ from scripts.seo.humanize_headings import _MODELOS, sujeto_y_ruta
 logging.basicConfig(level=logging.WARNING)
 
 REASON = "titles humanos (humanize_titles)"
+REASON_V2 = "titles humanos v2 (aprobado)"
 # Lo que no pasa por aquí: las páginas que viven en código (/robe, /blog, hubs) van
 # en su propio PR, y `/personas` es plantilla con sufijo de marca.
 _SIN_SUJETO = {"post", "page"}
@@ -192,9 +205,86 @@ def _muestra(malas: list[Pagina], n: int) -> list[Pagina]:
     return elegidas
 
 
+def problemas_h1(post, body_md: str) -> list[str]:
+    return seo_style.h1_post_verdict(post.title or "", body_md=body_md, nombres=NOMBRES).motivos
+
+
+def auditar(db, gsc: dict, todas: list[Pagina]) -> dict:
+    """Todo lo que falla con las guardas v2: titles de todas las páginas y el
+    título (H1) de los posts. Sin LLM: es la lista para revisar caso a caso."""
+    filas = [{"pagina": p.clave, "campo": "meta_title", "ruta": p.ruta, "texto": p.title,
+              "target_keyword": p.target_keyword, "clics": p.clics,
+              "impresiones": p.impresiones, "problemas": problemas(p)}
+             for p in todas if problemas(p)]
+    for post in db.query(Post).filter(Post.status == "published").all():
+        motivos = problemas_h1(post, post.body_md or "")
+        if motivos:
+            ruta = f"/blog/{post.slug}"
+            g = gsc.get(ruta) or []
+            filas.append({"pagina": f"post:{post.slug}", "campo": "h1", "ruta": ruta,
+                          "texto": post.title, "target_keyword": post.target_keyword,
+                          "clics": sum(int(q.get("clicks") or 0) for q in g),
+                          "impresiones": sum(int(q.get("impressions") or 0) for q in g),
+                          "problemas": motivos})
+    return {"total_paginas": len(todas), "con_fallo": len(filas), "filas": filas}
+
+
+def aplicar_aprobados(db, todas: list[Pagina], ruta_fichero: str, alias: dict,
+                      apply: bool) -> list[str]:
+    """Aplica el texto exacto aprobado, revalidado. Devuelve las rutas tocadas."""
+    por_clave = {p.clave: p for p in todas}
+    posts = {f"post:{p.slug}": p for p in db.query(Post).all()}
+    rutas = []
+    from pathlib import Path
+
+    for linea in Path(ruta_fichero).read_text(encoding="utf-8").splitlines():
+        if not linea.strip():
+            continue
+        a = json.loads(linea)
+        clave, campo, texto = a["pagina"], a.get("campo", "meta_title"), a["texto"].strip()
+        if campo == "h1":
+            post = posts.get(clave)
+            if post is None:
+                print(json.dumps({"pagina": clave, "error": "no es un post"}, ensure_ascii=False))
+                continue
+            motivos = seo_style.h1_post_verdict(texto, body_md=post.body_md or "",
+                                                nombres=NOMBRES).motivos
+            fila, antes, ruta = post, post.title, f"/blog/{post.slug}"
+        else:
+            pg = por_clave.get(clave)
+            if pg is None:
+                print(json.dumps({"pagina": clave, "error": "no está publicada"},
+                                 ensure_ascii=False))
+                continue
+            protegidas = ranking_guard.consultas_protegidas(pg.gsc)
+            antes_cubre = ranking_guard.cubiertas(pg.title, protegidas, alias)
+            motivos, _ = _veredicto(pg, texto, protegidas, antes_cubre, alias)
+            fila, antes, ruta = pg.fila, pg.title, pg.ruta
+        aplicado = False
+        if apply and not motivos and texto != antes:
+            db.add(ContentRevision(
+                target_kind="post" if clave.startswith("post:") else "seo_content",
+                target_id=fila.id, path=ruta, body_md=fila.body_md or "",
+                meta_title=fila.meta_title, meta_description=fila.meta_description,
+                h1=getattr(fila, "h1", None) or getattr(fila, "title", None), reason=REASON_V2))
+            if campo == "h1":
+                fila.title = texto
+            else:
+                fila.meta_title = texto
+            db.commit()
+            rutas.append(ruta)
+            aplicado = True
+        print(json.dumps({"pagina": clave, "campo": campo, "antes": antes, "despues": texto,
+                          "motivos": motivos, "aplicado": aplicado}, ensure_ascii=False),
+              flush=True)
+    return rutas
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--pages", help="entity_type:slug separados por comas (post:slug)")
+    ap.add_argument("--auditar", action="store_true", help="v2: todo lo que falla, sin LLM")
+    ap.add_argument("--aprobados", help="v2: JSONL con el texto exacto aprobado")
     ap.add_argument("--sample", type=int)
     ap.add_argument("--exposicion", action="store_true",
                     help="lista las páginas con fallo ordenadas por exposición en GSC")
@@ -208,6 +298,16 @@ def main() -> None:
         alias = nombre_alias_index(db)
         NOMBRES[:] = cargar_nombres(db)
         todas = _paginas(db, gsc)
+        if args.auditar:
+            json.dump({"periodo_gsc": periodo, **auditar(db, gsc, todas)},
+                      __import__("sys").stdout, ensure_ascii=False, indent=1)
+            return
+        if args.aprobados:
+            rutas = aplicar_aprobados(db, todas, args.aprobados, alias, args.apply)
+            if rutas:
+                from app.services.publishing import revalidate_paths
+                revalidate_paths(rutas + ["/blog"])
+            return
         malas = [p for p in todas if problemas(p)]
         if args.exposicion:
             malas.sort(key=lambda p: (p.clics, p.impresiones))

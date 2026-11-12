@@ -308,7 +308,7 @@ export function relatedVideoObjectNode(
   const node: Record<string, unknown> = {
     "@type": "VideoObject",
     name: v.title,
-    description: `${v.title} — vídeo relacionado con ${v.aboutName} en Entre Interiores.`,
+    description: `${v.title}: vídeo relacionado con ${v.aboutName} en Entre Interiores.`,
     thumbnailUrl: [
       `https://i.ytimg.com/vi/${v.youtubeId}/maxresdefault.jpg`,
       `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,

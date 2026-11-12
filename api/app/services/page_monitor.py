@@ -84,6 +84,25 @@ def _path(url: str | None) -> str | None:
     return ("/" + p.path.strip("/")) if p.path else "/"
 
 
+RAYAS = ("\u2014", "\u2015")   # — y ―: fuera de la web (David, 12-11-2026)
+
+
+def _rayas(soup, *, jsonld_raw: list[str]) -> int:
+    """Rayas largas que ve un lector o un buscador: texto visible (también los
+    bloques que el monitor ignora para comparar), title, metas, alt y JSON-LD.
+    No cuenta el payload de React, que repite el texto."""
+    visibles = []
+    for el in soup.find_all(string=True):
+        if el.parent and el.parent.name in ("script", "style", "noscript", "template"):
+            continue
+        visibles.append(str(el))
+    visibles += [m.get("content") or "" for m in soup.find_all("meta")]
+    visibles += [i.get("alt") or "" for i in soup.find_all("img")]
+    visibles += jsonld_raw
+    texto = "".join(visibles)
+    return sum(texto.count(r) for r in RAYAS)
+
+
 def parse(html: str, *, path: str, headers: dict | None = None) -> dict:
     """Los campos que se vigilan de una página. Determinista: el mismo HTML da lo mismo."""
     soup = BeautifulSoup(html or "", "html.parser")
@@ -105,6 +124,8 @@ def parse(html: str, *, path: str, headers: dict | None = None) -> dict:
             t = n.get("@type") if isinstance(n, dict) else None
             jsonld.update(t if isinstance(t, list) else [t] if t else [])
 
+    rayas = _rayas(soup, jsonld_raw=[s.string or "" for s in
+                                      soup.find_all("script", type="application/ld+json")])
     main = soup.find("main") or soup.body or soup
     for basura in main.find_all(["script", "style", "noscript", "template"]):
         basura.decompose()
@@ -140,6 +161,7 @@ def parse(html: str, *, path: str, headers: dict | None = None) -> dict:
         "enlaces": enlaces,
         "palabras": len(contenido.split()),
         "imgs_sin_alt": imgs_sin_alt,
+        "rayas": rayas,
         "contenido": contenido,
         "contenido_hash": hashlib.sha256(contenido.encode()).hexdigest()[:32],
     }
@@ -252,6 +274,8 @@ def diff(antes: dict, despues: dict, *, path: str) -> list[Cambio]:
     if cd.get("imgs_sin_alt", 0) > ca.get("imgs_sin_alt", 0):
         out.append(Cambio("imgs_sin_alt", str(ca.get("imgs_sin_alt", 0)),
                           str(cd["imgs_sin_alt"]), "aviso"))
+    if cd.get("rayas", 0) > ca.get("rayas", 0):
+        out.append(Cambio("rayas", str(ca.get("rayas", 0)), str(cd["rayas"]), "aviso"))
     ms_a, ms_d = antes.get("ms") or 0, despues.get("ms") or 0
     if ms_a and ms_d >= LENTO_MIN_MS and ms_d >= LENTO_FACTOR * ms_a:
         out.append(Cambio("tiempo", f"{ms_a} ms", f"{ms_d} ms", "aviso"))

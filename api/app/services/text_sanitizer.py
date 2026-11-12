@@ -18,6 +18,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from math import ceil
 
+from app.services.link_policy import ANCHOR
+
 # --------------------------------------------------------------------------- #
 # Reglas de sustitución de dashes
 # --------------------------------------------------------------------------- #
@@ -41,6 +43,54 @@ _RE_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
 _RE_ROBE_INIESTA = re.compile(r"\bRobe\s+Iniesta\b", re.IGNORECASE)
 
 
+# --------------------------------------------------------------------------- #
+# Raya larga: fuera de TODA la web (David, 12-11-2026)
+# --------------------------------------------------------------------------- #
+# `strip_ai_tells` ya las quitaba al generar, pero no al editar a mano, ni al
+# fusionar, ni en los títulos de vídeo de YouTube, ni en los JSONB. Esta función
+# es la que corre en el listener del ORM: cualquier escritura pasa por ella. Solo
+# toca la raya (— y ―); la semirraya de los rangos (1988–1992) se queda.
+_RAYA = "—―"
+_RE_URL_O_DESTINO = re.compile(r"(\]\([^)\s]*(?:\s+\"[^\"]*\")?\)|https?://[^\s)\]]+)")
+_RE_RAYA_LISTA = re.compile(rf"^([ \t]*)[{_RAYA}][ \t]+", re.MULTILINE)
+_RE_RAYA_DIALOGO = re.compile(rf"^([ \t]*)[{_RAYA}]", re.MULTILINE)
+_RE_RAYA_ANTES_DE_SIGNO = re.compile(rf"[ \t]*[{_RAYA}][ \t]*([,.;:!?)»\"])")
+_RE_RAYA_PEGADA = re.compile(rf"(\w)[{_RAYA}](\w)")
+_RE_RAYA = re.compile(rf"[ \t]*[{_RAYA}][ \t]*")
+_RE_RAYA_TITULO = re.compile(rf"[ \t]*[{_RAYA}][ \t]*")
+
+
+def _quitar_rayas_texto(s: str, titulo: bool) -> str:
+    if titulo:
+        return _RE_RAYA_TITULO.sub(" - ", s)
+    s = _RE_RAYA_LISTA.sub(r"\1- ", s)          # item de lista → guion
+    s = _RE_RAYA_DIALOGO.sub(r"\1", s)          # «—Hola» de diálogo → «Hola»
+    s = _RE_RAYA_ANTES_DE_SIGNO.sub(r"\1", s)   # cierre de inciso: «es —,» → «es,»
+    s = _RE_RAYA_PEGADA.sub(r"\1, \2", s)
+    s = _RE_RAYA.sub(", ", s)                   # inciso: « —el…» → «, el…»
+    s = re.sub(r",[ \t]*,", ",", s)
+    s = re.sub(r"([(«\"])[ \t]*,[ \t]*", r"\1", s)
+    return s
+
+
+def quitar_rayas(text, *, titulo: bool = False):
+    """Quita la raya larga sin tocar URLs ni destinos de enlaces. Con `titulo`
+    (títulos de vídeo: «Leiva — Caída libre») la cambia por « - ». Devuelve el
+    mismo objeto si no hay nada que quitar (y deja pasar lo que no es str)."""
+    if not isinstance(text, str) or not any(r in text for r in _RAYA):
+        return text
+    # URLs y destinos de enlace fuera mientras se limpia (con marcadores, no con
+    # split: «^» de las reglas de línea casaría al principio de cada trozo).
+    guardados: list[str] = []
+
+    def _guarda(m: re.Match) -> str:
+        guardados.append(m.group(0))
+        return f"\x00{len(guardados) - 1}\x00"
+
+    limpio = _quitar_rayas_texto(_RE_URL_O_DESTINO.sub(_guarda, text), titulo)
+    return re.sub(r"\x00(\d+)\x00", lambda m: guardados[int(m.group(1))], limpio)
+
+
 def enforce_name_policy(text: str | None) -> str | None:
     """Sustituye la forma vetada 'Robe Iniesta' por 'Robe'. No toca 'Roberto
     Iniesta' (permitida)."""
@@ -53,7 +103,7 @@ def enforce_name_policy(text: str | None) -> str | None:
 # solo EMBEBE una URL de YouTube cuando va sola en su línea; un enlace markdown
 # no se embebe. Convertimos esos enlaces en URL desnuda para que se reproduzcan.
 _RE_YT_MD_LINK = re.compile(
-    r"\[[^\]]*\]\((https?://(?:www\.)?(?:youtube\.com/watch\?[^)\s]*v=[\w-]+[^)\s]*"
+    r"\[(?:" + ANCHOR + r")?\]\((https?://(?:www\.)?(?:youtube\.com/watch\?[^)\s]*v=[\w-]+[^)\s]*"
     r"|youtu\.be/[\w-]+[^)\s]*|youtube\.com/(?:embed|shorts)/[\w-]+[^)\s]*))\)"
 )
 
@@ -185,7 +235,7 @@ def _strip_markup(text: str) -> str:
     """Quita URLs, enlaces markdown y bloques de código para no contar sus tokens."""
     out = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
     out = re.sub(r"`[^`]*`", " ", out)
-    out = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", out)   # [txt](url) → txt
+    out = re.sub(r"\[(" + ANCHOR + r")\]\([^)]+\)", r"\1", out)   # [txt](url) → txt
     out = re.sub(r"https?://\S+", " ", out)
     return out
 
@@ -291,7 +341,7 @@ def normalize_headings(body_md: str | None) -> str | None:
     # 0) Regla global: NUNCA enlazar dentro de un heading. Quita los enlaces
     # markdown de las líneas de encabezado (conserva el texto). Siempre, aunque
     # luego no haya que desplazar niveles.
-    _link_re = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+    _link_re = re.compile(r"\[(" + ANCHOR + r")\]\([^)]+\)")
     in_code = False
     for i, ln in enumerate(lines):
         if ln.lstrip().startswith("```"):

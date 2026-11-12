@@ -220,7 +220,9 @@ def revalidate_paths(paths: list[str], *, tags: list[str] | None = None,
     payload: dict = {"paths": paths}
     if tags:
         payload["tags"] = tags
-    if layouts:  # `["/"]` vacía la caché del sitio entero
+    # `["/"]` vacía la caché del sitio entero. OJO: el 12-11-2026 eso dejó en 404 las
+    # rutas con `dynamicParams = false` hasta reiniciar el web. Mejor rutas concretas.
+    if layouts:
         payload["layouts"] = layouts
     try:
         with httpx.Client(timeout=5.0) as client:
