@@ -13,8 +13,10 @@ import type { PublicAlbumOut, PublicArtistDetail } from "@/lib/types";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
 
 export const revalidate = 3600;
-// Solo los dos artistas del corpus: cualquier otro slug es 404, no una página vacía.
-export const dynamicParams = false;
+// Solo los dos artistas del corpus: cualquier otro slug es 404 (`notFound()` en la
+// página), no una página vacía. NO volver a poner `dynamicParams = false`: con él,
+// un `revalidatePath("/", "layout")` deja las dos discografías en 404
+// (NoFallbackError) hasta reiniciar el contenedor. Pasó el 12-11-2026.
 
 // Cada discografía tiene URL, contenido y metadata PROPIOS. Antes vivían como
 // `/discografia?artist=X`: mismo H1, mismo cuerpo y canónica al hub, así que
