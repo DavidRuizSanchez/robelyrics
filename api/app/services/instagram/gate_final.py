@@ -208,12 +208,117 @@ def _norm_titulo(t: str) -> str:
     return re.sub(r"[^a-z0-9ñ]+", " ", s).strip()
 
 
+# --- La formación: quién tocaba en cada disco ---------------------------------------
+#
+# El 29-09-2026 salió el #297: «"Quemando tus recuerdos" · Somos unos animales (1991).
+# La canción se grabó con Miguel Ferreras al bajo». Ferreras entró en 1993; en 1991 el
+# bajista era el Sucio. Antes (10-10) una slide puso a Uoho en «Deltoya» (1992), y Uoho
+# entra en 1996. Nada cotejaba quién toca con las fechas de `band_memberships`.
+#
+# Solo se juzga a quien tiene pertenencia con ese artista: un colaborador («Rosendo a
+# la guitarra en "Perro callejero"») no tiene fechas contra las que comparar.
+
+@dataclass(frozen=True)
+class Pertenencia:
+    nombres: tuple[str, ...]     # formas planas y en minúscula: «miguel ferreras»
+    artista: str                 # «extremoduro» | «robe»
+    desde: int
+    hasta: int
+
+
+@dataclass(frozen=True)
+class Disco:
+    titulo: str                  # forma plana: «somos unos animales»
+    artista: str
+    anio: int
+    invitados: frozenset = frozenset()   # nombres planos de quien tocó sin ser miembro
+
+
+# Tocar o grabar: sitúa a alguien en un disco.
+_TOCA = re.compile(
+    r"\b(?:al|a la)\s+(?:bajo|bateria|guitarra|voz|teclados?|saxo|saxofon|violin|piano)\b"
+    r"|\b(?:toco|tocaba|tocaban|grabo|grabaron|se grabo con|grabada con|formacion|"
+    r"integraba|integraban|formaba parte)\b"
+)
+# El oficio: «es un bajista» describe a alguien, no lo sitúa en un disco. Solo cuenta
+# si el disco está en la MISMA frase (#228: «Colino… es un bajista que…»).
+_OFICIO = re.compile(
+    r"\b(?:bajista|baterista|guitarrista|teclista|saxofonista|violinista)\b"
+)
+_ANIO = re.compile(r"\b(19[6-9]\d|20[0-4]\d)\b")
+
+
+def era_a_anios(era: str | None, actual: bool = False) -> tuple[int, int] | None:
+    """«1993-1994» → (1993, 1994); «1987» → (1987, 1987); sin años → None."""
+    anios = [int(a) for a in _ANIO.findall(era or "")]
+    if not anios:
+        return None
+    return min(anios), (9999 if actual and len(anios) == 1 else max(anios))
+
+
+def _frases(plano: str) -> list[str]:
+    return [f.strip() for f in re.split(r"(?<=[.!?])\s+|\n+", plano) if f.strip()]
+
+
+def _contiene(frase: str, forma: str) -> bool:
+    return re.search(rf"(?<![a-z0-9]){re.escape(forma)}(?![a-z0-9])", frase) is not None
+
+
+def _cita_disco(texto: str, titulo: str) -> bool:
+    """El disco citado COMO disco: «Agila», «Agila (1996)», «el disco Agila». Un título
+    suelto no basta: «rock transgresivo» es también el nombre del estilo."""
+    t = re.escape(titulo)
+    return re.search(
+        rf"[«\"“]{t}[»\"”]|(?<![a-z0-9]){t}\s*\((?:19|20)\d\d\)"
+        rf"|\b(?:disco|album|elepe|lp|ep)\s+[«\"“]?{t}(?![a-z0-9])", texto) is not None
+
+
+def formacion_falsa(texto: str, pertenencias: list[Pertenencia],
+                    discos: list[Disco], *, donde: str = "caption") -> list[str]:
+    """Frases que ponen a un músico en un disco o un año en que no estaba."""
+    plano = _plano(texto).lower()
+    frases = _frases(plano)
+    # Contexto del texto entero: el disco de la cabecera («… · Somos unos animales (1991)»).
+    en_texto = [d for d in discos if _cita_disco(plano, d.titulo)]
+    contexto = en_texto[0] if len({(d.artista, d.anio) for d in en_texto}) == 1 else None
+    hallados = []
+    for frase in frases:
+        toca, oficio = bool(_TOCA.search(frase)), bool(_OFICIO.search(frase))
+        if not (toca or oficio):
+            continue
+        en_frase = [d for d in discos if _cita_disco(frase, d.titulo)]
+        if len(en_frase) == 1:
+            disco = en_frase[0]
+        elif not en_frase and toca and contexto and _contiene(frase, contexto.artista):
+            # El disco de la cabecera vale solo si la frase habla de ese grupo: «la
+            # formación inicial incluyó a …» puede ser la de OTRO grupo (#228).
+            disco = contexto
+        else:
+            continue   # sin disco citado no hay año fiable (un año suelto puede ser un nacimiento, #68)
+        anio = disco.anio
+        por_persona: dict[tuple[str, ...], list[Pertenencia]] = {}
+        for p in pertenencias:
+            if p.artista == disco.artista and any(_contiene(frase, n) for n in p.nombres):
+                por_persona.setdefault(p.nombres, []).append(p)
+        for nombres, ps in por_persona.items():
+            if set(nombres) & disco.invitados:
+                continue   # tocó como invitado, con fuente (data/formacion_invitados.yaml)
+            if not any(p.desde <= anio <= p.hasta for p in ps):
+                eras = ", ".join(f"{p.desde}-{p.hasta if p.hasta < 9999 else 'hoy'}" for p in ps)
+                hallados.append(
+                    f"{donde}: formación falsa: pone a «{nombres[0]}» en "
+                    f"«{disco.titulo}» ({anio}), "
+                    f"y estuvo en {eras} («{frase[:120]}»)")
+    return hallados
+
+
 def revisar(
     *,
     caption: str,
     slides: list[str] | None = None,
     rotulo: str = "",
     clip: dict | None = None,
+    formacion: tuple[list[Pertenencia], list[Disco]] | None = None,
 ) -> VeredictoGate:
     """Veredicto sobre TODO lo que va a ver la gente.
 
@@ -231,6 +336,13 @@ def revisar(
         v.bloqueos += problemas_de_texto(s, donde=f"slide {i + 1}")
     if rotulo:
         v.bloqueos += problemas_de_texto(rotulo, donde="rótulo del vídeo")
+    if formacion:
+        pertenencias, discos = formacion
+        v.bloqueos += formacion_falsa(caption, pertenencias, discos, donde="caption")
+        for i, s in enumerate(slides or []):
+            v.bloqueos += formacion_falsa(s, pertenencias, discos, donde=f"slide {i + 1}")
+        if rotulo:
+            v.bloqueos += formacion_falsa(rotulo, pertenencias, discos, donde="rótulo del vídeo")
     if clip:
         v.bloqueos += problemas_de_clip(
             caption + ("\n" + rotulo if rotulo else ""),
