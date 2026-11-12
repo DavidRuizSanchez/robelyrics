@@ -106,11 +106,86 @@ photos:
     source_url: "https://mariskalrock.com/actualidad/robe-reaparece-en-publico-para-reunirse-con-el-alcalde-de-plasencia-donde-tendra-una-avenida-a-su-nombre/"
     identity: "Alber Fuentes"
     identity_evidence: "pie «Fernando Pizarro, Robe y Alber Fuentes»: el de la derecha, con Robe en el centro"
+  # Fotos de terceros (12-11-2026, búsqueda ampliada con las mismas reglas: identidad
+  # en la página de origen, nada de Juancares ni de agencias). Las de Discogs las
+  # aceptó David a falta de otra fuente; su web da 403 al servidor, así que la
+  # fuente que comprueba la guarda es su API pública (el mismo registro, con una
+  # sola imagen), y el crédito enlaza a la página. Subidas a mano a Cloudinary.
+  - slug: jon-calvo
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511784/entreinteriores-art/tkwbiufwicnoaenv8k4b.jpg"
+    attribution: "Sergio Sánchez M., Libertad Digital (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.libertaddigital.com/cultura/musica/2016-12-19/inaki-uoho-anton-los-credos-son-el-cancer-de-la-humanidad-1276589010/"
+    identity: "Jon Calvo"
+    identity_evidence: "figcaption «Jon Calvo e Iñaki Antón | Sergio Sánchez M.»: el de la izquierda (la otra foto de la página dice «Iñaki Antón y Jon Calvo» con las posiciones al revés)"
+  - slug: jose-ignacio-cantera
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511785/entreinteriores-art/o7hjx0hxci3bm6xqq1fu.jpg"
+    attribution: "Rebrote (FB rebrote.oficial), vía giveevig.org (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.giveevig.org/banda-rebrote/"
+    identity: "Cantera"
+    identity_evidence: "pie «De izquierda a derecha: 'El profe', Jaime, 'Moreno', 'Uoho', Cantera y Miguel / FB rebrote.oficial»: el quinto. Recortado de la misma foto en color publicada por infolibre (crédito «Cedida»)"
+  - slug: miguel-colino
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511787/entreinteriores-art/fdbkqzrwqjcagvbcv6zj.jpg"
+    attribution: "Rebrote (FB rebrote.oficial), vía giveevig.org (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.giveevig.org/banda-rebrote/"
+    identity: "Miguel"
+    identity_evidence: "pie «De izquierda a derecha: 'El profe', Jaime, 'Moreno', 'Uoho', Cantera y Miguel / FB rebrote.oficial»: el sexto, el de la derecha"
+  - slug: mikel-irazoki
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511788/entreinteriores-art/irxpi4mq7yngrg5n8j9v.jpg"
+    attribution: "Höfner (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.hofner.com/en/blog/hofner-artists-4/mikel-irazoki-50"
+    identity: "Mikel Irazoki"
+    identity_evidence: "imagen de cabecera de la página que Höfner dedica a «Mikel Irazoki. Spanish bass player and musical director»"
+  - slug: carlitos-perez
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511783/entreinteriores-art/cfwjq2zafik5nyxjck0h.jpg"
+    attribution: "robe.es"
+    license: derechos de su autor
+    source_url: "https://robe.es/"
+    identity: "Carlitos Pérez"
+    identity_evidence: "alt «Carlitos Pérez» junto a su biografía «CARLITOS PÉREZ (1990)» en la web oficial de Robe"
+  - slug: aitor-arino
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511782/entreinteriores-art/bqpqx24zxtouf6yg25ma.jpg"
+    attribution: "Radio Popular / Bizkaia Irratia (recorte)"
+    license: derechos de su autor
+    source_url: "https://radiopopular.com/podcast/adentrandonos-en-el-templo-del-sonido-30-anos-de-lorentzo-records"
+    identity: "Aitor Ariño"
+    identity_evidence: "foto de la entrevista dedicada a él en Lorentzo Records («bajo la batuta de Aitor Ariño… como nos cuenta el propio Aitor»)"
+  - slug: luis-von-fanta
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511785/entreinteriores-art/krqietd2flzx34bd0pp5.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/6114989-Luis-Von-fanta)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/6114989"
+    identity: "Fanta"
+    identity_evidence: "foto de su página de artista en Discogs («Luis Von fanta», miembro de Extremoduro). Subida por un usuario, sin autor (aceptado por David el 12-11-2026 a falta de otra)"
+  - slug: diego-garay
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511783/entreinteriores-art/hij8ip0auampox7v7hoq.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/2039910-Dieguillo)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/2039910"
+    identity: "Garai"
+    identity_evidence: "foto de su página de artista en Discogs («Dieguillo», nombre real Diego Garai, grupos Cicatriz y Pedrá). Subida por un usuario, sin autor"
+  - slug: ventura-rico
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511789/entreinteriores-art/sfjldb9dyzvuqxkvwwsb.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/657307-Ventura-Rico)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/657307"
+    identity: "Ventura Rico"
+    identity_evidence: "foto de su página de artista en Discogs («Spanish recording and mastering engineer»). Subida por un usuario, sin autor"
+  - slug: mon-sogas
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511788/entreinteriores-art/d8fxnmmpyngorbfmodyk.jpg"
+    attribution: "[Discogs](https://www.discogs.com/es/artist/3523376-Ram%C3%B3n-Sogas)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/3523376"
+    identity: "Sogas"
+    identity_evidence: "foto de su página de artista en Discogs («Ramón Sogas», Extremoduro y Sinvergüenza). Subida por un usuario, sin autor"
 
   # === Personas ===
-  # Retiradas el 11-11-2026: Álvaro Rodríguez Barroso (La Gran Belleza), Lorenzo
-  # González (eldiario.es) y Woody Amores (M. Rubiales, con marca de agua). Sin fuente
-  # ni licencia no pasan la guarda de fotos de terceros, y en prod estaban vacías.
+  # Álvaro Rodríguez Barroso, Lorenzo González y Woody Amores tenían aquí, hasta el
+  # 11-11-2026, entradas sin fuente ni licencia (una con marca de agua). Se retiraron;
+  # las que hay más arriba son las nuevas, con fuente y crédito.
 
   # === Portada de single ===
   - slug: pedra
