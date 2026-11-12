@@ -125,8 +125,9 @@ def main() -> None:
     if args.apply and (revalidar or informe["videos"] or informe["titulos_youtube"]):
         from app.services.publishing import revalidate_paths
 
-        # Los vídeos salen en muchas fichas: se vacía la caché entera.
-        revalidate_paths(revalidar, layouts=["/"])
+        # Solo las páginas tocadas; los títulos de vídeo se ven al caducar la caché
+        # (revalidate = 3600). Vaciarla entera dejó las discografías en 404 (12-11-2026).
+        revalidate_paths(revalidar)
 
 
 if __name__ == "__main__":
