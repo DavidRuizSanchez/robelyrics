@@ -223,6 +223,58 @@ def spanish_case(texto: str, fuentes: str) -> str:
     return " ".join(salida)
 
 
+_FUNCIONALES = frozenset({
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "desde", "a", "al",
+    "en", "con", "por", "para", "y", "o", "su", "sus", "entre", "sobre", "tras", "hacia",
+    "hasta", "sin", "que", "como", "mi", "tu", "lo",
+})
+
+
+def titulo_post_a_la_espanola(titulo: str, cuerpo: str) -> str:
+    """El título de un post con mayúsculas españolas y comillas «», sin tocar lo
+    citado ni los nombres propios. Lo aplica el listener del ORM a `posts.title`.
+
+    Los posts se crean desde ocho sitios distintos, y el 12-11-2026 los 30
+    publicados salían en Title Case de molde («La Evolución Musical de
+    Extremoduro: Un Viaje Inigualable»). Un nombre propio se reconoce igual que en
+    `mayusculas_indebidas`: con mayúscula EN MITAD DE UNA FRASE del cuerpo, sin
+    contar los headings (los del blog también venían en Title Case). Tras los dos
+    puntos va minúscula, como en el title de David («Barricada: miembros…»)."""
+    t = (titulo or "").strip()
+    if not t:
+        return titulo
+    # 'Desarraigo' → «Desarraigo»: solo comillas rectas que envuelven un título.
+    t = re.sub(r"(?<![\w])'([^'\n]{2,}?)'(?![\w])", r"«\1»", t)
+    prosa = "\n".join(l for l in (cuerpo or "").split("\n") if not l.lstrip().startswith("#"))
+    if not prosa.strip():
+        return t  # sin cuerpo no se sabe qué es nombre propio: no se toca
+    trozos = re.split(r"(«[^»]*»)", t)  # lo citado conserva su grafía
+    salida, primera = [], True
+    for i, trozo in enumerate(trozos):
+        if i % 2:
+            salida.append(trozo)
+            primera = False
+            continue
+        palabras = trozo.split(" ")
+        for j, w in enumerate(palabras):
+            nucleo = w.strip(".,;:!?«»\"'()¿¡")
+            abre = primera and not salida and j == next(
+                (k for k, x in enumerate(palabras) if x.strip()), 0)
+            # Solo se baja lo que es seguro común: el cuerpo la usa en minúscula o es
+            # una palabra de molde conocida. Un nombre que el cuerpo no menciona
+            # («Beirut») se queda: una mayúscula de más es mejor que «beirut».
+            comun = (re.search(rf"(?<![\wáéíóúñ]){re.escape(nucleo.lower())}(?![\wáéíóúñ])", prosa)
+                     or flatten(nucleo).strip() in _COMUNES_TITULO | _FUNCIONALES)
+            if (not abre and len(nucleo) > 1 and nucleo[:1].isupper() and not nucleo.isupper()
+                    and comun and nucleo not in NOMBRES_DE_CASA
+                    and not _en_mitad_de_frase(prosa, nucleo)):
+                palabras[j] = w.replace(nucleo, nucleo[0].lower() + nucleo[1:], 1)
+        salida.append(" ".join(palabras))
+        if trozo.strip():
+            primera = False
+    return "".join(salida)
+
+
 # --------------------------------------------------------------------------- #
 # El title
 # --------------------------------------------------------------------------- #
@@ -889,6 +941,10 @@ _COMUNES_TITULO = {
     "cancion", "canciones", "realidad", "soledad", "frases", "iconicas", "profundo",
     "reflexiones", "libros", "exito", "proyecto", "paralelo", "pionero", "urbano",
     "explorando", "dualidad", "confrontacion", "vision", "critica", "fenomeno",
+    # Y las del título de los posts, medidas en los 30 publicados el 12-11-2026.
+    "musical", "inigualable", "icono", "rock", "espanol", "espanola", "tributo",
+    "homenaje", "homenajes", "rugido", "sinfonia", "gira", "letra", "amor", "manifiesto",
+    "frustracion", "soledad", "nacimiento", "fallecimiento", "chapista", "pionero",
 }
 
 

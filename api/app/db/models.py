@@ -2444,3 +2444,22 @@ for _model, _fields, _rayas, _rayas_titulo in (
     _lst = _make_name_policy_listener(_fields, rayas=_rayas, rayas_titulo=_rayas_titulo)
     _event.listen(_model, "before_insert", _lst)
     _event.listen(_model, "before_update", _lst)
+
+
+# El título de un post (su H1 y sus tarjetas) con mayúsculas españolas y «»
+# (12-11-2026): los posts se crean desde ocho sitios y salían en Title Case de
+# molde. Solo cuando el título es nuevo o cambia: lo publicado no se reescribe solo.
+def _titulo_post_listener(mapper, connection, target):  # noqa: ANN001
+    from sqlalchemy import inspect as _inspect
+
+    from app.services.seo_style import titulo_post_a_la_espanola
+
+    estado = _inspect(target)
+    if estado.persistent and not estado.attrs.title.history.has_changes():
+        return
+    if target.title and target.body_md:
+        target.title = titulo_post_a_la_espanola(target.title, target.body_md)
+
+
+_event.listen(Post, "before_insert", _titulo_post_listener)
+_event.listen(Post, "before_update", _titulo_post_listener)
