@@ -90,6 +90,9 @@ def main() -> None:
         catalogo = momentos.cargar_catalogo(db)
         canciones_y_discos = set(db.execute(select(Song.title)).scalars().all())
         canciones_y_discos |= set(db.execute(select(Album.title)).scalars().all())
+        from app.services.instagram.publisher import contexto_formacion
+
+        formacion = contexto_formacion(db)  # quién tocaba en cada disco (12-11-2026)
         items = db.execute(
             select(InstagramQueueItem).where(InstagramQueueItem.status == "published")
             .order_by(InstagramQueueItem.id)
@@ -134,6 +137,7 @@ def main() -> None:
                             f"tramo es «{real}»")
                         accion = "BORRAR (el título está quemado en el vídeo)"
             v = gate_final.revisar(
+                formacion=formacion,
                 caption=it.caption or "",
                 rotulo="\n".join(x for x in ((clip.overlay if clip else None),
                                               (clip.subtitle if clip else None)) if x),

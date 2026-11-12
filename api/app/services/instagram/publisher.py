@@ -137,6 +137,69 @@ def _contexto_clip(db: Session, item: InstagramQueueItem) -> dict | None:
     }
 
 
+def contexto_formacion(db: Session) -> tuple[list, list]:
+    """Quién estuvo en cada grupo y cuándo (`band_memberships`) y el año de cada disco,
+    en la forma que espera `gate_final.formacion_falsa`."""
+    from app.db.models import Artist, BandMembership, Person
+
+    pertenencias = []
+    filas = db.execute(
+        select(BandMembership, Person, Artist)
+        .join(Person, BandMembership.person_id == Person.id)
+        .join(Artist, BandMembership.artist_id == Artist.id)
+    ).all()
+    for m, persona, artista in filas:
+        anios = gate_final.era_a_anios(m.era, actual=bool(m.is_current))
+        if anios is None:
+            continue
+        nombres = []
+        for n in (persona.full_name, persona.stage_name):
+            plano = gate_final._plano(n or "").lower().strip()
+            # Un alias corto («Mon», «Uge») casa con cualquier cosa: solo nombres de
+            # dos palabras o de cuatro letras o más.
+            if plano and (" " in plano or len(plano) >= 4) and plano not in nombres:
+                nombres.append(plano)
+        if nombres:
+            pertenencias.append(gate_final.Pertenencia(
+                tuple(nombres), artista.slug, anios[0], anios[1]))
+    invitados = _invitados_por_disco(db)
+    discos = [
+        gate_final.Disco(gate_final._plano(a.title).lower(), art.slug, a.year,
+                         invitados.get((art.slug, a.slug), frozenset()))
+        for a, art in db.execute(select(Album, Artist).join(Artist, Album.artist_id == Artist.id)).all()
+        if a.year
+    ]
+    return pertenencias, discos
+
+
+def _invitados_por_disco(db: Session) -> dict[tuple[str, str], frozenset]:
+    """(artista, disco) → nombres planos de quien tocó sin ser miembro, de
+    `data/formacion_invitados.yaml` (cada entrada lleva su fuente)."""
+    from pathlib import Path
+
+    import yaml
+
+    from app.db.models import Person
+
+    for ruta in (Path("/app/data/formacion_invitados.yaml"),
+                 Path(__file__).resolve().parents[4] / "data" / "formacion_invitados.yaml"):
+        if ruta.exists():
+            datos = yaml.safe_load(ruta.read_text()) or {}
+            break
+    else:
+        return {}
+    out: dict[tuple[str, str], frozenset] = {}
+    for e in datos.get("invitados") or []:
+        nombres = set()
+        for slug in e.get("personas") or []:
+            p = db.execute(select(Person).where(Person.slug == slug)).scalars().first()
+            for n in ((p.full_name, p.stage_name) if p else ()):
+                if n:
+                    nombres.add(gate_final._plano(n).lower().strip())
+        out[(e["artista"], e["disco"])] = frozenset(nombres)
+    return out
+
+
 def revisar_gate(db: Session, item: InstagramQueueItem) -> gate_final.VeredictoGate:
     """El gate final sobre lo que ESTE item va a publicar.
 
@@ -145,16 +208,18 @@ def revisar_gate(db: Session, item: InstagramQueueItem) -> gate_final.VeredictoG
     """
     try:
         ctx = _contexto_clip(db, item) if item.content_type == "clip" else None
+        formacion = contexto_formacion(db)
     except Exception as exc:  # noqa: BLE001
         db.rollback()
-        logger.warning("[gate] no se pudo leer el contexto del clip %s: %s", item.id, exc)
+        logger.warning("[gate] no se pudo leer el contexto de %s: %s", item.id, exc)
         return gate_final.VeredictoGate(
-            bloqueos=[f"no se pudo comprobar el clip contra el catálogo: {exc}"[:300]]
+            bloqueos=[f"no se pudo comprobar contra el catálogo y la formación: {exc}"[:300]]
         )
     return gate_final.revisar(
         caption=item.caption or "",
         rotulo=(ctx or {}).get("rotulo", ""),
         clip=ctx,
+        formacion=formacion,
     )
 
 

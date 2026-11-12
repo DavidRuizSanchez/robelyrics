@@ -24,6 +24,15 @@ def _catalogo_vacio(monkeypatch):
     monkeypatch.setattr(publisher, "_catalogo_del_clip", lambda db, clip, item: (set(), set()))
 
 
+
+@pytest.fixture(autouse=True)
+def _sin_formacion(monkeypatch):
+    """Estos tests van del cortacircuitos y de los clips: su BD no tiene
+    `band_memberships`, y la guarda de formación falla cerrada (12-11-2026)."""
+    from app.services.instagram import publisher
+
+    monkeypatch.setattr(publisher, "contexto_formacion", lambda db: ([], []))
+
 @pytest.fixture()
 def db():
     engine = create_engine("sqlite://")
