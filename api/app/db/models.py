@@ -2391,20 +2391,32 @@ class PageChange(Base):
 # --------------------------------------------------------------------------- #
 from sqlalchemy import event as _event  # noqa: E402
 from app.services.text_sanitizer import enforce_name_policy as _fix_name  # noqa: E402
+from app.services.text_sanitizer import quitar_rayas as _sin_rayas  # noqa: E402
 
 
-def _make_name_policy_listener(fields: tuple[str, ...]):
+def _make_name_policy_listener(fields: tuple[str, ...], *, rayas: tuple[str, ...] = (),
+                               rayas_titulo: tuple[str, ...] = ()):
+    """Política de nombre en `fields`. Además, sin raya larga (David, 12-11-2026)
+    en `rayas` (texto) y `rayas_titulo` (títulos de vídeo: « - »)."""
+    def _limpia(f: str, s: str) -> str:
+        s = _fix_name(s) if f in fields else s
+        if f in rayas or f in rayas_titulo:
+            s = _sin_rayas(s, titulo=f in rayas_titulo)
+        return s
+
     def _listener(mapper, connection, target):  # noqa: ANN001
         import json as _json
-        for f in fields:
+        for f in dict.fromkeys(fields + rayas + rayas_titulo):
             v = getattr(target, f, None)
             if isinstance(v, str) and v:
-                setattr(target, f, _fix_name(v))
+                clean = _limpia(f, v)
+                if clean != v:
+                    setattr(target, f, clean)
             elif isinstance(v, (dict, list)) and v:
                 # Campos JSONB (p.ej. schema_jsonld): era el hueco por donde se
                 # colaba "Robe Iniesta". Se sanea el JSON serializado.
                 raw = _json.dumps(v, ensure_ascii=False)
-                clean = _fix_name(raw)
+                clean = _limpia(f, raw)
                 if clean != raw:
                     setattr(target, f, _json.loads(clean))
     return _listener
@@ -2414,15 +2426,21 @@ def _make_name_policy_listener(fields: tuple[str, ...]):
 # entidades (Person/Artist/Album/Band), que antes quedaban fuera. Ojo: para
 # persons.full_name lo correcto es "Roberto Iniesta"; la política solo actúa si
 # aparece literalmente "Robe Iniesta" (previene la violación, no toca "Roberto").
-for _model, _fields in (
-    (SeoContent, ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld", "entities")),
-    (Post, ("body_md", "title", "excerpt", "meta_title", "meta_description")),
-    (InstagramQueueItem, ("caption",)),
-    (Person, ("full_name", "stage_name", "bio_short", "bio_long")),
-    (Artist, ("name",)),
-    (Album, ("title",)),
-    (Band, ("name",)),
+# Los nombres (full_name, stage_name, títulos de disco, grupos) solo pasan por la
+# política de nombre: la raya se quita del TEXTO que se publica.
+_SEO = ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld", "entities")
+_POST = ("body_md", "title", "excerpt", "meta_title", "meta_description")
+for _model, _fields, _rayas, _rayas_titulo in (
+    (SeoContent, _SEO, _SEO, ()),
+    (Post, _POST, _POST, ()),
+    (InstagramQueueItem, ("caption",), ("caption",), ()),
+    (Person, ("full_name", "stage_name", "bio_short", "bio_long"), ("bio_short", "bio_long"), ()),
+    (Artist, ("name",), (), ()),
+    (Album, ("title",), (), ()),
+    (Band, ("name",), (), ()),
+    (RelatedVideo, (), (), ("title",)),
+    (Song, (), (), ("youtube_title",)),
 ):
-    _lst = _make_name_policy_listener(_fields)
+    _lst = _make_name_policy_listener(_fields, rayas=_rayas, rayas_titulo=_rayas_titulo)
     _event.listen(_model, "before_insert", _lst)
     _event.listen(_model, "before_update", _lst)
