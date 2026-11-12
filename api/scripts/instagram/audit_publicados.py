@@ -25,7 +25,7 @@ import logging
 import re
 import sys
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.models import Album, InstagramQueueItem, Song, SourceSegment, VideoClip
 from app.db.session import SessionLocal
@@ -108,7 +108,7 @@ def main() -> None:
                 permitidos: set[str] = set()
                 titulo_cancion = _cancion_del_titulo(it.title)
                 if titulo_cancion:
-                    s = db.execute(select(Song).where(Song.title == titulo_cancion)).scalars().first()
+                    s = db.execute(select(Song).where(func.lower(Song.title) == titulo_cancion.lower())).scalars().first()
                     if s is not None:
                         permitidos.add(s.title)
                         if s.album is not None:
