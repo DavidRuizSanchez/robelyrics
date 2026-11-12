@@ -205,6 +205,21 @@ photos:
     source_url: "https://www.naiz.eus/es/info/noticia/20200728/fallece-el-saxofonista-de-reincidentes-y-extremoduro-jose-luis-nieto-selu"
     identity: "Selu"
     identity_evidence: "pie «Selu Nieto con su saxofón. (NAIZ)» en su necrológica; ojo: «Selu Nieto» en redes es su hijo, el actor, y esas fotos se descartaron"
+  # Estas dos, con el visto bueno expreso de David (12-11-2026) pese a sus pegas.
+  - slug: uge-ortiz
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518956/entreinteriores-art/acla53vi9snv8at9h7j4.jpg"
+    attribution: "El Rock de la Urbe (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.rockdelaurbe.com/2010/04/entrevista-uge.html"
+    identity: "Uge"
+    identity_evidence: "única imagen de la entrevista dedicada a él («Eugenio Ortiz 'Uge' vuelve a sus raíces…»); recorte de la foto promocional de su banda"
+  - slug: miguel-ferreras
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518958/entreinteriores-art/kvh964qp7dhlzrk30epw.jpg"
+    attribution: "Canal oficial de Mon Sogas en YouTube (fotograma, recorte)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=Fblj_fg1o_Y"
+    identity: "Miguel Ferreras"
+    identity_evidence: "vídeo «Mon Sogas - Tengo Miedo (con Miguel Ferreras)» del canal Mon Sogas Oficial (no de Juancares); Ferreras es el del bajo, a la derecha (Mon toca la acústica). La posición la deduce el instrumento: ningún pie la da"
 
   # === Personas ===
   # Álvaro Rodríguez Barroso, Lorenzo González y Woody Amores tenían aquí, hasta el
