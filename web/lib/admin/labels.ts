@@ -325,6 +325,7 @@ export const CAMBIO_CAMPO: Record<string, string> = {
   jsonld: "Datos estructurados (JSON-LD)",
   og: "Open Graph",
   imgs_sin_alt: "Imágenes sin texto alternativo",
+  rayas: "Rayas largas en la página",
   tiempo: "Tiempo de respuesta",
   sitemap: "Sitemap",
   nueva: "Página nueva",

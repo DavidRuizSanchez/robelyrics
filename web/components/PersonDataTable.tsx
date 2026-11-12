@@ -225,7 +225,7 @@ export default function PersonDataTable({
               ) : (
                 <span>{m.artist_name}</span>
               )}{" "}
-              <span className="text-ink-dim">— {describeMembership(m)}</span>
+              <span className="text-ink-dim">· {describeMembership(m)}</span>
             </li>
           ))}
         </ul>
@@ -240,7 +240,7 @@ export default function PersonDataTable({
     return (
       <li key={`g-${i}`}>
         {enlace(grupo, `gn-${i}`, vistos)}
-        {papel && <span className="text-ink-dim"> — {papel}</span>}
+        {papel && <span className="text-ink-dim"> · {papel}</span>}
       </li>
     );
   });
@@ -271,7 +271,7 @@ export default function PersonDataTable({
             return (
               <li key={`o-${i}`}>
                 {texto(o.name)}
-                {extra && <span className="text-ink-dim"> — {extra}</span>}
+                {extra && <span className="text-ink-dim"> · {extra}</span>}
               </li>
             );
           })}

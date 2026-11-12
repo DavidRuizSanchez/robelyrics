@@ -895,7 +895,7 @@ def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
         cover_url=song.cover_url,
         snippet=snippet,
         snippet_attribution=(
-            f"Fragmento citado de «{song.title}» — © sus autores · "
+            f"Fragmento citado de «{song.title}». © sus autores · "
             "Letra completa en Genius"
         ),
         genius_url=song.genius_url,
