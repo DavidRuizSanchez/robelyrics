@@ -10,13 +10,13 @@ El fixture es el cuerpo publicado en prod el 11-11-2026, con sus 6 enlaces.
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
 
 from app.db.models import Band
 from app.services.entity_resolver import autolink_corpus, build_corpus_index
+from app.services.link_policy import ENLACE as _ENLACE
 from app.services.link_policy import norm_path
 from app.services.url_resolver import _reenlazar
 from app.tests.test_person_visibility import db  # noqa: F401 — fixture SQLite
@@ -25,9 +25,6 @@ from scripts.seo.relink_existing import _clean
 BASE = "https://entreinteriores.com"
 ALEN = (Path(__file__).parent / "fixtures" / "alen_ayerdi_body.md").read_text()
 DROMEDARIO = "/sellos/el-dromedario-records"
-
-_ENLACE = re.compile(r"(?<!\!)\[([^\]]+)\]\(([^)\s]+)\)")
-
 
 def _destinos(md: str) -> list[str]:
     return [norm_path(u) or u for _, u in _ENLACE.findall(md)]
@@ -509,3 +506,42 @@ def test_un_tema_en_mayuscula_a_mitad_de_frase_es_otro_nombre():
         "/temas/esperanza"]
     assert rutas_del_cuerpo(autolink_corpus("Esperanza, al final.", indice, contexto=ctx)) == [
         "/temas/esperanza"]
+
+
+# --------------------------------------------------------------------------- #
+# Corchetes anidados en el anchor (12-11-2026)
+# --------------------------------------------------------------------------- #
+# Los títulos de directo llevan «[En Directo]». Con `[^\]]+` en el anchor, el
+# enlace entero era invisible: no contaba para el tope ni se podía recortar, y el
+# post de la gira de 1995 se quedó con 7 enlaces en el cuerpo.
+PLATERO_1995 = (Path(__file__).parent / "fixtures" / "post_gira_platero_1995_body.md").read_text()
+
+
+def test_el_anchor_anidado_es_un_enlace():
+    md = "Sonó [Tu corazón [En Directo]](/extremoduro/x/tu-corazon-en-directo) al final."
+    assert _ENLACE.findall(md) == [("Tu corazón [En Directo]", "/extremoduro/x/tu-corazon-en-directo")]
+    assert rutas_del_cuerpo(md) == ["/extremoduro/x/tu-corazon-en-directo"]
+
+
+def test_el_post_de_1995_cuenta_todos_sus_enlaces():
+    assert len(rutas_del_cuerpo(PLATERO_1995)) == 7
+
+
+def test_el_recorte_deja_el_post_de_1995_en_el_tope():
+    r = recortar(PLATERO_1995, ContextoEnlazado(origen="/blog/gira-extremoduro-platero-1995"))
+    assert len(rutas_del_cuerpo(r.md)) <= MAX_BODY_LINKS
+    assert solo_cambian_enlaces(PLATERO_1995, r.md)
+    assert "Correcaminos (Estate al loro) [En Directo]" in r.md  # el texto se queda
+    assert not recortar(r.md, ContextoEnlazado(origen="/blog/gira-extremoduro-platero-1995")).cambia
+
+
+def test_no_enlaza_dentro_de_un_anchor_anidado():
+    indice = [_ent("Pepe Botika", "/extremoduro/agila/pepe-botika", "song")]
+    md = "[El directo de Pepe Botika [En Directo]](/extremoduro/x/pepe-botika-en-directo)."
+    assert autolink_corpus(md, indice) == md
+
+
+def test_tambien_cuenta_la_imagen_con_corchetes_en_el_alt():
+    antes = "![Portada [reedición]](/c.jpg) y [A](/a)."
+    assert solo_cambian_enlaces(antes, "![Portada [reedición]](/c.jpg) y A.")
+    assert not solo_cambian_enlaces(antes, "![Portada](/c.jpg) y A.")

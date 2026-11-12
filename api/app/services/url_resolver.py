@@ -52,7 +52,7 @@ from app.services.estudios import ESTUDIO_SLUGS
 logger = logging.getLogger(__name__)
 
 # Dominio propio: el LLM a veces escribe la URL absoluta en vez de la ruta.
-from app.services.link_policy import SITE_HOSTS  # noqa: E402 — una sola fuente
+from app.services.link_policy import ANCHOR, SITE_HOSTS  # noqa: E402 — una sola fuente
 
 # Secciones de catálogo fuera del árbol /artista/disco/canción. La clave es el
 # primer segmento de la URL; el valor, el `entity_type` de `seo_content`.
@@ -832,7 +832,7 @@ def _patron_ruta(ruta: str) -> str:
 def _desenlazar(body: str, ruta: str) -> str:
     """`[texto](ruta)` → `texto`. El texto se queda; solo cae el enlace."""
     md = re.compile(
-        r"\[([^\]]*)\]\(" + _patron_ruta(ruta) + r"(?:[#?][^)\s]*)?\)"
+        r"\[(" + ANCHOR + r")\]\(" + _patron_ruta(ruta) + r"(?:[#?][^)\s]*)?\)"
     )
     body = md.sub(r"\1", body)
     # Y el mismo enlace escrito en HTML, que también viaja en algunos cuerpos.

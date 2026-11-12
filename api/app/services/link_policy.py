@@ -58,8 +58,19 @@ _EXIGEN_RELACION = frozenset({"temas", "conceptos"})
 _ARISTAS_QUE_NO_RELACIONAN = frozenset({"mentions"})
 _ARTISTAS = frozenset({"robe", "extremoduro"})
 
+# Texto de un anchor markdown. Admite UN nivel de corchetes dentro: los títulos de
+# directo los llevan («[Tu corazón [En Directo]](…)»), y con `[^\]]+` el enlace
+# entero era invisible: no contaba para el tope ni se podía recortar.
+ANCHOR = r"(?:[^\[\]]|\[[^\[\]]*\])+"
+# Lookahead para buscadores de menciones: falso si lo que sigue cierra el anchor
+# en el que estamos (hay un `]` antes de salir de la línea, saltando corchetes
+# equilibrados). Es lo que impide enlazar DENTRO de un enlace.
+DENTRO_DE_ANCHOR = r"(?:[^\[\]\n]|\[[^\[\]\n]*\]){0,200}?\]"
+
 # Enlace markdown inline (no imágenes). Admite título: [x](url "título").
-ENLACE = re.compile(r"(?<!\!)\[([^\]]+)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+ENLACE = re.compile(r"(?<!\!)\[(" + ANCHOR + r")\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# Imagen markdown: ![alt](src).
+IMAGEN = re.compile(r"!\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]*\)")
 
 
 def norm_path(url: str | None) -> str | None:
@@ -391,8 +402,7 @@ def solo_cambian_enlaces(antes: str, despues: str, *, permite_nuevos: bool = Fal
     if nuevos and not (permite_nuevos and all(norm_path(u) for _, u in nuevos)):
         return False
     externos = lambda c: Counter({k: v for k, v in c.items() if norm_path(k[1]) is None})  # noqa: E731
-    imagenes = re.compile(r"!\[[^\]]*\]\([^)]*\)")
-    return externos(a) == externos(d) and imagenes.findall(antes) == imagenes.findall(despues)
+    return externos(a) == externos(d) and IMAGEN.findall(antes) == IMAGEN.findall(despues)
 
 
 @dataclass

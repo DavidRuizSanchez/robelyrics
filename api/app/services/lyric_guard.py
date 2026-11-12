@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from app.services.link_policy import ANCHOR
+
 logger = logging.getLogger(__name__)
 
 # Umbrales del matcher fuzzy (calibrados con letras reales del corpus).
@@ -166,7 +168,7 @@ def _unwrap_md_links(s: str) -> str:
     """`[texto](url)` → `texto`. Un enlace markdown con el TÍTULO de una canción
     como ancla no es un verso citado; sin desenvolverlo, la URL contamina la
     comparación y produce falsos positivos."""
-    return re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s or "")
+    return re.sub(r"\[(" + ANCHOR + r")\]\([^)]*\)", r"\1", s or "")
 
 
 def _mask_link_urls(s: str) -> str:
@@ -205,7 +207,7 @@ def _title_occurrences(body_norm: str, titles_norm: list[str]) -> list[tuple[int
 
 
 _ALBUM_WORD = re.compile(r"(?:^|\s)(?:disco|album|lp|ep|elepe)\s$")
-_MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)\n]*)\)")
+_MD_LINK = re.compile(r"\[(" + ANCHOR + r")\]\(([^)\n]*)\)")
 
 
 def _album_mention_spans(body_md: str, body_norm: str, orig_to_norm: dict[int, int],
