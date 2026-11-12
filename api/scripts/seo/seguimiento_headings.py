@@ -34,6 +34,11 @@ LAG_DIAS = 3  # GSC con dataState final no trae los últimos ~3 días
 MARGEN_ANTES = 7 * 4 + 2
 REASON = "headings humanos%"
 REASON_TITLES = "titles humanos%"
+# Segunda pasada (v2, 12-11-2026) y títulos de canción a la española: cambian el
+# title o los headings OTRA VEZ. No mueven las ventanas del experimento (eso
+# retrasaría todos los correos): cuentan como un cambio de title con su fecha, y
+# `apartadas_por_title` saca esas páginas del informe, cambiadas o de control.
+REASON_V2 = ("%humanos v2%", "títulos a la española%")
 
 
 def _dir_datos() -> Path:
@@ -53,17 +58,25 @@ def cmd_exportar(args) -> None:
     db = SessionLocal()
     if getattr(args, "titles", False):
         # Seguimiento conjunto (11-11-2026): cuándo se le cambió el title a cada página.
+        # Por página: el primer cambio de la v1 y, si hubo, el primero de la v2. Manda
+        # el de la v2: es el que rompe la comparación.
         filas = db.execute(text(
-            "select path, min(created_at) from content_revisions where reason like :r "
-            "group by path"), {"r": REASON_TITLES}).fetchall()
-        json.dump({p: a.isoformat() for p, a in filas}, sys.stdout, ensure_ascii=False)
-        logger.info("%d páginas con el title cambiado", len(filas))
+            "select path, "
+            "  min(created_at) filter (where reason like :r and reason not like :v2a), "
+            "  min(created_at) filter (where reason like :v2a or reason like :v2b) "
+            "from content_revisions where path <> '' group by path"),
+            {"r": REASON_TITLES, "v2a": REASON_V2[0], "v2b": REASON_V2[1]}).fetchall()
+        titles = {p: (v2 or v1).isoformat() for p, v1, v2 in filas if v1 or v2}
+        json.dump(titles, sys.stdout, ensure_ascii=False)
+        logger.info("%d páginas con el title cambiado (%d por la v2)", len(titles),
+                    sum(1 for _, _, v2 in filas if v2))
         return
     filas = db.execute(text(
         "select r.path, min(r.created_at), max(r.created_at), max(s.entity_type) "
         "from content_revisions r left join seo_content s "
         "  on r.target_kind = 'seo_content' and s.id = r.target_id "
-        "where r.reason like :reason group by r.path"), {"reason": REASON}).fetchall()
+        "where r.reason like :reason and r.reason not like :v2 group by r.path"),
+        {"reason": REASON, "v2": REASON_V2[0]}).fetchall()
     cambios = {p: {"primero": a.isoformat(), "ultimo": b.isoformat(), "tipo": t}
                for p, a, b, t in filas}
     json.dump(cambios, sys.stdout, ensure_ascii=False)

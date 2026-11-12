@@ -270,7 +270,44 @@ FORMULAS_VACIAS_TITLE = (
     "su impacto", "impacto y legado", "y su legado", "conexion con", "conexiones",
     "viaje musical", "viaje sonoro", "un viaje", "la esencia", "su esencia",
     "un recorrido", "huella", "icono del", "pilar del",
+    # Medidas en el crawl del 12-11-2026, en titles que la guarda dejó pasar:
+    # «Amistad y tribu en Extremoduro: Robe y la conexión», «Fugacidad y tiempo en
+    # Extremoduro: Robe y su obsesión», «Paso del tiempo en Extremoduro: Robe y su
+    # obra», «El Manifiesto del Amor: Robe y su Llamado a la Libertad», «Un Viaje
+    # Inigualable», «Frases Icónicas y su Significado Profundo».
+    "la conexion", "su obsesion", "y su obra", "su llamado", "llamado a", "inigualable",
+    "significado profundo", "fuerzas transformadoras", "iconicas", "impulsa a",
 )
+
+# Un title o un heading que acaba en un verbo suelto es una frase a medias:
+# «Bilbao y Extremoduro: Iñaki 'Uoho' Antón transforma» (12-11-2026). Son los
+# verbos de molde del motor; un verbo que cierra bien («Robe vuelve») no está aquí.
+VERBOS_SUELTOS = frozenset({
+    "transforma", "transforman", "impulsa", "impulsan", "explora", "exploran",
+    "conecta", "conectan", "refleja", "reflejan", "define", "definen", "inspira",
+    "inspiran", "marca", "marcan", "evoluciona", "destaca", "aporta", "retrata",
+    "influye", "trasciende", "resuena", "perdura",
+})
+# Una sola palabra tras los dos puntos no promete nada: «Antimilitarismo y paz en
+# Extremoduro: crítica», «La hoguera… en Extremoduro: símbolo», «…de Extremoduro: amor».
+_COMILLAS_RECTAS = re.compile(r"(?<![\w])'[^'\n]{2,}'(?![\w])")
+
+
+def estructura(texto: str, *, cola: bool = True) -> list[str]:
+    """Fallos de construcción que no dependen de la página: comillas rectas, frase
+    que acaba en un verbo suelto y, en un title, cola de una sola palabra."""
+    t = (texto or "").strip()
+    out = []
+    if _COMILLAS_RECTAS.search(t):
+        out.append("comillas rectas '…': los títulos van entre «»")
+    ultima = re.findall(r"[^\W\d_]+", t)[-1:] if t else []
+    if ultima and flatten(ultima[0]).strip() in VERBOS_SUELTOS:
+        out.append(f"acaba en un verbo suelto («{ultima[0]}»): la frase queda a medias")
+    if cola:
+        _, facetas = parse_title(t)
+        if len(facetas) == 1 and len(re.findall(r"[^\W\d_]+", facetas[0])) == 1:
+            out.append(f"tras los dos puntos solo hay «{facetas[0]}»: no dice nada")
+    return out
 
 
 def _plano_crudo(texto: str) -> str:
@@ -531,6 +568,8 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
         v.bloquear("comillas «» desparejadas")
     for f in formulas_vacias(nuevo):
         v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
+    for motivo in estructura(nuevo):
+        v.bloquear(motivo)
     malas = mayusculas_indebidas(nuevo, body_md or "", nombres=[subject or "", *nombres])
     if malas:
         v.bloquear(f"mayúsculas de Title Case: {', '.join(malas)}")
@@ -547,6 +586,32 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
         nuevas = {flatten(f).strip() for f in facetas} - {flatten(f).strip() for f in facetas_antes}
         if not nuevas:
             v.avisos.append("el title nuevo no añade ninguna faceta que el anterior no tuviera")
+    return v
+
+
+def h1_post_verdict(h1: str, *, body_md: str, nombres=()) -> MetaVerdict:
+    """El título de un post (su H1 y el de sus tarjetas «En el diario»).
+
+    No pasaba ninguna guarda: el generador solo pedía «≤80» y así salieron «La
+    Evolución Musical de Extremoduro: Un Viaje Inigualable» o «Robe: De Chapista a
+    Ícono del Rock Español» (12-11-2026). Mismas reglas de construcción que un
+    title, sin las de sujeto ni facetas: un post no es la ficha de una entidad."""
+    v = MetaVerdict()
+    t = (h1 or "").strip()
+    if len(t) < TITLE_MIN:
+        v.bloquear(f"título demasiado corto ({len(t)} caracteres)")
+        return v
+    if len(t) > 90:
+        v.bloquear(f"título de {len(t)} caracteres (máximo 90)")
+    if comillas_desparejadas(t):
+        v.bloquear("comillas «» desparejadas")
+    for f in formulas_vacias(t):
+        v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
+    for motivo in estructura(t):
+        v.bloquear(motivo)
+    malas = mayusculas_indebidas(t, body_md or "", nombres=nombres)
+    if malas:
+        v.bloquear(f"mayúsculas de Title Case: {', '.join(malas)}")
     return v
 
 
@@ -809,6 +874,14 @@ _COMUNES_TITULO = {
     "carrera", "legado", "obra", "relacion", "conexion", "etapa", "influencia",
     "impacto", "estilo", "sonido", "composicion", "trayectoria", "origen", "origenes",
     "papel", "temas", "interpretaciones", "directo", "evolucion", "colaboracion",
+    # Medidas en los H2 del blog el 12-11-2026 («Contexto y Grabación de…», «El
+    # Viaje Íntimo de la Locura: Su Incursión Literaria», «Primeros Pasos en la
+    # Música»), que nadie había repasado.
+    "grabacion", "viaje", "intimo", "incursion", "literaria", "primeros", "pasos",
+    "nacimiento", "manifiesto", "llamado", "frustracion", "metafora", "huida",
+    "cancion", "canciones", "realidad", "soledad", "frases", "iconicas", "profundo",
+    "reflexiones", "libros", "exito", "proyecto", "paralelo", "pionero", "urbano",
+    "explorando", "dualidad", "confrontacion", "vision", "critica", "fenomeno",
 }
 
 
@@ -848,9 +921,11 @@ def heading_verdict(headings: list[str], *, subject: str,
                     alias: list[str] | None = None, comun: bool = False) -> MetaVerdict:
     """¿Estos headings los escribiría una persona? Determinista, sin red.
 
-    Bloquea lo que se ve sin dudar: el sujeto repetido en más de un heading y la
-    cabeza «Sujeto: …». El Title Case es aviso: los nombres propios llevan mayúscula
-    y una regla dura daría falsos positivos.
+    Bloquea lo que se ve sin dudar: el sujeto repetido en más de un heading, la
+    cabeza «Sujeto: …», las comillas rectas, el verbo suelto al final y el Title
+    Case de palabras COMUNES (`_COMUNES_TITULO`; los nombres propios no cuentan).
+    Hasta el 12-11-2026 el Title Case era solo aviso, y así sobrevivieron los H2 del
+    blog. Sin `subject` (un post del blog) no se mira el sujeto.
     """
     v = MetaVerdict()
     nombres = _nombres_sujeto(subject, alias)
@@ -864,6 +939,8 @@ def heading_verdict(headings: list[str], *, subject: str,
     con_sujeto = [h for h, p in zip(headings, planos) if _lo_nombra(p)]
     # Criterio de David (10-11-2026): el nombre va, con naturalidad, en uno o dos
     # headings; ni en todos (suena a SEO) ni en ninguno.
+    if not nombres:
+        con_sujeto = headings[:1]  # sin sujeto: nada que repetir ni que echar en falta
     if len(con_sujeto) > 2:
         v.bloquear(f"el nombre de «{subject}» se repite en {len(con_sujeto)} headings "
                    f"(máximo dos): " + " | ".join(con_sujeto[:4]))
@@ -880,6 +957,13 @@ def heading_verdict(headings: list[str], *, subject: str,
         # Tras los dos puntos, en castellano, va minúscula: esa también cuenta.
         palabras = re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", cola)[0 if len(tras) > 1 else 1:]
         mayus = [w for w in palabras if w[:1].isupper() and flatten(w).strip() in _COMUNES_TITULO]
-        if mayus:
-            v.avisos.append(f"«{h}» parece Title Case ({', '.join(mayus[:3])})")
+        # Una sola, y justo tras los dos puntos («Su obra: Análisis de la letra»), es
+        # discutible: aviso. Más de una es Title Case: bloqueo.
+        primera_tras = palabras[:1] if len(tras) > 1 else []
+        if mayus and mayus != primera_tras:
+            v.bloquear(f"«{h}» va en Title Case ({', '.join(mayus[:3])})")
+        elif mayus:
+            v.avisos.append(f"«{h}» lleva mayúscula tras los dos puntos ({mayus[0]})")
+        for motivo in estructura(h, cola=False):
+            v.bloquear(f"«{h}»: {motivo}")
     return v
