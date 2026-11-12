@@ -95,3 +95,30 @@ def test_los_titulos_de_post_de_molde_caen(h1):
 def test_los_titulos_de_post_buenos_pasan(h1):
     v = seo_style.h1_post_verdict(h1, body_md=CUERPO)
     assert v.ok, v.motivos
+
+
+# --- El listener corrige el título de los posts nuevos --------------------------
+from app.services.seo_style import titulo_post_a_la_espanola  # noqa: E402
+
+CUERPO_POST = ("Robe grabó con Ara Malikian en Bilbao. Tocaron Los Suaves con El Drogas. "
+               "La gira pasó por Plasencia.")
+
+
+@pytest.mark.parametrize("antes,despues", [
+    ("La Evolución Musical de Extremoduro: Un Viaje Inigualable",
+     "La evolución musical de Extremoduro: un viaje inigualable"),
+    ("Robe: De Chapista a Ícono del Rock Español", "Robe: de chapista a ícono del rock español"),
+    ("Explorando la Frustración en 'Relación convencional'",
+     "Explorando la frustración en «Relación convencional»"),
+    # Un nombre que el cuerpo no menciona se queda: mejor «Beirut» de más que «beirut».
+    ("Ara Malikian: Un Viaje Musical Desde Beirut a Extremoduro",
+     "Ara Malikian: un viaje musical desde Beirut a Extremoduro"),
+    ("El Drogas y Los Suaves en directo", "El Drogas y Los Suaves en directo"),
+    ("Qué cuenta «Segundo movimiento: Lo de fuera»", "Qué cuenta «Segundo movimiento: Lo de fuera»"),
+])
+def test_titulo_de_post_a_la_espanola(antes, despues):
+    assert titulo_post_a_la_espanola(antes, CUERPO_POST) == despues
+
+
+def test_sin_cuerpo_no_se_toca():
+    assert titulo_post_a_la_espanola("Un Viaje Inigualable", "") == "Un Viaje Inigualable"
