@@ -254,8 +254,8 @@ relaciones:
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "member of band: Kutxi Romero (d8db4ebf…), original, desde 1997-12-24"}
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P527", evidencia: "P527 incluye Q3756845"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Kutxi_Romero", oldid: 171889027,
-         evidencia: "ficha «relacionados»: «relacionados = Marea · Albertucho»"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_(banda)", oldid: 175505759,
+         evidencia: "ficha «miembros» del artículo de Marea: «Miembros = Kutxi Romero (voz y letras) · Eduardo Beaumont Piñas (bajo y voz) · …»"}
   - sujeto: band:marea                       # R7
     predicado: foundingLocation
     objeto: {"@type": Place, name: Berriozar, sameAs: "https://www.wikidata.org/wiki/Q1645776"}
@@ -2394,3 +2394,190 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q59348864",
          evidencia: "sitelink eswiki «Bienvenidos al temporal (álbum)»; el artículo (revisión 171202244) declara wikibase_item Q59348864"}
+  # --- Lugares de nacimiento y muerte: Wikidata + MusicBrainz o nota de prensa, 13-11-2026 ---
+  - sujeto: person:kutxi-romero
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Berriozar", sameAs: "https://www.wikidata.org/wiki/Q1645776"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845#P19",
+         evidencia: "P19 = Q1645776 (Berriozar); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/d8db4ebf-0577-4c95-be76-9902d27d1e9f",
+         evidencia: "begin area: Berriozar (área 523d2b1a…, que enlaza a Q1645776)"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Bilbao", sameAs: "https://www.wikidata.org/wiki/Q8692"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493#P19",
+         evidencia: "P19 = Q8692 (Bilbao); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def",
+         evidencia: "begin area: Bilbao (área ebcd61d1…, que enlaza a Q8692)"}
+  - sujeto: person:albert-pla
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Sabadell", sameAs: "https://www.wikidata.org/wiki/Q12258"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q942636#P19",
+         evidencia: "P19 = Q12258 (Sabadell); referencia: GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e",
+         evidencia: "begin area: Sabadell (área c5f92386…, que enlaza a Q12258)"}
+  - sujeto: person:ara-malikian
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Beirut", sameAs: "https://www.wikidata.org/wiki/Q3820"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3393715#P19",
+         evidencia: "P19 = Q3820 (Beirut); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c",
+         evidencia: "begin area: Beirut (área 1d9b2b8d…, que enlaza a Q3820)"}
+  - sujeto: person:ariel-rot
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Buenos Aires", sameAs: "https://www.wikidata.org/wiki/Q1486"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2400623#P19",
+         evidencia: "P19 = Q1486 (Buenos Aires); referencia: MusicBrainz"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b",
+         evidencia: "begin area: Buenos Aires (área 2bd8607d…, que enlaza a Q1486)"}
+  - sujeto: person:camaron
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "San Fernando", sameAs: "https://www.wikidata.org/wiki/Q741765"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q312093#P19",
+         evidencia: "P19 = Q741765 (San Fernando); referencia: importado de Wikipedia en ruso; GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "begin area: San Fernando (área 28de1cc8…, que enlaza a Q741765)"}
+      - {kind: prensa, tier: T2, url: "https://elpais.com/diario/1992/07/03/cultura/710114411_850215.html",
+         evidencia: "El País, 03-07-1992: «en su ciudad natal, San Fernando» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:camaron
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Badalona", sameAs: "https://www.wikidata.org/wiki/Q15468"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q312093#P20",
+         evidencia: "P20 = Q15468 (Badalona); referencia: importado de Wikipedia en español"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "end area: Badalona (área 46e9606c…, que enlaza a Q15468)"}
+  - sujeto: person:david-lerman
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Cáceres", sameAs: "https://www.wikidata.org/wiki/Q15678"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q123516252#P19",
+         evidencia: "P19 = Q15678 (Cáceres); referencia: https://raex.es/index.php/actividades/3177-robe-iniesta-sigue-con-sus-musicos-extremenos-lporque-disfrutamosr.html"}
+      - {kind: prensa, tier: T2, url: "https://raex.es/index.php/actividades/3177-robe-iniesta-sigue-con-sus-musicos-extremenos-lporque-disfrutamosr.html",
+         evidencia: "RAEX: «David Lerman (Cáceres, 1988)» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:fermin-muguruza
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Irún", sameAs: "https://www.wikidata.org/wiki/Q200201"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q1350622#P19",
+         evidencia: "P19 = Q200201 (Irún); referencia: importado de Wikipedia en euskera; GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63",
+         evidencia: "begin area: Irun (área b8998028…, que enlaza a Q200201)"}
+  - sujeto: person:fito-cabrales
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Bilbao", sameAs: "https://www.wikidata.org/wiki/Q8692"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3751202#P19",
+         evidencia: "P19 = Q8692 (Bilbao); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd",
+         evidencia: "begin area: Bilbao (área ebcd61d1…, que enlaza a Q8692)"}
+  - sujeto: person:frank-zappa
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Baltimore", sameAs: "https://www.wikidata.org/wiki/Q5092"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q127330#P19",
+         evidencia: "P19 = Q5092 (Baltimore); referencia: GND; Store norske leksikon"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "begin area: Baltimore (área 2fb5445d…, que enlaza a Q5092)"}
+      - {kind: prensa, tier: T2, url: "https://www.cbsnews.com/stories/2008/05/07/national/main4078921.shtml",
+         evidencia: "AP en CBS News, 2008: «was born in Baltimore» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:frank-zappa
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Los Ángeles", sameAs: "https://www.wikidata.org/wiki/Q65"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q127330#P20",
+         evidencia: "P20 = Q65 (Los Ángeles); referencia: importado de Wikipedia en italiano; Store norske leksikon"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "end area: Los Angeles (área 1f40c6e1…, que enlaza a Q65)"}
+  - sujeto: person:freddie-mercury
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Kensington", sameAs: "https://www.wikidata.org/wiki/Q288781"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q15869#P20",
+         evidencia: "P20 = Q288781 (Kensington); referencia: importado de Wikipedia en inglés"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f",
+         evidencia: "end area: Kensington (área a37eca4d…, que enlaza a Q288781)"}
+  - sujeto: person:leiva
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Madrid", sameAs: "https://www.wikidata.org/wiki/Q2807"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q11686081#P19",
+         evidencia: "P19 = Q2807 (Madrid); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24",
+         evidencia: "begin area: Madrid (área 9ddf829c…, que enlaza a Q2807)"}
+      - {kind: prensa, tier: T2, url: "http://www.elmundo.es/cultura/2014/06/23/53a8087b268e3e6f058b4582.html",
+         evidencia: "El Mundo/EFE, 23-06-2014: «El cantante madrileño» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:manolo-chinato
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Puerto de Béjar", sameAs: "https://www.wikidata.org/wiki/Q1904694"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5790366#P19",
+         evidencia: "P19 = Q1904694 (Puerto de Béjar); referencia: importado de Wikipedia en español"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f",
+         evidencia: "begin area: Puerto de Béjar (área 67f5f9cb…, que enlaza a Q1904694)"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Zaragoza", sameAs: "https://www.wikidata.org/wiki/Q10305"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3572194#P19",
+         evidencia: "P19 = Q10305 (Zaragoza); referencia: ninguna en Wikidata"}
+      - {kind: prensa, tier: T2, url: "https://www.publico.es/culturas/vida-salvaje-manolo-kabezabolo-punk-deslenguado-lucido-antisistema.html",
+         evidencia: "Público: «El músico zaragozano» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:miguel-colino
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Portugalete", sameAs: "https://www.wikidata.org/wiki/Q548441"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q9032688#P19",
+         evidencia: "P19 = Q548441 (Portugalete); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b",
+         evidencia: "begin area: Portugalete (área c8fb6432…, que enlaza a Q548441)"}
+  - sujeto: person:rosendo-mercado
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Madrid", sameAs: "https://www.wikidata.org/wiki/Q2807"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3324618#P19",
+         evidencia: "P19 = Q2807 (Madrid); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803",
+         evidencia: "begin area: Madrid (área 9ddf829c…, que enlaza a Q2807)"}
