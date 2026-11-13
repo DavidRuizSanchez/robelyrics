@@ -9,6 +9,8 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import RelatedSongs from "@/components/RelatedSongs";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas, enlacesRelaciones } from "@/lib/relaciones-jsonld";
 import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
@@ -264,8 +266,13 @@ export default async function SongPublicPage({
           yaEnlazados={detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`)}
         />
 
+        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} excluir={enlacesPlantilla} />
+
         <article className="mb-12">
-          <MarkdownArticle markdown={detail.seo_body} yaEnlazados={enlacesPlantilla} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[...enlacesPlantilla, ...enlacesRelaciones(detail.jsonld_verificadas, enlacesPlantilla)]}
+          />
         </article>
 
         <RelatedSongs songs={detail.related_songs} />
@@ -351,7 +358,7 @@ export default async function SongPublicPage({
                   detail.title,
                   [detail.youtube_id],
                 ),
-                {
+                conVerificadas({
                   ...musicCompositionNode({
                     slug: songSlug,
                     artistSlug: artistSlug,
@@ -365,7 +372,7 @@ export default async function SongPublicPage({
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }
                     : {}),
-                },
+                }, detail.jsonld_verificadas),
                 // Nodos mínimos para que Google una entidades cross-page
                 musicAlbumNode({
                   slug: albumSlug,

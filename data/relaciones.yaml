@@ -153,3 +153,126 @@ relaciones:
     fuentes:
       - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q241767",
          evidencia: "«municipio de la provincia de Cáceres, España», eswiki «Plasencia»"}
+
+# --- Relaciones de la muestra de 10 (aprobadas por David el 13-11-2026) -------------
+# Cada una con sus fuentes; detalle en data/seo_plan_autoridad/evidencias/
+# datos_estructurados/relaciones/RELACIONES_MUESTRA10.md (no versionado). Primero las 4
+# identidades que hacen falta para usar MusicBrainz como fuente (el cargador va en dos pasadas).
+  # --- Identidades nuevas que hacen falta para usar MusicBrainz como fuente ---------------
+  - sujeto: person:kutxi-romero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d8db4ebf-0577-4c95-be76-9902d27d1e9f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845",
+         evidencia: "El Q-ID de la ficha (Q3756845) declara P434 = d8db4ebf…; MusicBrainz lo da como miembro original de Marea (da4fb281…), y Wikidata, P463 Marea"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493",
+         evidencia: "El Q-ID de la ficha (Q5198493) declara P434 = cebb8d3a…; MusicBrainz: miembro de Extremoduro y compositor de «Golfa»"}
+  - sujeto: label:dro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/label/d9cd1c5f-f81c-42be-a79f-f7ffce7e34fb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3030172",
+         evidencia: "El Q-ID de la ficha (Q3030172) declara P966 = d9cd1c5f…; MusicBrainz: sello de la edición de Agila del 23-02-1996"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9",
+         evidencia: "El área de MusicBrainz enlaza a Q241767; es donde nace Robe y donde se forma Extremoduro"}
+
+  # --- Relaciones ------------------------------------------------------------------------
+  - sujeto: person:robe-iniesta              # R1
+    predicado: birthPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P19", evidencia: "P19 = Q241767 (referencia: Freebase)"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "begin area: Plasencia (69e012c7…)"}
+  - sujeto: person:robe-iniesta              # R2 (aprobado por David: «nacimientos y muertes siempre que podamos»)
+    predicado: deathPlace
+    objeto: {"@type": Place, name: Barakaldo, sameAs: "https://www.wikidata.org/wiki/Q487801"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P20", evidencia: "P20 = Q487801"}
+      - {kind: prensa, tier: T2, url: "https://www.elcorreo.com/culturas/musica/robe-fallecio-hospital-cruces-20251211154905-nt.html", evidencia: "referencia de P20 en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "end area: Barakaldo"}
+  - sujeto: person:robe-iniesta              # R3
+    predicado: memberOf
+    objeto: {"@type": MusicGroup, name: Extrechinato y Tú, sameAs: ["https://www.wikidata.org/wiki/Q5853668", "https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8"]}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P463", evidencia: "P463 = Q5853668"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "member of band: Extrechinato y Tú (8a032fcd…)"}
+  - sujeto: person:alen-ayerdi               # R4
+    predicado: memberOf
+    objeto: band:marea
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q3091114 (referencia: Diario de Navarra); P1303 = batería; Marea lo lista en P527"}
+      - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2019/06/01/alen-ayerdi-marea-siempre-hemos-tenido-claro-hacia-donde-tirar-como-llegar-653235-1034.html", evidencia: "entrevista del 01-06-2019 «Alen Ayerdi (Marea): Siempre hemos tenido claro hacia dónde tirar y cómo llegar»; Marea, «el quinteto de Berriozar»"}
+  - sujeto: person:alen-ayerdi               # R5
+    predicado: memberOf
+    objeto: {"@type": MusicGroup, name: Ciclonautas, sameAs: "https://www.wikidata.org/wiki/Q21554945"}
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2021/05/19/el-grupo-pamplones-ciclonautas-lanza-viernes-mayo-nuevo-disco-camping-del-hastio-727384-1034.html", evidencia: "«El grupo pamplonés Ciclonautas, formado por Mariano 'Mai' Medina (guitarra y voz), Alén Ayerdi (batería) y José Javier Pintor 'Dr. Txo' (bajista)»"}
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q21554945"}
+  - sujeto: person:kutxi-romero              # R6
+    predicado: memberOf
+    objeto: band:marea
+    desde: "1997"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "member of band: Kutxi Romero (d8db4ebf…), original, desde 1997-12-24"}
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P527", evidencia: "P527 incluye Q3756845"}
+  - sujeto: band:marea                       # R7
+    predicado: foundingLocation
+    objeto: {"@type": Place, name: Berriozar, sameAs: "https://www.wikidata.org/wiki/Q1645776"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P740", evidencia: "P740 = Q1645776"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "begin area: Berriozar (523d2b1a…)"}
+  - sujeto: artist:extremoduro               # R8
+    predicado: foundingLocation
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472#P740", evidencia: "P740 = Q241767"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333", evidencia: "begin area: Plasencia (69e012c7…)"}
+  - sujeto: album:extremoduro/agila          # R9
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q614313#P162", evidencia: "P162 = Q5198493"}
+      - {kind: libro, tier: T2, url: "data/reference/deprofundis_facts.md:38", evidencia: "«Agila (23 feb 1996, DRO)… Producción/arreglos: Uoho (rol decisivo)»"}
+  - sujeto: place:plasencia                  # R10
+    predicado: containedInPlace
+    objeto: {"@type": AdministrativeArea, name: provincia de Cáceres, sameAs: "https://www.wikidata.org/wiki/Q81977"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767#P131", evidencia: "P131 = Q81977"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9", evidencia: "part of: Cáceres (subdivisión)"}

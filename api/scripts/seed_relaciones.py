@@ -71,6 +71,35 @@ def aplicar(db, filas: list[dict]) -> dict[str, int]:
     return cuenta
 
 
+def cargar(db, propuestas: list[relations.Propuesta]) -> tuple[dict[str, int], list[str]]:
+    """Valida y aplica en DOS pasadas, sin commit: primero las identidades (`sameAs`) y
+    luego el resto. Una relación que cita MusicBrainz exige la identidad acreditada de
+    sujeto y objeto, y esa identidad puede venir en el mismo fichero: validándolo todo
+    de una vez, se rechazaría. Si algo falla, no se aplica nada (lo deshace quien llama).
+    """
+    total = {"nuevas": 0, "actualizadas": 0, "iguales": 0, "protegidas": 0}
+    rechazadas: list[str] = []
+    claves: list[str] = []
+    for grupo in ([p for p in propuestas if p.predicado == "sameAs"],
+                  [p for p in propuestas if p.predicado != "sameAs"]):
+        filas = []
+        for p in grupo:
+            errores, fila = relations.validar(db, p)
+            if errores:
+                rechazadas.append(f"{p.sujeto} {p.predicado} {p.objeto}: {'; '.join(errores)}")
+            else:
+                filas.append(fila)
+                claves.append(fila["clave"])
+        if rechazadas:
+            return total, rechazadas
+        if len(set(claves)) != len(claves):
+            return total, ["hay relaciones repetidas en el YAML (misma clave)"]
+        for k, v in aplicar(db, filas).items():
+            total[k] += v
+        db.flush()   # la segunda pasada tiene que ver las identidades de la primera
+    return total, rechazadas
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -81,21 +110,13 @@ def main() -> None:
     propuestas = cargar_propuestas(Path(args.yaml))
     db = SessionLocal()
     try:
-        filas, malas = [], 0
-        for p in propuestas:
-            errores, fila = relations.validar(db, p)
-            if errores:
-                malas += 1
-                print(f"  RECHAZADA {p.sujeto} {p.predicado} {p.objeto}: {'; '.join(errores)}")
-            else:
-                filas.append(fila)
-        print(f"{len(propuestas)} relaciones en el YAML · {len(filas)} válidas · {malas} rechazadas")
-        if malas:
+        cuenta, rechazadas = cargar(db, propuestas)
+        for r in rechazadas:
+            print(f"  RECHAZADA {r}")
+        print(f"{len(propuestas)} relaciones en el YAML · {len(rechazadas)} rechazadas")
+        if rechazadas:
+            db.rollback()
             sys.exit(1)
-        claves = [f["clave"] for f in filas]
-        if len(set(claves)) != len(claves):
-            sys.exit("hay relaciones repetidas en el YAML (misma clave)")
-        cuenta = aplicar(db, filas)
         print(cuenta)
         if args.dry_run:
             db.rollback()

@@ -66,7 +66,8 @@ def cat(db):
     sello = Band(slug="dromedario", name="El Dromedario Records", kind="label")
     extremo = Artist(slug="extremoduro", name="Extremoduro")
     db.add_all([alen, oculta, marea, sin_ficha, sello, extremo,
-                Place(slug="plasencia", name="Plasencia", kind="city")])
+                # Con coordenadas: se sirve como Place (sin ellas, DefinedTerm).
+                Place(slug="plasencia", name="Plasencia", kind="city", geo_lat=40.03, geo_lng=-6.09)])
     db.flush()
     _ficha(db, "person", alen.id, "alen")
     _ficha(db, "band", marea.id, "marea")
@@ -272,3 +273,63 @@ def test_el_yaml_real_carga_y_esta_bien_formado():
             assert isinstance(p.objeto, str) and p.objeto.startswith("https://"), p
     claves = [(p.sujeto, p.predicado, str(p.objeto)) for p in props]
     assert len(claves) == len(set(claves)), "relaciones repetidas en el YAML"
+
+
+# --- Carga en dos pasadas, tipo servido y plantilla (fase 1, 13-11-2026) ----------
+def _mb(url):
+    return [{"kind": "revision_manual", "tier": "T1", "url": url, "evidencia": "cruce"}]
+
+
+def test_identidad_y_relacion_dependiente_en_el_mismo_fichero(cat):
+    """Validándolo todo de una vez, la relación que cita MusicBrainz no veía las
+    identidades del mismo YAML y se rechazaba (lo cazó el asesor el 13-11)."""
+    from scripts.seed_relaciones import cargar
+
+    a, m = "https://musicbrainz.org/artist/aaa", "https://musicbrainz.org/artist/bbb"
+    props = [
+        _p("person:alen", "memberOf", "band:marea", estado="verificada", verificado_por="david",
+           fuentes=[{"kind": "musicbrainz", "tier": "T1", "url": m}]),
+        _p("person:alen", "sameAs", a, estado="verificada", verificado_por="david", fuentes=_mb(a)),
+        _p("band:marea", "sameAs", m, estado="verificada", verificado_por="david", fuentes=_mb(m)),
+    ]
+    cuenta, rechazadas = cargar(cat, props)
+    assert rechazadas == []
+    assert cuenta["nuevas"] == 3
+
+
+def test_si_falla_una_no_se_aplica_ninguna(cat):
+    from scripts.seed_relaciones import cargar
+
+    props = [
+        _p("person:alen", "sameAs", "https://musicbrainz.org/artist/aaa", estado="verificada",
+           verificado_por="david", fuentes=_mb("https://musicbrainz.org/artist/aaa")),
+        _p("person:alen", "memberOf", "band:no-existe"),
+    ]
+    cuenta, rechazadas = cargar(cat, props)
+    assert rechazadas and cuenta["nuevas"] == 1   # la primera pasada se aplicó a la sesión…
+    cat.rollback()                                # …y quien llama lo deshace (main lo hace)
+    assert cat.query(EntityRelation).count() == 0
+
+
+def test_lugar_sin_coordenadas_se_valida_como_se_sirve(cat):
+    """La ficha de un lugar sin coordenadas se sirve como DefinedTerm: un birthPlace
+    hacia ella pasaría la carga y fallaría en la auditoría de lo servido."""
+    cat.add(Place(slug="marte", name="Marte", kind="city"))
+    cat.commit()
+    err, _ = rel.validar(cat, _p("person:alen", "birthPlace", "place:marte"))
+    assert any("birthPlace" in e for e in err)
+    assert not rel.validar(cat, _p("person:alen", "birthPlace", "place:plasencia"))[0]
+
+
+def test_la_plantilla_cuenta_los_enlaces_de_las_relaciones(cat):
+    from app.services.link_policy import plantilla_de
+
+    _guardar(cat, _p("person:alen", "memberOf", "band:marea", estado="verificada",
+                     verificado_por="david", fuentes=[
+                         {"kind": "creditos_disco", "tier": "T1", "evidencia": "x"}]))
+    alen = rel.resolver_ref(cat, "person:alen")
+    marea = rel.resolver_ref(cat, "band:marea")
+    assert rel.rutas_de(cat, "person", alen.id) == {"/grupos/marea"}
+    assert rel.rutas_de(cat, "band", marea.id) == {"/personas/alen"}   # la inversa
+    assert "/grupos/marea" in plantilla_de(cat, "person", alen.id, {})
+    assert "/personas/alen" in plantilla_de(cat, "band", marea.id, {})

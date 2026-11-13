@@ -307,6 +307,7 @@ def bd():
         BandMembership,
         Concept,
         EntityEdge,
+        EntityRelation,
         Person,
         Place,
         SeoContent,
@@ -321,7 +322,8 @@ def bd():
 
     md = MetaData()
     modelos = (Artist, Album, Song, AlbumTrack, Person, Band, BandMembership, SongCredit,
-               Theme, Place, Concept, SongTheme, SongPlace, SongConcept, EntityEdge, SeoContent)
+               Theme, Place, Concept, SongTheme, SongPlace, SongConcept, EntityEdge, SeoContent,
+               EntityRelation)   # plantilla_de lee las relaciones verificadas
     for tabla in _con_dependencias([m.__table__ for m in modelos]):
         t = tabla.to_metadata(md)
         for col in t.columns:

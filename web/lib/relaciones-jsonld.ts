@@ -50,3 +50,94 @@ export function fusionarVerificadas(
     schema[prop] = previo === undefined ? nuevos : [...lista(previo), ...nuevos];
   }
 }
+
+// Copia del nodo con las verificadas fusionadas: para las páginas que montan el
+// nodo dentro del propio `buildGraph([...])`.
+export function conVerificadas(
+  nodo: Nodo,
+  relaciones: Record<string, unknown> | null | undefined,
+): Nodo {
+  const copia = { ...nodo };
+  fusionarVerificadas(copia, relaciones);
+  return copia;
+}
+
+// Etiqueta en español de cada propiedad que puede salir de `entity_relations`
+// (también las inversas que se derivan al servir). Un test de la API recorre los
+// predicados de `data/relaciones.yaml` y sus inversas contra este mapa.
+export const ETIQUETAS_RELACION: Record<string, string> = {
+  memberOf: "Miembro de",
+  member: "Miembros",
+  founder: "Fundado por",
+  birthPlace: "Nació en",
+  deathPlace: "Murió en",
+  foundingLocation: "Fundado en",
+  producer: "Producción",
+  containedInPlace: "Situado en",
+  homeLocation: "Vive en",
+  worksFor: "Trabaja en",
+  affiliation: "Vinculado a",
+  alumniOf: "Estudió en",
+  colleague: "Colegas",
+  location: "Sede",
+  parentOrganization: "Pertenece a",
+  subOrganization: "Incluye",
+  isPartOf: "Forma parte de",
+  hasPart: "Incluye",
+  about: "Trata de",
+  subjectOf: "Aparece en",
+  recordedAt: "Grabado en",
+};
+
+export type RelacionVisible = {
+  etiqueta: string;
+  nombre: string;
+  href: string | null;
+  detalle: string | null;
+};
+
+// Lo que se pinta sale del MISMO fragmento que se marca: así no pueden divergir
+// («lo que se marca, se ve», plan de datos estructurados). Los `sameAs` son
+// identidad, no relación: no se pintan. `excluir`: rutas que la ficha ya enseña.
+export function relacionesVisibles(
+  relaciones: Record<string, unknown> | null | undefined,
+  excluir: Iterable<string> = [],
+): RelacionVisible[] {
+  const fuera = new Set(excluir);
+  const out: RelacionVisible[] = [];
+  for (const [prop, valor] of Object.entries(relaciones || {})) {
+    if (prop === "sameAs" || prop.startsWith("@")) continue;
+    const etiqueta = ETIQUETAS_RELACION[prop] ?? prop;
+    for (const v of Array.isArray(valor) ? valor : [valor]) {
+      if (!v || typeof v !== "object") continue;
+      const nodo = v as Nodo;
+      const dentro = nodo[prop];
+      const destino =
+        dentro && typeof dentro === "object" && !Array.isArray(dentro) ? (dentro as Nodo) : nodo;
+      const nombre = typeof destino.name === "string" ? destino.name : null;
+      if (!nombre) continue;
+      const url = typeof destino.url === "string" ? destino.url : null;
+      const href = url && typeof destino["@id"] === "string" ? url.replace(/^https?:\/\/[^/]+/, "") : null;
+      if (href && fuera.has(href)) continue;
+      const partes = [
+        typeof nodo.roleName === "string" ? nodo.roleName : null,
+        typeof nodo.startDate === "string"
+          ? `desde ${nodo.startDate}${typeof nodo.endDate === "string" ? ` hasta ${nodo.endDate}` : ""}`
+          : typeof nodo.endDate === "string"
+            ? `hasta ${nodo.endDate}`
+            : null,
+      ].filter((x): x is string => !!x);
+      out.push({ etiqueta, nombre, href, detalle: partes.length ? partes.join(", ") : null });
+    }
+  }
+  return out;
+}
+
+export function enlacesRelaciones(
+  relaciones: Record<string, unknown> | null | undefined,
+  excluir: Iterable<string> = [],
+): string[] {
+  return relacionesVisibles(relaciones, excluir)
+    .map((r) => r.href)
+    .filter((h): h is string => !!h);
+}

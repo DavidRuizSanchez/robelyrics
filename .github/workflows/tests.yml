@@ -68,6 +68,11 @@ jobs:
       - name: los dos idiomas declaran los mismos estudios
         run: python3 .github/scripts/check_estudios.py
 
+      # Las relaciones verificadas se pintan con una etiqueta en español que vive en
+      # la web; pytest no ve `web/`, así que se comprueba aquí.
+      - name: cada relación tiene etiqueta en la web
+        run: python3 .github/scripts/check_relaciones.py
+
   alembic:
     name: migraciones coherentes
     runs-on: ubuntu-latest

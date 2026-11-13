@@ -36,6 +36,7 @@ mucho uno por página, solo el del artista de la página y sin el impulso de
 """
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from collections.abc import Iterable
@@ -71,6 +72,8 @@ DENTRO_DE_ANCHOR = r"(?:[^\[\]\n]|\[[^\[\]\n]*\]){0,200}?\]"
 ENLACE = re.compile(r"(?<!\!)\[(" + ANCHOR + r")\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 # Imagen markdown: ![alt](src).
 IMAGEN = re.compile(r"!\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]*\)")
+
+logger = logging.getLogger(__name__)
 
 
 def norm_path(url: str | None) -> str | None:
@@ -336,7 +339,34 @@ def plantilla_de(db, entity_type: str, entity_id: int,
             r("album", alid)
         for m in db.query(BandMembership).filter(BandMembership.artist_id == entity_id):
             r("person", m.person_id)
+    out |= _rutas_relaciones(db, entity_type, entity_id)
     return frozenset(out)
+
+
+# Fichas que pintan sus relaciones verificadas (`RelacionesVerificadas` en web).
+_PINTAN_RELACIONES = {"person", "band", "label", "artist", "album", "song", "place"}
+
+
+def _rutas_relaciones(db, entity_type: str, entity_id: int) -> set[str]:
+    """Enlaces de plantilla que salen de `entity_relations`. Aislado: `contexto_de`
+    se traga cualquier excepción y devuelve un contexto VACÍO, así que un fallo aquí
+    dejaría la ficha sin plantilla entera."""
+    try:
+        from app.services import relations
+
+        tipo = entity_type
+        if entity_type == "band":   # en seo_content, grupos y sellos son «band»
+            from app.db.models import Band
+
+            b = db.get(Band, entity_id)
+            tipo = "label" if b is not None and b.kind == "label" else "band"
+        if tipo not in _PINTAN_RELACIONES:
+            return set()
+        return relations.rutas_de(db, tipo, entity_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("link_policy: no se pudieron leer las relaciones de %s:%s",
+                       entity_type, entity_id, exc_info=True)
+        return set()
 
 
 def contexto_de(db, entity_type: str | None, entity_id: int | None, *,

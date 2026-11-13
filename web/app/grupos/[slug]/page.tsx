@@ -18,7 +18,8 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import { enlacesRelaciones, fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -304,7 +305,14 @@ export default async function GrupoPage({
             </div>
           </header>
 
-          {detail.seo_body && <MarkdownArticle markdown={detail.seo_body} />}
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} />
+
+          {detail.seo_body && (
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={enlacesRelaciones(detail.jsonld_verificadas)}
+            />
+          )}
         </article>
 
         <RelatedVideos videos={detail.related_videos} />
