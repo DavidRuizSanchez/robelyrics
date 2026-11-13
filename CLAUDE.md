@@ -1442,6 +1442,37 @@ revisada (recorta y rellena hasta 3, con `content_revisions`), y el relinker del
 domingo queda en punto fijo. No borra lo que repite la plantilla (se pinta como
 texto al servir) y el tope protege a los destinos poco enlazados.
 
+## Datos estructurados: lo que se marca no se pierde
+
+David (12-11-2026): «dejar este tema zanjado de una vez, ya que cada vez que miro, hay algo
+que falla». Plan en `data/seo_plan_autoridad/PLAN_DATOS_ESTRUCTURADOS.md`. La fase 0 no
+añade ninguna relación: pone la red debajo para que las fases siguientes no rompan nada.
+
+El JSON-LD lo montan las páginas de Next **al servir**, así que se audita el HTML servido,
+no la BD. `app/services/jsonld_audit.py` (puro) comprueba cuatro invariantes:
+
+- **Contención**: la huella de cada página («sujeto · propiedad» y «sujeto · propiedad →
+  @id») no pierde nada. No mira el valor de los literales, que ya vigila el monitor.
+- **Sin `@id` colgantes**: todo `@id` interno citado está definido en la URL que implica.
+- **Vocabulario**: contra el fichero OFICIAL de schema.org versionado en `data/schemaorg/`.
+  El rango de una referencia a otra página (`track` → la canción) solo se ve cruzando
+  páginas (`rangos_cruzados`): página a página no se puede saber.
+- **Nombre y rayas** en el JSON-LD, que no pasa por el listener del ORM.
+
+Lo que ya estaba mal el día de la línea base (226 fallos en 4 patrones) va declarado en
+`data/jsonld_excepciones.yaml` con su motivo y la fase que lo arregla. Cuando una
+excepción deja de cubrir algo, la auditoría lo dice y hay que quitarla.
+
+- **Antes y después de desplegar algo que toque JSON-LD**: `python -m
+  scripts.seo.audit_jsonld --linea-base ../data/jsonld/linea_base.json` (o `--base
+  http://localhost:3001`). Sale con 1 si hay un fallo nuevo o una página pierde algo.
+- **El monitor diario** guarda la huella en `page_snapshots.campos` y avisa
+  (`jsonld_perdido`, `jsonld_fallo`, `jsonld_colgante`). Solo compara fotos que la traen,
+  por eso no se subió `VERSION_PARSER`. Con `--limit` no mira colgantes.
+- **Una pérdida buscada** (renombrar un `@id`, cambiar de tipo) se declara en las
+  excepciones y se re-congela la línea base con `--escribir-linea-base`. La fixture del
+  test es el mismo rastreo: regenerarlas juntas.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

@@ -31,6 +31,8 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
+from app.services import jsonld_audit
+
 SITE = "https://entreinteriores.com"
 # Sube cuando cambia CÓMO se lee una página. Una foto de otra versión no se compara:
 # se vuelve a fotografiar. Sin esto, mejorar el parser (26-10-2026: el texto pasó a
@@ -144,7 +146,10 @@ def parse(html: str, *, path: str, headers: dict | None = None) -> dict:
                           if a["href"].startswith("/") and not a["href"].startswith("//")})
     imgs_sin_alt = sum(1 for i in main.find_all("img") if not (i.get("alt") or "").strip())
     h = {k.lower(): v for k, v in (headers or {}).items()}
-    return {
+    # Huella del JSON-LD (fase 0 del plan de datos estructurados): solo la lista de
+    # @type no veía que una ficha perdiera `memberOf` o un `@id`.
+    ld = jsonld_audit.campos_monitor(jsonld_audit.analizar(html or "", path))
+    return {**ld,
         "v": VERSION_PARSER,
         "title": _texto(head.title) if head.title else None,
         "description": meta(name="description"),
@@ -232,6 +237,23 @@ def _detalle_contenido(antes: str, despues: str, tope: int = 12) -> dict:
             "n_salen": len(salen), "n_entran": len(entran)}
 
 
+def _diff_jsonld(ca: dict, cd: dict) -> list[Cambio]:
+    """Lo que el JSON-LD deja de marcar y los fallos nuevos de la página. Solo si las
+    dos fotos lo traen: las anteriores al 12-11-2026 no lo guardaban."""
+    if "jsonld_huella" not in ca or "jsonld_huella" not in cd:
+        return []
+    out = []
+    salen = jsonld_audit.perdidas(ca["jsonld_huella"], cd["jsonld_huella"])
+    if salen:
+        out.append(Cambio("jsonld_perdido", f"{len(salen)} relaciones o propiedades", None,
+                          "estructural", {"salen": salen[:40], "n_salen": len(salen)}))
+    nuevos = sorted(set(cd.get("jsonld_problemas") or []) - set(ca.get("jsonld_problemas") or []))
+    if nuevos:
+        out.append(Cambio("jsonld_fallo", None, f"{len(nuevos)} fallos nuevos", "estructural",
+                          {"entran": nuevos[:40], "n_entran": len(nuevos)}))
+    return out
+
+
 def diff(antes: dict, despues: dict, *, path: str) -> list[Cambio]:
     """Lo que cambió entre dos fotos de la MISMA URL.
 
@@ -271,6 +293,7 @@ def diff(antes: dict, despues: dict, *, path: str) -> list[Cambio]:
                        "entran": [x for x in vd if x not in va]}
         out.append(Cambio(campo, _como_texto(va), _como_texto(vd), sev, detalle))
 
+    out += _diff_jsonld(ca, cd)
     if cd.get("imgs_sin_alt", 0) > ca.get("imgs_sin_alt", 0):
         out.append(Cambio("imgs_sin_alt", str(ca.get("imgs_sin_alt", 0)),
                           str(cd["imgs_sin_alt"]), "aviso"))
