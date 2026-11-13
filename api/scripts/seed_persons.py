@@ -435,12 +435,12 @@ def main() -> None:
 
                             # Bandas externas (Wikidata P463) — excluyendo
                             # las que ya tenemos como memberships en nuestro
-                            # Artist corpus. Como Wikidata tiene varios Q-IDs
-                            # apuntando al mismo grupo (Extremoduro aparece
-                            # como Q263632, Q1238849, Q2311472 según el
-                            # claim/persona), filtramos también por nombre
-                            # normalizado contra los slugs del corpus.
-                            internal_qids = {"Q263632", "Q1238849", "Q2311472", "Q3500822"}
+                            # Artist corpus: Extremoduro (Q2311472) y el grupo
+                            # Robe (Q123516175). Comprobados el 13-11-2026; antes
+                            # aquí había Platero y Tú (Q263632), una encíclica
+                            # (Q1238849) y Gangr (Q3500822). Se filtra también por
+                            # nombre normalizado contra los slugs del corpus.
+                            internal_qids = {"Q2311472", "Q123516175"}
                             internal_names = {"extremoduro", "robe"}
                             member_qids = [
                                 q for q in enriched.get("member_of_qids", [])

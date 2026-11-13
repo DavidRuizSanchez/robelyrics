@@ -1,8 +1,9 @@
 """Resuelve las entidades extraídas por el LLM (`Post.entities`,
-`SeoContent.entities`) contra el corpus local + Wikidata.
+`SeoContent.entities`) contra el corpus local.
 
 Cada entidad llega del LLM como:
-  {"type": str, "name": str, "wikidata_id": str | None, "slug_hint": str | None}
+  {"type": str, "name": str, "slug_hint": str | None}
+  (un `wikidata_id` guardado de antes se ignora: lo inventaba el modelo)
 
 Tras resolver, el frontend recibe:
   {"type": str, "name": str, "canonical_id": str, "url": str | None,
@@ -11,8 +12,8 @@ Tras resolver, el frontend recibe:
 - Si la entidad matchea un Artist/Album/Song/Person de nuestra DB,
   `canonical_id` y `url` apuntan al hub local (knowledge graph
   interconectado).
-- Si no, `canonical_id` apunta a Wikidata si tenemos Q-ID.
-- Si tampoco, se devuelve solo el nombre (mejor que omitir).
+- Si no, la entidad va solo con su nombre (mejor que omitirla): sin `@id` ni
+  `sameAs` inventados.
 """
 from __future__ import annotations
 
@@ -88,7 +89,6 @@ def _resolve_one(
     if not name:
         return None
     e_type = (ent.get("type") or "").strip() or "Thing"
-    wikidata_id = ent.get("wikidata_id")
     slug_hint = (ent.get("slug_hint") or "").strip() or None
     norm_name = _normalize(name)
 
@@ -204,13 +204,11 @@ def _resolve_one(
             url = f"{site_url}/conceptos/{concept.slug}"
             from_corpus = True
 
-    # --- fallback: Wikidata como @id externo ---
+    # El `wikidata_id` de una entidad lo escribía el modelo («Q-ID si lo conoces») y
+    # NO se publica: medido el 13-11-2026, 68 de los 157 Q-IDs servidos eran falsos
+    # (Extremoduro como un asteroide, Plasencia como el transporte de Calgary). Una
+    # identidad externa solo sale acreditada (`entity_relations`, fila sameAs).
     same_as: list[str] = []
-    if wikidata_id and isinstance(wikidata_id, str) and wikidata_id.startswith("Q"):
-        wd_url = f"https://www.wikidata.org/wiki/{wikidata_id}"
-        same_as.append(wd_url)
-        if canonical_id is None:
-            canonical_id = wd_url
 
     return {
         "type": e_type,

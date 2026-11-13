@@ -194,13 +194,13 @@ Formato por entidad:
             "Place" | "TVSeries" | "RadioSeries" | "Organization" |
             "CreativeWork",
     "name": "<nombre canónico>",
-    "wikidata_id": "<Q-ID si lo conoces, sino null>",
     "slug_hint": "<slug kebab-case del corpus si crees que está, sino null.
                    Ej.: 'extremoduro', 'robe', 'agila', 'robe-iniesta',
                    'inaki-uoho-anton', 'plasencia'>"
   }
 Rellena slug_hint para Robe, Extremoduro, discos/canciones del catálogo y
-miembros conocidos. NO incluyas entidades genéricas ("rock", "música",
+miembros conocidos. NO pongas identificadores de Wikidata ni de ninguna otra base:
+no se pueden saber de memoria (13-11-2026: 68 de 157 Q-IDs servidos eran inventados). NO incluyas entidades genéricas ("rock", "música",
 "España"). Solo concretas y nombradas."""
 
 # --------------------------------------------------------------------------- #

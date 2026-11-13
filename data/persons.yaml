@@ -27,9 +27,11 @@ persons:
     death_date: 2025-12-10
     birth_place: Plasencia, Cáceres
     wikipedia_url: https://es.wikipedia.org/wiki/Robe_Iniesta
-    wikidata_id: Q3500822
-    # Imagen hardcoded — Wikidata Q3500822 NO tiene P18, así que el script
-    # no encontraba foto válida. Esta es libre (CC BY-SA), real, etiquetada.
+    # Q3181267 «Roberto Iniesta, músico español» (eswiki «Roberto Iniesta», P434 = MBID
+    # b435c75d… que MusicBrainz da como Robe, 1962-05-16 – 2025-12-10). Hasta el 13-11-2026
+    # aquí ponía Q3500822, que es Gangr, un personaje de la mitología nórdica.
+    wikidata_id: Q3181267
+    # Imagen fijada a mano: es libre (CC BY-SA), real y etiquetada.
     image_filename: "Robe Iniesta en Valladolid en 2014.jpg"
     memberships:
       - artist: extremoduro
