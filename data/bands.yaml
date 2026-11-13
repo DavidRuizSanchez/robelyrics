@@ -13,7 +13,7 @@ bands:
     name: Fito & Fitipaldis
     kind: band
     relation_type: family
-    wikidata_id: Q3183879
+    wikidata_id: Q1421204   # corregido el 13-11-2026: Q3183879 era «Warton Old Rectory», unas ruinas en Lancashire
     wikipedia_url: https://es.wikipedia.org/wiki/Fito_%26_Fitipaldis
     related_note: >
       Banda de Fito Cabrales. Extremoduro y Fito compartieron escenario y
@@ -23,7 +23,7 @@ bands:
     name: Marea
     kind: band
     relation_type: friend
-    wikidata_id: Q1298620
+    wikidata_id: Q3091114   # corregido el 13-11-2026: Q1298620 era «United Nations Disaster Assessment and Coordination»
     wikipedia_url: https://es.wikipedia.org/wiki/Marea_(banda)
     related_note: >
       Banda de Kutxi Romero, del círculo de rock estatal cercano a Extremoduro.
@@ -32,7 +32,7 @@ bands:
     name: Platero y Tú
     kind: band
     relation_type: family
-    wikidata_id: Q1215911
+    wikidata_id: Q263632   # corregido el 13-11-2026: Q1215911 era «Die Sache mit dem Glück», un telefilme de 2008
     wikipedia_url: https://es.wikipedia.org/wiki/Platero_y_T%C3%BA
     related_note: >
       Banda en la que tocó Fito Cabrales en los 90, hermanada con el rock de
