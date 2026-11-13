@@ -276,3 +276,514 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767#P131", evidencia: "P131 = Q81977"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9", evidencia: "part of: Cáceres (subdivisión)"}
+
+# --- Identidades, tanda 1 (13-11-2026) ----------------------------------------------
+# Fichas que ya traían Q-ID y miembros del grupo Robe que declara Wikidata (P527).
+# Cruce Wikidata ↔ MusicBrainz en los dos sentidos cuando hay MBID; el MBID es el
+# canónico (Fito & Fitipaldis: e8e2baa6 está fusionada en 16903d74; Freddie Mercury:
+# 022589ac, no la entidad de su nombre legal). Evidencia en data/seo_plan_autoridad/
+# evidencias/datos_estructurados/identidades/tanda1/ (no versionado).
+  - sujeto: person:albert-pla
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q942636"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q942636",
+         evidencia: "Wikidata «Albert Pla» — cantautor y actor español; eswiki «Albert Pla»; wikidata_id de la ficha: Q942636"}
+  - sujeto: person:albert-pla
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e",
+         evidencia: "MusicBrainz «Albert Pla»: Q942636 declara este MBID y MusicBrainz enlaza de vuelta a Q942636"}
+  - sujeto: person:ara-malikian
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3393715"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3393715",
+         evidencia: "Wikidata «Ara Malikian» — músico armenio; eswiki «Ara Malikian»; wikidata_id de la ficha: Q3393715"}
+  - sujeto: person:ara-malikian
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c",
+         evidencia: "MusicBrainz «Ara Malikian»: Q3393715 declara este MBID y MusicBrainz enlaza de vuelta a Q3393715"}
+  - sujeto: person:ariel-rot
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2400623"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2400623",
+         evidencia: "Wikidata «Ariel Rot» — cantante, compositor, músico y productor argentino; eswiki «Ariel Rot»; wikidata_id de la ficha: Q2400623"}
+  - sujeto: person:ariel-rot
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b",
+         evidencia: "MusicBrainz «Ariel Rot»: Q2400623 declara este MBID y MusicBrainz enlaza de vuelta a Q2400623"}
+  - sujeto: band:barricada
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2574210"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2574210",
+         evidencia: "Wikidata «Barricada» — banda navarra de rock; eswiki «Barricada (banda)»; wikidata_id de la ficha: Q2574210"}
+  - sujeto: band:barricada
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/8fe43356-6902-4311-a80c-f221bfcf3efb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/8fe43356-6902-4311-a80c-f221bfcf3efb",
+         evidencia: "MusicBrainz «Barricada»: Q2574210 declara este MBID y MusicBrainz enlaza de vuelta a Q2574210"}
+  - sujeto: band:fito-y-fitipaldis
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q1421204"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q1421204",
+         evidencia: "Wikidata «Fito & Fitipaldis» — banda española; eswiki «Fito & Fitipaldis»; wikidata_id de la ficha: Q1421204"}
+  - sujeto: band:fito-y-fitipaldis
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed",
+         evidencia: "MusicBrainz «Fito & Fitipaldis» (Spanish rock band): Q1421204 declara este MBID y MusicBrainz enlaza de vuelta a Q1421204"}
+  - sujeto: band:inconscientes
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q11255096"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q11255096",
+         evidencia: "Wikidata «Inconscientes» — grupo de rock español; eswiki «Inconscientes (banda)»; wikidata_id de la ficha: Q11255096"}
+  - sujeto: band:inconscientes
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d",
+         evidencia: "MusicBrainz «Inconscientes»: Q11255096 declara este MBID y MusicBrainz enlaza de vuelta a Q11255096"}
+  - sujeto: band:la-fuga
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3133841"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3133841",
+         evidencia: "Wikidata «La Fuga» — banda de rock española; eswiki «La Fuga (banda)»; wikidata_id de la ficha: Q3133841"}
+  - sujeto: band:la-fuga
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2aaf62d2-0018-4a34-a4c9-a03820febd6c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2aaf62d2-0018-4a34-a4c9-a03820febd6c",
+         evidencia: "MusicBrainz «La Fuga» (Spanish rock band): Q3133841 declara este MBID y MusicBrainz enlaza de vuelta a Q3133841"}
+  - sujeto: band:leno
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3328146"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3328146",
+         evidencia: "Wikidata «Leño» — banda española de rock; eswiki «Leño»; wikidata_id de la ficha: Q3328146"}
+  - sujeto: band:leno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/42941f4b-d3ea-4d78-a5af-2be59bc2acd6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/42941f4b-d3ea-4d78-a5af-2be59bc2acd6",
+         evidencia: "MusicBrainz «Leño»: Q3328146 declara este MBID y MusicBrainz enlaza de vuelta a Q3328146"}
+  - sujeto: band:los-enemigos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q6297284"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q6297284",
+         evidencia: "Wikidata «Los Enemigos» — Banda de rock española; eswiki «Los Enemigos»; wikidata_id de la ficha: Q6297284"}
+  - sujeto: band:los-enemigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e3922bc3-c7dc-4eba-a1ee-ba07e14737f4"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e3922bc3-c7dc-4eba-a1ee-ba07e14737f4",
+         evidencia: "MusicBrainz «Los Enemigos»: Q6297284 declara este MBID y MusicBrainz enlaza de vuelta a Q6297284"}
+  - sujeto: band:los-ninos-de-los-ojos-rojos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5492514"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5492514",
+         evidencia: "Wikidata «Los Niños de los Ojos Rojos» — s/d; eswiki «Los Niños de los Ojos Rojos»; wikidata_id de la ficha: Q5492514"}
+  - sujeto: band:los-suaves
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3182761"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3182761",
+         evidencia: "Wikidata «Los Suaves» — grupo de hard rock español; eswiki «Los Suaves»; wikidata_id de la ficha: Q3182761"}
+  - sujeto: band:los-suaves
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/69747c42-016c-4705-9a9c-a411cd859b46"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/69747c42-016c-4705-9a9c-a411cd859b46",
+         evidencia: "MusicBrainz «Los Suaves» (Spanish hard rock): Q3182761 declara este MBID y MusicBrainz enlaza de vuelta a Q3182761"}
+  - sujeto: band:nu
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q4025455"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q4025455",
+         evidencia: "Wikidata «Ñu» — banda de rock; eswiki «Ñu (banda)»; wikidata_id de la ficha: Q4025455"}
+  - sujeto: band:nu
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2586f88c-6ffc-4fbd-913f-6c45121265ed"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2586f88c-6ffc-4fbd-913f-6c45121265ed",
+         evidencia: "MusicBrainz «Ñu» (Spanish hard rock band): Q4025455 declara este MBID y MusicBrainz enlaza de vuelta a Q4025455"}
+  - sujeto: band:platero-y-tu
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q263632"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q263632",
+         evidencia: "Wikidata «Platero y Tú» — banda española; eswiki «Platero y Tú»; wikidata_id de la ficha: Q263632"}
+  - sujeto: band:platero-y-tu
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794",
+         evidencia: "MusicBrainz «Platero y Tú»: Q263632 declara este MBID y MusicBrainz enlaza de vuelta a Q263632"}
+  - sujeto: band:rebrote
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q138340475"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q138340475",
+         evidencia: "Wikidata «Rebrote» — s/d; eswiki «Rebrote»; wikidata_id de la ficha: Q138340475"}
+  - sujeto: band:rebrote
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691",
+         evidencia: "MusicBrainz «Rebrote»: Q138340475 declara este MBID y MusicBrainz enlaza de vuelta a Q138340475"}
+  - sujeto: band:reincidentes
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2561938"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2561938",
+         evidencia: "Wikidata «Reincidentes» — grupo musical español; eswiki «Reincidentes»; wikidata_id de la ficha: Q2561938"}
+  - sujeto: band:reincidentes
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/47a40555-4df7-41f5-a4a5-6033b198a3e3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/47a40555-4df7-41f5-a4a5-6033b198a3e3",
+         evidencia: "MusicBrainz «Reincidentes» (Spanish punk rock band): Q2561938 declara este MBID y MusicBrainz enlaza de vuelta a Q2561938"}
+  - sujeto: band:tabletom
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5572981"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5572981",
+         evidencia: "Wikidata «Tabletom» — banda de rock española; eswiki «Tabletom»; wikidata_id de la ficha: Q5572981"}
+  - sujeto: band:tabletom
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4a786ef7-131b-4522-bfca-095a48a53ade"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4a786ef7-131b-4522-bfca-095a48a53ade",
+         evidencia: "MusicBrainz «Tabletom»: Q5572981 declara este MBID y MusicBrainz enlaza de vuelta a Q5572981"}
+  - sujeto: band:the-flying-rebollos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q6144458"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q6144458",
+         evidencia: "Wikidata «The Flying Rebollos» — Spanish musical group; eswiki «The Flying Rebollos»; wikidata_id de la ficha: Q6144458"}
+  - sujeto: band:the-flying-rebollos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/142bc978-3830-4d28-8fdf-69c84ec4f600"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/142bc978-3830-4d28-8fdf-69c84ec4f600",
+         evidencia: "MusicBrainz «The Flying Rebollos»: Q6144458 declara este MBID y MusicBrainz enlaza de vuelta a Q6144458"}
+  - sujeto: person:camaron
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q312093"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q312093",
+         evidencia: "Wikidata «Camarón de la Isla» — cantautor español de ascendencia gitana; eswiki «Camarón de la Isla»; wikidata_id de la ficha: Q312093"}
+  - sujeto: person:camaron
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "MusicBrainz «Camarón de la Isla»: Q312093 declara este MBID y MusicBrainz enlaza de vuelta a Q312093"}
+  - sujeto: person:david-lerman
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q123516252"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q123516252",
+         evidencia: "Wikidata «David Lerman» — Guitarrista y Saxofonista Español; Wikidata Q123516175 P527 → Q123516252 (David Lerman)"}
+  - sujeto: person:fermin-muguruza
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q1350622"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q1350622",
+         evidencia: "Wikidata «Fermin Muguruza» — músico, cantautor y director de cine español; eswiki «Fermin Muguruza»; wikidata_id de la ficha: Q1350622"}
+  - sujeto: person:fermin-muguruza
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63",
+         evidencia: "MusicBrainz «Fermín Muguruza»: Q1350622 declara este MBID y MusicBrainz enlaza de vuelta a Q1350622"}
+  - sujeto: person:fito-cabrales
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3751202"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3751202",
+         evidencia: "Wikidata «Fito Cabrales» — músico español; eswiki «Fito Cabrales»; wikidata_id de la ficha: Q3751202"}
+  - sujeto: person:fito-cabrales
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd",
+         evidencia: "MusicBrainz «Fito Cabrales»: Q3751202 declara este MBID y MusicBrainz enlaza de vuelta a Q3751202"}
+  - sujeto: person:frank-zappa
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q127330"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q127330",
+         evidencia: "Wikidata «Frank Zappa» — compositor y guitarrista estadounidense (1940-1993); eswiki «Frank Zappa»; wikidata_id de la ficha: Q127330"}
+  - sujeto: person:frank-zappa
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "MusicBrainz «Frank Zappa» (US musician, composer, activist & filmmaker): Q127330 declara este MBID y MusicBrainz enlaza de vuelta a Q127330"}
+  - sujeto: person:freddie-mercury
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q15869"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q15869",
+         evidencia: "Wikidata «Freddie Mercury» — cantante y compositor británico; eswiki «Freddie Mercury»; wikidata_id de la ficha: Q15869"}
+  - sujeto: person:freddie-mercury
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f",
+         evidencia: "MusicBrainz «Freddie Mercury»: Q15869 declara este MBID y MusicBrainz enlaza de vuelta a Q15869"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5198493"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493",
+         evidencia: "Wikidata «Iñaki Antón» — músico español; eswiki «Iñaki Antón»; MusicBrainz extremoduro member of band → cebb8d3a-064d-481d-a9e4-e61762c66def (Iñaki Antón); wikidata_id de la ficha: Q5198493"}
+  - sujeto: person:jose-ignacio-cantera
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5637367"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5637367",
+         evidencia: "Wikidata «José Ignacio Cantera» — batería español de rock; eswiki «José Ignacio Cantera»; MusicBrainz extremoduro member of band → 450c32e4-1cd8-4aea-b3b9-87e81b4aea01 (José Ignacio Cantera); wikidata_id de la ficha: Q5637367"}
+  - sujeto: person:jose-ignacio-cantera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01",
+         evidencia: "MusicBrainz «José Ignacio Cantera»: Q5637367 declara este MBID y MusicBrainz enlaza de vuelta a Q5637367"}
+  - sujeto: person:kutxi-romero
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3756845"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845",
+         evidencia: "Wikidata «Kutxi Romero» — escritor español; eswiki «Kutxi Romero»; wikidata_id de la ficha: Q3756845"}
+  - sujeto: label:avispa
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2069679"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2069679",
+         evidencia: "Wikidata «Avispa Music» — compañía discográfica; eswiki «Avispa Music»; wikidata_id de la ficha: Q2069679"}
+  - sujeto: label:dro
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3030172"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3030172",
+         evidencia: "Wikidata «Discos Radiactivos Organizados» — Sello discográfico de España; eswiki «Discos Radiactivos Organizados»; wikidata_id de la ficha: Q3030172"}
+  - sujeto: label:warner
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q56517330"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q56517330",
+         evidencia: "Wikidata «Warner Music Spain» — Spanish record label owned by Warner Music Spain, S.L.; eswiki «Warner Music Spain»; wikidata_id de la ficha: Q56517330"}
+  - sujeto: person:leiva
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q11686081"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q11686081",
+         evidencia: "Wikidata «José Miguel Conejo Torres» — cantante español; eswiki «Leiva (cantante)»; wikidata_id de la ficha: Q11686081"}
+  - sujeto: person:leiva
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24",
+         evidencia: "MusicBrainz «Leiva» (singer of Spanish band Pereza): Q11686081 declara este MBID y MusicBrainz enlaza de vuelta a Q11686081"}
+  - sujeto: person:manolete
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q363911"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q363911",
+         evidencia: "Wikidata «Manolete» — torero español; eswiki «Manolete»; wikidata_id de la ficha: Q363911"}
+  - sujeto: person:manolo-chinato
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5790366"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5790366",
+         evidencia: "Wikidata «Manolo Chinato» — poeta español; eswiki «Manolo Chinato»; wikidata_id de la ficha: Q5790366"}
+  - sujeto: person:manolo-chinato
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f",
+         evidencia: "MusicBrainz «Manolo Chinato»: Q5790366 declara este MBID y MusicBrainz enlaza de vuelta a Q5790366"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3572194"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3572194",
+         evidencia: "Wikidata «Manolo Kabezabolo» — cantante español; eswiki «Manolo Kabezabolo»; wikidata_id de la ficha: Q3572194"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/fc83496d-4267-4276-b353-4ef2cf5bd4c9"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/fc83496d-4267-4276-b353-4ef2cf5bd4c9",
+         evidencia: "MusicBrainz «Manolo Kabezabolo»: Q3572194 declara este MBID y MusicBrainz enlaza de vuelta a Q3572194"}
+  - sujeto: person:miguel-colino
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q9032688"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q9032688",
+         evidencia: "Wikidata «Miguel Colino» — músico español; eswiki «Miguel Colino»; MusicBrainz extremoduro member of band → 2eb7c3e1-b562-401a-ac63-7f9a803d577b (Miguel Colino); wikidata_id de la ficha: Q9032688"}
+  - sujeto: person:miguel-colino
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b",
+         evidencia: "MusicBrainz «Miguel Colino»: Q9032688 declara este MBID y MusicBrainz enlaza de vuelta a Q9032688"}
+  - sujeto: person:rosendo-mercado
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3324618"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3324618",
+         evidencia: "Wikidata «Rosendo Mercado» — cantante y compositor español; eswiki «Rosendo Mercado»; wikidata_id de la ficha: Q3324618"}
+  - sujeto: person:rosendo-mercado
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803",
+         evidencia: "MusicBrainz «Rosendo»: Q3324618 declara este MBID y MusicBrainz enlaza de vuelta a Q3324618"}
+  - sujeto: person:woody-amores
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q123516278"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q123516278",
+         evidencia: "Wikidata «Woody Amores» — Guitarrista y productor musical español; Wikidata Q123516175 P527 → Q123516278 (Woody Amores)"}
