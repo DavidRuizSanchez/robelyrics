@@ -21,7 +21,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import { enlacesRelaciones, fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
@@ -549,16 +549,13 @@ export default async function PersonPage({
           <RelacionesVerificadas
             relaciones={detail.jsonld_verificadas}
             excluir={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
+            cuerpo={detail.seo_body}
           />
 
           {detail.seo_body && (
             <MarkdownArticle
               markdown={detail.seo_body}
-              yaEnlazados={[
-                ...enlacesCabecera,
-                ...enlacesPersonDataTable(detail),
-                ...enlacesRelaciones(detail.jsonld_verificadas),
-              ]}
+              yaEnlazados={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
             />
           )}
         </article>

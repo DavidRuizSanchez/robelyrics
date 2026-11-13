@@ -18,7 +18,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import { enlacesRelaciones, fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
@@ -305,14 +305,9 @@ export default async function GrupoPage({
             </div>
           </header>
 
-          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} />
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
 
-          {detail.seo_body && (
-            <MarkdownArticle
-              markdown={detail.seo_body}
-              yaEnlazados={enlacesRelaciones(detail.jsonld_verificadas)}
-            />
-          )}
+          {detail.seo_body && <MarkdownArticle markdown={detail.seo_body} />}
         </article>
 
         <RelatedVideos videos={detail.related_videos} />

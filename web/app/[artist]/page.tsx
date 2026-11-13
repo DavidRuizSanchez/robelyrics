@@ -5,7 +5,7 @@ import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
-import { conVerificadas, enlacesRelaciones } from "@/lib/relaciones-jsonld";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoArtista } from "@/components/estudio/EnDirectoBloque";
 import RelatedPosts from "@/components/RelatedPosts";
@@ -173,7 +173,7 @@ export default async function ArtistPublicPage({
             </figure>
           )}
 
-          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} />
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
           <MarkdownArticle
             markdown={detail.seo_body}
             yaEnlazados={[
@@ -181,7 +181,6 @@ export default async function ArtistPublicPage({
               `/discografia/${artist}`,
               ...detail.albums.map((a) => `/${artist}/${a.slug}`),
               ...(detail.members ?? []).filter((m) => m.has_page !== false).map((m) => `/personas/${m.slug}`),
-              ...enlacesRelaciones(detail.jsonld_verificadas),
             ]}
           />
           <EnDirectoArtista slug={detail.slug} />

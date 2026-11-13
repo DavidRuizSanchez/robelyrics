@@ -13,7 +13,6 @@ from sqlalchemy import select
 
 from app.db.models import (
     Album,
-    EntityRelation,
     Artist,
     Band,
     BandMembership,
@@ -38,7 +37,7 @@ def db():
 
     md = MetaData()
     modelos = (Person, SeoContent, BandMembership, Artist, Album, Song, SongCredit,
-               Band, Place, Theme, Concept, EntityRelation)
+               Band, Place, Theme, Concept)
     for tabla in _con_dependencias([m.__table__ for m in modelos]):
         t = tabla.to_metadata(md)
         for col in t.columns:

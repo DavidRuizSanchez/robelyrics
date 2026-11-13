@@ -98,12 +98,17 @@ export type RelacionVisible = {
 
 // Lo que se pinta sale del MISMO fragmento que se marca: así no pueden divergir
 // («lo que se marca, se ve», plan de datos estructurados). Los `sameAs` son
-// identidad, no relación: no se pintan. `excluir`: rutas que la ficha ya enseña.
+// identidad, no relación: no se pintan. `excluir`: rutas que la ficha ya enseña
+// (no se repiten). `sinEnlace`: rutas que ya enlaza el CUERPO; esas se nombran sin
+// enlace, porque el cuerpo manda: sus enlaces no se tocan (David, 13-11-2026) y
+// así se mantiene «1 por destino».
 export function relacionesVisibles(
   relaciones: Record<string, unknown> | null | undefined,
   excluir: Iterable<string> = [],
+  sinEnlace: Iterable<string> = [],
 ): RelacionVisible[] {
   const fuera = new Set(excluir);
+  const delCuerpo = new Set(sinEnlace);
   const out: RelacionVisible[] = [];
   for (const [prop, valor] of Object.entries(relaciones || {})) {
     if (prop === "sameAs" || prop.startsWith("@")) continue;
@@ -127,17 +132,13 @@ export function relacionesVisibles(
             ? `hasta ${nodo.endDate}`
             : null,
       ].filter((x): x is string => !!x);
-      out.push({ etiqueta, nombre, href, detalle: partes.length ? partes.join(", ") : null });
+      out.push({
+        etiqueta,
+        nombre,
+        href: href && delCuerpo.has(href) ? null : href,
+        detalle: partes.length ? partes.join(", ") : null,
+      });
     }
   }
   return out;
-}
-
-export function enlacesRelaciones(
-  relaciones: Record<string, unknown> | null | undefined,
-  excluir: Iterable<string> = [],
-): string[] {
-  return relacionesVisibles(relaciones, excluir)
-    .map((r) => r.href)
-    .filter((h): h is string => !!h);
 }

@@ -10,7 +10,7 @@ import PublicHeader from "@/components/PublicHeader";
 import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import RelatedSongs from "@/components/RelatedSongs";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
-import { conVerificadas, enlacesRelaciones } from "@/lib/relaciones-jsonld";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
@@ -266,13 +266,14 @@ export default async function SongPublicPage({
           yaEnlazados={detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`)}
         />
 
-        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} excluir={enlacesPlantilla} />
+        <RelacionesVerificadas
+          relaciones={detail.jsonld_verificadas}
+          excluir={enlacesPlantilla}
+          cuerpo={detail.seo_body}
+        />
 
         <article className="mb-12">
-          <MarkdownArticle
-            markdown={detail.seo_body}
-            yaEnlazados={[...enlacesPlantilla, ...enlacesRelaciones(detail.jsonld_verificadas, enlacesPlantilla)]}
-          />
+          <MarkdownArticle markdown={detail.seo_body} yaEnlazados={enlacesPlantilla} />
         </article>
 
         <RelatedSongs songs={detail.related_songs} />

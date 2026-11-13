@@ -2,16 +2,20 @@
 // fragmento JSON-LD que se marca (`jsonld_verificadas`). Sin hooks: vale en server.
 import Link from "next/link";
 
+import { rutasDelCuerpo } from "@/lib/enlazado";
 import { relacionesVisibles } from "@/lib/relaciones-jsonld";
 
 export default function RelacionesVerificadas({
   relaciones,
   excluir = [],
+  cuerpo,
 }: {
   relaciones: Record<string, unknown> | null | undefined;
   excluir?: Iterable<string>;
+  // El cuerpo de la ficha: lo que ya enlaza se nombra aquí sin enlace (el cuerpo manda).
+  cuerpo?: string | null;
 }) {
-  const filas = relacionesVisibles(relaciones, excluir);
+  const filas = relacionesVisibles(relaciones, excluir, rutasDelCuerpo(cuerpo));
   if (filas.length === 0) return null;
   const porEtiqueta = new Map<string, typeof filas>();
   for (const f of filas) porEtiqueta.set(f.etiqueta, [...(porEtiqueta.get(f.etiqueta) ?? []), f]);

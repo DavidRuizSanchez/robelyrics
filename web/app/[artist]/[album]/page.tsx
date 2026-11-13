@@ -5,7 +5,7 @@ import AlbumDataTable from "@/components/AlbumDataTable";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
-import { conVerificadas, enlacesRelaciones } from "@/lib/relaciones-jsonld";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
 import MoreFromArtist, { discosVecinos } from "@/components/MoreFromArtist";
@@ -164,11 +164,10 @@ export default async function AlbumPublicPage({
         </header>
 
         <article className="mb-4">
-          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} />
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
           <MarkdownArticle
             markdown={detail.seo_body}
             yaEnlazados={[
-              ...enlacesRelaciones(detail.jsonld_verificadas),
               // Lo que ya enlaza la plantilla: artista, discografía, tracklist y «Más discos».
               `/${artistSlug}`,
               `/discografia/${artistSlug}`,

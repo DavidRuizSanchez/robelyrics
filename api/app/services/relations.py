@@ -385,25 +385,3 @@ def jsonld_de(db: Session, tipo: str, ident: int, *, site_url: str | None = None
         inv = INVERSA[r.predicate]
         poner(inv, _envolver(inv, nodo_ref(ref, base), r.role_name, r.start_date, r.end_date))
     return out or None
-
-
-def rutas_de(db: Session, tipo: str, ident: int) -> set[str]:
-    """Rutas internas que la ficha pinta por sus relaciones verificadas (en los dos
-    sentidos). Son enlaces de PLANTILLA: `link_policy.plantilla_de` las necesita para
-    que el autolinker no gaste presupuesto en lo que luego sale como texto."""
-    from app.db.models import EntityRelation
-
-    out: set[str] = set()
-    directas = (db.query(EntityRelation.object_type, EntityRelation.object_id)
-                .filter(EntityRelation.subject_type == tipo, EntityRelation.subject_id == ident,
-                        EntityRelation.status == "verificada",
-                        EntityRelation.object_id.isnot(None)).all())
-    inversas = (db.query(EntityRelation.subject_type, EntityRelation.subject_id)
-                .filter(EntityRelation.object_type == tipo, EntityRelation.object_id == ident,
-                        EntityRelation.status == "verificada",
-                        EntityRelation.predicate.in_(list(INVERSA))).all())
-    for t, i in [*directas, *inversas]:
-        ref = ref_por_id(db, t, i)
-        if ref is not None and ref.publicada and ref.path:
-            out.add(ref.path)
-    return out

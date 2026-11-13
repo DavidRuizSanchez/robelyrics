@@ -321,15 +321,15 @@ def test_lugar_sin_coordenadas_se_valida_como_se_sirve(cat):
     assert not rel.validar(cat, _p("person:alen", "birthPlace", "place:plasencia"))[0]
 
 
-def test_la_plantilla_cuenta_los_enlaces_de_las_relaciones(cat):
+def test_las_relaciones_no_tocan_la_regla_de_enlazado(cat):
+    """David (13-11-2026): no se eliminan enlaces del texto. La sección de relaciones
+    cede ante el cuerpo (nombra sin enlace lo que el cuerpo ya enlaza), así que NO es
+    plantilla: si contara, el cuerpo dejaría de contar esos enlaces y el relinker del
+    domingo podría añadir otros."""
     from app.services.link_policy import plantilla_de
 
     _guardar(cat, _p("person:alen", "memberOf", "band:marea", estado="verificada",
                      verificado_por="david", fuentes=[
                          {"kind": "creditos_disco", "tier": "T1", "evidencia": "x"}]))
     alen = rel.resolver_ref(cat, "person:alen")
-    marea = rel.resolver_ref(cat, "band:marea")
-    assert rel.rutas_de(cat, "person", alen.id) == {"/grupos/marea"}
-    assert rel.rutas_de(cat, "band", marea.id) == {"/personas/alen"}   # la inversa
-    assert "/grupos/marea" in plantilla_de(cat, "person", alen.id, {})
-    assert "/personas/alen" in plantilla_de(cat, "band", marea.id, {})
+    assert "/grupos/marea" not in plantilla_de(cat, "person", alen.id, {})

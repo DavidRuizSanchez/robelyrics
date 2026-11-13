@@ -28,3 +28,12 @@ export function rutas(hrefs: Iterable<string | null | undefined>): Set<string> {
   }
   return out;
 }
+
+// Enlace markdown inline (no imágenes), con UN nivel de corchetes en el texto: el
+// mismo patrón que `link_policy.ENLACE` en el backend.
+const ENLACE_MD = /(?<!!)\[(?:[^[\]]|\[[^[\]]*\])+\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+
+/** Rutas internas que enlaza un cuerpo en markdown. */
+export function rutasDelCuerpo(md?: string | null): Set<string> {
+  return rutas([...(md ?? "").matchAll(ENLACE_MD)].map((m) => m[1]));
+}

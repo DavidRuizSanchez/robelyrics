@@ -4,7 +4,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoLugar } from "@/components/estudio/EnDirectoBloque";
 import RelacionesVerificadas from "@/components/RelacionesVerificadas";
-import { enlacesRelaciones, fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -132,16 +132,13 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
           </figure>
         )}
 
-        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} />
+        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
 
         {detail.seo_body ? (
           <section className="mb-12">
             <MarkdownArticle
               markdown={detail.seo_body}
-              yaEnlazados={[
-                ...detail.songs.map((s) => s.url_path),
-                ...enlacesRelaciones(detail.jsonld_verificadas),
-              ]}
+              yaEnlazados={detail.songs.map((s) => s.url_path)}
             />
           </section>
         ) : (
