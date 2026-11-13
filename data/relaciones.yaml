@@ -2196,3 +2196,148 @@ relaciones:
     fuentes:
       - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/abaf777d-39b4-489c-a1df-24c2715a2588",
          evidencia: "Pista 9 de la edición 85c2a537… de su disco (acreditado): «El camino de las utopías»; su grabación es interpretación de la obra «El camino de las utopías»"}
+  # --- Wikipedia (eswiki) por el sitelink del Q-ID acreditado, 13-11-2026 ---------------
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Extremoduro"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472",
+         evidencia: "sitelink eswiki «Extremoduro»; el artículo (revisión 176250400) declara wikibase_item Q2311472"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/El_Dromedario_Records"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q24279015",
+         evidencia: "sitelink eswiki «El Dromedario Records»; el artículo (revisión 169458054) declara wikibase_item Q24279015"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Agila_(%C3%A1lbum)"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q614313",
+         evidencia: "sitelink eswiki «Agila (álbum)»; el artículo (revisión 173434687) declara wikibase_item Q614313"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Plasencia"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767",
+         evidencia: "sitelink eswiki «Plasencia»; el artículo (revisión 174847418) declara wikibase_item Q241767"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/T%C3%BA_en_tu_casa,_nosotros_en_la_hoguera"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q122974312",
+         evidencia: "sitelink eswiki «Tú en tu casa, nosotros en la hoguera»; el artículo (revisión 172702807) declara wikibase_item Q122974312"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Somos_unos_animales"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q7560515",
+         evidencia: "sitelink eswiki «Somos unos animales»; el artículo (revisión 174744548) declara wikibase_item Q7560515"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Deltoya"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217497",
+         evidencia: "sitelink eswiki «Deltoya»; el artículo (revisión 175854900) declara wikibase_item Q5217497"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5307426",
+         evidencia: "sitelink eswiki «¿Dónde están mis amigos?»; el artículo (revisión 174744552) declara wikibase_item Q5307426"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Rock_transgresivo"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217464",
+         evidencia: "sitelink eswiki «Rock transgresivo»; el artículo (revisión 174757639) declara wikibase_item Q5217464"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Pedr%C3%A1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3313048",
+         evidencia: "sitelink eswiki «Pedrá»; el artículo (revisión 175854903) declara wikibase_item Q3313048"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Iros_todos_a_tomar_por_culo"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217524",
+         evidencia: "sitelink eswiki «Iros todos a tomar por culo»; el artículo (revisión 174757637) declara wikibase_item Q5217524"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Canciones_prohibidas"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217473",
+         evidencia: "sitelink eswiki «Canciones prohibidas»; el artículo (revisión 174757633) declara wikibase_item Q5217473"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Yo,_minor%C3%ADa_absoluta"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3312416",
+         evidencia: "sitelink eswiki «Yo, minoría absoluta»; el artículo (revisión 174757638) declara wikibase_item Q3312416"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/La_ley_innata"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3312384",
+         evidencia: "sitelink eswiki «La ley innata»; el artículo (revisión 175744432) declara wikibase_item Q3312384"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Material_defectuoso"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q383501",
+         evidencia: "sitelink eswiki «Material defectuoso»; el artículo (revisión 174971918) declara wikibase_item Q383501"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q15146540",
+         evidencia: "sitelink eswiki «Para todos los públicos»; el artículo (revisión 174757636) declara wikibase_item Q15146540"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Lo_que_aletea_en_nuestras_cabezas"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q20056387",
+         evidencia: "sitelink eswiki «Lo que aletea en nuestras cabezas»; el artículo (revisión 173118822) declara wikibase_item Q20056387"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Bienvenidos_al_temporal_(%C3%A1lbum)"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q59348864",
+         evidencia: "sitelink eswiki «Bienvenidos al temporal (álbum)»; el artículo (revisión 171202244) declara wikibase_item Q59348864"}
