@@ -69,6 +69,7 @@ persons:
     full_name: José Ignacio Cantera
     stage_name: Iñaki Cantera
     wikipedia_url: https://es.wikipedia.org/wiki/Jos%C3%A9_Ignacio_Cantera
+    birth_date: 1970-01-30  # MusicBrainz (450c32e4…) y eswiki; Wikidata solo da el año
     memberships:
       - artist: extremoduro
         role: batería
@@ -324,6 +325,9 @@ persons:
 
   - slug: albert-pla
     full_name: Albert Pla
+    # 22-09-1966 según Wikidata (Q942636) y MusicBrainz (ba77d3af…). Hasta el 13-11-2026 la BD
+    # servía 1953-09-05, que no salía de ninguna fuente.
+    birth_date: 1966-09-22
     wikipedia_url: https://es.wikipedia.org/wiki/Albert_Pla
 
   - slug: fermin-muguruza
