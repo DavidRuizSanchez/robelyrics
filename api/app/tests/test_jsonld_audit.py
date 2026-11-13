@@ -1,9 +1,10 @@
 """Invariantes del JSON-LD servido (fase 0 del plan de datos estructurados).
 
-La fixture `jsonld_linea_base_2026-11-13.json.gz` es el JSON-LD REAL de las 389
-URLs del sitemap rastreadas el 13-11-2026 a las 10:05 UTC (`scripts/seo/audit_jsonld.py
---guardar`). Se re-congeló ese día tras quitar los Q-IDs inventados (PR #117): las 136
-líneas que se perdieron apuntaban todas a Wikidata. La del 12-11 era la primera. Con ella, el CI comprueba dos cosas que un caso sintético no prueba:
+La fixture `jsonld_linea_base_2026-11-13b.json.gz` es el JSON-LD REAL de las 389
+URLs del sitemap rastreadas el 13-11-2026 hacia las 11:36 UTC (`scripts/seo/audit_jsonld.py
+--guardar`), tras cargar y pintar las relaciones de la muestra (PR #120): la única pérdida
+fueron las 3 líneas del birthPlace en texto de Robe, sustituido por el verificado (David).
+Antes: la del 13-11 10:05 (sin los Q-IDs inventados, #117) y la del 12-11, la primera. Con ella, el CI comprueba dos cosas que un caso sintético no prueba:
 que el verificador encuentra justo los fallos que había publicados ese día, y que
 `data/jsonld_excepciones.yaml` los declara todos y nada más.
 """
@@ -20,7 +21,7 @@ import pytest
 from app.services import jsonld_audit as ja
 from app.services import page_monitor as pm
 
-FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-13.json.gz"
+FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-13b.json.gz"
 S = "https://entreinteriores.com"
 
 
@@ -63,12 +64,14 @@ def test_la_huella_congelada_es_la_de_la_fixture(paginas):
         assert sorted(paginas[path].huella) == huella, path
 
 
-def test_alen_ayerdi_solo_marca_nombre_url_e_imagen(paginas):
-    """El caso que abrió el plan (A-01): ni Marea, ni El Dromedario, ni Robe."""
+def test_alen_ayerdi_ya_marca_sus_grupos(paginas):
+    """El caso que abrió el plan (A-01): el 12-11 Alén solo marcaba nombre, URL e
+    imagen. Desde el 13-11 (#120) marca su identidad y sus grupos, con fuente."""
     pag = paginas["/personas/alen-ayerdi"]
     props = {linea.split(" ", 2)[1] for linea in pag.huella
              if linea.startswith("/personas/alen-ayerdi#person ")}
-    assert props == {"@type", "name", "url", "image"}
+    assert {"memberOf", "sameAs"} <= props
+    assert any(l.endswith("memberOf → /grupos/marea#musicgroup") for l in pag.huella)
 
 
 # --------------------------------------------------------------------------- #
