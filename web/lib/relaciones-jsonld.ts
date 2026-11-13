@@ -73,6 +73,7 @@ export const ETIQUETAS_RELACION: Record<string, string> = {
   deathPlace: "Murió en",
   foundingLocation: "Fundado en",
   producer: "Producción",
+  contributor: "Créditos",
   containedInPlace: "Situado en",
   homeLocation: "Vive en",
   worksFor: "Trabaja en",
