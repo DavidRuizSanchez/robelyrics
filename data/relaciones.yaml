@@ -1469,3 +1469,730 @@ relaciones:
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
       - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+
+# --- Identidades de las canciones (13-11-2026) -------------------------------------
+# La obra (composición) de MusicBrainz de 90 canciones (+ «Golfa», que ya estaba): cada
+# una casada con la pista de la edición acreditada de SU disco por número de pista y
+# título, y de su grabación a la obra. Fuera: los directos, las 7 parejas «Tú en tu casa
+# (1990) / Rock transgresivo (1994)» que comparten obra, y las 34 de Robe sin obra en MB.
+# Evidencia en data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/canciones/.
+  - sujeto: song:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/amor-castuo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/28e2ddbc-1921-4fce-8e33-e69651439c24"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/28e2ddbc-1921-4fce-8e33-e69651439c24",
+         evidencia: "Pista 4 de la edición b6afa9c1… de su disco (acreditado): «Amor castúo»; su grabación es interpretación de la obra «Amor castúo»"}
+  - sujeto: song:extremoduro/somos-unos-animales/tu-corazon
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5fd3de6b-83cc-48d2-84af-444b95b418cf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5fd3de6b-83cc-48d2-84af-444b95b418cf",
+         evidencia: "Pista 1 de la edición 7b103448… de su disco (acreditado): «Tu corazón»; su grabación es interpretación de la obra «Tu corazón»"}
+  - sujeto: song:extremoduro/somos-unos-animales/la-cancion-de-los-oficios
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/861223e6-64ec-418b-ae7e-6ad7c15d894f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/861223e6-64ec-418b-ae7e-6ad7c15d894f",
+         evidencia: "Pista 2 de la edición 7b103448… de su disco (acreditado): «La canción de los oficios»; su grabación es interpretación de la obra «La canción de los oficios»"}
+  - sujeto: song:extremoduro/somos-unos-animales/quemando-tus-recuerdos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/663aeeaf-3cc0-46f8-bfd6-1b86eb039c10"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/663aeeaf-3cc0-46f8-bfd6-1b86eb039c10",
+         evidencia: "Pista 3 de la edición 7b103448… de su disco (acreditado): «Quemando tus recuerdos»; su grabación es interpretación de la obra «Quemando tus recuerdos»"}
+  - sujeto: song:extremoduro/somos-unos-animales/v-centenario
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a7dcbc5a-ace6-43ec-90a2-9e9af0d5f91b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a7dcbc5a-ace6-43ec-90a2-9e9af0d5f91b",
+         evidencia: "Pista 4 de la edición 7b103448… de su disco (acreditado): «V Centenario»; su grabación es interpretación de la obra «V Centenario»"}
+  - sujeto: song:extremoduro/somos-unos-animales/j-d-la-central-nuclear
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/92c86f17-ea7d-4f9c-89b4-74a3304fa7ee"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/92c86f17-ea7d-4f9c-89b4-74a3304fa7ee",
+         evidencia: "Pista 5 de la edición 7b103448… de su disco (acreditado): «J.D. La central nuclear»; su grabación es interpretación de la obra «J.D. La central nuclear»"}
+  - sujeto: song:extremoduro/somos-unos-animales/ni-principes-ni-princesas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/79ee8e80-ebde-4138-b8ad-480556b33efa"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/79ee8e80-ebde-4138-b8ad-480556b33efa",
+         evidencia: "Pista 6 de la edición 7b103448… de su disco (acreditado): «Ni príncipes ni princesas»; su grabación es interpretación de la obra «Ni príncipes ni princesas»"}
+  - sujeto: song:extremoduro/somos-unos-animales/perro-callejero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/6144fd7e-6e2b-4b54-8464-d8edf7b720bc"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/6144fd7e-6e2b-4b54-8464-d8edf7b720bc",
+         evidencia: "Pista 7 de la edición 7b103448… de su disco (acreditado): «Perro callejero»; su grabación es interpretación de la obra «Perro callejero»"}
+  - sujeto: song:extremoduro/somos-unos-animales/desidia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/bd7ae27d-0f05-44b2-bf71-d9b1fa5a6524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/bd7ae27d-0f05-44b2-bf71-d9b1fa5a6524",
+         evidencia: "Pista 8 de la edición 7b103448… de su disco (acreditado): «Desidia»; su grabación es interpretación de la obra «Desidia»"}
+  - sujeto: song:extremoduro/somos-unos-animales/resolucion
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2ff35084-736f-4458-9714-4ab1cacab90e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2ff35084-736f-4458-9714-4ab1cacab90e",
+         evidencia: "Pista 9 de la edición 7b103448… de su disco (acreditado): «Resolución»; su grabación es interpretación de la obra «Resolución»"}
+  - sujeto: song:extremoduro/somos-unos-animales/necesito-droga-y-amor-los-camellos-no-me-fian
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ed42c858-258e-465c-a5c8-176aa9e8422c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ed42c858-258e-465c-a5c8-176aa9e8422c",
+         evidencia: "Pista 10 de la edición 7b103448… de su disco (acreditado): «Necesito droga y amor»; su grabación es interpretación de la obra «Necesito droga y amor»"}
+  - sujeto: song:extremoduro/deltoya/sol-de-invierno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cdf12767-e8a8-4f58-9be0-2c6134f90b02"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cdf12767-e8a8-4f58-9be0-2c6134f90b02",
+         evidencia: "Pista 1 de la edición 38ae7156… de su disco (acreditado): «Sol de invierno»; su grabación es interpretación de la obra «Sol de invierno»"}
+  - sujeto: song:extremoduro/deltoya/de-acero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ded5e6a8-3898-475a-bdde-c645de7053cf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ded5e6a8-3898-475a-bdde-c645de7053cf",
+         evidencia: "Pista 2 de la edición 38ae7156… de su disco (acreditado): «De acero»; su grabación es interpretación de la obra «De acero»"}
+  - sujeto: song:extremoduro/deltoya/ultima-generacion
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9b9f4d5d-0377-4a02-b7cc-fa119c4fd726"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9b9f4d5d-0377-4a02-b7cc-fa119c4fd726",
+         evidencia: "Pista 3 de la edición 38ae7156… de su disco (acreditado): «Última generación»; su grabación es interpretación de la obra «Última generación»"}
+  - sujeto: song:extremoduro/deltoya/lucha-contigo-hoy-quiero-ganar-una-batalla-solo-una-pa-empezar
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/34b0e177-a0b4-482b-b2ef-b50b252400fb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/34b0e177-a0b4-482b-b2ef-b50b252400fb",
+         evidencia: "Pista 4 de la edición 38ae7156… de su disco (acreditado): «Lucha contigo»; su grabación es interpretación de la obra «Lucha contigo»"}
+  - sujeto: song:extremoduro/deltoya/con-un-latido-del-reloj
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/646b9a0a-1ac4-4b55-9e81-5dc15a8ba5f5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/646b9a0a-1ac4-4b55-9e81-5dc15a8ba5f5",
+         evidencia: "Pista 5 de la edición 38ae7156… de su disco (acreditado): «Con un latido del reloj»; su grabación es interpretación de la obra «Con un latido del reloj»"}
+  - sujeto: song:extremoduro/deltoya/bulerias-de-la-sangre-caliente-polla-dura-no-cree-en-dios
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cb2dfc92-3a2b-495d-b07d-01ec95da8014"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cb2dfc92-3a2b-495d-b07d-01ec95da8014",
+         evidencia: "Pista 6 de la edición 38ae7156… de su disco (acreditado): «Bulerías de la sangre caliente»; su grabación es interpretación de la obra «Bulerías de la sangre caliente»"}
+  - sujeto: song:extremoduro/deltoya/deltoya
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/35048dc7-b8c3-4fd1-9f13-aa1a62293b08"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/35048dc7-b8c3-4fd1-9f13-aa1a62293b08",
+         evidencia: "Pista 7 de la edición 38ae7156… de su disco (acreditado): «Deltoya»; su grabación es interpretación de la obra «Deltoya»"}
+  - sujeto: song:extremoduro/deltoya/relacion-convencional
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5947d4e5-8308-48d9-ae0b-3ab18174804f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5947d4e5-8308-48d9-ae0b-3ab18174804f",
+         evidencia: "Pista 8 de la edición 38ae7156… de su disco (acreditado): «Relación convencional»; su grabación es interpretación de la obra «Relación convencional»"}
+  - sujeto: song:extremoduro/deltoya/volando-solo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e9887867-b12d-4fe8-bab8-588249bd0ea6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e9887867-b12d-4fe8-bab8-588249bd0ea6",
+         evidencia: "Pista 9 de la edición 38ae7156… de su disco (acreditado): «Volando solo»; su grabación es interpretación de la obra «Volando solo»"}
+  - sujeto: song:extremoduro/deltoya/ama-ama-ama-y-ensancha-el-alma
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/68714365-cc4b-4379-8cb5-3075a80b586e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/68714365-cc4b-4379-8cb5-3075a80b586e",
+         evidencia: "Pista 10 de la edición 38ae7156… de su disco (acreditado): «Ama, ama, ama y ensancha el alma»; su grabación es interpretación de la obra «Ama, ama, ama y ensancha el alma»"}
+  - sujeto: song:extremoduro/deltoya/papel-secante
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9752ff16-6002-4404-b595-6e0316e28c17"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9752ff16-6002-4404-b595-6e0316e28c17",
+         evidencia: "Pista 11 de la edición 38ae7156… de su disco (acreditado): «Papel secante»; su grabación es interpretación de la obra «Papel secante»"}
+  - sujeto: song:extremoduro/deltoya/estado-policial-un-madero-mil-lapiceros
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0cfd4a94-baf1-4445-9161-17049a4b45f0"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0cfd4a94-baf1-4445-9161-17049a4b45f0",
+         evidencia: "Pista 12 de la edición 38ae7156… de su disco (acreditado): «Estado policial»; su grabación es interpretación de la obra «Estado policial»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/el-duende-del-parque
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b144d995-da5a-4592-b5e1-10ba1dea0858"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b144d995-da5a-4592-b5e1-10ba1dea0858",
+         evidencia: "Pista 1 de la edición db93058e… de su disco (acreditado): «El duende del parque»; su grabación es interpretación de la obra «El duende del parque»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/no-me-calientes-que-me-hundo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f6911f86-685f-4d46-a5ef-90578a6f5a98"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f6911f86-685f-4d46-a5ef-90578a6f5a98",
+         evidencia: "Pista 2 de la edición db93058e… de su disco (acreditado): «No me calientes que me hundo»; su grabación es interpretación de la obra «No me calientes que me hundo»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/sin-dios-ni-amo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/8be9101f-38dd-49e0-836d-25fa6da47a55"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/8be9101f-38dd-49e0-836d-25fa6da47a55",
+         evidencia: "Pista 3 de la edición db93058e… de su disco (acreditado): «Sin dios ni amo»; su grabación es interpretación de la obra «Sin dios ni amo»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/pepe-botika-donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2be6ff2f-011c-42a8-8ece-e4645d72bd14"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2be6ff2f-011c-42a8-8ece-e4645d72bd14",
+         evidencia: "Pista 4 de la edición db93058e… de su disco (acreditado): «Pepe Botika (¿Dónde están mis amigos?)»; su grabación es interpretación de la obra «Pepe Botika (¿Dónde están mis amigos?)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/estoy-muy-bien
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a4e93b3a-6ce2-4407-a1f3-1605c84df3f1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a4e93b3a-6ce2-4407-a1f3-1605c84df3f1",
+         evidencia: "Pista 5 de la edición db93058e… de su disco (acreditado): «Estoy muy bien»; su grabación es interpretación de la obra «Estoy muy bien»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/bri-bri-bli-bli-en-el-mas-sucio-rincon-de-mi-negro-corazon
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f8257497-c9db-424c-b4a2-1a865126fa35"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f8257497-c9db-424c-b4a2-1a865126fa35",
+         evidencia: "Pista 6 de la edición db93058e… de su disco (acreditado): «Bribriblibli (En el más sucio rincón de mi negro corazón)» (MusicBrainz escribe «Bribriblibli (En el más sucio rincón de mi negro corazón)»); su grabación es interpretación de la obra «Bribriblibli (En el más sucio rincón de mi negro corazón)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/malos-pensamientos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/45c8cdc4-98b8-4d72-b3fa-1cad3830c6f5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/45c8cdc4-98b8-4d72-b3fa-1cad3830c6f5",
+         evidencia: "Pista 7 de la edición db93058e… de su disco (acreditado): «Malos pensamientos»; su grabación es interpretación de la obra «Malos pensamientos»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/posado-en-un-nenufar
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b223b73a-0b5d-46fb-8bae-0e3c70b5860a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b223b73a-0b5d-46fb-8bae-0e3c70b5860a",
+         evidencia: "Pista 8 de la edición db93058e… de su disco (acreditado): «Posado en un nenúfar»; su grabación es interpretación de la obra «Posado en un nenúfar»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/islero-shirlero-o-ladron
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5c4bcad4-9600-46a5-8684-9da9625fc453"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5c4bcad4-9600-46a5-8684-9da9625fc453",
+         evidencia: "Pista 9 de la edición db93058e… de su disco (acreditado): «Islero, shirlero o ladrón»; su grabación es interpretación de la obra «Islero, shirlero o ladrón»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/historias-prohibidas-nos-tiramos-a-joder
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/6a073161-b1cc-4465-9e90-936c05827dce"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/6a073161-b1cc-4465-9e90-936c05827dce",
+         evidencia: "Pista 10 de la edición db93058e… de su disco (acreditado): «Historias prohibidas (Nos tiramos a joder)»; su grabación es interpretación de la obra «Historias prohibidas (Nos tiramos a joder)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/los-tengo-todos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4dbef863-0e6d-4b61-b3d5-a06bd7f42c3f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4dbef863-0e6d-4b61-b3d5-a06bd7f42c3f",
+         evidencia: "Pista 11 de la edición db93058e… de su disco (acreditado): «Los tengo todos»; su grabación es interpretación de la obra «Los tengo todos»"}
+  - sujeto: song:extremoduro/rock-transgresivo/adios-abanico-que-llego-el-aire
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a5d568bd-a4b5-4d21-b0bd-3a958fe2d697"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a5d568bd-a4b5-4d21-b0bd-3a958fe2d697",
+         evidencia: "Pista 5 de la edición 3567d70c… de su disco (acreditado): «Adiós abanico, que llegó el aire»; su grabación es interpretación de la obra «Adiós abanico, que llegó el aire»"}
+  - sujeto: song:extremoduro/rock-transgresivo/te-juzgaran-solo-por-tus-errores-yo-no
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/645ee31a-c1c8-40de-827d-63512457b5e6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/645ee31a-c1c8-40de-827d-63512457b5e6",
+         evidencia: "Pista 9 de la edición 3567d70c… de su disco (acreditado): «Te juzgarán sólo por tus errores (Yo no)»; su grabación es interpretación de la obra «Te juzgarán sólo por tus errores (Yo no)»"}
+  - sujeto: song:extremoduro/rock-transgresivo/caballero-andante-no-me-dejeis-asiii
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9b310e98-91e4-463e-9706-da3ff318acfa"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9b310e98-91e4-463e-9706-da3ff318acfa",
+         evidencia: "Pista 10 de la edición 3567d70c… de su disco (acreditado): «Caballero andante (¡No me dejéis asííí!)»; su grabación es interpretación de la obra «Caballero andante (¡No me dejéis asííí!)»"}
+  - sujeto: song:extremoduro/pedra/pedra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/160654d4-1835-4b36-b897-3ce3ac542c03"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/160654d4-1835-4b36-b897-3ce3ac542c03",
+         evidencia: "Pista 1 de la edición f0f237c7… de su disco (acreditado): «Pedrá»; su grabación es interpretación de la obra «Pedrá»"}
+  - sujeto: song:extremoduro/agila/buscando-una-luna
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d0eed6de-1226-4ebc-9178-2686c249af73"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d0eed6de-1226-4ebc-9178-2686c249af73",
+         evidencia: "Pista 1 de la edición 164a861b… de su disco (acreditado): «Buscando una luna»; su grabación es interpretación de la obra «Buscando una luna»"}
+  - sujeto: song:extremoduro/agila/prometeo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f0242a74-f5bb-456e-a67f-58fcfbde9724"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f0242a74-f5bb-456e-a67f-58fcfbde9724",
+         evidencia: "Pista 2 de la edición 164a861b… de su disco (acreditado): «Prometeo»; su grabación es interpretación de la obra «Prometeo»"}
+  - sujeto: song:extremoduro/agila/sucede
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/22526eca-a46a-4828-8925-f1a079688c17"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/22526eca-a46a-4828-8925-f1a079688c17",
+         evidencia: "Pista 3 de la edición 164a861b… de su disco (acreditado): «Sucede»; su grabación es interpretación de la obra «Sucede»"}
+  - sujeto: song:extremoduro/agila/so-payaso
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/3137f389-9caa-46ae-aad8-df9a71ecbfd3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/3137f389-9caa-46ae-aad8-df9a71ecbfd3",
+         evidencia: "Pista 4 de la edición 164a861b… de su disco (acreditado): «So payaso»; su grabación es interpretación de la obra «So payaso»"}
+  - sujeto: song:extremoduro/agila/el-dia-de-la-bestia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/012ec5a2-259b-452c-9b66-a24cb5f31247"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/012ec5a2-259b-452c-9b66-a24cb5f31247",
+         evidencia: "Pista 5 de la edición 164a861b… de su disco (acreditado): «El día de la bestia»; su grabación es interpretación de la obra «El día de la bestia»"}
+  - sujeto: song:extremoduro/agila/tomas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9e9e107c-efbd-4807-8e36-5ba208e451a2"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9e9e107c-efbd-4807-8e36-5ba208e451a2",
+         evidencia: "Pista 6 de la edición 164a861b… de su disco (acreditado): «Tomás»; su grabación es interpretación de la obra «Tomás»"}
+  - sujeto: song:extremoduro/agila/que-sonrisa-tan-rara
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b5902b26-196b-42fd-a55f-dbee1c1a0d48"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b5902b26-196b-42fd-a55f-dbee1c1a0d48",
+         evidencia: "Pista 7 de la edición 164a861b… de su disco (acreditado): «¡Qué sonrisa tan rara!»; su grabación es interpretación de la obra «¡Qué sonrisa tan rara!»"}
+  - sujeto: song:extremoduro/agila/cabezabajo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ef75b7bc-1444-4fec-9e28-03f090edda76"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ef75b7bc-1444-4fec-9e28-03f090edda76",
+         evidencia: "Pista 8 de la edición 164a861b… de su disco (acreditado): «Cabezabajo»; su grabación es interpretación de la obra «Cabezabajo»"}
+  - sujeto: song:extremoduro/agila/abreme-el-pecho-y-registra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ba015f75-93c6-489d-bc15-a93ec2688a9f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ba015f75-93c6-489d-bc15-a93ec2688a9f",
+         evidencia: "Pista 9 de la edición 164a861b… de su disco (acreditado): «Ábreme el pecho y registra»; su grabación es interpretación de la obra «Ábreme el pecho y registra»"}
+  - sujeto: song:extremoduro/agila/todos-me-dicen
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/dfb78059-059b-484e-a44a-faeb881177be"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/dfb78059-059b-484e-a44a-faeb881177be",
+         evidencia: "Pista 10 de la edición 164a861b… de su disco (acreditado): «Todos me dicen»; su grabación es interpretación de la obra «Todos me dicen»"}
+  - sujeto: song:extremoduro/agila/correcaminos-estate-al-loro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4a7fc6ca-63e2-4027-91aa-5e06f3ad974b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4a7fc6ca-63e2-4027-91aa-5e06f3ad974b",
+         evidencia: "Pista 11 de la edición 164a861b… de su disco (acreditado): «Correcaminos estate al loro»; su grabación es interpretación de la obra «Correcaminos estate al loro»"}
+  - sujeto: song:extremoduro/agila/la-carrera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e030d4b9-ed48-4f5c-bcb0-349b1fbd853e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e030d4b9-ed48-4f5c-bcb0-349b1fbd853e",
+         evidencia: "Pista 12 de la edición 164a861b… de su disco (acreditado): «La carrera»; su grabación es interpretación de la obra «La carrera»"}
+  - sujeto: song:extremoduro/agila/me-estoy-quitando
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/c2c92732-58bb-4dac-85d2-3ea53edbe58a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/c2c92732-58bb-4dac-85d2-3ea53edbe58a",
+         evidencia: "Pista 13 de la edición 164a861b… de su disco (acreditado): «Me estoy quitando»; su grabación es interpretación de la obra «Me estoy quitando»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/salir
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/99001ab7-114f-4b1a-887f-75af60bf0fa6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/99001ab7-114f-4b1a-887f-75af60bf0fa6",
+         evidencia: "Pista 1 de la edición b9b060ad… de su disco (acreditado): «Salir»; su grabación es interpretación de la obra «Salir»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/esclarecido
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4d1075c3-5bb4-427d-895c-1e48518cbe15"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4d1075c3-5bb4-427d-895c-1e48518cbe15",
+         evidencia: "Pista 2 de la edición b9b060ad… de su disco (acreditado): «Esclarecido»; su grabación es interpretación de la obra «Esclarecido»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/erase-una-vez
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f9a334f3-b0dd-4975-8450-17a683e4675e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f9a334f3-b0dd-4975-8450-17a683e4675e",
+         evidencia: "Pista 3 de la edición b9b060ad… de su disco (acreditado): «Érase una vez»; su grabación es interpretación de la obra «Érase una vez»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/su-culo-es-miel
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/7f7d4b33-dbf8-4826-a0d0-42151f9f4054"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/7f7d4b33-dbf8-4826-a0d0-42151f9f4054",
+         evidencia: "Pista 5 de la edición b9b060ad… de su disco (acreditado): «Su culo es miel»; su grabación es interpretación de la obra «Su culo es miel»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/extraterrestre
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a961a047-645e-4c43-b684-51823b95b1ac"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a961a047-645e-4c43-b684-51823b95b1ac",
+         evidencia: "Pista 6 de la edición b9b060ad… de su disco (acreditado): «Extraterrestre»; su grabación es interpretación de la obra «Extraterrestre»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/autorretrato
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e7e1e148-c0d3-4f6a-a89a-cf23d00257ff"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e7e1e148-c0d3-4f6a-a89a-cf23d00257ff",
+         evidencia: "Pista 7 de la edición b9b060ad… de su disco (acreditado): «Autorretrato»; su grabación es interpretación de la obra «Autorretrato»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/enemigo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e18e71da-c3ea-485f-84ca-2258a6a21166"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e18e71da-c3ea-485f-84ca-2258a6a21166",
+         evidencia: "Pista 8 de la edición b9b060ad… de su disco (acreditado): «Enemigo»; su grabación es interpretación de la obra «Enemigo»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/villancico-del-rey-de-extremadura-vaya-puta-mierda-de-villancico-colega
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/15de1d8d-3a3e-429e-b5d7-c992aa6afaef"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/15de1d8d-3a3e-429e-b5d7-c992aa6afaef",
+         evidencia: "Pista 9 de la edición b9b060ad… de su disco (acreditado): «Villancico del Rey de Extremadura»; su grabación es interpretación de la obra «Villancico del Rey de Extremadura»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/a-fuego
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b529d4b2-09f9-4c5a-b804-89ab5c555f93"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b529d4b2-09f9-4c5a-b804-89ab5c555f93",
+         evidencia: "Pista 1 de la edición 319835d6… de su disco (acreditado): «A fuego»; su grabación es interpretación de la obra «A fuego»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/la-vereda-de-la-puerta-de-atras
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d824c579-560b-42dc-aec5-13cf62fda58e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d824c579-560b-42dc-aec5-13cf62fda58e",
+         evidencia: "Pista 2 de la edición 319835d6… de su disco (acreditado): «La vereda de la puerta de atrás»; su grabación es interpretación de la obra «La vereda de la puerta de atrás»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/hoy-te-la-meto-hasta-las-orejas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d92e2daa-2df4-4592-b7ff-2d28694ae71f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d92e2daa-2df4-4592-b7ff-2d28694ae71f",
+         evidencia: "Pista 3 de la edición 319835d6… de su disco (acreditado): «Hoy te la meto hasta las orejas»; su grabación es interpretación de la obra «Hoy te la meto hasta las orejas»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/standby
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/821590ec-e810-4094-a19f-5dfd3433413b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/821590ec-e810-4094-a19f-5dfd3433413b",
+         evidencia: "Pista 4 de la edición 319835d6… de su disco (acreditado): «Stand By» (MusicBrainz escribe «Stand By»); su grabación es interpretación de la obra «Standby»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/menamoro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/04c8f97f-0749-4006-ab4c-8d3787c9c963"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/04c8f97f-0749-4006-ab4c-8d3787c9c963",
+         evidencia: "Pista 5 de la edición 319835d6… de su disco (acreditado): «Menamoro»; su grabación es interpretación de la obra «Menamoro»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/luce-la-oscuridad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0bdd6127-a440-4293-a633-686205f43456"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0bdd6127-a440-4293-a633-686205f43456",
+         evidencia: "Pista 6 de la edición 319835d6… de su disco (acreditado): «Luce la oscuridad»; su grabación es interpretación de la obra «Luce la oscuridad»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/cerca-del-suelo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/476d54d0-eca0-473a-bf16-0a5c98dd52bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/476d54d0-eca0-473a-bf16-0a5c98dd52bf",
+         evidencia: "Pista 7 de la edición 319835d6… de su disco (acreditado): «Cerca del suelo»; su grabación es interpretación de la obra «Cerca del suelo»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/puta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b2a1ea8d-74dd-495b-aaf6-02c5977b55d8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b2a1ea8d-74dd-495b-aaf6-02c5977b55d8",
+         evidencia: "Pista 8 de la edición 319835d6… de su disco (acreditado): «Puta»; su grabación es interpretación de la obra «Puta»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/buitre-no-come-alpiste
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fe4a6236-5b46-4d94-8ec7-ddccc2993448"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fe4a6236-5b46-4d94-8ec7-ddccc2993448",
+         evidencia: "Pista 9 de la edición 319835d6… de su disco (acreditado): «Buitre no come alpiste»; su grabación es interpretación de la obra «Buitre no come alpiste»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/la-vieja-cancion-sordida
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fc89d1d5-51fd-4170-a39e-a1c8148091bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fc89d1d5-51fd-4170-a39e-a1c8148091bf",
+         evidencia: "Pista 10 de la edición 319835d6… de su disco (acreditado): «La vieja (canción sórdida)»; su grabación es interpretación de la obra «La vieja (canción sórdida)»"}
+  - sujeto: song:extremoduro/la-ley-innata/dulce-introduccion-al-caos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a2d72409-9fb1-48e6-82a8-1355672d9eea"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a2d72409-9fb1-48e6-82a8-1355672d9eea",
+         evidencia: "Pista 1 de la edición d4aede44… de su disco (acreditado): «Dulce introducción al caos»; su grabación es interpretación de la obra «Dulce introducción al caos»"}
+  - sujeto: song:extremoduro/la-ley-innata/primer-movimiento-el-sueno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/adf28599-a0de-4dca-889b-4b03e27988fe"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/adf28599-a0de-4dca-889b-4b03e27988fe",
+         evidencia: "Pista 2 de la edición d4aede44… de su disco (acreditado): «Primer movimiento: El sueño»; su grabación es interpretación de la obra «Primer movimiento: El sueño»"}
+  - sujeto: song:extremoduro/la-ley-innata/segundo-movimiento-lo-de-fuera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/72e7cc33-917e-44bc-9b1f-b30359bf0f26"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/72e7cc33-917e-44bc-9b1f-b30359bf0f26",
+         evidencia: "Pista 3 de la edición d4aede44… de su disco (acreditado): «Segundo movimiento: Lo de fuera»; su grabación es interpretación de la obra «Segundo movimiento: Lo de fuera»"}
+  - sujeto: song:extremoduro/la-ley-innata/tercer-movimiento-lo-de-dentro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cecfd96a-7625-4ffb-b5fb-7041558a004c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cecfd96a-7625-4ffb-b5fb-7041558a004c",
+         evidencia: "Pista 4 de la edición d4aede44… de su disco (acreditado): «Tercer movimiento: Lo de dentro»; su grabación es interpretación de la obra «Tercer movimiento: Lo de dentro»"}
+  - sujeto: song:extremoduro/la-ley-innata/cuarto-movimiento-la-realidad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f7983a45-43b5-4386-9550-17772c59d2bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f7983a45-43b5-4386-9550-17772c59d2bf",
+         evidencia: "Pista 5 de la edición d4aede44… de su disco (acreditado): «Cuarto movimiento: La realidad»; su grabación es interpretación de la obra «Cuarto movimiento: La realidad»"}
+  - sujeto: song:extremoduro/la-ley-innata/coda-flamenca-otra-realidad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/90234cfa-a8a4-4b00-89e6-ce112fc436ba"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/90234cfa-a8a4-4b00-89e6-ce112fc436ba",
+         evidencia: "Pista 6 de la edición d4aede44… de su disco (acreditado): «Coda flamenca (Otra realidad)»; su grabación es interpretación de la obra «Coda flamenca (Otra realidad)»"}
+  - sujeto: song:extremoduro/material-defectuoso/desarraigo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/962f9258-7fe6-487d-9246-f06c75081cfb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/962f9258-7fe6-487d-9246-f06c75081cfb",
+         evidencia: "Pista 1 de la edición 4d55ac63… de su disco (acreditado): «Desarraigo»; su grabación es interpretación de la obra «Desarraigo»"}
+  - sujeto: song:extremoduro/material-defectuoso/mi-espiritu-imperecedero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d515f71d-794a-449d-abb8-4d0c87aa5f01"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d515f71d-794a-449d-abb8-4d0c87aa5f01",
+         evidencia: "Pista 2 de la edición 4d55ac63… de su disco (acreditado): «Mi espíritu imperecedero»; su grabación es interpretación de la obra «Mi espíritu imperecedero»"}
+  - sujeto: song:extremoduro/material-defectuoso/otra-inutil-cancion-para-la-paz
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/52b0eeb4-329a-4c91-b51e-59c7c28fe928"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/52b0eeb4-329a-4c91-b51e-59c7c28fe928",
+         evidencia: "Pista 3 de la edición 4d55ac63… de su disco (acreditado): «Otra inútil canción para la paz»; su grabación es interpretación de la obra «Otra inútil canción para la paz»"}
+  - sujeto: song:extremoduro/material-defectuoso/si-te-vas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b03c910e-86b6-4e13-85a5-101f8bdc16bd"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b03c910e-86b6-4e13-85a5-101f8bdc16bd",
+         evidencia: "Pista 4 de la edición 4d55ac63… de su disco (acreditado): «Si te vas...»; su grabación es interpretación de la obra «Si te vas...»"}
+  - sujeto: song:extremoduro/material-defectuoso/tango-suicida
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fe84160e-0b4d-4c5e-aa3b-fb188e48eb93"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fe84160e-0b4d-4c5e-aa3b-fb188e48eb93",
+         evidencia: "Pista 5 de la edición 4d55ac63… de su disco (acreditado): «Tango suicida»; su grabación es interpretación de la obra «Tango suicida»"}
+  - sujeto: song:extremoduro/material-defectuoso/calle-esperanza-s-n
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/549d60ac-9366-4d0b-b27a-094740b225c3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/549d60ac-9366-4d0b-b27a-094740b225c3",
+         evidencia: "Pista 6 de la edición 4d55ac63… de su disco (acreditado): «Calle esperanza s/n»; su grabación es interpretación de la obra «Calle esperanza s/n»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/locura-transitoria
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f7a00c3f-1623-45dc-9d60-920afc5cb878"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f7a00c3f-1623-45dc-9d60-920afc5cb878",
+         evidencia: "Pista 1 de la edición 85c2a537… de su disco (acreditado): «Locura transitoria»; su grabación es interpretación de la obra «Locura transitoria»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/entre-interiores
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e6f164ab-e10a-4c5d-9218-74ddfb22edff"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e6f164ab-e10a-4c5d-9218-74ddfb22edff",
+         evidencia: "Pista 2 de la edición 85c2a537… de su disco (acreditado): «Entre interiores»; su grabación es interpretación de la obra «Entre interiores»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/que-borde-era-mi-valle
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0c0396b5-7f2a-4ca3-8640-f1d293b36aec"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0c0396b5-7f2a-4ca3-8640-f1d293b36aec",
+         evidencia: "Pista 3 de la edición 85c2a537… de su disco (acreditado): «¡Qué borde era mi valle!»; su grabación es interpretación de la obra «¡Qué borde era mi valle!»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/poema-sobrecogido
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/65c852ed-26c9-493c-8efa-8d75343a172a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/65c852ed-26c9-493c-8efa-8d75343a172a",
+         evidencia: "Pista 4 de la edición 85c2a537… de su disco (acreditado): «Poema sobrecogido»; su grabación es interpretación de la obra «Poema sobrecogido»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/manue-iv
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/67aa350c-ff42-47e7-8b0d-66e4fb5302b8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/67aa350c-ff42-47e7-8b0d-66e4fb5302b8",
+         evidencia: "Pista 5 de la edición 85c2a537… de su disco (acreditado): «Manué IV»; su grabación es interpretación de la obra «Manué IV»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/mama
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/67a737c8-8dfa-4ccb-a183-da4205c5bef2"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/67a737c8-8dfa-4ccb-a183-da4205c5bef2",
+         evidencia: "Pista 6 de la edición 85c2a537… de su disco (acreditado): «Mama»; su grabación es interpretación de la obra «Mama»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/mi-voluntad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/86381476-8ce4-43b5-8840-70bb80ff68a8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/86381476-8ce4-43b5-8840-70bb80ff68a8",
+         evidencia: "Pista 7 de la edición 85c2a537… de su disco (acreditado): «Mi voluntad»; su grabación es interpretación de la obra «Mi voluntad»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/pequeno-rocanrol-endemico
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/48e684c8-83fa-4842-8e93-0766cb610d86"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/48e684c8-83fa-4842-8e93-0766cb610d86",
+         evidencia: "Pista 8 de la edición 85c2a537… de su disco (acreditado): «Pequeño rocanrol endémico»; su grabación es interpretación de la obra «Pequeño rocanrol endémico»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/el-camino-de-las-utopias
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/abaf777d-39b4-489c-a1df-24c2715a2588"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/abaf777d-39b4-489c-a1df-24c2715a2588",
+         evidencia: "Pista 9 de la edición 85c2a537… de su disco (acreditado): «El camino de las utopías»; su grabación es interpretación de la obra «El camino de las utopías»"}
