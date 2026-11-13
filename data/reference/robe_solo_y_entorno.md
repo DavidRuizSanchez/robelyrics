@@ -38,7 +38,7 @@ Sello y promotora de Pamplona, fundado en 2013 por **Alén Ayerdi** (batería de
 ## Fallecimiento y homenajes póstumos
 - **Robe falleció el 10 de diciembre de 2025, de madrugada, a los 63 años.** **La causa no se hizo pública**: el comunicado de su agencia no dio detalles médicos (elDiario.es, 10-12-2025). Lo documentado es el antecedente: en **noviembre de 2024** canceló conciertos de urgencia tras ser diagnosticado de un tromboembolismo pulmonar. No debe escribirse que murió «de» eso: ninguna fuente lo confirma.
 - **Medalla de Extremadura** (entregada 7 sep 2014, Teatro Romano de Mérida).
-- **Medalla de Oro al Mérito en las Bellas Artes** (Real Decreto 1343/2024, de 23 de diciembre, BOE-A-2024-27001; entregada tras su muerte en una gala en Toledo el 27 may 2026, la recogió su mánager Alén Ayerdi — La Ganzúa 28-05-2026. Quién la entregó no consta: «por los Reyes» se quitó el 13-11-2026 por no tener fuente).
+- **Medalla de Oro al Mérito en las Bellas Artes** (Real Decreto 1343/2024, de 23 de diciembre, BOE-A-2024-27001; entregada tras su muerte el 27 may 2026 en Toledo, en el acto que presidieron los Reyes: la recogió su mánager Alén Ayerdi de manos de la reina Letizia — Casa Real, La Ganzúa 28-05-2026, ¡HOLA! 29-05-2026).
 - **Hijo Predilecto de Plasencia** (póstumo, aprobado por unanimidad el 8 abr 2026) + avenida con su nombre + macromural de Jesús Mateos Brea (≈600 m²) que une a Robe con Manolo Chinato.
 - Festival **«Primeras Flores Amarillas»** en Plasencia el 16 may 2026 (cumpleaños de Robe).
 - Premios de la Academia de la Música 2026 (26 may): homenaje con "Si te vas"; «Caída Libre» (Robe y Leiva) ganó Mejor Canción de Pop Rock.
