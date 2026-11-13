@@ -257,7 +257,18 @@ def test_la_carga_es_idempotente_y_no_pisa_lo_verificado(cat):
     assert cat.query(EntityRelation).one().status == "verificada"
 
 
-def test_el_yaml_real_carga_y_valida():
+def test_el_yaml_real_carga_y_esta_bien_formado():
+    """La validación completa necesita la BD real (`seed_relaciones --dry-run`); aquí,
+    lo que se puede comprobar sin ella: que todo verificado trae quién y con qué."""
     from scripts.seed_relaciones import cargar_propuestas
 
-    assert cargar_propuestas(ja.ruta_data("relaciones.yaml")) == []
+    props = cargar_propuestas(ja.ruta_data("relaciones.yaml"))
+    for p in props:
+        assert p.fuentes, p
+        assert all(f.get("kind") and f.get("tier") in rel.NIVELES for f in p.fuentes), p
+        if p.estado == "verificada":
+            assert p.verificado_por, p
+        if p.predicado == "sameAs":
+            assert isinstance(p.objeto, str) and p.objeto.startswith("https://"), p
+    claves = [(p.sujeto, p.predicado, str(p.objeto)) for p in props]
+    assert len(claves) == len(set(claves)), "relaciones repetidas en el YAML"
