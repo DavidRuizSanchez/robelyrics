@@ -259,7 +259,9 @@ bands:
   - slug: warner
     name: Warner
     kind: label
-    wikipedia_url: https://es.wikipedia.org/wiki/Warner_Music_Spain
+    # Sin wikipedia_url desde el 13-11-2026: «Warner_Music_Spain» redirige a «Warner Music
+    # Group» (Q21077), la matriz, y esta ficha es Warner Music Spain (Q56517330). Un sameAs
+    # a otro artículo dice que somos otra empresa.
     related_note: >
       Sello discográfico de Extremoduro desde "La ley innata" (2008). Warner
       Music Spain integró también al histórico sello DRO, que editó a la banda
