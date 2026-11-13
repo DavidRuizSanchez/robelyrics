@@ -787,3 +787,322 @@ relaciones:
     fuentes:
       - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q123516278",
          evidencia: "Wikidata «Woody Amores» — Guitarrista y productor musical español; Wikidata Q123516175 P527 → Q123516278 (Woody Amores)"}
+
+# --- Identidades, tanda 2 (13-11-2026) ----------------------------------------------
+# Por los créditos de NUESTROS discos: los 20 casan, por título y año, con un grupo de
+# ediciones del catálogo acreditado de Extremoduro o de Robe en MusicBrainz, y de sus
+# créditos de grabación salen 4 personas de nuestra formación o fichas. Q-ID de los
+# discos: MusicBrainz ↔ Wikidata (P436) en los dos sentidos, o P436 + intérprete Robe.
+# Evidencia en data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/tanda2/.
+  - sujeto: person:capi-gil
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e4c4eaf0-94c6-4f9a-8819-d188037af008"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e4c4eaf0-94c6-4f9a-8819-d188037af008",
+         evidencia: "MusicBrainz «Alberto Gil»: instrument (drums (drum set)) en Agila (1996), Grandes éxitos y fracasos: Episodio primero (2004), Grandes éxitos y fracasos: Episodio segundo (2004) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: person:diego-garay
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/5f746a43-c27c-49a3-97ad-dbc6e5bfd512"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/5f746a43-c27c-49a3-97ad-dbc6e5bfd512",
+         evidencia: "MusicBrainz «Diego Garay»: instrument (bass guitar) en Pedrá (1995) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro) OJO: MB lo acredita en Pedrá (1995) y nuestra BD le da 1999-2001"}
+  - sujeto: person:inaki-milindris
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/94ce9d96-697c-414b-b794-07a6929e1ff3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/94ce9d96-697c-414b-b794-07a6929e1ff3",
+         evidencia: "MusicBrainz «Iñaki Setien»: instrument (electric guitar) en Agila (1996), Grandes éxitos y fracasos: Episodio primero (2004), Grandes éxitos y fracasos: Episodio segundo (2004) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: person:ventura-rico
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d1df210e-ae02-44ec-8b40-931c4263bfe3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/d1df210e-ae02-44ec-8b40-931c4263bfe3",
+         evidencia: "MusicBrainz «Ventura Rico»: engineer, producer en ¿Dónde están mis amigos? (1993) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/be718ce7-d997-4547-a211-6a5c7d7deb88"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/be718ce7-d997-4547-a211-6a5c7d7deb88",
+         evidencia: "Grupo de ediciones «Tú en tu casa, nosotros en la hoguera» (1990) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q122974312"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q122974312",
+         evidencia: "Wikidata Q122974312: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/547afdaf-6d27-35cd-af8a-fd651f6f7bea"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/547afdaf-6d27-35cd-af8a-fd651f6f7bea",
+         evidencia: "Grupo de ediciones «Somos unos animales» (1991) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q7560515"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q7560515",
+         evidencia: "Wikidata Q7560515: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/7b6de52e-ce92-389f-951e-a832b093728d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/7b6de52e-ce92-389f-951e-a832b093728d",
+         evidencia: "Grupo de ediciones «Deltoya» (1992) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217497"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217497",
+         evidencia: "Wikidata Q5217497: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/657ee6cf-1280-30ef-8743-1a9556830524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/657ee6cf-1280-30ef-8743-1a9556830524",
+         evidencia: "Grupo de ediciones «¿Dónde están mis amigos?» (1993-09-17) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5307426"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5307426",
+         evidencia: "Wikidata Q5307426: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/4e2382f9-221b-3795-ba0d-02a64e76ff0d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/4e2382f9-221b-3795-ba0d-02a64e76ff0d",
+         evidencia: "Grupo de ediciones «Rock transgresivo» (1994-08-26) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217464"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217464",
+         evidencia: "Wikidata Q5217464: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/9426d89f-08b9-310e-b836-9f32bc0d0492"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/9426d89f-08b9-310e-b836-9f32bc0d0492",
+         evidencia: "Grupo de ediciones «Pedrá» (1995-02-13) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3313048"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3313048",
+         evidencia: "Wikidata Q3313048: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/81def94f-5681-398b-bdec-40f72a34306d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/81def94f-5681-398b-bdec-40f72a34306d",
+         evidencia: "Grupo de ediciones «Iros todos a tomar por culo» (1997-04-21) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217524",
+         evidencia: "Wikidata Q5217524: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/12be837f-562c-355e-9280-e4bf4b8427b5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/12be837f-562c-355e-9280-e4bf4b8427b5",
+         evidencia: "Grupo de ediciones «Canciones prohibidas» (1998-09-28) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217473"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217473",
+         evidencia: "Wikidata Q5217473: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/b0ba36a8-dcdf-341c-af35-281fb159072b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/b0ba36a8-dcdf-341c-af35-281fb159072b",
+         evidencia: "Grupo de ediciones «Yo, minoría absoluta» (2002-03-05) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3312416"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3312416",
+         evidencia: "Wikidata Q3312416: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-primero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/03d1bbae-f590-3078-adbd-c41ae67fae4c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/03d1bbae-f590-3078-adbd-c41ae67fae4c",
+         evidencia: "Grupo de ediciones «Grandes éxitos y fracasos: Episodio primero» (2004-05-03) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-primero
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217032"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217032",
+         evidencia: "Wikidata Q5217032: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-segundo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/96ca722e-0c7f-3f8a-9a04-ac0e99d3390a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/96ca722e-0c7f-3f8a-9a04-ac0e99d3390a",
+         evidencia: "Grupo de ediciones «Grandes éxitos y fracasos: Episodio segundo» (2004-11-15) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-segundo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q122974519"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q122974519",
+         evidencia: "Wikidata Q122974519: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/760dd50e-70a3-38b9-8491-14497d2a59a1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/760dd50e-70a3-38b9-8491-14497d2a59a1",
+         evidencia: "Grupo de ediciones «La ley innata» (2008-09-09) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3312384"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3312384",
+         evidencia: "Wikidata Q3312384: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/fd44bb9c-113c-4c51-8a06-296f52d8fd6d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/fd44bb9c-113c-4c51-8a06-296f52d8fd6d",
+         evidencia: "Grupo de ediciones «Material defectuoso» (2011-05-24) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q383501"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q383501",
+         evidencia: "Wikidata Q383501: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/1fe024fb-354a-46ce-b756-c95b44998737"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/1fe024fb-354a-46ce-b756-c95b44998737",
+         evidencia: "Grupo de ediciones «Para todos los públicos» (2013-11-08) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q15146540"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q15146540",
+         evidencia: "Wikidata Q15146540: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/db6cb107-3447-41f4-9cab-bcf090c4c71e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/db6cb107-3447-41f4-9cab-bcf090c4c71e",
+         evidencia: "Grupo de ediciones «Lo que aletea en nuestras cabezas» (2015-06-09) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q20056387"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q20056387",
+         evidencia: "Wikidata Q20056387: el Q-ID declara este grupo de ediciones (P436) y tiene a Robe (Q3181267) como intérprete; MusicBrainz no enlaza de vuelta"}
+  - sujeto: album:robe/destrozares
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/fad2d33a-6054-4274-a9dc-05dec467df91"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/fad2d33a-6054-4274-a9dc-05dec467df91",
+         evidencia: "Grupo de ediciones «Destrozares, canciones para el final de los tiempos» (2016-11-18) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/bd8ebde9-a60d-4d02-be1f-64a3b3d64453"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/bd8ebde9-a60d-4d02-be1f-64a3b3d64453",
+         evidencia: "Grupo de ediciones «Bienvenidos al temporal» (2018-11-30) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q59348864"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q59348864",
+         evidencia: "Wikidata Q59348864: el Q-ID declara este grupo de ediciones (P436) y tiene a Robe (Q3181267) como intérprete; MusicBrainz no enlaza de vuelta"}
+  - sujeto: album:robe/mayeutica
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/6a685d75-be79-44c2-816d-fa9751e1cf7e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/6a685d75-be79-44c2-816d-fa9751e1cf7e",
+         evidencia: "Grupo de ediciones «Mayéutica» (2021-04-30) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/se-nos-lleva-el-aire
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/4c52bf6e-3118-4837-9b2a-be68f86d7ad4"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/4c52bf6e-3118-4837-9b2a-be68f86d7ad4",
+         evidencia: "Grupo de ediciones «Se nos lleva el aire» (2023-12-15) del artista acreditado robe; título y año casan con el nuestro"}
