@@ -3,6 +3,8 @@ import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoLugar } from "@/components/estudio/EnDirectoBloque";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -27,6 +29,8 @@ type Props = {
   detail: PublicTaxonomyDetail;
 };
 
+type Nodo = Record<string, unknown>;
+
 export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Props) {
   const kind = detail.kind as TaxonomyKind;
   const isPlace = kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
@@ -35,7 +39,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
   // Nodo de la taxonomía: Place (con geo) para lugares; DefinedTerm para temas
   // y conceptos. El JSON-LD usa solo el meta description SEO (texto plano).
-  const taxNode: Record<string, unknown> = {
+  const taxNode: Nodo = {
     "@type": isPlace ? "Place" : "DefinedTerm",
     "@id": canonical.taxonomy(kind, detail.slug),
     name: detail.name,
@@ -59,6 +63,9 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
     mainEntityId: canonical.itemList(path),
   });
   if (mentions.length > 0) collectionPage.mentions = mentions;
+
+  // Relaciones verificadas: solo los lugares las leen (la API no las da a temas ni conceptos).
+  fusionarVerificadas(taxNode, detail.jsonld_verificadas);
 
   const graph = buildGraph([
     taxNode,
@@ -124,6 +131,8 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
             )}
           </figure>
         )}
+
+        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
 
         {detail.seo_body ? (
           <section className="mb-12">

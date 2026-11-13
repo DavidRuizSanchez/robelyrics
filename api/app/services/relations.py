@@ -51,8 +51,6 @@ TIPOS: dict[str, tuple[str | None, str]] = {
     "concept": ("DefinedTerm", "definedterm"),
     "book": ("Book", "book"),
 }
-# Para validar el vocabulario de un lugar: lo más exigente de los dos tipos servidos.
-_TIPO_VALIDACION = {"place": "Place"}
 
 # Lo que ya tiene autoridad en otra tabla (plan, fase 2).
 _FORMACION = {"member", "memberOf", "founder"}
@@ -87,6 +85,10 @@ class Ref:
     path: str | None
     publicada: bool
     wikidata_id: str | None = None
+    # El @type con el que lo sirve su página. Un lugar sin coordenadas sale como
+    # DefinedTerm (TaxonomyDetailLayout), y validar contra Place lo dejaría pasar
+    # para luego fallar en la auditoría de lo servido.
+    tipo_servido: str | None = None
 
 
 def resolver_ref(db: Session, texto: str) -> Ref | None:
@@ -106,7 +108,7 @@ def resolver_ref(db: Session, texto: str) -> Ref | None:
         if fila is None or (fila.kind or "band") != ("label" if tipo == "label" else "band"):
             return None
         return Ref(tipo, fila.id, fila.name, cat.canonical_path("band", fila.id),
-                   cat._publicado("band", fila.id), fila.wikidata_id)
+                   cat._publicado("band", fila.id), fila.wikidata_id, TIPOS[tipo][0])
     if tipo == "album":
         art, _, alb = slug.partition("/")
         fila = (db.query(Album).join(Artist, Album.artist_id == Artist.id)
@@ -132,8 +134,11 @@ def resolver_ref(db: Session, texto: str) -> Ref | None:
     # (`DbCatalog.artist_id` no mira publicación; `_publicado` da True a las otras).
     publicada = True if tipo in ("theme", "place", "concept", "book", "artist") \
         else cat._publicado(tipo, fila.id)
+    servido = TIPOS[tipo][0]
+    if tipo == "place":
+        servido = "Place" if fila.geo_lat is not None and fila.geo_lng is not None else "DefinedTerm"
     return Ref(tipo, fila.id, nombre or slug, cat.canonical_path(tipo, fila.id), publicada,
-               getattr(fila, "wikidata_id", None))
+               getattr(fila, "wikidata_id", None), servido)
 
 
 def ref_por_id(db: Session, tipo: str, ident: int) -> Ref | None:
@@ -266,11 +271,10 @@ def validar(db: Session, p: Propuesta, base: str | None = None) -> tuple[list[st
         err.append(ajena)
 
     # Vocabulario, en el sentido guardado y en la inversa que se derivará.
-    tipo_suj = _TIPO_VALIDACION.get(suj.tipo) or TIPOS[suj.tipo][0]
+    tipo_suj = suj.tipo_servido or TIPOS[suj.tipo][0]
     if p.predicado != "sameAs":
         if obj is not None:
-            valor = {"@type": _TIPO_VALIDACION.get(obj.tipo) or TIPOS[obj.tipo][0],
-                     "name": obj.nombre}
+            valor = {"@type": obj.tipo_servido or TIPOS[obj.tipo][0], "name": obj.nombre}
         else:
             valor = literal
         if valor is not None:
@@ -381,4 +385,3 @@ def jsonld_de(db: Session, tipo: str, ident: int, *, site_url: str | None = None
         inv = INVERSA[r.predicate]
         poner(inv, _envolver(inv, nodo_ref(ref, base), r.role_name, r.start_date, r.end_date))
     return out or None
-

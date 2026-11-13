@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoArtista } from "@/components/estudio/EnDirectoBloque";
 import RelatedPosts from "@/components/RelatedPosts";
@@ -171,6 +173,7 @@ export default async function ArtistPublicPage({
             </figure>
           )}
 
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
           <MarkdownArticle
             markdown={detail.seo_body}
             yaEnlazados={[
@@ -261,7 +264,7 @@ export default async function ArtistPublicPage({
                     detail.name,
                     (detail.related_videos || []).map((v) => v.youtube_id),
                   ),
-                  {
+                  conVerificadas({
                     ...musicGroupNode({
                       slug: artist,
                       name: detail.name,
@@ -283,7 +286,7 @@ export default async function ArtistPublicPage({
                     ...(mentionsArray(detail.entities).length > 0
                       ? { mentions: mentionsArray(detail.entities) }
                       : {}),
-                  },
+                  }, detail.jsonld_verificadas),
                   ...detail.albums.map((a) =>
                     musicAlbumNode({
                       slug: a.slug,

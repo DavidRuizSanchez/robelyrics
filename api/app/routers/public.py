@@ -121,6 +121,8 @@ class PublicRelatedVideo(BaseModel):
 
 
 class PublicArtistDetailOut(PublicArtistOut):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     albums: list[PublicAlbumOut]
     members: list[PublicArtistMember] = []
     image_url: str | None = None
@@ -140,6 +142,8 @@ class PublicArtistDetailOut(PublicArtistOut):
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     artist: PublicArtistOut
     tracks: list[PublicTrackOut]
     release_date: str | None = None
@@ -192,6 +196,8 @@ class PublicSongCredit(BaseModel):
 
 
 class PublicSongDetailOut(BaseModel):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     slug: str
     title: str
     track_number: int | None
@@ -664,6 +670,7 @@ def public_artist_detail(
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicArtistDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "artist", artist.id),
         slug=artist.slug,
         name=artist.name,
         active_years=artist.active_years,
@@ -792,6 +799,7 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicAlbumDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "album", album.id),
         slug=album.slug,
         title=album.title,
         year=album.year,
@@ -881,6 +889,7 @@ def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicSongDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "song", song.id),
         slug=song.slug,
         title=song.title,
         track_number=song.track_number,
@@ -1207,6 +1216,8 @@ class PublicTaxonomySongRef(BaseModel):
 
 
 class PublicTaxonomyDetailOut(BaseModel):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     slug: str
     name: str
     description: str | None = None
@@ -1340,6 +1351,7 @@ def _detail_taxonomy(
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
 
     return PublicTaxonomyDetailOut(
+        jsonld_verificadas=(_relaciones_tabla(db, "place", row.id) if kind == "place" else None),
         slug=row.slug,
         name=row.name,
         description=row.description,

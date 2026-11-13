@@ -4,6 +4,8 @@ import AlbumCover from "@/components/AlbumCover";
 import AlbumDataTable from "@/components/AlbumDataTable";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
 import MoreFromArtist, { discosVecinos } from "@/components/MoreFromArtist";
@@ -162,6 +164,7 @@ export default async function AlbumPublicPage({
         </header>
 
         <article className="mb-4">
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
           <MarkdownArticle
             markdown={detail.seo_body}
             yaEnlazados={[
@@ -273,7 +276,7 @@ export default async function AlbumPublicPage({
                   detail.title,
                   [],
                 ),
-                {
+                conVerificadas({
                   ...musicAlbumNode({
                     slug: albumSlug,
                     artistSlug: artistSlug,
@@ -288,7 +291,7 @@ export default async function AlbumPublicPage({
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }
                     : {}),
-                },
+                }, detail.jsonld_verificadas),
                 // Nodo mínimo del artista para conectar @id
                 musicGroupNode({ slug: artistSlug, name: detail.artist.name }),
                 webPageNode({

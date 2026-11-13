@@ -9,6 +9,8 @@ import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import AlbumSiblingSongs from "@/components/AlbumSiblingSongs";
 import RelatedSongs from "@/components/RelatedSongs";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import SongDataTable from "@/components/SongDataTable";
 import TaxonomyPills from "@/components/TaxonomyPills";
 import TrackNav from "@/components/TrackNav";
@@ -264,6 +266,12 @@ export default async function SongPublicPage({
           yaEnlazados={detail.credits.filter((c) => c.person_slug).map((c) => `/personas/${c.person_slug}`)}
         />
 
+        <RelacionesVerificadas
+          relaciones={detail.jsonld_verificadas}
+          excluir={enlacesPlantilla}
+          cuerpo={detail.seo_body}
+        />
+
         <article className="mb-12">
           <MarkdownArticle markdown={detail.seo_body} yaEnlazados={enlacesPlantilla} />
         </article>
@@ -351,7 +359,7 @@ export default async function SongPublicPage({
                   detail.title,
                   [detail.youtube_id],
                 ),
-                {
+                conVerificadas({
                   ...musicCompositionNode({
                     slug: songSlug,
                     artistSlug: artistSlug,
@@ -365,7 +373,7 @@ export default async function SongPublicPage({
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }
                     : {}),
-                },
+                }, detail.jsonld_verificadas),
                 // Nodos mínimos para que Google una entidades cross-page
                 musicAlbumNode({
                   slug: albumSlug,

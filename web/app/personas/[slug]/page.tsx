@@ -22,6 +22,7 @@ import {
   webPageNode,
 } from "@/lib/schema-graph";
 import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -167,7 +168,9 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
   }
   if (detail.birth_date) schema.birthDate = detail.birth_date;
   if (detail.death_date) schema.deathDate = detail.death_date;
-  if (detail.birth_place) {
+  // Un lugar de nacimiento verificado (enlazado a su ficha) sustituye al texto de
+  // `persons.birth_place` (David, 13-11-2026): los dos a la vez decían lo mismo dos veces.
+  if (detail.birth_place && !detail.jsonld_verificadas?.birthPlace) {
     schema.birthPlace = { "@type": "Place", name: detail.birth_place };
   }
   if (detail.image_url) schema.image = detail.image_url;
@@ -542,6 +545,12 @@ export default async function PersonPage({
           </header>
 
           <PersonDataTable detail={detail} yaEnlazados={enlacesCabecera} />
+
+          <RelacionesVerificadas
+            relaciones={detail.jsonld_verificadas}
+            excluir={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
+            cuerpo={detail.seo_body}
+          />
 
           {detail.seo_body && (
             <MarkdownArticle

@@ -19,6 +19,7 @@ import {
   webPageNode,
 } from "@/lib/schema-graph";
 import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -302,6 +303,8 @@ export default async function SelloPage({
               </dl>
             </div>
           </header>
+
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
 
           {detail.seo_body && <MarkdownArticle markdown={detail.seo_body} />}
         </article>
