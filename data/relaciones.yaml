@@ -201,6 +201,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P19", evidencia: "P19 = Q241767 (referencia: Freebase)"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "begin area: Plasencia (69e012c7…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Roberto_Iniesta", oldid: 176255840,
+         evidencia: "ficha «lugar de nacimiento»: «lugar de nacimiento = Plasencia, Cáceres (España)»"}
   - sujeto: person:robe-iniesta              # R2 (aprobado por David: «nacimientos y muertes siempre que podamos»)
     predicado: deathPlace
     objeto: {"@type": Place, name: Barakaldo, sameAs: "https://www.wikidata.org/wiki/Q487801"}
@@ -210,6 +212,8 @@ relaciones:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P20", evidencia: "P20 = Q487801"}
       - {kind: prensa, tier: T2, url: "https://www.elcorreo.com/culturas/musica/robe-fallecio-hospital-cruces-20251211154905-nt.html", evidencia: "referencia de P20 en Wikidata"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "end area: Barakaldo"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Roberto_Iniesta", oldid: 176255840,
+         evidencia: "ficha «lugar de fallecimiento»: «lugar de fallecimiento = Baracaldo, Vizcaya (España)»"}
   - sujeto: person:robe-iniesta              # R3
     predicado: memberOf
     objeto: {"@type": MusicGroup, name: Extrechinato y Tú, sameAs: ["https://www.wikidata.org/wiki/Q5853668", "https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8"]}
@@ -218,6 +222,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P463", evidencia: "P463 = Q5853668"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "member of band: Extrechinato y Tú (8a032fcd…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Extrechinato_y_T%C3%BA", oldid: 172172400,
+         evidencia: "ficha «miembros»: «Miembros = Manolo Chinato · Roberto Iniesta, 'Robe' · Adolfo 'Fito' Cabrales · Iñaki 'Uoho' Antón»"}
   - sujeto: person:alen-ayerdi               # R4
     predicado: memberOf
     objeto: band:marea
@@ -226,6 +232,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q3091114 (referencia: Diario de Navarra); P1303 = batería; Marea lo lista en P527"}
       - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2019/06/01/alen-ayerdi-marea-siempre-hemos-tenido-claro-hacia-donde-tirar-como-llegar-653235-1034.html", evidencia: "entrevista del 01-06-2019 «Alen Ayerdi (Marea): Siempre hemos tenido claro hacia dónde tirar y cómo llegar»; Marea, «el quinteto de Berriozar»"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_%28banda%29", oldid: 175505759,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Miembros = Kutxi Romero (voz y letras) · Eduardo Beaumont Piñas (bajo y voz) · César Ramallo (guitarra) · David Díaz Kolibrí (guitarra eléctrica y guitarra acústica) · Alén Ayerdi (batería y coros)»"}
   - sujeto: person:alen-ayerdi               # R5
     predicado: memberOf
     objeto: {"@type": MusicGroup, name: Ciclonautas, sameAs: "https://www.wikidata.org/wiki/Q21554945"}
@@ -235,6 +243,8 @@ relaciones:
     fuentes:
       - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2021/05/19/el-grupo-pamplones-ciclonautas-lanza-viernes-mayo-nuevo-disco-camping-del-hastio-727384-1034.html", evidencia: "«El grupo pamplonés Ciclonautas, formado por Mariano 'Mai' Medina (guitarra y voz), Alén Ayerdi (batería) y José Javier Pintor 'Dr. Txo' (bajista)»"}
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q21554945"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Ciclonautas", oldid: 167768647,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Alén Ayerdi: Batería»"}
   - sujeto: person:kutxi-romero              # R6
     predicado: memberOf
     objeto: band:marea
@@ -244,6 +254,8 @@ relaciones:
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "member of band: Kutxi Romero (d8db4ebf…), original, desde 1997-12-24"}
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P527", evidencia: "P527 incluye Q3756845"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Kutxi_Romero", oldid: 171889027,
+         evidencia: "ficha «relacionados»: «relacionados = Marea · Albertucho»"}
   - sujeto: band:marea                       # R7
     predicado: foundingLocation
     objeto: {"@type": Place, name: Berriozar, sameAs: "https://www.wikidata.org/wiki/Q1645776"}
@@ -252,6 +264,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P740", evidencia: "P740 = Q1645776"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "begin area: Berriozar (523d2b1a…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_%28banda%29", oldid: 175505759,
+         evidencia: "ficha «origen»: «Origen = Berriozar, Navarra, España»"}
   - sujeto: artist:extremoduro               # R8
     predicado: foundingLocation
     objeto: place:plasencia
@@ -260,6 +274,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472#P740", evidencia: "P740 = Q241767"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333", evidencia: "begin area: Plasencia (69e012c7…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Extremoduro", oldid: 176250400,
+         evidencia: "ficha «origen»: «Origen = Plasencia, Cáceres, España»"}
   - sujeto: album:extremoduro/agila          # R9
     predicado: producer
     objeto: person:inaki-uoho-anton
@@ -269,6 +285,8 @@ relaciones:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q614313#P162", evidencia: "P162 = Q5198493"}
       - {kind: libro, tier: T2, url: "data/reference/deprofundis_facts.md:38", evidencia: "«Agila (23 feb 1996, DRO)… Producción/arreglos: Uoho (rol decisivo)»"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Antón (cebb8d3a…): producer de la edición del 23-02-1996"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "ficha «productor»: «productor = Iñaki “Uoho” Antón»"}
   - sujeto: place:plasencia                  # R10
     predicado: containedInPlace
     objeto: {"@type": AdministrativeArea, name: provincia de Cáceres, sameAs: "https://www.wikidata.org/wiki/Q81977"}
@@ -277,6 +295,8 @@ relaciones:
     fuentes:
       - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767#P131", evidencia: "P131 = Q81977"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9", evidencia: "part of: Cáceres (subdivisión)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Plasencia", oldid: 174847418,
+         evidencia: "lectura manual (lo dice la primera frase del artículo, con enlace; la ficha no trae el parámetro): «Plasencia es una ciudad y municipio español de la provincia de Cáceres, situada en el norte de la comunidad autónoma de Extremadura. El municipio, que no forma mancomunidad con los pueblos que le rodean, geográficamente …»"}
 
 # --- Identidades, tanda 1 (13-11-2026) ----------------------------------------------
 # Fichas que ya traían Q-ID y miembros del grupo Robe que declara Wikidata (P527).
@@ -1123,7 +1143,6 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/38ae7156-5d88-43e7-a93c-58f824310634", evidencia: "Extremoduro (f59163ba…): arreglos en Ama, ama, ama y ensancha el alma, Bulerías de la sangre caliente, Con un latido del reloj y 9 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Deltoya", evidencia: "la sección de personal del artículo lo nombra"}
   - sujeto: album:extremoduro/donde-estan-mis-amigos
     predicado: producer
     objeto: artist:extremoduro
@@ -1131,8 +1150,9 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Extremoduro (f59163ba…): producción en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/¿Dónde_están_mis_amigos?", evidencia: "la sección de personal del artículo lo nombra"}
       - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Extremoduro — Arranged By, Producer"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F", oldid: 174744552,
+         evidencia: "lectura manual (en la ficha «productor» el grupo va sin enlace): «productor = Ventura Rico y Extremoduro»"}
   - sujeto: album:extremoduro/donde-estan-mis-amigos
     predicado: contributor
     objeto: artist:extremoduro
@@ -1141,7 +1161,6 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Extremoduro (f59163ba…): arreglos en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/¿Dónde_están_mis_amigos?", evidencia: "la sección de personal del artículo lo nombra"}
       - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Extremoduro — Arranged By, Producer"}
   - sujeto: album:extremoduro/donde-estan-mis-amigos
     predicado: producer
@@ -1151,6 +1170,8 @@ relaciones:
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Ventura Rico (d1df210e…): producción en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
       - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Ventura Rico — Engineer, Producer"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F", oldid: 174744552,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «productor = Ventura Rico y Extremoduro»"}
   - sujeto: album:extremoduro/donde-estan-mis-amigos
     predicado: contributor
     objeto: person:ventura-rico
@@ -1167,7 +1188,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/3567d70c-612e-4cfd-b105-3059ef2e32e2", evidencia: "Iñaki Antón (cebb8d3a…): producción en Arrebato, Decidí, Emparedado y 4 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Rock_transgresivo", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Rock_transgresivo", oldid: 174757639,
+         evidencia: "ficha «productor»: «productor = Extremoduro · Iñaki Antón (temas 1-4,6-8)»"}
   - sujeto: album:extremoduro/pedra
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1176,7 +1198,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica, teclados en Pedrá"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedrá", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "sección «Personal»: «Iñaki Antón «Uoho» (Platero y Tú) – Guitarra, teclados, percusión, trombón de varas y productor artístico»"}
   - sujeto: album:extremoduro/pedra
     predicado: contributor
     objeto: person:diego-garay
@@ -1185,7 +1208,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Diego Garay (5f746a43…): bajo en Pedrá"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedrá", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Diego Garay «Dieguillo» – Bajo»"}
   - sujeto: album:extremoduro/pedra
     predicado: contributor
     objeto: {"@type": Person, name: "José Luis Nieto «Selu»", sameAs: "https://musicbrainz.org/artist/d6f83c1c-02af-4cda-bced-4afdfbf91cc6"}
@@ -1194,7 +1218,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "José Luis Nieto (d6f83c1c…): saxofón en Pedrá"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedrá", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «José Luis Nieto «Selu» (ex-Reincidentes) – Saxofón y cante jondo»"}
   - sujeto: album:extremoduro/pedra
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1203,7 +1228,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Robe (b435c75d…): guitarra eléctrica en Pedrá"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedrá", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "sección «Personal»: «Roberto «Robe» Iniesta (Extremoduro) – Voz, guitarra y coros»"}
   - sujeto: album:extremoduro/agila
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1212,7 +1238,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Antón (cebb8d3a…): arreglos, guitarra eléctrica en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_(álbum)", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Iñaki 'Uoho' Antón – Guitarra, teclados, percusiones, piano, hammond, bajo y efectos»"}
   - sujeto: album:extremoduro/agila
     predicado: contributor
     objeto: person:capi-gil
@@ -1221,7 +1248,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Alberto Gil (e4c4eaf0…): batería en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_(álbum)", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Alberto 'Capi' Gil – Batería»"}
   - sujeto: album:extremoduro/agila
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1230,7 +1258,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_(álbum)", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Roberto 'Robe' Iniesta – Voz, guitarra eléctrica y acústica; teclados (10)»"}
   - sujeto: album:extremoduro/agila
     predicado: contributor
     objeto: person:inaki-milindris
@@ -1239,7 +1268,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Setien (94ce9d96…): guitarra eléctrica en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_(álbum)", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Iñaki 'Milindris' Setién – Guitarra»"}
   - sujeto: album:extremoduro/agila
     predicado: contributor
     objeto: person:albert-pla
@@ -1248,7 +1278,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Albert Pla (ba77d3af…): voz en El día de la bestia"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_(álbum)", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Albert Pla – Voz (7)»"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: producer
     objeto: person:inaki-uoho-anton
@@ -1256,7 +1287,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Iñaki Antón (cebb8d3a…): producción en Autorretrato, Enemigo, Esclarecido y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "ficha «productor»: «productor = Iñaki “Uoho” Antón»"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1265,7 +1297,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Iñaki Antón (cebb8d3a…): bajo eléctrico, guitarra eléctrica, teclados en Autorretrato, Enemigo, Esclarecido y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra, bajo, piano, órgano, trombón, percusiones, coros...»"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: contributor
     objeto: person:jose-ignacio-cantera
@@ -1274,7 +1307,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "José Ignacio Cantera (450c32e4…): bombo, batería en Autorretrato, Enemigo, Esclarecido y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1283,7 +1317,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Robe (b435c75d…): bajo eléctrico, guitarra eléctrica, voz en Autorretrato, Enemigo, Esclarecido y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra, bajo con distorsión, pandereta...»"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: contributor
     objeto: person:miguel-colino
@@ -1291,7 +1326,7 @@ relaciones:
     estado: verificada
     verificado_por: david
     fuentes:
-      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Golfa"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Golfa · discrepancia (13-11-2026): Wikipedia (rev. 174757633) y band_memberships dan el bajo de la grabación de 1998 a Mikel Irazoki; Discogs 1412217 no acredita bajo. David decide mantenerla"}
   - sujeto: album:extremoduro/canciones-prohibidas
     predicado: contributor
     objeto: person:fito-cabrales
@@ -1300,7 +1335,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Fito Cabrales (4ec9bd3b…): voz invitada en Golfa"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Adolfo 'Fito' Cabrales; - voz en Golfa»"}
   - sujeto: album:extremoduro/yo-minoria-absoluta
     predicado: producer
     objeto: person:inaki-uoho-anton
@@ -1308,7 +1344,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Iñaki Antón (cebb8d3a…): producción en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo,_minoría_absoluta", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "texto, sección «(entrada)»: «Yo, minoría absoluta es el título del noveno álbum de estudio de la banda de rock española Extremoduro, producido por Iñaki “Uoho” Antón y publicado por DRO el 4 de marzo de 2002.»"}
   - sujeto: album:extremoduro/yo-minoria-absoluta
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1317,7 +1354,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo,_minoría_absoluta", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra»"}
   - sujeto: album:extremoduro/yo-minoria-absoluta
     predicado: contributor
     objeto: person:jose-ignacio-cantera
@@ -1326,7 +1364,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "José Ignacio Cantera (450c32e4…): batería en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo,_minoría_absoluta", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
   - sujeto: album:extremoduro/yo-minoria-absoluta
     predicado: contributor
     objeto: person:miguel-colino
@@ -1335,7 +1374,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo,_minoría_absoluta", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
   - sujeto: album:extremoduro/yo-minoria-absoluta
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1344,7 +1384,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo,_minoría_absoluta", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Robe Iniesta – Voz y guitarra»"}
   - sujeto: album:extremoduro/la-ley-innata
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1353,7 +1394,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra, coros, piano y órgano»"}
   - sujeto: album:extremoduro/la-ley-innata
     predicado: contributor
     objeto: person:jose-ignacio-cantera
@@ -1362,7 +1404,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "José Ignacio Cantera (450c32e4…): batería en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
   - sujeto: album:extremoduro/la-ley-innata
     predicado: contributor
     objeto: person:miguel-colino
@@ -1371,7 +1414,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
   - sujeto: album:extremoduro/la-ley-innata
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1380,7 +1424,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra y coros»"}
   - sujeto: album:extremoduro/material-defectuoso
     predicado: producer
     objeto: person:inaki-uoho-anton
@@ -1388,7 +1433,6 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Iñaki Antón (cebb8d3a…): producción en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", evidencia: "la sección de personal del artículo lo nombra"}
   - sujeto: album:extremoduro/material-defectuoso
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1397,7 +1441,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarras, piano, órgano, trombón, bajo y coros»"}
   - sujeto: album:extremoduro/material-defectuoso
     predicado: contributor
     objeto: person:jose-ignacio-cantera
@@ -1406,7 +1451,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "José Ignacio Cantera (450c32e4…): batería en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería y voz en Tango Suicida»"}
   - sujeto: album:extremoduro/material-defectuoso
     predicado: contributor
     objeto: person:miguel-colino
@@ -1415,7 +1461,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo y voz en Tango Suicida»"}
   - sujeto: album:extremoduro/material-defectuoso
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1424,7 +1471,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra y coros»"}
   - sujeto: album:extremoduro/para-todos-los-publicos
     predicado: producer
     objeto: person:inaki-uoho-anton
@@ -1432,7 +1480,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Iñaki Antón (cebb8d3a…): producción en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "ficha «productor»: «productor = Iñaki «Uoho» Antón»"}
   - sujeto: album:extremoduro/para-todos-los-publicos
     predicado: contributor
     objeto: person:inaki-uoho-anton
@@ -1441,7 +1490,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Iñaki «Uoho» Antón – Guitarra, piano, teclados y coros»"}
   - sujeto: album:extremoduro/para-todos-los-publicos
     predicado: contributor
     objeto: person:jose-ignacio-cantera
@@ -1450,7 +1500,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "José Ignacio Cantera (450c32e4…): batería en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
   - sujeto: album:extremoduro/para-todos-los-publicos
     predicado: contributor
     objeto: person:miguel-colino
@@ -1459,7 +1510,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
   - sujeto: album:extremoduro/para-todos-los-publicos
     predicado: contributor
     objeto: person:robe-iniesta
@@ -1468,7 +1520,8 @@ relaciones:
     verificado_por: david
     fuentes:
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
-      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_públicos", evidencia: "la sección de personal del artículo lo nombra"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Roberto «Robe» Iniesta – Voz, guitarra y coros»"}
 
 # --- Identidades de las canciones (13-11-2026) -------------------------------------
 # La obra (composición) de MusicBrainz de 90 canciones (+ «Golfa», que ya estaba): cada
