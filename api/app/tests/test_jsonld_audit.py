@@ -1,8 +1,9 @@
 """Invariantes del JSON-LD servido (fase 0 del plan de datos estructurados).
 
-La fixture `jsonld_linea_base_2026-11-12.json.gz` es el JSON-LD REAL de las 389
-URLs del sitemap rastreadas el 12-11-2026 (`scripts/seo/audit_jsonld.py
---guardar`). Con ella, el CI comprueba dos cosas que un caso sintético no prueba:
+La fixture `jsonld_linea_base_2026-11-13.json.gz` es el JSON-LD REAL de las 389
+URLs del sitemap rastreadas el 13-11-2026 a las 10:05 UTC (`scripts/seo/audit_jsonld.py
+--guardar`). Se re-congeló ese día tras quitar los Q-IDs inventados (PR #117): las 136
+líneas que se perdieron apuntaban todas a Wikidata. La del 12-11 era la primera. Con ella, el CI comprueba dos cosas que un caso sintético no prueba:
 que el verificador encuentra justo los fallos que había publicados ese día, y que
 `data/jsonld_excepciones.yaml` los declara todos y nada más.
 """
@@ -19,7 +20,7 @@ import pytest
 from app.services import jsonld_audit as ja
 from app.services import page_monitor as pm
 
-FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-12.json.gz"
+FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-13.json.gz"
 S = "https://entreinteriores.com"
 
 
