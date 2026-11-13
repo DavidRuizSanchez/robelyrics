@@ -21,6 +21,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -94,6 +95,8 @@ type PersonDetail = {
   schema_jsonld: Record<string, unknown> | null;
   // Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id por la API.
   jsonld_relaciones?: Record<string, unknown> | null;
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
 };
 
 async function fetchPerson(slug: string): Promise<PersonDetail | null> {
@@ -248,6 +251,7 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
       schema[clave] = [...lista(previo), ...lista(valor)];
     }
   }
+  fusionarVerificadas(schema, detail.jsonld_verificadas);
 
   return schema;
 }

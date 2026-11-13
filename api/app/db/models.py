@@ -1916,6 +1916,68 @@ class EntityEdge(Base):
     )
 
 
+class EntityRelation(Base):
+    """Una relación entre entidades que sale en el JSON-LD, CON SU FUENTE.
+
+    Plan de datos estructurados, fase 1 (13-11-2026). A diferencia de
+    `entity_edges` (derivado, se reconstruye cada noche), esto es la fuente de verdad
+    de lo que no tiene otra autoridad: `band_memberships` manda en la formación de
+    Extremoduro y Robe, `song_credits` en los créditos y `album_tracks` en las pistas,
+    y eso NO se carga aquí (lo rechaza `relations.validar`).
+
+    Cada hecho se guarda UNA vez y en un sentido; la inversa (`member` ↔ `memberOf`)
+    se deriva al servir. Solo se emite lo `verificada`. Las identidades acreditadas
+    (Wikidata, MusicBrainz…) son filas `sameAs` con `object_literal` = la URL.
+
+    `clave` es derivada y no nula: Postgres trata los NULL como distintos, así que una
+    restricción única sobre columnas que pueden ser NULL no evitaría duplicados.
+    """
+
+    __tablename__ = "entity_relations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('verificada', 'pendiente', 'rechazada')",
+            name="ck_entity_relations_status",
+        ),
+        CheckConstraint(
+            "(object_id IS NOT NULL) <> (object_literal IS NOT NULL)",
+            name="ck_entity_relations_objeto",
+        ),
+        Index("ix_entity_relations_subject", "subject_type", "subject_id"),
+        Index("ix_entity_relations_object", "object_type", "object_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clave: Mapped[str] = mapped_column(String(600), unique=True, nullable=False)
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    predicate: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_type: Mapped[str | None] = mapped_column(String(16))
+    object_id: Mapped[int | None] = mapped_column(Integer)
+    # Nodo externo sin página propia ({"@type": "MusicGroup", "name": "Ciclonautas"})
+    # o, en `sameAs`, la URL de la identidad.
+    # none_as_null: sin él SQLAlchemy guarda None como el JSON `null`, que NO es NULL, y
+    # la restricción «id o literal» rechazaría toda relación con objeto por id.
+    object_literal: Mapped[dict | str | None] = mapped_column(JSONB(none_as_null=True))
+    role_name: Mapped[str | None] = mapped_column(String(120))
+    start_date: Mapped[str | None] = mapped_column(String(10))   # «1993», «1993-05» o fecha
+    end_date: Mapped[str | None] = mapped_column(String(10))
+    # [{"kind": "musicbrainz|wikidata|creditos_disco|prensa|…", "tier": "T1|T2|T3",
+    #   "url": str, "evidencia": str}] — al menos una.
+    fuentes: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pendiente")
+    verified_by: Mapped[str | None] = mapped_column(String(64))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Verificación multi-fuente (MCV) y erratas de fans ---------------------
 
 

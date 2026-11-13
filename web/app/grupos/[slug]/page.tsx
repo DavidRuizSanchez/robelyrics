@@ -18,6 +18,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -68,6 +69,8 @@ type BandDetail = {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   schema_jsonld: Record<string, unknown> | null;
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
 };
 
 async function fetchBand(slug: string): Promise<BandDetail | null> {
@@ -151,6 +154,8 @@ function buildJsonLd(detail: BandDetail): Record<string, unknown> {
       return node;
     });
   }
+
+  fusionarVerificadas(schema, detail.jsonld_verificadas);
 
   return schema;
 }
