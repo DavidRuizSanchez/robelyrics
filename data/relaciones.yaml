@@ -44,4 +44,112 @@
 #       - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/<mbid>",
 #          evidencia: "misma persona: discografía y grupos coinciden con su ficha"}
 
-relaciones: []
+# --- Identidades de la muestra de 10 (confirmadas por David el 13-11-2026) ---------
+# Cruce por relación, no por nombre: Wikidata y MusicBrainz enlazados en los dos sentidos,
+# o la entidad como relación de otra que ya cruza. Evidencia y crudos en
+# data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/ (no versionado).
+relaciones:
+  - sujeto: person:robe-iniesta
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3181267"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267",
+         evidencia: "eswiki «Roberto Iniesta»; P434 b435c75d… que MusicBrainz enlaza de vuelta a Q3181267"}
+  - sujeto: person:robe-iniesta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926",
+         evidencia: "MusicBrainz: miembro de Extremoduro (f59163ba…); enlaza a Q3181267"}
+  - sujeto: person:alen-ayerdi
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q107272976"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976",
+         evidencia: "P463 Marea (Q3091114) con referencia, y Marea lo lista en P527"}
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2311472"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472",
+         evidencia: "eswiki «Extremoduro»; P434 f59163ba… que MusicBrainz enlaza de vuelta"}
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333",
+         evidencia: "MusicBrainz enlaza a Q2311472; miembros Robe, Iñaki Antón, Cantera, Colino"}
+  - sujeto: band:marea
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3091114"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114",
+         evidencia: "eswiki «Marea (banda)»; P434 da4fb281… que MusicBrainz enlaza de vuelta"}
+  - sujeto: band:marea
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077",
+         evidencia: "MusicBrainz «Spanish rock band», 1997-12-24, enlaza a Q3091114"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q24279015"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q24279015",
+         evidencia: "eswiki «El Dromedario Records»; P966 14b000e9… que MusicBrainz enlaza de vuelta"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/label/14b000e9-5cf1-4ecf-a385-fb7d83307d4e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/label/14b000e9-5cf1-4ecf-a385-fb7d83307d4e",
+         evidencia: "MusicBrainz: ES, desde 2013, enlaza a Q24279015"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q614313"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q614313",
+         evidencia: "«álbum de Extremoduro», 1996-02-23; P436 2d9dcaa2… que MusicBrainz enlaza de vuelta"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/2d9dcaa2-fb3f-3fbd-a62d-d2f4094adf5b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/2d9dcaa2-fb3f-3fbd-a62d-d2f4094adf5b",
+         evidencia: "MusicBrainz: Extremoduro, 1996-02-23, enlaza a Q614313"}
+  - sujeto: song:extremoduro/canciones-prohibidas/golfa
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2a777b7c-2d79-45ee-b709-a475cc01ca87"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2a777b7c-2d79-45ee-b709-a475cc01ca87",
+         evidencia: "MusicBrainz: letra de Robe (b435c75d…), música de Robe e Iñaki Antón"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q241767"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q241767",
+         evidencia: "«municipio de la provincia de Cáceres, España», eswiki «Plasencia»"}
