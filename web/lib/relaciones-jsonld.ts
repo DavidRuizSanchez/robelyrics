@@ -110,6 +110,9 @@ export function relacionesVisibles(
 ): RelacionVisible[] {
   const fuera = new Set(excluir);
   const delCuerpo = new Set(sinEnlace);
+  // «1 por destino» también DENTRO de la sección: Uoho produce Agila y toca en él, y
+  // salía enlazado dos veces (13-11-2026). La segunda vez se nombra sin enlace.
+  const yaEnlazados = new Set<string>();
   const out: RelacionVisible[] = [];
   for (const [prop, valor] of Object.entries(relaciones || {})) {
     if (prop === "sameAs" || prop.startsWith("@")) continue;
@@ -133,12 +136,9 @@ export function relacionesVisibles(
             ? `hasta ${nodo.endDate}`
             : null,
       ].filter((x): x is string => !!x);
-      out.push({
-        etiqueta,
-        nombre,
-        href: href && delCuerpo.has(href) ? null : href,
-        detalle: partes.length ? partes.join(", ") : null,
-      });
+      const enlazar = href && !delCuerpo.has(href) && !yaEnlazados.has(href) ? href : null;
+      if (enlazar) yaEnlazados.add(enlazar);
+      out.push({ etiqueta, nombre, href: enlazar, detalle: partes.length ? partes.join(", ") : null });
     }
   }
   return out;
