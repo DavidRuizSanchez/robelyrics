@@ -1541,6 +1541,9 @@ class PublicPersonDetailOut(PublicPersonListItem):
     # Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id. El frontend
     # las fusiona en el nodo Person.
     jsonld_relaciones: dict | None = None
+    # Relaciones verificadas de `entity_relations`, ya resueltas a @id. Van aparte de
+    # las curadas porque se fusionan sin duplicar (`web/lib/relaciones-jsonld.ts`).
+    jsonld_verificadas: dict | None = None
 
 
 @router.get("/persons", response_model=list[PublicPersonListItem])
@@ -1611,6 +1614,19 @@ def _relaciones_curadas(db: Session, slug: str) -> dict | None:
         return relaciones(db, slug)
     except Exception:  # noqa: BLE001
         logger.warning("person_jsonld: no se pudieron resolver las relaciones de %s", slug,
+                       exc_info=True)
+        return None
+
+
+def _relaciones_tabla(db: Session, tipo: str, ident: int) -> dict | None:
+    """Las relaciones verificadas de `entity_relations` (fase 1 del plan de datos
+    estructurados). Con la tabla vacía devuelve None y la ficha sale idéntica."""
+    from app.services.relations import jsonld_de  # lazy
+
+    try:
+        return jsonld_de(db, tipo, ident)
+    except Exception:  # noqa: BLE001
+        logger.warning("relations: no se pudieron leer las de %s:%s", tipo, ident,
                        exc_info=True)
         return None
 
@@ -1692,6 +1708,7 @@ def public_person_detail(
             PublicWikidataRef(**o) for o in (person.occupations or [])
         ],
         jsonld_relaciones=_relaciones_curadas(db, person.slug),
+        jsonld_verificadas=_relaciones_tabla(db, "person", person.id),
         seo_body=seo.body_md if seo else None,
         seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
@@ -1732,6 +1749,9 @@ class PublicBandDetailOut(PublicBandListItem):
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
     related_videos: list[PublicRelatedVideo] = []
+    # Relaciones verificadas de `entity_relations`, ya resueltas a @id; el frontend
+    # las fusiona en el nodo del grupo o del sello.
+    jsonld_verificadas: dict | None = None
 
 
 def _band_members(raw) -> list[str]:
@@ -1817,6 +1837,8 @@ def public_band_detail(
         schema_jsonld=seo.schema_jsonld if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
         related_videos=_related_videos_for(db, "band", band.slug),
+        jsonld_verificadas=_relaciones_tabla(
+            db, "label" if band.kind == "label" else "band", band.id),
     )
 
 

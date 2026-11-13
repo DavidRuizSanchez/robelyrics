@@ -1,0 +1,47 @@
+# ============================================================
+# Relaciones del JSON-LD, cada una con su fuente
+# ============================================================
+# Lo carga `python -m scripts.seed_relaciones` en `entity_relations`
+# (servicio: api/app/services/relations.py). Plan: data/seo_plan_autoridad/
+# PLAN_DATOS_ESTRUCTURADOS.md, fase 1.
+#
+# Reglas (las comprueba el cargador; si una falla, no se escribe NADA):
+#   - Solo sale en la web lo que está `verificada`: un T1, o dos T2 de dominios distintos,
+#     y `verificado_por`.
+#   - Un T1 de musicbrainz / wikidata / discogs exige que sujeto y objeto tengan su
+#     identidad acreditada en esa base: una fila `sameAs` verificada (o el wikidata_id de
+#     la ficha). Nada de buscar por nombre.
+#   - No se carga lo que tiene otra autoridad: la formación de Extremoduro y Robe
+#     (band_memberships), los créditos de canción (song_credits) ni las pistas (album_tracks).
+#   - Cada hecho, UNA vez y en un sentido: la inversa (memberOf ↔ member…) se deriva sola.
+#   - Lo familiar queda fuera del plan.
+#   - Lo que se marca también se pinta en la ficha (eso llega con los primeros datos).
+#
+# Referencias: person:<slug> · artist:<slug> · band:<slug> · label:<slug> ·
+#   album:<artista>/<disco> · song:<artista>/<disco>/<canción> · place:<slug> ·
+#   theme:<slug> · concept:<slug> · book:<slug>
+# Un objeto sin página propia va como nodo: {"@type": MusicGroup, name: Ciclonautas}
+#
+# Ejemplo (NO es un dato: no está verificado):
+#   - sujeto: person:alguien
+#     predicado: memberOf
+#     objeto: band:algun-grupo
+#     rol: batería
+#     desde: "1997"
+#     estado: verificada
+#     verificado_por: david
+#     fuentes:
+#       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/…",
+#          evidencia: "member of band, 1997–"}
+#
+# Identidad acreditada (va primero):
+#   - sujeto: person:alguien
+#     predicado: sameAs
+#     objeto: "https://musicbrainz.org/artist/<mbid>"
+#     estado: verificada
+#     verificado_por: david
+#     fuentes:
+#       - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/<mbid>",
+#          evidencia: "misma persona: discografía y grupos coinciden con su ficha"}
+
+relaciones: []
