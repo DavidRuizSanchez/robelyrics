@@ -499,6 +499,36 @@ places:
       espacio exterior como metáfora de la distancia que uno necesita
       poner a veces con todo lo demás.
 
+  # Lugares de la biografía, sin canción que los nombre: solo tienen página con
+  # su ficha editorial publicada (`_detail_taxonomy`). Alta del 15-11-2026.
+  # Coordenadas: OpenStreetMap (way 183299887 y relation 2463000).
+  - slug: torre-lucia
+    name: Torre Lucía
+    kind: building
+    description: |
+      Torre Lucía es una de las torres de la muralla de Plasencia y hoy
+      alberga el Centro de Interpretación de la Ciudad Medieval. Allí dio
+      **Extremoduro** sus primeros conciertos, entre 1987 y 1988, cuando
+      el grupo acababa de nacer.
+    geo_lat: 40.032778
+    geo_lng: -6.086209
+
+  # «Casa de la Salud» = el antiguo colegio de los jesuitas, casa de salud desde
+  # 1928 y sede de la UNED desde finales de los 90 (web de la UNED; Wikipedia,
+  # «Anexo:Monumentos de Plasencia»). Que los ensayos de los testimonios fueran
+  # aquí es inferencia por el nombre: es el único edificio de Plasencia así llamado.
+  - slug: casa-de-la-salud
+    name: Casa de la Salud
+    kind: building
+    description: |
+      La antigua Casa de la Salud es el viejo colegio de los jesuitas de
+      Plasencia, junto a la plaza de Santa Ana: casa de salud desde 1928 y
+      sede de la UNED desde finales de los noventa. Ángel Lorenzo cuenta
+      que Robe, Kaíto y él ensayaban allí «de okupas», en la primera
+      planta, en los primeros tiempos.
+    geo_lat: 40.031833
+    geo_lng: -6.087590
+
 
 concepts:
   - slug: el-aguila
