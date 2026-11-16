@@ -89,5 +89,20 @@ que usaba la propuesta #533 es **el de 2026** («Primeras», 16 de mayo, Torre L
   description y headings ok, `editorial_review` 78 («revise» por repetición léxica, sin
   objeciones de hechos).
 - Coherencia número ↔ lista: A-05 (20 y 5) y A-21 (5 nombres) cuadran.
-- Pendiente tras aplicar en prod: dry-run y `--apply` de `corregir_post.py`, y comprobar la URL
-  pública.
+- 16-11-2026 12:05 UTC, en prod (PR #133 desplegado): dry-run de `corregir_post.py` limpio
+  (source_grounding, source_guard y lyric_guard); `--apply --descartar-propuesta 533` a las
+  12:05:41. Copia previa en `content_revisions` id 1523; propuesta #533 → `discarded`; hero
+  re-alojado en Cloudinary (`y15tlgr2kn0awlbugyyk.jpg`).
+- 16-11-2026 ≈12:07 UTC, URL pública por Cloudflare y por origen (`--connect-to`): 200; 0
+  apariciones de «Fito», «Kutxi», «grandes artistas», «ticketere»; «Los Robe» solo en el menú
+  de la web; `og:image` y meta description nuevas; `NewsArticle.headline` = title nuevo.
+- 16-11-2026 12:39 UTC, a petición de David: fuera la nota de corrección del final del cuerpo
+  (`content_revisions`, reason «quitar la nota de corrección») y `published_at` pasa de
+  2026-10-12 08:54 a 2026-11-16 12:39 UTC. Comprobado en la URL pública: sin la nota y con
+  `datePublished` 2026-11-16T12:39:14Z.
+- 16-11-2026 ≈13:48 UTC: el hero re-alojado (`y15tlgr2kn0awlbugyyk.jpg`, 1080×1080) era un
+  RECORTE del cartel: `_rehost_to_cloudinary` pasa por `imaging._fetch_image`, que corta a
+  cuadrado para Instagram, y se perdía el «15 Mayo». Re-subido el original de Europa Press
+  (1200×1600) sin recortar: `pkb1qahwxxxcwypk2ae2.jpg`, servido en la URL pública.
+- 16-11-2026, `audit_jsonld --linea-base`: 389 URLs con 200, 0 fallos nuevos, 0 páginas pierden
+  algo frente a la línea base del 13-11.
