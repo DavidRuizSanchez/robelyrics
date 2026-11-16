@@ -172,7 +172,12 @@ def _cover(img: Image.Image) -> Image.Image:
     return img.crop((left, top, left + s, top + s)).resize(SIZE, Image.LANCZOS)
 
 
-def _fetch_image(url: str, timeout: float = 60.0) -> Image.Image:
+def descargar_imagen(url: str, timeout: float = 60.0) -> Image.Image:
+    """La imagen tal cual, sin recortar (valida que es una imagen de verdad).
+
+    Para lo que se sirve en la web. Lo de Instagram pasa por `_fetch_image`,
+    que la recorta a cuadrado.
+    """
     headers = {
         "User-Agent": "EntreInteriores/1.0 (https://entreinteriores.com; "
         "difusion cultural Robe/Extremoduro)"
@@ -180,7 +185,12 @@ def _fetch_image(url: str, timeout: float = 60.0) -> Image.Image:
     with httpx.Client(timeout=timeout, headers=headers, follow_redirects=True) as client:
         resp = client.get(url)
         resp.raise_for_status()
-    return _cover(Image.open(io.BytesIO(resp.content)).convert("RGB"))
+    return Image.open(io.BytesIO(resp.content)).convert("RGB")
+
+
+def _fetch_image(url: str, timeout: float = 60.0) -> Image.Image:
+    """La imagen recortada a cuadrado y escalada a SIZE: el formato de Instagram."""
+    return _cover(descargar_imagen(url, timeout))
 
 
 # Variaciones de estilo para dar variedad entre posts del mismo mood (el modelo de imagen

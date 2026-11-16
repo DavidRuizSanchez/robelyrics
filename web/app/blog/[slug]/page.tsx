@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import NextImage from "next/image";
+import HeroImagen from "@/components/HeroImagen";
 import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
@@ -164,22 +164,12 @@ export default async function BlogPostPage({
           </header>
 
           {post.hero_image_url && (
-            <figure className="mb-10 -mx-5 md:mx-0 relative aspect-[16/9] max-h-[60vh] overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-restricted-imports */}
-              <NextImage
-                src={post.hero_image_url}
-                alt={post.hero_image_alt || `Imagen relacionada: ${post.title}`}
-                fill
-                priority
-                sizes="(max-width: 1100px) 100vw, 1100px"
-                className="object-cover"
-              />
-              {post.hero_image_attribution && (
-                <figcaption className="absolute bottom-0 right-0 bg-bg/75 backdrop-blur-sm px-2 py-1 font-mono text-[9px] tracking-[1px] text-ink-faint">
-                  {post.hero_image_attribution.replace(/^\*|\*$/g, "")}
-                </figcaption>
-              )}
-            </figure>
+            <HeroImagen
+              src={post.hero_image_url}
+              alt={post.hero_image_alt || `Imagen relacionada: ${post.title}`}
+              sizes="(max-width: 1100px) 100vw, 1100px"
+              atribucion={post.hero_image_attribution?.replace(/^\*|\*$/g, "") || null}
+            />
           )}
 
           <MarkdownArticle markdown={post.body_md} />

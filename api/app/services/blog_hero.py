@@ -16,12 +16,17 @@ import os
 import tempfile
 import zlib
 
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.services.hero_image import pick_hero_image
 
 logger = logging.getLogger(__name__)
+
+# Lado mayor de una imagen re-alojada: de sobra para una cabecera a 2x, y evita
+# subir originales de 6000 px de Wikimedia.
+LADO_MAXIMO = 2400
 
 
 def used_hero_urls(db: Session) -> set[str]:
@@ -113,7 +118,12 @@ def _rehost_to_cloudinary(url: str) -> str | None:
     path = None
     try:
         from app.services.instagram import cloudinary_upload, imaging
-        img = imaging._fetch_image(url)  # valida que es imagen de verdad
+        # SIN recortar. Hasta el 16-11-2026 pasaba por `_fetch_image`, que corta a
+        # cuadrado para Instagram: el cartel de Flores Amarillas 2027 (1200×1600)
+        # quedó en 1080×1080 sin la fecha. Quien pinta la imagen ya la encuadra.
+        img = imaging.descargar_imagen(url)  # valida que es imagen de verdad
+        if max(img.size) > LADO_MAXIMO:
+            img.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fh:
             path = fh.name
         img.convert("RGB").save(path, "JPEG", quality=88)
