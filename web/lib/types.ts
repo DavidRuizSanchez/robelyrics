@@ -365,17 +365,6 @@ export type PublicPostListItem = {
   published_at: string;
 };
 
-// Un post de Instagram con la página de la web de la que habla (`/enlaces`).
-export type PublicEnlaceBio = {
-  id: number;
-  titulo: string;
-  imagen: string | null;
-  destino: string;
-  etiqueta: string;
-  tipo: "post" | "song" | "album" | "person" | "registro";
-  publicado: string | null;
-};
-
 export type PublicPostVideo = {
   youtube_id: string;
   title: string | null;

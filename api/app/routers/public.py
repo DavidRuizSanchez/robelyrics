@@ -1999,29 +1999,6 @@ def public_posts_list(
     ]
 
 
-class PublicEnlaceBio(BaseModel):
-    id: int
-    titulo: str
-    imagen: str | None = None
-    destino: str
-    etiqueta: str
-    tipo: str
-    publicado: datetime | None = None
-
-
-@router.get("/instagram/enlaces", response_model=list[PublicEnlaceBio])
-def public_enlaces_bio(
-    response: Response,
-    db: Session = Depends(get_db),
-    limit: int = 24,
-) -> list[PublicEnlaceBio]:
-    """Los últimos posts de Instagram con la página de la web de la que hablan."""
-    from app.services.enlaces_bio import ultimos
-
-    _set_cache(response)
-    return [PublicEnlaceBio(**e.__dict__) for e in ultimos(db, limite=min(limit, 48))]
-
-
 @router.get("/posts/mentioning", response_model=list[PublicPostListItem])
 def public_posts_mentioning(
     slug: str,
