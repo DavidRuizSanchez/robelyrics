@@ -68,6 +68,7 @@ export const GATE_LABEL: Record<string, string> = {
   completeness: "el control de completitud",
   facts: "el control de datos de catálogo",
   fuentes: "el control de fuentes externas",
+  noticia: "el control contra el artículo de la noticia",
 };
 
 // ── Reparto de keywords (content_placement) ─────────────────────────────────

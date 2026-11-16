@@ -45,6 +45,10 @@ _SYS = (
     "arte sin relación (p.ej. un retrato clásico), un paisaje o edificio sin "
     "conexión, un objeto/animal/comida fuera de lugar, un logo o marca distinta, o "
     "una persona que es EVIDENTEMENTE otro personaje conocido y distinto del sujeto. "
+    "RECHAZA también si un TEXTO visible en la imagen (camiseta, rótulo, cartel, "
+    "pancarta, nombre en el bombo) la identifica con OTRA banda, OTRO local u OTRO "
+    "evento distinto del sujeto: p.ej. una banda tributo con su nombre en la "
+    "camiseta para un artículo sobre un festival, o el cartel de otro concierto. "
     "Ante la duda con una imagen plausiblemente musical/on-topic, ACEPTA. "
     "Devuelve SOLO JSON: "
     '{"relevant": bool, "describes": "2-4 palabras de lo que se ve", '

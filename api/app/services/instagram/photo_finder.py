@@ -209,7 +209,8 @@ def _pick_web(candidates: list[dict], topic: dict, exclude: set[str]) -> dict | 
     c = pool[seed % len(pool)]
     # Sin crédito: para IG el usuario autoriza foto web sin preocuparse del
     # copyright. `thumb` es respaldo si la imagen full no descarga.
-    return {"url": c["url"], "thumb": c.get("thumb") or "", "credit": ""}
+    return {"url": c["url"], "thumb": c.get("thumb") or "", "credit": "",
+            "page_url": c.get("page_url") or ""}
 
 
 def find(topic: dict, exclude: set[str] | None = None) -> dict | None:

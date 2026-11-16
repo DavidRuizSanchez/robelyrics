@@ -48,6 +48,14 @@ logger = logging.getLogger(__name__)
 # día con el gate exigente vaciaría la cola entera de una sentada.
 BACKFILL_MAX = 3
 
+# Hasta aquí, las noticias se redactaban SIN su artículo: los enlaces de Google
+# News no se resolvían y `fetch_article_text` devolvía el banner de cookies de
+# Google (arreglado en 825aebc, 22-09-2026). Un borrador de antes de esta fecha
+# no se publica tal cual: se vuelve a escribir con el artículo delante. Así salió
+# el cartel inventado de Flores Amarillas 2027 (post #65), escrito el 14-09 y
+# publicado el 12-10 con el cuerpo de entonces.
+NEWS_GROUNDING_SINCE = datetime(2026, 9, 23, tzinfo=UTC)
+
 
 def _notify_admin(subject: str, text: str) -> None:
     """Aviso best-effort al admin (p.ej. publicación caducada cancelada)."""
@@ -144,6 +152,48 @@ def _unique_slug(db, base: str) -> str:
     return slug
 
 
+def _articulo_de_propuesta(db, p: ContentProposal) -> str:
+    """El texto con el que se comprueba una noticia: el que se pegó a mano en el
+    alta por URL o, si no, el artículo re-descargado. Nunca el resumen del RSS."""
+    from app.db.models import UrlIngestJob
+    from app.services.source_grounding import articulo_de
+
+    pegado = db.execute(
+        select(UrlIngestJob.body_text)
+        .where(UrlIngestJob.proposal_id == p.id, UrlIngestJob.body_text.is_not(None))
+        .order_by(UrlIngestJob.id.desc()).limit(1)
+    ).scalar_one_or_none()
+    if pegado and pegado.strip():
+        return pegado
+    return articulo_de(p.source_url)
+
+
+def _reescribir_noticia_vieja(db, p: ContentProposal, articulo: str, today) -> bool:
+    """Vuelve a escribir con el motor actual una noticia redactada sin artículo."""
+    from app.services.news_research import research_and_write
+
+    created = p.created_at if p.created_at.tzinfo else p.created_at.replace(tzinfo=UTC)
+    if created >= NEWS_GROUNDING_SINCE:
+        return True
+    logger.info("  ⚠ borrador de noticia anterior al %s → se reescribe con su artículo",
+                NEWS_GROUNDING_SINCE.date())
+    rw = research_and_write(
+        db=db, headline=p.title, source_excerpt=articulo,
+        matched_term=(p.target_keyword or p.title), today=today,
+    )
+    if not rw.get("is_relevant", True) or len((rw.get("body_md") or "").strip()) < 300:
+        return False
+    p.title = (rw.get("title") or p.title)[:240]
+    p.body_md = rw["body_md"]
+    p.excerpt = (rw.get("excerpt") or p.excerpt or "")[:200] or None
+    if rw.get("meta_title"):
+        p.meta_title = rw["meta_title"][:60]
+    if rw.get("meta_description"):
+        p.meta_description = rw["meta_description"][:155]
+    db.commit()
+    return True
+
+
 def _materialize_one(db, p: ContentProposal, today) -> str:
     """Pasa UNA propuesta por toda la cascada de gates y, si los supera, la publica.
 
@@ -158,6 +208,36 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     caducada = bool(p.event_date and p.event_date < today)
     if caducada and _handle_expired(db, p, today, dry_run=False) == "cancelled":
         return "discarded"
+
+    # 0b. UNA NOTICIA SE COMPRUEBA CON SU ARTÍCULO. Sin artículo no hay post (ni
+    #     con force_publish: es veracidad, no gusto). Y un borrador escrito antes
+    #     de que se pudieran leer los artículos se vuelve a escribir.
+    fuente_noticia = ""
+    if p.kind == "news":
+        fuente_noticia = _articulo_de_propuesta(db, p)
+        if not fuente_noticia:
+            p.status = "discarded"
+            db.commit()
+            _notify_admin(
+                f"🗑 Noticia sin artículo: {p.title}",
+                f"La propuesta #{p.id} no tiene artículo descargable ({p.source_url}) "
+                "ni texto pegado, así que no hay con qué comprobar lo que afirma. "
+                "No se publica. Si el medio bloquea la descarga, el alta por URL "
+                "del panel deja pegar el cuerpo del artículo.",
+            )
+            logger.info("  ✗ DESCARTADA: noticia sin artículo con el que comprobarla")
+            return "discarded"
+        if not _reescribir_noticia_vieja(db, p, fuente_noticia, today):
+            p.status = "discarded"
+            db.commit()
+            _notify_admin(
+                f"🗑 Noticia vieja sin cuerpo publicable: {p.title}",
+                f"La propuesta #{p.id} se redactó antes del {NEWS_GROUNDING_SINCE.date()} "
+                "sin leer su artículo, y al reescribirla con él no ha salido un cuerpo "
+                "publicable. No se publica.",
+            )
+            logger.info("  ✗ DESCARTADA: la reescritura con el artículo no dio cuerpo")
+            return "discarded"
 
     # 1. Asegurar borrador (normalmente ya hecho al aprobar).
     if not p.body_md:
@@ -323,7 +403,29 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     #     concierto será el 5 de junio» se llevaría el dato por delante.
     from app.services.source_guard import fuentes_nombradas, nombres_de_fuentes
     fuentes = fuentes_nombradas(post.body_md, nombres_de_fuentes(db))
-    if needs_review or lyric_review or review_focus or fuentes:
+    # 3d. Lo que la noticia no dice no se afirma (post #65, 12-10-2026). Va a
+    #     revisión, no se recorta solo: aquí ya hay un post y lo decide una persona.
+    grounding = None
+    if p.kind == "news":
+        from app.services import source_grounding
+        from app.services.news_research import entity_dossiers
+        # Lo propio (fichas, formación, créditos) se puede nombrar aunque la noticia
+        # no lo traiga; lo que no vale es ponerlo en un cartel.
+        try:
+            propio = entity_dossiers(db, " ".join([p.title or "", fuente_noticia[:4000]]))
+        except Exception as exc:  # noqa: BLE001 — sin dossier, más estricto, no menos
+            logger.warning("  dossier para la noticia falló (%s): se comprueba sin él", exc)
+            db.rollback()
+            propio = ""
+        grounding = source_grounding.revisar(
+            post.body_md, fuente_noticia, casa=source_grounding.nombres_de_casa(db),
+            propio=propio or "",
+        )
+        if grounding.ok:
+            grounding = None
+        else:
+            logger.info("  noticia REVISAR: %s", grounding.motivo())
+    if needs_review or lyric_review or review_focus or fuentes or grounding:
         for v in needs_review:
             logger.info("  fact-check REVISAR: %s · %s", v.claim.type, v.claim.subject)
         for v in lyric_review:
@@ -337,6 +439,8 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
             from app.services.publishing import _motivo_citas
             propose_for_review(db, post, blocked_by="lyrics",
                                reason=_motivo_citas(lyric_report))
+        elif grounding:
+            propose_for_review(db, post, blocked_by="noticia", reason=grounding.motivo())
         elif fuentes:
             propose_for_review(
                 db, post, blocked_by="fuentes",
