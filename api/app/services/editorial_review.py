@@ -76,9 +76,11 @@ _RUBRIC: dict[str, str] = {
         "menos varios de estos detalles REALES: canciones/temas concretos que "
         "sonaron, palabras o dedicatorias sobre Robe/Extremoduro, otros artistas o "
         "invitados presentes (con nombre), una anécdota o momento concreto. Si es el "
-        "ANUNCIO de un evento futuro, exige quién/cuándo/dónde/lineup y por qué le "
-        "importa a un fan (no se le pide setlist). Genérico ('ofrecieron "
-        "actuaciones', 'rindió homenaje') sin detalles → reject."
+        "ANUNCIO de un evento futuro, exige cuándo/dónde y qué es, y por qué le "
+        "importa a un fan (no se le pide setlist). El cartel, solo si está "
+        "anunciado: 'aún no se han anunciado los nombres' es un dato CONCRETO y "
+        "correcto, nunca motivo de reject. Genérico ('ofrecieron actuaciones', "
+        "'rindió homenaje') sin detalles → reject."
     ),
     "spotlight": (
         "Análisis de canción. Exige versos citados textualmente, significado "
@@ -186,9 +188,11 @@ def review(
     elif event_when == "future":
         when_line = (
             "Es el ANUNCIO de un evento FUTURO: vara MÁS LENIENTE. Si indica de forma "
-            "CONCRETA quién toca + cuándo + dónde, es ÚTIL para un fan que quiera ir → "
-            "'pass' (o 'revise' si hay paja). NO exijas setlist ni 'por qué es "
-            "relevante'. Solo 'reject' si es vago incluso en quién/cuándo/dónde.\n"
+            "CONCRETA cuándo + dónde + qué (y quién toca, si está anunciado), es ÚTIL "
+            "para un fan que quiera ir → 'pass' (o 'revise' si hay paja). NO exijas "
+            "setlist, ni 'por qué es relevante', ni un cartel que no se ha anunciado: "
+            "decir que aún no hay nombres es correcto. Solo 'reject' si es vago en "
+            "cuándo/dónde.\n"
         )
 
     material_block = ""

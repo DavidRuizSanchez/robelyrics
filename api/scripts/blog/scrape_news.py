@@ -56,6 +56,17 @@ HARD_REJECT_TERMS = {"clickbait"}
 # --------------------------------------------------------------------------- #
 # Utilidades
 # --------------------------------------------------------------------------- #
+
+def _cuerpo_de(news) -> str:
+    """Texto del artículo de una noticia, o cadena vacía. Nunca el resumen del RSS.
+
+    Primero lo que guardó el agregador (`news_items.body_text`, desde el
+    22-09-2026); si no lo tiene, se descarga resolviendo Google News.
+    """
+    if getattr(news, "body_status", None) == "ok" and (news.body_text or "").strip():
+        return news.body_text
+    return fetch_article_text(news.url) or ""
+
 def _slugify(text: str, max_len: int = 100) -> str:
     nfkd = unicodedata.normalize("NFKD", text)
     ascii_only = nfkd.encode("ascii", "ignore").decode("ascii")
@@ -116,6 +127,7 @@ def _notify_admin(summary: dict) -> None:
         f"Propuestas nuevas al banco: {summary['proposed']}",
         f"Descartadas (sin match):   {summary['no_match']}",
         f"Descartadas por el LLM:    {summary['rejected']}",
+        f"Sin artículo (no se escriben): {summary.get('sin_material', 0)}",
         f"Errores:                   {summary['errors']}",
         "",
     ]
@@ -259,9 +271,19 @@ def main() -> None:
                 meta_title = title[:60]
                 meta_description = excerpt[:155]
             else:
-                # B1: cuerpo COMPLETO de la fuente principal (efímero, solo
-                # como contexto para el LLM; no se persiste el original).
-                primary = fetch_article_text(news.url) or news.summary or news.title
+                # B1: cuerpo COMPLETO de la fuente principal. SIN ARTÍCULO NO
+                # HAY POST: caer al resumen del RSS o al titular es escribir sin
+                # material, y así salió el cartel inventado de Flores Amarillas
+                # 2027 (post #65). El agregador ya lo guarda en `news_items`.
+                primary = _cuerpo_de(news)
+                if not primary:
+                    logger.info("  sin artículo descargable (%s): no se propone «%s»",
+                                news.body_status, news.title[:80])
+                    summary["sin_material"] = summary.get("sin_material", 0) + 1
+                    if not args.dry_run:
+                        news.consumed_blog = True
+                        db.commit()
+                    continue
                 # B3: otras noticias pendientes del MISMO evento (mismo término
                 # + titular solapado) para cruzar fuentes en un solo post más
                 # completo. Se marcarán consumidas para no duplicar.
@@ -274,7 +296,7 @@ def main() -> None:
                 ][:3]
                 parts = [f"FUENTE PRINCIPAL ({source_label}):\n{primary}"]
                 for r in related:
-                    rbody = fetch_article_text(r.url) or r.summary or ""
+                    rbody = _cuerpo_de(r)
                     if rbody:
                         parts.append(
                             "OTRA FUENTE DEL MISMO EVENTO "

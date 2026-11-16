@@ -85,6 +85,21 @@ _BAD_IMAGE_HOSTS = (
 )
 
 
+# Webs de venta de entradas y agendas: su imagen es SIEMPRE la portada de un evento
+# concreto, que casi nunca es el del post. El post #65 (Flores Amarillas 2027)
+# salió con la de una banda tributo sacada de ticketere.com.
+_OTRO_EVENTO_HOSTS = (
+    "ticketere.", "ticketmaster.", "entradas.com", "eventbrite.", "wegow.", "dice.fm",
+    "songkick.", "bandsintown.", "giglon.", "entradium.", "compralaentrada.",
+    "todotickets.", "taquilla.com", "seetickets.", "enterticket.", "ataquilla.",
+)
+
+
+def es_portada_de_otro_evento(url: str | None) -> bool:
+    u = (url or "").lower()
+    return any(h in u for h in _OTRO_EVENTO_HOSTS)
+
+
 def _rehost_to_cloudinary(url: str) -> str | None:
     """Descarga una foto web y la RE-SUBE a Cloudinary (folder del blog), devolviendo
     la URL `res.cloudinary.com`. Necesario porque Next.js solo optimiza imágenes de
@@ -145,6 +160,8 @@ def _web_photo_hero(
             if not url or url in used:
                 continue
             if any(h in url.lower() for h in _BAD_IMAGE_HOSTS):
+                continue
+            if es_portada_de_otro_evento(url) or es_portada_de_otro_evento(chosen.get("page_url")):
                 continue
             hosted = url if url.startswith("/") else _rehost_to_cloudinary(url)
             if not hosted or hosted in used:

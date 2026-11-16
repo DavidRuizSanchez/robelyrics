@@ -274,6 +274,41 @@ despublica nada** (no hay camino para ello en el código, y no conviene que lo
 haya: retirar un post es manual en instagram.com) y **no va al crontab** hasta
 calibrarlo, misma decisión que `audit_published.py`.
 
+## Una noticia del blog se escribe con su artículo
+
+El 12-10-2026 salió «Flores Amarillas 2027» (post #65) con un cartel inventado:
+Fito Cabrales «confirmado», Kutxi Romero y un tributo «Los Robe». Su artículo no
+nombraba a ni un músico. El borrador era del 14-09, **antes** de `google_news_url`:
+el modelo escribió con el titular y el banner de cookies. Y **se lo pedía el motor**:
+el prompt quería «quién actúa… actuaciones» y el juez de rigor rechazaba un anuncio
+sin lineup, así que rellenó con lo que el corpus sí trae (Kutxi y Fito hablando de
+Robe). Ningún gate del blog miraba el artículo.
+
+- **`app/services/source_grounding.py`**: todo nombre propio del cuerpo tiene que
+  estar en el artículo, ser de casa (`nombres_de_casa`: catálogo y fichas) o estar en
+  lo `propio` (el dossier de la BD). En una frase que ANUNCIA participación
+  («actuará», «confirmado», «contará con», «cartel»…) solo vale el artículo: tener
+  ficha no pone a nadie en un cartel. Una frase de participación sin nombres va al
+  juez `caption_guard._lo_dice_el_articulo` (contra el artículo, nunca contra la
+  web). Negar un anuncio («aún no se han anunciado los nombres») no se juzga: es lo
+  que se le pide al redactor. Falla cerrado.
+- **Dónde corre**: al final de `research_and_write` (después de `_polish`, que
+  reescribe sin verificar) retira las frases; en `materialize_proposals` manda a
+  revisión con `blocked_by="noticia"`. Las secciones de noticia se verifican contra
+  lo afirmable (artículo + dossier), no contra la web y el corpus.
+- **Sin artículo no hay post**: `scrape_news` ya no cae al resumen del RSS ni al
+  titular, y el materializador descarta la noticia que no lo tiene (ni texto pegado).
+- **La cola vieja se reescribe**: una noticia redactada antes de
+  `NEWS_GROUNDING_SINCE` (23-09-2026) se vuelve a escribir con su artículo. Mismo
+  patrón que «un post preparado no se entera de que has desplegado».
+- **Fotos**: las webs de entradas (`blog_hero._OTRO_EVENTO_HOSTS`) no dan cabecera,
+  porque su imagen es la portada de OTRO evento (el #65 llevaba una banda tributo de
+  ticketere). `hero_guard` rechaza la foto cuyo texto visible la ata a otra banda,
+  otro local u otro evento.
+- Corregir lo publicado: `scripts/blog/corregir_post.py` (dry-run por defecto):
+  pasa los gates contra las fuentes re-descargadas, guarda `content_revisions` y
+  revalida. El `PUT /admin/posts` no hace ninguna de las tres cosas.
+
 ## Canales de YouTube: no todos son monotemáticos
 
 Los canales que se barren viven en `data/sources.yaml` con `ingest: true`, y
