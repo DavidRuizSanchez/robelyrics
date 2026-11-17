@@ -141,8 +141,10 @@ def test_la_primera_linea_es_el_arranque():
 def test_un_segmento_suelto_no_nombra_una_cancion():
     """Lo que publicó «El solo de "La Carrera"»: un tramo suelto de 11
     caracteres casó a 0,91 con otra canción y se llevó el nombre."""
-    assert momentos.clasificar(
-        [_Seg(10, 14, "dejo las ventanas sin cerrar")], _catalogo()) == []
+    ms = momentos.clasificar([_Seg(10, 14, "dejo las ventanas sin cerrar")], _catalogo())
+    assert [m.cancion for m in ms] == [None]
+    # Queda como «dudoso»: no se propone, pero corta el bloque.
+    assert [m.tipo for m in ms] == ["dudoso"]
 
 
 def test_lo_que_no_es_letra_es_alguien_hablando():
@@ -410,3 +412,148 @@ def test_vigo_la_letra_mal_transcrita_no_es_robe_hablando():
     hablas = [m for m in momentos.clasificar(segs, cat)
               if m.tipo == "habla" and 115 <= m.start_s <= 122]
     assert hablas == []
+
+
+# --------------------------------------------------------------------------- #
+# «Robe, desde el escenario» que no habla (13 clips reales, 17-11-2026)
+# --------------------------------------------------------------------------- #
+# De los 13 clips «habla» propuestos hasta el 17-11, solo el #530 lo era. Los
+# segmentos son los de prod, ±90 s alrededor de cada clip, y el catálogo es el
+# trozo mínimo que reproduce la identificación real: la línea ganadora de cada
+# tramo y, por canción, las palabras que comparte con los tramos (el prefiltro).
+def _clips_habla():
+    import json
+    from pathlib import Path
+
+    from app.services import lyric_guard as lg
+
+    datos = json.loads((Path(__file__).parent / "fixtures" /
+                        "clips_habla_2026_11.json").read_text("utf-8"))
+    canciones, estribillos, arranques = [], {}, {}
+    for c in datos["canciones"]:
+        lineas = [(t, lg.normalize(t)) for t in c["lines"] if t.strip()]
+        canciones.append({"title": c["title"], "lines": lineas,
+                          "tokens": frozenset(c["palabras"])})
+        estribillos.update({lg.normalize(t): c["title"] for t in c["estribillos"]})
+        arranques.update({lg.normalize(t): c["title"] for t in c["arranques"]})
+    cat = momentos.Catalogo(canciones=canciones, estribillos=estribillos,
+                            arranques=arranques)
+    casos = []
+    for caso in datos["casos"]:
+        segs = [_Seg(s["start_s"], s["end_s"], s["text"] or "", s["no_speech_prob"] or 0.0)
+                for s in caso["segmentos"]]
+        casos.append((caso["queue_id"], tuple(caso["clip"]), segs))
+    return casos, cat
+
+
+def _bloques_de_habla(segs, cat, *, usar_llm=False):
+    """Los bloques «habla» que saldrían, con su texto, tal como los arma el picker."""
+    from app.services.instagram import clip_picker as cp
+
+    ms = momentos.clasificar(segs, cat)
+    fuera = []
+    for i, m in enumerate(ms):
+        if m.tipo != "habla" or not cp.abre_bloque(ms, i):
+            continue
+        ini, fin, _f, _c = cp._bloque_del_momento(ms, i, segs[-1].end_s)
+        if fin - ini < cp.MIN_S_DIRECTO:
+            continue
+        texto = " ".join(s.text for s in segs if ini <= s.start_s <= fin)
+        ok, _motivo = cp.habla_al_publico(texto, usar_llm=usar_llm)
+        if ok:
+            fuera.append((ini, fin, texto))
+    return fuera
+
+
+def test_el_ruido_de_whisper_no_es_habla():
+    assert momentos.es_ruido("Música")
+    assert momentos.es_ruido("y")
+    assert momentos.es_ruido("¡Santos!")
+    assert momentos.es_ruido("¿Qué te parece?", "¿Qué te parece?", None), "bucle"
+    assert momentos.es_ruido("Perdonad, pero se había jodido algo en los cascos") is None
+
+
+def test_lo_que_casa_sin_consenso_corta_el_bloque():
+    """#531: «perdido,» y «¡Gracias!» se pegaban por encima de la letra que casaba
+    sin consenso, y salían 39 s de «Robe hablando»."""
+    segs = [
+        _Seg(0, 4, "¡Vamos Manolo, que os quiero a todos!"),
+        _Seg(4, 8, "dejo las ventanas sin cerrar"),        # casa, pero suelto
+        _Seg(8, 12, "Gracias Plasencia, sois la leche, de verdad"),
+    ]
+    tipos = [m.tipo for m in momentos.clasificar(segs, _catalogo())]
+    assert tipos == ["habla", "dudoso", "habla"]
+
+
+def test_un_tramo_cantado_despacio_no_es_habla():
+    """#529: un solo tramo de 29 s con 62 caracteres. Hablando salen 9-16 por
+    segundo; eso es una estrofa cantada."""
+    ms = momentos.clasificar(
+        [_Seg(60, 89, "Atraviesa ya la cortina gris, deja de pensar, nunca estás aquí.")],
+        _catalogo())
+    assert [m.tipo for m in ms] == ["dudoso"]
+
+
+def test_un_habla_corta_no_se_estira_con_lo_que_venga():
+    """#535: «¡Andoites a todo el mundo!» (3 s) se completaba hasta los 10 s
+    mínimos con 30 s de «Adiós, cielo azul»."""
+    from app.services.instagram.clip_picker import _bloque_del_momento
+
+    ms = [_Mom("habla", 229, 232), _Mom("canto", 260, 273, "Adiós, cielo azul")]
+    _i, fin, _f, _c = _bloque_del_momento(ms, 0, 600)
+    assert fin == 232
+
+
+def test_un_hueco_largo_parte_el_momento():
+    from app.services.instagram.clip_picker import abre_bloque
+
+    ms = [_Mom("habla", 100, 104), _Mom("habla", 160, 164)]
+    assert abre_bloque(ms, 1), "un minuto después ya es otro momento"
+
+
+@pytest.mark.parametrize("queue_id", [374, 528, 529, 531, 532, 533, 534, 535,
+                                      543, 544, 545, 546])
+def test_los_clips_que_no_hablaban_ya_no_salen(queue_id):
+    """Sin juez (que en un test no hay): solo con las guardas deterministas,
+    ningún bloque de habla toca el tramo que se propuso."""
+    casos, cat = _clips_habla()
+    _qid, (ini, fin), segs = next(c for c in casos if c[0] == queue_id)
+    pisan = [b for b in _bloques_de_habla(segs, cat) if b[0] < fin and b[1] > ini]
+    # El #532 empieza con algo que puede ser Robe recitando («Yo soy un guerrero
+    # pacífico…», 6 s) y entra «Guerrero»: ya no se estira con la canción.
+    assert pisan == [], f"#{queue_id} sigue dando habla: {pisan}"
+
+
+def test_el_clip_que_si_hablaba_sigue_saliendo():
+    """#530, Vigo 2024: «Perdonad, pero se había jodido algo en los cascos»."""
+    casos, cat = _clips_habla()
+    _qid, (ini, fin), segs = next(c for c in casos if c[0] == 530)
+    bloques = [b for b in _bloques_de_habla(segs, cat) if b[0] < fin and b[1] > ini]
+    assert bloques, "el único habla de verdad no puede caer"
+    assert "cascos" in bloques[0][2]
+    assert "Qué te parece" not in bloques[0][2], "el bucle de Whisper queda fuera"
+
+
+def test_sin_juez_el_habla_no_se_da_por_buena(monkeypatch):
+    """El post afirma que Robe habla: ante la duda, no."""
+    import app.services.news_research as nr
+    from app.services.instagram.clip_picker import habla_al_publico
+
+    def _revienta(*a, **k):
+        raise RuntimeError("sin red")
+
+    monkeypatch.setattr(nr, "_json", _revienta)
+    ok, motivo = habla_al_publico(
+        "Perdonad, pero se había jodido algo en los cascos, bueno, esta se la vamos a dedicar")
+    assert not ok
+    assert "no se ha podido comprobar" in motivo
+
+
+def test_el_juez_que_dice_canto_tumba_el_clip(monkeypatch):
+    import app.services.news_research as nr
+    from app.services.instagram.clip_picker import habla_al_publico
+
+    monkeypatch.setattr(nr, "_json", lambda *a, **k: {"que": "canto"})
+    ok, _ = habla_al_publico(
+        "Yo soy un guerrero pacífico que llama a librar las batallas de puertas adentro")
+    assert not ok

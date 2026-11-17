@@ -407,11 +407,20 @@ PESO_TIPO = {
 # UNO ANTES de que sonara el gancho (295-302). Criterio de David: mejor corto y
 # exacto. `video_clips.MIN_CLIP_S` admite desde 3 s.
 MIN_S_DIRECTO = 10.0
+# Dos tramos del mismo tipo con más hueco que esto entre medias no son el mismo
+# momento: algo pasó en medio. Sin este corte, un silencio largo (que no deja
+# momento) pegaba un «¡Andoites a todo el mundo!» con lo que viniera minutos
+# después.
+HUECO_MAX_S = 10.0
+# Un bloque de habla con menos palabras distintas que esto no es Robe contando
+# algo: es un grito suelto o un trozo de letra que se escapó.
+HABLA_MIN_PALABRAS = 8
 
 
 def _mismo_momento(a, b) -> bool:
     """¿Estos dos tramos son el mismo momento, seguido?"""
-    return a.tipo == b.tipo and a.cancion == b.cancion
+    return (a.tipo == b.tipo and a.cancion == b.cancion
+            and b.start_s - a.end_s <= HUECO_MAX_S)
 
 
 def abre_bloque(momentos_todos: list, idx: int) -> bool:
@@ -453,9 +462,14 @@ def _bloque_del_momento(
 
     # El bloque se queda corto: se completa con lo que siga sonando de la misma
     # canción (la estrofa que viene después, el cierre), nunca con otra cosa.
+    # Sin canción no hay con qué completar: un «habla» de 3 s se estiraba con lo
+    # que viniera después y el clip #535 acabó siendo 30 s de «Adiós, cielo
+    # azul» bajo el rótulo de Robe hablando.
     while fin - inicio < MIN_S_DIRECTO and j + 1 < len(momentos_todos):
         siguiente = momentos_todos[j + 1]
-        if m.cancion and siguiente.cancion and siguiente.cancion != m.cancion:
+        if not m.cancion or siguiente.cancion != m.cancion:
+            break
+        if siguiente.start_s - fin > HUECO_MAX_S:
             break
         if siguiente.end_s - inicio > MAX_S:
             break
@@ -470,7 +484,7 @@ def _bloque_del_momento(
 
 
 def candidatos_directo(
-    db: Session, asset: VideoAsset, *, catalogo=None,
+    db: Session, asset: VideoAsset, *, catalogo=None, usar_llm: bool = True,
 ) -> list[Candidato]:
     """Los mejores momentos de UN concierto, de mejor a peor.
 
@@ -538,6 +552,16 @@ def candidatos_directo(
         if m.cancion and _norm(m.cancion) in canciones_usadas:
             logger.debug("[clips] «%s» ya tiene clip de este concierto", m.cancion)
             continue
+        texto = " ".join(
+            (getattr(s, "text", "") or "").strip() for s in segmentos
+            if inicio <= s.start_s <= fin
+        ).strip()
+        if m.tipo == "habla":
+            es_habla, motivo_habla = habla_al_publico(texto, usar_llm=usar_llm)
+            if not es_habla:
+                logger.info("[clips] %s %.0f-%.0fs no es habla: %s",
+                            asset.youtube_id, inicio, fin, motivo_habla)
+                continue
         aceptadas.append((inicio, fin))
         if m.cancion:
             canciones_usadas.add(_norm(m.cancion))
@@ -557,10 +581,8 @@ def candidatos_directo(
             # solo sale si no hay material con imágenes de verdad.
             score -= 2.0
             motivos.append("OJO: el vídeo es una imagen fija con el audio")
-        texto = " ".join(
-            (getattr(s, "text", "") or "").strip() for s in segmentos
-            if inicio <= s.start_s <= fin
-        ).strip()
+        if m.tipo == "habla":
+            motivos.append(motivo_habla)
 
         fuera.append(Candidato(
             asset=asset, start_s=round(inicio, 2), end_s=round(fin, 2),
@@ -680,3 +702,51 @@ def habla_el_protagonista(texto: str, *, usar_llm: bool = True) -> tuple[bool, s
     if quien == "entrevistado":
         return True, "lo dice el entrevistado"
     return False, f"lo dice el {quien}"
+
+
+# --------------------------------------------------------------------------- #
+# ¿Habla al público o canta? (los clips «Robe, desde el escenario», 17-11-2026)
+# --------------------------------------------------------------------------- #
+# El clasificador de momentos ya quita el ruido de Whisper, pero letra cantada
+# mal transcrita y habla se parecen demasiado por texto: «Bueno, mejor dicho, se
+# la vamos a cantar» casa a 0,59 con una letra, y «En el cielo azul y tú
+# mirándome de frente» es letra. Lo decide un juez barato, como en las
+# entrevistas, y ante la duda NO: el post afirma que Robe habla.
+_SYS_HABLA_O_CANTA = (
+    "Te dan la transcripción automática de un tramo de un CONCIERTO de rock. "
+    "Whisper transcribe mal la música: inventa palabras, repite y mezcla letra. "
+    "Dices qué hay en el tramo:\n"
+    "- 'habla': alguien HABLA al público entre canciones (saluda, presenta un "
+    "tema, cuenta algo, se disculpa, da las gracias con frases completas).\n"
+    "- 'canto': es letra de una canción, aunque esté mal transcrita.\n"
+    "- 'ruido': no tiene sentido; palabras sueltas o inventadas.\n"
+    "- 'dudoso': no se puede saber.\n"
+    "Si hay habla y también canto, responde lo que ocupe la mayor parte.\n"
+    'Devuelve JSON: {"que": "habla"|"canto"|"ruido"|"dudoso"}'
+)
+
+
+def habla_al_publico(texto: str, *, usar_llm: bool = True) -> tuple[bool, str]:
+    """¿En este tramo de concierto alguien habla al público? → (sí/no, motivo).
+
+    El post que sale de un «habla» dice que Robe habla desde el escenario: si
+    no se puede sostener, no hay clip.
+    """
+    t = (texto or "").strip()
+    palabras = set(_norm(t).split())
+    if len(palabras) < HABLA_MIN_PALABRAS:
+        return False, f"solo {len(palabras)} palabras distintas: no da para habla"
+    if not usar_llm:
+        return True, "no lo contradice ninguna señal"
+    try:
+        from app.services.news_research import _json
+
+        data = _json(_SYS_HABLA_O_CANTA, f'TRANSCRIPCIÓN:\n"""\n{t[:900]}\n"""',
+                     max_tokens=40, temperature=0)
+        que = (data or {}).get("que", "dudoso")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[clips] no se pudo comprobar si el tramo es habla: %s", exc)
+        return False, "no se ha podido comprobar si es habla"
+    if que == "habla":
+        return True, "el juez lo da por habla al público"
+    return False, f"el juez dice «{que}»"
