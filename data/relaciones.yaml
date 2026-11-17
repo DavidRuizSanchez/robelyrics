@@ -2581,3 +2581,35 @@ relaciones:
          evidencia: "P19 = Q2807 (Madrid); referencia: Freebase"}
       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803",
          evidencia: "begin area: Madrid (área 9ddf829c…, que enlaza a Q2807)"}
+  # --- Altas del 17-11-2026 (Torre Lucía, Casa de la Salud y Joaquín Sabina) ---
+  # Fuentes comprobadas ese día; `verificado_por: david` vale al aprobar el PR.
+  - sujeto: person:joaquin-sabina
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Úbeda", sameAs: "https://www.wikidata.org/wiki/Q329984"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q363577#P19",
+         evidencia: "P19 = Q329984 (Úbeda, municipio de la provincia de Jaén)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Joaqu%C3%ADn_Sabina",
+         evidencia: "ficha «Nacimiento: 12 de febrero de 1949, Úbeda, Jaén, España»"}
+  - sujeto: place:torre-lucia
+    predicado: containedInPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: web_oficial, tier: T2, url: "https://contenidos.plasencia.es/c-i-torre-lucia/",
+         evidencia: "Ayuntamiento de Plasencia: «alberga el Centro de Interpretación de la Ciudad Medieval de Plasencia»"}
+      - {kind: web_oficial, tier: T2, url: "https://culturaplasencia.es/espacio/torre-lucia/",
+         evidencia: "«Recinto enmarcado dentro de la antigua muralla de la ciudad, junto a la célebre Torre Lucía…» (Festival Internacional Folk Plasencia)"}
+  - sujeto: place:casa-de-la-salud
+    predicado: containedInPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: web_oficial, tier: T2, url: "https://www.uned.es/universidad/centros/es/plasencia/centro/edificio.html",
+         evidencia: "«el viejo colegio de los jesuitas acoge… el Centro Asociado a la UNED en Plasencia»; Plaza Santa Ana, s/n, 10600"}
+      - {kind: web_oficial, tier: T2, url: "https://contenidos.plasencia.es/claustro/",
+         evidencia: "Ayuntamiento de Plasencia: «En 1928, la Antigua Casa de la Compañía se destinó a Casa de Salud»"}

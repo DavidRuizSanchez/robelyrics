@@ -55,12 +55,16 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
     };
   }
 
+  // Un lugar puede no tener canciones (Torre Lucía, la Casa de la Salud: solo
+  // tienen página por su ficha). Sin canciones no hay colección: la página es
+  // del propio lugar, y ni el título «Canciones» ni un ItemList vacío pintan nada.
+  const tieneCanciones = detail.songs.length > 0;
   const collectionPage = webPageNode({
     path,
     name: detail.name,
-    type: "CollectionPage",
+    type: tieneCanciones ? "CollectionPage" : "WebPage",
     description: detail.seo_meta_description,
-    mainEntityId: canonical.itemList(path),
+    mainEntityId: tieneCanciones ? canonical.itemList(path) : canonical.taxonomy(kind, detail.slug),
   });
   if (mentions.length > 0) collectionPage.mentions = mentions;
 
@@ -69,14 +73,18 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
   const graph = buildGraph([
     taxNode,
-    itemListNode(
-      path,
-      detail.songs.map((s) => ({
-        name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
-        url: s.url_path,
-        id: `${SITE_URL}${s.url_path}#musiccomposition`,
-      })),
-    ),
+    ...(tieneCanciones
+      ? [
+          itemListNode(
+            path,
+            detail.songs.map((s) => ({
+              name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
+              url: s.url_path,
+              id: `${SITE_URL}${s.url_path}#musiccomposition`,
+            })),
+          ),
+        ]
+      : []),
     collectionPage,
     breadcrumbListNode(path, [
       { name: "Entre Interiores", item: "/" },
@@ -151,6 +159,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
         {hubSlug === "lugares" && <EnDirectoLugar slug={detail.slug} />}
 
+        {tieneCanciones && (
         <section>
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
             Canciones
@@ -175,6 +184,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
             ))}
           </ul>
         </section>
+        )}
 
         <RelatedPosts entityType={detail.kind} slug={detail.slug} />
 
