@@ -573,6 +573,7 @@ export type BookInput = {
   coverUrl?: string | null;
   summary?: string | null;
   aboutIds?: string[]; // canonical IDs (musicGroup) de lo que trata
+  kind?: string | null;
 };
 
 export function bookNode(book: BookInput): Record<string, unknown> {
@@ -596,6 +597,12 @@ export function bookNode(book: BookInput): Record<string, unknown> {
   if (book.summary) node.abstract = book.summary;
   if (book.aboutIds && book.aboutIds.length > 0) {
     node.about = book.aboutIds.map((id) => ({ "@id": id }));
+  }
+  // En una novela gráfica quien la firma también la dibuja (en las que hay en
+  // la sección es así; si un día no lo es, hará falta un campo propio).
+  if (book.kind === "novela_grafica") {
+    node.genre = "Novela gráfica";
+    if (node.author) node.illustrator = node.author;
   }
   return node;
 }

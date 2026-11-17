@@ -123,6 +123,7 @@ export default async function LibroPage({
       coverUrl: detail.cover_url,
       summary: detail.summary,
       aboutIds,
+      kind: detail.kind,
     }),
     webPageNode({
       path,
