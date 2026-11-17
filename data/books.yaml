@@ -252,3 +252,70 @@ books:
       por varios redactores de la casa (de ahí el VV. AA.), y comparte páginas con
       reportajes sobre The Pretenders, Tim Buckley o Stanley Kubrick. No es obra de
       un único biógrafo, sino la mirada coral de una redacción especializada.
+
+  # Alta del 17-11-2026. Datos de la ficha de la editorial
+  # (altamarea.es/producto/el-rey-de-la-baraja-la-imperecedera-vida-de-roberto-iniesta),
+  # cotejados con la contraportada del ejemplar de David. La Agencia del ISBN
+  # dice «Fecha Edición: 10/2026» y 24,90 €; la editorial, 11-11-2026 y 25,90 €
+  # (la primera parece el alta del ISBN; aquí solo va el año). Las dos páginas
+  # interiores son fotos del ejemplar de David, a modo de cita, con su crédito.
+  - slug: el-rey-de-la-baraja
+    title: "El rey de la baraja"
+    subtitle: "La imperecedera vida de Roberto Iniesta"
+    authors: ["Nacho Nava"]
+    year: 2026
+    publisher: "Altamarea"
+    isbn: "9791387938499"
+    pages: 172
+    language: es
+    kind: novela_grafica
+    availability: new
+    cover_url: "https://altamarea.es/wp-content/uploads/2026/06/9791387938499-scaled.jpg"
+    cover_attribution: "Cubierta: Nacho Nava (Altamarea, 2026)"
+    about: ["robe", "extremoduro"]
+    sort_order: 60
+    summary: >-
+      Novela gráfica de Nacho Nava sobre la vida de Robe, publicada por
+      Altamarea en noviembre de 2026: una carrera levantada contra todo y
+      contra todos, contada en viñetas.
+    meta_title: "El rey de la baraja, la novela gráfica sobre Robe · Entre Interiores"
+    meta_description: >-
+      Descubre «El rey de la baraja», el cómic de Nacho Nava sobre la vida de
+      Robe: de qué va, quién lo firma y dos de sus páginas por dentro.
+    body_md: |
+      ## Qué encontrarás
+      *El rey de la baraja. La imperecedera vida de Roberto Iniesta* es una
+      novela gráfica sobre [Robe](/robe), escrita y dibujada por Nacho Nava. La
+      publicó Altamarea el 11 de noviembre de 2026, menos de un año después de
+      su muerte, en su colección Marea gráfica: 172 páginas en tapa dura.
+
+      El título repite un verso de «Jesucristo García»: «Soy Evaristo, el rey de
+      la baraja».
+
+      ## La vida de Robe en viñetas
+      El cómic cuenta una carrera levantada a la contra: contra una tierra que no
+      cuidaba el talento, contra un ambiente que despreciaba el rock, contra la
+      industria discográfica, contra un público que aún no estaba preparado para
+      esa música e incluso contra él mismo. Y cuenta cómo, a pesar de todo, Robe
+      acabó siendo alguien imprescindible para millones de personas por unas
+      letras de amor, droga y verdad.
+
+      ## Dos páginas por dentro
+      ![Página de «El rey de la baraja» con la primera formación de Extremoduro: Luis von Fanta a la batería, Robe a la voz y la guitarra y Gonzalo «Salo» al bajo](https://res.cloudinary.com/ddnkzrplj/image/upload/v1794954910/entreinteriores-art/s2zdk1a3ogatcs3rbuss.jpg "Nacho Nava, «El rey de la baraja» (Altamarea, 2026). Foto del ejemplar.")
+
+      Una de sus páginas presenta a la primera formación del grupo, con Luis von
+      Fanta, Robe y Gonzalo «Salo». Debajo, la historia salta a la plaza Mayor de
+      Plasencia en agosto de 1988.
+
+      ![Página 87 de «El rey de la baraja»: Robe, con la guitarra, se sube al público mientras canta «Deltoya»](https://res.cloudinary.com/ddnkzrplj/image/upload/v1794954911/entreinteriores-art/rtuvzr86miemq4o3yl2j.jpg "Nacho Nava, «El rey de la baraja» (Altamarea, 2026), página 87. Foto del ejemplar.")
+
+      En la página 87, Robe se sube encima del público con la guitarra colgada
+      mientras canta «Deltoya».
+
+      ## El autor
+      Nacho Nava (1989) es un ilustrador y cineasta leonés. Ha codirigido y
+      coescrito dos cortometrajes premiados en festivales de cine nacionales e
+      internacionales y ha publicado ilustraciones en diversos medios. Antes de
+      este libro dibujó *Feltrinelli. El editor que quiso cambiar el mundo*
+      (Altamarea, 2024), con guion de Guillermo Gracia y Aitor Iturriza. En *El
+      rey de la baraja* firma él solo el guion y el dibujo.

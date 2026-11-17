@@ -17,6 +17,7 @@ const KIND_LABEL: Record<string, string> = {
   novela: "Novela",
   monografico: "Monográfico",
   poesia: "Poesía",
+  novela_grafica: "Novela gráfica",
 };
 
 const AVAILABILITY_LABEL: Record<string, string> = {
