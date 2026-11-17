@@ -29,3 +29,17 @@ images:
     license: derechos de su autor
     identity: "Plasencia y Robe"
     identity_evidence: "la dedicatoria se lee en el fotograma (0:39:41), mientras habla Paco Dóniga"
+
+  # Pedida por David (17-11-2026). Portada de MARCA del 20-04-1996, en la previa del
+  # Barça-Atleti; la hizo J. G. Matallanas en la sala Sol, donde Extremoduro grababa
+  # el videoclip de «So payaso» (lo cuenta él en MARCA, 11-12-2025, y en su blog,
+  # 09-06-2007). MARCA no es agencia: va como foto de tercero con su crédito. Quién
+  # es quién lo dice el pie del fotógrafo, no la cara: el alt nombra a los dos.
+  - target: person:rosendo-mercado
+    section: "Las colaboraciones y los homenajes de Extremoduro"
+    url: "https://objetos-xlk.estaticos-marca.com/uploads/2025/12/11/693adae79dd65.jpeg"
+    alt: "Rosendo y Robe con la camiseta del Atlético de Madrid en la sala Sol, en abril de 1996"
+    attribution: "Foto: J. G. Matallanas / MARCA (portada del 20 de abril de 1996)"
+    source_url: "https://www.marca.com/futbol/atletico/2025/12/11/dia-robe-portada-marca.html"
+    license: derechos de su autor
+    identity: "Rosendo"

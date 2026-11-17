@@ -442,6 +442,16 @@ persons:
     bio_short: Guitarrista (Los Rodríguez); tocó el solo de «Volando solo» en el disco «Deltoya» de Extremoduro.
     wikipedia_url: https://es.wikipedia.org/wiki/Ariel_Rot
 
+  # Alta del 17-11-2026, pedida por David. Wikidata Q363577 («Joaquín Sabina»,
+  # músico español, nacido en Úbeda el 12-02-1949), comprobado por la entidad y por
+  # su sitelink de eswiki. Robe grabó su «Calle Melancolía» para el tributo «Ni tan
+  # joven, ni tan viejo» (13-12-2019; Sony Music España y MusicBrainz).
+  - slug: joaquin-sabina
+    full_name: Joaquín Ramón Martínez Sabina
+    stage_name: Joaquín Sabina
+    bio_short: Cantautor; Robe versionó su «Calle Melancolía» en el disco tributo «Ni tan joven, ni tan viejo» (2019).
+    wikipedia_url: https://es.wikipedia.org/wiki/Joaqu%C3%ADn_Sabina
+
   - slug: leiva
     full_name: José Miguel Conejo Torres
     stage_name: Leiva
