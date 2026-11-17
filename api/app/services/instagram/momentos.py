@@ -72,7 +72,55 @@ LINEAS_DE_ARRANQUE = 2
 SOLO_MIN_S = 8.0
 SOLO_MAX_S = 90.0
 
-TIPOS = ("estribillo", "habla", "solo", "final", "arranque", "canto")
+# `ruido` y `dudoso` no se proponen nunca: están para CORTAR. Un bloque de
+# momentos se arma con los que van seguidos en la lista, así que lo que se
+# descartaba sin dejar nada pegaba lo de antes con lo de después (ver «Robe
+# hablando que no habla», más abajo).
+TIPOS = ("estribillo", "habla", "solo", "final", "arranque", "canto", "ruido", "dudoso")
+
+# --------------------------------------------------------------------------- #
+# Robe hablando que no habla (17-11-2026)
+# --------------------------------------------------------------------------- #
+# «Voz que no casa con ninguna letra» era, sin más, Robe hablando. Medido en
+# prod sobre los 13 clips «habla» propuestos: solo UNO lo era (Vigo 2024,
+# «Perdonad, pero se había jodido algo en los cascos»). Los demás eran Whisper
+# alucinando sobre la música —«Música», «y | en» catorce veces, «JazzGoes»,
+# «¡Santos!» doce veces— o letra cantada que no llegó a casar.
+#
+# Tres firmas de que un texto no es habla, todas medidas en esos 13 casos:
+#  · Fórmulas que Whisper escribe sobre música («Música», 4 clips).
+#  · Menos de `HABLA_MIN_PALABRAS_TRAMO` palabras: «y», «en», «¡Uh!»,
+#    «perdido,», «¡Gracias!». Con eso no se sabe si alguien habla.
+#  · El mismo texto que el tramo de al lado: Whisper en bucle. Robe no repite
+#    la misma frase entera dos tramos seguidos; Whisper, en Sala Vértigo, lo
+#    hizo durante minutos.
+FORMULAS_DE_RUIDO = frozenset({"musica"})
+HABLA_MIN_PALABRAS_TRAMO = 3
+# Hablando salen 9-16 caracteres por segundo (medido en el habla real de Vigo);
+# el clip #529 era UN tramo de 29 s con 62 caracteres (2,1/s): una estrofa
+# cantada y mal transcrita. Por debajo de esto no es habla. El listón es bajo a
+# propósito, porque cantando también se sale de 7 a 10: lo fino lo decide el
+# juez de `clip_picker.habla_al_publico`.
+HABLA_MIN_CPS = 5.0
+
+
+def es_ruido(texto: str, anterior: str | None = None,
+             siguiente: str | None = None) -> str | None:
+    """¿Este texto es basura de la transcripción? → el motivo, o None.
+
+    Solo se pregunta por lo que NO casa con ninguna letra: un estribillo que
+    se canta dos veces seguidas sí se repite, y eso no es ruido.
+    """
+    norm = lg.normalize(texto or "")
+    if not norm:
+        return "sin texto"
+    if norm in FORMULAS_DE_RUIDO:
+        return f"fórmula que Whisper escribe sobre la música («{texto.strip()}»)"
+    if len(norm.split()) < HABLA_MIN_PALABRAS_TRAMO:
+        return "demasiado corto para saber si alguien habla"
+    if norm in {lg.normalize(anterior or ""), lg.normalize(siguiente or "")}:
+        return "repite el tramo de al lado: Whisper en bucle"
+    return None
 
 
 @dataclass
@@ -305,6 +353,22 @@ def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
                 # es letra mal transcrita («Liga esa hora» en mitad de
                 # «Destrozares»), no Robe hablando al público.
                 continue
+            ruido = es_ruido(
+                seg.text,
+                crudo[i - 2][1].text if i >= 2 else None,
+                crudo[i][1].text if i < len(crudo) else None,
+            )
+            if ruido:
+                fuera.append(Momento(tipo="ruido", start_s=seg.start_s,
+                                     end_s=seg.end_s, motivos=[ruido]))
+                continue
+            duracion = max(seg.end_s - seg.start_s, 0.1)
+            if len(seg.text.strip()) / duracion < HABLA_MIN_CPS:
+                fuera.append(Momento(
+                    tipo="dudoso", start_s=seg.start_s, end_s=seg.end_s,
+                    motivos=["demasiado lento para ser habla: suena a canto"],
+                ))
+                continue
             fuera.append(Momento(
                 tipo="habla", start_s=seg.start_s, end_s=seg.end_s,
                 confianza=0.5, motivos=["voz que no casa con ninguna letra"],
@@ -312,8 +376,16 @@ def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
             continue
 
         if aceptada[i - 1] is None:
+            # Casa con una letra, pero sin consenso: no se nombra la canción.
+            # Tampoco se tira sin más: se cantaba algo, y sin este corte el
+            # «perdido,» de antes y el «¡Gracias!» de después se pegaban en un
+            # bloque de 39 s de «Robe hablando» (clip #531, Barcelona 2022).
             logger.debug("[momentos] «%s» casa con «%s» pero sin consenso: no se nombra",
                          seg.text, cancion)
+            fuera.append(Momento(
+                tipo="dudoso", start_s=seg.start_s, end_s=seg.end_s,
+                motivos=[f"casa con «{cancion}», pero sin consenso"],
+            ))
             continue
 
         if _es(verso, catalogo.estribillos):
