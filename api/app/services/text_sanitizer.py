@@ -35,7 +35,12 @@ _RE_TIGHT_DASH = re.compile(rf"(\w)[{_DASHES}](\w)")
 _RE_ANY_DASH = re.compile(rf"[{_DASHES}]")
 
 _RE_MULTISPACE = re.compile(r"[ \t]{2,}")
-_RE_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
+# Solo espacios y tabuladores, NUNCA saltos de línea: con `\s+` se comía el
+# «\n\n» de antes de una imagen markdown («![alt](url)» empieza por «!») y la
+# pegaba a la línea anterior. Si esa línea era un heading, `normalize_headings`
+# le quitaba después el «enlace» y la imagen desaparecía (17-11-2026, ficha de
+# «El rey de la baraja»).
+_RE_SPACE_BEFORE_PUNCT = re.compile(r"[ \t]+([,.;:!?])")
 
 # Política de nombre (CRÍTICA): a Robe NO le gustaba que le llamaran "Robe
 # Iniesta". Esa forma NUNCA debe aparecer en contenido público: se usa "Robe"
