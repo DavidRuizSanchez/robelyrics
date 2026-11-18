@@ -150,6 +150,11 @@ def candidatas(db) -> list[Idea]:
     return out
 
 
+def _pide_angulo(consulta: str, señales: list[str]) -> bool:
+    qn = _norm(consulta)
+    return "letra" not in qn and any(re.search(rf"\b{re.escape(s)}", qn) for s in señales)
+
+
 def medir_demanda(ideas: list[Idea], paginas: dict) -> None:
     """Impresiones de GSC de la ficha en consultas que piden el ángulo, y si la ficha ya
     posiciona alguna (pos. ≤ 20): entonces ese ángulo es de la ficha (canibalización)."""
@@ -162,11 +167,7 @@ def medir_demanda(ideas: list[Idea], paginas: dict) -> None:
         # sin esto salían canibalizaciones falsas (18-11-2026).
         señales = [s for s in ang.señales_gsc if s not in nombre]
 
-        def _pide_angulo(q: str) -> bool:
-            qn = _norm(q)
-            return "letra" not in qn and any(re.search(rf"\b{re.escape(s)}", qn) for s in señales)
-
-        casan = [f for f in filas if _pide_angulo(f["query"])]
+        casan = [f for f in filas if _pide_angulo(f["query"], señales)]
         idea.gsc_impresiones = sum(int(f.get("impressions") or 0) for f in casan) if filas else None
         idea.gsc_consultas = [f["query"] for f in sorted(casan, key=lambda f: -f["impressions"])[:3]]
         protegida = next((f for f in casan if (f.get("position") or 99) <= 20
