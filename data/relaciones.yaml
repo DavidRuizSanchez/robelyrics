@@ -2585,7 +2585,7 @@ relaciones:
   # Fuentes comprobadas ese día; `verificado_por: david` vale al aprobar el PR.
   - sujeto: person:joaquin-sabina
     predicado: birthPlace
-    objeto: {"@type": Place, name: "Úbeda", sameAs: "https://www.wikidata.org/wiki/Q329984"}
+    objeto: place:ubeda
     estado: verificada
     verificado_por: david
     fuentes:
@@ -2613,3 +2613,23 @@ relaciones:
          evidencia: "«el viejo colegio de los jesuitas acoge… el Centro Asociado a la UNED en Plasencia»; Plaza Santa Ana, s/n, 10600"}
       - {kind: web_oficial, tier: T2, url: "https://contenidos.plasencia.es/claustro/",
          evidencia: "Ayuntamiento de Plasencia: «En 1928, la Antigua Casa de la Compañía se destinó a Casa de Salud»"}
+  # --- Úbeda (18-11-2026): ficha nueva, por Sabina y por el concierto de Robe ---
+  - sujeto: place:ubeda
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q329984"
+    estado: verificada
+    verificado_por: claude (autorización de David, 18-11-2026)
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q329984",
+         evidencia: "«Úbeda», municipio de la provincia de Jaén; P19 de Joaquín Sabina (Q363577); eswiki «Úbeda»"}
+  - sujeto: place:ubeda
+    predicado: event
+    objeto: {"@type": MusicEvent, name: "Robe en Úbeda, 06-07-2024", startDate: "2024-07-06",
+             performer: {"@type": MusicGroup, "@id": "https://entreinteriores.com/robe#musicgroup", name: "Robe"}}
+    estado: verificada
+    verificado_por: claude (autorización de David, 18-11-2026)
+    fuentes:
+      - {kind: prensa, tier: T2, url: "https://vivirediciones.es/?p=624827",
+         evidencia: "02-07-2024: «todavía pasará en julio por Córdoba (día 5), Úbeda (6), Gijón (12)…» (gira de «Se nos lleva el aire»)"}
+      - {kind: prensa, tier: T2, url: "https://www.horajaen.com/2024/07/07/robe-inaugura-festmuve-2024-en-ubeda-con-un-concierto-apoteosico/",
+         evidencia: "07-07-2024: «La noche del sábado 6 de julio, el recinto ferial de Úbeda vibró al ritmo de Robe… con su gira «Ni santos ni inocentes»»"}
