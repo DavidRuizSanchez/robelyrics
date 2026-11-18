@@ -33,6 +33,21 @@ def _norm(s: str) -> str:
     return " ".join("".join(c for c in s if not unicodedata.combining(c)).split())
 
 
+TANDA_DEMANDA = 100
+# DataForSEO rechaza la tanda ENTERA si una keyword lleva uno de estos caracteres
+# (18-11-2026: «Garden Lodge, Kensington» dejó 193 propuestas sin medir).
+_NO_VALIDOS = re.compile(r"[,!¡¿@%^()=\[\]{};~`<>?\\|*\"'«»:]")
+
+
+def keyword_de(nombre: str) -> str:
+    """La consulta que se mide para una entidad: su nombre en minúsculas, sin los
+    caracteres que DataForSEO no admite y con su tope de 10 palabras y 80 caracteres."""
+    kw = " ".join(_NO_VALIDOS.sub(" ", (nombre or "").lower()).split())
+    if not kw or len(kw) > 80 or len(kw.split()) > 10:
+        return ""
+    return kw
+
+
 def material(db, nombre: str) -> int:
     """Fuentes del corpus que nombran a la entidad como palabra completa."""
     if len(nombre) < 4:
@@ -71,20 +86,23 @@ def main() -> None:
                                  "detalle": c} for c in conciertos]
 
     db = SessionLocal()
+    # Solo se guarda volumen de lo que DataForSEO devolvió de verdad: una tanda que falla
+    # deja `demanda` vacía (no medida), nunca un 0, que diría «nadie lo busca».
     volumenes: dict[str, int] = {}
     if not args.sin_demanda and entradas:
         from app.services.seo_research import search_volume
 
-        nombres = sorted({e["nombre"] for e in entradas.values()})
-        for i in range(0, len(nombres), 700):
-            for k, v in search_volume(nombres[i:i + 700]).items():
+        kws = sorted({k for k in (keyword_de(e["nombre"]) for e in entradas.values()) if k})
+        for i in range(0, len(kws), TANDA_DEMANDA):
+            for k, v in search_volume(kws[i:i + TANDA_DEMANDA]).items():
                 volumenes[k] = v.volume
     hoy = datetime.now(UTC).strftime("%Y-%m-%d")
     nuevas = actualizadas = 0
     for clave, e in entradas.items():
         fila = db.query(EntityProposal).filter(EntityProposal.clave == clave).first()
-        demanda = ({"volumen": volumenes.get(e["nombre"].lower(), 0), "fuente": "DataForSEO "
-                    "search_volume (ES)", "fecha": hoy} if volumenes else None)
+        kw = keyword_de(e["nombre"])
+        demanda = ({"volumen": volumenes[kw], "keyword": kw, "fuente": "DataForSEO "
+                    "search_volume (ES)", "fecha": hoy} if kw in volumenes else None)
         if fila is None:
             db.add(EntityProposal(clave=clave, tipo=e["tipo"], nombre=e["nombre"], qid=e["qid"],
                                   relaciones=e["relaciones"], material=material(db, e["nombre"]),
