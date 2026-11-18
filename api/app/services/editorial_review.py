@@ -126,6 +126,38 @@ def _rubric_for(kind: str) -> str:
     return _RUBRIC.get(kind, "Contenido general: exige hechos concretos, nombres y datos; nada genérico.")
 
 
+_DISCOGRAFIA_CACHE: str | None = None
+
+
+def discografia_real() -> str:
+    """La discografía de Extremoduro y Robe desde la BD, para el juez. Sin ella, el
+    18-11-2026 rechazó la efeméride del 10-12 por «omitir La voz de los sueños (2024)»,
+    un disco que no existe: su contexto le pide no dejarse discos posteriores y él
+    rellenaba la lista de memoria."""
+    global _DISCOGRAFIA_CACHE
+    if _DISCOGRAFIA_CACHE is not None:
+        return _DISCOGRAFIA_CACHE
+    try:
+        from app.db.session import SessionLocal
+
+        db = SessionLocal()
+        try:
+            obra = robe_facts.discography(db)
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — sin BD, sin lista (no se inventa)
+        return ""
+    if not obra:
+        return ""
+    _DISCOGRAFIA_CACHE = (
+        "DISCOGRAFÍA DE EXTREMODURO Y ROBE QUE CONSTA (de la base de datos): no exijas ni "
+        "reproches la ausencia de ningún disco de Extremoduro o de Robe que no esté en esta "
+        "lista (los discos de otros artistas son menciones legítimas): "
+        + "; ".join(f"{x.title} ({x.year}, {'Robe' if x.artist_slug == 'robe' else 'Extremoduro'}"
+                    f", {x.kind})" for x in obra) + ".\n")
+    return _DISCOGRAFIA_CACHE
+
+
 def foco_persona(subject: str) -> str:
     """El oficio REAL de la persona, para que la rúbrica `person` se aplique a lo que
     hace: la obra de un muralista, los discos de un bajista, los cargos de un
@@ -168,6 +200,7 @@ def review(
     allowed_terms: set[str] | None = None,  # nombres propios que pueden repetirse
     spotlight: str | None = None,  # el texto AÑADIDO, para que no se juzgue a ciegas
     repeats_per_1000: float | None = None,  # presupuesto de repetición relativo
+    no_consta: str = "",  # lo que se buscó y no está en ninguna fuente (piece_checklist)
 ) -> EditorialVerdict:
     """Juzga el rigor de una pieza. Degrada a `pass` si no hay API key o el LLM
     falla (no bloquea la publicación por un fallo de infraestructura; el resto de
@@ -249,12 +282,16 @@ def review(
         # contar: por eso pasó un recorrido por toda la trayectoria que terminaba
         # en 2021 sin decir que Robe había muerto.
         + robe_facts.anchor_for_editor()
+        + "\n" + discografia_real()
     )
     user = (
         f"TIPO: {kind}. PROTAGONISTA: «{subject}».\n"
         f"{when_line}"
         f"QUÉ EXIGE ESTE TIPO: {_rubric_for(kind)}\n"
         + (f"ENFOQUE esperado: {focus}\n" if focus else "")
+        # Sin esto el juez pedía el sello de un disco que no consta en ninguna fuente:
+        # la pieza no podía pasar sin inventarlo (aniversario de «Destrozares»).
+        + (f"{no_consta}\n" if no_consta else "")
         + "\nEvalúa el ARTÍCULO con estos criterios DUROS:\n"
         "1. ESPECIFICIDAD Y PRIMERA MANO: ¿aporta detalles concretos y trazables "
         "(nombres propios, canciones/versos, fechas, citas textuales, cifras, "

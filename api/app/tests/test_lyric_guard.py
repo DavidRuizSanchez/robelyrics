@@ -360,3 +360,19 @@ def test_complete_verses_no_convierte_un_titulo_en_verso(monkeypatch):
     monkeypatch.setattr(lg, "_load_song_lines", lambda db: corpus)
     body = "El disco abre con «Hoy al mundo renuncio» y sigue."
     assert lg.complete_verses(None, body) == body
+
+
+def test_comparo_tambien_es_una_declaracion():
+    """Aniversario de «Destrozares» (18-11-2026): «También comparó ambos al hablar de los
+    punteos: «…»» salía como verso inventado de la canción nombrada antes."""
+    body = ('En "So payaso" suenan violín y piano. También comparó ambos al hablar de los '
+            'punteos: "cuando estás haciendo un punteo no es tan diferente una guitarra".')
+    _, rep = _statuses(body)
+    assert not rep.blocking and not rep.to_review
+
+
+def test_una_declaracion_que_se_parece_a_medias_a_un_verso_pasa():
+    body = ('En "So payaso" hay piano. Sobre el título, Robe dijo que reflejaba '
+            '"tu esclavo sin rechistar nunca jamás".')
+    _, rep = _statuses(body)
+    assert not rep.blocking and not rep.to_review

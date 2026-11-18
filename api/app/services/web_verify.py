@@ -185,6 +185,23 @@ _CLASSIFY_SYS = (
 )
 
 
+def classify_with_evidence(claim: str, evidence: str) -> str:
+    """El mismo juez de tres estados, sobre una evidencia que ya tenemos (material propio
+    de la pieza). Sin caché ni red de búsqueda. Devuelve el veredicto o 'not_found'."""
+    from app.services.news_research import _json
+
+    if not (evidence or "").strip():
+        return "not_found"
+    try:
+        out = _json(_CLASSIFY_SYS, f"AFIRMACIÓN: {claim}\n\nEVIDENCIA:\n\"\"\"{evidence[:5000]}\"\"\"",
+                    max_tokens=150)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[web_verify] juez con evidencia falló: %s", exc)
+        return "not_found"
+    v = out.get("verdict")
+    return v if v in ("supported", "contradicted", "not_found") else "not_found"
+
+
 def classify_fact(claim: str, wiki_title: str = "", query: str = "") -> dict:
     """Verificación de 3 estados: distingue 'contradicho' de 'no encontrado'.
 
