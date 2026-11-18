@@ -29,6 +29,10 @@ type ProposalDetail = {
   search_volume: number | null;
   is_longtail: boolean;
   keywords: { keyword: string; volume: number }[];
+  force_publish?: boolean;
+  review_verdict?: string | null;
+  review_score?: number | null;
+  review_reasons?: { bloquea?: string | null; motivos?: string[]; nota?: string } | null;
 };
 
 
@@ -133,7 +137,16 @@ export default async function ProposalReviewPage({
             </>
           )}
         </dl>
-        <ProposalActions id={p.id} status={p.status} />
+        <ProposalActions
+          id={p.id}
+          status={p.status}
+          veredicto={p.review_verdict ?? null}
+          nota={p.review_score ?? null}
+          motivos={p.review_reasons?.motivos ?? []}
+          bloquea={p.review_reasons?.bloquea ?? null}
+          forzada={!!p.force_publish}
+          tieneBorrador={!!p.body_md}
+        />
       </Card>
 
       <section className="mt-10 border-t border-divider pt-8">

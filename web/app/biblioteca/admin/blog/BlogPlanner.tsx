@@ -600,6 +600,17 @@ export default function BlogPlanner({
                           <p className="text-sm text-ink-dim">
                             <b className="text-ink">{p.scheduled_for && fmtDate(p.scheduled_for)}</b>{" "}
                             · {kindLabel(p.kind)}
+                            {p.review_verdict === "retenida" && (
+                              <StatusBadge tone="danger" className="ml-2" title="Ábrela para ver el motivo y reescribirla">
+                                Retenida: no saldrá así
+                              </StatusBadge>
+                            )}
+                            {p.review_verdict === "para_tu_lectura" && !p.force_publish && (
+                              <StatusBadge tone="info" className="ml-2">Lista para tu lectura</StatusBadge>
+                            )}
+                            {p.review_verdict === "pasa" && (
+                              <StatusBadge tone="ok" className="ml-2">✓ Pasa los filtros</StatusBadge>
+                            )}
                           </p>
                           <TitleLink p={p} small />
                           {errorDe(p.id)}
