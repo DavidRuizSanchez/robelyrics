@@ -12,6 +12,7 @@ lo frena y por qué. `materialize_proposals` sigue siendo quien publica.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
@@ -42,6 +43,58 @@ def motivos_de_dato(motivos: list[str]) -> list[str]:
     redactor sin material nuevo le enseña a esquivar o a inventar: esos se resuelven
     buscando el dato. Los demás (repetición, relleno) sí son de reescritura."""
     return [m for m in motivos if any(k in m.lower() for k in _PIDE_DATO)]
+
+
+_NOMBRE_COMPLETO = re.compile(r"\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü]+)[ ]+([A-ZÁÉÍÓÚÑ][a-záéíóúñü]+)\b")
+
+
+def _prefijo_comun(a: str, b: str) -> int:
+    i = 0
+    while i < min(len(a), len(b)) and a[i] == b[i]:
+        i += 1
+    return i
+
+
+def nombres_dudosos(db, cuerpo: str) -> list[tuple[str, str]]:
+    """[(nombre del texto, persona de la casa)] cuando el apellido es de una sola persona
+    de la BD y el nombre no coincide con el suyo (ni con su nombre artístico)."""
+    import unicodedata
+
+    from app.db.models import Person
+
+    def n(x: str) -> str:
+        x = unicodedata.normalize("NFKD", (x or "").lower())
+        return " ".join("".join(c for c in x if not unicodedata.combining(c)).split())
+
+    conocidos: set[str] = set()
+    # apellido → [(nombre para mostrar, {nombres de pila conocidos})]
+    por_apellido: dict[str, list[tuple[str, set[str]]]] = {}
+    for stage, full in db.query(Person.stage_name, Person.full_name):
+        for nombre in (stage, full):
+            if nombre:
+                conocidos.add(n(nombre))
+        partes = n(full or stage or "").split()
+        pilas = {x.split()[0] for x in (n(stage or ""), n(full or "")) if x}
+        if len(partes) >= 2:
+            apellidos = {partes[-1]} | ({partes[-2]} if len(partes) >= 3 else set())
+            for ap in apellidos:            # «Rosendo Mercado Ruiz»: también el primero
+                por_apellido.setdefault(ap, []).append((stage or full, pilas))
+    out = []
+    for m in _NOMBRE_COMPLETO.finditer(cuerpo or ""):
+        completo, pila, apellido = n(m.group(0)), n(m.group(1)), n(m.group(2))
+        if completo in conocidos:
+            continue
+        dueños = por_apellido.get(apellido) or []
+        if len(dueños) != 1:
+            continue
+        mostrar, pilas = dueños[0]
+        # La errata de transcripción empieza igual y se desvía pronto (Álvaro / Alber: «al»).
+        # Un diminutivo comparte más (Manolo / Manolillo) y un familiar suele llamarse
+        # distinto (Iñigo y Fermín Muguruza): esos no se marcan (medido sobre 382 textos).
+        cercanía = max((_prefijo_comun(pila, p) for p in pilas), default=0)
+        if pila not in pilas and 2 <= cercanía <= 3:
+            out.append((m.group(0), mostrar))
+    return list(dict.fromkeys(out))
 
 
 def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
@@ -102,11 +155,23 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
         return Juicio(False, "fuentes", [f"nombra «{f[:80]}»" for f, _ in fuentes[:3]],
                       v.score, cuerpo)
 
+    # 4b. Nombres con errata de transcripción: «Álvaro Fuentes» por Alber Fuentes salió en
+    #     «Cómo se hizo Mayéutica» (18-11-2026). Si el apellido es de UNA sola persona de la
+    #     casa y el nombre no es el suyo, se para: es una errata o es otra persona.
+    dudosos = nombres_dudosos(db, cuerpo)
+    if dudosos:
+        return Juicio(False, "facts", [f"nombre dudoso: «{n}» (¿{c}?)" for n, c in dudosos[:3]],
+                      v.score, cuerpo)
+
     # 5. Hechos contra la BD y la web (lo dudoso va a revisión).
     if usar_web:
         from app.services.fact_check import check_body
         rep = check_body(db, cuerpo, use_web=True,
                          material=f"{hard_facts}\n\n{material_propio}".strip())
+        if rep.extraccion_fallida:
+            # Sin afirmaciones extraídas no hay comprobación: no es «limpio».
+            return Juicio(False, "facts", ["no se pudieron extraer los hechos para comprobarlos"],
+                          v.score, cuerpo)
         if rep.to_review:
             return Juicio(False, "facts",
                           [f"{x.claim.type}: {x.claim.subject}" for x in rep.to_review[:5]],

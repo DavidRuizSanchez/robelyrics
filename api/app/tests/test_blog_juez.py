@@ -389,3 +389,43 @@ def test_un_fragmento_con_el_numero_no_confirma_la_frase():
 
     mat = "Tracklist (10 cortes): 1. Hoy al mundo renuncio; 10. Destrozares."
     assert not posicion_confirmada(mat, "Las diez canciones se grabaron en Berriz.")
+
+
+class _DbPersonas:
+    def __init__(self, filas):
+        self.filas = filas
+
+    def query(self, *_a):
+        return self.filas
+
+
+def test_nombre_con_errata_de_transcripcion():
+    from app.services.blog_gates import nombres_dudosos
+
+    db = _DbPersonas([("Alber Fuentes", "Alber Fuentes"), ("Carlitos Pérez", "Carlos Pérez"),
+                      ("Álvaro Rodríguez", "Álvaro Rodríguez Barroso"), ("José Rodríguez", "José Rodríguez")])
+    texto = ("Álvaro Fuentes le presentó a los músicos. Carlitos Pérez tocó el violín y "
+             "Álvaro Rodríguez el piano. Juan Rodríguez estaba allí.")
+    assert nombres_dudosos(db, texto) == [("Álvaro Fuentes", "Alber Fuentes")]
+
+
+def test_extraccion_fallida_no_es_limpio(monkeypatch):
+    from app.services import fact_check
+
+    def falla(*a, **k):
+        raise fact_check.ExtraccionFallida("x")
+
+    monkeypatch.setattr(fact_check, "extract_claims", falla)
+    monkeypatch.setattr(fact_check, "extract_catalog_claims", lambda body, idx: [])
+    monkeypatch.setattr(fact_check, "build_catalog_index", lambda db: None)
+    rep = fact_check.check_body(None, "texto")
+    assert rep.extraccion_fallida and rep.verdicts == []
+
+
+def test_variantes_y_familiares_no_son_erratas():
+    from app.services.blog_gates import nombres_dudosos
+
+    db = _DbPersonas([("Manolo Chinato", "Manuel Muñoz"), ("Fermín Muguruza", "Fermín Muguruza"),
+                      ("Fito", "Adolfo Cabrales")])
+    texto = "Manolillo Chinato recitó. Iñigo Muguruza tocó con su hermano. Fito Cabrales cantó."
+    assert nombres_dudosos(db, texto) == []
