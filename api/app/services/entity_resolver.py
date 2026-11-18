@@ -515,6 +515,30 @@ def _ocurrencias(body_md: str, nombres: list[str], prefijos: tuple[str, ...],
     return sorted(set(out))
 
 
+def _menciones_largas(body_md: str, grupos: dict[str, dict[str, Any]]
+                      ) -> list[tuple[int, int, str]]:
+    """Dónde aparece en el texto cada nombre del índice: (inicio, fin, ruta).
+
+    Sirve para no enlazar un nombre que es PARTE de otro más largo. El 18-11-2026,
+    en «Destrozares, canciones para el final de los tiempos» se enlazó «Destrozares»
+    a la canción homónima: el disco ya estaba enlazado más arriba, quedó fuera de los
+    candidatos y ganó el nombre corto, partiendo el título del disco."""
+    out = []
+    for path, g in grupos.items():
+        for n in g["names"]:
+            for m in _mention_re(n).finditer(body_md):
+                out.append((m.start(), m.end(), path))
+    return out
+
+
+def _dentro_de_otro(occ: tuple[int, int, str], path: str,
+                    largos: list[tuple[int, int, str]]) -> bool:
+    """¿Esta mención va dentro de un nombre más largo de OTRO destino?"""
+    ini, fin = occ[0], occ[1]
+    return any(a <= ini and fin <= b and (b - a) > (fin - ini) and p != path
+               for a, b, p in largos)
+
+
 def autolink_corpus(
     body_md: str,
     index: list[dict[str, Any]],
@@ -591,6 +615,7 @@ def autolink_corpus(
 
     cand.sort(key=lambda c: c["score"], reverse=True)
     anchors = anchor_stats or {}
+    largos = _menciones_largas(body_md, grupos) if cand else []
     puestos = 0
     for c in cand:
         if puestos >= budget:
@@ -598,6 +623,7 @@ def autolink_corpus(
         if c["hub"] and hubs_puestos >= MAX_HUBS_POR_PAGINA:
             continue
         occ = _ocurrencias(body_md, c["names"], PREFIJOS.get(c["type"], ()), c["type"])
+        occ = [o for o in occ if not _dentro_de_otro(o, c["path"], largos)]
         if not occ:
             continue
         usados = anchors.get(c["path"], {})

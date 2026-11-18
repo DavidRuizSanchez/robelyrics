@@ -278,3 +278,36 @@ def test_un_titulo_enlazado_al_DISCO_si_cuenta_aunque_sea_tambien_cancion():
 
     assert "Deltoya" in st.discos_citados(disco, CATALOGO, CANCIONES)
     assert "Deltoya" not in st.discos_citados(cancion, CATALOGO, CANCIONES)
+
+
+# --- Piezas de una sola obra (David, 18-11-2026) ------------------------------ #
+BIENVENIDOS = """## Un directo publicado el 30 de noviembre de 2018
+
+«Bienvenidos al temporal» apareció el 30 de noviembre de 2018. El repertorio incluye
+cuatro piezas de «Destrozares» (2016), otras cuatro de «Lo que aletea en nuestras
+cabezas» (2015) y una de Extremoduro publicada en «Material defectuoso» (2011).
+
+El álbum sigue a «Destrozares» y precede a «Mayéutica» (2021)."""
+
+CATALOGO_ROBE = CATALOGO + ["Destrozares", "Lo que aletea en nuestras cabezas",
+                            "Bienvenidos al temporal"]
+
+
+def test_la_pieza_de_un_disco_no_exige_la_muerte_de_robe():
+    """El directo de 2018 situaba el disco entre el anterior y el siguiente y decía de
+    dónde venían sus canciones: cinco discos citados, retenido por no mencionar la
+    muerte. «La muerte va en los posts que merezcan que vaya» (David)."""
+    for kind in ("album-anniversary", "album-historia", "spotlight", "song"):
+        assert not st.es_trayectoria(kind=kind, subject="Robe", body_md=BIENVENIDOS,
+                                     titulos_catalogo=CATALOGO_ROBE, entity_slug="robe")
+
+
+def test_el_mismo_texto_como_recorrido_si_la_exige():
+    assert st.es_trayectoria(kind="evergreen", subject="Robe", body_md=BIENVENIDOS,
+                             titulos_catalogo=CATALOGO_ROBE, entity_slug="robe")
+
+
+def test_la_efemeride_de_robe_la_sigue_exigiendo():
+    """La efeméride (kind «anniversary») va de Robe: ahí sí merece ir."""
+    assert st.es_trayectoria(kind="anniversary", subject="Robe", body_md=POST_58,
+                             titulos_catalogo=CATALOGO, entity_slug="robe")

@@ -228,6 +228,15 @@ def discos_citados(cuerpo: str, titulos_catalogo: list[str],
     return out
 
 
+# Piezas sobre UNA obra (un disco, una canción). Criterio de David (18-11-2026): la
+# muerte de Robe va en los posts que lo merecen, y el de un directo de 2018 no es uno.
+# Situar un disco entre el anterior y el siguiente, o decir de qué discos vienen sus
+# canciones, no es recorrer una trayectoria: «Bienvenidos al temporal» citaba cinco
+# discos así y quedó retenido por no mencionar la muerte. El redactor la tiene en los
+# hechos duros y puede usarla si viene a cuento; aquí solo no se exige.
+PIEZAS_DE_UNA_OBRA = frozenset({"album-anniversary", "album-historia", "spotlight", "song"})
+
+
 def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
                    titulos_catalogo: list[str] | None = None,
                    entity_slug: str | None = None,
@@ -237,6 +246,8 @@ def es_trayectoria(*, kind: str | None, subject: str, body_md: str,
     El análisis de una canción no dispara aunque nombre a Robe diez veces: lo que
     dispara es enumerar obra o encadenar años.
     """
+    if kind in PIEZAS_DE_UNA_OBRA:
+        return False
     if not en_perimetro(subject, body_md, entity_slug):
         return False
     cuerpo = body_md or ""
@@ -315,7 +326,7 @@ def revisar(db, *, kind: str | None, subject: str, body_md: str,
             "data la disolución en 2018; fue el "
             f"{robe_facts.EXTREMODURO_DISSOLUTION_DATE.isoformat()}"
         )
-    if db is not None:
+    if db is not None and kind not in PIEZAS_DE_UNA_OBRA:
         rep.discos_que_faltan = discos_no_citados(db, body_md)
         if rep.discos_que_faltan:
             rep.motivos.append(

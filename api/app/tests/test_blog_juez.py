@@ -161,6 +161,16 @@ def test_motivos_de_dato():
 # --------------------------------------------------------------------------- #
 # El juicio al preparar: reescribe con los motivos y se queda la mejor
 # --------------------------------------------------------------------------- #
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _sin_minimo_de_material(monkeypatch):
+    """Los borradores de juguete («v0») son cortos: el mínimo se prueba aparte."""
+    from app.services import draft_generator as dg
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 0)
+
+
 def _propuesta(**kw):
     base = dict(id=1, kind="album-anniversary", title="10 años", target_keyword="Destrozares",
                 body_md="v0", excerpt=None, meta_title=None, meta_description=None,
@@ -429,3 +439,56 @@ def test_variantes_y_familiares_no_son_erratas():
                       ("Fito", "Adolfo Cabrales")])
     texto = "Manolillo Chinato recitó. Iñigo Muguruza tocó con su hermano. Fito Cabrales cantó."
     assert nombres_dudosos(db, texto) == []
+
+
+# --------------------------------------------------------------------------- #
+# Corta tras verificar: falta material, no estilo (#399, 18-11-2026)
+# --------------------------------------------------------------------------- #
+def test_corta_busca_material_amplio_antes_de_juzgar(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 50)
+    amplia = []
+
+    def regenera(db, p, persist=True, juzgar=True):
+        amplia.append(dg._BUSQUEDA_AMPLIA.get())
+        p.body_md = "x" * 80
+        return True
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar", lambda db, p, hard: Juicio(True, None, [], 70, p.body_md))
+    monkeypatch.setattr(dg, "generate_proposal_draft", regenera)
+    p = _propuesta(body_md="corto")
+    dg.juzgar_borrador(None, p)
+    assert amplia == [True] and dg._BUSQUEDA_AMPLIA.get() is False
+    assert p.review_verdict == "pasa" and p.body_md == "x" * 80
+
+
+def test_si_sigue_corta_se_retiene_por_material_sin_reescrituras_a_ciegas(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 50)
+    llamadas = []
+
+    def regenera(db, p, persist=True, juzgar=True):
+        llamadas.append(dg._CORRECCIONES.get())
+        p.body_md = "igual"
+        return True
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar", lambda db, p, hard: Juicio(True, None, [], 70, p.body_md))
+    monkeypatch.setattr(dg, "generate_proposal_draft", regenera)
+    p = _propuesta(body_md="corto")
+    dg.juzgar_borrador(None, p)
+    assert llamadas == [""]                      # solo la búsqueda amplia, sin estilo
+    assert p.body_md == "corto"                  # la amplia no mejoró: se queda la previa
+    assert p.review_verdict == "retenida" and p.review_reasons["bloquea"] == "material"
+
+
+def test_los_videos_no_cuentan_para_el_minimo(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 30)
+    p = _propuesta(body_md="texto corto\n\nhttps://www.youtube.com/watch?v=OcXZqMVb6lU" * 1)
+    assert dg._corta(p)
+    assert not dg._corta(_propuesta(kind="evergreen", source_type="seo", body_md="x"))

@@ -562,3 +562,27 @@ def test_tambien_cuenta_la_imagen_con_corchetes_en_el_alt():
     antes = "![Portada [reedición]](/c.jpg) y [A](/a)."
     assert solo_cambian_enlaces(antes, "![Portada [reedición]](/c.jpg) y A.")
     assert not solo_cambian_enlaces(antes, "![Portada](/c.jpg) y A.")
+
+
+def test_no_enlaza_un_nombre_que_va_dentro_de_otro_mas_largo():
+    """#399 (18-11-2026): el disco ya estaba enlazado arriba y en la segunda mención
+    de su título largo se enlazó «Destrozares» a la canción, partiendo el título."""
+    disco = "/robe/destrozares"
+    md = ("Incluye piezas de «[Destrozares, canciones para el final de los tiempos]"
+          f"({disco})». El álbum sigue a «Destrozares, canciones para el final de los "
+          "tiempos» y precede a «Mayéutica».")
+    indice = [_ent("Destrozares, canciones para el final de los tiempos", disco, "album"),
+              _ent("Destrozares", "/robe/destrozares/destrozares",
+                   "song")]
+    assert autolink_corpus(md, indice, max_links=3) == md
+
+
+def test_el_nombre_corto_suelto_si_se_enlaza():
+    disco = "/robe/destrozares"
+    cancion = "/robe/destrozares/destrozares"
+    md = (f"«[Destrozares, canciones para el final de los tiempos]({disco})» cierra con "
+          "la canción Destrozares.")
+    indice = [_ent("Destrozares, canciones para el final de los tiempos", disco, "album"),
+              _ent("Destrozares", cancion, "song")]
+    assert "Destrozares](https://entreinteriores.com/robe/destrozares/destrozares)" in \
+        autolink_corpus(md, indice, max_links=3)

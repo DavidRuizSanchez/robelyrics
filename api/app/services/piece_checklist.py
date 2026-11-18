@@ -42,9 +42,9 @@ LISTAS: dict[str, tuple[Punto, ...]] = {
               ("sonido y arreglos del disco {t}", "músicos que tocan en {t}")),
         Punto("recepcion", "cómo se recibió (primer sencillo, ventas, listas) si consta",
               ("Listas:", "Certificación:", "Primer sencillo:")),
+        # La muerte de Robe NO se exige aquí (David, 18-11-2026: solo donde merece ir).
         Punto("trayectoria", "su lugar en la trayectoria (los discos de antes y de "
-              "después) y que Robe murió el 10 de diciembre de 2025",
-              ("Discografía:",)),
+              "después)", ("Discografía:",)),
     ),
 }
 

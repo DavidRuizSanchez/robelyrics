@@ -194,6 +194,20 @@ def _deep_body(
 # todos los generadores por kind.
 _CORRECCIONES: ContextVar[str] = ContextVar("_CORRECCIONES", default="")
 MAX_REESCRITURAS = 2
+# Una pieza con listón que tras verificar se queda en menos de esto no tiene material
+# afirmable de sobra: reescribirla con los mismos datos da lo mismo (18-11-2026,
+# «Bienvenidos al temporal»: 1.598 caracteres y dos reescrituras a ciegas). Se busca
+# MÁS material una vez, con consultas amplias, y si sigue corta se retiene diciendo por
+# qué. El aniversario de «Destrozares» que pasó tenía 4.054.
+MIN_CUERPO_CON_LISTON = 2500
+_BUSQUEDA_AMPLIA: ContextVar[bool] = ContextVar("_BUSQUEDA_AMPLIA", default=False)
+# Consultas de la búsqueda amplia, para todo lo que el listón pide (también lo que los
+# hechos duros ya cubren: el contexto de un dato también es material).
+CONSULTAS_AMPLIAS = (
+    "historia del disco {t}", "Robe habla de {t} en una entrevista",
+    "grabación y conciertos de {t}", "canciones de {t} y su significado",
+    "músicos y formación de {t}", "{t} en directo y gira",
+)
 # Lo que es central para la web (un disco, la efeméride de Robe) y no se tira por una
 # tirada del juez en la frontera: va a la lectura de David.
 PIEZAS_CENTRALES = frozenset({"album-anniversary", "anniversary"})
@@ -276,12 +290,20 @@ def _buscar_lo_que_falta(db, client, tipo_pieza: str, dossier, subject: str
     )
     from app.services.piece_checklist import pendientes
 
+    from app.services.piece_checklist import Punto
+
     base = (subject or "").split(",")[0].strip()
     bloques, afirmable = [], {}
-    for punto in pendientes(tipo_pieza, dossier.hard_facts):
+    puntos = list(pendientes(tipo_pieza, dossier.hard_facts))
+    amplia = _BUSQUEDA_AMPLIA.get()
+    if amplia:
+        # Un punto «contexto» que no exige nada: su material solo engorda lo afirmable.
+        puntos.append(Punto("contexto", "contexto del disco", (), CONSULTAS_AMPLIAS))
+    for punto in puntos:
         consultas = [c.format(t=base) for c in punto.consultas]
         try:
-            pasajes = material_para_consultas(db, consultas, k=4, max_pasajes=5)
+            pasajes = material_para_consultas(db, consultas, k=8 if amplia else 4,
+                                              max_pasajes=10 if amplia else 5)
         except Exception as exc:  # noqa: BLE001
             logger.warning("[draft] búsqueda de «%s» falló: %s", punto.clave, exc)
             continue
@@ -900,6 +922,18 @@ def _juzgar(db, p: ContentProposal, hard: str):
                            material_propio=material_propio_de_propuesta(db, p))
 
 
+def _corta(p: ContentProposal) -> bool:
+    """¿Pieza con listón que no llega al mínimo? Solo cuenta el texto, no los vídeos."""
+    import re
+
+    from app.services.piece_checklist import LISTAS
+
+    if tipo_pieza_de(p) not in LISTAS:
+        return False
+    texto = re.sub(r"(?m)^https?://\S+\s*$", "", p.body_md or "")
+    return len(texto.strip()) < MIN_CUERPO_CON_LISTON
+
+
 def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
     """Pasa la cascada ENTERA en seco sobre el borrador y guarda el veredicto.
 
@@ -911,9 +945,35 @@ def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
     if p.kind == "news" or not (p.body_md or "").strip():
         return None
     hard = hechos_de_propuesta(db, p)
-    juicio = _juzgar(db, p, hard)
     intentos = 1
-    while (not juicio.pasa and reescribir and intentos <= MAX_REESCRITURAS
+    corta = _corta(p)
+    if corta and reescribir:
+        # Antes de juzgar: lo que falta es material, no estilo.
+        previo = {k: getattr(p, k) for k in
+                  ("title", "excerpt", "body_md", "meta_title", "meta_description", "entities")}
+        token = _BUSQUEDA_AMPLIA.set(True)
+        try:
+            p.body_md = None
+            ok = generate_proposal_draft(db, p, persist=False, juzgar=False)
+        finally:
+            _BUSQUEDA_AMPLIA.reset(token)
+        intentos += 1
+        antes = len((previo["body_md"] or "").strip())
+        if not ok or len((p.body_md or "").strip()) <= antes:
+            for k, v in previo.items():
+                setattr(p, k, v)
+        logger.info("draft: propuesta %s corta (%d car.): búsqueda amplia → %d car.",
+                    p.id, antes, len((p.body_md or "").strip()))
+        corta = _corta(p)
+    juicio = _juzgar(db, p, hard)
+    if corta and juicio.pasa:
+        # Pasa todos los filtros pero no da para un post: no sale sola.
+        from app.services.blog_gates import Juicio
+        juicio = Juicio(False, "material", [
+            f"se queda en {len((p.body_md or '').strip())} caracteres tras verificar: no hay "
+            "material afirmable para más (lo que solo contaban terceros sin corroborar se "
+            "quitó)"], juicio.score, juicio.cuerpo)
+    while (not corta and not juicio.pasa and reescribir and intentos <= MAX_REESCRITURAS
            and juicio.bloquea in ("rigor", "foco", "fuentes", "completeness")):
         # Solo los motivos de ESTILO van al redactor. Pedirle «falta el sello» sin
         # material nuevo le enseña a esquivar o a inventar (asesor, 18-11-2026): los
