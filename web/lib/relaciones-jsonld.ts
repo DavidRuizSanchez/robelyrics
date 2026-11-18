@@ -104,6 +104,7 @@ export const ETIQUETAS_RELACION: Record<string, string> = {
   "_inv:worksFor": "Trabajan aquí",
   "_inv:affiliation": "Vinculados",
   "_inv:homeLocation": "Viven aquí",
+  event: "Conciertos aquí",
 };
 
 export type RelacionVisible = {
@@ -144,9 +145,12 @@ export function relacionesVisibles(
       const url = typeof destino.url === "string" ? destino.url : null;
       const href = url && typeof destino["@id"] === "string" ? url.replace(/^https?:\/\/[^/]+/, "") : null;
       if (href && fuera.has(href)) continue;
+      // Un concierto (MusicEvent) lleva la fecha en su nombre: su `startDate` no es un
+      // «desde» de pertenencia.
+      const esEvento = nodo["@type"] === "MusicEvent";
       const partes = [
         typeof nodo.roleName === "string" ? nodo.roleName : null,
-        typeof nodo.startDate === "string"
+        !esEvento && typeof nodo.startDate === "string"
           ? `desde ${nodo.startDate}${typeof nodo.endDate === "string" ? ` hasta ${nodo.endDate}` : ""}`
           : typeof nodo.endDate === "string"
             ? `hasta ${nodo.endDate}`
