@@ -41,3 +41,22 @@ def ids_publicadas(db: Session) -> set[int]:
             SeoContent.published.is_(True),
         )
     ).scalars())
+
+
+# --------------------------------------------------------------------------- #
+# Grupos y sellos: la misma regla (plan de relaciones, 18-11-2026)
+# --------------------------------------------------------------------------- #
+# Un grupo dado de alta salía en vivo al momento (`public_band_detail` respondía 200
+# sin ficha) y el autolinker lo enlazaba en todos los cuerpos. Con las altas de
+# entidades nuevas del plan de relaciones eso publicaría páginas pobres. El día del
+# cambio los 27 grupos y sellos de prod tenían ficha publicada (medido el 18-11-2026):
+# no cambia nada de lo que ya se ve.
+def banda_publicada():
+    """Cláusula SQL: el `Band` (grupo o sello) de la consulta tiene ficha publicada."""
+    from app.db.models import Band, SeoContent
+
+    return exists().where(and_(
+        SeoContent.entity_type == "band",
+        SeoContent.entity_id == Band.id,
+        SeoContent.published.is_(True),
+    ))

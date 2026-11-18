@@ -102,15 +102,32 @@ def test_el_relativo_consume_tope():
 # --------------------------------------------------------------------------- #
 # Índice: los sellos van a /sellos/
 # --------------------------------------------------------------------------- #
+def _con_ficha(db, band):  # noqa: F811
+    from app.db.models import SeoContent
+
+    db.add(SeoContent(entity_type="band", entity_id=band.id, slug=band.slug, body_md="x",
+                      published=True, entities=[], secondary_keywords=[], outline=[]))
+
+
 def test_los_sellos_se_indexan_en_sellos_y_los_grupos_en_grupos(db):  # noqa: F811
-    db.add_all([
-        Band(slug="el-dromedario-records", name="El Dromedario Records", kind="label"),
-        Band(slug="marea", name="Marea", kind="band"),
-    ])
+    sello = Band(slug="el-dromedario-records", name="El Dromedario Records", kind="label")
+    grupo = Band(slug="marea", name="Marea", kind="band")
+    db.add_all([sello, grupo])
+    db.flush()
+    _con_ficha(db, sello)
+    _con_ficha(db, grupo)
     db.flush()
     urls = {e["name"]: e["url"] for e in build_corpus_index(db)}
     assert urls["El Dromedario Records"] == BASE + DROMEDARIO
     assert urls["Marea"] == BASE + "/grupos/marea"
+
+
+def test_un_grupo_sin_ficha_publicada_no_se_enlaza(db):  # noqa: F811
+    """Misma regla que las personas (plan de relaciones, 18-11-2026): un grupo recién
+    dado de alta, con la ficha en borrador, no existe para el autolinker."""
+    db.add(Band(slug="nuevo", name="Grupo Recién Llegado", kind="band"))
+    db.flush()
+    assert "Grupo Recién Llegado" not in {e["name"] for e in build_corpus_index(db)}
 
 
 # --------------------------------------------------------------------------- #

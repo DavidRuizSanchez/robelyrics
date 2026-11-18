@@ -1978,6 +1978,42 @@ class EntityRelation(Base):
     )
 
 
+class EntityProposal(Base):
+    """Una entidad sin página que sale de las relaciones verificadas, para decidir si se
+    crea (plan de relaciones, 18-11-2026). No se crea nada sola: `propuesta` →
+    `aprobada` (se le hará ficha) → `publicada`, o `descartada`."""
+
+    __tablename__ = "entity_proposals"
+    __table_args__ = (
+        CheckConstraint("estado IN ('propuesta', 'aprobada', 'publicada', 'descartada')",
+                        name="ck_entity_proposals_estado"),
+        Index("ix_entity_proposals_estado", "estado"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # `qid:Q…` si tiene Q-ID; si no, `tipo:nombre normalizado` (una ciudad de un concierto).
+    clave: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    tipo: Mapped[str] = mapped_column(String(40), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(300), nullable=False)
+    qid: Mapped[str | None] = mapped_column(String(20))
+    # [{"desde": "person:joaquin-sabina", "predicado": "alumniOf", "fuente": url}, …]
+    relaciones: Mapped[list] = mapped_column(_JSON, default=list, nullable=False)
+    # Fuentes del corpus que la nombran (con qué escribir su ficha sin inventar).
+    material: Mapped[int | None] = mapped_column(Integer)
+    demanda: Mapped[dict | None] = mapped_column(_JSON)
+    estado: Mapped[str] = mapped_column(String(12), default="propuesta",
+                                        server_default="propuesta", nullable=False)
+    nota: Mapped[str | None] = mapped_column(Text)
+    decidida_por: Mapped[str | None] = mapped_column(String(64))
+    decidida_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # --- Verificación multi-fuente (MCV) y erratas de fans ---------------------
 
 

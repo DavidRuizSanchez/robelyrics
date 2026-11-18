@@ -200,7 +200,7 @@ def _resolve_one(
                     concept = c
                     break
         if concept is not None:
-            canonical_id = f"{site_url}/conceptos/{concept.slug}#concept"
+            canonical_id = f"{site_url}/conceptos/{concept.slug}#definedterm"  # el que define la ficha
             url = f"{site_url}/conceptos/{concept.slug}"
             from_corpus = True
 
@@ -424,7 +424,8 @@ def build_corpus_index(
     # el resolver a un modelo que llegó después.
     try:
         from app.db.models import Band  # noqa: PLC0415
-        for b in db.query(Band).all():
+        from app.services.person_visibility import banda_publicada  # noqa: PLC0415
+        for b in db.query(Band).filter(banda_publicada()).all():
             # Los sellos viven en /sellos/: indexarlos en /grupos/ hacía que el
             # guard los reescribiera y el autolinker no reconociera su enlace.
             seccion = "sellos" if b.kind == "label" else "grupos"
