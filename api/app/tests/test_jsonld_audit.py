@@ -1,9 +1,11 @@
 """Invariantes del JSON-LD servido (fase 0 del plan de datos estructurados).
 
-La fixture `jsonld_linea_base_2026-11-13b.json.gz` es el JSON-LD REAL de las 389
-URLs del sitemap rastreadas el 13-11-2026 hacia las 11:36 UTC (`scripts/seo/audit_jsonld.py
---guardar`), tras cargar y pintar las relaciones de la muestra (PR #120): la única pérdida
-fueron las 3 líneas del birthPlace en texto de Robe, sustituido por el verificado (David).
+La fixture `jsonld_linea_base_2026-11-18.json.gz` es el JSON-LD REAL de las 393
+URLs del sitemap rastreadas el 18-11-2026 a las 00:24 UTC (`scripts/seo/audit_jsonld.py
+--guardar`), con las relaciones del plan de relaciones cargadas (Fito, Platero y Tú…). Las
+únicas pérdidas fueron buscadas: los 8 lugares sin canciones (Madrid, Bilbao, Pamplona…)
+dejaron de servir un ItemList vacío (#141). Antes: la del 13-11 11:36 (PR #120), donde la
+única pérdida fueron las 3 líneas del birthPlace en texto de Robe.
 Antes: la del 13-11 10:05 (sin los Q-IDs inventados, #117) y la del 12-11, la primera. Con ella, el CI comprueba dos cosas que un caso sintético no prueba:
 que el verificador encuentra justo los fallos que había publicados ese día, y que
 `data/jsonld_excepciones.yaml` los declara todos y nada más.
@@ -21,7 +23,7 @@ import pytest
 from app.services import jsonld_audit as ja
 from app.services import page_monitor as pm
 
-FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-13b.json.gz"
+FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-18.json.gz"
 S = "https://entreinteriores.com"
 
 
@@ -59,7 +61,7 @@ def test_la_huella_congelada_es_la_de_la_fixture(paginas):
     """`data/jsonld/linea_base.json` y la fixture son el mismo rastreo: si alguien
     cambia cómo se calcula la huella, la línea base deja de servir y hay que saberlo."""
     base = json.loads(ja.ruta_data("jsonld/linea_base.json").read_text())
-    assert base["urls"] == len(paginas) == 389
+    assert base["urls"] == len(paginas) == 393
     for path, huella in base["huellas"].items():
         assert sorted(paginas[path].huella) == huella, path
 
