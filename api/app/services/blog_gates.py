@@ -176,7 +176,9 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
                           v.score, cuerpo)
         if rep.to_review:
             return Juicio(False, "facts",
-                          [f"{x.claim.type}: {x.claim.subject}" for x in rep.to_review[:5]],
+                          [f"sin confirmar: «{x.claim.text[:160]}»"
+                           + (f" ({x.evidence[:140]})" if x.evidence else "")
+                           for x in rep.to_review[:5]],
                           v.score, cuerpo)
         if rep.sin_comprobar:
             # Al preparar hay tiempo: lo que no se pudo comprobar no pasa en abierto.
