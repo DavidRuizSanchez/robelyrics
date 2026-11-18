@@ -1,0 +1,1445 @@
+# Relaciones descubiertas por `scripts.relaciones.identidades` y `scripts.relaciones.descubrir`
+# (plan de relaciones del 18-11-2026). Cada fila lleva su fuente T1 (Wikidata o MusicBrainz),
+# con la otra punta resuelta por identificador, nunca por nombre. Las carga `seed_relaciones`
+# junto a `relaciones.yaml` (la curada a mano). Verificadas con la autorización de David
+# del 18-11-2026; revisión con él pendiente.
+relaciones:
+- sujeto: band:extrechinato-y-tu
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q5853668
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5853668
+    evidencia: sitelink eswiki «Extrechinato y Tú» = wikipedia_url de la ficha
+- sujeto: person:enrique-el-drogas
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q8773013
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q8773013
+    evidencia: etiqueta «El Drogas» = nombre de la ficha; anclado desde Q2574210 P527
+- sujeto: person:juantxu-mongol-olano
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q9016238
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q9016238
+    evidencia: etiqueta «Juantxu Olano» = nombre de la ficha; anclado desde Q263632 P527
+- sujeto: place:bilbao
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q8692
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q8692
+    evidencia: etiqueta «Bilbao» = nombre de la ficha; anclado desde Q11255096 P740, Q1421204 P740, Q263632 P740,
+      Q3751202 P19
+- sujeto: place:caceres
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q15678
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15678
+    evidencia: etiqueta «Cáceres» = nombre de la ficha; anclado desde Q123516252 P19
+- sujeto: place:madrid
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q2807
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2807
+    evidencia: etiqueta «Madrid» = nombre de la ficha; anclado desde Q11686081 P19, Q2069679 P159, Q3324618 P19,
+      Q3328146 P740
+- sujeto: place:pamplona
+  predicado: sameAs
+  objeto: https://www.wikidata.org/wiki/Q10282
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q10282
+    evidencia: etiqueta «Pamplona» = nombre de la ficha; anclado desde Q24279015 P159, Q2574210 P740
+- sujeto: person:joaquin-sabina
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/a992aada-7108-455d-9747-0b7b6a089e8d
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/a992aada-7108-455d-9747-0b7b6a089e8d
+    evidencia: P434 de Q363577 = a992aada-7108-455d-9747-0b7b6a089e8d; MusicBrainz enlaza de vuelta a Q363577
+- sujeto: person:juantxu-mongol-olano
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/216d028a-a0a0-4dd3-92f9-6ba7631f8018
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/216d028a-a0a0-4dd3-92f9-6ba7631f8018
+    evidencia: P434 de Q9016238 = 216d028a-a0a0-4dd3-92f9-6ba7631f8018; MusicBrainz enlaza de vuelta a Q9016238
+- sujeto: band:extrechinato-y-tu
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+    evidencia: P434 de Q5853668 = 8a032fcd-8798-4ad5-b22f-b893839beaa8; MusicBrainz enlaza de vuelta a Q5853668
+- sujeto: person:enrique-el-drogas
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/e10a5c5e-ec49-4290-9c72-803dbb446f4d
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e10a5c5e-ec49-4290-9c72-803dbb446f4d
+    evidencia: P434 de Q8773013 = e10a5c5e-ec49-4290-9c72-803dbb446f4d; MusicBrainz enlaza de vuelta a Q8773013
+- sujeto: person:jon-calvo
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/6ab56afb-26d1-41c6-b1c8-2b78c544a95b
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/6ab56afb-26d1-41c6-b1c8-2b78c544a95b
+    evidencia: nombre «Jon Calvo» = nombre de la ficha; anclado desde band:inconscientes (MusicBrainz e2692d2a-8467-4d1c-9e2f-fcd51cdf549d,
+      «member of band»)
+- sujeto: person:jaime-moreno
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/8b829213-81ca-4afa-bd2b-cbfeda7c0217
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8b829213-81ca-4afa-bd2b-cbfeda7c0217
+    evidencia: nombre «Jaime Moreno» = nombre de la ficha; anclado desde band:rebrote (MusicBrainz d3f74b59-7f45-422f-9140-78c4fe171691,
+      «member of band»)
+- sujeto: person:aitor-arino
+  predicado: sameAs
+  objeto: https://musicbrainz.org/artist/d31fcc56-349d-4cb2-82dd-9ff898369678
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d31fcc56-349d-4cb2-82dd-9ff898369678
+    evidencia: nombre «Aitor Ariño» = nombre de la ficha; acreditado en album:extremoduro/rock-transgresivo (MusicBrainz
+      release 3567d70c-612e-4cfd-b105-3059ef2e32e2, «sound»)
+- sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-primero
+  predicado: producer
+  objeto: person:inaki-uoho-anton
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5217032#P162
+    evidencia: P162 = Q5198493 (Iñaki Antón)
+- sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-segundo
+  predicado: producer
+  objeto: person:inaki-uoho-anton
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q122974519#P162
+    evidencia: P162 = Q5198493 (Iñaki Antón)
+- sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+  predicado: producer
+  objeto: person:inaki-uoho-anton
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5217524#P162
+    evidencia: P162 = Q5198493 (Iñaki Antón)
+- sujeto: album:extremoduro/la-ley-innata
+  predicado: producer
+  objeto: person:inaki-uoho-anton
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3312384#P162
+    evidencia: P162 = Q5198493 (Iñaki Antón)
+- sujeto: band:barricada
+  predicado: foundingLocation
+  objeto: place:pamplona
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2574210#P740
+    evidencia: P740 = Q10282 (Pamplona)
+- sujeto: band:barricada
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Alfredo Piedrafita Gómez
+    sameAs: https://www.wikidata.org/wiki/Q63968153
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2574210#P527
+    evidencia: P527 = Q63968153 (Alfredo Piedrafita Gómez)
+- sujeto: band:barricada
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Boni
+    sameAs: https://www.wikidata.org/wiki/Q104728983
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2574210#P527
+    evidencia: P527 = Q104728983 (Boni)
+- sujeto: band:fito-y-fitipaldis
+  predicado: foundingLocation
+  objeto: place:bilbao
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P740
+    evidencia: P740 = Q8692 (Bilbao)
+- sujeto: band:fito-y-fitipaldis
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Carlos Raya
+    sameAs: https://www.wikidata.org/wiki/Q5751486
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q5751486 (Carlos Raya)
+- sujeto: band:fito-y-fitipaldis
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Coki Giménez
+    sameAs: https://www.wikidata.org/wiki/Q5484273
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q5484273 (Coki Giménez)
+- sujeto: band:fito-y-fitipaldis
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Javier Alzola
+    sameAs: https://www.wikidata.org/wiki/Q5927383
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q5927383 (Javier Alzola)
+- sujeto: band:fito-y-fitipaldis
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Joserra Senperena
+    sameAs: https://www.wikidata.org/wiki/Q19621490
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q19621490 (Joserra Senperena)
+- sujeto: band:fito-y-fitipaldis
+  predicado: member
+  objeto:
+    '@type': Person
+    name: José Alberto Batiz
+    sameAs: https://www.wikidata.org/wiki/Q5937411
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q5937411 (José Alberto Batiz)
+- sujeto: band:inconscientes
+  predicado: foundingLocation
+  objeto: place:bilbao
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q11255096#P740
+    evidencia: P740 = Q8692 (Bilbao)
+- sujeto: band:leno
+  predicado: foundingLocation
+  objeto: place:madrid
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3328146#P740
+    evidencia: P740 = Q2807 (Madrid)
+- sujeto: band:leno
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Chiqui Mariscal
+    sameAs: https://www.wikidata.org/wiki/Q5766679
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3328146#P527
+    evidencia: P527 = Q5766679 (Chiqui Mariscal)
+- sujeto: band:leno
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Tony Urbano
+    sameAs: https://www.wikidata.org/wiki/Q19301954
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3328146#P527
+    evidencia: P527 = Q19301954 (Tony Urbano)
+- sujeto: band:los-enemigos
+  predicado: foundingLocation
+  objeto: place:madrid
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q6297284#P740
+    evidencia: P740 = Q2807 (Madrid)
+- sujeto: band:los-suaves
+  predicado: foundingLocation
+  objeto:
+    '@type': Place
+    name: Orense
+    sameAs: https://www.wikidata.org/wiki/Q99151
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3182761#P740
+    evidencia: P740 = Q99151 (Orense)
+- sujeto: band:los-suaves
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Yosi Domínguez
+    sameAs: https://www.wikidata.org/wiki/Q3393103
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3182761#P527
+    evidencia: P527 = Q3393103 (Yosi Domínguez)
+- sujeto: band:marea
+  predicado: member
+  objeto:
+    '@type': Person
+    name: César Ramallo
+    sameAs: https://www.wikidata.org/wiki/Q107273333
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3091114#P527
+    evidencia: P527 = Q107273333 (César Ramallo)
+- sujeto: band:marea
+  predicado: member
+  objeto:
+    '@type': Person
+    name: David Díaz
+    sameAs: https://www.wikidata.org/wiki/Q107272766
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3091114#P527
+    evidencia: P527 = Q107272766 (David Díaz)
+- sujeto: band:marea
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Eduardo Beaumont
+    sameAs: https://www.wikidata.org/wiki/Q107273399
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3091114#P527
+    evidencia: P527 = Q107273399 (Eduardo Beaumont)
+- sujeto: band:nu
+  predicado: foundingLocation
+  objeto: place:madrid
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q4025455#P740
+    evidencia: P740 = Q2807 (Madrid)
+- sujeto: band:platero-y-tu
+  predicado: foundingLocation
+  objeto: place:bilbao
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q263632#P740
+    evidencia: P740 = Q8692 (Bilbao)
+- sujeto: band:platero-y-tu
+  predicado: member
+  objeto:
+    '@type': Person
+    name: Jesús García Castilla
+    sameAs: https://www.wikidata.org/wiki/Q11043571
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q263632#P527
+    evidencia: P527 = Q11043571 (Jesús García Castilla)
+- sujeto: band:reincidentes
+  predicado: foundingLocation
+  objeto:
+    '@type': Place
+    name: Sevilla
+    sameAs: https://www.wikidata.org/wiki/Q8717
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2561938#P740
+    evidencia: P740 = Q8717 (Sevilla)
+- sujeto: band:tabletom
+  predicado: foundingLocation
+  objeto:
+    '@type': Place
+    name: Málaga
+    sameAs: https://www.wikidata.org/wiki/Q8851
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5572981#P740
+    evidencia: P740 = Q8851 (Málaga)
+- sujeto: band:the-flying-rebollos
+  predicado: foundingLocation
+  objeto:
+    '@type': Place
+    name: Portugalete
+    sameAs: https://www.wikidata.org/wiki/Q548441
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q6144458#P740
+    evidencia: P740 = Q548441 (Portugalete)
+- sujeto: label:avispa
+  predicado: location
+  objeto: place:madrid
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2069679#P159
+    evidencia: P159 = Q2807 (Madrid)
+- sujeto: label:dro
+  predicado: founder
+  objeto:
+    '@type': Person
+    name: Servando Carballar
+    sameAs: https://www.wikidata.org/wiki/Q21030197
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3030172#P112
+    evidencia: P112 = Q21030197 (Servando Carballar)
+- sujeto: label:el-dromedario-records
+  predicado: founder
+  objeto: person:alen-ayerdi
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q24279015#P112
+    evidencia: P112 = Q107272976 (Alen Ayerdi)
+- sujeto: label:el-dromedario-records
+  predicado: location
+  objeto: place:pamplona
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q24279015#P159
+    evidencia: P159 = Q10282 (Pamplona)
+- sujeto: person:albert-pla
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Institut Pau Vila
+    sameAs: https://www.wikidata.org/wiki/Q61745566
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q942636#P69
+    evidencia: P69 = Q61745566 (Institut Pau Vila)
+- sujeto: person:ara-malikian
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Guildhall School of Music and Drama
+    sameAs: https://www.wikidata.org/wiki/Q1419737
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3393715#P69
+    evidencia: P69 = Q1419737 (Guildhall School of Music and Drama)
+- sujeto: person:ara-malikian
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Hochschule für Musik, Theater und Medien Hannover
+    sameAs: https://www.wikidata.org/wiki/Q455331
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3393715#P69
+    evidencia: P69 = Q455331 (Hochschule für Musik, Theater und Medien Hannover)
+- sujeto: person:ariel-rot
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Los Rodríguez
+    sameAs: https://www.wikidata.org/wiki/Q3773708
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2400623#P463
+    evidencia: P463 = Q3773708 (Los Rodríguez)
+- sujeto: person:ariel-rot
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Tequila
+    sameAs: https://www.wikidata.org/wiki/Q3326398
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2400623#P463
+    evidencia: P463 = Q3326398 (Tequila)
+- sujeto: person:ariel-rot
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: The Rota
+    sameAs: https://www.wikidata.org/wiki/Q120491189
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2400623#P463
+    evidencia: P463 = Q120491189 (The Rota)
+- sujeto: person:david-lerman
+  predicado: memberOf
+  objeto: band:los-ninos-de-los-ojos-rojos
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5492514#P527
+    evidencia: P527 = Q123516252 (David Lerman)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q123516252#P463
+    evidencia: P463 = Q5492514 (Los Niños de los Ojos Rojos)
+- sujeto: person:david-lerman
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: O'funk'illo
+    sameAs: https://www.wikidata.org/wiki/Q9051357
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q123516252#P463
+    evidencia: P463 = Q9051357 (O'funk'illo)
+- sujeto: person:enrique-el-drogas
+  predicado: birthPlace
+  objeto:
+    '@type': Place
+    name: Chantrea
+    sameAs: https://www.wikidata.org/wiki/Q3015636
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q8773013#P19
+    evidencia: P19 = Q3015636 (Chantrea)
+- sujeto: person:enrique-el-drogas
+  predicado: memberOf
+  objeto: band:barricada
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q2574210#P527
+    evidencia: P527 = Q8773013 (El Drogas)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q8773013#P463
+    evidencia: P463 = Q2574210 (Barricada)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8fe43356-6902-4311-a80c-f221bfcf3efb
+    evidencia: 'member of band (backward) El Drogas: bass guitar, lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e10a5c5e-ec49-4290-9c72-803dbb446f4d
+    evidencia: 'member of band (forward) Barricada: bass guitar, lead vocals, original'
+  rol: bajo, voz, miembro original
+  hasta: 2011-12
+- sujeto: person:fermin-muguruza
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Fermin Muguruza Dub Manifest
+    sameAs: https://www.wikidata.org/wiki/Q5858953
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1350622#P463
+    evidencia: P463 = Q5858953 (Fermin Muguruza Dub Manifest)
+- sujeto: person:fermin-muguruza
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Fermin Muguruza eta Dut
+    sameAs: https://www.wikidata.org/wiki/Q5858955
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1350622#P463
+    evidencia: P463 = Q5858955 (Fermin Muguruza eta Dut)
+- sujeto: person:fermin-muguruza
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Kortatu
+    sameAs: https://www.wikidata.org/wiki/Q1549224
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1350622#P463
+    evidencia: P463 = Q1549224 (Kortatu)
+- sujeto: person:fermin-muguruza
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Negu Gorriak
+    sameAs: https://www.wikidata.org/wiki/Q762674
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1350622#P463
+    evidencia: P463 = Q762674 (Negu Gorriak)
+- sujeto: person:fito-cabrales
+  predicado: memberOf
+  objeto: band:extrechinato-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3751202#P463
+    evidencia: P463 = Q5853668 (Extrechinato y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5853668#P527
+    evidencia: P527 = Q3751202 (Fito Cabrales)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: member of band (forward) Extrechinato y Tú
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+    evidencia: member of band (backward) Fito Cabrales
+- sujeto: person:fito-cabrales
+  predicado: memberOf
+  objeto: band:fito-y-fitipaldis
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3751202#P463
+    evidencia: P463 = Q1421204 (Fito & Fitipaldis)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q3751202 (Fito Cabrales)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: 'member of band (forward) Fito & Fitipaldis: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: 'member of band (forward) Fito & Fitipaldis: acoustic guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: 'member of band (forward) Fito & Fitipaldis: electric guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed
+    evidencia: 'member of band (backward) Fito Cabrales: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed
+    evidencia: 'member of band (backward) Fito Cabrales: acoustic guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed
+    evidencia: 'member of band (backward) Fito Cabrales: electric guitar, original'
+  rol: voz, miembro original
+- sujeto: person:fito-cabrales
+  predicado: memberOf
+  objeto: band:platero-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3751202#P463
+    evidencia: P463 = Q263632 (Platero y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q263632#P527
+    evidencia: P527 = Q3751202 (Fito Cabrales)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: 'member of band (forward) Platero y Tú: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd
+    evidencia: 'member of band (forward) Platero y Tú: electric guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794
+    evidencia: 'member of band (backward) Fito Cabrales: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794
+    evidencia: 'member of band (backward) Fito Cabrales: electric guitar, original'
+  rol: voz, miembro original
+- sujeto: person:frank-zappa
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Antelope Valley High School
+    sameAs: https://www.wikidata.org/wiki/Q4771200
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q127330#P69
+    evidencia: P69 = Q4771200 (Antelope Valley High School)
+- sujeto: person:frank-zappa
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Chaffey College
+    sameAs: https://www.wikidata.org/wiki/Q5066795
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q127330#P69
+    evidencia: P69 = Q5066795 (Chaffey College)
+- sujeto: person:frank-zappa
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Grossmont High School
+    sameAs: https://www.wikidata.org/wiki/Q5610599
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q127330#P69
+    evidencia: P69 = Q5610599 (Grossmont High School)
+- sujeto: person:frank-zappa
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Mission Bay High School
+    sameAs: https://www.wikidata.org/wiki/Q6878526
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q127330#P69
+    evidencia: P69 = Q6878526 (Mission Bay High School)
+- sujeto: person:frank-zappa
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: The Mothers of Invention
+    sameAs: https://www.wikidata.org/wiki/Q530362
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q127330#P463
+    evidencia: P463 = Q530362 (The Mothers of Invention)
+- sujeto: person:freddie-mercury
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: St. Mary's School
+    sameAs: https://www.wikidata.org/wiki/Q3967568
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P69
+    evidencia: P69 = Q3967568 (St. Mary's School)
+- sujeto: person:freddie-mercury
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: St. Peter's Boys School
+    sameAs: https://www.wikidata.org/wiki/Q3967574
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P69
+    evidencia: P69 = Q3967574 (St. Peter's Boys School)
+- sujeto: person:freddie-mercury
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Ealing Art College
+    sameAs: https://www.wikidata.org/wiki/Q5325472
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P69
+    evidencia: P69 = Q5325472 (Ealing Art College)
+- sujeto: person:freddie-mercury
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: University of West London
+    sameAs: https://www.wikidata.org/wiki/Q2007778
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P69
+    evidencia: P69 = Q2007778 (University of West London)
+- sujeto: person:freddie-mercury
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: West Thames College
+    sameAs: https://www.wikidata.org/wiki/Q4019102
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P69
+    evidencia: P69 = Q4019102 (West Thames College)
+- sujeto: person:freddie-mercury
+  predicado: birthPlace
+  objeto:
+    '@type': Place
+    name: Zanzíbar
+    sameAs: https://www.wikidata.org/wiki/Q2222874
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P19
+    evidencia: P19 = Q2222874 (Zanzíbar)
+- sujeto: person:freddie-mercury
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Queen
+    sameAs: https://www.wikidata.org/wiki/Q15862
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q15869#P463
+    evidencia: P463 = Q15862 (Queen)
+- sujeto: person:inaki-uoho-anton
+  predicado: memberOf
+  objeto: band:extrechinato-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5198493#P463
+    evidencia: P463 = Q5853668 (Extrechinato y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5853668#P527
+    evidencia: P527 = Q5198493 (Iñaki Antón)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def
+    evidencia: member of band (forward) Extrechinato y Tú
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+    evidencia: member of band (backward) Iñaki Antón
+- sujeto: person:inaki-uoho-anton
+  predicado: memberOf
+  objeto: band:inconscientes
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5198493#P463
+    evidencia: P463 = Q11255096 (Inconscientes)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def
+    evidencia: 'member of band (forward) Inconscientes: electric guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d
+    evidencia: 'member of band (backward) Iñaki Antón: electric guitar, original'
+  rol: guitarra eléctrica, miembro original
+- sujeto: person:inaki-uoho-anton
+  predicado: memberOf
+  objeto: band:platero-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5198493#P463
+    evidencia: P463 = Q263632 (Platero y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q263632#P527
+    evidencia: P527 = Q5198493 (Iñaki Antón)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def
+    evidencia: 'member of band (forward) Platero y Tú: electric guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794
+    evidencia: 'member of band (backward) Iñaki Antón: electric guitar, original'
+  rol: guitarra eléctrica, miembro original
+- sujeto: person:inaki-uoho-anton
+  predicado: memberOf
+  objeto: band:rebrote
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def
+    evidencia: 'member of band (forward) Rebrote: guitar'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691
+    evidencia: 'member of band (backward) Iñaki Antón: guitar'
+  rol: guitarra
+- sujeto: person:jaime-moreno
+  predicado: memberOf
+  objeto: band:rebrote
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691
+    evidencia: 'member of band (backward) Jaime Moreno: lead vocals'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691
+    evidencia: 'member of band (backward) Jaime Moreno: guitar'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8b829213-81ca-4afa-bd2b-cbfeda7c0217
+    evidencia: 'member of band (forward) Rebrote: lead vocals'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8b829213-81ca-4afa-bd2b-cbfeda7c0217
+    evidencia: 'member of band (forward) Rebrote: guitar'
+  rol: voz
+- sujeto: person:joaquin-sabina
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Facultad de Filosofía y Letras de la Universidad de Granada
+    sameAs: https://www.wikidata.org/wiki/Q5854915
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q363577#P69
+    evidencia: P69 = Q5854915 (Facultad de Filosofía y Letras de la Universidad de Granada)
+- sujeto: person:joaquin-sabina
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Universidad de Granada
+    sameAs: https://www.wikidata.org/wiki/Q1232180
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q363577#P69
+    evidencia: P69 = Q1232180 (Universidad de Granada)
+- sujeto: person:jon-calvo
+  predicado: memberOf
+  objeto: band:inconscientes
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d
+    evidencia: 'member of band (backward) Jon Calvo: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d
+    evidencia: 'member of band (backward) Jon Calvo: electric guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/6ab56afb-26d1-41c6-b1c8-2b78c544a95b
+    evidencia: 'member of band (forward) Inconscientes: lead vocals, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/6ab56afb-26d1-41c6-b1c8-2b78c544a95b
+    evidencia: 'member of band (forward) Inconscientes: electric guitar, original'
+  rol: voz, miembro original
+- sujeto: person:jose-ignacio-cantera
+  predicado: memberOf
+  objeto: band:inconscientes
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5637367#P463
+    evidencia: P463 = Q11255096 (Inconscientes)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01
+    evidencia: 'member of band (forward) Inconscientes: drums (drum set), original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d
+    evidencia: 'member of band (backward) José Ignacio Cantera: drums (drum set), original'
+  rol: batería, miembro original
+- sujeto: person:jose-ignacio-cantera
+  predicado: memberOf
+  objeto: band:rebrote
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01
+    evidencia: 'member of band (forward) Rebrote: drums (drum set)'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691
+    evidencia: 'member of band (backward) José Ignacio Cantera: drums (drum set)'
+  rol: batería
+- sujeto: person:juantxu-mongol-olano
+  predicado: birthPlace
+  objeto: place:bilbao
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q9016238#P19
+    evidencia: P19 = Q8692 (Bilbao)
+- sujeto: person:juantxu-mongol-olano
+  predicado: memberOf
+  objeto: band:platero-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q263632#P527
+    evidencia: P527 = Q9016238 (Juantxu Olano)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q9016238#P463
+    evidencia: P463 = Q263632 (Platero y Tú)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794
+    evidencia: 'member of band (backward) Juantxu Olano: electric bass guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/216d028a-a0a0-4dd3-92f9-6ba7631f8018
+    evidencia: 'member of band (forward) Platero y Tú: electric bass guitar, original'
+  rol: bajo eléctrico, miembro original
+- sujeto: person:juantxu-mongol-olano
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: La Gripe
+    sameAs: https://www.wikidata.org/wiki/Q5963679
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q9016238#P463
+    evidencia: P463 = Q5963679 (La Gripe)
+- sujeto: person:manolete
+  predicado: birthPlace
+  objeto:
+    '@type': Place
+    name: Córdoba
+    sameAs: https://www.wikidata.org/wiki/Q5818
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q363911#P19
+    evidencia: P19 = Q5818 (Córdoba)
+- sujeto: person:manolete
+  predicado: deathPlace
+  objeto:
+    '@type': Place
+    name: Linares
+    sameAs: https://www.wikidata.org/wiki/Q281272
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q363911#P20
+    evidencia: P20 = Q281272 (Linares)
+- sujeto: person:manolete
+  predicado: deathPlace
+  objeto:
+    '@type': Place
+    name: plaza de toros de Linares
+    sameAs: https://www.wikidata.org/wiki/Q97630530
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q363911#P20
+    evidencia: P20 = Q97630530 (plaza de toros de Linares)
+- sujeto: person:manolo-chinato
+  predicado: memberOf
+  objeto: band:extrechinato-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5790366#P463
+    evidencia: P463 = Q5853668 (Extrechinato y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5853668#P527
+    evidencia: P527 = Q5790366 (Manolo Chinato)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f
+    evidencia: member of band (forward) Extrechinato y Tú
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+    evidencia: member of band (backward) Manolo Chinato
+- sujeto: person:miguel-colino
+  predicado: memberOf
+  objeto: band:fito-y-fitipaldis
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q1421204#P527
+    evidencia: P527 = Q9032688 (Miguel Colino)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b
+    evidencia: 'member of band (forward) Fito & Fitipaldis: electric bass guitar'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed
+    evidencia: 'member of band (backward) Miguel Colino: electric bass guitar'
+  rol: bajo eléctrico
+  desde: '1997'
+  hasta: '2001'
+- sujeto: person:miguel-colino
+  predicado: memberOf
+  objeto: band:inconscientes
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q9032688#P463
+    evidencia: P463 = Q11255096 (Inconscientes)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b
+    evidencia: 'member of band (forward) Inconscientes: electric bass guitar, original'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d
+    evidencia: 'member of band (backward) Miguel Colino: electric bass guitar, original'
+  rol: bajo eléctrico, miembro original
+- sujeto: person:miguel-colino
+  predicado: memberOf
+  objeto: band:rebrote
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b
+    evidencia: 'member of band (forward) Rebrote: electric bass guitar'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691
+    evidencia: 'member of band (backward) Miguel Colino: electric bass guitar'
+  rol: bajo eléctrico
+- sujeto: person:miguel-colino
+  predicado: memberOf
+  objeto: band:the-flying-rebollos
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b
+    evidencia: 'member of band (forward) The Flying Rebollos: electric bass guitar'
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/142bc978-3830-4d28-8fdf-69c84ec4f600
+    evidencia: 'member of band (backward) Miguel Colino: electric bass guitar'
+  rol: bajo eléctrico
+  desde: '1996'
+  hasta: '1998'
+- sujeto: person:robe-iniesta
+  predicado: memberOf
+  objeto: band:extrechinato-y-tu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3181267#P463
+    evidencia: P463 = Q5853668 (Extrechinato y Tú)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q5853668#P527
+    evidencia: P527 = Q3181267 (Roberto Iniesta)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926
+    evidencia: member of band (forward) Extrechinato y Tú
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8
+    evidencia: member of band (backward) Robe
+- sujeto: person:rosendo-mercado
+  predicado: memberOf
+  objeto: band:leno
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3324618#P463
+    evidencia: P463 = Q3328146 (Leño)
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q3328146#P527
+    evidencia: P527 = Q3324618 (Rosendo Mercado)
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803
+    evidencia: member of band (forward) Leño
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/42941f4b-d3ea-4d78-a5af-2be59bc2acd6
+    evidencia: member of band (backward) Rosendo
+  desde: '1978'
+  hasta: 1983-10
+- sujeto: person:rosendo-mercado
+  predicado: memberOf
+  objeto: band:nu
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803
+    evidencia: member of band (forward) Ñu
+  - kind: musicbrainz
+    tier: T1
+    url: https://musicbrainz.org/artist/2586f88c-6ffc-4fbd-913f-6c45121265ed
+    evidencia: member of band (backward) Rosendo
+  desde: '1975'
+  hasta: '1977'
+- sujeto: person:woody-amores
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Berklee College of Music
+    sameAs: https://www.wikidata.org/wiki/Q248970
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q123516278#P69
+    evidencia: P69 = Q248970 (Berklee College of Music)
+- sujeto: person:woody-amores
+  predicado: alumniOf
+  objeto:
+    '@type': EducationalOrganization
+    name: Universidad de Salamanca
+    sameAs: https://www.wikidata.org/wiki/Q308963
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q123516278#P69
+    evidencia: P69 = Q308963 (Universidad de Salamanca)
+- sujeto: person:woody-amores
+  predicado: memberOf
+  objeto:
+    '@type': MusicGroup
+    name: Sínkope
+    sameAs: https://www.wikidata.org/wiki/Q3400079
+  estado: verificada
+  verificado_por: claude (autorización de David, 18-11-2026)
+  fuentes:
+  - kind: wikidata
+    tier: T1
+    url: https://www.wikidata.org/wiki/Q123516278#P463
+    evidencia: P463 = Q3400079 (Sínkope)
