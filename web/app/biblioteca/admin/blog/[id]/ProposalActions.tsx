@@ -11,6 +11,7 @@ const FILTRO: Record<string, string> = {
   facts: "la comprobación de hechos",
   completeness: "la completitud (Robe y su trayectoria)",
   fuentes: "la voz propia (nombra fuentes externas)",
+  material: "el mínimo de material (se queda corta)",
 };
 
 export default function ProposalActions({

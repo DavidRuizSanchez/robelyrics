@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Juicio:
     pasa: bool
-    bloquea: str | None = None          # foco | rigor | lyrics | facts | completeness | fuentes
+    bloquea: str | None = None          # foco | rigor | lyrics | facts | completeness | fuentes | material
     motivos: list[str] = field(default_factory=list)
     score: int | None = None
     cuerpo: str = ""                     # el cuerpo tras recortes y tensado
@@ -142,7 +142,9 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
 
     # 3. Deterministas del día D: citas de letra, años de disco, completitud.
     from app.services.publishing import gates_deterministas
-    falso_post = SimpleNamespace(id=None, body_md=cuerpo, kind=kind, title=title,
+    # El tipo de pieza, no el kind: «cómo se hizo un disco» es un evergreen por kind y una
+    # pieza de una sola obra para la completitud.
+    falso_post = SimpleNamespace(id=None, body_md=cuerpo, kind=tipo_pieza or kind, title=title,
                                  target_keyword=subject)
     det = gates_deterministas(db, falso_post)
     if det:
@@ -176,5 +178,10 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
             return Juicio(False, "facts",
                           [f"{x.claim.type}: {x.claim.subject}" for x in rep.to_review[:5]],
                           v.score, cuerpo)
+        if rep.sin_comprobar:
+            # Al preparar hay tiempo: lo que no se pudo comprobar no pasa en abierto.
+            return Juicio(False, "facts",
+                          [f"sin comprobar (buscador caído): {x.claim.text[:120]}"
+                           for x in rep.sin_comprobar[:5]], v.score, cuerpo)
 
     return rechazo_rigor or Juicio(True, None, v.reasons, v.score, cuerpo)

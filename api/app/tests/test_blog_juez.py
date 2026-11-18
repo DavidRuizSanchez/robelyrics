@@ -44,7 +44,7 @@ def test_lo_que_no_consta_no_se_pide_y_el_juez_lo_sabe():
 
 def test_lo_buscable_se_busca_antes_y_solo_cuenta_si_aparece():
     pend = {p.clave for p in piece_checklist.pendientes("album-anniversary", HECHOS)}
-    assert pend == {"grabacion", "sonido"}
+    assert pend == {"grabacion", "sonido", "curiosidades"}
     sin = piece_checklist.liston("album-anniversary", HECHOS)
     con = piece_checklist.liston("album-anniversary", HECHOS, {"grabacion"})
     assert "grabacion" not in {p.clave for p in sin.exigibles}
@@ -161,6 +161,16 @@ def test_motivos_de_dato():
 # --------------------------------------------------------------------------- #
 # El juicio al preparar: reescribe con los motivos y se queda la mejor
 # --------------------------------------------------------------------------- #
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _sin_minimo_de_material(monkeypatch):
+    """Los borradores de juguete («v0») son cortos: el mínimo se prueba aparte."""
+    from app.services import draft_generator as dg
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 0)
+
+
 def _propuesta(**kw):
     base = dict(id=1, kind="album-anniversary", title="10 años", target_keyword="Destrozares",
                 body_md="v0", excerpt=None, meta_title=None, meta_description=None,
@@ -265,7 +275,7 @@ def test_con_la_web_caida_una_obra_no_se_refuta(monkeypatch):
     claim = fact_check.Claim(type="work_exists", subject="Destrozares", text="Robe publicó Destrozares",
                              risk="high")
     v = fact_check._resolve_web(claim)
-    assert v.status == "unverifiable" and v.source == "skipped"
+    assert v.status == "unverifiable" and v.source == "sin_red"
     rep = fact_check.FactCheckReport(verdicts=[v])
     assert rep.to_review == []
 
@@ -429,3 +439,111 @@ def test_variantes_y_familiares_no_son_erratas():
                       ("Fito", "Adolfo Cabrales")])
     texto = "Manolillo Chinato recitó. Iñigo Muguruza tocó con su hermano. Fito Cabrales cantó."
     assert nombres_dudosos(db, texto) == []
+
+
+# --------------------------------------------------------------------------- #
+# Corta tras verificar: falta material, no estilo (#399, 18-11-2026)
+# --------------------------------------------------------------------------- #
+def test_corta_busca_material_amplio_antes_de_juzgar(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 50)
+    amplia = []
+
+    def regenera(db, p, persist=True, juzgar=True):
+        amplia.append(dg._BUSQUEDA_AMPLIA.get())
+        p.body_md = "x" * 80
+        return True
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar", lambda db, p, hard: Juicio(True, None, [], 70, p.body_md))
+    monkeypatch.setattr(dg, "generate_proposal_draft", regenera)
+    p = _propuesta(body_md="corto")
+    dg.juzgar_borrador(None, p)
+    assert amplia == [True] and dg._BUSQUEDA_AMPLIA.get() is False
+    assert p.review_verdict == "pasa" and p.body_md == "x" * 80
+
+
+def test_si_sigue_corta_se_retiene_por_material_sin_reescrituras_a_ciegas(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 50)
+    llamadas = []
+
+    def regenera(db, p, persist=True, juzgar=True):
+        llamadas.append(dg._CORRECCIONES.get())
+        p.body_md = "igual"
+        return True
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar", lambda db, p, hard: Juicio(True, None, [], 70, p.body_md))
+    monkeypatch.setattr(dg, "generate_proposal_draft", regenera)
+    p = _propuesta(body_md="corto")
+    dg.juzgar_borrador(None, p)
+    assert llamadas == [""]                      # solo la búsqueda amplia, sin estilo
+    assert p.body_md == "corto"                  # la amplia no mejoró: se queda la previa
+    assert p.review_verdict == "retenida" and p.review_reasons["bloquea"] == "material"
+
+
+def test_los_videos_no_cuentan_para_el_minimo(monkeypatch):
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "MIN_CUERPO_CON_LISTON", 30)
+    p = _propuesta(body_md="texto corto\n\nhttps://www.youtube.com/watch?v=OcXZqMVb6lU" * 1)
+    assert dg._corta(p)
+    assert not dg._corta(_propuesta(kind="evergreen", source_type="seo", body_md="x"))
+
+
+def test_lo_que_se_guarda_es_lo_que_se_juzgo_aunque_no_pase(monkeypatch):
+    """#417: el foco recortó dos secciones, el juez leyó el recorte y se guardó el texto
+    entero, con cinco menciones a un medio. «Para tu lectura» tiene que enseñar lo
+    juzgado."""
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar",
+                        lambda db, p, hard: Juicio(False, "rigor", ["x"], 58, "recortado"))
+    monkeypatch.setattr(dg, "generate_proposal_draft", lambda db, p, **k: False)
+    p = _propuesta(body_md="entero con secciones fuera de foco")
+    dg.juzgar_borrador(None, p)
+    assert p.body_md == "recortado" and p.review_verdict == "para_tu_lectura"
+
+
+def test_hablar_del_material_es_una_confesion():
+    from app.services.source_guard import quitar_confesiones
+
+    texto = ("El comunicado planteó tocar una vez más. El material confirma que el plan "
+             "se anunció, no que la gira llegara a celebrarse.")
+    limpio, quitadas = quitar_confesiones(texto)
+    assert limpio == "El comunicado planteó tocar una vez más." and len(quitadas) == 1
+    # Un disco que se llama así, entre comillas, no es confesión.
+    assert quitar_confesiones("Salió «Material defectuoso» en 2011.")[1] == []
+
+
+def test_el_encargo_del_disco_no_pide_un_verso_por_cancion():
+    """David (18-11-2026): «enumerar canciones y decir los versos que tienen cansa»; varias
+    sí, pero de forma dinámica y aportando valor. El encargo busca anécdotas."""
+    from app.services.draft_generator import ESTILO_DISCO
+
+    con = piece_checklist.liston("album-anniversary", HECHOS, {"curiosidades"})
+    assert "NO un repaso del tracklist" in con.encargo()
+    assert "anécdotas" in con.encargo()
+    assert "canción-verso" in ESTILO_DISCO
+
+
+def test_sin_red_no_manda_a_revision_pero_al_preparar_si_para():
+    from app.services import fact_check
+
+    claim = fact_check.Claim(type="other", subject="Se nos lleva el aire",
+                             text="Se grabó en El Cielo, Madrid", risk="high")
+    v = fact_check.Verdict(claim, "unverifiable", evidence="sin comprobar", source="sin_red")
+    rep = fact_check.FactCheckReport(verdicts=[v])
+    assert rep.to_review == [] and rep.sin_comprobar == [v]
+
+
+def test_la_consulta_va_sin_los_signos_que_rompen_dataforseo():
+    from app.services.news_research import limpiar_consulta
+
+    assert limpiar_consulta('"El poder del arte" dura nueve minutos.') == \
+        "El poder del arte dura nueve minutos"
+    assert limpiar_consulta("10º aniversario de «Destrozares»") == "10 aniversario de Destrozares"

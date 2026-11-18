@@ -45,7 +45,7 @@ def test_con_la_web_caida_una_obra_no_se_refuta(monkeypatch):
     claim = fact_check.Claim(type="work_exists", subject="Destrozares",
                              text="Robe publicó Destrozares", risk="high")
     v = fact_check._resolve_web(claim)
-    assert v.status == "unverifiable" and v.source == "skipped"
+    assert v.status == "unverifiable" and v.source == "sin_red"
     assert fact_check.FactCheckReport(verdicts=[v]).to_review == []
 
 

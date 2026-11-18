@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import time
 from typing import Any
 
 import httpx
@@ -32,6 +34,7 @@ from app.services.openai_chat import openai_chat_kwargs
 logger = logging.getLogger(__name__)
 
 _SERP = "https://api.dataforseo.com/v3/serp/google/organic/live/advanced"
+_SERP_REGULAR = "https://api.dataforseo.com/v3/serp/google/organic/live/regular"
 _LOCATION_ES = 2724
 _LANG_ES = "es"
 
@@ -126,6 +129,21 @@ Devuelve SOLO un JSON con:
 # --------------------------------------------------------------------------- #
 # 2. Investigación: web (snippets de Google) + corpus propio
 # --------------------------------------------------------------------------- #
+_SIGNOS_CONSULTA = re.compile(r"[«»\"“”‘’'º¿?¡!]")
+
+
+def limpiar_consulta(query: str) -> str:
+    """La consulta sin los signos que hacen fallar a DataForSEO.
+
+    El 18-11-2026 «el buscador estaba caído» toda la tarde y no lo estaba: medido en
+    prod, «"El poder del arte" dura nueve minutos» da 40101 y sin comillas da 7
+    resultados; «…publicado en 1996.» falla y sin el punto final no. Las consultas que
+    son frases enteras (las del verificador) eran las que fallaban."""
+    q = _SIGNOS_CONSULTA.sub(" ", query or "")
+    q = re.sub(r"\s+", " ", q).strip().rstrip(".,;:").strip()
+    return q
+
+
 def web_research(query: str, n: int = 6, *, estado: dict | None = None) -> list[dict]:
     """Títulos + snippets de Google (no scrapea páginas): material factual para
     el LLM, no copia. Vía DataForSEO.
@@ -137,17 +155,29 @@ def web_research(query: str, n: int = 6, *, estado: dict | None = None) -> list[
     pwd = os.environ.get("DATAFORSEO_PASSWORD")
     if not query or not login or not pwd:
         return []
+    consulta = limpiar_consulta(query)
     try:
-        payload = [{
-            "keyword": query, "location_code": _LOCATION_ES,
-            "language_code": _LANG_ES, "depth": n,
-        }]
+        corta = " ".join(consulta.split()[:8])
+        # 40101 es en parte aleatorio (la misma consulta falla y a los segundos responde):
+        # se reintenta tras una pausa y, la última vez, con sus primeras palabras.
+        # Medido en prod: viene por rachas, y el endpoint `regular` respondía mientras el
+        # `advanced` daba 40101 con la misma consulta.
+        intentos = ((consulta, _SERP), (corta, _SERP), (consulta, _SERP_REGULAR))
         with httpx.Client(timeout=30.0) as c:
-            r = c.post(_SERP, auth=(login, pwd), json=etiquetar(payload, PROYECTO_DFS))
-            r.raise_for_status()
-            respuesta = r.json()
-        registrar(respuesta, PROYECTO_DFS)
-        tarea = respuesta["tasks"][0]
+            for i, (intento, endpoint) in enumerate(intentos):
+                if i:
+                    time.sleep(2)
+                payload = [{
+                    "keyword": intento, "location_code": _LOCATION_ES,
+                    "language_code": _LANG_ES, "depth": n,
+                }]
+                r = c.post(endpoint, auth=(login, pwd), json=etiquetar(payload, PROYECTO_DFS))
+                r.raise_for_status()
+                respuesta = r.json()
+                registrar(respuesta, PROYECTO_DFS)
+                tarea = respuesta["tasks"][0]
+                if tarea.get("status_code") != 40101:
+                    break
         # Una tarea con error llega con `result: null`, y el `[0]` de después
         # dejaba en el log «'NoneType' object is not subscriptable» (varias veces
         # al día del 18 al 22-10-2026) en vez del motivo que da DataForSEO.
