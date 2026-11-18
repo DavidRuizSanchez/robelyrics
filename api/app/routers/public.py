@@ -2007,6 +2007,26 @@ def public_posts_list(
     ]
 
 
+class PublicPostSitemapItem(BaseModel):
+    slug: str
+    published_at: datetime | None = None
+
+
+@router.get("/posts/sitemap", response_model=list[PublicPostSitemapItem])
+def public_posts_sitemap(response: Response, db: Session = Depends(get_db)):
+    """TODOS los posts publicados, para el sitemap. `/posts` lleva límite (30 por
+    defecto) y el sitemap lo usaba: cada post nuevo sacaba del sitemap al más antiguo
+    (18-11-2026: 45 publicados, 30 en el sitemap)."""
+    _set_cache(response)
+    rows = (
+        db.query(Post.slug, Post.published_at)
+        .filter(Post.status == "published")
+        .order_by(Post.published_at.desc())
+        .all()
+    )
+    return [PublicPostSitemapItem(slug=s, published_at=p) for s, p in rows]
+
+
 @router.get("/posts/mentioning", response_model=list[PublicPostListItem])
 def public_posts_mentioning(
     slug: str,
