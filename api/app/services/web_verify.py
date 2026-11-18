@@ -80,7 +80,7 @@ def wikipedia_extract(title_or_url: str, lang: str = "es") -> str | None:
         return None
 
 
-def _gather_evidence(query: str, wiki_titles: list[str]) -> str:
+def _gather_evidence(query: str, wiki_titles: list[str], estado: dict | None = None) -> str:
     from app.services.news_research import web_research
     parts: list[str] = []
     for t in wiki_titles:
@@ -88,10 +88,12 @@ def _gather_evidence(query: str, wiki_titles: list[str]) -> str:
         if ext:
             parts.append(f"[Wikipedia · {t}] {ext[:900]}")
     try:
-        for hit in web_research(query, n=5):
+        for hit in web_research(query, n=5, estado=estado):
             parts.append(f"[Google] {hit.get('title','')}: {hit.get('snippet','')}")
     except Exception as exc:  # noqa: BLE001
         logger.warning("[web_verify] web_research falló: %s", exc)
+        if estado is not None:
+            estado["fallo"] = True
     return "\n".join(parts)
 
 
@@ -208,7 +210,13 @@ def classify_fact(claim: str, wiki_title: str = "", query: str = "") -> dict:
         cache = _load_cache()
         if k in cache:
             return cache[k]
-    evidence = _gather_evidence(busqueda, [wiki_title] if wiki_title else [])
+    estado: dict = {}
+    evidence = _gather_evidence(busqueda, [wiki_title] if wiki_title else [], estado)
+    if not evidence.strip() and estado.get("fallo"):
+        # La búsqueda no se pudo hacer: no es «no encontrado». Ni se cachea (si no, una
+        # caída de DataForSEO dejaba el dato como no hallado para siempre) ni se trata
+        # como evidencia en contra. `sin_red` lo distingue para quien quiera reintentar.
+        return {"verdict": "not_found", "evidence": "", "source": "", "sin_red": True}
     if not evidence.strip():
         res = {"verdict": "not_found", "evidence": "", "source": ""}
     else:

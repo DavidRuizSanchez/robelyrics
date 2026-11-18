@@ -552,6 +552,12 @@ def _resolve_web(claim: Claim) -> Verdict:
         logger.warning("[fact_check] classify_fact falló: %s", exc)
         return Verdict(claim, "unverifiable", evidence="verificación web no disponible")
 
+    # La búsqueda NO se pudo hacer (DataForSEO caído, 40101 el 18-11-2026): no hay
+    # evidencia ni a favor ni en contra. Se trata como la web desactivada: ni refuta una
+    # obra (lo haría con `work_exists`) ni manda a revisión; queda sin comprobar.
+    if res.get("sin_red"):
+        return Verdict(claim, "unverifiable", evidence="sin comprobar: la búsqueda web falló",
+                       source="skipped")
     verdict = res.get("verdict")
     ev = res.get("evidence", "")
     if verdict == "supported":

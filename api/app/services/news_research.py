@@ -123,9 +123,13 @@ Devuelve SOLO un JSON con:
 # --------------------------------------------------------------------------- #
 # 2. Investigación: web (snippets de Google) + corpus propio
 # --------------------------------------------------------------------------- #
-def web_research(query: str, n: int = 6) -> list[dict]:
+def web_research(query: str, n: int = 6, *, estado: dict | None = None) -> list[dict]:
     """Títulos + snippets de Google (no scrapea páginas): material factual para
-    el LLM, no copia. Vía DataForSEO."""
+    el LLM, no copia. Vía DataForSEO.
+
+    `estado`: si se pasa, queda `estado["fallo"] = True` cuando la búsqueda NO se pudo
+    hacer (error de DataForSEO, red). Una búsqueda fallida no es «no hay nada»: el
+    18-11-2026 el error 40101 hizo que se descartaran datos ciertos como no hallados."""
     login = os.environ.get("DATAFORSEO_LOGIN")
     pwd = os.environ.get("DATAFORSEO_PASSWORD")
     if not query or not login or not pwd:
@@ -145,10 +149,14 @@ def web_research(query: str, n: int = 6) -> list[dict]:
         if not tarea.get("result"):
             logger.warning("[news_research] SERP sin resultado '%s': %s %s", query,
                            tarea.get("status_code"), tarea.get("status_message"))
+            if estado is not None and tarea.get("status_code") != 20000:
+                estado["fallo"] = True
             return []
         items = tarea["result"][0].get("items") or []
     except Exception as exc:  # noqa: BLE001
         logger.warning("[news_research] SERP falló '%s': %s", query, exc)
+        if estado is not None:
+            estado["fallo"] = True
         return []
     out = []
     for it in items:
