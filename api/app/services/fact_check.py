@@ -81,6 +81,10 @@ class Verdict:
 @dataclass
 class FactCheckReport:
     verdicts: list[Verdict] = field(default_factory=list)
+    # La extracción de afirmaciones falló (JSON cortado, red): NO es «no hay nada que
+    # comprobar». Quien publica decide si eso para la pieza (18-11-2026: «Mayéutica» pasó
+    # con una errata de nombre porque la extracción falló dos veces y salió vacía).
+    extraccion_fallida: bool = False
 
     @property
     def is_clean(self) -> bool:
@@ -366,24 +370,34 @@ def _client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
+class ExtraccionFallida(RuntimeError):
+    """La extracción de afirmaciones no salió (tras reintentar)."""
+
+
 def extract_claims(body_md: str, *, max_claims: int = 12, client: OpenAI | None = None) -> list[Claim]:
     """Extrae hasta `max_claims` afirmaciones factuales del texto. Degrada a []."""
     if not body_md or not body_md.strip():
         return []
-    try:
-        cli = client or _client()
-        resp = cli.chat.completions.create(
-            messages=[
-                {"role": "system", "content": _EXTRACT_SYS},
-                {"role": "user", "content": f"ARTÍCULO:\n\"\"\"{body_md[:12000]}\"\"\""},
-            ],
-            response_format={"type": "json_object"},
-            **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=2000),
-        )
-        data = json.loads(resp.choices[0].message.content or "{}")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[fact_check] extracción falló: %s", exc)
-        return []
+    data = None
+    for intento in range(2):
+        try:
+            cli = client or _client()
+            resp = cli.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": _EXTRACT_SYS},
+                    {"role": "user", "content": f"ARTÍCULO:\n\"\"\"{body_md[:12000]}\"\"\""},
+                ],
+                response_format={"type": "json_object"},
+                # 2.000 se quedaba corto: el JSON salía cortado («Unterminated string») y
+                # la pieza pasaba sin comprobar nada.
+                **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=4000),
+            )
+            data = json.loads(resp.choices[0].message.content or "{}")
+            break
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[fact_check] extracción falló (intento %d): %s", intento + 1, exc)
+    if data is None:
+        raise ExtraccionFallida("no se pudieron extraer las afirmaciones")
 
     out: list[Claim] = []
     for raw in (data.get("claims") or [])[:max_claims]:
@@ -704,7 +718,11 @@ def check_body(
     canción→álbum (`extract_catalog_claims`), para que un error de disco no
     dependa de que el LLM lo pesque. Se deduplica por (tipo, canción, álbum)."""
     idx = index or build_catalog_index(db)
-    claims = extract_claims(body_md, max_claims=max_claims, client=client)
+    fallida = False
+    try:
+        claims = extract_claims(body_md, max_claims=max_claims, client=client)
+    except ExtraccionFallida:
+        claims, fallida = [], True
     det = extract_catalog_claims(body_md, idx)
     seen = {(c.type, _norm(c.subject), _norm(c.object)) for c in claims}
     for c in det:
@@ -713,9 +731,9 @@ def check_body(
             claims.append(c)
             seen.add(key)
     if not claims:
-        return FactCheckReport(verdicts=[])
+        return FactCheckReport(verdicts=[], extraccion_fallida=fallida)
     verdicts = [_resolver_con_material(db, c, idx, material, use_web) for c in claims]
-    return FactCheckReport(verdicts=verdicts)
+    return FactCheckReport(verdicts=verdicts, extraccion_fallida=fallida)
 
 
 _ORDINALES = {"primer": 1, "primero": 1, "primera": 1, "segundo": 2, "segunda": 2, "tercer": 3,
