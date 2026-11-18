@@ -30,9 +30,6 @@ class KeywordData:
     volume: int
     cpc: float | None
     competition: float | None
-    # DataForSEO devuelve `search_volume: null` cuando no tiene dato; `volume` lo pone a 0
-    # (compatibilidad), y esto dice que ese 0 es «no se sabe» (18-11-2026).
-    sin_dato: bool = False
 
     def as_dict(self) -> dict:
         return {
@@ -127,6 +124,5 @@ def search_volume(keywords: list[str]) -> dict[str, KeywordData]:
             volume=row.get("search_volume") or 0,
             cpc=row.get("cpc"),
             competition=row.get("competition"),
-            sin_dato=row.get("search_volume") is None,
         )
     return out

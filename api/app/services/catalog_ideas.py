@@ -279,7 +279,9 @@ def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True,
             vols = search_volume(sorted({i.keyword for i in con_material if i.keyword}))
             for i in con_material:
                 v = vols.get(i.keyword)
-                i.volumen = v.volume if (v is not None and not v.sin_dato) else None
+                # `search_volume` convierte el «sin dato» de DataForSEO en 0, así que un 0
+                # no se distingue de «no se sabe»: se guarda como n/d (None), nunca como 0.
+                i.volumen = v.volume if (v is not None and v.volume) else None
         except Exception:  # noqa: BLE001 — sin DataForSEO, volumen n/d
             pass
     con_material.sort(key=lambda i: -i.puntos)
