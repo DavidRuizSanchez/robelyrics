@@ -49,6 +49,10 @@ LISTAS: dict[str, tuple[Punto, ...]] = {
 }
 
 
+# «Cómo se hizo un disco» (idea de catálogo) pide lo mismo que su aniversario.
+LISTAS["album-historia"] = LISTAS["album-anniversary"]
+
+
 @dataclass
 class Listón:
     tipo: str
