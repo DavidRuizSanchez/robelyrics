@@ -1617,6 +1617,53 @@ def admin_corpus_queue_decidir(
         raise HTTPException(status_code=409, detail=str(e)) from e
 
 
+@router.get("/entidades")
+def admin_entidades(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Relaciones pendientes y entidades propuestas (plan de relaciones, 18-11-2026)."""
+    from app.services.entity_queue import listar
+
+    return listar(db)
+
+
+@router.post("/entidades/propuesta/{item_id}/{accion}")
+def admin_entidades_propuesta(
+    item_id: int,
+    accion: Literal["aprobar", "descartar", "recuperar"],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Aprobar (se le hará ficha), descartar o recuperar una entidad propuesta."""
+    from app.services.entity_queue import AccionNoValida, decidir_propuesta
+
+    try:
+        return decidir_propuesta(db, item_id, accion, quien=_admin.email or "admin")
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="propuesta no encontrada") from e
+    except AccionNoValida as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.post("/entidades/relacion/{item_id}/{accion}")
+def admin_entidades_relacion(
+    item_id: int,
+    accion: Literal["aprobar", "rechazar"],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Dar por verificada (con quien decide) o rechazar una relación pendiente."""
+    from app.services.entity_queue import AccionNoValida, decidir_relacion
+
+    try:
+        return decidir_relacion(db, item_id, accion, quien="david")
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="relación no encontrada") from e
+    except AccionNoValida as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
 @router.get("/proposals/stats", response_model=AdminProposalStats)
 def admin_proposals_stats(
     db: Session = Depends(get_db),
