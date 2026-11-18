@@ -521,14 +521,14 @@ def test_hablar_del_material_es_una_confesion():
 
 
 def test_el_encargo_del_disco_no_pide_un_verso_por_cancion():
-    """David (18-11-2026): «enumerar canciones y decir los versos que tienen cansa».
-    El encargo pide dos o tres canciones con historia y busca anécdotas."""
+    """David (18-11-2026): «enumerar canciones y decir los versos que tienen cansa»; varias
+    sí, pero de forma dinámica y aportando valor. El encargo busca anécdotas."""
     from app.services.draft_generator import ESTILO_DISCO
 
     con = piece_checklist.liston("album-anniversary", HECHOS, {"curiosidades"})
-    assert "dos o tres canciones" in con.encargo() and "NO el tracklist" in con.encargo()
+    assert "NO un repaso del tracklist" in con.encargo()
     assert "anécdotas" in con.encargo()
-    assert "canción a canción" in ESTILO_DISCO
+    assert "canción-verso" in ESTILO_DISCO
 
 
 def test_sin_red_no_manda_a_revision_pero_al_preparar_si_para():
@@ -539,3 +539,11 @@ def test_sin_red_no_manda_a_revision_pero_al_preparar_si_para():
     v = fact_check.Verdict(claim, "unverifiable", evidence="sin comprobar", source="sin_red")
     rep = fact_check.FactCheckReport(verdicts=[v])
     assert rep.to_review == [] and rep.sin_comprobar == [v]
+
+
+def test_la_consulta_va_sin_los_signos_que_rompen_dataforseo():
+    from app.services.news_research import limpiar_consulta
+
+    assert limpiar_consulta('"El poder del arte" dura nueve minutos.') == \
+        "El poder del arte dura nueve minutos"
+    assert limpiar_consulta("10º aniversario de «Destrozares»") == "10 aniversario de Destrozares"

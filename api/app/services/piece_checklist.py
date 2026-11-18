@@ -38,9 +38,9 @@ LISTAS: dict[str, tuple[Punto, ...]] = {
               ("cómo se grabó el disco {t}", "estudio y producción de {t}")),
         # David (18-11-2026), tras leer «Se nos lleva el aire»: «enumerar canciones y decir
         # los versos que tienen cansa». Dos o tres con algo que contar, no el tracklist.
-        Punto("canciones", "dos o tres canciones con historia propia (NO el tracklist entero "
-              "ni una tras otra): por qué importan y qué quieren decir sus versos, con un "
-              "verso LITERAL explicado, nombrando la canción por su TÍTULO", ("Tracklist",)),
+        Punto("canciones", "las canciones que tengan algo que contar (NO un repaso del "
+              "tracklist canción-verso): por qué importan, qué quieren decir sus versos (con "
+              "algún verso LITERAL explicado), nombradas por su TÍTULO", ("Tracklist",)),
         Punto("curiosidades", "las anécdotas y los detalles curiosos del disco (cómo nació, "
               "el título, la portada, el videoclip, lo que contó Robe, los directos)", (),
               ("anécdotas y curiosidades del disco {t}", "Robe cuenta cómo nació el disco {t}",

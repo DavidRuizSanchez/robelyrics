@@ -197,10 +197,11 @@ def _deep_body(
 ESTILO_DISCO = (
     "Escribe como un fan que se lo sabe todo: mezcla la exactitud técnica (fecha, estudio, "
     "músicos, listas) con lo curioso, la anécdota y lo que no sabe todo el mundo, y explica "
-    "por qué importa. NO recorras el disco canción a canción ni enumeres el tracklist en "
-    "prosa (la ficha del disco ya lo tiene y la enlazamos): elige dos o tres canciones con "
-    "algo que contar y explica qué quieren decir sus versos. Nada de un verso por canción ni "
-    "de versos seguidos sin explicar. Cada sección cuenta algo distinto y no repite datos. "
+    "por qué importa. Puedes comentar varias canciones, pero de forma dinámica: cada una "
+    "aporta algo distinto al lector (una anécdota, un dato de grabación, lo que contó Robe, "
+    "el sentido de un verso explicado), NUNCA un repaso uniforme canción-verso, "
+    "canción-verso. No enumeres el tracklist en prosa (la ficha del disco ya lo tiene y la "
+    "enlazamos). Cada sección cuenta algo distinto y no repite datos. "
     "Sin vivencias inventadas: no digas que estuviste ni que lo escuchaste."
 )
 
