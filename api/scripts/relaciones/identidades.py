@@ -89,8 +89,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--salida", required=True)
-    ap.add_argument("--verificado-por", required=True)
+    ap.add_argument("--verificado-por", default="")
+    # «pendiente» para lo que corre solo (cron semanal): entra en la cola del panel y
+    # no se publica hasta que alguien lo aprueba. «verificada» exige --verificado-por.
+    ap.add_argument("--estado", choices=("verificada", "pendiente"), default="pendiente")
     args = ap.parse_args()
+    if args.estado == "verificada" and not args.verificado_por:
+        ap.error("--estado verificada necesita --verificado-por")
 
     db = SessionLocal()
     sameas = _sameas_existentes(db)
@@ -115,9 +120,11 @@ def main() -> None:
     def fila_sameas(ref: str, url: str, fuente: dict) -> None:
         if url in sameas.get(ref, ()):
             return
-        filas.append({"sujeto": ref, "predicado": "sameAs", "objeto": url,
-                      "estado": "verificada", "verificado_por": args.verificado_por,
-                      "fuentes": [fuente]})
+        fila = {"sujeto": ref, "predicado": "sameAs", "objeto": url, "estado": args.estado,
+                "fuentes": [fuente]}
+        if args.estado == "verificada":
+            fila["verificado_por"] = args.verificado_por
+        filas.append(fila)
         sameas.setdefault(ref, set()).add(url)
 
     with httpx.Client(timeout=40, headers=UA, follow_redirects=True) as http:

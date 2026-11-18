@@ -214,9 +214,14 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--salida", required=True, help="carpeta para el YAML y el CSV")
     ap.add_argument("--solo", default="", help="refs separadas por comas")
-    ap.add_argument("--verificado-por", required=True)
+    ap.add_argument("--verificado-por", default="")
+    # «pendiente» para lo que corre solo (cron semanal): entra en la cola del panel y
+    # no se publica hasta que alguien lo aprueba. «verificada» exige --verificado-por.
+    ap.add_argument("--estado", choices=("verificada", "pendiente"), default="pendiente")
     ap.add_argument("--sin-mb", action="store_true")
     args = ap.parse_args()
+    if args.estado == "verificada" and not args.verificado_por:
+        ap.error("--estado verificada necesita --verificado-por")
     solo = {s.strip() for s in args.solo.split(",") if s.strip()}
 
     db = SessionLocal()
@@ -260,8 +265,9 @@ def main() -> None:
             return
         k = (sujeto, pred, clave_obj)
         fila = filas.setdefault(k, {"sujeto": sujeto, "predicado": pred, "objeto": obj_val,
-                                    "estado": "verificada",
-                                    "verificado_por": args.verificado_por, "fuentes": []})
+                                    "estado": args.estado, "fuentes": []})
+        if args.estado == "verificada":
+            fila["verificado_por"] = args.verificado_por
         if rol and not fila.get("rol"):
             fila["rol"] = rol
         if desde and not fila.get("desde"):
