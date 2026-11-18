@@ -14,8 +14,7 @@ Esta carpeta NO es `data/reference/`: el motor no la lee como material.
 | Cifra | Dónde aparece | Fuente | Comprobado |
 |---|---|---|---|
 | 300 pesetas, 1988 | torre-lucia | Casañas, *Talento innato*, primer capítulo (Alianza), pp. 23-24; Robe en 1990 (gratuito de Plasencia, leído en «La historia de Extremoduro», cap. 7, corpus #769) | 23:05 |
-| «ni 100 personas» | torre-lucia | Robe, 1990 (corpus #769) | 23:12 |
-| 1-10-1988 fue sábado | (solo para decidir la fecha; la ficha dice «un sábado de 1988») | calendario | 23:12 |
+| 1-10-1988 fue sábado | (solo para decidir la fecha; la ficha da el año) | calendario | 23:12 |
 | 16-05-2026, unas 5.000 personas | torre-lucia | La Ganzúa (13-05-2026); laguiago (07-09-2026, «cerca de 5.000»); La Portada de Extremadura (25-08-2026, «alrededor de 5.000») | 23:55-00:00 |
 | 1201 | torre-lucia | Ayuntamiento, contenidos.plasencia.es/c-i-torre-lucia | 23:55 |
 | 1555, 1556, 1767 | casa-de-la-salud | UNED, centro/edificio.html | 00:00 |
@@ -56,6 +55,18 @@ Esta carpeta NO es `data/reference/`: el motor no la lee como material.
 | L-01 | El título del libro repite un verso de «Jesucristo García» | Tabla `lines` de la BD | CONFIRMADA |
 | L-02 | Nacho Nava firma él solo guion y dibujo | Altamarea; Todostuslibros; Agencia del ISBN | CONFIRMADA |
 | R-01 | La foto de Robe y Rosendo es de la sala Sol, abril de 1996, portada de MARCA del 20-04-1996 | MARCA (11-12-2025); blog de Matallanas (09-06-2007) | CONFIRMADA |
+
+## Corrección del 18-11-2026
+
+La cita de Robe («Hice un festival aquí en Plasencia […] Un sábado por 300 pesetas. Y aquí no había
+ni 100 personas») se ha retirado de Torre Lucía, junto con «un sábado» y «ante menos de cien
+personas» de la description. Salía solo de una transcripción automática (Whisper) de «La historia
+de Extremoduro», cap. 7, en la que se lee en voz alta un gratuito de Plasencia de 1990. Una
+transcripción así es fondo, no cita (regla del corpus). Revisión guardada en `content_revisions`.
+El festival, los grupos y el precio se quedan: Casañas, primer capítulo de *Talento innato*.
+
+Plasencia y Extremadura: la frase del bloque «En directo» dice ahora «el primer concierto que
+recoge setlist.fm» (19-09-1987), no «documentado». Lo documentado en prensa y libros es 1988.
 
 ## Discrepancias que quedan anotadas
 

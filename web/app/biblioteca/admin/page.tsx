@@ -23,6 +23,7 @@ type Summary = {
   erratas: { pending: number; needs_human: number };
   corpus: { detected: number; approved: number; failed: number };
   cambios?: { sin_ver: number; inesperados: number; criticos: number };
+  entidades?: { propuesta: number; aprobada: number; relaciones_pendientes: number };
 };
 
 export const metadata = {
@@ -163,6 +164,18 @@ export default async function AdminHomePage() {
               { n: s.corpus.approved, texto: "esperando a tu Mac", tone: "info" },
             ]}
           />
+          {s.entidades && (
+            <Panel
+              titulo="Relaciones y entidades"
+              href="/biblioteca/admin/entidades"
+              pendiente={s.entidades.relaciones_pendientes + s.entidades.propuesta}
+              lineas={[
+                { n: s.entidades.relaciones_pendientes, texto: "relaciones esperan tu criterio", tone: "warn" },
+                { n: s.entidades.propuesta, texto: "entidades nuevas propuestas", tone: "warn" },
+                { n: s.entidades.aprobada, texto: "aprobadas, a falta de ficha", tone: "info" },
+              ]}
+            />
+          )}
           {s.cambios && (
             <Panel
               titulo="Cambios en la web"

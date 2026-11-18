@@ -85,4 +85,20 @@ def resumen(db: Session) -> dict[str, dict[str, int]]:
         ),
         "erratas": _por_estado(db, ErrataReport, "pending", "needs_human"),
         "corpus": _por_estado(db, YouTubeIngestQueue, "detected", "approved", "failed"),
+        "entidades": _entidades(db),
     }
+
+
+def _entidades(db: Session) -> dict[str, int]:
+    """Relaciones pendientes y entidades propuestas (plan de relaciones, 18-11-2026)."""
+    from app.db.models import EntityProposal, EntityRelation
+
+    out = {e: 0 for e in ("propuesta", "aprobada")}
+    out.update({estado: int(n) for estado, n in (
+        db.query(EntityProposal.estado, func.count(EntityProposal.id))
+        .filter(EntityProposal.estado.in_(list(out))).group_by(EntityProposal.estado).all())})
+    out["relaciones_pendientes"] = (
+        db.query(func.count(EntityRelation.id))
+        .filter(EntityRelation.status == "pendiente").scalar() or 0
+    )
+    return out

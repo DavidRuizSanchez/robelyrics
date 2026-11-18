@@ -32,6 +32,9 @@ export function fusionarVerificadas(
 ): void {
   const lista = (v: unknown) => (Array.isArray(v) ? v : [v]);
   for (const [prop, valor] of Object.entries(relaciones || {})) {
+    // `_inv:<predicado>`: la relación vista desde el objeto (Plasencia «Nacieron aquí»).
+    // schema.org no tiene propiedad para decirlo, así que se pinta y NO se marca.
+    if (prop.startsWith("_")) continue;
     const previo = schema[prop];
     const vistos = new Set(
       previo === undefined
@@ -88,6 +91,20 @@ export const ETIQUETAS_RELACION: Record<string, string> = {
   about: "Trata de",
   subjectOf: "Aparece en",
   recordedAt: "Grabado en",
+  containsPlace: "Lugares",
+  alumni: "Antiguos alumnos",
+  // Vistas desde el objeto (`_inv:`): se pintan, no se marcan (relations.INVERSA_VISIBLE).
+  "_inv:birthPlace": "Nacieron aquí",
+  "_inv:deathPlace": "Murieron aquí",
+  "_inv:foundingLocation": "Fundados aquí",
+  "_inv:location": "Con sede aquí",
+  "_inv:producer": "Produjo",
+  "_inv:contributor": "Participó en",
+  "_inv:founder": "Fundó",
+  "_inv:worksFor": "Trabajan aquí",
+  "_inv:affiliation": "Vinculados",
+  "_inv:homeLocation": "Viven aquí",
+  event: "Conciertos aquí",
 };
 
 export type RelacionVisible = {
@@ -128,9 +145,12 @@ export function relacionesVisibles(
       const url = typeof destino.url === "string" ? destino.url : null;
       const href = url && typeof destino["@id"] === "string" ? url.replace(/^https?:\/\/[^/]+/, "") : null;
       if (href && fuera.has(href)) continue;
+      // Un concierto (MusicEvent) lleva la fecha en su nombre: su `startDate` no es un
+      // «desde» de pertenencia.
+      const esEvento = nodo["@type"] === "MusicEvent";
       const partes = [
         typeof nodo.roleName === "string" ? nodo.roleName : null,
-        typeof nodo.startDate === "string"
+        !esEvento && typeof nodo.startDate === "string"
           ? `desde ${nodo.startDate}${typeof nodo.endDate === "string" ? ` hasta ${nodo.endDate}` : ""}`
           : typeof nodo.endDate === "string"
             ? `hasta ${nodo.endDate}`

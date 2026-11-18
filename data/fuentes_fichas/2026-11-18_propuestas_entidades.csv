@@ -1,0 +1,71 @@
+qid,nombre,tipo,n_relaciones,relaciones
+Q548441,Portugalete,Place,2,person:miguel-colino birthPlace | band:the-flying-rebollos foundingLocation
+Q1645776,Berriozar,Place,2,person:kutxi-romero birthPlace | band:marea foundingLocation
+Q487801,Baracaldo,Place,1,person:robe-iniesta deathPlace
+Q530362,The Mothers of Invention,MusicGroup,1,person:frank-zappa memberOf
+Q4771200,Antelope Valley High School,EducationalOrganization,1,person:frank-zappa alumniOf
+Q5610599,Grossmont High School,EducationalOrganization,1,person:frank-zappa alumniOf
+Q6878526,Mission Bay High School,EducationalOrganization,1,person:frank-zappa alumniOf
+Q5066795,Chaffey College,EducationalOrganization,1,person:frank-zappa alumniOf
+Q5092,Baltimore,Place,1,person:frank-zappa birthPlace
+Q65,Los Ángeles,Place,1,person:frank-zappa deathPlace
+Q462539,Laurel Canyon,Place,1,person:frank-zappa deathPlace
+Q15862,Queen,MusicGroup,1,person:freddie-mercury memberOf
+Q3967574,St. Peter's Boys School,EducationalOrganization,1,person:freddie-mercury alumniOf
+Q5325472,Ealing Art College,EducationalOrganization,1,person:freddie-mercury alumniOf
+Q4019102,West Thames College,EducationalOrganization,1,person:freddie-mercury alumniOf
+Q3967568,St. Mary's School,EducationalOrganization,1,person:freddie-mercury alumniOf
+Q2007778,University of West London,EducationalOrganization,1,person:freddie-mercury alumniOf
+Q2222874,Zanzíbar,Place,1,person:freddie-mercury birthPlace
+Q60750552,"Garden Lodge, Kensington",Place,1,person:freddie-mercury deathPlace
+Q288781,Kensington,Place,1,person:freddie-mercury deathPlace
+Q1419737,Guildhall School of Music and Drama,EducationalOrganization,1,person:ara-malikian alumniOf
+Q455331,"Hochschule für Musik, Theater und Medien Hannover",EducationalOrganization,1,person:ara-malikian alumniOf
+Q3820,Beirut,Place,1,person:ara-malikian birthPlace
+Q3773708,Los Rodríguez,MusicGroup,1,person:ariel-rot memberOf
+Q3326398,Tequila,MusicGroup,1,person:ariel-rot memberOf
+Q120491189,The Rota,MusicGroup,1,person:ariel-rot memberOf
+Q1486,Buenos Aires,Place,1,person:ariel-rot birthPlace
+Q1904694,Puerto de Béjar,Place,1,person:manolo-chinato birthPlace
+Q10305,Zaragoza,Place,1,person:manolo-kabezabolo birthPlace
+Q741765,San Fernando,Place,1,person:camaron birthPlace
+Q15468,Badalona,Place,1,person:camaron deathPlace
+Q1492,Barcelona,Place,1,person:camaron deathPlace
+Q5818,Córdoba,Place,1,person:manolete birthPlace
+Q281272,Linares,Place,1,person:manolete deathPlace
+Q97630530,plaza de toros de Linares,Place,1,person:manolete deathPlace
+Q5854915,Facultad de Filosofía y Letras de la Universidad de Granada,EducationalOrganization,1,person:joaquin-sabina alumniOf
+Q1232180,Universidad de Granada,EducationalOrganization,1,person:joaquin-sabina alumniOf
+Q329984,Úbeda,Place,1,person:joaquin-sabina birthPlace
+Q1549224,Kortatu,MusicGroup,1,person:fermin-muguruza memberOf
+Q762674,Negu Gorriak,MusicGroup,1,person:fermin-muguruza memberOf
+Q5858953,Fermin Muguruza Dub Manifest,MusicGroup,1,person:fermin-muguruza memberOf
+Q5858955,Fermin Muguruza eta Dut,MusicGroup,1,person:fermin-muguruza memberOf
+Q200201,Irún,Place,1,person:fermin-muguruza birthPlace
+Q61745566,Institut Pau Vila,EducationalOrganization,1,person:albert-pla alumniOf
+Q12258,Sabadell,Place,1,person:albert-pla birthPlace
+Q19621490,Joserra Senperena,Person,1,band:fito-y-fitipaldis member
+Q5927383,Javier Alzola,Person,1,band:fito-y-fitipaldis member
+Q5484273,Coki Giménez,Person,1,band:fito-y-fitipaldis member
+Q5751486,Carlos Raya,Person,1,band:fito-y-fitipaldis member
+Q5937411,José Alberto Batiz,Person,1,band:fito-y-fitipaldis member
+Q5766679,Chiqui Mariscal,Person,1,band:leno member
+Q19301954,Tony Urbano,Person,1,band:leno member
+Q8717,Sevilla,Place,1,band:reincidentes foundingLocation
+Q107272766,David Díaz,Person,1,band:marea member
+Q107273333,César Ramallo,Person,1,band:marea member
+Q107273399,Eduardo Beaumont,Person,1,band:marea member
+Q11043571,Jesús García Castilla,Person,1,band:platero-y-tu member
+Q21030197,Servando Carballar,Person,1,label:dro founder
+Q104728983,Boni,Person,1,band:barricada member
+Q63968153,Alfredo Piedrafita Gómez,Person,1,band:barricada member
+Q99151,Orense,Place,1,band:los-suaves foundingLocation
+Q3393103,Yosi Domínguez,Person,1,band:los-suaves member
+Q8851,Málaga,Place,1,band:tabletom foundingLocation
+Q21554945,Ciclonautas,MusicGroup,1,person:alen-ayerdi memberOf
+Q3015636,Chantrea,Place,1,person:enrique-el-drogas birthPlace
+Q5963679,La Gripe,MusicGroup,1,person:juantxu-mongol-olano memberOf
+Q9051357,O'funk'illo,MusicGroup,1,person:david-lerman memberOf
+Q3400079,Sínkope,MusicGroup,1,person:woody-amores memberOf
+Q308963,Universidad de Salamanca,EducationalOrganization,1,person:woody-amores alumniOf
+Q248970,Berklee College of Music,EducationalOrganization,1,person:woody-amores alumniOf

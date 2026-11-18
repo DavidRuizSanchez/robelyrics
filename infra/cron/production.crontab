@@ -207,6 +207,13 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # propuestas del blog; va con `|| true` porque si falla no debe parar el grafo.
 30 3 * * * cd $APP_DIR && ( $DC exec -T api python -m scripts.research.embed_interpretations && $DC exec -T api python -m scripts.graph.embed_entity_bios && { $DC exec -T api python -m scripts.seo.embed_pages || true; } && $DC exec -T api python -m scripts.embed_lyrics && $DC exec -T api python -m scripts.embed_full_lyrics && $DC exec -T api python -m scripts.graph.build_graph && $DC exec -T api python -m scripts.graph.audit_embeddings && $DC exec -T api python -m scripts.audit_corpus ) >> /var/log/robelyrics-cron.log 2>&1
 
+# 03:50 UTC semanal (domingo): relaciones de serie (plan de relaciones, 18-11-2026).
+# Identidad (Q-ID, MBID) y relaciones nuevas de Wikidata y MusicBrainz para lo que se
+# haya dado de alta, más las entidades sin página que salgan. Todo entra PENDIENTE en
+# /biblioteca/admin/entidades: nada se publica sin que alguien lo apruebe. Va antes del
+# build_graph del día siguiente (03:30), que recoge lo aprobado.
+50 3 * * 0 cd $APP_DIR && $DC exec -T api python -m scripts.relaciones.semanal >> /var/log/robelyrics-cron.log 2>&1
+
 # 04:00 UTC semanal (domingo): busca conciertos nuevos de Extremoduro y Robe en
 # YouTube y los cataloga con su fecha y su sitio (sacados del título y de la
 # descripción, y solo si constan literalmente). Descarta tributos, ruedas de

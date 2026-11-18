@@ -1351,7 +1351,9 @@ def _detail_taxonomy(
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
 
     return PublicTaxonomyDetailOut(
-        jsonld_verificadas=(_relaciones_tabla(db, "place", row.id) if kind == "place" else None),
+        # Temas y conceptos también: un tema puede tener relaciones verificadas
+        # (`about`, `isPartOf`…) igual que un lugar (plan de relaciones, 18-11-2026).
+        jsonld_verificadas=_relaciones_tabla(db, kind, row.id),
         slug=row.slug,
         name=row.name,
         description=row.description,
@@ -1788,7 +1790,8 @@ def public_bands_list(
 ) -> list[PublicBandListItem]:
     _set_cache(response)
     from app.db.models import Band  # lazy
-    bands = db.query(Band).order_by(Band.name).all()
+    from app.services.person_visibility import banda_publicada  # lazy
+    bands = db.query(Band).filter(banda_publicada()).order_by(Band.name).all()
     return [
         PublicBandListItem(
             slug=b.slug,
@@ -1823,6 +1826,9 @@ def public_band_detail(
         )
         .first()
     )
+    # Sin ficha publicada no existe (misma regla que las personas, 18-11-2026).
+    if seo is None:
+        raise HTTPException(status_code=404, detail="band not found")
 
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo.entities if seo else []) or [])
@@ -1880,6 +1886,7 @@ class PublicBookDetailOut(PublicBookListItem):
     about: list[str] = []
     meta_title: str | None = None
     meta_description: str | None = None
+    jsonld_verificadas: dict | None = None
 
 
 @router.get("/books", response_model=list[PublicBookListItem])
@@ -1939,6 +1946,7 @@ def public_book_detail(
         about=list(book.about or []),
         meta_title=book.meta_title,
         meta_description=book.meta_description,
+        jsonld_verificadas=_relaciones_tabla(db, "book", book.id),
     )
 
 

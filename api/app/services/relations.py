@@ -63,7 +63,18 @@ INVERSA = {
     "parentOrganization": "subOrganization", "subOrganization": "parentOrganization",
     "isPartOf": "hasPart", "hasPart": "isPartOf",
     "subjectOf": "about", "about": "subjectOf",
+    # schema.org las declara inversas (`inverseOf`), comprobado en el vocabulario oficial.
+    "containedInPlace": "containsPlace", "containsPlace": "containedInPlace",
+    "alumniOf": "alumni", "alumni": "alumniOf",
 }
+# Las que schema.org NO tiene en el otro sentido: se VEN en la página del objeto (Plasencia
+# «Nacieron aquí»: Robe; Uoho «Produjo»: Agila), pero no se marcan en su JSON-LD, porque
+# no hay propiedad que lo diga. Van con la clave `_inv:<predicado>`: la web no las fusiona
+# en el JSON-LD (`fusionarVerificadas` salta lo que empieza por «_») y sí las pinta.
+# Plan de relaciones, 18-11-2026: hasta hoy solo 4 predicados se veían desde los dos lados.
+INVERSA_VISIBLE = ("birthPlace", "deathPlace", "foundingLocation", "location", "producer",
+                   "contributor", "founder", "worksFor", "affiliation", "homeLocation")
+PREFIJO_VISIBLE = "_inv:"
 # Propiedades cuyo Role es un OrganizationRole (rol en una organización).
 _ORG_ROLE = {"memberOf", "member", "worksFor", "affiliation", "alumniOf"}
 
@@ -384,4 +395,17 @@ def jsonld_de(db: Session, tipo: str, ident: int, *, site_url: str | None = None
             continue
         inv = INVERSA[r.predicate]
         poner(inv, _envolver(inv, nodo_ref(ref, base), r.role_name, r.start_date, r.end_date))
+
+    visibles = (db.query(EntityRelation)
+                .filter(EntityRelation.object_type == tipo, EntityRelation.object_id == ident,
+                        EntityRelation.status == "verificada",
+                        EntityRelation.predicate.in_(list(INVERSA_VISIBLE)))
+                .order_by(EntityRelation.id).all())
+    for r in visibles:
+        ref = ref_por_id(db, r.subject_type, r.subject_id)
+        if ref is None:
+            continue
+        clave_vis = f"{PREFIJO_VISIBLE}{r.predicate}"
+        poner(clave_vis, _envolver(clave_vis, nodo_ref(ref, base), r.role_name, r.start_date,
+                                   r.end_date))
     return out or None
