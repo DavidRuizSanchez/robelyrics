@@ -57,6 +57,27 @@ BACKFILL_MAX = 3
 NEWS_GROUNDING_SINCE = datetime(2026, 9, 23, tzinfo=UTC)
 
 
+def _descartar(p: ContentProposal, motivo: str) -> None:
+    """Descarta dejando rastro: el motivo y quién (antes solo iba en un correo)."""
+    p.status = "discarded"
+    p.discard_reason = motivo[:2000]
+    p.discarded_by = "sistema"
+    p.discarded_at = datetime.now(UTC)
+
+
+def _retener(p: ContentProposal, bloquea: str, motivos: list[str], score: int | None) -> None:
+    """La pieza no pasa hoy, pero NO se tira (David, 18-11-2026: que pase; retener es el
+    último recurso). Vuelve a aprobadas sin fecha, con el motivo a la vista en el panel,
+    y el hueco del día lo tapa la repesca."""
+    p.status = "approved"
+    p.scheduled_for = None
+    p.review_verdict = "retenida"
+    p.review_score = score
+    p.review_reasons = {"pasa": False, "bloquea": bloquea, "motivos": motivos[:6],
+                        "score": score, "faltan_datos": []}
+    p.reviewed_at = datetime.now(UTC)
+
+
 def _notify_admin(subject: str, text: str) -> None:
     """Aviso best-effort al admin (p.ej. publicación caducada cancelada)."""
     import os
@@ -125,7 +146,7 @@ def _handle_expired(db, p: ContentProposal, today, *, dry_run: bool) -> str:
         logger.info("  ↪ reconvertida a CRÓNICA en pasado")
         return "rewritten"
     # Sin crónica: no se publica nada caducado.
-    p.status = "discarded"
+    _descartar(p, f"evento caducado ({p.event_date}) sin crónica posible")
     db.commit()
     _notify_admin(
         f"🗑 Publicación caducada cancelada: {p.title}",
@@ -216,7 +237,7 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     if p.kind == "news":
         fuente_noticia = _articulo_de_propuesta(db, p)
         if not fuente_noticia:
-            p.status = "discarded"
+            _descartar(p, "noticia sin artículo descargable ni texto pegado")
             db.commit()
             _notify_admin(
                 f"🗑 Noticia sin artículo: {p.title}",
@@ -228,7 +249,7 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
             logger.info("  ✗ DESCARTADA: noticia sin artículo con el que comprobarla")
             return "discarded"
         if not _reescribir_noticia_vieja(db, p, fuente_noticia, today):
-            p.status = "discarded"
+            _descartar(p, "noticia vieja: la reescritura con su artículo no dio cuerpo")
             db.commit()
             _notify_admin(
                 f"🗑 Noticia vieja sin cuerpo publicable: {p.title}",
@@ -267,13 +288,27 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
             return "discarded"
         logger.info("  ↪ regenerada (tier %s)", p.quality_tier)
 
+    # 1a. JUZGADA AL PREPARAR (plan del blog, 18-11-2026): la cascada ya corrió días
+    #     antes (`draft_generator.juzgar_borrador`). Lo retenido no sale; lo que pasó no
+    #     vuelve a tirar los dados del foco y del juez (tienen varianza medida). Citas,
+    #     hechos y voz sí se vuelven a mirar abajo: son deterministas o baratos.
+    if p.review_verdict in ("retenida", "para_tu_lectura") and not p.force_publish:
+        motivos = (p.review_reasons or {}).get("motivos") or []
+        _retener(p, (p.review_reasons or {}).get("bloquea") or "rigor", motivos, p.review_score)
+        db.commit()
+        logger.info("  ⏸ RETENIDA al preparar: %s", "; ".join(motivos)[:200])
+        return "discarded"
+    ya_juzgada = p.review_verdict == "pasa"
+
     # 1b. GATE DE FOCO: nada se publica desviado del tema (relleno sobre
     #     el lugar/sede/contexto ajeno). Si se puede recortar limpio, se
     #     recorta; si no, va a revisión humana.
     review_focus = False
     subject = (p.target_keyword or p.title or "").strip()
-    freport = check_focus(p.body_md, subject)
-    if not freport.ok:
+    # Ya juzgada, o publicada «tal cual» por una persona que la ha leído: el foco no
+    # recorta el texto que se aprobó.
+    freport = check_focus(p.body_md, subject) if not (ya_juzgada or p.force_publish) else None
+    if freport is not None and not freport.ok:
         if freport.trimmed_body_md:
             p.body_md = freport.trimmed_body_md
             db.commit()
@@ -291,6 +326,8 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     if p.force_publish:
         review_focus = False  # el admin fuerza: no bloquear por calidad
         logger.info("  ⚡ force_publish: se salta el gate de calidad")
+    elif ya_juzgada:
+        logger.info("  ✓ rigor ya juzgado al preparar (score %s)", p.review_score)
     else:
         when = None
         if p.event_date:
@@ -298,15 +335,18 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
         verdict = editorial_review(p.body_md, kind=p.kind, subject=subject,
                                    event_when=when)
         if verdict.verdict == "reject":
-            p.status = "discarded"
+            # Ya no se tira: vuelve a aprobadas con el motivo (la de «Destrozares» murió
+            # aquí el 18-11-2026 sin reintento). Para el día cuenta como caída.
+            _retener(p, "rigor", verdict.reasons, verdict.score)
             db.commit()
             _notify_admin(
-                f"🗑 Descartada por rigor: {p.title}",
-                f"La propuesta #{p.id} no llega al listón editorial (score "
+                f"⏸ Retenida por rigor: {p.title}",
+                f"La propuesta #{p.id} no llega hoy al listón editorial (score "
                 f"{verdict.score}): {'; '.join(verdict.reasons) or 'genérica/relleno'}. "
-                "No se publica por falta de sustancia/especificidad.",
+                "No se publica, pero no se descarta: vuelve a aprobadas, con el motivo, "
+                "en /biblioteca/admin/blog.",
             )
-            logger.info("  ✗ DESCARTADA por rigor (score %d): %s",
+            logger.info("  ⏸ RETENIDA por rigor (score %d): %s",
                         verdict.score, "; ".join(verdict.reasons))
             return "discarded"
         if verdict.verdict == "revise" and verdict.tightened_body_md:
@@ -377,7 +417,8 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     lyric_report = check_lyrics(db, post.body_md)
     if lyric_report.blocking:
         db.delete(post)
-        p.status = "discarded"
+        _descartar(p, "cita de letra no veraz: " + "; ".join(
+            f"«{v.quote[:60]}» → {v.reason}" for v in lyric_report.blocking)[:1500])
         db.commit()
         detalle = "; ".join(f"«{v.quote[:60]}» → {v.reason}"
                             for v in lyric_report.blocking)
@@ -509,6 +550,7 @@ def _backfill(db, today, caidas: list[ContentProposal]) -> str:
         # que salió de verdad. Su hueco futuro se queda libre; recolocarlo es
         # cosa del panel, no de este cron.
         cand.scheduled_for = today
+        cand.status = "scheduled"  # una aprobada sin fecha también puede tapar el hueco
         db.commit()
         resultado = _materialize_one(db, cand, today)
         probados.append(f"«{cand.title}» (#{cand.id}, era del {origen}) → {resultado}")
