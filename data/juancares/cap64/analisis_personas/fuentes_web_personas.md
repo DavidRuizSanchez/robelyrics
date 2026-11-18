@@ -37,9 +37,3 @@ Las páginas de W-15 a W-17 y los artículos de *Hoy* de 2021 y 2024 los descarg
 - **Paco Doniga.** Lo de la Orquesta Escarlata, tesorero del Colectivo de Músicos y técnico de sonido no está en ninguna fuente. Hay una entrevista suya en El País (09-11-2026, «Radiografía del Robe más desconocido…»), pero está tras un muro de pago y no se ha leído.
 - **María Timón.** Discogs y MusicBrainz no la acreditan como voz: el apellido «Timón» solo lo da Wikipedia ES, sin fuente citada. La anécdota de Marcos Peral no aparece fuera de nuestro corpus. Una búsqueda devuelve a María Pía Timón Tiemblo, etnóloga, que es un homónimo.
 - **Mateos Brea.** Que Robe y Chinato «no quisieron explicarle sus obras» solo está en el vídeo. COPE dice «un gran mural diseñado por el propio Robe junto al artista plástico Brea», y las demás fuentes hablan de «bocetos de Brea» con el visto bueno de Robe: se escribe lo segundo. Para los bodegones se da la cifra del Ayuntamiento, porque Telecinco dice «entre 14 y 16».
-
-## Cierre de Paramio (12-11-2026)
-
-- Búsqueda de una tercera fuente para «cofundador de Extremoduro» (Mondo Sonoro, corpus 366): sin resultado. Ni la BD, ni Wikipedia, ni la prensa encontrada lo dicen.
-- **Decisión:** no se afirma. Paramio entra solo como **Ángel Paramio**, fundador de Los Castores, íntimo amigo de Salo (*Hoy*, 13-07-2021) y dueño de La Cuadra según el cap. 64 [1:07:06-1:07:54]. Va como nombre sin ficha en la sección de bares de la fase 2 del plan v2.
-- Lo de La Cuadra sale de un vídeo de Juancares: es testimonio de fondo. Para escribirlo hace falta corroborarlo, como cualquier dato ajeno.
