@@ -539,6 +539,20 @@ places:
     geo_lat: 40.031833
     geo_lng: -6.087590
 
+  # Alta del 18-11-2026 (plan de relaciones: David pidió página para Úbeda si Robe
+  # tocó allí). Robe, 06-07-2024, gira «Ni santos ni inocentes»: Vivir Ediciones
+  # (02-07-2024) y Hora Jaén (07-07-2024). Sabina nació aquí (Wikidata Q363577 P19).
+  # Coordenadas: Wikidata Q329984 (P625).
+  - slug: ubeda
+    name: Úbeda
+    kind: city
+    description: |
+      Úbeda es una ciudad de la provincia de Jaén. Joaquín Sabina nació aquí
+      en 1949, y Robe tocó en la ciudad el 6 de julio de 2024, con la gira
+      «Ni santos ni inocentes».
+    geo_lat: 38.011667
+    geo_lng: -3.371667
+
 
 concepts:
   - slug: el-aguila
