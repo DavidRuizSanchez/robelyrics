@@ -679,6 +679,9 @@ def _post_process(db, body_md: str, entities: list, subject: str = "",
     from app.services import source_guard
     body_md, _confesiones = source_guard.quitar_confesiones(body_md)
     body_md, _metatexto = source_guard.quitar_metatexto(body_md)
+    # «Disco» (AAAA) con el año del catálogo: lo bloquearía el filtro de años del día D.
+    from app.services.fact_check import corregir_anios_de_disco
+    body_md, _anios = corregir_anios_de_disco(db, body_md)
     # Versos citados SIEMPRE completos: expande cada cita a la línea real del corpus.
     body_md = complete_verses(db, body_md) or body_md
     body_md = strip_ai_tells(body_md) or body_md
