@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { normPath, rutas } from "@/lib/enlazado";
 
 type Membership = {
   artist_slug: string;
@@ -28,7 +29,60 @@ type PersonDataTableDetail = {
   occupations: WikidataRef[];
   other_bands: WikidataRef[];
   memberships: Membership[];
+  // Relaciones curadas (data/person_jsonld.yaml), ya resueltas por la API: lo que
+  // Wikidata no tiene (grupos sin Q-ID, colegas, obras de un artista visual…).
+  jsonld_relaciones?: Record<string, unknown> | null;
 };
+
+type Nodo = Record<string, unknown>;
+
+const SITE = /^https?:\/\/[^/]+/;
+
+function lista(v: unknown): Nodo[] {
+  if (!v) return [];
+  return (Array.isArray(v) ? v : [v]).filter(
+    (x): x is Nodo => typeof x === "object" && x !== null,
+  );
+}
+
+function texto(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+/** Nombre del nodo, enlazado a su ficha si la tiene (la API solo pone `url` si se ve). */
+// Destinos ya enlazados en la página (cabecera + esta tabla, en orden): un
+// destino repetido se pinta como texto (lib/enlazado.ts, regla del 11-11-2026).
+type Vistos = Set<string>;
+
+function primeraVez(vistos: Vistos, href: string | null | undefined): boolean {
+  const p = normPath(href);
+  if (!p) return true;
+  if (vistos.has(p)) return false;
+  vistos.add(p);
+  return true;
+}
+
+function enlace(n: Nodo, key: string, vistos: Vistos): ReactNode {
+  const nombre = texto(n.name) || "";
+  const url = texto(n.url);
+  return url && primeraVez(vistos, url.replace(SITE, "")) ? (
+    <Link key={key} href={url.replace(SITE, "")} data-cursor="hover"
+          className="text-accent hover:underline">
+      {nombre}
+    </Link>
+  ) : (
+    <span key={key}>{nombre}</span>
+  );
+}
+
+function separados(nodos: ReactNode[]): ReactNode {
+  return nodos.map((n, i) => (
+    <span key={`s-${i}`}>
+      {i > 0 && <span className="text-ink-faint"> · </span>}
+      {n}
+    </span>
+  ));
+}
 
 function formatDateEs(iso: string | null): string | null {
   if (!iso) return null;
@@ -55,11 +109,29 @@ type Row = {
   value: ReactNode;
 };
 
+/** Rutas internas que puede enlazar esta tabla: el cuerpo no las repite. */
+export function enlacesPersonDataTable(detail: PersonDataTableDetail): string[] {
+  const rel = detail.jsonld_relaciones || {};
+  const grupos = lista(rel.memberOf).map((m) =>
+    m["@type"] === "OrganizationRole" ? lista(m.memberOf)[0] || {} : m,
+  );
+  const nodos = [lista(rel.homeLocation)[0], ...grupos, ...lista(rel.colleague)];
+  return [
+    ...nodos.map((n) => (n ? texto(n.url)?.replace(SITE, "") : null)),
+    ...detail.memberships.map((m) => `/${m.artist_slug}`),
+    ...detail.other_bands.map((b) => b.internal_url),
+  ].filter((h): h is string => !!h);
+}
+
 export default function PersonDataTable({
   detail,
+  yaEnlazados,
 }: {
   detail: PersonDataTableDetail;
+  // Lo que ya enlaza la cabecera de la ficha: aquí va como texto.
+  yaEnlazados?: Iterable<string>;
 }) {
+  const vistos: Vistos = rutas(yaEnlazados ?? []);
   const birth = formatDateEs(detail.birth_date);
   const death = formatDateEs(detail.death_date);
 
@@ -71,19 +143,32 @@ export default function PersonDataTable({
     .map((m) => `${m.role} de ${m.artist_name}${m.era ? ` (${m.era})` : ""}`)
     .join("; ");
 
+  const rel = detail.jsonld_relaciones || {};
   const rows: Row[] = [];
 
   rows.push({ label: "Nombre real", value: detail.full_name });
 
-  if (detail.stage_name && detail.stage_name !== detail.full_name) {
-    rows.push({ label: "Alias", value: detail.stage_name });
+  const alias = detail.stage_name && detail.stage_name !== detail.full_name
+    ? detail.stage_name
+    : texto(rel.alternateName);
+  if (alias) {
+    rows.push({ label: "Alias", value: alias });
   }
 
+  // Solo el año cuando es lo único que consta (schema.org lo admite; la columna no).
+  const anyo = texto(rel.birthDate);
   if (birth) {
     rows.push({
       label: "Nacimiento",
       value: `${birth}${detail.birth_place ? ` · ${detail.birth_place}` : ""}`,
     });
+  } else if (anyo && /^\d{4}$/.test(anyo)) {
+    rows.push({ label: "Nacimiento", value: anyo });
+  }
+
+  const ciudad = lista(rel.homeLocation)[0];
+  if (ciudad) {
+    rows.push({ label: "Ciudad", value: enlace(ciudad, "ciudad", vistos) });
   }
 
   if (death) {
@@ -94,10 +179,27 @@ export default function PersonDataTable({
     rows.push({ label: "Instrumentos", value: detail.instruments.join(" · ") });
   }
 
-  if (detail.occupations.length > 0) {
+  const oficios = [
+    ...detail.occupations.map((o) => o.name),
+    ...lista(rel.hasOccupation).map((o) => texto(o.name) || ""),
+  ].filter((o, i, todos) => o && todos.findIndex((x) => x.toLowerCase() === o.toLowerCase()) === i);
+  if (oficios.length > 0) {
+    rows.push({ label: "Oficios", value: oficios.join(" · ") });
+  }
+
+  const formacion = lista(rel.alumniOf);
+  if (formacion.length > 0) {
     rows.push({
-      label: "Oficios",
-      value: detail.occupations.map((o) => o.name).join(" · "),
+      label: "Formación",
+      value: separados(formacion.map((f, i) => {
+        const lugar = lista(f.location)[0];
+        return (
+          <span key={`f-${i}`}>
+            {texto(f.name)}
+            {lugar ? <span className="text-ink-dim"> ({texto(lugar.name)})</span> : null}
+          </span>
+        );
+      })),
     });
   }
 
@@ -112,16 +214,67 @@ export default function PersonDataTable({
         <ul className="space-y-1">
           {detail.memberships.map((m, i) => (
             <li key={`mem-${i}`}>
-              <Link
-                href={`/${m.artist_slug}`}
-                data-cursor="hover"
-                className="text-accent hover:underline"
-              >
-                {m.artist_name}
-              </Link>{" "}
-              <span className="text-ink-dim">— {describeMembership(m)}</span>
+              {primeraVez(vistos, `/${m.artist_slug}`) ? (
+                <Link
+                  href={`/${m.artist_slug}`}
+                  data-cursor="hover"
+                  className="text-accent hover:underline"
+                >
+                  {m.artist_name}
+                </Link>
+              ) : (
+                <span>{m.artist_name}</span>
+              )}{" "}
+              <span className="text-ink-dim">· {describeMembership(m)}</span>
             </li>
           ))}
+        </ul>
+      ),
+    });
+  }
+
+  // Grupos curados: un OrganizationRole lleva el grupo dentro, con su papel y su año.
+  const grupos = lista(rel.memberOf).map((m, i) => {
+    const grupo = m["@type"] === "OrganizationRole" ? lista(m.memberOf)[0] || {} : m;
+    const papel = [texto(m.roleName), texto(m.startDate)].filter(Boolean).join(", ");
+    return (
+      <li key={`g-${i}`}>
+        {enlace(grupo, `gn-${i}`, vistos)}
+        {papel && <span className="text-ink-dim"> · {papel}</span>}
+      </li>
+    );
+  });
+  if (grupos.length > 0) {
+    rows.push({ label: "Grupos", value: <ul className="space-y-1">{grupos}</ul> });
+  }
+
+  const colegas = lista(rel.colleague);
+  if (colegas.length > 0) {
+    rows.push({
+      label: "Tocó con",
+      value: separados(colegas.map((c, i) => enlace(c, `c-${i}`, vistos))),
+    });
+  }
+
+  const obras = lista((rel["@reverse"] as Nodo | undefined)?.creator);
+  if (obras.length > 0) {
+    rows.push({
+      label: "Obras",
+      value: (
+        <ul className="space-y-1">
+          {obras.map((o, i) => {
+            const lugar = lista(o.locationCreated)[0];
+            const donde = lugar ? texto(lugar.name) : null;
+            const dentro = lugar ? lista(lugar.containedInPlace)[0] : undefined;
+            const extra = [donde, dentro ? texto(dentro.name) : null, texto(o.dateCreated)]
+              .filter(Boolean).join(", ");
+            return (
+              <li key={`o-${i}`}>
+                {texto(o.name)}
+                {extra && <span className="text-ink-dim"> · {extra}</span>}
+              </li>
+            );
+          })}
         </ul>
       ),
     });
@@ -134,7 +287,9 @@ export default function PersonDataTable({
         <ul className="space-y-1">
           {detail.other_bands.map((b) => (
             <li key={b.wikidata_id}>
-              {b.internal_url ? (
+              {b.internal_url && !primeraVez(vistos, b.internal_url) ? (
+                <span>{b.name}</span>
+              ) : b.internal_url ? (
                 <Link
                   href={b.internal_url}
                   data-cursor="hover"

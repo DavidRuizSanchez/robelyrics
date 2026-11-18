@@ -69,6 +69,8 @@ def excluir_keywords(proposal, excluidas: list[str]) -> None:
             k["excluded"] = True
         else:
             k.pop("excluded", None)
+            # `noop_path` se queda: es lo que impide volver a la página que no salió.
+            k.pop("excluded_reason", None)
     proposal.keywords = kws
     recalcular_objetivo(proposal)
 
@@ -285,3 +287,96 @@ def release_proposal(db, opp) -> None:
     pl["last_merge"] = {"path": opp.path, "status": opp.status,
                         "error": (opp.error or "")[:300]}
     prop.placement = pl
+
+
+# Causas de `noop` que dicen algo del CONTENIDO: con este material no hay nada que
+# añadir. Las demás (el montaje perdía secciones, una guarda tumbó lo escrito) son
+# del texto de esa vuelta y la idea vuelve al banco como siempre.
+CAUSAS_DE_CIERRE = {"sin_material", "sin_plan", "no_mejora"}
+
+
+def cerrar_por_noop(db, opp, causa: str) -> None:
+    """La fusión no salió porque no hay nada que añadir: la idea se cierra.
+
+    `release_proposal` devolvía las búsquedas a la propuesta, el reparto volvía a
+    recomendar la MISMA página y el correo invitaba a aprobarla otra vez. Kabezabolo
+    se intentó cuatro veces (#47, #49, #51, #53) y Ariel Rot dos (#50, #52), todas con
+    el mismo resultado (medido el 09-11-2026).
+
+    Las búsquedas quedan desactivadas con el motivo (`keyword_research` ya no las
+    vuelve a proponer) y con la página que se intentó (`noop_path`): si alguien las
+    reactiva a mano, el reparto no vuelve a mandar allí. Si a la propuesta le quedan
+    búsquedas activas de otro grupo, sigue con ellas; si no, pasa a `discarded` y se
+    reabre con «Recuperar».
+    """
+    from app.db.models import ContentProposal
+
+    if not getattr(opp, "proposal_id", None):
+        return
+    prop = db.get(ContentProposal, opp.proposal_id)
+    if prop is None:
+        return
+    hoy = datetime.now(UTC).date().isoformat()
+    kws = _kw_dicts(prop)
+    tocadas = False
+    for k in kws:
+        if k.get("merge_opportunity_id") == opp.id:
+            k.pop("merged", None)
+            k.pop("merge_opportunity_id", None)
+            k["excluded"] = True
+            k["excluded_reason"] = causa
+            k["noop_path"] = opp.path
+            k["noop_at"] = hoy
+            tocadas = True
+    legado = prop.merge_opportunity_id == opp.id
+    if not (tocadas or legado):
+        return
+    prop.keywords = kws
+    if prop.merge_opportunity_id == opp.id:
+        prop.merge_target = None
+        prop.merge_opportunity_id = None
+    pl = dict(prop.placement or {})
+    pl["last_merge"] = {"path": opp.path, "status": opp.status, "causa": causa,
+                        "cerrada": True, "error": (opp.error or "")[:300]}
+    # El grupo cerrado no puede seguir en el panel con su «Ampliar X»: es el botón
+    # que se acaba de pulsar y ahora no tiene keywords activas.
+    activas = {k.lower() for k in content_placement.proposal_keywords(prop)}
+    if pl.get("groups"):
+        pl["groups"] = [g for g in pl["groups"]
+                        if any((kw or "").lower() in activas for kw in g.get("keywords") or [])]
+    prop.placement = pl
+    if activas:
+        recalcular_objetivo(prop)
+        if prop.status == "merged":
+            prop.status = "proposed"
+    else:
+        prop.status = "discarded"
+        prop.scheduled_for = None
+    logger.info("[merge] propuesta #%s cerrada por noop (%s) en %s → %s", prop.id, causa,
+                opp.path, prop.status)
+
+
+def reabrir_cerradas(proposal) -> bool:
+    """Al recuperar una propuesta cerrada por `noop`, sus búsquedas vuelven a estar
+    activas. Conservan `noop_path`, así que el reparto no las manda a la misma página.
+    Devuelve si ha reactivado alguna."""
+    kws = _kw_dicts(proposal)
+    if any(not k.get("excluded") for k in kws):
+        return False
+    vuelta = False
+    for k in kws:
+        if k.get("noop_path") and k.get("excluded_reason") in CAUSAS_DE_CIERRE:
+            k.pop("excluded", None)
+            k.pop("excluded_reason", None)
+            vuelta = True
+    if vuelta:
+        proposal.keywords = kws
+        recalcular_objetivo(proposal)
+    return vuelta
+
+
+def paginas_vetadas(proposal) -> dict[str, str]:
+    """{keyword en minúsculas: página donde su fusión ya dio `noop`}."""
+    return {(k.get("keyword") or "").lower(): k["noop_path"]
+            for k in _kw_dicts(proposal) if k.get("noop_path") and k.get("keyword")}
+

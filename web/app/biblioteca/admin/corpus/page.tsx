@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { AuthMe } from "@/lib/types";
-import { AdminPage, Callout, EmptyState, Section } from "@/components/admin/ui";
+import { AdminPage, Callout, Details, EmptyState, Section } from "@/components/admin/ui";
+import AnadirUrl from "./AnadirUrl";
 import CorpusRow, { type CorpusItem } from "./CorpusRow";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,13 @@ export default async function AdminCorpusPage() {
       </Callout>
 
       <Section
+        title="Añadir a mano"
+        help="Para lo que la búsqueda aún no ha visto (un estreno de esta tarde) o no puede ver (un pódcast)."
+      >
+        <AnadirUrl />
+      </Section>
+
+      <Section
         title="Por decidir"
         count={cuantos(n("detected"), f("detected").length)}
         help="Primero lo que más se fía el sistema (A, luego B, luego C). Abre el vídeo si dudas: el enlace va a YouTube."
@@ -85,6 +93,18 @@ export default async function AdminCorpusPage() {
         help="Tu Mac no pudo bajarlo o transcribirlo. Se reintentan solos hasta tres veces; aquí puedes forzarlo o descartarlo."
       >
         <Lista items={f("failed")} vacio="Ninguno." />
+        {n("abandoned") > 0 && (
+          <Details
+            className="mt-4"
+            summary={`No se pudieron transcribir (${cuantos(n("abandoned"), f("abandoned").length)})`}
+          >
+            <p className="mb-3 text-sm text-ink-faint">
+              Reintentar no lo arregla: restricción de edad, casi sin habla, privado o borrado. Si algo
+              cambia, «Reintentar» lo devuelve a la cola.
+            </p>
+            <Lista items={f("abandoned")} vacio="Ninguno." />
+          </Details>
+        )}
       </Section>
 
       <Section

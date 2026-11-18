@@ -86,6 +86,8 @@ type PersonListItem = {
   birth_date: string | null;
   death_date: string | null;
   image_url: string | null;
+  papel?: string | null;
+  birth_year?: string | null;
 };
 
 function formatYear(iso: string | null): string | null {
@@ -146,7 +148,7 @@ export default async function PersonasPage() {
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
             {items.map((p) => {
-              const yearBirth = formatYear(p.birth_date);
+              const yearBirth = formatYear(p.birth_date) || p.birth_year || null;
               const yearDeath = formatYear(p.death_date);
               const years = yearBirth
                 ? `${yearBirth}${yearDeath ? `–${yearDeath}` : "–"}`
@@ -183,16 +185,17 @@ export default async function PersonasPage() {
                         ? p.stage_name
                         : p.full_name}
                     </h2>
-                    {p.stage_name && p.stage_name !== p.full_name && (
-                      <p className="font-serif italic text-ink-dim text-sm mt-1">
-                        {p.full_name}
-                      </p>
-                    )}
-                    {years && (
-                      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-2">
-                        {years}
-                      </p>
-                    )}
+                    {/* Tres líneas fijas en TODAS las tarjetas (petición de David,
+                        10-11-2026): nombre · nombre real o, si no aporta, su papel ·
+                        años. Cada una reserva su alto aunque no haya dato. */}
+                    <p className="font-serif italic text-ink-dim text-sm mt-1 min-h-[1.25rem]">
+                      {p.stage_name && p.stage_name !== p.full_name
+                        ? p.full_name
+                        : p.papel || ""}
+                    </p>
+                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-2 min-h-[1rem]">
+                      {years}
+                    </p>
                   </Link>
                 </li>
               );

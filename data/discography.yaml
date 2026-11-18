@@ -24,7 +24,7 @@ artists:
         # «Amor castúo» solo existía como versión en directo de 1997. Verificado
         # contra MusicBrainz (release-group be718ce7-d997-4547-a211-6a5c7d7deb88).
 
-      - title: "Rock Transgresivo"
+      - title: "Rock transgresivo"
         year: 1994
         kind: studio
         slug: rock-transgresivo
@@ -133,7 +133,7 @@ artists:
         slug: lo-que-aletea-en-nuestras-cabezas
         release_date: 2015-06-09
 
-      - title: "Destrozares, Canciones para el Final de los Tiempos"
+      - title: "Destrozares, canciones para el final de los tiempos"
         year: 2016            # corregido: era 2018 (2018 es el directo)
         kind: studio
         slug: destrozares

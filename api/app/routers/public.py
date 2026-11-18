@@ -106,6 +106,9 @@ class PublicArtistMember(BaseModel):
     era: str | None = None
     is_founder: bool = False
     image_url: str | None = None
+    # Sin ficha publicada se nombra pero no se enlaza (person_visibility): Ángel
+    # Lorenzo fue el primer batería y no tiene ficha (criterio de David, 11-11-2026).
+    has_page: bool = True
 
 
 class PublicRelatedVideo(BaseModel):
@@ -118,6 +121,8 @@ class PublicRelatedVideo(BaseModel):
 
 
 class PublicArtistDetailOut(PublicArtistOut):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     albums: list[PublicAlbumOut]
     members: list[PublicArtistMember] = []
     image_url: str | None = None
@@ -137,6 +142,8 @@ class PublicArtistDetailOut(PublicArtistOut):
 
 
 class PublicAlbumDetailOut(PublicAlbumOut):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     artist: PublicArtistOut
     tracks: list[PublicTrackOut]
     release_date: str | None = None
@@ -166,6 +173,7 @@ class PublicLineupMember(BaseModel):
     slug: str
     name: str
     role: str
+    has_page: bool = True
 
 
 class PublicRelatedSong(BaseModel):
@@ -181,13 +189,15 @@ class PublicSongCredit(BaseModel):
     """Crédito de autoría de la canción (letra/música/poema original adaptado).
     Nace del vuelco editorial: p.ej. «Ama, ama y ensancha el alma» es un poema de
     Manolo Chinato musicado por Robe."""
-    role: str           # letra | musica | adaptacion | poema_original | arreglos | colaboracion
+    role: str           # letra | musica | adaptacion | poema_original | arreglos | colaboracion | coros | voces
     role_label: str     # etiqueta legible ("Poema original", "Música"...)
     name: str
     person_slug: str | None = None   # si el autor tiene ficha en el site
 
 
 class PublicSongDetailOut(BaseModel):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     slug: str
     title: str
     track_number: int | None
@@ -345,6 +355,8 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
     """Miembros del artista cuya `era` cubre el `year` del álbum. Best-effort:
     filas con `era` no parseable se omiten (no se inventa formación)."""
     from app.db.models import BandMembership as _BM, Person as _P  # lazy
+    from app.services.person_visibility import ids_publicadas  # lazy
+    publicadas = ids_publicadas(db)
     rows = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
@@ -365,6 +377,7 @@ def _lineup_for_album(db: Session, artist_id: int, year: int) -> list["PublicLin
                 slug=p.slug,
                 name=p.stage_name or p.full_name,
                 role=m.role,
+                has_page=p.id in publicadas,
             )
         )
     return out
@@ -377,9 +390,13 @@ _CREDIT_ROLE_LABEL = {
     "poema_original": "Poema original",
     "arreglos": "Arreglos",
     "colaboracion": "Colaboración",
+    # Intérpretes de la grabación, no autores: van detrás de la autoría.
+    "coros": "Coros",
+    "voces": "Voces",
 }
 # Orden de presentación (lo autoral primero).
-_CREDIT_ROLE_ORDER = ["poema_original", "letra", "adaptacion", "musica", "arreglos", "colaboracion"]
+_CREDIT_ROLE_ORDER = ["poema_original", "letra", "adaptacion", "musica", "arreglos", "colaboracion",
+                      "coros", "voces"]
 
 
 def _credits_for_song(db: Session, song_id: int) -> list["PublicSongCredit"]:
@@ -397,9 +414,13 @@ def _credits_for_song(db: Session, song_id: int) -> list["PublicSongCredit"]:
         return _CREDIT_ROLE_ORDER.index(sc.credit_role) if sc.credit_role in _CREDIT_ROLE_ORDER else 99
     # Resolución por nombre cuando el FK person_id es nulo (el crédito puede haberse
     # creado antes de sembrar a la persona, o con un slug distinto al de la ficha).
+    from app.services.person_visibility import ids_publicadas, persona_publicada  # lazy
+    publicadas = ids_publicadas(db)
+    # Un crédito enlaza a la ficha solo si la ficha se ve (person_visibility).
+    rows = [(sc, p if p is not None and p.id in publicadas else None) for sc, p in rows]
     by_name: dict[str, str] = {}
     if any(p is None for _, p in rows):
-        for pp in db.query(_P).all():
+        for pp in db.query(_P).filter(persona_publicada()).all():
             for nm in (pp.stage_name, pp.full_name):
                 if nm:
                     by_name[nm.strip().lower()] = pp.slug
@@ -598,6 +619,10 @@ def public_artist_detail(
     # Robe es el protagonista del sitio: va siempre primero en la lista de
     # miembros (tanto en su proyecto en solitario como en Extremoduro), y
     # luego el resto por position/era.
+    # Quien no tiene ficha publicada sale en la formación, pero sin enlace
+    # (person_visibility): la formación incompleta es un dato falso.
+    from app.services.person_visibility import ids_publicadas  # lazy
+    publicadas = ids_publicadas(db)
     members_raw = (
         db.query(_BM, _P)
         .join(_P, _BM.person_id == _P.id)
@@ -619,7 +644,10 @@ def public_artist_detail(
             _merged[p.slug] = {
                 "slug": p.slug, "full_name": p.full_name,
                 "stage_name": p.stage_name, "roles": [], "eras": [],
-                "is_founder": False, "image_url": p.image_url,
+                "is_founder": False,
+                "has_page": p.id in publicadas,
+                # Sin ficha no hay foto revisada que enseñar.
+                "image_url": p.image_url if p.id in publicadas else None,
             }
             _member_order.append(p.slug)
         d = _merged[p.slug]
@@ -634,6 +662,7 @@ def public_artist_detail(
             role=" · ".join(d["roles"]) if d["roles"] else None,
             era=_span_eras(d["eras"]),
             is_founder=d["is_founder"], image_url=d["image_url"],
+            has_page=d["has_page"],
         )
         for d in (_merged[s] for s in _member_order)
     ]
@@ -641,6 +670,7 @@ def public_artist_detail(
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicArtistDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "artist", artist.id),
         slug=artist.slug,
         name=artist.name,
         active_years=artist.active_years,
@@ -769,6 +799,7 @@ def _album_payload(db: Session, album: Album) -> PublicAlbumDetailOut:
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicAlbumDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "album", album.id),
         slug=album.slug,
         title=album.title,
         year=album.year,
@@ -858,6 +889,7 @@ def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
     return PublicSongDetailOut(
+        jsonld_verificadas=_relaciones_tabla(db, "song", song.id),
         slug=song.slug,
         title=song.title,
         track_number=song.track_number,
@@ -872,7 +904,7 @@ def _song_payload(db: Session, song: Song) -> PublicSongDetailOut:
         cover_url=song.cover_url,
         snippet=snippet,
         snippet_attribution=(
-            f"Fragmento citado de «{song.title}» — © sus autores · "
+            f"Fragmento citado de «{song.title}». © sus autores · "
             "Letra completa en Genius"
         ),
         genius_url=song.genius_url,
@@ -1105,8 +1137,11 @@ def public_search(
         """
         SELECT slug, full_name, stage_name
         FROM persons
-        WHERE unaccent(full_name) ILIKE unaccent(:pattern)
-           OR unaccent(COALESCE(stage_name, '')) ILIKE unaccent(:pattern)
+        WHERE (unaccent(full_name) ILIKE unaccent(:pattern)
+           OR unaccent(COALESCE(stage_name, '')) ILIKE unaccent(:pattern))
+          -- sin ficha publicada no existe para el público (person_visibility)
+          AND EXISTS (SELECT 1 FROM seo_content sc WHERE sc.entity_type = 'person'
+                      AND sc.entity_id = persons.id AND sc.published)
         ORDER BY full_name
         LIMIT 8
         """
@@ -1181,6 +1216,8 @@ class PublicTaxonomySongRef(BaseModel):
 
 
 class PublicTaxonomyDetailOut(BaseModel):
+    # Relaciones verificadas de `entity_relations` (fase 1); la web las fusiona y las pinta.
+    jsonld_verificadas: dict | None = None
     slug: str
     name: str
     description: str | None = None
@@ -1314,6 +1351,9 @@ def _detail_taxonomy(
     resolved_ents = resolve_entities(db, (seo or {}).get("entities", []))
 
     return PublicTaxonomyDetailOut(
+        # Temas y conceptos también: un tema puede tener relaciones verificadas
+        # (`about`, `isPartOf`…) igual que un lugar (plan de relaciones, 18-11-2026).
+        jsonld_verificadas=_relaciones_tabla(db, kind, row.id),
         slug=row.slug,
         name=row.name,
         description=row.description,
@@ -1422,6 +1462,11 @@ class PublicPersonListItem(BaseModel):
     birth_date: str | None = None
     death_date: str | None = None
     image_url: str | None = None
+    # Para que todas las tarjetas del hub digan lo mismo (petición de David,
+    # 10-11-2026): su papel, cuando el nombre real no aporta nada, y el año de
+    # nacimiento si solo consta el año (data/person_jsonld.yaml).
+    papel: str | None = None
+    birth_year: str | None = None
 
 
 class PublicWikidataRef(BaseModel):
@@ -1457,8 +1502,9 @@ def _internal_url_for(db: Session, wikidata_id: str | None, name: str | None) ->
         band = next((b for b in bq.all() if b.name.strip().lower() == norm), None)
     if band:
         return f"/grupos/{band.slug}"
-    # 3) Person (por wikidata_id o nombre/stage_name)
-    pq = db.query(Person)
+    # 3) Person (por wikidata_id o nombre/stage_name), solo si tiene ficha publicada
+    from app.services.person_visibility import persona_publicada  # lazy
+    pq = db.query(Person).filter(persona_publicada())
     per = None
     if wikidata_id:
         per = pq.filter(Person.wikidata_id == wikidata_id).first()
@@ -1506,6 +1552,12 @@ class PublicPersonDetailOut(PublicPersonListItem):
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
     related_videos: list[PublicRelatedVideo] = []
+    # Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id. El frontend
+    # las fusiona en el nodo Person.
+    jsonld_relaciones: dict | None = None
+    # Relaciones verificadas de `entity_relations`, ya resueltas a @id. Van aparte de
+    # las curadas porque se fusionan sin duplicar (`web/lib/relaciones-jsonld.ts`).
+    jsonld_verificadas: dict | None = None
 
 
 @router.get("/persons", response_model=list[PublicPersonListItem])
@@ -1514,22 +1566,83 @@ def public_persons_list(
     db: Session = Depends(get_db),
 ) -> list[PublicPersonListItem]:
     _set_cache(response)
+    from app.services.person_visibility import persona_publicada  # lazy
     persons = (
         db.query(Person)
+        .filter(persona_publicada())
         .order_by(Person.full_name)
         .all()
     )
-    return [
-        PublicPersonListItem(
+    papeles = _papeles(db, persons)
+    from app.services.person_jsonld import _cargar as _curadas  # lazy
+    curadas = _curadas()
+    out = []
+    for p in persons:
+        anyo = str((curadas.get(p.slug) or {}).get("birthDate") or "")
+        out.append(PublicPersonListItem(
             slug=p.slug,
             full_name=p.full_name,
             stage_name=p.stage_name,
             birth_date=p.birth_date.isoformat() if p.birth_date else None,
             death_date=p.death_date.isoformat() if p.death_date else None,
             image_url=p.image_url,
-        )
-        for p in persons
-    ]
+            papel=papeles.get(p.id),
+            birth_year=anyo if len(anyo) == 4 and anyo.isdigit() else None,
+        ))
+    return out
+
+
+def _papeles(db: Session, persons: list) -> dict[int, str]:
+    """El papel de cada persona en una frase corta, para la tarjeta del hub.
+
+    Primero su membresía principal en el corpus («Batería de Extremoduro»); si no
+    tiene, su oficio (Wikidata o data/person_jsonld.yaml). Si no consta nada, nada:
+    no se inventa.
+    """
+    from app.services.person_jsonld import _cargar as _curadas  # lazy
+
+    out: dict[int, str] = {}
+    filas = (db.query(BandMembership, Artist)
+             .join(Artist, BandMembership.artist_id == Artist.id)
+             .order_by(BandMembership.position, BandMembership.era).all())
+    for m, a in filas:
+        if m.person_id not in out and m.role:
+            out[m.person_id] = f"{m.role[:1].upper()}{m.role[1:]} de {a.name}"
+    curadas = _curadas()
+    for p in persons:
+        if p.id in out:
+            continue
+        oficios = [o.get("name") for o in (p.occupations or []) if o.get("name")]
+        oficios += [o.get("name") for o in (curadas.get(p.slug) or {}).get("hasOccupation") or []
+                    if isinstance(o, dict) and o.get("name")]
+        if oficios:
+            out[p.id] = f"{oficios[0][:1].upper()}{oficios[0][1:]}"
+    return out
+
+
+def _relaciones_curadas(db: Session, slug: str) -> dict | None:
+    """Las relaciones de data/person_jsonld.yaml. Un yaml roto no tumba la ficha."""
+    from app.services.person_jsonld import relaciones  # lazy
+
+    try:
+        return relaciones(db, slug)
+    except Exception:  # noqa: BLE001
+        logger.warning("person_jsonld: no se pudieron resolver las relaciones de %s", slug,
+                       exc_info=True)
+        return None
+
+
+def _relaciones_tabla(db: Session, tipo: str, ident: int) -> dict | None:
+    """Las relaciones verificadas de `entity_relations` (fase 1 del plan de datos
+    estructurados). Con la tabla vacía devuelve None y la ficha sale idéntica."""
+    from app.services.relations import jsonld_de  # lazy
+
+    try:
+        return jsonld_de(db, tipo, ident)
+    except Exception:  # noqa: BLE001
+        logger.warning("relations: no se pudieron leer las de %s:%s", tipo, ident,
+                       exc_info=True)
+        return None
 
 
 @router.get("/persons/{slug}", response_model=PublicPersonDetailOut)
@@ -1539,7 +1652,10 @@ def public_person_detail(
     db: Session = Depends(get_db),
 ) -> PublicPersonDetailOut:
     _set_cache(response)
-    person = db.query(Person).filter(Person.slug == slug).first()
+    from app.services.person_visibility import persona_publicada  # lazy
+    # Sin ficha publicada, la persona no existe para el público: 404, no una
+    # página con solo los datos de Wikidata (person_visibility).
+    person = db.query(Person).filter(Person.slug == slug, persona_publicada()).first()
     if not person:
         raise HTTPException(status_code=404, detail="person not found")
 
@@ -1605,6 +1721,8 @@ def public_person_detail(
         occupations=[
             PublicWikidataRef(**o) for o in (person.occupations or [])
         ],
+        jsonld_relaciones=_relaciones_curadas(db, person.slug),
+        jsonld_verificadas=_relaciones_tabla(db, "person", person.id),
         seo_body=seo.body_md if seo else None,
         seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
@@ -1636,6 +1754,9 @@ class PublicBandDetailOut(PublicBandListItem):
     image_license: str | None = None
     image_source_url: str | None = None
     members: list[str] = []
+    # Ruta de la ficha de cada miembro de `members` (por su nombre tal cual sale ahí),
+    # solo si la relación de pertenencia está verificada y la persona tiene ficha.
+    members_rutas: dict[str, str] = {}
     seo_body: str | None = None
     # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
     # VideoObject. Solo los que tienen ficha en `related_videos`.
@@ -1645,6 +1766,9 @@ class PublicBandDetailOut(PublicBandListItem):
     schema_jsonld: dict | None = None
     entities: list["PublicResolvedEntity"] = []
     related_videos: list[PublicRelatedVideo] = []
+    # Relaciones verificadas de `entity_relations`, ya resueltas a @id; el frontend
+    # las fusiona en el nodo del grupo o del sello.
+    jsonld_verificadas: dict | None = None
 
 
 def _band_members(raw) -> list[str]:
@@ -1662,6 +1786,40 @@ def _band_members(raw) -> list[str]:
     return out
 
 
+def _rutas_de_miembros(db: Session, band, miembros: list[str]) -> dict[str, str]:
+    """Enlaza la formación por IDENTIDAD, no por nombre suelto: solo se buscan las
+    personas con una relación `member`/`memberOf` VERIFICADA con este grupo, y dentro de
+    ellas el nombre de la formación tiene que ser su nombre artístico o su nombre
+    completo (o el principio de este: «Rosendo Mercado» es Rosendo Mercado Ruiz)."""
+    from app.db.models import EntityRelation, Person  # lazy
+    from app.services.entity_resolver import _normalize  # lazy
+    from app.services.person_visibility import ids_publicadas  # lazy
+
+    if not miembros:
+        return {}
+    ids: set[int] = set()
+    for r in db.query(EntityRelation).filter(EntityRelation.status == "verificada",
+                                             EntityRelation.predicate.in_(("member", "memberOf"))):
+        if r.subject_type == "band" and r.subject_id == band.id and r.object_type == "person":
+            ids.add(r.object_id)
+        elif r.object_type == "band" and r.object_id == band.id and r.subject_type == "person":
+            ids.add(r.subject_id)
+    ids &= ids_publicadas(db)
+    if not ids:
+        return {}
+    personas = db.query(Person).filter(Person.id.in_(ids)).all()
+    out: dict[str, str] = {}
+    for m in miembros:
+        nombre = _normalize(m.split(" · ")[0])
+        for p in personas:
+            completo = _normalize(p.full_name or "")
+            if nombre and (nombre == _normalize(p.stage_name or "") or nombre == completo
+                           or completo.startswith(nombre + " ")):
+                out[m] = f"/personas/{p.slug}"
+                break
+    return out
+
+
 @router.get("/bands", response_model=list[PublicBandListItem])
 def public_bands_list(
     response: Response,
@@ -1669,7 +1827,8 @@ def public_bands_list(
 ) -> list[PublicBandListItem]:
     _set_cache(response)
     from app.db.models import Band  # lazy
-    bands = db.query(Band).order_by(Band.name).all()
+    from app.services.person_visibility import banda_publicada  # lazy
+    bands = db.query(Band).filter(banda_publicada()).order_by(Band.name).all()
     return [
         PublicBandListItem(
             slug=b.slug,
@@ -1704,6 +1863,9 @@ def public_band_detail(
         )
         .first()
     )
+    # Sin ficha publicada no existe (misma regla que las personas, 18-11-2026).
+    if seo is None:
+        raise HTTPException(status_code=404, detail="band not found")
 
     from app.services.entity_resolver import resolve_entities  # lazy
     resolved_ents = resolve_entities(db, (seo.entities if seo else []) or [])
@@ -1723,6 +1885,7 @@ def public_band_detail(
         image_license=band.image_license,
         image_source_url=band.image_source_url,
         members=_band_members(band.members),
+        members_rutas=_rutas_de_miembros(db, band, _band_members(band.members)),
         seo_body=seo.body_md if seo else None,
         seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
@@ -1730,6 +1893,8 @@ def public_band_detail(
         schema_jsonld=seo.schema_jsonld if seo else None,
         entities=[PublicResolvedEntity(**e) for e in resolved_ents],
         related_videos=_related_videos_for(db, "band", band.slug),
+        jsonld_verificadas=_relaciones_tabla(
+            db, "label" if band.kind == "label" else "band", band.id),
     )
 
 
@@ -1759,6 +1924,7 @@ class PublicBookDetailOut(PublicBookListItem):
     about: list[str] = []
     meta_title: str | None = None
     meta_description: str | None = None
+    jsonld_verificadas: dict | None = None
 
 
 @router.get("/books", response_model=list[PublicBookListItem])
@@ -1818,6 +1984,7 @@ def public_book_detail(
         about=list(book.about or []),
         meta_title=book.meta_title,
         meta_description=book.meta_description,
+        jsonld_verificadas=_relaciones_tabla(db, "book", book.id),
     )
 
 
@@ -1876,6 +2043,26 @@ def public_posts_list(
         )
         for p in rows
     ]
+
+
+class PublicPostSitemapItem(BaseModel):
+    slug: str
+    published_at: datetime | None = None
+
+
+@router.get("/posts/sitemap", response_model=list[PublicPostSitemapItem])
+def public_posts_sitemap(response: Response, db: Session = Depends(get_db)):
+    """TODOS los posts publicados, para el sitemap. `/posts` lleva límite (30 por
+    defecto) y el sitemap lo usaba: cada post nuevo sacaba del sitemap al más antiguo
+    (18-11-2026: 45 publicados, 30 en el sitemap)."""
+    _set_cache(response)
+    rows = (
+        db.query(Post.slug, Post.published_at)
+        .filter(Post.status == "published")
+        .order_by(Post.published_at.desc())
+        .all()
+    )
+    return [PublicPostSitemapItem(slug=s, published_at=p) for s, p in rows]
 
 
 @router.get("/posts/mentioning", response_model=list[PublicPostListItem])
@@ -2519,6 +2706,17 @@ def clip_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
                 f"Ese clip ya estaba {item.status}; no se ha tocado nada.",
                 success=True,
             ))
+        if not (item.caption or "").strip():
+            # Se aprueba un TEXTO, no una idea: sin caption escrito (o si no pasó
+            # las guardas) no hay nada que aprobar. Un enlace de un correo viejo
+            # no puede saltarse esto.
+            return HTMLResponse(
+                _render_admin_action_page(
+                    "Este clip todavía no tiene un texto que se pueda publicar. "
+                    "Revísalo en el panel de Instagram.", success=False,
+                ),
+                status_code=409,
+            )
         pos = db.execute(
             _select(_func.coalesce(_func.max(_QueueItem.position), -1))
         ).scalar() or -1
@@ -2534,11 +2732,11 @@ def clip_action(token: str, db: Session = Depends(get_db)) -> HTMLResponse:
 
     # Rechazar: fuera de la cola y el vídeo se retira de Cloudinary. Un clip que
     # no se va a publicar no tiene por qué seguir alojado.
-    if item is not None and item.status in ("proposed", "pending", "prepared"):
-        item.status = "discarded"
     from app.services.instagram import video_clips as _vc
 
-    if clip.status in ("requested", "downloading", "ready"):
+    if item is not None and item.status in ("proposed", "pending", "prepared"):
+        item.status = "discarded"
+    if clip.status in _vc.VIVOS:
         _vc.retire(db, clip, "descartado desde el correo de propuestas")
     db.commit()
     return HTMLResponse(_render_admin_action_page(
@@ -2723,6 +2921,9 @@ def proposal_action(
     else:
         p.status = "discarded"
         p.scheduled_for = None
+        p.discarded_by = "correo"
+        p.discarded_at = datetime.now(timezone.utc)
+        p.discard_reason = p.discard_reason or "rechazada desde el correo de propuestas"
         db.commit()
         msg = f"✓ «{p.title}» rechazada."
     return HTMLResponse(_render_admin_action_page(msg, success=True))

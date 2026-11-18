@@ -38,6 +38,28 @@ YAML_PATH = Path("/app/data/persons.yaml")
 USER_AGENT = "RobeLyrics/1.0 (https://entreinteriores.com; davidruizsanchez@gmail.com) httpx"
 
 
+def rehost_si_hace_falta(fila) -> None:
+    """Una URL externa nunca llega a la BD (`image_guard.must_rehost`): la foto de
+    Commons que trae el enriquecimiento se re-aloja aquí mismo en Cloudinary.
+
+    Antes se guardaba el hotlink y lo arreglaba el cron de las 04:40; con altas en
+    bloque (plan de relaciones, 18-11-2026) eso dejaba páginas pidiendo fotos a
+    Wikimedia, que responde 429. Si el re-alojo falla, se queda como estaba y el cron
+    lo repesca.
+    """
+    from app.services.image_guard import must_rehost
+
+    url = getattr(fila, "image_url", None)
+    if not url or not must_rehost(url):
+        return
+    from scripts.seo.fetch_entity_images import _rehost_to_cloudinary  # import perezoso
+
+    nueva = _rehost_to_cloudinary(url)
+    if nueva:
+        fila.image_url = nueva
+        logger.info("  imagen re-alojada en Cloudinary")
+
+
 # --------------------------------------------------------------------------- #
 # Wikipedia / Wikidata enrichment
 # --------------------------------------------------------------------------- #
@@ -435,12 +457,12 @@ def main() -> None:
 
                             # Bandas externas (Wikidata P463) — excluyendo
                             # las que ya tenemos como memberships en nuestro
-                            # Artist corpus. Como Wikidata tiene varios Q-IDs
-                            # apuntando al mismo grupo (Extremoduro aparece
-                            # como Q263632, Q1238849, Q2311472 según el
-                            # claim/persona), filtramos también por nombre
-                            # normalizado contra los slugs del corpus.
-                            internal_qids = {"Q263632", "Q1238849", "Q2311472", "Q3500822"}
+                            # Artist corpus: Extremoduro (Q2311472) y el grupo
+                            # Robe (Q123516175). Comprobados el 13-11-2026; antes
+                            # aquí había Platero y Tú (Q263632), una encíclica
+                            # (Q1238849) y Gangr (Q3500822). Se filtra también por
+                            # nombre normalizado contra los slugs del corpus.
+                            internal_qids = {"Q2311472", "Q123516175"}
                             internal_names = {"extremoduro", "robe"}
                             member_qids = [
                                 q for q in enriched.get("member_of_qids", [])
@@ -592,6 +614,8 @@ def main() -> None:
                                     "  Rechazada (%d/%d tokens en %r)",
                                     matched, require_n, fn_lower,
                                 )
+
+                rehost_si_hace_falta(person)
 
                 # Memberships
                 _reconcile_memberships(db, person, entry.get("memberships") or [])

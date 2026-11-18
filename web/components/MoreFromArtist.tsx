@@ -11,17 +11,14 @@ type Props = {
   max?: number;
 };
 
-// "Más discos de {artist}" en la página de álbum. Selección cronológica
-// próxima al disco actual para crear navegación entre discos contiguos.
-export default function MoreFromArtist({
-  artistSlug,
-  artistName,
-  albums,
-  currentAlbumSlug,
+/** Los discos que pinta el bloque (lo usa también la página para no repetir enlaces). */
+export function discosVecinos(
+  albums: PublicAlbumOut[],
+  currentAlbumSlug?: string,
   max = 6,
-}: Props) {
+): PublicAlbumOut[] {
   const others = albums.filter((a) => a.slug !== currentAlbumSlug);
-  if (others.length === 0) return null;
+  if (others.length === 0) return [];
 
   // Si tenemos currentAlbumSlug, priorizar vecinos cronológicos.
   let picks = others;
@@ -38,6 +35,21 @@ export default function MoreFromArtist({
   } else {
     picks = others.slice(0, max);
   }
+
+  return picks;
+}
+
+// "Más discos de {artist}" en la página de álbum. Selección cronológica
+// próxima al disco actual para crear navegación entre discos contiguos.
+export default function MoreFromArtist({
+  artistSlug,
+  artistName,
+  albums,
+  currentAlbumSlug,
+  max = 6,
+}: Props) {
+  const picks = discosVecinos(albums, currentAlbumSlug, max);
+  if (picks.length === 0) return null;
 
   return (
     <section className="mt-20">

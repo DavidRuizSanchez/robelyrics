@@ -60,6 +60,7 @@ GANCHOS_DE_RESPALDO = (
 GANCHOS_POR_TIPO = {
     "estribillo": ("¡Todos a una!", "¡Menudo coro!", "¡Qué subidón!"),
     "solo": ("¡Qué manos!", "¡Menudo solo!", "¡Ahí, ahí!"),
+    "final": ("¡Qué cierre!", "¡Y remata!", "¡Ahí, ahí!"),
     "arranque": ("¡Y arranca!", "¡Ya empieza!", "¡Atentos!"),
 }
 

@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import YoutubeEmbed from "@/components/YoutubeEmbed";
+import { normPath, rutas } from "@/lib/enlazado";
 
 // Imagen dentro del cuerpo (la añade una fusión, con procedencia acreditada y
 // alojada en Cloudinary). El `title` del markdown es el crédito y va de pie de
@@ -32,7 +33,18 @@ function youtubeId(url: string): string | null {
  * Aplicamos clases Tailwind a cada nodo via `components` para mantener la
  * paleta granate/serif del proyecto sin necesidad de plugin @tailwindcss/typography.
  */
-export default function MarkdownArticle({ markdown }: { markdown: string }) {
+export default function MarkdownArticle({
+  markdown,
+  yaEnlazados,
+}: {
+  markdown: string;
+  // Destinos que ya enlaza la plantilla de la página: el cuerpo no los repite.
+  yaEnlazados?: Iterable<string>;
+}) {
+  // 1 enlace por destino: lo que ya enlaza la plantilla, o el propio cuerpo
+  // más arriba, se pinta como texto. El renderizado va en orden de documento,
+  // así que se queda el PRIMER enlace del cuerpo (lib/enlazado.ts).
+  const vistos = rutas(yaEnlazados ?? []);
   return (
     <div className="font-serif text-ink leading-[1.7] text-[18px] md:text-[19px] max-w-[680px]">
       <ReactMarkdown
@@ -87,6 +99,11 @@ export default function MarkdownArticle({ markdown }: { markdown: string }) {
             return <p className="my-5 text-ink leading-[1.75]">{children}</p>;
           },
           a: ({ href, children }) => {
+            const ruta = normPath(href);
+            if (ruta) {
+              if (vistos.has(ruta)) return <>{children}</>;
+              vistos.add(ruta);
+            }
             // Un enlace es externo si apunta a otro dominio vía http(s).
             // Los autolinks de fuentes (Mondo Sonoro, Efe Eme…) son externos:
             // los marcamos con rel="nofollow noopener" y target="_blank".

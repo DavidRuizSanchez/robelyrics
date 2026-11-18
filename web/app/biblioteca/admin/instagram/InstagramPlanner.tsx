@@ -406,6 +406,30 @@ export default function InstagramPlanner({
     }
   }
 
+  // «Lo he revisado: que salga». El backend vuelve a pasar el gate final sobre
+  // el texto: si sigue teniendo texto interno o metatexto, dice por qué y no
+  // lo libera. Revisar a mano no es saltarse la puerta.
+  async function marcarRevisado(id: number) {
+    setBusy("revisado");
+    try {
+      const res = await fetch(`/biblioteca/admin/instagram/api/queue/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revisado: true }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || `Error ${res.status}`);
+        return;
+      }
+      window.location.reload();
+    } catch (e) {
+      setError(`Error de red: ${e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function saveCaption(id: number) {
     setBusy("save");
     try {
@@ -503,11 +527,31 @@ export default function InstagramPlanner({
           {it.title}
         </button>
         {it.summary && <Resumen texto={it.summary} />}
+        {it.notas_internas && (
+          <div className="mt-2">
+            <p className="text-xs text-ink-faint">Notas internas · no se publican</p>
+            <Resumen texto={it.notas_internas} />
+          </div>
+        )}
 
         {it.needs_human && (
-          <Callout tone="warn" className="mt-3" title="Necesita que lo mires">
-            Una guarda no pudo confirmar algo (la identidad, la foto o una afirmación). Ábrelo
-            para ver qué y apruébalo tú: <Term k="needsHuman">no sale en bloque</Term>.
+          <Callout tone="warn" className="mt-3" title="Retenido: no sale hasta que lo mires">
+            Una guarda no pudo confirmar algo (la identidad, la foto, una afirmación o el texto
+            final). Ábrelo, corrige el texto si hace falta y apruébalo tú:{" "}
+            <Term k="needsHuman">no sale en bloque</Term>.
+            {it.status !== "published" && it.status !== "discarded" && (
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy !== null}
+                  loading={busy === "revisado"}
+                  onClick={() => marcarRevisado(it.id)}
+                >
+                  Lo he revisado: que salga
+                </Button>
+              </div>
+            )}
           </Callout>
         )}
         {it.error && (
@@ -1209,6 +1253,7 @@ function EvidenciaPost({ ev }: { ev: Evidencia }) {
 }
 
 const FOTO_ORIGEN: Record<string, string> = {
+  portada: "Portada oficial del disco",
   ficha_propia: "De nuestra propia ficha",
   wikidata_p18: "Wikimedia Commons (foto oficial de la entidad)",
   google_images: "Búsqueda en la web",
@@ -1223,7 +1268,27 @@ const FOTO_ORIGEN: Record<string, string> = {
  * imagen, no de quién era. Para cazar el fallo había que reconocer la cara.
  */
 function etiquetaFoto(it: IGItem): { label: string; tone: Tone } {
+  // Lo que se publica DE VERDAD, cuando está registrado (desde el 09-11-2026).
+  // La IA va marcada: es el último recurso, y si abunda algo se ha roto.
+  switch (it.image_origin) {
+    case "ia":
+      return { label: "🎨 Arte IA · último recurso", tone: "danger" };
+    case "portada":
+      return { label: "💿 Portada del disco", tone: "ok" };
+    case "ficha":
+      return { label: "📷 Foto de nuestra ficha", tone: "ok" };
+    case "hero_blog":
+      return { label: "📷 Imagen del artículo del blog", tone: "neutral" };
+    case "video":
+      return { label: "🎬 Vídeo del clip", tone: "ok" };
+    case "producto":
+      return { label: "🖥 Captura de la web", tone: "ok" };
+    case "reel_propio":
+      return { label: "🎞 Verso animado", tone: "neutral" };
+  }
   switch (it.photo_source) {
+    case "portada":
+      return { label: "💿 Portada del disco", tone: "ok" };
     case "ficha_propia":
       return { label: "📷 Foto de nuestra ficha", tone: "ok" };
     case "wikidata_p18":

@@ -13,8 +13,10 @@ import type { PublicAlbumOut, PublicArtistDetail } from "@/lib/types";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://entreinteriores.com";
 
 export const revalidate = 3600;
-// Solo los dos artistas del corpus: cualquier otro slug es 404, no una página vacía.
-export const dynamicParams = false;
+// Solo los dos artistas del corpus: cualquier otro slug es 404 (`notFound()` en la
+// página), no una página vacía. NO volver a poner `dynamicParams = false`: con él,
+// un `revalidatePath("/", "layout")` deja las dos discografías en 404
+// (NoFallbackError) hasta reiniciar el contenedor. Pasó el 12-11-2026.
 
 // Cada discografía tiene URL, contenido y metadata PROPIOS. Antes vivían como
 // `/discografia?artist=X`: mismo H1, mismo cuerpo y canónica al hub, así que
@@ -332,14 +334,10 @@ export default async function DiscografiaArtistaPage({
                           <td className="py-3 pr-4 font-mono text-[13px] text-ink-faint align-top">
                             {alb.year}
                           </td>
+                          {/* Sin enlace: la cuadrícula de arriba ya enlaza cada disco
+                              (1 enlace por destino, lib/enlazado.ts). */}
                           <td className="py-3 pr-4 font-serif text-[17px] text-ink align-top">
-                            <Link
-                              href={`/${artist}/${alb.slug}`}
-                              data-cursor="hover"
-                              className="hover:text-accent"
-                            >
-                              {alb.title}
-                            </Link>
+                            {alb.title}
                           </td>
                           <td className="py-3 font-mono text-[11px] tracking-[1px] uppercase text-ink-faint align-top">
                             {KIND_LABEL[alb.kind] || alb.kind}

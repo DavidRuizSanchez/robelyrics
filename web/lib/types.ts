@@ -195,6 +195,8 @@ export type PublicArtistMember = {
   era: string | null;
   is_founder: boolean;
   image_url: string | null;
+  // Sin ficha publicada: se nombra, pero no se enlaza (person_visibility).
+  has_page?: boolean;
 };
 
 export type PublicResolvedEntity = {
@@ -214,6 +216,8 @@ export type PublicRelatedVideo = {
 };
 
 export type PublicArtistDetail = PublicArtistOut & {
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
   albums: PublicAlbumOut[];
   members: PublicArtistMember[];
   image_url: string | null;
@@ -229,6 +233,8 @@ export type PublicArtistDetail = PublicArtistOut & {
 };
 
 export type PublicAlbumDetail = PublicAlbumOut & {
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
   artist: PublicArtistOut;
   tracks: PublicTrackOut[];
   /**
@@ -262,6 +268,7 @@ export type PublicLineupMember = {
   slug: string;
   name: string;
   role: string;
+  has_page?: boolean;
 };
 
 export type PublicRelatedSong = {
@@ -280,6 +287,8 @@ export type PublicSongCredit = {
 };
 
 export type PublicSongDetail = {
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
   slug: string;
   title: string;
   track_number: number | null;
@@ -328,6 +337,8 @@ export type PublicTaxonomySongRef = {
 };
 
 export type PublicTaxonomyDetail = {
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
   slug: string;
   name: string;
   description: string | null;

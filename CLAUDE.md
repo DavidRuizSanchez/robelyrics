@@ -274,6 +274,41 @@ despublica nada** (no hay camino para ello en el código, y no conviene que lo
 haya: retirar un post es manual en instagram.com) y **no va al crontab** hasta
 calibrarlo, misma decisión que `audit_published.py`.
 
+## Una noticia del blog se escribe con su artículo
+
+El 12-10-2026 salió «Flores Amarillas 2027» (post #65) con un cartel inventado:
+Fito Cabrales «confirmado», Kutxi Romero y un tributo «Los Robe». Su artículo no
+nombraba a ni un músico. El borrador era del 14-09, **antes** de `google_news_url`:
+el modelo escribió con el titular y el banner de cookies. Y **se lo pedía el motor**:
+el prompt quería «quién actúa… actuaciones» y el juez de rigor rechazaba un anuncio
+sin lineup, así que rellenó con lo que el corpus sí trae (Kutxi y Fito hablando de
+Robe). Ningún gate del blog miraba el artículo.
+
+- **`app/services/source_grounding.py`**: todo nombre propio del cuerpo tiene que
+  estar en el artículo, ser de casa (`nombres_de_casa`: catálogo y fichas) o estar en
+  lo `propio` (el dossier de la BD). En una frase que ANUNCIA participación
+  («actuará», «confirmado», «contará con», «cartel»…) solo vale el artículo: tener
+  ficha no pone a nadie en un cartel. Una frase de participación sin nombres va al
+  juez `caption_guard._lo_dice_el_articulo` (contra el artículo, nunca contra la
+  web). Negar un anuncio («aún no se han anunciado los nombres») no se juzga: es lo
+  que se le pide al redactor. Falla cerrado.
+- **Dónde corre**: al final de `research_and_write` (después de `_polish`, que
+  reescribe sin verificar) retira las frases; en `materialize_proposals` manda a
+  revisión con `blocked_by="noticia"`. Las secciones de noticia se verifican contra
+  lo afirmable (artículo + dossier), no contra la web y el corpus.
+- **Sin artículo no hay post**: `scrape_news` ya no cae al resumen del RSS ni al
+  titular, y el materializador descarta la noticia que no lo tiene (ni texto pegado).
+- **La cola vieja se reescribe**: una noticia redactada antes de
+  `NEWS_GROUNDING_SINCE` (23-09-2026) se vuelve a escribir con su artículo. Mismo
+  patrón que «un post preparado no se entera de que has desplegado».
+- **Fotos**: las webs de entradas (`blog_hero._OTRO_EVENTO_HOSTS`) no dan cabecera,
+  porque su imagen es la portada de OTRO evento (el #65 llevaba una banda tributo de
+  ticketere). `hero_guard` rechaza la foto cuyo texto visible la ata a otra banda,
+  otro local u otro evento.
+- Corregir lo publicado: `scripts/blog/corregir_post.py` (dry-run por defecto):
+  pasa los gates contra las fuentes re-descargadas, guarda `content_revisions` y
+  revalida. El `PUT /admin/posts` no hace ninguna de las tres cosas.
+
 ## Canales de YouTube: no todos son monotemáticos
 
 Los canales que se barren viven en `data/sources.yaml` con `ingest: true`, y
@@ -320,11 +355,24 @@ en cualquier deploy):
   intento. Se vio en directo: 31 fallos seguidos durante un rebuild y los 30 vídeos
   siguieron en `approved` con `attempts = 0`.
 
-Los fallos permanentes conviene marcarlos a mano con su motivo en `error` y
-`attempts = 3` para que no consuman reintentos en balde. Hay tres así: un directo que
-nunca se emitió, un tráiler con 51 caracteres en 36 s (casi sin habla) y una entrevista
-de Robe en RockFM con **restricción de edad** — yt-dlp pediría cookies y no se usan; la
-salida para esa es pegar el texto en el alta manual del blog.
+**Lo que no tiene arreglo se aparta solo** (09-11-2026, `app/services/corpus_fallos.py`).
+La pregunta no es «¿lo arregla reintentar?» sino «¿lo arregla algo que hagamos?»:
+restricción de edad (pediría cookies, que no se usan), casi sin habla, privado o
+borrado → al gastar el último intento pasa a **`abandoned`**, plegado en el panel con
+su motivo y con «Reintentar». Un **extractor de yt-dlp roto** NO es permanente: no
+gasta intento, queda marcado con la versión que falló y `pending?ytdlp=` lo omite
+hasta que el daemon trae otra. Para todo esto `download_audio` sube a prod el
+`ERROR:` real de yt-dlp; antes solo llegaba «exit status 1». Lo desconocido es
+transitorio, a propósito: clasificar de más escondería algo.
+
+iVoox (La Gran Travesía): **subir yt-dlp no lo arregla**, medido con 2026.8.19 y
+2026.10.26. La página responde 502 y luego el extractor revienta. No se disfraza el
+cliente; la salida es otra URL del mismo episodio o pegar el texto.
+
+**Añadir a mano** desde `/biblioteca/admin/corpus` (`corpus_manual`): un YouTube
+entra con su `video_id` real (`videos.list`, 1 unidad) y `detect_uploads` no lo
+duplica. Entra `approved` con `descubierto_por="manual"`, sale el primero y **no
+cuenta para el tope semanal**, pero sí respeta el presupuesto de Whisper.
 
 El pipeline de noticias e Instagram vive en `app/services/instagram/` y se
 gestiona desde `/biblioteca/admin/instagram`. Cron en
@@ -503,11 +551,44 @@ Cuatro cosas que conviene no deshacer:
   125 que exigía el prompt: **las constantes contradecían el criterio**.
 - **La anti-invención mira cifras y nombres propios, no todas las palabras.** Su
   primera versión tumbó la description de David por «todos», «datos» y «mítico».
-- **`letra` NO está en la lista de genéricos vetados.** «Barricada grupo» se veta,
-  «Desarraigo letra: …» no: son 99 fichas y es como se busca.
+- **`letra` SÍ se veta pegada (David, 11-11-2026)**: la excepción del 22-09 quedó
+  superada al ver «Plasencia Robe: Cuna de Extremoduro…». La keyword se CUBRE, caso a
+  caso y en español correcto («Letra de Desarraigo, de Extremoduro», «La Plasencia de
+  Robe…»). `seo_style.keyword_pegada` mira la JUNTA del `target_keyword` con su
+  modificador (extremoduro, robe, grupo, sello, letra, significado…) sobre el title
+  crudo: la coma de «La ley innata, disco de 2008» la rompe. También bloquean las
+  `FORMULAS_VACIAS_TITLE` («explora», «su impacto»…) y el Title Case, también tras los
+  dos puntos; un nombre propio se reconoce por salir en mayúscula en mitad de una frase
+  del cuerpo (saltando enlaces y cursivas) o por ser del catálogo. Lo publicado lo
+  repasa `scripts/seo/humanize_titles.py` por tandas (reason «titles humanos»): cada
+  title nuevo cubre todas las consultas protegidas de GSC que cubría el viejo.
 - **Lo que no se puede verificar va al prompt, no a una guarda.** La description
   publicada de Barricada tiene verbos, cabe y cita el diferencial, y aun así es un
   resumen. Eso es un **aviso** que viaja al correo y al panel, nunca un bloqueo.
+
+## Los headings son para el lector, siempre
+
+Criterio de David (10-11-2026): «Paco Doniga antes de Dosis Letal: su etapa en
+Indecisión Momentánea» no es natural. Los headings tienen que sonar humanos **siempre**.
+Otra vez lo ordenaba el motor: el esquema de `generate_deep` pedía «<H2 concreto sobre
+{subject}>» y los bloques de keyword pedían meterla «en algún H2». Medido ese día: 47 de
+50 fichas de persona y 131 de 153 canciones repetían el sujeto en dos o más H2.
+
+- La regla vive en **`seo_style.PROMPT_HEADING_RULES`** (+ `EJEMPLOS_ORO_HEADINGS`), y
+  la usan todos los caminos que escriben headings: `generate_deep`, `augment_deep`,
+  `merge_deep`, `news_research`, `content_generator` y `generate_flagship`.
+- **`seo_style.heading_verdict`** es la guarda determinista. El nombre del protagonista
+  va en **uno o dos** headings, metido con naturalidad (David, 10-11-2026: «mete el
+  nombre o la entidad objetivo de manera natural»): bloquea si está en más de dos, en
+  ninguno, o en el molde «Sujeto: tema». Avisa de las mayúsculas tras dos puntos.
+  `generate_deep` reescribe el esquema UNA vez si bloquea. Un heading nuevo tampoco
+  puede meter un nombre o una cifra que su sección no diga.
+- **`ranking_guard.renombre_permitido(..., sujeto=)`** mide la cobertura sin el nombre:
+  quitarlo de un H2 no pierde ninguna búsqueda, porque ya va en el title y el H1. Sin
+  esto, ningún heading forzado se podía arreglar.
+- `scripts/seo/humanize_headings.py` reescribe los de lo ya publicado. Solo cambia las
+  líneas `## ` (comprobado línea a línea), conserva el heading que perdería una
+  búsqueda protegida y guarda `content_revisions` antes de aplicar.
 
 ## Lo que Google dice que falta no siempre es contenido
 
@@ -662,6 +743,18 @@ prod y sin desplegar: `docker compose … run --rm --no-deps -T -e PYTHONPATH=/a
 /tmp/x/content_placement.py:/app/app/services/content_placement.py:ro api python
 /tmp/x/script.py`. Así se vio que cambiaban 3 de 5 propuestas, y cuáles.
 
+**Una ampliación sin material se cierra, no vuelve** (09-11-2026). Kabezabolo se
+intentó 4 veces y Ariel Rot 2: el `noop` llamaba a `release_proposal`, el reparto
+volvía a recomendar la misma página y el correo invitaba a aprobarla otra vez. Ahora,
+si la causa es `sin_material`, `sin_plan` o `no_mejora`, `cerrar_por_noop` tacha las
+búsquedas con su causa y `noop_path`. La propuesta sigue con sus otros grupos o pasa a
+`discarded`, y «Recuperar» las reactiva sin esa página (`vetar_rutas`). Los `noop` de
+una guarda sobre el texto siguen devolviendo la idea al banco. **Un fallo de OpenAI
+no es un `noop`**: `planificar` devolvía `{}` y eso era «nada que añadir». Ahora
+`FalloTecnico` → `failed`, y el cron de las 05:20 lo reintenta. Y en la ficha de una
+persona la cobertura se mide **sin su nombre** (`sin_sujeto`): «canciones de X» se
+quedaba solo en el nombre y tiraba todas las secciones del plan.
+
 ## La voz es nuestra: no se nombra a editores externos
 
 Criterio de David (19-10-2026), al tumbar el primer borrador real de una fusión
@@ -702,6 +795,33 @@ Dos trampas de la guarda que conviene no deshacer. Los medios con nombre de fras
 si no caen «todo el mundo» o «el público cantaba». Y los nombres de
 `sources.yaml` que son frases del tema («La historia de Extremoduro») se ignoran:
 lo que importa de verdad está en `_ANALISTAS`.
+
+## Una persona sin ficha publicada no existe
+
+Hasta el 10-11-2026, dar de alta a alguien en `persons` para preparar su ficha la
+publicaba al instante: `/personas/<slug>` respondía 200 con solo Wikidata, y la
+persona entraba en el hub, en los miembros del grupo, en la formación de los discos,
+en el buscador y en el autolink de todos los cuerpos. `app/services/person_visibility.py`
+es la única regla y todos esos caminos tiran de ella: **sin `seo_content` publicado,
+404 y nadie la enlaza**. Es lo mismo que ya hacía `url_resolver._publicado` con los
+enlaces. Ese día las 48 personas de prod estaban publicadas, así que no cambió nada
+visible.
+
+`song_credits` guarda también **coros y voces** (`data/vocal_credits.yaml` →
+`scripts/seed_vocal_credits.py`, de los créditos de Wikipedia). Eso es interpretación,
+no autoría: `credit_roles.ROLES_INTERPRETACION` impide que cierre una errata de
+autoría o que el consenso dé a alguien por «ya acreditado». Salen como `contributor`
+en el JSON-LD de la canción y como arista `vocals_by`. **No pasan por el consenso**,
+que no es reproducible.
+
+`generate_deep` verifica cada sección contra **lo propio más lo ajeno corroborado**
+(`_material_afirmable`). Antes el verificador veía el fondo (transcripciones, blogs,
+prensa) y daba por bueno lo que solo traía un tercero.
+
+Los testimonios de primera mano que David aprueba van a `data/reference/` (ver
+`testimonios_plasencia_1987.md`). Entran al dossier como material propio y se escriben
+como lo que esa persona cuenta. Ojo: el motor lee **toda línea de más de 40 caracteres
+que nombre a la entidad**, así que en la cabecera no puede haber nombres ni rutas.
 
 ## Un directo no duplica sus canciones
 
@@ -818,6 +938,13 @@ sale de la procedencia (vídeo y canal), no de resumir la transcripción, que tr
 erratas conocidas. Y los medios grandes (Movistar+, RTVE, EL PAÍS, RockFM) no se
 vetan —no son discográficas— pero sí se **marcan** en el correo: se reclaman
 antes que el clip de un fan, y quien aprueba merece saberlo.
+
+**Un tramo rechazado no vuelve** (09-11-2026). `_tramos_usados` cuenta `retired`
+(solo se llega ahí por decisión de una persona). Antes el tramo volvía como clip
+nuevo y 5 acabaron publicados con un clic en la copia. `_canciones_usadas` **no**
+cuenta `retired`, a propósito (23-09): tras rechazar un corte malo, otro corte de esa
+canción puede salir. Descartar desde el panel pasa por `video_clips.descartar`, que
+retira el clip igual que el correo.
 
 ### Cuando un clip no se baja, el orden de diagnóstico
 
@@ -993,6 +1120,84 @@ palabras**. Vetada «huella imborrable», el modelo escribió «una marca
 indeleble»; vetada «la esencia», escribió «su esencia pura». Si se persigue el
 sustantivo, basta cambiar el sustantivo.
 
+## Nada sale a Instagram sin pasar el gate final
+
+El 08-11-2026 un seguidor corrigió en público un clip: «No es "La Carrera", sino
+"Destrozares"». Al tirar del hilo salieron 14 posts con errores sobre 411: el
+#487 y el #374 con las notas del selector en el caption («Tramo 45-57s… Motivos:…
+Corte: pausa»), cuatro clips con esas notas parafraseadas («seis segmentos
+seguidos sin voz»), cuatro posts con «el material disponible no confirma…», tres
+clips con un verso de otra canción y un directo de Robe atribuido a Extremoduro.
+
+Las causas, y lo que no hay que deshacer:
+
+- **`summary` era a la vez notas internas y texto del post.** En los clips era
+  entero notas, y cuatro caminos de respaldo lo publicaban. Ahora lo interno
+  vive en `instagram_queue.notas_internas` (migración `iggate2026_01`), que leen
+  el correo de aprobación, el panel y `_contexto_de_directo`, y **nunca** un
+  redactor. `_topic_from_item` vacía el `summary` de cualquier clip.
+- **Un clip no tiene «texto de siempre».** Si su redacción no pasa las guardas,
+  `TextoRetenido`: se queda para que lo mire una persona. Antes se publicaba
+  `texto_base`, que eran las notas.
+- **`gate_final`** corre dentro de `newsroom.escribir` (el redactor reescribe con
+  el motivo delante) y en `publisher.publish` **justo antes de Meta**, sobre el
+  caption ya montado y el rótulo quemado del vídeo. En un clip comprueba además
+  que quien toca es quien declara el vídeo y que todo título citado es la
+  canción del clip o su disco. Es determinista y persigue **sintagmas**: con
+  `re.I`, «TODO» tumbaba 70 posts buenos («todo el universo de Robe»); «error» y
+  «no consta» son legítimos (#402, #408). Los captions reales, buenos y malos,
+  están congelados en `app/tests/fixtures/gate_final_captions.json`.
+- **Retener NO es `failed`.** El cortacircuitos cuenta los `failed` de items
+  distintos como bloqueo de Meta: tres retenidos seguidos pararían la cola
+  acusando a Meta. `_retener` pone `needs_human` y deja el estado, y
+  `_publicable()` **excluye `needs_human`** (antes era solo una etiqueta y el
+  goteo lo publicaba igual). Se libera con «Lo he revisado: que salga» en el
+  panel, que vuelve a pasar el gate: revisar a mano no es saltarse la puerta.
+- **Falla cerrado**: si no se puede leer el catálogo, el clip no sale.
+- `notify_health` avisa de cada retenido **una vez** (los IDs van en la firma).
+
+El gate es la red, no la solución: si el redactor recibe las notas, las
+parafrasea, y ninguna regex caza todas las paráfrasis.
+
+**Reintentar enseña a esquivar.** Dentro del redactor, un acierto del gate
+corta sin segundo intento: al re-preparar el #424, cada reintento conservaba la
+idea («este dato no consta») y cambiaba las palabras («material de casa» → «el
+material sitúa» → «que consta aquí… no se especifica»). Y el prompt deja
+devolver el comentario VACÍO: obligado a escribir sin nada que contar, el modelo
+narraba lo que faltaba.
+
+**El gate mira la forma, no la verdad.** En la cola re-preparada, el #424
+afirmaba que Robe reconoció a Kabezabolo como influencia, y su lista de 1990
+(fuente 769) no lo incluye. Lo dejó pasar `caption_guard`. Contrastar cada
+afirmación con su pasaje del corpus sigue siendo obligatorio antes de reabrir
+una cola.
+
+### Una canción la nombra un bloque, no un segmento
+
+El tramo del #504 (169-202 s, sin voz) heredaba la canción de `ultima_cancion`,
+que la había fijado UN segmento: «No me queda», 11 caracteres, casó con «La
+Carrera» a 0,91, justo después de seis tramos de «Destrozares» a 0,88-1,00.
+Ahora (`momentos.clasificar`, tres pasadas):
+
+- **Consenso**: un segmento nombra su canción solo si, en ±60 s, esa canción
+  suma `CONSENSO` (3) tramos y es mayoría. Lo que no llega no nombra nada.
+- **Sin voz no identifica**: el texto de un tramo con `no_speech_prob` alto es
+  alucinación de Whisper.
+- **Lo instrumental hereda del bloque aceptado ANTERIOR** (≤45 s). Si después
+  no vuelve la canción, es su **final**, no un solo («El final de»).
+- Voz que no casa con nada entre dos trozos de la misma canción es letra mal
+  transcrita, no Robe hablando.
+- Quién toca lo dice el vídeo (`gate_final.interprete_del_video`), nunca el
+  autor de la canción.
+
+Los segmentos reales de Vigo están en `app/tests/fixtures/vigo_2024_destrozares.json`.
+
+**El correo de un clip enseña el texto exacto que se publicará.** `notify_clips`
+lo escribe con `prepare` antes de mandar el correo y devuelve el item a
+`proposed`. Como ya tiene media, `publish` no vuelve a preparar: sale el texto
+aprobado, que vuelve a pasar el gate. Sin texto publicable no hay botón de
+publicar, y el enlace de aprobar lo rechaza.
+
 ## Un post preparado no se entera de que has desplegado
 
 `IMAGES_DIR` (`/tmp/robelyrics_instagram`) **no es efímero en producción**: está
@@ -1015,18 +1220,25 @@ Y el texto que sale se puede MEDIR sin publicarlo: `tono_guard.moldes_en`
 corre sobre el caption guardado, no hace falta adivinar si una cola «lleva las
 mejoras». Así se vio que de 25 posts en cola solo uno traía molde.
 
-### El cuentagotas no mira la hora del día
+### El goteo sale a horas fijas
 
-`publish_next` publica cuando pasa el intervalo desde la última vez, así que el
-feed acaba con posts a las 02:31 y a las 23:16. Los `IG_SLOTS` (13:30 y 20:30)
-**solo gobiernan lo autoprogramado**: quien reparte por horas decentes es
-`scheduling.apply_plan`, desde el panel.
+Hasta el 09-11-2026 `publish_next` publicaba cuando pasaban 12 h desde el último
+post, así que la hora la decidía la cadena (posts a las 01:45, a las 02:31) y las
+efemérides (`publish_on`) vencían a las 00:00 UTC, la 01:00 en Madrid.
 
-Si se programa toda la cola, `next_pending` pasa a devolver `None` y el goteo
-deja de mandar: todo sale por `due_pinned` a su hora. Dos cosas que conviene no
-olvidar en ese modo — `due_pinned` publica **de una tacada todo lo vencido**
-(una caída larga del cron vuelca varios posts juntos al volver), y lo que
-encola `prepare_daily` entra SIN fecha, o sea que vuelve al goteo. Conviven.
+Ahora el goteo solo sale en las franjas de `IG_SLOTS` (13:30 y 20:30), un post por
+franja y con `VENTANA_FRANJA_H` (3 h) para recuperar una pasada del cron perdida.
+Las efemérides vencen en su día **a partir de la primera franja**. El carril de
+vídeo sigue en su franja de tarde (`IG_VIDEO_DESDE_HORA`).
+
+Medido antes de decidirlo, sobre 211 posts publicados desde el 01-08 y comparando
+cada post con los de su mismo formato de esa semana: **ninguna franja rinde más
+que otra** (índices de 0,86 a 1,16 con los márgenes solapados; la madrugada, 1,06).
+Las horas fijas son por ritmo y para no publicar de madrugada, no porque rindan
+más. `online_followers` de la API de Instagram devuelve vacío.
+
+`due_pinned` sigue publicando **de una tacada todo lo vencido** con `publish_at`
+(una caída larga del cron vuelca varios posts juntos al volver).
 
 ## Un botón que no puede funcionar no se ofrece
 
@@ -1220,6 +1432,81 @@ JSON-LD, Open Graph, hreflang— y la compara con la del día anterior
 Una variable nueva del `.env` no llega al contenedor si no se añade ahí. Le pasaba a
 `CORPUS_AUTO_ENTRY`, que no se habría encendido nunca. Comprobar con
 `docker exec robelyrics-api printenv X`.
+
+## Enlazado interno: una ruta, un destino, y el cron es un punto fijo
+
+`/personas/alen-ayerdi` llegó a enlazar **6 veces** a El Dromedario Records con el
+mismo anchor (medido el 11-11-2026). El índice del corpus ponía los sellos en
+`/grupos/`, el guard los reescribía a `/sellos/` relativo y `autolink_corpus`
+comparaba URLs en crudo: no veía el enlace que ya había y enlazaba la siguiente
+mención. Uno más por pasada.
+
+- **Toda comparación de enlaces pasa por `link_policy.norm_path`** (sin dominio,
+  query, fragmento ni barra final). Allí viven también `SITE_HOSTS` y, en un PR
+  aparte, las reglas de David del 11-11 (1 por destino, 3 en el cuerpo, solo
+  entidades relacionadas, anchors variados).
+- **`relink_existing` valida y completa; ya no desnuda.** Desnudar y re-elegir
+  cada domingo hacía bailar los enlaces con `link_stats` y perdía los que no eran
+  una variante exacta del índice. `test_link_policy.py` exige punto fijo sobre el
+  cuerpo real de Alén Ayerdi (`fixtures/alen_ayerdi_body.md`).
+- En `upsert_seo_content` el autolinker corre **antes** del guard de enlaces.
+
+**Las cuatro reglas de David (11-11-2026) viven en `link_policy`** y valen para
+todo camino que enlace (autolinker, relinker, `merge_deep`, generadores):
+
+- **1 por destino y página.** La garantía va AL SERVIR: `MarkdownArticle` recibe
+  `yaEnlazados` (lo que pinta la plantilla) y pinta como texto lo que el cuerpo
+  repita (`web/lib/enlazado.ts`). En el backend, `plantilla_de` es el espejo de esas
+  plantillas (para taxonomías usa los MISMOS filtros de la API) y sirve para que el
+  autolinker no gaste presupuesto en lo que luego sale como texto.
+- **3 en el cuerpo** (`MAX_BODY_LINKS`): cuentan todas las rutas internas del cuerpo
+  salvo las de la plantilla. Ningún llamador lleva tope propio; `merge_deep` cuenta
+  la página entera (`ya_en_pagina`).
+- **Relación, solo para temas y conceptos**, y nunca por aristas `mentions` (sería
+  circular). Ahí el ruido son palabras comunes («lucha», «libertad»). Aplicada a
+  más, quitaba enlaces que el texto respalda (Albert Pla → Extremoduro, Robe →
+  Plasencia): el grafo es estructural y no sabe de sellos ni de lugares.
+- **Navegación exenta:** las migas y anterior/siguiente (`TrackNav`) no cuentan
+  para «1 por destino»; el autolinker tampoco rellena con las migas.
+- **Anchors:** alias del índice + prefijo ya escrito («el disco *Agila*»); se elige el
+  menos usado (`__anchors__` en `internal_link_stats.json`). Un nombre propio solo
+  casa con alguna mayúscula («rock transgresivo» es el estilo, no el disco).
+
+`scripts/seo/limpiar_enlaces.py` aplica todo eso a lo publicado en UNA pasada
+revisada (recorta y rellena hasta 3, con `content_revisions`), y el relinker del
+domingo queda en punto fijo. No borra lo que repite la plantilla (se pinta como
+texto al servir) y el tope protege a los destinos poco enlazados.
+
+## Datos estructurados: lo que se marca no se pierde
+
+David (12-11-2026): «dejar este tema zanjado de una vez, ya que cada vez que miro, hay algo
+que falla». Plan en `data/seo_plan_autoridad/PLAN_DATOS_ESTRUCTURADOS.md`. La fase 0 no
+añade ninguna relación: pone la red debajo para que las fases siguientes no rompan nada.
+
+El JSON-LD lo montan las páginas de Next **al servir**, así que se audita el HTML servido,
+no la BD. `app/services/jsonld_audit.py` (puro) comprueba cuatro invariantes:
+
+- **Contención**: la huella de cada página («sujeto · propiedad» y «sujeto · propiedad →
+  @id») no pierde nada. No mira el valor de los literales, que ya vigila el monitor.
+- **Sin `@id` colgantes**: todo `@id` interno citado está definido en la URL que implica.
+- **Vocabulario**: contra el fichero OFICIAL de schema.org versionado en `data/schemaorg/`.
+  El rango de una referencia a otra página (`track` → la canción) solo se ve cruzando
+  páginas (`rangos_cruzados`): página a página no se puede saber.
+- **Nombre y rayas** en el JSON-LD, que no pasa por el listener del ORM.
+
+Lo que ya estaba mal el día de la línea base (226 fallos en 4 patrones) va declarado en
+`data/jsonld_excepciones.yaml` con su motivo y la fase que lo arregla. Cuando una
+excepción deja de cubrir algo, la auditoría lo dice y hay que quitarla.
+
+- **Antes y después de desplegar algo que toque JSON-LD**: `python -m
+  scripts.seo.audit_jsonld --linea-base ../data/jsonld/linea_base.json` (o `--base
+  http://localhost:3001`). Sale con 1 si hay un fallo nuevo o una página pierde algo.
+- **El monitor diario** guarda la huella en `page_snapshots.campos` y avisa
+  (`jsonld_perdido`, `jsonld_fallo`, `jsonld_colgante`). Solo compara fotos que la traen,
+  por eso no se subió `VERSION_PARSER`. Con `--limit` no mira colgantes.
+- **Una pérdida buscada** (renombrar un `@id`, cambiar de tipo) se declara en las
+  excepciones y se re-congela la línea base con `--escribir-linea-base`. La fixture del
+  test es el mismo rastreo: regenerarlas juntas.
 
 ## Decisiones que NO hay que reabrir
 

@@ -239,3 +239,38 @@ def test_con_un_bloqueo_de_hechos_no_hay_tercer_intento(monkeypatch):
     ])
     with pytest.raises(newsroom.TextoNoPublicable):
         newsroom.escribir(None, {}, [IDENTIFICADA, DUDOSA])
+
+
+def test_el_metatexto_no_se_reescribe_se_corta(monkeypatch):
+    """El #424, 09-11-2026: cada reintento conservaba la idea («este dato no
+    consta») y cambiaba solo las palabras para esquivar la regex. Un acierto
+    del gate final dentro del redactor termina ahí, sin segundo intento."""
+    llamadas = {"n": 0}
+    _escritor(monkeypatch, [
+        "En el material de casa, Manolo Kabezabolo aparece entre sus influencias.",
+        "El material sitúa a Manolo Kabezabolo entre sus influencias.",
+    ])
+    from app.services.instagram import editorial
+
+    original = editorial.enrich
+
+    def _contando(topic):
+        llamadas["n"] += 1
+        original(topic)
+
+    monkeypatch.setattr(editorial, "enrich", _contando)
+    with pytest.raises(newsroom.TextoNoPublicable) as exc:
+        newsroom.escribir(None, {}, [IDENTIFICADA])
+    assert llamadas["n"] == 1
+    assert "no se reescribe" in str(exc.value)
+
+
+def test_el_prompt_deja_devolver_el_comentario_vacio():
+    """Obligado a escribir sin nada que contar, el modelo narraba lo que faltaba."""
+    import inspect
+
+    from app.services.instagram import editorial
+
+    fuente = inspect.getsource(editorial)
+    assert "escribe una sola" not in fuente
+    assert "VACÍO" in fuente

@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import AlbumCover from "@/components/AlbumCover";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PersonAvatar from "@/components/PersonAvatar";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoArtista } from "@/components/estudio/EnDirectoBloque";
 import RelatedPosts from "@/components/RelatedPosts";
@@ -25,7 +27,7 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
-import type { PublicArtistDetail } from "@/lib/types";
+import type { PublicArtistDetail, PublicArtistMember } from "@/lib/types";
 
 // Se sirve cacheada (ISR); la invalidan las publicaciones vía /api/revalidate.
 export const revalidate = 3600;
@@ -94,6 +96,42 @@ export default async function ArtistPublicPage({
   // Si no hay seo_content publicado, página = 404 para crawlers
   if (!detail.seo_body) notFound();
 
+  // Función de render (no componente): la tarjeta es la misma con o sin enlace.
+  const renderMember = (m: PublicArtistMember) => (
+    <>
+      <div className="aspect-square bg-divider/30 overflow-hidden relative">
+        {m.image_url ? (
+          <Image
+            src={m.image_url}
+            alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
+          />
+        ) : (
+          <PersonAvatar
+            name={
+              m.stage_name && m.stage_name !== m.full_name
+                ? m.stage_name
+                : m.full_name
+            }
+            slug={m.slug}
+          />
+        )}
+      </div>
+      <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
+        {m.stage_name && m.stage_name !== m.full_name
+          ? m.stage_name
+          : m.full_name}
+      </p>
+      <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
+        {m.role}
+        {m.era && ` · ${m.era}`}
+        {m.is_founder && " · fundador"}
+      </p>
+    </>
+  );
+
   return (
     <>
       <PublicHeader />
@@ -135,7 +173,16 @@ export default async function ArtistPublicPage({
             </figure>
           )}
 
-          <MarkdownArticle markdown={detail.seo_body} />
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[
+              // Lo que ya enlaza la plantilla: discografía y miembros con ficha.
+              `/discografia/${artist}`,
+              ...detail.albums.map((a) => `/${artist}/${a.slug}`),
+              ...(detail.members ?? []).filter((m) => m.has_page !== false).map((m) => `/personas/${m.slug}`),
+            ]}
+          />
           <EnDirectoArtista slug={detail.slug} />
         </article>
 
@@ -167,6 +214,16 @@ export default async function ArtistPublicPage({
               </Link>
             ))}
           </div>
+          {/* Hub de la discografía: lo enlaza la plantilla (11-11-2026). */}
+          <p className="mt-8 font-serif text-lg">
+            <Link
+              href={`/discografia/${artist}`}
+              data-cursor="hover"
+              className="text-accent hover:underline"
+            >
+              Todos los discos de {detail.name}, año a año
+            </Link>
+          </p>
         </section>
 
         {detail.members && detail.members.length > 0 && (
@@ -177,42 +234,18 @@ export default async function ArtistPublicPage({
             <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 md:gap-8">
               {detail.members.map((m) => (
                 <li key={`${m.slug}-${m.era ?? ""}`}>
-                  <Link
-                    href={`/personas/${m.slug}`}
-                    data-cursor="hover"
-                    className="group block"
-                  >
-                    <div className="aspect-square bg-divider/30 overflow-hidden relative">
-                      {m.image_url ? (
-                        <Image
-                          src={m.image_url}
-                          alt={`${m.stage_name || m.full_name}, ${m.role} de ${detail.name}${m.era ? ` (${m.era})` : ""}`}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                          className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                        />
-                      ) : (
-                        <PersonAvatar
-                          name={
-                            m.stage_name && m.stage_name !== m.full_name
-                              ? m.stage_name
-                              : m.full_name
-                          }
-                          slug={m.slug}
-                        />
-                      )}
-                    </div>
-                    <p className="mt-3 font-serif text-[17px] md:text-lg text-ink leading-[1.25] transition-colors group-hover:text-accent">
-                      {m.stage_name && m.stage_name !== m.full_name
-                        ? m.stage_name
-                        : m.full_name}
-                    </p>
-                    <p className="font-mono text-[10px] tracking-[2px] uppercase text-ink-faint mt-1">
-                      {m.role}
-                      {m.era && ` · ${m.era}`}
-                      {m.is_founder && " · fundador"}
-                    </p>
-                  </Link>
+                  {m.has_page === false ? (
+                    // Sin ficha publicada: se nombra, pero no se enlaza.
+                    <div className="block">{renderMember(m)}</div>
+                  ) : (
+                    <Link
+                      href={`/personas/${m.slug}`}
+                      data-cursor="hover"
+                      className="group block"
+                    >
+                      {renderMember(m)}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -231,7 +264,7 @@ export default async function ArtistPublicPage({
                     detail.name,
                     (detail.related_videos || []).map((v) => v.youtube_id),
                   ),
-                  {
+                  conVerificadas({
                     ...musicGroupNode({
                       slug: artist,
                       name: detail.name,
@@ -247,12 +280,13 @@ export default async function ArtistPublicPage({
                         slug: m.slug,
                         fullName: m.full_name,
                         stageName: m.stage_name,
+                        hasPage: m.has_page !== false,
                       })),
                     }),
                     ...(mentionsArray(detail.entities).length > 0
                       ? { mentions: mentionsArray(detail.entities) }
                       : {}),
-                  },
+                  }, detail.jsonld_verificadas),
                   ...detail.albums.map((a) =>
                     musicAlbumNode({
                       slug: a.slug,
@@ -262,7 +296,7 @@ export default async function ArtistPublicPage({
                       coverUrl: a.cover_url,
                     }),
                   ),
-                  ...detail.members.map((m) =>
+                  ...detail.members.filter((m) => m.has_page !== false).map((m) =>
                     personNode({
                       slug: m.slug,
                       fullName: m.full_name,

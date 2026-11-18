@@ -26,10 +26,12 @@ persons:
     birth_date: 1962-05-16
     death_date: 2025-12-10
     birth_place: Plasencia, Cáceres
-    wikipedia_url: https://es.wikipedia.org/wiki/Robe_Iniesta
-    wikidata_id: Q3500822
-    # Imagen hardcoded — Wikidata Q3500822 NO tiene P18, así que el script
-    # no encontraba foto válida. Esta es libre (CC BY-SA), real, etiquetada.
+    wikipedia_url: https://es.wikipedia.org/wiki/Roberto_Iniesta
+    # Q3181267 «Roberto Iniesta, músico español» (eswiki «Roberto Iniesta», P434 = MBID
+    # b435c75d… que MusicBrainz da como Robe, 1962-05-16 – 2025-12-10). Hasta el 13-11-2026
+    # aquí ponía Q3500822, que es Gangr, un personaje de la mitología nórdica.
+    wikidata_id: Q3181267
+    # Imagen fijada a mano: es libre (CC BY-SA), real y etiquetada.
     image_filename: "Robe Iniesta en Valladolid en 2014.jpg"
     memberships:
       - artist: extremoduro
@@ -67,6 +69,7 @@ persons:
     full_name: José Ignacio Cantera
     stage_name: Iñaki Cantera
     wikipedia_url: https://es.wikipedia.org/wiki/Jos%C3%A9_Ignacio_Cantera
+    birth_date: 1970-01-30  # MusicBrainz (450c32e4…) y eswiki; Wikidata solo da el año
     memberships:
       - artist: extremoduro
         role: batería
@@ -98,6 +101,40 @@ persons:
         role: batería
         era: "1987"
         position: 7
+
+  # Primer batería de Extremoduro (1987): unos cuatro meses con Robe y Kaíto, y le
+  # sustituyó William. Fuente: Wikipedia ES «Extremoduro» (según Ángel Lorenzo al
+  # periodista Juan Carlos Ramos) y Robe citado por Trembol; ver
+  # data/juancares/cap64/analisis_personas/SOURCES.md A-05. Sin artículo propio
+  # ni QID: sembrar con --no-enrich. No se ve hasta que su ficha esté publicada
+  # (app/services/person_visibility.py).
+  - slug: angel-lorenzo
+    full_name: Ángel Lorenzo
+    memberships:
+      - artist: extremoduro
+        role: batería
+        era: "1987"
+        position: 7
+
+  # Entidades del cap. 64 (plan del 10-11-2026, fase 5). Ninguna tiene artículo
+  # propio en Wikipedia: grafía tomada de Wikipedia donde las nombra (criterio de
+  # David) y sembradas con --no-enrich. No se ven hasta que su ficha esté publicada
+  # (person_visibility). Evidencia: data/juancares/cap64/analisis_personas/SOURCES.md.
+
+  # Bajista puntual de Dosis Letal, el primer grupo de Robe (Wikipedia ES
+  # «Extremoduro» y «Roberto Iniesta»: «Paco Doniga»). Testimonios T-04 a T-06.
+  - slug: paco-doniga
+    full_name: Paco Doniga
+
+  # Corista: coros en «Somos unos animales» y voces en «Deltoya» (créditos de
+  # Wikipedia; data/vocal_credits.yaml). Testimonio T-07 (de Belén).
+  - slug: maria-timon
+    full_name: María Timón
+
+  # Artista placentino, autor del macromural de Plasencia sobre Robe y Manolo
+  # Chinato (Forbes, 11-03-2025; data/reference/robe_solo_y_entorno). Testimonio T-14.
+  - slug: jesus-mateos-brea
+    full_name: Jesús Mateos Brea
 
   - slug: salo
     full_name: Gonzalo Muñoz
@@ -259,21 +296,25 @@ persons:
     wikipedia_url: https://es.wikipedia.org/wiki/Fito_Cabrales
 
   - slug: manolo-kabezabolo
-    full_name: Manuel Galán
+    # Corregido el 09-11-2026: decía «Manuel Galán» y «colaborador histórico de
+    # Extremoduro», sin fuente. El nombre es el de Wikipedia y las obras, las de
+    # Wikidata (P800).
+    full_name: Manuel Méndez Lozano
     stage_name: Manolo Kabezabolo
-    bio_short: Cantante y autor satírico del rock español, colaborador histórico de Extremoduro.
+    bio_short: Cantautor punk zaragozano, autor de «Ya hera ora» y «Resina, agua y ajo».
     wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Kabezabolo
 
   - slug: rosendo-mercado
     full_name: Rosendo Mercado Ruiz
     stage_name: Rosendo
-    bio_short: Guitarrista y cantante, referente del rock urbano madrileño que ha colaborado en directo con Extremoduro.
+    bio_short: Guitarrista y cantante, referente del rock urbano madrileño.
     wikipedia_url: https://es.wikipedia.org/wiki/Rosendo_Mercado
 
   # Entidades detectadas y aprobadas 2026-06-02 (universo Robe/Extremoduro).
   - slug: manolo-chinato
     full_name: Manuel Chinato
     stage_name: Manolo Chinato
+    bio_short: Poeta nacido en Puerto de Béjar (Salamanca) en 1952, aunque dice sentirse extremeño.
     wikipedia_url: https://es.wikipedia.org/wiki/Manolo_Chinato
 
   - slug: enrique-el-drogas
@@ -284,6 +325,9 @@ persons:
 
   - slug: albert-pla
     full_name: Albert Pla
+    # 22-09-1966 según Wikidata (Q942636) y MusicBrainz (ba77d3af…). Hasta el 13-11-2026 la BD
+    # servía 1953-09-05, que no salía de ninguna fuente.
+    birth_date: 1966-09-22
     wikipedia_url: https://es.wikipedia.org/wiki/Albert_Pla
 
   - slug: fermin-muguruza
@@ -342,7 +386,7 @@ persons:
 
   - slug: rafael-gallego
     full_name: Rafael Gallego
-    bio_short: Dibujante y poeta placentino, autor de la portada del disco debut de Extremoduro.
+    bio_short: Autor de la portada del primer disco de Extremoduro, «Tú en tu casa, nosotros en la hoguera».
 
   - slug: juantxu-mongol-olano
     full_name: Juantxu Olano
@@ -397,6 +441,16 @@ persons:
     full_name: Ariel Rot
     bio_short: Guitarrista (Los Rodríguez); tocó el solo de «Volando solo» en el disco «Deltoya» de Extremoduro.
     wikipedia_url: https://es.wikipedia.org/wiki/Ariel_Rot
+
+  # Alta del 17-11-2026, pedida por David. Wikidata Q363577 («Joaquín Sabina»,
+  # músico español, nacido en Úbeda el 12-02-1949), comprobado por la entidad y por
+  # su sitelink de eswiki. Robe grabó su «Calle Melancolía» para el tributo «Ni tan
+  # joven, ni tan viejo» (13-12-2019; Sony Music España y MusicBrainz).
+  - slug: joaquin-sabina
+    full_name: Joaquín Ramón Martínez Sabina
+    stage_name: Joaquín Sabina
+    bio_short: Cantautor; Robe versionó su «Calle Melancolía» en el disco tributo «Ni tan joven, ni tan viejo» (2019).
+    wikipedia_url: https://es.wikipedia.org/wiki/Joaqu%C3%ADn_Sabina
 
   - slug: leiva
     full_name: José Miguel Conejo Torres

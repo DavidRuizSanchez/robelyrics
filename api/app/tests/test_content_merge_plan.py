@@ -139,3 +139,113 @@ def test_destino_en_codigo_recomienda_quitar_no_escribir():
                                  "mergeable": False}]}
     rec = [o["value"] for o in cp.selector_options(placement) if o["recommended"]]
     assert rec == ["skip"]
+
+
+# --------------------------------------------------------------------------- #
+# Cerrar por noop (09-11-2026): Kabezabolo se intentó 4 veces y Ariel Rot 2, porque
+# `release_proposal` devolvía las búsquedas y el reparto volvía a la misma página.
+# --------------------------------------------------------------------------- #
+def _fusion(db, p, kws, target="ficha:1"):
+    [opp] = cm.aplicar_plan(db, p, [{"keywords": kws, "target": target}])
+    opp.status = "noop"
+    opp.error = "no hay nada propio que mejore esta página"
+    return opp
+
+
+def test_un_noop_sin_material_tacha_las_busquedas_y_cierra_la_idea(db):
+    p = _propuesta(db)
+    opp = _fusion(db, p, ["kabezabolo extremoduro", "kabezabolo robe", "kabezabolo letras",
+                          "platero y tu robe"])
+    cm.cerrar_por_noop(db, opp, "sin_plan")
+    db.commit()
+    db.refresh(p)
+    assert p.status == "discarded"
+    for k in p.keywords:
+        assert k["excluded"] is True and k["excluded_reason"] == "sin_plan"
+        assert k["noop_path"] == "/kabezabolo" and "merged" not in k
+    assert p.placement["last_merge"]["cerrada"] is True
+    assert cp.proposal_keywords(p) == []
+
+
+def test_si_quedan_busquedas_de_otro_grupo_la_idea_sigue_con_ellas(db):
+    p = _propuesta(db)
+    opp = _fusion(db, p, ["kabezabolo extremoduro", "kabezabolo robe"])
+    cm.cerrar_por_noop(db, opp, "no_mejora")
+    db.commit()
+    db.refresh(p)
+    assert p.status == "proposed"
+    assert cp.proposal_keywords(p) == ["kabezabolo letras", "platero y tu robe"]
+    assert p.target_keyword == "kabezabolo letras"
+
+
+def test_el_grupo_cerrado_desaparece_del_panel(db):
+    p = _propuesta(db)
+    p.placement = {"groups": [
+        {"keywords": ["kabezabolo extremoduro", "kabezabolo robe"], "recommended": "ficha:1"},
+        {"keywords": ["kabezabolo letras", "platero y tu robe"], "recommended": None}]}
+    db.commit()
+    opp = _fusion(db, p, ["kabezabolo extremoduro", "kabezabolo robe"])
+    cm.cerrar_por_noop(db, opp, "sin_plan")
+    assert [g["keywords"] for g in p.placement["groups"]] == [
+        ["kabezabolo letras", "platero y tu robe"]]
+
+
+def test_las_tachadas_por_noop_no_vuelven_a_proponerse(db):
+    from app.services.keyword_research import kw_slug
+
+    p = _propuesta(db)
+    opp = _fusion(db, p, ["kabezabolo robe"])
+    cm.cerrar_por_noop(db, opp, "sin_material")
+    db.commit()
+    # `keyword_research._published_kw_slugs` descarta toda keyword `excluded`.
+    excluidas = {kw_slug(k["keyword"]) for k in p.keywords if k.get("excluded")}
+    assert kw_slug("kabezabolo robe") in excluidas
+
+
+def test_un_descarte_manual_sigue_devolviendo_las_busquedas(db):
+    p = _propuesta(db)
+    opp = _fusion(db, p, ["kabezabolo robe"])
+    opp.status = "discarded"
+    cm.release_proposal(db, opp)
+    db.commit()
+    db.refresh(p)
+    assert "kabezabolo robe" in cp.proposal_keywords(p)
+    assert not any(k.get("noop_path") for k in p.keywords)
+
+
+def test_recuperar_una_idea_cerrada_reactiva_sus_busquedas_sin_su_pagina(db):
+    p = _propuesta(db)
+    opp = _fusion(db, p, [k["keyword"] for k in p.keywords])
+    cm.cerrar_por_noop(db, opp, "sin_plan")
+    p.status = "proposed"
+    assert cm.reabrir_cerradas(p) is True
+    assert len(cp.proposal_keywords(p)) == 4
+    assert cm.paginas_vetadas(p)["kabezabolo robe"] == "/kabezabolo"
+
+
+def test_reactivar_a_mano_conserva_la_pagina_vetada(db):
+    p = _propuesta(db)
+    opp = _fusion(db, p, ["kabezabolo robe"])
+    cm.cerrar_por_noop(db, opp, "sin_plan")
+    cm.excluir_keywords(p, [])
+    k = next(k for k in p.keywords if k["keyword"] == "kabezabolo robe")
+    assert "excluded" not in k and "excluded_reason" not in k
+    assert k["noop_path"] == "/kabezabolo"
+
+
+def test_el_reparto_no_vuelve_a_la_pagina_que_dio_noop():
+    rutas = [("kabezabolo robe", cp.Ruta("/kabezabolo", "entidad", "nombra a Kabezabolo")),
+             ("platero y tu robe", cp.Ruta("/grupos/platero-y-tu", "entidad", "x"))]
+    out = dict(cp.vetar_rutas(rutas, {"kabezabolo robe": "/kabezabolo"}))
+    assert out["kabezabolo robe"].path is None
+    assert "ya se intentó" in out["kabezabolo robe"].motivo
+    assert out["platero y tu robe"].path == "/grupos/platero-y-tu"
+
+
+def test_una_evaluacion_que_recomendaba_la_pagina_vetada_pasa_a_nuevo():
+    cand = cp.Candidate(path="/kabezabolo", kind="ficha", label="K", target="ficha:1",
+                        entity_type="artist", entity_id=7)
+    pl = cp.Placement(decision="ampliar", confidence="media", recommended="ficha:1",
+                      reasons=["parecido"], candidates=[cand])
+    cp._sin_vetadas(pl, {"/kabezabolo"})
+    assert pl.decision == "nuevo" and pl.recommended is None and pl.candidates == []

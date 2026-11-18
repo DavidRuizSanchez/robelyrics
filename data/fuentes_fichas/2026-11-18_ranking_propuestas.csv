@@ -1,0 +1,195 @@
+nombre,tipo,qid,material,volumen_es,origen
+Barcelona,Place,Q1492,84,5000000,person:camaron deathPlace
+Sevilla,Place,Q8717,38,550000,band:reincidentes foundingLocation
+Málaga,Place,Q8851,29,368000,band:tabletom foundingLocation
+Onda,Place (conciertos),,24,60500,1 conciertos: Extremoduro 2008-10-18
+La Gripe,MusicGroup,Q5963679,21,1600,person:juantxu-mongol-olano memberOf
+Lorca,Place (conciertos),,18,135000,1 conciertos: Extremoduro 1999-05-14
+Tequila,MusicGroup,Q3326398,16,18100,person:ariel-rot memberOf
+Puerto de Béjar,Place,Q1904694,15,1900,person:manolo-chinato birthPlace
+Zaragoza,Place,Q10305,13,368000,person:manolo-kabezabolo birthPlace
+Leganés,Place (conciertos),,12,201000,4 conciertos: Extremoduro 1990-05-12 | Extremoduro 1999-10-09 | Extremoduro 2002-11-23 | Extremoduro 2004-11-05
+Ciclonautas,MusicGroup,Q21554945,12,1000,person:alen-ayerdi memberOf
+Buenos Aires,Place,Q1486,11,60500,person:ariel-rot birthPlace
+Queen,MusicGroup,Q15862,11,49500,person:freddie-mercury memberOf
+Badalona,Place,Q15468,10,246000,person:camaron deathPlace
+Badalona,Place (conciertos),,10,246000,1 conciertos: Extremoduro 1997-06-06
+Portugalete,Place,Q548441,10,74000,person:miguel-colino birthPlace | band:the-flying-rebollos foundingLocation
+Dolores,Place (conciertos),,10,22200,1 conciertos: Extremoduro 1990-08-25
+Dolores,Place (conciertos),,10,22200,1 conciertos: Extremoduro 1993-05-22
+Malpartida de Plasencia,Place (conciertos),,8,9900,1 conciertos: Extremoduro 1991-03-30
+Los Rodríguez,MusicGroup,Q3773708,8,6600,person:ariel-rot memberOf
+Alcázar de San Juan,Place (conciertos),,7,40500,2 conciertos: Extremoduro 1993-04-10 | Extremoduro 1996-09-05
+Vigo,Place (conciertos),,6,301000,2 conciertos: Extremoduro 1997-08-09 | Extremoduro 2008-11-08
+Córdoba,Place,Q5818,6,201000,person:manolete birthPlace
+Motril,Place (conciertos),,6,90500,1 conciertos: Extremoduro 1997-08-14
+Úbeda,Place,Q329984,6,60500,person:joaquin-sabina birthPlace
+Úbeda,Place (conciertos),,6,60500,1 conciertos: Robe 2024-07-06
+Hervás,Place (conciertos),,6,27100,1 conciertos: Extremoduro 1996-08-03
+Villadiego,Place (conciertos),,6,9900,1 conciertos: Extremoduro 1991-08-03
+Mondragón,Place (conciertos),,6,5400,1 conciertos: Extremoduro 1993-05-28
+Carlos Raya,Person,Q5751486,6,3600,band:fito-y-fitipaldis member
+Aranda de Duero,Place (conciertos),,5,74000,1 conciertos: Extremoduro 2008-09-19
+Baracaldo,Place,Q487801,5,40500,person:robe-iniesta deathPlace
+Moraleja,Place (conciertos),,5,14800,1 conciertos: Extremoduro 1989-08-19
+Deba,Place (conciertos),,4,49500,1 conciertos: Extremoduro 1993-01-05
+Villafranca de los Barros,Place (conciertos),,4,22200,1 conciertos: Extremoduro 2002-07-05
+Irún,Place,Q200201,4,9900,person:fermin-muguruza birthPlace
+Madroñera,Place (conciertos),,4,5400,1 conciertos: Extremoduro 1990-08-03
+Boni,Person,Q104728983,4,2400,band:barricada member
+Villarreal,Place (conciertos),,3,301000,2 conciertos: Extremoduro 1993-03-05 | Extremoduro 1994-05-21
+Castelldefels,Place (conciertos),,3,301000,1 conciertos: Extremoduro 1993-07-17
+Talavera de la Reina,Place (conciertos),,3,135000,2 conciertos: Extremoduro 1991-09-23 | Extremoduro 1996-06-29
+Linares,Place,Q281272,3,74000,person:manolete deathPlace
+San Javier,Place (conciertos),,3,60500,1 conciertos: Extremoduro 2004-08-13
+Hernani,Place (conciertos),,3,40500,1 conciertos: Extremoduro 1996-09-27
+Puente la Reina,Place (conciertos),,3,27100,4 conciertos: Extremoduro 1993-03-27 | Extremoduro 1995-06-02 | Extremoduro 1996-04-05 | Extremoduro 1996-10-25
+Alfaro,Place (conciertos),,3,27100,1 conciertos: Extremoduro 1999-04-17
+Berriozar,Place,Q1645776,3,22200,person:kutxi-romero birthPlace | band:marea foundingLocation
+Navas de San Juan,Place (conciertos),,3,6600,1 conciertos: Extremoduro 1993-06-26
+Sínkope,MusicGroup,Q3400079,3,2900,person:woody-amores memberOf
+Javier Alzola,Person,Q5927383,3,390,band:fito-y-fitipaldis member
+Getafe,Place (conciertos),,2,301000,1 conciertos: Extremoduro 2008-06-07
+Avilés,Place (conciertos),,2,90500,2 conciertos: Extremoduro 1993-12-17 | Extremoduro 1996-11-01
+Molina de Segura,Place (conciertos),,2,74000,1 conciertos: Extremoduro 1996-09-07
+Gandía,Place (conciertos),,2,33100,1 conciertos: Extremoduro 1994-12-02
+Laguna de Duero,Place (conciertos),,2,33100,1 conciertos: Extremoduro 1997-06-27
+Beirut,Place,Q3820,2,27100,person:ara-malikian birthPlace
+Universidad de Salamanca,EducationalOrganization,Q308963,2,27100,person:woody-amores alumniOf
+Los Ángeles,Place,Q65,2,22200,person:frank-zappa deathPlace
+Miajadas,Place (conciertos),,2,18100,1 conciertos: Extremoduro 1990-09-01
+Rafal,Place (conciertos),,2,9900,1 conciertos: Extremoduro 2002-10-18
+José Alberto Batiz,Person,Q5937411,2,210,band:fito-y-fitipaldis member
+Jerez de la Frontera,Place (conciertos),,1,246000,1 conciertos: Extremoduro 2002-07-13
+San Fernando,Place,Q741765,1,110000,person:camaron birthPlace
+Roquetas de Mar,Place (conciertos),,1,110000,1 conciertos: Extremoduro 1996-08-09
+San Fernando,Place (conciertos),,1,110000,1 conciertos: Extremoduro 1997-08-30
+Ferrol,Place (conciertos),,1,110000,1 conciertos: Extremoduro 2002-08-08
+Torrelavega,Place (conciertos),,1,90500,2 conciertos: Extremoduro 1997-08-22 | Extremoduro 1999-08-21
+Chipiona,Place (conciertos),,1,90500,1 conciertos: Extremoduro 1992-02-22
+Sanlúcar de Barrameda,Place (conciertos),,1,90500,1 conciertos: Extremoduro 1994-07-30
+Villena,Place (conciertos),,1,90500,1 conciertos: Extremoduro 1995-09-30
+La Llagosta,Place (conciertos),,1,74000,1 conciertos: Extremoduro 1990-07-20
+Alcantarilla,Place (conciertos),,1,60500,1 conciertos: Extremoduro 2012-09-22
+Albal,Place (conciertos),,1,49500,2 conciertos: Extremoduro 1994-02-04 | Extremoduro 1994-10-07
+Coín,Place (conciertos),,1,49500,2 conciertos: Extremoduro 1996-07-13 | Extremoduro 2002-09-07
+Villarrobledo,Place (conciertos),,1,49500,2 conciertos: Extremoduro 2002-08-17 | Extremoduro 2008-08-16
+Balmaseda,Place (conciertos),,1,40500,1 conciertos: Extremoduro 1996-09-14
+Bergara,Place (conciertos),,1,40500,1 conciertos: Extremoduro 1999-03-12
+Briviesca,Place (conciertos),,1,33100,2 conciertos: Extremoduro 1993-10-15 | Extremoduro 1994-07-16
+Pedreguer,Place (conciertos),,1,22200,1 conciertos: Extremoduro 1995-07-14
+Maracena,Place (conciertos),,1,22200,1 conciertos: Extremoduro 1999-05-07
+Kensington,Place,Q288781,1,6600,person:freddie-mercury deathPlace
+Negu Gorriak,MusicGroup,Q762674,1,4400,person:fermin-muguruza memberOf
+Berklee College of Music,EducationalOrganization,Q248970,1,1900,person:woody-amores alumniOf
+David Díaz,Person,Q107272766,1,260,band:marea member
+Sabadell,Place,Q12258,0,1000000,person:albert-pla birthPlace
+Reus,Place (conciertos),,0,201000,1 conciertos: Extremoduro 2008-06-14
+Antequera,Place (conciertos),,0,165000,1 conciertos: Extremoduro 1993-12-11
+Sant Andreu de la Barca,Place (conciertos),,0,135000,1 conciertos: Extremoduro 1994-07-23
+Salt,Place (conciertos),,0,135000,1 conciertos: Extremoduro 2002-06-14
+Cerdanyola del Vallès,Place (conciertos),,0,110000,1 conciertos: Extremoduro 1994-03-18
+Dos Hermanas,Place (conciertos),,0,110000,1 conciertos: Extremoduro 1997-07-18
+Irun,Place (conciertos),,0,110000,1 conciertos: Extremoduro 2008-07-24
+Ponferrada,Place (conciertos),,0,110000,1 conciertos: Extremoduro 2008-08-22
+Elda,Place (conciertos),,0,90500,1 conciertos: Extremoduro 1996-09-28
+Empuriabrava,Place (conciertos),,0,90500,1 conciertos: Extremoduro 1999-07-17
+Torredembarra,Place (conciertos),,0,74000,1 conciertos: Extremoduro 1991-10-26
+Quart de Poblet,Place (conciertos),,0,74000,1 conciertos: Extremoduro 1996-07-06
+Santoña,Place (conciertos),,0,74000,1 conciertos: Extremoduro 1996-07-27
+Xirivella,Place (conciertos),,0,74000,1 conciertos: Extremoduro 1997-06-07
+Los Alcázares,Place (conciertos),,0,74000,1 conciertos: Extremoduro 2002-07-12
+Orense,Place,Q99151,0,60500,band:los-suaves foundingLocation
+Moaña,Place (conciertos),,0,60500,2 conciertos: Extremoduro 1994-08-06 | Extremoduro 1996-08-06
+Estella,Place (conciertos),,0,60500,1 conciertos: Extremoduro 1997-07-19
+Cieza,Place (conciertos),,0,60500,1 conciertos: Extremoduro 2002-08-31
+Torre Pacheco,Place (conciertos),,0,60500,1 conciertos: Extremoduro 2008-08-01
+Yecla,Place (conciertos),,0,49500,2 conciertos: Extremoduro 1997-06-21 | Extremoduro 1999-05-08
+Boiro,Place (conciertos),,0,49500,1 conciertos: Extremoduro 1993-04-16
+Manlleu,Place (conciertos),,0,49500,1 conciertos: Extremoduro 1996-07-05
+Almansa,Place (conciertos),,0,49500,1 conciertos: Extremoduro 1996-09-01
+Fraga,Place (conciertos),,0,49500,1 conciertos: Extremoduro 1996-10-05
+Candeleda,Place (conciertos),,0,49500,1 conciertos: Extremoduro 2002-08-14
+Ontinyent,Place (conciertos),,0,49500,1 conciertos: Extremoduro 2002-08-20
+Daimiel,Place (conciertos),,0,40500,2 conciertos: Extremoduro 1996-05-11 | Extremoduro 2004-09-03
+Aliseda,Place (conciertos),,0,40500,1 conciertos: Extremoduro 1989-04-30
+Tomares,Place (conciertos),,0,40500,1 conciertos: Extremoduro 2008-06-21
+Arenas de San Pedro,Place (conciertos),,0,40500,1 conciertos: Extremoduro 2014-08-15
+Ubrique,Place (conciertos),,0,33100,1 conciertos: Extremoduro 1991-08-10
+Cerceda,Place (conciertos),,0,33100,1 conciertos: Extremoduro 1992-07-18
+Medina de Pomar,Place (conciertos),,0,33100,1 conciertos: Extremoduro 1995-10-07
+Albatera,Place (conciertos),,0,33100,1 conciertos: Extremoduro 1997-07-26
+Armilla,Place (conciertos),,0,33100,1 conciertos: Extremoduro 2004-06-05
+Oiartzun,Place (conciertos),,0,27100,1 conciertos: Extremoduro 1993-03-26
+Catral,Place (conciertos),,0,27100,1 conciertos: Extremoduro 1996-06-22
+Puerto Lumbreras,Place (conciertos),,0,27100,1 conciertos: Extremoduro 1996-08-12
+Belmonte,Place (conciertos),,0,27100,1 conciertos: Extremoduro 1996-08-24
+Mutxamel,Place (conciertos),,0,27100,1 conciertos: Extremoduro 2008-08-02
+Beniparrell,Place (conciertos),,0,22200,2 conciertos: Extremoduro 1993-03-06 | Extremoduro 2008-09-26
+Vila-real,Place (conciertos),,0,22200,2 conciertos: Extremoduro 1993-09-11 | Extremoduro 1999-05-15
+Recas,Place (conciertos),,0,22200,1 conciertos: Extremoduro 1994-07-10
+Teulada,Place (conciertos),,0,22200,1 conciertos: Extremoduro 1996-08-10
+Gata de Gorgos,Place (conciertos),,0,22200,1 conciertos: Extremoduro 1999-07-24
+Universidad de Granada,EducationalOrganization,Q1232180,0,18100,person:joaquin-sabina alumniOf
+Binéfar,Place (conciertos),,0,18100,2 conciertos: Extremoduro 1992-07-04 | Extremoduro 1994-03-19
+La Selva del Camp,Place (conciertos),,0,18100,1 conciertos: Extremoduro 1999-07-16
+Fuenmayor,Place (conciertos),,0,14800,1 conciertos: Extremoduro 1993-03-13
+Portillo,Place (conciertos),,0,14800,1 conciertos: Extremoduro 1993-06-12
+Móra d'Ebre,Place (conciertos),,0,14800,1 conciertos: Extremoduro 1993-08-21
+Cortegana,Place (conciertos),,0,14800,1 conciertos: Extremoduro 1996-08-17
+Almazán,Place (conciertos),,0,14800,1 conciertos: Extremoduro 2008-08-09
+Sarón,Place (conciertos),,0,14800,1 conciertos: Extremoduro 2008-08-23
+Alhendín,Place (conciertos),,0,14800,1 conciertos: Extremoduro 2008-10-25
+Baltimore,Place,Q5092,0,12100,person:frank-zappa birthPlace
+Castuera,Place (conciertos),,0,12100,1 conciertos: Extremoduro 1994-08-27
+Villamalea,Place (conciertos),,0,9900,1 conciertos: Extremoduro 1995-01-14
+Melgar de Fernamental,Place (conciertos),,0,8100,1 conciertos: Extremoduro 1993-05-15
+Zalamea de la Serena,Place (conciertos),,0,8100,1 conciertos: Extremoduro 1993-09-18
+Villamartín,Place (conciertos),,0,6600,1 conciertos: Extremoduro 1999-07-03
+Cabanillas,Place (conciertos),,0,6600,1 conciertos: Extremoduro 2008-07-20
+Toreno,Place (conciertos),,0,5400,1 conciertos: Extremoduro 1996-06-23
+Grao,Place (conciertos),,0,5400,1 conciertos: Extremoduro 1996-07-20
+Villaralbo,Place (conciertos),,0,4400,1 conciertos: Extremoduro 1991-10-12
+Zanzíbar,Place,Q2222874,0,3600,person:freddie-mercury birthPlace
+Kortatu,MusicGroup,Q1549224,0,3600,person:fermin-muguruza memberOf
+Vimbodí,Place (conciertos),,0,3600,2 conciertos: Extremoduro 1994-07-02 | Extremoduro 1995-09-02
+Valdastillas,Place (conciertos),,0,3600,1 conciertos: Extremoduro 1989-09-09
+L'Hospitalet,Place (conciertos),,0,3600,1 conciertos: Extremoduro 1999-10-02
+Institut Pau Vila,EducationalOrganization,Q61745566,0,2900,person:albert-pla alumniOf
+Llutxent,Place (conciertos),,0,2900,1 conciertos: Extremoduro 1993-06-19
+Ceclavín,Place (conciertos),,0,2400,1 conciertos: Extremoduro 1991-08-16
+Melgar,Place (conciertos),,0,1900,1 conciertos: Extremoduro 1991-12-14
+Chirivella,Place (conciertos),,0,1600,1 conciertos: Extremoduro 1999-07-10
+Mougás,Place (conciertos),,0,1300,1 conciertos: Extremoduro 1996-08-01
+plaza de toros de Linares,Place,Q97630530,0,1000,person:manolete deathPlace
+Laurel Canyon,Place,Q462539,0,590,person:frank-zappa deathPlace
+Chantrea,Place,Q3015636,0,590,person:enrique-el-drogas birthPlace
+Eduardo Beaumont,Person,Q107273399,0,390,band:marea member
+Yosi Domínguez,Person,Q3393103,0,320,band:los-suaves member
+Chiqui Mariscal,Person,Q5766679,0,260,band:leno member
+Jesús García Castilla,Person,Q11043571,0,210,band:platero-y-tu member
+O'funk'illo,MusicGroup,Q9051357,0,210,person:david-lerman memberOf
+The Mothers of Invention,MusicGroup,Q530362,0,170,person:frank-zappa memberOf
+University of West London,EducationalOrganization,Q2007778,0,170,person:freddie-mercury alumniOf
+Tony Urbano,Person,Q19301954,0,170,band:leno member
+Servando Carballar,Person,Q21030197,0,170,label:dro founder
+Joserra Senperena,Person,Q19621490,0,110,band:fito-y-fitipaldis member
+César Ramallo,Person,Q107273333,0,70,band:marea member
+Coki Giménez,Person,Q5484273,0,50,band:fito-y-fitipaldis member
+The Rota,MusicGroup,Q120491189,0,10,person:ariel-rot memberOf
+Fermin Muguruza Dub Manifest,MusicGroup,Q5858953,0,10,person:fermin-muguruza memberOf
+Antelope Valley High School,EducationalOrganization,Q4771200,0,0,person:frank-zappa alumniOf
+Grossmont High School,EducationalOrganization,Q5610599,0,0,person:frank-zappa alumniOf
+Mission Bay High School,EducationalOrganization,Q6878526,0,0,person:frank-zappa alumniOf
+Chaffey College,EducationalOrganization,Q5066795,0,0,person:frank-zappa alumniOf
+St. Peter's Boys School,EducationalOrganization,Q3967574,0,0,person:freddie-mercury alumniOf
+Ealing Art College,EducationalOrganization,Q5325472,0,0,person:freddie-mercury alumniOf
+West Thames College,EducationalOrganization,Q4019102,0,0,person:freddie-mercury alumniOf
+St. Mary's School,EducationalOrganization,Q3967568,0,0,person:freddie-mercury alumniOf
+"Garden Lodge, Kensington",Place,Q60750552,0,0,person:freddie-mercury deathPlace
+Guildhall School of Music and Drama,EducationalOrganization,Q1419737,0,0,person:ara-malikian alumniOf
+"Hochschule für Musik, Theater und Medien Hannover",EducationalOrganization,Q455331,0,0,person:ara-malikian alumniOf
+Facultad de Filosofía y Letras de la Universidad de Granada,EducationalOrganization,Q5854915,0,0,person:joaquin-sabina alumniOf
+Fermin Muguruza eta Dut,MusicGroup,Q5858955,0,0,person:fermin-muguruza memberOf
+Alfredo Piedrafita Gómez,Person,Q63968153,0,0,band:barricada member
+Cuéllar,Place (conciertos),,0,0,1 conciertos: Extremoduro 1996-08-31

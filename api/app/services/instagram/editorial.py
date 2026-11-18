@@ -326,9 +326,10 @@ def _generate(
         "conecta. Cada frase, con su dato. PROHIBIDO explicar lo que el texto ya "
         "dice, y prohibido interpretar al aire ('encapsula la esencia de', 'una "
         "oda a', 'habla de la soledad'): si el material no respalda una lectura, "
-        "no la hagas. Si el material no da para nada de esto, escribe una sola "
-        "frase con lo que el material SÍ dice. Si el post va de una canción "
-        "concreta, habla de ELLA antes que del disco entero.\n"
+        "no la hagas. Si el post va de una canción concreta, habla de ELLA "
+        "antes que del disco entero. Si no tienes un dato concreto que contar, "
+        "devuelve \"comentario\" VACÍO (\"\"): es una respuesta correcta, y "
+        "el post sale con su texto de siempre. Nunca escribas lo que falta.\n"
     )
 
     # Un clip de concierto va de UN MOMENTO que se está viendo, no de la
@@ -341,7 +342,9 @@ def _generate(
             "clip y sobre el concierto: qué suena, en qué punto de la canción, "
             "y dónde y cuándo fue si consta. PROHIBIDO interpretar la letra o "
             "explicar de qué va la canción, que no es lo que se está viendo. Si "
-            "no consta la fecha o el sitio, NO los menciones ni los aproximes.\n"
+            "no consta la fecha o el sitio, NO los menciones ni los aproximes. "
+            "Si no hay nada concreto que contar, devuelve \"comentario\" vacío "
+            "(\"\").\n"
         )
 
     user = (

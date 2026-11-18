@@ -308,7 +308,7 @@ def build(db: Session, topic: dict) -> str:
 
     # 7) Firma de serie al pie: el contador memorial deja de robar la primera
     #    línea, pero sigue en todos los posts.
-    lines += ["", f"🕯️ Día {config.dias_sin_robe()} sin Robe · {SERIE_HASHTAG}"]
+    lines += ["", f"🕯️ Día {config.dias_sin_robe(topic.get('fecha_publicacion'))} sin Robe · {SERIE_HASHTAG}"]
 
     # 8) Atribución de la foto al FINAL del todo (discreta), si es foto con
     #    licencia CC. Cumple la licencia sin ensuciar imagen ni cuerpo.

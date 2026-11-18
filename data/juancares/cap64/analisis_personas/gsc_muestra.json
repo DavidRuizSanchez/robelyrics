@@ -1,0 +1,581 @@
+{
+ "site": "sc-domain:entreinteriores.com",
+ "period": {
+  "start": "2026-08-14",
+  "end": "2026-11-06"
+ },
+ "por_persona": {
+  "E-020": [],
+  "E-028": [],
+  "E-037": [
+   {
+    "page": "/blog/robe-de-chapista-a-icono-del-rock-espanol",
+    "query": "dosis letal robe",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 22.0,
+    "ctr": 0.0
+   }
+  ],
+  "E-039": [],
+  "E-040": [],
+  "E-049/E-050": [],
+  "E-055": [
+   {
+    "page": "/discografia",
+    "query": "portadas discos extremoduro",
+    "impressions": 117,
+    "clicks": 1,
+    "position": 6.8,
+    "ctr": 0.0085
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "que dice la portada de la ley innata",
+    "impressions": 57,
+    "clicks": 0,
+    "position": 7.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas extremoduro",
+    "impressions": 56,
+    "clicks": 0,
+    "position": 6.1,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "portada agila extremoduro",
+    "impressions": 52,
+    "clicks": 0,
+    "position": 7.8,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/yo-minoria-absoluta",
+    "query": "portada yo minoria absoluta",
+    "impressions": 49,
+    "clicks": 3,
+    "position": 3.1,
+    "ctr": 0.0612
+   },
+   {
+    "page": "/discografia",
+    "query": "portada disco extremoduro",
+    "impressions": 39,
+    "clicks": 0,
+    "position": 6.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portada extremoduro",
+    "impressions": 37,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "page": "/conceptos/los-animales",
+    "query": "un buitre no como alpiste significado",
+    "impressions": 35,
+    "clicks": 0,
+    "position": 8.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/yo-minoria-absoluta",
+    "query": "yo minoria absoluta portada",
+    "impressions": 33,
+    "clicks": 1,
+    "position": 4.0,
+    "ctr": 0.0303
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "agila portada",
+    "impressions": 32,
+    "clicks": 0,
+    "position": 7.4,
+    "ctr": 0.0
+   },
+   {
+    "page": "/robe/mayeutica",
+    "query": "portada mayeutica",
+    "impressions": 32,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "portada la ley innata",
+    "impressions": 30,
+    "clicks": 0,
+    "position": 9.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "portada agila",
+    "impressions": 29,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/robe",
+    "query": "portadas discos robe",
+    "impressions": 27,
+    "clicks": 0,
+    "position": 5.1,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/rock-transgresivo",
+    "query": "portada rock transgresivo",
+    "impressions": 27,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/robe/mayeutica",
+    "query": "mayeutica portada",
+    "impressions": 26,
+    "clicks": 0,
+    "position": 9.3,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "portada ley innata",
+    "impressions": 25,
+    "clicks": 0,
+    "position": 9.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "extremoduro portadas",
+    "impressions": 22,
+    "clicks": 0,
+    "position": 6.1,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "portada ley innata significado",
+    "impressions": 21,
+    "clicks": 0,
+    "position": 7.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas de discos de extremoduro",
+    "impressions": 21,
+    "clicks": 0,
+    "position": 5.8,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas disco extremoduro",
+    "impressions": 21,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/deltoya",
+    "query": "deltoya portada",
+    "impressions": 20,
+    "clicks": 0,
+    "position": 4.4,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "extremoduro portada disco",
+    "impressions": 19,
+    "clicks": 0,
+    "position": 8.8,
+    "ctr": 0.0
+   },
+   {
+    "page": "/conceptos/los-animales",
+    "query": "buitre no come alpiste significado",
+    "impressions": 19,
+    "clicks": 0,
+    "position": 9.1,
+    "ctr": 0.0
+   },
+   {
+    "page": "/lugares/monfrague",
+    "query": "en monfragüe buitres negros",
+    "impressions": 19,
+    "clicks": 0,
+    "position": 7.5,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/robe",
+    "query": "portada disco robe",
+    "impressions": 18,
+    "clicks": 0,
+    "position": 9.8,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "la ley innata portada",
+    "impressions": 17,
+    "clicks": 0,
+    "position": 10.3,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portada discos extremoduro",
+    "impressions": 17,
+    "clicks": 0,
+    "position": 6.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "extremoduro portada",
+    "impressions": 14,
+    "clicks": 0,
+    "position": 8.4,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "robe portada",
+    "impressions": 14,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "extremoduro portadas discos",
+    "impressions": 12,
+    "clicks": 0,
+    "position": 6.5,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/rock-transgresivo",
+    "query": "contraportada primer disco extremoduro",
+    "impressions": 12,
+    "clicks": 0,
+    "position": 8.7,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/extremoduro",
+    "query": "portadas discos extremoduro",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 15.4,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas robe",
+    "impressions": 9,
+    "clicks": 0,
+    "position": 6.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portada rock transgresivo",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 1.5,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/material-defectuoso",
+    "query": "material defectuoso portada",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 8.1,
+    "ctr": 0.0
+   },
+   {
+    "page": "/lugares/monfrague",
+    "query": "en monfrague buitres negros extremoduro",
+    "impressions": 8,
+    "clicks": 0,
+    "position": 8.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas de extremoduro",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 6.7,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "extremoduro agila portada",
+    "impressions": 7,
+    "clicks": 0,
+    "position": 8.9,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portada album extremoduro",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 5.7,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "contraportada agila",
+    "impressions": 6,
+    "clicks": 0,
+    "position": 15.2,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "la ley innata portada traducida",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 9.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portadas discos robe",
+    "impressions": 5,
+    "clicks": 0,
+    "position": 10.6,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "que pone en la portada de la ley innata",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/lugares/monfrague",
+    "query": "buitres negros extremoduro",
+    "impressions": 4,
+    "clicks": 0,
+    "position": 7.8,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/extremoduro",
+    "query": "portada discos extremoduro",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 26.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "portada disco robe",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 19.3,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/rock-transgresivo",
+    "query": "extremoduro rock transgresivo portada",
+    "impressions": 3,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/robe",
+    "query": "portadas robe",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/agila",
+    "query": "agila contraportada",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 8.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/iros-todos-a-tomar-por-culo",
+    "query": "portada iros todos a tomar",
+    "impressions": 2,
+    "clicks": 0,
+    "position": 8.5,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/robe",
+    "query": "robe portada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 4.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata",
+    "query": "extremoduro la ley innata portada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 11.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/extremoduro",
+    "query": "extremoduro portadas discos",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/extremoduro",
+    "query": "portadas de discos de extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 23.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia/extremoduro",
+    "query": "portadas disco extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 26.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata/coda-flamenca-otra-realidad",
+    "query": "portada ley innata significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 7.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/yo-minoria-absoluta",
+    "query": "portada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "albumes extremoduro portadas",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 6.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/discografia",
+    "query": "se nos lleva el aire portada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 27.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/yo-minoria-absoluta/a-fuego",
+    "query": "portada ley innata significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 9.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/temas/religion",
+    "query": "buitre no come alpiste significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 25.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera",
+    "query": "contraportada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera",
+    "query": "portada",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 1.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/extremaydura",
+    "query": "extremoduro buitre carroñero",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 2.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/canciones-prohibidas",
+    "query": "portada agila extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 3.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/canciones-prohibidas",
+    "query": "portada extremoduro",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 23.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/la-ley-innata/primer-movimiento-el-sueno",
+    "query": "portada ley innata significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 5.0,
+    "ctr": 0.0
+   },
+   {
+    "page": "/extremoduro/material-defectuoso/otra-inutil-cancion-para-la-paz",
+    "query": "portada ley innata significado",
+    "impressions": 1,
+    "clicks": 0,
+    "position": 10.0,
+    "ctr": 0.0
+   }
+  ],
+  "E-048": [],
+  "E-047": [],
+  "E-068": []
+ }
+}

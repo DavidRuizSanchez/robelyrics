@@ -1,0 +1,78 @@
+id,entidad,decision,grupo,motivo,en_bd,slug_bd,minutos
+E-001,Robe (Roberto Iniesta Ojea),ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,robe-iniesta,0:12:54 · 0:29:27 · 0:33:42 · 0:36:20 · 0:46:34 · 1:02:01 · 3:03:07 · 3:16:47 · 3:20:38
+E-002,Juan Iniesta Faraldo (padre de Robe),a_la_ficha_de_robe,privada,Padre de Robe; persona privada.,no,,0:22:06 · 0:24:35 · 0:34:10
+E-003,Carmen (madre de Robe),a_la_ficha_de_robe,privada,Madre de Robe; persona privada.,no,,0:26:57 · 0:28:14
+E-004,Juan Chu Iniesta (hermano de Robe),a_la_ficha_de_robe,privada,Hermano de Robe; privado y con grafía insegura.,no,,2:52:40 · 2:53:02
+E-005,Hermana de Robe,a_la_ficha_de_robe,privada,Hermana de Robe; el vídeo no da un nombre legible.,no,,0:34:47
+E-006,Nahum Iniesta,a_la_ficha_de_robe,privada,Firma un comunicado; el vídeo no dice el parentesco.,no,,3:22:03
+E-007,Juancares (narrador),contexto,ajena,"Narrador del documental: la voz es nuestra, no se nombra.",no,,0:09:35
+E-008,Luisa Alcántara (matrona),a_la_ficha_de_robe,privada,Matrona que asistió su nacimiento: dato de la biografía de Robe.,no,,0:09:28 · 0:09:38 · 0:09:46
+E-009,Don Luis (profesor de La Salle),a_la_ficha_de_robe,privada,Profesor que le enseñó guitarra en La Salle: dato de la biografía.,no,,0:17:11 · 0:18:23
+E-010,Juan Antonio Señorán,a_la_ficha_de_robe,privada,Compañero de colegio; papel menor (imprenta).,no,,1:32:48
+E-011,Paco Melo,contexto,ajena,Futbolista; el bloque va del padre de Robe y la peña.,no,,0:21:40 · 0:21:47 · 0:25:44
+E-012,Eusebio,contexto,ajena,Futbolista; contexto de la calle de Plasencia.,no,,0:21:40
+E-013,Adelardo,contexto,ajena,Futbolista; contexto de la calle de Plasencia.,no,,0:21:40
+E-014,Saldario Rodríguez,contexto,privada,Directivo de la peña del padre; nombre sin verificar.,no,,0:24:35 · 0:27:13 · 0:27:59
+E-015,Loli,contexto,privada,Mujer de un directivo de la peña.,no,,0:26:57
+E-016,Juanín,contexto,privada,Portero premiado por la peña.,no,,0:27:59
+E-017,Alfonso Cabeza,contexto,ajena,Presidente del Atlético en una foto de la peña.,no,,0:25:07
+E-018,"José Luis Mariño Rocco (alcalde, CDS)",candidata,figura pública,Alcalde que autorizó los ensayos en la Casa de la Salud.,no,,0:25:24 · 0:57:13 · 1:34:25
+E-019,"Cándido Cabrera (alcalde, PSOE)",candidata,figura pública,Alcalde que negó el concierto para financiar el primer disco.,no,,1:34:43
+E-020,Elia María Blanco,candidata,figura pública,Concejala y luego alcaldesa; gestionó el concierto de la COPE y la vuelta de 2008; entrevistada.,no,,1:35:47 · 1:38:25 · 2:42:44 · 2:51:33
+E-021,Elena,a_la_ficha_de_robe,privada,Amiga de Elia Blanco; papel anecdótico.,no,,1:38:30
+E-022,Carlos (repuestos de automoción),a_la_ficha_de_robe,privada,Amigo de Robe en los repuestos; solo nombre de pila.,no,,1:39:02
+E-023,Ventura «Duerte»,identificar_antes,figura pública,Primer teniente de alcalde en 1989; apellido dudoso (Whisper).,no,,1:43:16
+E-024,Juan Carlos López Duque,contexto,figura pública,Delegado de la SER en 1989; papel puntual.,no,,1:43:49
+E-025,Ibarra (presidente de la Junta),contexto,figura pública,"Presidente de la Junta: aparece en una canción improvisada. Nodo JSON-LD por Wikidata, sin ficha.",no,,1:50:37 · 1:53:16
+E-026,José Antonio Monago,contexto,figura pública,"Entregó la Medalla de Extremadura: es un dato del premio, no de él.",no,,0:23:07 · 3:03:20 · 3:03:44
+E-027,Fernández Vara,contexto,figura pública,Presidente de la Junta en la campaña de 2020; papel puntual.,no,,3:05:39
+E-028,"José Luis Díaz (alcalde, PP)",candidata,figura pública,Alcalde del caso Dover (2000) y de la «censura previa» de letras.,no,,2:17:37 · 2:27:04 · 2:31:49 · 2:34:18 · 2:41:14
+E-029,"Fernando Pizarro (alcalde, PP)",candidata,figura pública,Alcalde que autorizó los ensayos de 2017 en el Teatro Alcázar.,no,,2:51:36 · 2:55:43
+E-030,José Antonio Hernández,candidata,figura pública,Teniente de alcalde; gestionó la calle y los ensayos de 2017.,no,,2:51:41
+E-031,Enrique Tornero,candidata,figura pública,Concejal que impulsó la vuelta de Extremoduro en 2008.,no,,2:43:14 · 2:45:25
+E-032,Virgilio,candidata,figura pública,Presidente del Consejo Local de la Juventud que inauguró su sede con Extremoduro (1987); entrevistado.,no,,1:17:06
+E-033,Pepo (director del diario Hoy),contexto,figura pública,"Director de periódico entrevistado sobre el caso Dover; testigo, no protagonista.",no,,2:26:57
+E-034,Ángel Galán (padre),a_la_ficha_de_robe,privada,Socio del padre en el taller; privado.,no,,0:34:10
+E-035,Ángel Galán (hijo),a_la_ficha_de_robe,privada,Compañero de taller de Robe; privado (entrevistado).,no,,0:34:38
+E-036,Máximo Callejo,a_la_ficha_de_robe,privada,Empresario para el que repartía Robe: dato de la biografía.,no,,0:36:20
+E-037,Juano,candidata,escena,Cantante de Dosis Letal y de los primeros ensayos de Extremoduro.,no,,0:37:39 · 0:39:47
+E-038,«Misma» y «Zosy» (Dosis Letal),identificar_antes,escena,Miembros de Dosis Letal; nombres ininteligibles.,no,,0:37:39
+E-039,Paco Dóniga,candidata,escena,"Bajista de Dosis Letal, Indecisión Momentánea y Orquesta Escarlata; técnico de los primeros Extremoduro; entrevistado.",no,,0:37:39 · 0:39:56 · 1:02:01 · 1:26:35
+E-040,Ángel (primer batería),candidata,escena,Primer batería de Extremoduro; entrevistado. Sin apellido: la ficha depende de identificarlo.,no,,0:54:35
+E-041,Kaíto,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,kaito,0:55:02 · 1:00:05 · 1:22:02 · 1:26:46
+E-042,William,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,william-extremoduro,1:00:05 · 1:22:02 · 1:30:32
+E-043,Salo,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,salo,0:37:44 · 0:42:09 · 1:02:01 · 1:27:56 · 2:21:56
+E-044,Luis «von Fanta»,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,luis-von-fanta,0:54:44 · 1:09:24 · 1:25:55 · 2:07:36 · 2:11:46
+E-045,Carlos «el Sucio»,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,carlos-el-sucio,1:12:44 · 2:11:42
+E-046,Cholo,candidata,escena,Secretario del Colectivo de Músicos de Plasencia.,no,,1:02:01
+E-047,Paramio,candidata,escena,"Dueño de La Cuadra, punto de la escena rock de Plasencia.",no,,1:07:40
+E-048,Javi Gómez «Javi Génesis»,candidata,escena,Dueño del Tertulia y del Génesis; Robe fue camarero en sus bares.,no,,0:48:16 · 1:10:12 · 1:13:06
+E-049,Belén (corista),candidata,escena,Corista de Extremoduro en varios discos; entrevistada.,no,,1:10:38 · 2:21:56
+E-050,María (corista),candidata,escena,Corista de Extremoduro en varios discos.,no,,1:10:38
+E-051,Marcos Peral,candidata,escena,Músico del Tertulia; Belén y María le hacían los coros.,no,,1:10:46
+E-052,Pedro (socio del Bar Simetría),candidata,escena,Socio de Robe en el Bar Simetría; solo nombre de pila.,no,,1:12:20 · 2:02:00
+E-053,Félix (Orquesta Escarlata),candidata,escena,Vendió a Robe su Gibson Les Paul; solo nombre de pila.,no,,0:46:39
+E-054,Luis «Ba»,identificar_antes,escena,"Nombre dudoso; [HIPÓTESIS] que sea Luis «von Fanta», que ya tiene ficha.",no,,0:38:40
+E-055,Susi Iglesias,candidata,escena,Coautora del buitre y la bellota del primer disco; entrevistada.,no,,1:57:59 · 2:03:19
+E-056,Gustavo (Gallegos),candidata,escena,Autor de la idea del buitre del primer disco; apellido dudoso.,no,,1:58:38 · 2:03:19
+E-057,Miguel Ángel Corisco «Cori»,candidata,escena,Intermediario con los colaboradores del primer disco.,no,,1:58:42 · 2:04:05
+E-058,Rafa Gallego,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,rafael-gallego,2:01:12 · 2:01:20 · 2:02:38
+E-059,Rafael «Rever» (Los 40 Principales),identificar_antes,figura pública,Programador de radio y jurado del concurso Yamaha; apellido dudoso.,no,,2:09:10
+E-060,Raúl (mánager),candidata,escena,Mánager de Extremoduro en 1995; solo nombre de pila.,no,,2:20:44
+E-061,Juanra (director del Teatro Alcázar),contexto,figura pública,Director del Teatro Alcázar; papel puntual.,no,,2:55:47
+E-062,Cristina (directora del Palacio de Congresos),contexto,figura pública,Directora del Palacio de Congresos; papel puntual.,no,,3:10:18
+E-063,Lorenzo González «Loren»,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,lorenzo-gonzalez,2:56:38 · 3:11:36
+E-064,Alber Fuentes,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,alber-fuentes,2:57:20 · 3:11:33
+E-065,Carlitos Pérez,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,carlitos-perez,3:11:36
+E-066,David Lerman,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,david-lerman,3:11:36
+E-067,Jorge «Armestad»,identificar_antes,escena,Fotógrafo de un disco de Robe; apellido dudoso.,no,,3:11:18
+E-068,Jesús Mateos Brea,candidata,escena,Autor del mural de Puerto de Béjar sobre Robe y Chinato.,no,,3:24:28
+E-069,Manolo Chinato,ya_tiene_ficha,escena,Tiene ficha: se analiza qué aporta el vídeo (paso 4).,sí,manolo-chinato,3:24:35 · 3:25:10
+E-070,Miguel Hernández,contexto,ajena,Poeta citado en una respuesta pública.,no,,2:36:20
+E-071,Rory Gallagher,contexto,ajena,"Influencia (versiones de Dosis Letal): ficha posible, pero no sale de este vídeo.",no,,0:37:52 · 0:39:06
+E-072,Kiko Veneno,contexto,ajena,"Influencia: ficha posible, pero no sale de este vídeo.",no,,0:32:03
+E-073,Luz Casal,contexto,ajena,Concierto anterior del Consejo de la Juventud.,no,,1:17:56
+E-074,Álvarez Cascos,contexto,ajena,Contexto político.,no,,2:30:17
+E-075,Aznar,contexto,ajena,Contexto político.,no,,2:27:09
+E-076,Franco,contexto,ajena,Contexto histórico.,no,,0:30:17
+E-077,Juan Carlos y Sofía (los reyes),contexto,ajena,Contexto histórico.,no,,0:33:09

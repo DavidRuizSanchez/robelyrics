@@ -1,0 +1,70 @@
+# ============================================================
+# Relaciones curadas para el JSON-LD de las fichas de persona
+# ============================================================
+# Cada clave es el slug de la persona y su valor se FUSIONA en su nodo `Person`
+# (web/app/personas/[slug]/page.tsx). Solo relaciones verificadas: cada una lleva
+# su fuente en `# W-nn` / `# T-nn`, con la trazabilidad en
+# data/juancares/cap64/analisis_personas/fuentes_web_personas.md.
+#
+# Referencias internas (las resuelve la API, `person_jsonld.py`):
+#   person:<slug>   → Person con su @id SOLO si tiene ficha publicada; si no, solo el nombre
+#   artist:<slug>   → MusicGroup del corpus (/<slug>#musicgroup)
+#   place:<slug>    → Place de /lugares (#place)
+# Las claves `fuente` se descartan al servir.
+
+paco-doniga:
+  hasOccupation:
+    - {"@type": Occupation, name: bajista, sameAs: "https://www.wikidata.org/wiki/Q584301"}
+  memberOf:
+    - "@type": OrganizationRole
+      roleName: bajo (solo en su primer concierto)
+      startDate: "1983"
+      memberOf: {"@type": MusicGroup, name: Dosis Letal, foundingDate: "1983",
+                 foundingLocation: "place:plasencia",
+                 member: ["person:robe-iniesta", {"@type": Person, name: Juano},
+                          {"@type": Person, name: Luisma Beltrán},
+                          {"@type": Person, name: Zósimo «Zosi» Pascual}]}
+      fuente: W-10
+    - "@type": MusicGroup
+      name: Indecisión Momentánea
+      member: ["person:salo", "person:luis-von-fanta", {"@type": Person, name: Luisma Beltrán}]
+      fuente: W-10
+  colleague: ["person:robe-iniesta", "person:salo", "person:luis-von-fanta"]   # W-10
+  knowsAbout:
+    - {"@type": MusicComposition, name: Cepillo de dientes, composer: "person:robe-iniesta",
+       fuente: W-10}
+
+jesus-mateos-brea:
+  alternateName: J.M. Brea          # W-01, W-05
+  birthDate: "1982"                 # W-01
+  hasOccupation:
+    - {"@type": Occupation, name: muralista, sameAs: "https://www.wikidata.org/wiki/Q3374326"}
+    - {"@type": Occupation, name: grabador, sameAs: "https://www.wikidata.org/wiki/Q329439"}
+    - {"@type": Occupation, name: diseñador gráfico, sameAs: "https://www.wikidata.org/wiki/Q627325"}
+  alumniOf:
+    - {"@type": EducationalOrganization, name: Escuela Eulogio Blasco, location: "place:caceres",
+       fuente: W-01}
+  homeLocation: "place:plasencia"   # W-02: «artista placentino»
+  "@reverse":
+    creator:
+      - "@type": VisualArtwork
+        name: Mural homenaje a Robe y Manolo Chinato
+        artform: mural
+        dateCreated: "2026"
+        about: ["person:robe-iniesta", "person:manolo-chinato"]
+        locationCreated: {"@type": Place, name: Plaza Puerto de Béjar,
+                          containedInPlace: "place:plasencia"}
+        fuente: W-06, W-07, W-08
+      - "@type": VisualArtwork
+        name: El Descendimiento
+        artform: mural
+        height: {"@type": QuantitativeValue, value: 11, unitCode: MTR}
+        width: {"@type": QuantitativeValue, value: 6, unitCode: MTR}
+        locationCreated: "place:plasencia"
+        award: Mejor mural del mundo de febrero de 2025 (Street Art Cities)
+        fuente: W-02
+      - {"@type": VisualArtwork, name: La matanza rural extremeña, artform: mural,
+         locationCreated: {"@type": Place, name: Salorino}, fuente: W-04}
+      - {"@type": VisualArtwork, name: Martín pescador de Arroyo de la Luz, artform: mural,
+         dateCreated: "2024", locationCreated: {"@type": Place, name: Arroyo de la Luz},
+         fuente: W-05}

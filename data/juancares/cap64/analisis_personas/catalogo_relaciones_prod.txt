@@ -1,0 +1,68 @@
+band | avispa | Avispa
+band | barricada | Barricada
+band | bulo | Bulo
+band | dro | DRO
+band | el-dromedario-records | El Dromedario Records
+band | extrechinato-y-tu | Extrechinato y tú
+band | fito-y-fitipaldis | Fito & Fitipaldis
+band | inconscientes | Inconscientes
+band | la-fuga | La Fuga
+band | la-gran-belleza-records | La Gran Belleza Records
+band | leno | Leño
+band | los-dogos | Los Dogos
+band | los-enemigos | Los Enemigos
+band | los-ninos-de-los-ojos-rojos | Los Niños de los Ojos Rojos
+band | los-suaves | Los Suaves
+band | marea | Marea
+band | muxikes | Muxik.es
+band | nu | Ñu
+band | pasion | Pasión
+band | platero-y-tu | Platero y Tú
+band | qkino | Qkino
+band | rebrote | Rebrote
+band | reincidentes | Reincidentes
+band | sinverguenza | Sinvergüenza
+band | tabletom | Tabletom
+band | the-flying-rebollos | The Flying Rebollos
+band | warner | Warner
+album | tu-en-tu-casa-nosotros-en-la-hoguera | Tú en tu casa, nosotros en la hoguera | 1990
+album | somos-unos-animales | Somos unos animales | 1991
+album | deltoya | Deltoya | 1992
+album | donde-estan-mis-amigos | ¿Dónde están mis amigos? | 1993
+album | rock-transgresivo | Rock Transgresivo | 1994
+album | pedra | Pedrá | 1995
+album | agila | Agila | 1996
+album | iros-todos-a-tomar-por-culo | Iros todos a tomar por culo | 1997
+album | canciones-prohibidas | Canciones prohibidas | 1998
+album | yo-minoria-absoluta | Yo, minoría absoluta | 2002
+album | grandes-exitos-y-fracasos-episodio-primero | Grandes éxitos y fracasos: Episodio primero | 2004
+album | grandes-exitos-y-fracasos-episodio-segundo | Grandes éxitos y fracasos: Episodio segundo | 2004
+album | la-ley-innata | La ley innata | 2008
+album | material-defectuoso | Material defectuoso | 2011
+album | para-todos-los-publicos | Para todos los públicos | 2013
+album | lo-que-aletea-en-nuestras-cabezas | Lo que aletea en nuestras cabezas | 2015
+album | destrozares | Destrozares, Canciones para el Final de los Tiempos | 2016
+album | bienvenidos-al-temporal | Bienvenidos al temporal | 2018
+album | mayeutica | Mayéutica | 2021
+album | se-nos-lleva-el-aire | Se nos lleva el aire | 2023
+place | badajoz | Badajoz
+place | barakaldo | Barakaldo
+place | berriz | Berriz
+place | bilbao | Bilbao
+place | caceres | Cáceres
+place | carabanchel | Carabanchel
+place | colombia | Colombia
+place | el-piornal | El Piornal
+place | extremadura | Extremadura
+place | la-mancha | La Mancha
+place | la-zubia | La Zubia
+place | madrid | Madrid
+place | marte | Marte
+place | merida | Mérida
+place | monfrague | Monfragüe
+place | muxika | Muxika
+place | pamplona | Pamplona
+place | plasencia | Plasencia
+place | valle-del-jerte | Valle del Jerte
+person? | lorenzo-gonzalez |  | Lorenzo González
+person? | luis-von-fanta | von Fanta | Luis Iglesias

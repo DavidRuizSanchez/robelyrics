@@ -1,0 +1,4 @@
+# Datos de GSC e informes del seguimiento de headings: viven en la Mac y en prod,
+# no en git (se regeneran en cada pasada y el informe llega por correo).
+*
+!.gitignore

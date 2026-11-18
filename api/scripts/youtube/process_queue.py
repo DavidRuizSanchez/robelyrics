@@ -151,8 +151,14 @@ def main() -> None:
     settings = get_settings()
     openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY") or settings.openai_api_key)
 
+    try:
+        from yt_dlp.version import __version__ as ytdlp_version
+    except Exception:  # noqa: BLE001
+        ytdlp_version = None
+
     with httpx.Client(timeout=60, headers=headers) as http:
-        r = http.get(f"{base}/ingest/youtube/pending")
+        r = http.get(f"{base}/ingest/youtube/pending",
+                     params={"ytdlp": ytdlp_version} if ytdlp_version else None)
         r.raise_for_status()
         items = r.json()
         if args.max:
@@ -179,7 +185,7 @@ def main() -> None:
                 try:
                     http.post(
                         f"{base}/ingest/youtube/{item_id}/fail",
-                        json={"error": msg[:2000]},
+                        json={"error": msg[:2000], "ytdlp_version": ytdlp_version},
                     )
                 except Exception:  # noqa: BLE001
                     logger.warning("no pude reportar el fallo de %s a prod", vid)

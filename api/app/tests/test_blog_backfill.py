@@ -176,7 +176,9 @@ def test_el_hueco_se_cubre_con_el_siguiente(db, gates):
     mp.run(db, HOY)
 
     assert gates["publicados"] == ["Rosendo"]
-    assert caido.status == "discarded"
+    # Desde el 18-11-2026 el rigor RETIENE: vuelve a aprobadas, sin fecha y con motivo.
+    assert caido.status == "approved" and caido.scheduled_for is None
+    assert caido.review_verdict == "retenida"
     assert recambio.status == "used"
     # El adelanto queda registrado: salió HOY, no el día que le tocaba.
     assert recambio.scheduled_for == HOY
@@ -294,9 +296,74 @@ def test_lo_limpio_se_publica(db, gates):
     assert p.status == "used"
 
 
-def test_el_rigor_descarta_y_no_publica(db, gates):
+def test_el_rigor_retiene_y_no_publica(db, gates):
+    """Antes descartaba (así murió el aniversario de «Destrozares», 18-11-2026). Ahora
+    no se publica, pero tampoco se tira: queda retenida con el motivo del juez."""
     p = _prop(db, "Albert Pla", dias=0)
     gates["rigor_default"] = "reject"
     mp.run(db, HOY)
     assert gates["publicados"] == []
-    assert p.status == "discarded"
+    assert p.status == "approved" and p.review_verdict == "retenida"
+    assert p.review_reasons["bloquea"] == "rigor"
+    assert p.review_reasons["motivos"] == ["genérica; sin datos"]
+
+
+def test_lo_retenido_al_preparar_no_sale(db, gates):
+    p = _prop(db, "Retenida", dias=0, review_verdict="retenida",
+              review_reasons={"bloquea": "rigor", "motivos": ["sin sello"]})
+    mp.run(db, HOY)
+    assert gates["publicados"] == [] and gates["juzgados"] == []
+    assert p.status == "approved" and p.scheduled_for is None
+
+
+def test_lo_que_paso_al_preparar_no_vuelve_al_juez(db, gates):
+    """El juicio ya se hizo: el día D no se vuelve a tirar los dados del juez."""
+    _prop(db, "Ya juzgada", dias=0, review_verdict="pasa", review_score=81)
+    gates["rigor_default"] = "reject"
+    mp.run(db, HOY)
+    assert gates["publicados"] == ["Ya juzgada"]
+    assert gates["juzgados"] == []
+
+
+def test_una_aprobada_que_paso_el_juicio_es_adelantable(db, gates, monkeypatch):
+    """El 18-11-2026 había 39 aprobadas y «ninguna adelantable». Detrás del interruptor
+    `BLOG_REPESCA_APROBADAS`, apagado hasta limpiar esa cola."""
+    monkeypatch.setenv("BLOG_REPESCA_APROBADAS", "1")
+    _prop(db, "Albert Pla", dias=0)
+    lista = _prop(db, "Lista y juzgada", dias=0, status="approved", scheduled_for=None,
+                  review_verdict="pasa", review_score=80)
+    _prop(db, "Aprobada sin juzgar", dias=0, status="approved", scheduled_for=None)
+    gates["rigor"]["Albert Pla"] = "reject"
+    mp.run(db, HOY)
+    assert gates["publicados"] == ["Lista y juzgada"]
+    assert lista.status == "used" and lista.scheduled_for == HOY
+
+
+def test_reescribir_vacia_el_borrador_y_guarda_la_nota(db):
+    """El botón «Reescribir» del panel: el cron lo vuelve a escribir y a juzgar."""
+    from app.routers.admin import RedraftIn, admin_proposal_redraft
+
+    p = _prop(db, "Retenida", dias=3, review_verdict="retenida", review_score=58,
+              review_reasons={"bloquea": "rigor", "motivos": ["sin sello"]})
+    admin_proposal_redraft(p.id, RedraftIn(nota="cuenta la grabación"), db=db, _admin=None)
+    assert p.body_md is None and p.review_verdict is None
+    assert p.review_reasons == {"nota": "cuenta la grabación"}
+
+
+def test_sin_interruptor_una_aprobada_no_se_adelanta(db, monkeypatch):
+    monkeypatch.delenv("BLOG_REPESCA_APROBADAS", raising=False)
+    _prop(db, "Lista y juzgada", dias=0, status="approved", scheduled_for=None,
+          review_verdict="pasa", review_score=80)
+    assert backfill_candidates(db, HOY) == []
+
+
+def test_para_tu_lectura_no_sale_sola_y_si_con_tu_ok(db, gates):
+    p = _prop(db, "Destrozares", dias=0, kind="album-anniversary", review_verdict="para_tu_lectura",
+              review_score=58, review_reasons={"bloquea": "rigor", "motivos": ["falta grabación"]})
+    mp.run(db, HOY)
+    assert gates["publicados"] == [] and p.status == "approved"
+    # David lo lee y pulsa «Publicar tal cual»: force_publish.
+    p.force_publish, p.status, p.scheduled_for = True, "scheduled", HOY
+    db.commit()
+    mp.run(db, HOY)
+    assert gates["publicados"] == ["Destrozares"]

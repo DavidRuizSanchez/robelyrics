@@ -244,8 +244,89 @@ _CUALITATIVO = re.compile(
     re.I)
 
 
+_ENTREVISTA_A_ROBE = re.compile(r"entrevista (?:a|con) (?:robe|roberto)|^robe\b.*entrevista", re.I)
+
+
+def es_entrevista_transcrita(kind: str | None, title: str | None) -> bool:
+    """Transcripción automática de una ENTREVISTA a Robe (radio, tele, YouTube).
+
+    Criterio de David (18-11-2026): lo que Robe cuenta ahí se puede AFIRMAR (fechas,
+    sitios, quién tocó), pero no se entrecomilla: Whisper trae erratas («Robben y
+    Niesta»). Los comentarios de YouTube a esos vídeos no cuentan: no habla Robe."""
+    return (kind or "") == "youtube_transcript" and bool(_ENTREVISTA_A_ROBE.search(title or ""))
+
+
+_NOMBRE_O_CIFRA = re.compile(r"\b(?:[A-ZÁÉÍÓÚÑ][\wáéíóúñü'-]{2,}|\d{2,4})\b")
+
+
+VENTANA_CORROBORA = 400
+
+
+def _juntos(texto: str, claves: list[str], ventana: int = VENTANA_CORROBORA) -> bool:
+    """¿Salen TODAS las claves dentro de un mismo tramo de `ventana` caracteres? Que
+    aparezcan sueltas por un documento largo no corrobora nada (asesor, 18-11-2026)."""
+    low = (texto or "").lower()
+    posiciones = [[m.start() for m in re.finditer(r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)", low)]
+                  for c in claves]
+    if any(not ps for ps in posiciones):
+        return False
+    return any(all(any(abs(q - p) <= ventana for q in ps) for ps in posiciones)
+               for p in posiciones[0])
+
+
+_ARTICULOS = {"el", "la", "los", "las", "en", "un", "una", "su", "sus", "tras", "con", "del"}
+
+
+def claves_de(hecho: str) -> list[str]:
+    """Los nombres propios y cifras de un hecho: lo que tiene que estar en la fuente."""
+    claves = list(dict.fromkeys(t for t in _NOMBRE_O_CIFRA.findall(hecho or "")))
+    return [c for c in claves if c.lower() not in _ARTICULOS]
+
+
+def tramos_con(material: str, hecho: str, ventana: int = VENTANA_CORROBORA) -> str:
+    """Los tramos del material donde salen JUNTAS todas las claves del hecho (al menos
+    dos). Solo LOCALIZA: que dos nombres estén cerca no dice qué relación tienen
+    («José Luis Crespo fundó El Dromedario» casaría con «Sello: El Dromedario Records.
+    Producción: participó José Luis Crespo.»). Quien decide es `classify_with_evidence`."""
+    claves = claves_de(hecho)
+    if len(claves) < 2 or not _juntos(material or "", claves, ventana):
+        return ""
+    low = (material or "").lower()
+    trozos = []
+    for m in re.finditer(r"(?<!\w)" + re.escape(claves[0].lower()) + r"(?!\w)", low):
+        ini, fin = max(0, m.start() - ventana), m.end() + ventana
+        if all(re.search(r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)", low[ini:fin]) for c in claves):
+            trozos.append(material[ini:fin])
+    return "\n…\n".join(trozos[:3])
+
+
+def en_dos_fuentes(db, hecho: str) -> list[str]:
+    """Fuentes del corpus, de AUTORES distintos, donde salen JUNTOS (en un mismo tramo)
+    todos los nombres y cifras del hecho. Criterio de David (18-11-2026): dos fuentes
+    independientes del corpus corroboran, como en las relaciones (un T1 o dos T2).
+    Devuelve los títulos (≥2) o []. Hace falta al menos dos claves: con una sola, todo
+    documento que nombre el disco «corroboraría» cualquier cosa sobre él."""
+    if db is None:
+        return []
+    from sqlalchemy import text
+
+    claves = claves_de(hecho)
+    if len(claves) < 2:
+        return []
+    cond = " and ".join(f"content_clean ~* :c{i}" for i in range(len(claves)))
+    filas = db.execute(text(
+        f"select coalesce(author, title) as quien, title, content_clean from interpretation_sources "
+        f"where kind <> 'youtube_comment' and {cond} limit 25"),
+        {f"c{i}": r"\m" + re.escape(c) + r"\M" for i, c in enumerate(claves)}).all()
+    por_autor: dict[str, str] = {}
+    for quien, titulo, contenido in filas:
+        if quien not in por_autor and _juntos(contenido, claves):
+            por_autor[quien] = titulo
+    return list(por_autor.values()) if len(por_autor) >= 2 else []
+
+
 def corroborar(client, fondo: str, propio: str, consultas: list[str], *,
-               max_hechos: int = 6) -> tuple[list[str], list[str]]:
+               max_hechos: int = 6, db=None) -> tuple[list[str], list[str]]:
     """Qué datos del fondo se pueden afirmar: (verificados, descartados).
 
     Criterio de David (19-10-2026): un dato que solo trae un tercero («la tocaron por
@@ -290,12 +371,24 @@ def corroborar(client, fondo: str, propio: str, consultas: list[str], *,
                 and not seo_style.verify_no_invention(h, permitidos)):
             verificados.append(h)
             continue
+        # Dos fuentes independientes del corpus (autores distintos) corroboran.
+        try:
+            dos = en_dos_fuentes(db, h)
+        except Exception:  # noqa: BLE001
+            dos = []
+        if dos:
+            verificados.append(h)
+            continue
         try:
             from app.services.web_verify import classify_fact
 
             v = classify_fact(h, query=h)
         except Exception:  # noqa: BLE001
             v = {}
+        if v.get("sin_red"):
+            # La web no respondió: SIN COMPROBAR, no descartado por falso. No se afirma
+            # hoy, pero tampoco queda marcado: la próxima vez se vuelve a mirar.
+            logger.info("[corroborar] sin comprobar (la búsqueda falló): %s", h[:90])
         evidencia = (v.get("evidence") or "").lower()
         # La evidencia no puede ser el propio texto del que salió el dato.
         eco = evidencia and evidencia[:80] in (fondo or "").lower()

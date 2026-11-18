@@ -1,0 +1,6 @@
+# Copia de la transcripción de producción (source_segments de la fuente 1756).
+# Es texto de un tercero (Juancares) y la verdad vive en la BD de prod:
+# se regenera con la query del README, no se versiona.
+transcript.txt
+segments.tsv
+segments_revalidacion.tsv

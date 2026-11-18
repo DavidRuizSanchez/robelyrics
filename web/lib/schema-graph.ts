@@ -110,7 +110,7 @@ export type ArtistInput = {
 };
 
 export type SongCreditInput = {
-  role: string; // letra | musica | adaptacion | poema_original | ...
+  role: string; // letra | musica | adaptacion | poema_original | ... | coros | voces
   name: string;
   person_slug: string | null;
 };
@@ -137,6 +137,8 @@ export type PersonInput = {
   wikipediaUrl?: string | null;
   wikidataId?: string | null;
   memberOf?: { artistSlug: string; artistName: string }[];
+  // false = sin ficha publicada: va como nombre, sin @id ni url (darían 404).
+  hasPage?: boolean;
 };
 
 // --------------------------------------------------------------------------- //
@@ -156,9 +158,11 @@ export function musicGroupNode(artist: ArtistInput): Record<string, unknown> {
     }));
   }
   if (artist.members && artist.members.length > 0) {
-    node.member = artist.members.map((m) => ({
-      "@id": canonical.person(m.slug),
-    }));
+    node.member = artist.members.map((m) =>
+      m.hasPage === false
+        ? { "@type": "Person", name: m.stageName || m.fullName }
+        : { "@id": canonical.person(m.slug) },
+    );
   }
   return node;
 }
@@ -194,6 +198,10 @@ export function musicCompositionNode(
   const credits = song.credits || [];
   const lyricCredit = credits.find((c) => c.role === "poema_original" || c.role === "letra" || c.role === "adaptacion");
   const musicCredit = credits.find((c) => c.role === "musica");
+  // Coros y voces son de la GRABACIÓN, no de la composición. Sin nodo
+  // MusicRecording propio, `contributor` (de CreativeWork) es lo más cerca que se
+  // puede decir sin afirmar autoría.
+  const vocalCredits = credits.filter((c) => c.role === "coros" || c.role === "voces");
 
   return {
     "@type": "MusicComposition",
@@ -208,6 +216,7 @@ export function musicCompositionNode(
     // si no, composer = el grupo (comportamiento previo).
     ...(lyricCredit ? { lyricist: personRef(lyricCredit) } : {}),
     composer: musicCredit ? personRef(musicCredit) : { "@id": canonical.musicGroup(song.artistSlug) },
+    ...(vocalCredits.length > 0 ? { contributor: vocalCredits.map(personRef) } : {}),
     // isPartOf (de CreativeWork) en vez de inAlbum (que es de MusicRecording,
     // no de MusicComposition, y daba warning de validación).
     isPartOf: { "@id": canonical.musicAlbum(song.artistSlug, song.albumSlug) },
@@ -299,7 +308,7 @@ export function relatedVideoObjectNode(
   const node: Record<string, unknown> = {
     "@type": "VideoObject",
     name: v.title,
-    description: `${v.title} — vídeo relacionado con ${v.aboutName} en Entre Interiores.`,
+    description: `${v.title}: vídeo relacionado con ${v.aboutName} en Entre Interiores.`,
     thumbnailUrl: [
       `https://i.ytimg.com/vi/${v.youtubeId}/maxresdefault.jpg`,
       `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,
@@ -564,6 +573,7 @@ export type BookInput = {
   coverUrl?: string | null;
   summary?: string | null;
   aboutIds?: string[]; // canonical IDs (musicGroup) de lo que trata
+  kind?: string | null;
 };
 
 export function bookNode(book: BookInput): Record<string, unknown> {
@@ -587,6 +597,12 @@ export function bookNode(book: BookInput): Record<string, unknown> {
   if (book.summary) node.abstract = book.summary;
   if (book.aboutIds && book.aboutIds.length > 0) {
     node.about = book.aboutIds.map((id) => ({ "@id": id }));
+  }
+  // En una novela gráfica quien la firma también la dibuja (en las que hay en
+  // la sección es así; si un día no lo es, hará falta un campo propio).
+  if (book.kind === "novela_grafica") {
+    node.genre = "Novela gráfica";
+    if (node.author) node.illustrator = node.author;
   }
   return node;
 }

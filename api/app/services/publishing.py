@@ -33,7 +33,7 @@ from datetime import UTC, datetime, timedelta
 from typing import NotRequired, TypedDict
 
 import httpx
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.db.models import Post
@@ -101,11 +101,21 @@ def backfill_candidates(db: Session, today, *, exclude_ids=(), limit: int = 3) -
     """
     from app.db.models import ContentProposal
 
+    # Además de las programadas a futuro, las APROBADAS sin fecha que ya pasaron el
+    # juicio al preparar: el 18-11-2026 había 39 aprobadas y «ninguna adelantable»,
+    # porque solo se miraban las programadas. Va detrás de `BLOG_REPESCA_APROBADAS=1`:
+    # en esa cola hay diez variantes de «La evolución musical…» y no puede salir
+    # ninguna sola hasta que David la limpie.
+    programadas = and_(ContentProposal.status == "scheduled",
+                       ContentProposal.scheduled_for.isnot(None),
+                       ContentProposal.scheduled_for > today)
+    cond = programadas
+    if os.environ.get("BLOG_REPESCA_APROBADAS") == "1":
+        cond = or_(programadas, and_(ContentProposal.status == "approved",
+                                     ContentProposal.scheduled_for.is_(None),
+                                     ContentProposal.review_verdict == "pasa"))
     q = (
-        db.query(ContentProposal)
-        .filter(ContentProposal.status == "scheduled")
-        .filter(ContentProposal.scheduled_for.isnot(None))
-        .filter(ContentProposal.scheduled_for > today)
+        db.query(ContentProposal).filter(cond)
         .filter(ContentProposal.kind.notin_(CAP_EXEMPT_KINDS))
         .filter(ContentProposal.event_date.is_(None))
         .filter(ContentProposal.body_md.isnot(None))
@@ -116,7 +126,9 @@ def backfill_candidates(db: Session, today, *, exclude_ids=(), limit: int = 3) -
     )
     if exclude_ids:
         q = q.filter(ContentProposal.id.notin_(list(exclude_ids)))
-    return q.order_by(ContentProposal.scheduled_for, ContentProposal.id).limit(limit).all()
+    return q.order_by(ContentProposal.scheduled_for.nulls_last(),
+                      ContentProposal.review_score.desc().nulls_last(),
+                      ContentProposal.id).limit(limit).all()
 
 
 class PublishResult(TypedDict):
@@ -201,14 +213,15 @@ def _next_publish_slot(db: Session) -> datetime:
 # --------------------------------------------------------------------------- #
 # Hooks post-publicación
 # --------------------------------------------------------------------------- #
-def revalidate_paths(paths: list[str], *, tags: list[str] | None = None) -> None:
+def revalidate_paths(paths: list[str], *, tags: list[str] | None = None,
+                     layouts: list[str] | None = None) -> None:
     """Pide a Next.js que revalide estas rutas. No bloquea si falla.
 
     Cualquier ruta, no solo las del blog: desde que la web pública se sirve
     cacheada (ISR, 17-09-2026), una ficha SEO tocada en BD puede tardar en
     reflejarse, y quien acaba de aprobar un cambio y no lo ve lo da por roto.
     """
-    if not paths:
+    if not paths and not layouts:
         return
     token = os.environ.get("REVALIDATE_TOKEN")
     if not token:
@@ -219,6 +232,10 @@ def revalidate_paths(paths: list[str], *, tags: list[str] | None = None) -> None
     payload: dict = {"paths": paths}
     if tags:
         payload["tags"] = tags
+    # `["/"]` vacía la caché del sitio entero. OJO: el 12-11-2026 eso dejó en 404 las
+    # rutas con `dynamicParams = false` hasta reiniciar el web. Mejor rutas concretas.
+    if layouts:
+        payload["layouts"] = layouts
     try:
         with httpx.Client(timeout=5.0) as client:
             resp = client.post(url, headers={"X-Revalidate-Token": token}, json=payload)
@@ -270,7 +287,7 @@ def propose_for_review(
         from app.services.text_sanitizer import normalize_headings
         new_body = normalize_headings(post.body_md) or post.body_md
         new_body = autolink_corpus(
-            new_body, build_corpus_index(db), max_links=4,
+            new_body, build_corpus_index(db), 
             link_stats=load_link_stats(),
         )
         # Después del autolink, no antes: el autolink también mete URLs (esas,

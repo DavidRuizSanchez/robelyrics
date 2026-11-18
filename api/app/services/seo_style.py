@@ -223,6 +223,58 @@ def spanish_case(texto: str, fuentes: str) -> str:
     return " ".join(salida)
 
 
+_FUNCIONALES = frozenset({
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "desde", "a", "al",
+    "en", "con", "por", "para", "y", "o", "su", "sus", "entre", "sobre", "tras", "hacia",
+    "hasta", "sin", "que", "como", "mi", "tu", "lo",
+})
+
+
+def titulo_post_a_la_espanola(titulo: str, cuerpo: str) -> str:
+    """El título de un post con mayúsculas españolas y comillas «», sin tocar lo
+    citado ni los nombres propios. Lo aplica el listener del ORM a `posts.title`.
+
+    Los posts se crean desde ocho sitios distintos, y el 12-11-2026 los 30
+    publicados salían en Title Case de molde («La Evolución Musical de
+    Extremoduro: Un Viaje Inigualable»). Un nombre propio se reconoce igual que en
+    `mayusculas_indebidas`: con mayúscula EN MITAD DE UNA FRASE del cuerpo, sin
+    contar los headings (los del blog también venían en Title Case). Tras los dos
+    puntos va minúscula, como en el title de David («Barricada: miembros…»)."""
+    t = (titulo or "").strip()
+    if not t:
+        return titulo
+    # 'Desarraigo' → «Desarraigo»: solo comillas rectas que envuelven un título.
+    t = re.sub(r"(?<![\w])'([^'\n]{2,}?)'(?![\w])", r"«\1»", t)
+    prosa = "\n".join(l for l in (cuerpo or "").split("\n") if not l.lstrip().startswith("#"))
+    if not prosa.strip():
+        return t  # sin cuerpo no se sabe qué es nombre propio: no se toca
+    trozos = re.split(r"(«[^»]*»)", t)  # lo citado conserva su grafía
+    salida, primera = [], True
+    for i, trozo in enumerate(trozos):
+        if i % 2:
+            salida.append(trozo)
+            primera = False
+            continue
+        palabras = trozo.split(" ")
+        for j, w in enumerate(palabras):
+            nucleo = w.strip(".,;:!?«»\"'()¿¡")
+            abre = primera and not salida and j == next(
+                (k for k, x in enumerate(palabras) if x.strip()), 0)
+            # Solo se baja lo que es seguro común: el cuerpo la usa en minúscula o es
+            # una palabra de molde conocida. Un nombre que el cuerpo no menciona
+            # («Beirut») se queda: una mayúscula de más es mejor que «beirut».
+            comun = (re.search(rf"(?<![\wáéíóúñ]){re.escape(nucleo.lower())}(?![\wáéíóúñ])", prosa)
+                     or flatten(nucleo).strip() in _COMUNES_TITULO | _FUNCIONALES)
+            if (not abre and len(nucleo) > 1 and nucleo[:1].isupper() and not nucleo.isupper()
+                    and comun and nucleo not in NOMBRES_DE_CASA
+                    and not _en_mitad_de_frase(prosa, nucleo)):
+                palabras[j] = w.replace(nucleo, nucleo[0].lower() + nucleo[1:], 1)
+        salida.append(" ".join(palabras))
+        if trozo.strip():
+            primera = False
+    return "".join(salida)
+
+
 # --------------------------------------------------------------------------- #
 # El title
 # --------------------------------------------------------------------------- #
@@ -241,11 +293,211 @@ class MetaVerdict:
 
 
 # Sustantivos que, pegados a un nombre propio y sin preposición, delatan la
-# keyword metida en crudo: «Barricada grupo», «Libertad significado», «Inconscientes
-# banda». `letra` NO está aquí, y no es un olvido: «<Canción> letra: …» es el patrón
-# canónico de 99 fichas y es como se busca. Decisión de David, 22-09-2026.
+# keyword metida en crudo: «Barricada grupo», «Libertad significado», «Avispa sello».
+# `letra` ENTRA desde el 11-11-2026: «Desarraigo letra: …» era el patrón de 121
+# fichas y David lo descartó («analizar caso a caso, con corrección léxica»). La
+# excepción anterior, del 22-09-2026, queda superada.
 _GENERICOS_PEGADOS = ("grupo", "banda", "disco", "album", "álbum", "significado",
-                      "biografia", "biografía", "historia")
+                      "biografia", "biografía", "historia", "letra", "sello",
+                      "discografica", "discográfica")
+
+# Los modificadores con los que el `target_keyword` se pegaba en crudo. Aquí sí van
+# los nombres de casa («Selu Extremoduro», «Leiva Robe», «Plasencia Robe»), que no
+# pueden ir en la regex de arriba: «Así Robe…» o «Extremoduro Robe…» no son keyword.
+# Por eso solo se miran con la keyword de la página delante.
+_DETERMINANTES = _STOP | {"unos", "unas", "este", "esta", "ese", "esa", "otro",
+                            "otra", "mi", "tu", "nuestro", "nuestra", "aquel", "aquella"}
+
+_MOD_PEGABLES = frozenset({
+    "extremoduro", "robe", "grupo", "banda", "sello", "discografica", "disco",
+    "album", "significado", "letra", "letras", "biografia", "historia",
+})
+
+# Fórmulas que valen para cualquier página y no dicen nada de esta. Son SINTAGMAS,
+# no palabras (la lección de `tono_guard`: si se persigue el sustantivo, basta
+# cambiar el sustantivo). Medidas el 11-11-2026 sobre los 361 titles publicados:
+# «Robe explora» 18, «su impacto» 10, «conexión con» 8. Van también al prompt.
+FORMULAS_VACIAS_TITLE = (
+    "explora", "legado musical",
+    "su impacto", "impacto y legado", "y su legado", "conexion con", "conexiones",
+    "viaje musical", "viaje sonoro", "un viaje", "la esencia", "su esencia",
+    "un recorrido", "huella", "icono del", "pilar del",
+    # Medidas en el crawl del 12-11-2026, en titles que la guarda dejó pasar:
+    # «Amistad y tribu en Extremoduro: Robe y la conexión», «Fugacidad y tiempo en
+    # Extremoduro: Robe y su obsesión», «Paso del tiempo en Extremoduro: Robe y su
+    # obra», «El Manifiesto del Amor: Robe y su Llamado a la Libertad», «Un Viaje
+    # Inigualable», «Frases Icónicas y su Significado Profundo».
+    "la conexion", "su obsesion", "y su obra", "su llamado", "llamado a", "inigualable",
+    "significado profundo", "fuerzas transformadoras", "iconicas", "impulsa a",
+)
+
+# Un title o un heading que acaba en un verbo suelto es una frase a medias:
+# «Bilbao y Extremoduro: Iñaki 'Uoho' Antón transforma» (12-11-2026). Son los
+# verbos de molde del motor; un verbo que cierra bien («Robe vuelve») no está aquí.
+VERBOS_SUELTOS = frozenset({
+    "transforma", "transforman", "impulsa", "impulsan", "explora", "exploran",
+    "conecta", "conectan", "refleja", "reflejan", "define", "definen", "inspira",
+    "inspiran", "marca", "marcan", "evoluciona", "destaca", "aporta", "retrata",
+    "influye", "trasciende", "resuena", "perdura",
+})
+# Una sola palabra tras los dos puntos no promete nada: «Antimilitarismo y paz en
+# Extremoduro: crítica», «La hoguera… en Extremoduro: símbolo», «…de Extremoduro: amor».
+_COMILLAS_RECTAS = re.compile(r"(?<![\w])'[^'\n]{2,}'(?![\w])")
+
+
+def estructura(texto: str, *, cola: bool = True) -> list[str]:
+    """Fallos de construcción que no dependen de la página: comillas rectas, frase
+    que acaba en un verbo suelto y, en un title, cola de una sola palabra."""
+    t = (texto or "").strip()
+    out = []
+    if _COMILLAS_RECTAS.search(t):
+        out.append("comillas rectas '…': los títulos van entre «»")
+    ultima = re.findall(r"[^\W\d_]+", t)[-1:] if t else []
+    if ultima and flatten(ultima[0]).strip() in VERBOS_SUELTOS:
+        out.append(f"acaba en un verbo suelto («{ultima[0]}»): la frase queda a medias")
+    if cola:
+        _, facetas = parse_title(t)
+        palabras = re.findall(r"[^\W_]+", facetas[0]) if len(facetas) == 1 else []
+        # «…: significado» o «…: análisis» sí dicen qué hay (David los aprobó el
+        # 11-11 en las fichas de canción); «…: crítica» o «…: símbolo», no.
+        if len(palabras) == 1 and flatten(palabras[0]).strip() not in _COLA_INFORMATIVA:
+            out.append(f"tras los dos puntos solo hay «{facetas[0]}»: no dice nada")
+    return out
+
+
+_COLA_INFORMATIVA = frozenset({"significado", "analisis", "letra", "letras", "biografia",
+                               "historia", "discografia", "tracklist"})
+
+
+def _plano_crudo(texto: str) -> str:
+    """Minúsculas y sin acentos, pero CON la puntuación: una coma rompe la
+    contigüidad. «La ley innata, disco de 2008» está bien escrito; aplanado sería
+    «innata disco» y caería."""
+    s = unicodedata.normalize("NFD", (texto or "").lower())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
+def keywords_de(target_keyword) -> list[str]:
+    """`target_keyword` llega a veces como lista serializada («['Deltoya extremoduro',
+    'Deltoya extremoduro']»): 3 fichas de disco en prod el 11-11-2026."""
+    if isinstance(target_keyword, (list, tuple)):
+        return [str(k) for k in target_keyword if k]
+    t = (target_keyword or "").strip()
+    if t.startswith("[") and t.endswith("]"):
+        import ast
+        try:
+            return [str(k) for k in ast.literal_eval(t) if k]
+        except (ValueError, SyntaxError):
+            pass
+    return [t] if t else []
+
+
+def keyword_pegada(title: str, target_keyword) -> bool:
+    """¿Lleva el title el `target_keyword` pegado en crudo?
+
+    Solo si la keyword tiene dos o más palabras y una punta es un modificador
+    («plasencia robe», «desarraigo letra»). Se mira la JUNTA —la palabra contigua al
+    modificador— con solo espacio entre medias, en los dos órdenes: así cae «Mierda
+    de filosofía letra» aunque el title parta la keyword con dos puntos, y pasan
+    «Letra de Desarraigo» (lleva «de») y «La ley innata, disco de 2008» (la coma).
+    """
+    t = _plano_crudo(title)
+    for kw in keywords_de(target_keyword):
+        toks = re.findall(r"[a-z0-9]+", _plano_crudo(kw))
+        if len(toks) < 2:
+            continue
+        if toks[-1] in _MOD_PEGABLES and toks[-2] not in _MOD_PEGABLES:
+            junta, mod = toks[-2], toks[-1]
+        elif toks[0] in _MOD_PEGABLES and toks[1] not in _MOD_PEGABLES:
+            junta, mod = toks[1], toks[0]
+        else:
+            continue
+        if junta in _STOP:
+            continue                          # «letra de desarraigo» ya es natural
+        j, m = re.escape(junta), re.escape(mod)
+        if (re.search(rf"(?<![a-z0-9]){j}\s+{m}(?![a-z0-9])", t)
+                or re.search(rf"(?<![a-z0-9]){m}\s+{j}(?![a-z0-9])", t)):
+            return True
+    return False
+
+
+def quitar_comillas_envolventes(texto: str) -> str:
+    """Quita las comillas que envuelven TODO el texto, y solo esas.
+
+    El 11-11-2026 un `.strip("«»")` se comió la comilla de apertura de 8 titles
+    publicados («Perro Callejero», de Extremoduro… → «Perro Callejero», de…): el
+    title empezaba por un título citado, no estaba envuelto.
+    """
+    t = (texto or "").strip()
+    for a, c in (("«", "»"), ('"', '"'), ("“", "”")):
+        if len(t) > 1 and t[0] == a and t[-1] == c and a not in t[1:-1] and c not in t[1:-1]:
+            return t[1:-1].strip()
+    return t
+
+
+def comillas_desparejadas(title: str) -> bool:
+    return (title or "").count("«") != (title or "").count("»")
+
+
+def formulas_vacias(title: str) -> list[str]:
+    plano = flatten(title)
+    return [f for f in FORMULAS_VACIAS_TITLE if f" {f} " in plano]
+
+
+_MARCADO = "«»\"'()[]*_¡¿“”‘’ \t"
+
+
+def _en_mitad_de_frase(prosa: str, palabra: str) -> bool:
+    """¿Sale `palabra`, con su mayúscula, detrás de algo que no cierra frase?
+
+    Se salta el marcado que la rodea: en el cuerpo los nombres van en enlaces
+    (`[Extremoduro](/extremoduro)`), en cursiva (`*Yo, minoría absoluta*`) o entre
+    comillas, y sin saltarlo «Extremoduro» parecía Title Case en 54 páginas.
+    """
+    for m in re.finditer(rf"(?<![\wáéíóúñÁÉÍÓÚÑ]){re.escape(palabra)}(?![\wáéíóúñ])", prosa):
+        k = m.start() - 1
+        while k >= 0 and prosa[k] in _MARCADO:
+            k -= 1
+        if k >= 0 and prosa[k] not in ".!?:\n#":
+            return True
+    return False
+
+
+# Los de casa: salen en casi todos los titles y no todos los cuerpos los escriben en
+# mitad de una frase (las fichas de tema dicen «Robe» y no «Extremoduro»).
+NOMBRES_DE_CASA = ("Extremoduro", "Robe", "Roberto Iniesta", "Uoho")
+
+
+def mayusculas_indebidas(title: str, fuentes: str, nombres=()) -> list[str]:
+    """Palabras en mayúscula que no abren el title y no son nombres propios.
+
+    Tras los dos puntos va minúscula («Barricada: miembros, historia…», el title de
+    David). Un nombre propio se reconoce porque las fuentes lo escriben con
+    mayúscula EN MITAD DE UNA FRASE, o porque es uno de `nombres` (el sujeto, el
+    catálogo). `nombres` son FRASES enteras y se enmascaran enteras: por palabras
+    sueltas, «La Carrera» blanquearía cualquier «La».
+    Los headings no cuentan: muchos están en Title Case («## Miembros Clave de
+    Barricada») y lo blanquearían. Sin fuentes no se juzga: con `fuentes=""` todo
+    nombre propio parecería Title Case.
+    """
+    if not (fuentes or "").strip():
+        return []
+    if isinstance(nombres, str):
+        nombres = [nombres]
+    t = title or ""
+    for n in sorted({x.strip() for x in (*nombres, *NOMBRES_DE_CASA) if x and x.strip()},
+                    key=len, reverse=True):
+        t = re.sub(rf"(?<![\wáéíóúñ]){re.escape(n)}(?![\wáéíóúñ])", "§", t)
+    prosa = "\n".join(l for l in fuentes.split("\n") if not l.lstrip().startswith("#"))
+    malas = []
+    for i, w in enumerate(t.split()):
+        nucleo = w.strip(".,;:!?«»\"'()¿¡-—“”‘’")
+        if (i == 0 or len(nucleo) < 2 or not nucleo[:1].isupper() or nucleo.isupper()):
+            continue
+        if not _en_mitad_de_frase(prosa, nucleo):
+            malas.append(nucleo)
+    return malas
+
 
 # Facetas que describen el GÉNERO de la página, no un tema suyo. Se aceptan sin
 # respaldo léxico porque una ficha de grupo cuenta su historia aunque no escriba la
@@ -278,14 +530,14 @@ def parse_title(title: str) -> tuple[str, list[str]]:
 
 
 def title_pattern(title: str) -> str:
-    """`antinatural` si lleva la keyword pegada en crudo; `canonical` si es el
-    patrón «<algo> letra: …» del sitio; `ok` en lo demás."""
+    """`antinatural` si lleva un genérico pegado en crudo a un nombre propio
+    («Barricada grupo», «Desarraigo letra»); `ok` en lo demás."""
     t = (title or "").strip()
     for gen in _GENERICOS_PEGADOS:
-        if re.search(rf"[A-ZÁÉÍÓÚÑ][\wáéíóúñ'´]*\s+{gen}\b", t):
-            return "antinatural"
-    if re.search(r"\bletras?\b", flatten(t)):
-        return "canonical"
+        for m in re.finditer(rf"([A-ZÁÉÍÓÚÑ][\wáéíóúñ'´]*)\s+(?i:{gen})\b", t):
+            # «Un álbum conceptual», «Su historia»: un determinante no es un nombre.
+            if flatten(m.group(1)).strip() not in _DETERMINANTES:
+                return "antinatural"
     return "ok"
 
 
@@ -314,8 +566,10 @@ def cubre_termino(title: str, target_keyword: str | None) -> bool:
 
 def title_verdict(nuevo: str, *, body_md: str, subject: str,
                   entity_type: str = "", anterior: str | None = None,
-                  target_keyword: str | None = None) -> MetaVerdict:
-    """¿Este title representa el contenido de la página?"""
+                  target_keyword: str | None = None, nombres=()) -> MetaVerdict:
+    """¿Este title representa el contenido de la página?
+
+    `nombres`: títulos y nombres del catálogo, para no tomarlos por Title Case."""
     v = MetaVerdict()
     nuevo = (nuevo or "").strip()
     body_plano = flatten(body_md)
@@ -353,9 +607,31 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
         if not _faceta_respaldada(f, body_plano, headings_plano, genero):
             v.bloquear(f"el title promete «{f}» y la página no lo cubre")
 
-    # C — la keyword metida en crudo.
-    if title_pattern(nuevo) == "antinatural":
+    # C — la keyword metida en crudo (David, 11-11-2026: «Plasencia Robe es
+    # totalmente antinatural»), las fórmulas vacías y el Title Case.
+    if title_pattern(nuevo) == "antinatural" or keyword_pegada(nuevo, target_keyword):
         v.bloquear(f"«{nuevo}» pega la keyword en crudo; no se lee natural")
+    # Los de casa: con su mayúscula, y solo si la página habla de ellos. El 11-11-2026
+    # la keyword «Álvaro Rodríguez Barroso extremoduro» empujó a escribir «de
+    # extremoduro a CIRA» sobre un músico de la banda de Robe que nunca estuvo en
+    # Extremoduro, y cuyo cuerpo no lo nombra.
+    # Sin las URLs de los enlaces: `](…/extremoduro/…)` no es nombrarlo.
+    plano_body = flatten(re.sub(r"\]\([^)]*\)", "]", body_md or ""))
+    for casa in NOMBRES_DE_CASA:
+        if re.search(rf"(?<![\wáéíóúñ]){re.escape(casa)}(?![\wáéíóúñ])", nuevo, re.I):
+            if not re.search(rf"(?<![\wáéíóúñ]){re.escape(casa)}(?![\wáéíóúñ])", nuevo):
+                v.bloquear(f"«{casa}» va con mayúscula")
+            if body_md and f" {flatten(casa).strip()} " not in plano_body:
+                v.bloquear(f"el title nombra a «{casa}» y la página no")
+    if comillas_desparejadas(nuevo):
+        v.bloquear("comillas «» desparejadas")
+    for f in formulas_vacias(nuevo):
+        v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
+    for motivo in estructura(nuevo):
+        v.bloquear(motivo)
+    malas = mayusculas_indebidas(nuevo, body_md or "", nombres=[subject or "", *nombres])
+    if malas:
+        v.bloquear(f"mayúsculas de Title Case: {', '.join(malas)}")
 
     # D — no se fuerza el término principal, pero si no se cubre, se avisa: el
     # title sigue siendo válido (David: «si no se puede, no se fuerza»).
@@ -369,6 +645,32 @@ def title_verdict(nuevo: str, *, body_md: str, subject: str,
         nuevas = {flatten(f).strip() for f in facetas} - {flatten(f).strip() for f in facetas_antes}
         if not nuevas:
             v.avisos.append("el title nuevo no añade ninguna faceta que el anterior no tuviera")
+    return v
+
+
+def h1_post_verdict(h1: str, *, body_md: str, nombres=()) -> MetaVerdict:
+    """El título de un post (su H1 y el de sus tarjetas «En el diario»).
+
+    No pasaba ninguna guarda: el generador solo pedía «≤80» y así salieron «La
+    Evolución Musical de Extremoduro: Un Viaje Inigualable» o «Robe: De Chapista a
+    Ícono del Rock Español» (12-11-2026). Mismas reglas de construcción que un
+    title, sin las de sujeto ni facetas: un post no es la ficha de una entidad."""
+    v = MetaVerdict()
+    t = (h1 or "").strip()
+    if len(t) < TITLE_MIN:
+        v.bloquear(f"título demasiado corto ({len(t)} caracteres)")
+        return v
+    if len(t) > 90:
+        v.bloquear(f"título de {len(t)} caracteres (máximo 90)")
+    if comillas_desparejadas(t):
+        v.bloquear("comillas «» desparejadas")
+    for f in formulas_vacias(t):
+        v.bloquear(f"fórmula vacía «{f}»: vale para cualquier página")
+    for motivo in estructura(t):
+        v.bloquear(motivo)
+    malas = mayusculas_indebidas(t, body_md or "", nombres=nombres)
+    if malas:
+        v.bloquear(f"mayúsculas de Title Case: {', '.join(malas)}")
     return v
 
 
@@ -492,12 +794,16 @@ TITLE (≤{TITLE_TARGET} caracteres, nunca más de {TITLE_HARD_MAX}, sin cortar 
 - REPRESENTA EL CONTENIDO de la página. Nunca cambies su sentido para colocar un
   término: si la página va de un grupo, el title va del grupo, no de sus miembros.
 - La entidad principal abre el title, antes de los dos puntos.
-- Cubre el término principal con NATURALIDAD. Cubrir no es pegar: «Barricada grupo»
-  está mal escrito; «Barricada: … del grupo de rock español» lo cubre y se lee.
+- Cubre el término principal con NATURALIDAD. Cubrir no es pegar: «Barricada grupo»,
+  «Plasencia Robe», «Desarraigo letra» o «Selu Extremoduro» están mal escritos;
+  «Barricada: … del grupo de rock español», «La Plasencia de Robe…» y «Letra de
+  Desarraigo, de Extremoduro» lo cubren y se leen. Español correcto siempre.
 - Si además se puede hilar otro término, bien. SI NO SE PUEDE, NO SE FUERZA.
 - Las facetas se enumeran en lenguaje corriente («miembros, historia y legado») y
   cada una tiene que existir de verdad en la página.
-- Capitalización española: mayúscula inicial y en nombres propios. Nada de Title Case.
+- Capitalización española: mayúscula inicial y en nombres propios. Nada de Title Case,
+  tampoco tras los dos puntos («Barricada: miembros…», no «Barricada: Miembros…»).
+- Nada de fórmulas que valdrían para cualquier página: {", ".join(f"«{f}»" for f in FORMULAS_VACIAS_TITLE)}.
 
 DESCRIPTION ({DESC_TARGET[0]}-{DESC_TARGET[1]} caracteres):
 - NO es un elemento de ranking: es lo que capta el clic. Se escribe para que alguien
@@ -525,6 +831,11 @@ EJEMPLOS (de esta misma web, revisados a mano):
   → cambia el SENTIDO: la página va del grupo, no de sus miembros.
 ✓ «Barricada: miembros, historia y legado del grupo de rock español»
   → el sujeto sigue siendo el grupo, y «miembros» entra como una faceta más.
+✗ «Plasencia Robe: Cuna de Extremoduro y su legado»
+  → «Plasencia Robe» no es español, «Cuna» va en minúscula y «su legado» no dice nada.
+✓ «La Plasencia de Robe: …» (David, 11-11-2026)
+✗ «Desarraigo letra: Robe explora la soledad»
+✓ «Letra de Desarraigo, de Extremoduro: …» → cubre «desarraigo letra» sin pegarla.
 
 ✗ «Barricada, grupo musical de Pamplona. Miembros clave: El Drogas y Alfredo
    Piedrafita. Influencia en bandas como Extremoduro.»
@@ -577,3 +888,145 @@ def meta_limpio(meta: dict, *, subject: str, body: str) -> tuple[str | None, str
         logger.warning("[meta] %s: la description no cabe limpia (%d c), se deja vacía",
                        subject, len(meta.get("meta_description") or ""))
     return t, d
+
+
+# --------------------------------------------------------------------------- #
+# Los headings (H2/H3)
+# --------------------------------------------------------------------------- #
+# Criterio de David (10-11-2026), al revisar las primeras fichas del cap. 64:
+# «Paco Doniga antes de Dosis Letal: su etapa en Indecisión Momentánea» no es
+# natural, y los headings tienen que ser humanos SIEMPRE. No era el modelo: el
+# esquema de `generate_deep` pedía «<H2 concreto sobre {subject}>» y los bloques de
+# keyword pedían meterla «en algún H2». Medido ese día en prod: 47 de 50 fichas de
+# persona y 131 de 153 canciones repetían el sujeto en dos o más H2.
+#
+# La keyword se cubre en el title, el H1 y el cuerpo. Un heading es para el lector:
+# dice qué viene en la sección, como lo diría alguien que cuenta la historia.
+
+PROMPT_HEADING_RULES = """\
+HEADINGS (H2/H3), regla dura: escríbelos como un humano que cuenta la historia, no
+como un SEO. Dicen qué hay en la sección, en pocas palabras y con naturalidad.
+- El nombre del protagonista de la página (persona, grupo, disco, canción, lugar)
+  va en UNO o, como mucho, DOS headings, metido con naturalidad, como lo diría
+  alguien al contarlo («Cuando Paco Doniga entró en Dosis Letal»). Ni ausente del
+  todo ni repetido en cada sección.
+- Nada de moldes «Nombre: tema», «Tema de Nombre: subtema» ni «X y su relación con Y».
+- Capitalización española: mayúscula solo al principio y en nombres propios.
+- No metas la keyword en los headings: si encaja sola en uno, bien; si no, no se fuerza.
+"""
+
+EJEMPLOS_ORO_HEADINGS = """\
+✗ «Paco Doniga antes de Dosis Letal: su etapa en Indecisión Momentánea»
+✓ «Antes de Dosis Letal: Indecisión Momentánea»  /  «Cuando Paco Doniga entró en Dosis Letal»
+✗ «Quién es Jesús Mateos Brea: de los grafitis al grabado»
+✓ «De los grafitis al grabado»
+✗ «La Carrera: Letra y significado»  /  «La música de La Carrera en el contexto de Agila»
+✓ «Qué cuenta la letra»  /  «Cómo suena en Agila»
+✗ «El macromural de Jesús Mateos Brea sobre Robe y Manolo Chinato»
+✓ «El mural de Robe y Manolo Chinato»
+"""
+
+# Palabras que pueden ir en mayúscula sin ser Title Case (inicio tras dos puntos o
+# comillas, siglas…) — la comprobación mira palabras comunes, no nombres propios.
+_COMUNES_TITULO = {
+    "analisis", "letra", "significado", "musica", "contexto", "historia", "vida",
+    "carrera", "legado", "obra", "relacion", "conexion", "etapa", "influencia",
+    "impacto", "estilo", "sonido", "composicion", "trayectoria", "origen", "origenes",
+    "papel", "temas", "interpretaciones", "directo", "evolucion", "colaboracion",
+    # Medidas en los H2 del blog el 12-11-2026 («Contexto y Grabación de…», «El
+    # Viaje Íntimo de la Locura: Su Incursión Literaria», «Primeros Pasos en la
+    # Música»), que nadie había repasado.
+    "grabacion", "viaje", "intimo", "incursion", "literaria", "primeros", "pasos",
+    "nacimiento", "manifiesto", "llamado", "frustracion", "metafora", "huida",
+    "cancion", "canciones", "realidad", "soledad", "frases", "iconicas", "profundo",
+    "reflexiones", "libros", "exito", "proyecto", "paralelo", "pionero", "urbano",
+    "explorando", "dualidad", "confrontacion", "vision", "critica", "fenomeno",
+    # Y las del título de los posts, medidas en los 30 publicados el 12-11-2026.
+    "musical", "inigualable", "icono", "rock", "espanol", "espanola", "tributo",
+    "homenaje", "homenajes", "rugido", "sinfonia", "gira", "letra", "amor", "manifiesto",
+    "frustracion", "soledad", "nacimiento", "fallecimiento", "chapista", "pionero",
+}
+
+
+def _nombres_sujeto(subject: str, alias: list[str] | None) -> list[str]:
+    out = []
+    for n in [subject, *(alias or [])]:
+        p = flatten(n or "").strip()
+        p = re.sub(r"\s*\(.*?\)\s*", " ", p).strip()      # «Pepe Botika (¿Dónde…?)»
+        if len(p) >= 2:                                   # «Ñu» se queda en «nu»
+            out.append(p)
+    return out
+
+
+def _nombra(heading_plano: str, nombres: list[str]) -> bool:
+    return any(re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", heading_plano) for n in nombres)
+
+
+_TITULO_CITADO = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"|'[^']*'")
+
+
+def _sin_titulos_ajenos(heading: str, nombres: list[str]) -> str:
+    """Quita los títulos entre comillas que NO son el sujeto: «Amor castúo» en la página
+    del tema «Amor» nombra una canción, no el tema (11-11-2026)."""
+    def _cambio(m: re.Match) -> str:
+        dentro = re.sub(r"\s*\(.*?\)\s*", " ", flatten(m.group(0)[1:-1])).strip()
+        return m.group(0) if dentro in nombres else " "
+    return _TITULO_CITADO.sub(_cambio, heading)
+
+
+def _raices(subject: str) -> list[str]:
+    """Un tema o un concepto es un nombre común: «político» nombra «Política e
+    instituciones» y «el amor», «Amor». Se reconoce por la raíz de cada palabra."""
+    return [t[:5] for t in content_tokens(subject) if len(t) >= 4]
+
+
+def heading_verdict(headings: list[str], *, subject: str,
+                    alias: list[str] | None = None, comun: bool = False) -> MetaVerdict:
+    """¿Estos headings los escribiría una persona? Determinista, sin red.
+
+    Bloquea lo que se ve sin dudar: el sujeto repetido en más de un heading, la
+    cabeza «Sujeto: …», las comillas rectas, el verbo suelto al final y el Title
+    Case de palabras COMUNES (`_COMUNES_TITULO`; los nombres propios no cuentan).
+    Hasta el 12-11-2026 el Title Case era solo aviso, y así sobrevivieron los H2 del
+    blog. Sin `subject` (un post del blog) no se mira el sujeto.
+    """
+    v = MetaVerdict()
+    nombres = _nombres_sujeto(subject, alias)
+    planos = [flatten(_sin_titulos_ajenos(h or "", nombres)) for h in headings]
+    if comun and (raices := _raices(subject)):
+        def _lo_nombra(p: str) -> bool:
+            return any(re.search(rf"(?<![\w]){re.escape(r)}", p) for r in raices)
+    else:
+        def _lo_nombra(p: str) -> bool:
+            return _nombra(p, nombres)
+    con_sujeto = [h for h, p in zip(headings, planos) if _lo_nombra(p)]
+    # Criterio de David (10-11-2026): el nombre va, con naturalidad, en uno o dos
+    # headings; ni en todos (suena a SEO) ni en ninguno.
+    if not nombres:
+        con_sujeto = headings[:1]  # sin sujeto: nada que repetir ni que echar en falta
+    if len(con_sujeto) > 2:
+        v.bloquear(f"el nombre de «{subject}» se repite en {len(con_sujeto)} headings "
+                   f"(máximo dos): " + " | ".join(con_sujeto[:4]))
+    if headings and len(headings) >= 2 and not con_sujeto:
+        v.bloquear(f"ningún heading nombra a «{subject}»: mételo en uno, con naturalidad")
+    for h, p in zip(headings, planos):
+        cabeza, _ = parse_title(h)
+        if cabeza != h.strip() and _nombra(flatten(cabeza), nombres):
+            v.bloquear(f"«{h}» usa el molde «{cabeza}: …»")
+        # Un título citado lleva sus mayúsculas: «Relación Convencional» no es Title Case.
+        sin_citas = _TITULO_CITADO.sub(" ", h)
+        tras = re.split(r"[:—–]\s*", sin_citas, maxsplit=1)
+        cola = tras[1] if len(tras) > 1 else sin_citas
+        # Tras los dos puntos, en castellano, va minúscula: esa también cuenta.
+        palabras = re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", cola)[0 if len(tras) > 1 else 1:]
+        mayus = [w for w in palabras if w[:1].isupper() and flatten(w).strip() in _COMUNES_TITULO]
+        # Una sola, y justo tras los dos puntos («Su obra: Análisis de la letra»), es
+        # discutible: aviso. Más de una es Title Case: bloqueo.
+        primera_tras = palabras[:1] if len(tras) > 1 else []
+        if mayus and mayus != primera_tras:
+            v.bloquear(f"«{h}» va en Title Case ({', '.join(mayus[:3])})")
+        elif mayus:
+            v.avisos.append(f"«{h}» lleva mayúscula tras los dos puntos ({mayus[0]})")
+        for motivo in estructura(h, cola=False):
+            v.bloquear(f"«{h}»: {motivo}")
+    return v

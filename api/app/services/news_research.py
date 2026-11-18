@@ -24,7 +24,7 @@ from app.services.registro_dfs import etiquetar, registrar
 from app.services.seo_research import PROYECTO_DFS
 from sqlalchemy import select
 
-from app.services import robe_facts
+from app.services import robe_facts, seo_style
 from app.services.content_generator import _call
 from app.services.instagram import web_image
 from app.services.openai_chat import openai_chat_kwargs
@@ -111,7 +111,8 @@ Devuelve SOLO un JSON con:
     la actuación, la entrevista, el videoclip...). Vacío si no aplica un vídeo.
   "focus": en una frase, QUÉ información es la más relevante a destacar según el
     tipo (de un disco: fecha, sello, tracklist, contexto; de un evento: fecha,
-    lugar, QUIÉN actúa/asiste y los GUIÑOS a Robe/Extremoduro; de una persona/banda:
+    lugar, quién actúa SOLO si la noticia lo nombra (si no hay cartel anunciado,
+    eso mismo es el dato) y qué tiene que ver con Robe; de una persona/banda:
     quiénes son, trayectoria, relación con Robe; etc.).
 """
     plan = _json(_PLAN_SYS, user)
@@ -125,9 +126,13 @@ Devuelve SOLO un JSON con:
 # --------------------------------------------------------------------------- #
 # 2. Investigación: web (snippets de Google) + corpus propio
 # --------------------------------------------------------------------------- #
-def web_research(query: str, n: int = 6) -> list[dict]:
+def web_research(query: str, n: int = 6, *, estado: dict | None = None) -> list[dict]:
     """Títulos + snippets de Google (no scrapea páginas): material factual para
-    el LLM, no copia. Vía DataForSEO."""
+    el LLM, no copia. Vía DataForSEO.
+
+    `estado`: si se pasa, queda `estado["fallo"] = True` cuando la búsqueda NO se pudo
+    hacer (error de DataForSEO, red). Una búsqueda fallida no es «no hay nada»: el
+    18-11-2026 el error 40101 hizo que se descartaran datos ciertos como no hallados."""
     login = os.environ.get("DATAFORSEO_LOGIN")
     pwd = os.environ.get("DATAFORSEO_PASSWORD")
     if not query or not login or not pwd:
@@ -149,10 +154,14 @@ def web_research(query: str, n: int = 6) -> list[dict]:
         if not tarea.get("result"):
             logger.warning("[news_research] SERP sin resultado '%s': %s %s", query,
                            tarea.get("status_code"), tarea.get("status_message"))
+            if estado is not None and tarea.get("status_code") != 20000:
+                estado["fallo"] = True
             return []
         items = tarea["result"][0].get("items") or []
     except Exception as exc:  # noqa: BLE001
         logger.warning("[news_research] SERP falló '%s': %s", query, exc)
+        if estado is not None:
+            estado["fallo"] = True
         return []
     out = []
     for it in items:
@@ -347,7 +356,13 @@ def find_image(query: str) -> dict | None:
     """
     if not query:
         return None
-    cands = web_image.search(query)
+    from app.services.blog_hero import es_portada_de_otro_evento
+
+    cands = [
+        c for c in (web_image.search(query) or [])
+        if not es_portada_de_otro_evento(c.get("url"))
+        and not es_portada_de_otro_evento(c.get("page_url"))
+    ]
     if not cands:
         return None
     top = cands[0]
@@ -379,8 +394,12 @@ _WRITE_SYS = (
     "si no constan, no los pongas (mejor omitir el año que inventarlo). No "
     "mezcles eventos distintos en uno: céntrate en el hecho de la noticia. "
     "FOCO (IMPRESCINDIBLE): el post va del HECHO de la noticia y de sus "
-    "PROTAGONISTAS (quién participa/actúa/asiste, qué hace, cuándo, y la relación "
-    "o los guiños a Robe/Extremoduro). NO dediques secciones ni párrafos al "
+    "PROTAGONISTAS (qué pasa, cuándo, dónde, y su relación con Robe/Extremoduro). "
+    "CARTEL Y PARTICIPANTES: nombra a quien actúa, participa o asiste SOLO si el "
+    "EXTRACTO DE LA NOTICIA lo nombra. Si la noticia no da nombres, escribe que "
+    "aún no se han anunciado: es un dato, no un hueco que rellenar. JAMÁS "
+    "completes un cartel con músicos del corpus, del dossier o de la web, aunque "
+    "hayan hablado de Robe o tengan ficha aquí. NO dediques secciones ni párrafos al "
     "LUGAR/RECINTO/SEDE ni a su historia, arquitectura o contexto general (p.ej. "
     "el museo donde se celebra): como mucho, una mención de pasada. Nada de "
     "relleno enciclopédico ajeno al protagonista. No uses la raya larga."
@@ -698,9 +717,11 @@ def research_and_write(
         )
     else:
         foco_line = (
-            "FOCO OBLIGATORIO: céntrate en el hecho y sus protagonistas (quién, qué, "
-            "cuándo, actuaciones, guiños a Robe/Extremoduro). Prohibido dedicar "
-            "secciones al lugar/recinto/sede o su historia: solo mención de pasada."
+            "FOCO OBLIGATORIO: céntrate en el hecho y sus protagonistas (qué, cuándo, "
+            "dónde y su relación con Robe/Extremoduro). Quién actúa o participa, SOLO "
+            "si lo nombra el EXTRACTO DE LA NOTICIA; si no, di que no se ha anunciado. "
+            "Prohibido dedicar secciones al lugar/recinto/sede o su historia: solo "
+            "mención de pasada."
         )
     hard = (
         f"{tense_line}"
@@ -718,11 +739,21 @@ def research_and_write(
         + f"NUESTRO CORPUS:\n{corpus_txt}"
         + (f"\n\n{dossier_txt}" if dossier_txt else "")
     )
+    # Lo que se puede AFIRMAR no es todo lo que el redactor ve. La web y el corpus
+    # orientan; un dato de la noticia sale de la noticia. Verificar contra el
+    # material mezclado dejó pasar un cartel con Kutxi Romero y Fito Cabrales
+    # (post #65, 12-10-2026): el corpus sí los trae hablando de Robe.
+    afirmable = (
+        f"EXTRACTO DE LA NOTICIA:\n\"\"\"{source_excerpt[:4000]}\"\"\""
+        + (f"\n\nCRÓNICA / ESPECÍFICOS DEL EVENTO:\n{cronica_txt}" if cronica_txt else "")
+        + (f"\n\n{dossier_txt}" if dossier_txt else "")
+    )
     target_kw = subject  # KW primaria del post = el protagonista de la noticia
     kw_block = (
-        f"KEYWORD OBJETIVO: «{target_kw}» (úsala con naturalidad en el título y "
-        "algún H2). Construye los headings teniéndola en cuenta, sin forzar; "
-        "prima el conocimiento real del material.\n"
+        f"KEYWORD OBJETIVO: «{target_kw}» (úsala con naturalidad en el título y el "
+        "texto; en los headings, solo si encaja sola). "
+        + seo_style.PROMPT_HEADING_RULES
+        + "Prima el conocimiento real del material.\n"
     )
 
     # Generación PROFUNDA: mismo motor que las páginas SEO (outline adaptativo +
@@ -747,7 +778,7 @@ def research_and_write(
         for s in outline:
             # `prior` evita que cada sección repita lo ya dicho (anti-redundancia).
             sec = _write_section(client, subject, s, headings, hard, material, kw_block, prior=prior)
-            sec = _verify_section(client, sec, material)
+            sec = _verify_section(client, sec, afirmable)
             if sec.strip():
                 parts.append(sec.strip())
                 prior = "\n\n".join(parts)
@@ -775,11 +806,24 @@ def research_and_write(
             "Devuelve JSON con body_md.",
             max_tokens=2200, system_prompt=_WRITE_SYS,
         )
-        body_md = verify_facts(oneshot.get("body_md") or body_md, material)
+        body_md = verify_facts(oneshot.get("body_md") or body_md, afirmable)
 
     # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
     from app.services.text_sanitizer import strip_ai_tells
     body_md = strip_ai_tells(body_md) or body_md
+
+    # Lo que la noticia no dice no se afirma: comparación determinista con el
+    # artículo (y juez CONTRA EL ARTÍCULO para lo que no se ve por texto). Va
+    # DESPUÉS del pulido, que reescribe sin volver a verificar.
+    from app.services import source_grounding
+
+    fuente_check = source_excerpt + (f"\n\n{cronica_txt}" if cronica_txt else "")
+    grounding = source_grounding.revisar(
+        body_md, fuente_check, casa=source_grounding.nombres_de_casa(db), propio=dossier_txt,
+    )
+    if grounding.bloqueos:
+        logger.warning("[news_research] %s", grounding.motivo())
+        body_md = source_grounding.quitar_frases(body_md, grounding)
 
     # Metadatos del post a partir del cuerpo final.
     meta = _news_meta(subject, body_md)
@@ -791,6 +835,8 @@ def research_and_write(
         "meta_description": meta.get("meta_description") or "",
         "slug": _slugify(meta.get("title") or subject),
         "target_keyword": target_kw,
+        # Lo que se retiró por no constar en la noticia (para el panel y el log).
+        "grounding_retirado": grounding.motivo() if grounding.bloqueos else "",
     }
 
     # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo

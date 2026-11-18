@@ -41,6 +41,7 @@ from app.db.models import (
     SeoOpportunity,
 )
 from app.db.session import SessionLocal
+from app.services import jsonld_audit as ja
 from app.services import page_monitor as pm
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -101,6 +102,54 @@ def causas(db, desde: datetime | None) -> dict[str, list[str]]:
         path = (canonical_path_for(db, sc.entity_type, sc.entity_id)
                 if sc.entity_type != "page" else None)
         add(path, f"ficha regenerada ({sc.generated_by or 'motor'})")
+    return out
+
+
+def _cruzados(paginas: dict) -> list:
+    """Lo que solo se ve mirando todas las páginas a la vez: `@id` que no existen y
+    referencias a nodos de otra página que no son del rango de su propiedad."""
+    try:
+        rangos = ja.rangos_cruzados(paginas, ja.cargar_vocabulario())
+    except (OSError, ValueError) as exc:
+        logger.warning("[monitor] sin vocabulario de schema.org (%s): no se miran rangos", exc)
+        rangos = []
+    return ja.ids_colgantes(paginas) + rangos
+
+
+def cruzados_nuevos(previas: dict, fotos: dict) -> dict[str, list]:
+    """Fallos del JSON-LD entre páginas (`_cruzados`), por ruta: solo los que no
+    estaban ya en la pasada anterior. Si la anterior no guardaba la huella del
+    JSON-LD, se descuentan las excepciones declaradas en `data/jsonld_excepciones.yaml`,
+    que son lo que fallaba el día de la línea base."""
+    hoy = {}
+    # Una página que no respondió por la red no se sabe si existe: lo que apunta a
+    # ella no se da por colgante (una que respondió 404 sí cuenta).
+    sin_respuesta = {p for p, f in fotos.items() if isinstance(f, Exception)}
+    for path, foto in fotos.items():
+        if isinstance(foto, Exception) or foto.status != 200:
+            continue
+        pag = ja.pagina_desde_campos(path, foto.campos)
+        if pag is not None:
+            hoy[path] = pag
+    if not hoy:
+        return {}
+    actuales = [f for f in _cruzados(hoy)
+                if not (f.regla == "colgante"
+                        and f.detalle.split("#", 1)[0] in sin_respuesta)]
+    ayer = {p: ja.pagina_desde_campos(p, s.campos) for p, s in previas.items()
+            if s.status == 200}
+    if ayer and all(v is not None for v in ayer.values()):
+        ya = {(f.regla, f.path, f.detalle) for f in _cruzados(ayer)}
+        nuevos = [f for f in actuales if (f.regla, f.path, f.detalle) not in ya]
+    else:
+        try:
+            nuevos, _, _ = ja.separar(actuales, ja.cargar_excepciones())
+        except (OSError, ValueError) as exc:
+            logger.warning("[monitor] sin excepciones del JSON-LD (%s): no se avisa", exc)
+            return {}
+    out: dict[str, list] = {}
+    for f in nuevos:
+        out.setdefault(f.path, []).append(f)
     return out
 
 
@@ -171,6 +220,18 @@ def pasada(db, *, base: str, limit: int | None = None, dry_run: bool = False):
                                       detalle=c.detalle, causa=causa, detected_at=ahora))
         _guardar_foto(db, previa, foto, en_sitemap=dentro, ahora=ahora)
 
+    # Con --limit falta medio sitio y todo lo que apunta fuera parecería colgante.
+    for path, fallos in ({} if limit else cruzados_nuevos(previas, fotos)).items():
+        for regla, campo, texto in (("colgante", "jsonld_colgante", "@id que no existen"),
+                                    ("vocabulario", "jsonld_fallo", "fallos nuevos")):
+            detalle = [f.detalle for f in fallos if f.regla == regla]
+            if detalle:
+                cambios.append(PageChange(
+                    run_id=run.id, path=path, campo=campo, severidad="estructural",
+                    antes=None, despues=f"{len(detalle)} {texto}",
+                    detalle={"entran": detalle[:40], "n_entran": len(detalle)},
+                    causa="; ".join(por_causa.get(path, [])) or None, detected_at=ahora))
+
     run.errors = errores
     run.changed_urls = len({c.path for c in cambios})
     run.global_event = bool(rutas) and run.changed_urls / len(rutas) > UMBRAL_GLOBAL
@@ -193,6 +254,9 @@ CAMPO_LABEL = {
     "headings": "encabezados", "contenido": "contenido", "enlaces": "enlaces internos",
     "jsonld": "tipos de JSON-LD", "og": "Open Graph", "imgs_sin_alt": "imágenes sin alt",
     "tiempo": "tiempo de respuesta", "sitemap": "sitemap", "nueva": "URL nueva",
+    "jsonld_perdido": "datos estructurados que se pierden",
+    "jsonld_fallo": "datos estructurados con fallos nuevos",
+    "jsonld_colgante": "datos estructurados que citan algo que no existe",
 }
 
 

@@ -157,7 +157,8 @@ contar (orígenes/Plasencia, el nombre, la calle y las adicciones, cómo compon�
 cada etapa de la obra, crowdfunding, relaciones y colaboraciones, miedos,
 logros, influencias que recibió y que dejó, el final y el legado... lo que el
 material pida), ordenadas con lógica narrativa. NO uses una plantilla genérica.
-Devuelve JSON {{"sections": [{{"heading": "<título H2 concreto y atractivo>",
+{seo_style.PROMPT_HEADING_RULES}
+Devuelve JSON {{"sections": [{{"heading": "<H2 natural, como lo escribiría una persona>",
 "covers": "<qué hechos/anécdotas del material cubre, en una frase>"}}]}}.
 """
     data = _chat(client, _FLAGSHIP_SYS.format(subject=subject), user, max_tokens=1500)
@@ -364,7 +365,7 @@ def main() -> None:
         # el autolink), externos solo del material. Luego enlazado interno.
         body = _sanitize_links(body, allowed_urls)
         body = autolink_corpus(
-            body, build_corpus_index(db), max_links=10,
+            body, build_corpus_index(db), 
             exclude_slug=artist.slug, link_stats=load_link_stats(),
         )
         log(f"  ✓ {subject}: {len(body)} chars")

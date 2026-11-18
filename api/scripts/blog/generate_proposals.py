@@ -200,6 +200,18 @@ def main() -> None:
                 "content_key": spot_ck,
             })
 
+        # --- Ideas del CATÁLOGO: 1-2 por semana con material comprobado (plan del blog,
+        #     18-11-2026). Disco, canción, persona o lugar con ficha × ángulo de historia.
+        try:
+            from app.services.catalog_ideas import filas_para_el_banco
+            catalogo = filas_para_el_banco(db)
+            actualidad.extend(catalogo)
+            logger.info("Catálogo: %d idea(s): %s", len(catalogo),
+                        "; ".join(r["title"] for r in catalogo))
+        except Exception:  # noqa: BLE001 — sin catálogo, el banco sigue con lo demás
+            db.rollback()   # un error de BD aquí no puede tumbar el resto del lunes
+            logger.exception("ideas de catálogo fallaron")
+
         # --- Propuestas SEO-driven (keyword research long-tail del corpus) ---
         if not args.no_research and client is not None:
             seo_rows = keyword_research.build_proposal_rows(

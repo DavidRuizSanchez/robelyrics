@@ -1,0 +1,90 @@
+# Títulos de canción y de disco con mayúsculas a la española (David, 12-11-2026).
+#
+# Genius los trae en Title Case («Ábreme el Pecho y Registra») y se colaban en el
+# H1, en los titles y en los cuerpos. Regla de la casa: mayúscula al principio,
+# tras «:» y al abrir paréntesis o corchete; el resto en minúscula salvo nombres
+# propios y siglas. Lo aplica `scripts/normalizar_titulos.py`, que comprueba que
+# el título de la BD sigue siendo `antes` (si no, no toca nada). Los slugs no
+# cambian: ninguna URL cambia. `ingest.py` ya no pisa el título de una canción
+# que existe, así que esta lista no se deshace al reingestar.
+#
+# `revisar: true` = caso de criterio, enseñado a David antes de aplicar.
+
+discos:
+  - {artist: extremoduro, album: rock-transgresivo, antes: "Rock Transgresivo", titulo: "Rock transgresivo"}
+  - {artist: robe, album: destrozares, antes: "Destrozares, Canciones para el Final de los Tiempos", titulo: "Destrozares, canciones para el final de los tiempos"}
+
+canciones:
+  - {artist: extremoduro, album: somos-unos-animales, slug: tu-corazon, antes: "Tu Corazón", titulo: "Tu corazón"}
+  - {artist: extremoduro, album: somos-unos-animales, slug: la-cancion-de-los-oficios, antes: "La Canción de los Oficios", titulo: "La canción de los oficios"}
+  - {artist: extremoduro, album: somos-unos-animales, slug: quemando-tus-recuerdos, antes: "Quemando Tus Recuerdos", titulo: "Quemando tus recuerdos"}
+  - {artist: extremoduro, album: somos-unos-animales, slug: j-d-la-central-nuclear, antes: "J.D. La Central Nuclear", titulo: "J.D. La central nuclear", revisar: true}
+  - {artist: extremoduro, album: somos-unos-animales, slug: ni-principes-ni-princesas, antes: "Ni Príncipes Ni Princesas", titulo: "Ni príncipes ni princesas"}
+  - {artist: extremoduro, album: somos-unos-animales, slug: perro-callejero, antes: "Perro Callejero", titulo: "Perro callejero"}
+  - {artist: extremoduro, album: somos-unos-animales, slug: necesito-droga-y-amor-los-camellos-no-me-fian, antes: "Necesito Droga y Amor (Los Camellos No Me Fían)", titulo: "Necesito droga y amor (Los camellos no me fían)"}
+  - {artist: extremoduro, album: deltoya, slug: sol-de-invierno, antes: "Sol de Invierno", titulo: "Sol de invierno"}
+  - {artist: extremoduro, album: deltoya, slug: de-acero, antes: "De Acero", titulo: "De acero"}
+  - {artist: extremoduro, album: deltoya, slug: ultima-generacion, antes: "Última Generación", titulo: "Última generación"}
+  - {artist: extremoduro, album: deltoya, slug: lucha-contigo-hoy-quiero-ganar-una-batalla-solo-una-pa-empezar, antes: "Lucha Contigo (Hoy quiero ganar una batalla, sólo una pa’ empezar)", titulo: "Lucha contigo (Hoy quiero ganar una batalla, sólo una pa’ empezar)"}
+  - {artist: extremoduro, album: deltoya, slug: con-un-latido-del-reloj, antes: "Con Un Latido Del Reloj", titulo: "Con un latido del reloj"}
+  - {artist: extremoduro, album: deltoya, slug: relacion-convencional, antes: "Relación Convencional", titulo: "Relación convencional"}
+  - {artist: extremoduro, album: deltoya, slug: volando-solo, antes: "Volando Solo", titulo: "Volando solo"}
+  - {artist: extremoduro, album: deltoya, slug: ama-ama-ama-y-ensancha-el-alma, antes: "Ama, Ama, Ama y Ensancha el Alma", titulo: "Ama, ama, ama y ensancha el alma"}
+  - {artist: extremoduro, album: deltoya, slug: estado-policial-un-madero-mil-lapiceros, antes: "Estado Policial (Un ”madero”, mil lapiceros)", titulo: "Estado policial (Un «madero», mil lapiceros)", revisar: true}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: el-duende-del-parque, antes: "El Duende del Parque", titulo: "El duende del parque"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: no-me-calientes-que-me-hundo, antes: "No Me Calientes que Me Hundo", titulo: "No me calientes que me hundo"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: sin-dios-ni-amo, antes: "Sin Dios Ni Amo", titulo: "Sin Dios ni amo", revisar: true}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: estoy-muy-bien, antes: "Estoy Muy Bien", titulo: "Estoy muy bien"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: malos-pensamientos, antes: "Malos Pensamientos", titulo: "Malos pensamientos"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: posado-en-un-nenufar, antes: "Posado en un Nenúfar", titulo: "Posado en un nenúfar"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: historias-prohibidas-nos-tiramos-a-joder, antes: "Historias Prohibidas (Nos Tiramos a Joder)", titulo: "Historias prohibidas (Nos tiramos a joder)"}
+  - {artist: extremoduro, album: donde-estan-mis-amigos, slug: los-tengo-todos, antes: "Los Tengo Todos", titulo: "Los tengo todos"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: extremaydura-rock-transgresivo, antes: "Extremaydura (Rock Transgresivo)", titulo: "Extremaydura (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: emparedado-rock-transgresivo, antes: "Emparedado (Rock Transgresivo)", titulo: "Emparedado (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: decidi-rock-transgresivo, antes: "Decidí (Rock Transgresivo)", titulo: "Decidí (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: romperas-rock-transgresivo, antes: "Romperás (Rock Transgresivo)", titulo: "Romperás (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: adios-abanico-que-llego-el-aire, antes: "Adiós Abanico, Que Llego el Aire", titulo: "Adiós abanico, que llego el aire"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: arrebato-rock-transgresivo, antes: "Arrebato (Rock Transgresivo)", titulo: "Arrebato (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: jesucristo-garcia-rock-transgresivo, antes: "Jesucristo García (Rock Transgresivo)", titulo: "Jesucristo García (Rock transgresivo)"}
+  - {artist: extremoduro, album: rock-transgresivo, slug: la-hoguera-rock-transgresivo, antes: "La Hoguera (Rock Transgresivo)", titulo: "La hoguera (Rock transgresivo)"}
+  - {artist: extremoduro, album: agila, slug: buscando-una-luna, antes: "Buscando una Luna", titulo: "Buscando una luna"}
+  - {artist: extremoduro, album: agila, slug: so-payaso, antes: "So Payaso", titulo: "So payaso"}
+  - {artist: extremoduro, album: agila, slug: el-dia-de-la-bestia, antes: "El Día de la Bestia", titulo: "El día de la bestia", revisar: true}
+  - {artist: extremoduro, album: agila, slug: que-sonrisa-tan-rara, antes: "¡Qué Sonrisa Tan Rara!", titulo: "¡Qué sonrisa tan rara!"}
+  - {artist: extremoduro, album: agila, slug: abreme-el-pecho-y-registra, antes: "Ábreme el Pecho y Registra", titulo: "Ábreme el pecho y registra"}
+  - {artist: extremoduro, album: agila, slug: todos-me-dicen, antes: "Todos Me Dicen", titulo: "Todos me dicen"}
+  - {artist: extremoduro, album: agila, slug: correcaminos-estate-al-loro, antes: "Correcaminos ¡Estate al loro!", titulo: "Correcaminos ¡Estate al loro!", revisar: true}
+  - {artist: extremoduro, album: agila, slug: la-carrera, antes: "La Carrera", titulo: "La carrera"}
+  - {artist: extremoduro, album: agila, slug: me-estoy-quitando, antes: "Me Estoy Quitando", titulo: "Me estoy quitando"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: amor-castuo-en-directo, antes: "Amor castúo (En Directo)", titulo: "Amor castúo (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: buscando-una-luna-en-directo, antes: "Buscando una Luna (En Directo)", titulo: "Buscando una luna (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: de-acero-en-directo, antes: "De Acero (En Directo)", titulo: "De acero (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: correcaminos-estate-al-loro-en-directo, antes: "Correcaminos (Estate al loro) [En Directo]", titulo: "Correcaminos (Estate al loro) [En directo]"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: la-hoguera-en-directo, antes: "La Hoguera (En Directo)", titulo: "La hoguera (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: jesucristo-garcia-en-directo, antes: "Jesucristo García (En Directo)", titulo: "Jesucristo García (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: tu-corazon-en-directo, antes: "Tu Corazón (En Directo)", titulo: "Tu corazón (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: bri-bri-bli-bli-en-el-mas-sucio-rincon-de-mi-negro-corazon-en-directo, antes: "Bri bri bli bli (En el más sucio rincón de mi negro corazón) [En Directo]", titulo: "Bri bri bli bli (En el más sucio rincón de mi negro corazón) [En directo]"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: quemando-tus-recuerdos-en-directo, antes: "Quemando Tus Recuerdos (En Directo)", titulo: "Quemando tus recuerdos (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: la-carrera-en-directo, antes: "La carrera (En Directo)", titulo: "La carrera (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: pepe-botika-donde-estan-mis-amigos-en-directo, antes: "Pepe Botika (¿Dónde están mis amigos?) [En Directo]", titulo: "Pepe Botika (¿Dónde están mis amigos?) [En directo]"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: deltoya-en-directo, antes: "Deltoya (En Directo)", titulo: "Deltoya (En directo)"}
+  - {artist: extremoduro, album: iros-todos-a-tomar-por-culo, slug: la-pedra-fragmento-en-directo, antes: "La Pedrá (Fragmento) [En Directo]", titulo: "La Pedrá (Fragmento) [En directo]"}
+  - {artist: extremoduro, album: canciones-prohibidas, slug: erase-una-vez, antes: "Érase una Vez", titulo: "Érase una vez"}
+  - {artist: extremoduro, album: canciones-prohibidas, slug: su-culo-es-miel, antes: "Su Culo Es Miel", titulo: "Su culo es miel"}
+  - {artist: extremoduro, album: canciones-prohibidas, slug: villancico-del-rey-de-extremadura-vaya-puta-mierda-de-villancico-colega, antes: "Villancico del Rey de Extremadura (Vaya Puta Mierda de Villancico, Colega)", titulo: "Villancico del rey de Extremadura (Vaya puta mierda de villancico, colega)", revisar: true}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: a-fuego, antes: "A Fuego", titulo: "A fuego"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: la-vereda-de-la-puerta-de-atras, antes: "La Vereda de la Puerta de Atrás", titulo: "La vereda de la puerta de atrás"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: hoy-te-la-meto-hasta-las-orejas, antes: "Hoy Te La Meto Hasta Las Orejas", titulo: "Hoy te la meto hasta las orejas"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: luce-la-oscuridad, antes: "Luce la Oscuridad", titulo: "Luce la oscuridad"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: cerca-del-suelo, antes: "Cerca del Suelo", titulo: "Cerca del suelo"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: buitre-no-come-alpiste, antes: "Buitre No Come Alpiste", titulo: "Buitre no come alpiste"}
+  - {artist: extremoduro, album: yo-minoria-absoluta, slug: la-vieja-cancion-sordida, antes: "La Vieja (Canción Sórdida)", titulo: "La vieja (Canción sórdida)"}
+  - {artist: extremoduro, album: la-ley-innata, slug: dulce-introduccion-al-caos, antes: "Dulce Introducción al Caos", titulo: "Dulce introducción al caos"}
+  - {artist: extremoduro, album: la-ley-innata, slug: primer-movimiento-el-sueno, antes: "Primer Movimiento: El Sueño", titulo: "Primer movimiento: El sueño"}
+  - {artist: extremoduro, album: la-ley-innata, slug: segundo-movimiento-lo-de-fuera, antes: "Segundo Movimiento: Lo de Fuera", titulo: "Segundo movimiento: Lo de fuera"}
+  - {artist: extremoduro, album: la-ley-innata, slug: tercer-movimiento-lo-de-dentro, antes: "Tercer Movimiento: Lo de Dentro", titulo: "Tercer movimiento: Lo de dentro"}
+  - {artist: extremoduro, album: la-ley-innata, slug: cuarto-movimiento-la-realidad, antes: "Cuarto Movimiento: La Realidad", titulo: "Cuarto movimiento: La realidad"}
+  - {artist: extremoduro, album: la-ley-innata, slug: coda-flamenca-otra-realidad, antes: "Coda Flamenca (Otra Realidad)", titulo: "Coda flamenca (Otra realidad)"}
+  - {artist: extremoduro, album: para-todos-los-publicos, slug: locura-transitoria, antes: "Locura Transitoria", titulo: "Locura transitoria"}
+  - {artist: extremoduro, album: para-todos-los-publicos, slug: entre-interiores, antes: "Entre Interiores", titulo: "Entre interiores", revisar: true}
+  - {artist: extremoduro, album: para-todos-los-publicos, slug: el-camino-de-las-utopias, antes: "El Camino de las Utopías", titulo: "El camino de las utopías"}

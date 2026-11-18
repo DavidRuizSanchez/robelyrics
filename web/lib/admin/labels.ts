@@ -68,6 +68,7 @@ export const GATE_LABEL: Record<string, string> = {
   completeness: "el control de completitud",
   facts: "el control de datos de catálogo",
   fuentes: "el control de fuentes externas",
+  noticia: "el control contra el artículo de la noticia",
 };
 
 // ── Reparto de keywords (content_placement) ─────────────────────────────────
@@ -295,6 +296,7 @@ export const CORPUS_STATUS: Record<string, Etiqueta> = {
   done: { label: "En el corpus", tone: "ok" },
   failed: { label: "Falló", tone: "danger" },
   retired: { label: "Descartado o retirado", tone: "neutral" },
+  abandoned: { label: "No se puede transcribir", tone: "neutral", hint: "Reintentarlo no lo arregla (restricción de edad, sin habla, privado o borrado). Si algo cambia, «Reintentar» lo devuelve a la cola." },
 };
 
 /** Cómo entra en el corpus (`kind`). */
@@ -322,8 +324,12 @@ export const CAMBIO_CAMPO: Record<string, string> = {
   contenido: "Contenido",
   enlaces: "Enlaces internos",
   jsonld: "Datos estructurados (JSON-LD)",
+  jsonld_perdido: "Datos estructurados que se pierden",
+  jsonld_fallo: "Datos estructurados con fallos nuevos",
+  jsonld_colgante: "Datos estructurados que citan algo que no existe",
   og: "Open Graph",
   imgs_sin_alt: "Imágenes sin texto alternativo",
+  rayas: "Rayas largas en la página",
   tiempo: "Tiempo de respuesta",
   sitemap: "Sitemap",
   nueva: "Página nueva",

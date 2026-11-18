@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PersonAvatar from "@/components/PersonAvatar";
-import PersonDataTable from "@/components/PersonDataTable";
+import PersonDataTable, { enlacesPersonDataTable } from "@/components/PersonDataTable";
 import RelatedPosts from "@/components/RelatedPosts";
 import RelatedVideos from "@/components/RelatedVideos";
 import PublicFooter from "@/components/PublicFooter";
@@ -21,6 +21,8 @@ import {
   relatedVideoObjectNode,
   webPageNode,
 } from "@/lib/schema-graph";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import type { PublicRelatedVideo } from "@/lib/types";
 
 const SITE_URL =
@@ -92,6 +94,10 @@ type PersonDetail = {
   seo_meta_title: string | null;
   seo_meta_description: string | null;
   schema_jsonld: Record<string, unknown> | null;
+  // Relaciones curadas (data/person_jsonld.yaml), ya resueltas a @id por la API.
+  jsonld_relaciones?: Record<string, unknown> | null;
+  // Relaciones verificadas de `entity_relations` (plan de datos estructurados, fase 1).
+  jsonld_verificadas?: Record<string, unknown> | null;
 };
 
 async function fetchPerson(slug: string): Promise<PersonDetail | null> {
@@ -162,7 +168,9 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
   }
   if (detail.birth_date) schema.birthDate = detail.birth_date;
   if (detail.death_date) schema.deathDate = detail.death_date;
-  if (detail.birth_place) {
+  // Un lugar de nacimiento verificado (enlazado a su ficha) sustituye al texto de
+  // `persons.birth_place` (David, 13-11-2026): los dos a la vez decían lo mismo dos veces.
+  if (detail.birth_place && !detail.jsonld_verificadas?.birthPlace) {
     schema.birthPlace = { "@type": "Place", name: detail.birth_place };
   }
   if (detail.image_url) schema.image = detail.image_url;
@@ -232,6 +240,22 @@ function buildJsonLd(detail: PersonDetail): Record<string, unknown> {
     schema.knowsAbout = [...prev, ...newMentions];
   }
 
+  // Relaciones curadas: las que no caben en los campos de Wikidata (grupos sin
+  // Q-ID, colegas, obras de un artista visual…). Se suman a lo que ya hubiera; un
+  // valor suelto y una lista se combinan en lista.
+  for (const [clave, valor] of Object.entries(detail.jsonld_relaciones || {})) {
+    const previo = schema[clave];
+    if (previo === undefined) {
+      schema[clave] = valor;
+    } else if (clave === "@reverse" && typeof previo === "object" && typeof valor === "object") {
+      schema[clave] = { ...(previo as object), ...(valor as object) };
+    } else {
+      const lista = (v: unknown) => (Array.isArray(v) ? v : [v]);
+      schema[clave] = [...lista(previo), ...lista(valor)];
+    }
+  }
+  fusionarVerificadas(schema, detail.jsonld_verificadas);
+
   return schema;
 }
 
@@ -286,6 +310,14 @@ export default async function PersonPage({
     ),
   ]);
 
+  // Destinos que enlaza la cabecera (pertenencias, otros grupos, obras): la
+  // tabla y el cuerpo no los repiten (lib/enlazado.ts, regla del 11-11-2026).
+  const enlacesCabecera = [
+    ...detail.memberships.map((m) => `/${m.artist_slug}`),
+    ...detail.other_bands.map((b) => b.internal_url),
+    ...detail.notable_works.map((w) => w.internal_url),
+  ].filter((h): h is string => !!h);
+
   return (
     <>
       <PublicHeader />
@@ -309,7 +341,7 @@ export default async function PersonPage({
                 <div className="aspect-[3/4] overflow-hidden bg-divider/30 relative">
                   <Image
                     src={detail.image_url}
-                    alt={`${detail.stage_name || detail.full_name}${detail.birth_place ? `, ${detail.birth_place}` : ""}${detail.birth_date ? ` · fotografía libre vía Wikimedia Commons` : ""}`}
+                    alt={`${detail.stage_name || detail.full_name}${detail.birth_place ? `, ${detail.birth_place}` : ""}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 280px"
                     priority
@@ -404,13 +436,18 @@ export default async function PersonPage({
                   <ul className="space-y-2">
                     {detail.memberships.map((m, i) => (
                       <li key={i} className="font-serif text-ink-dim">
-                        <Link
-                          href={`/${m.artist_slug}`}
-                          data-cursor="hover"
-                          className="text-accent hover:underline"
-                        >
-                          {m.artist_name}
-                        </Link>{" "}
+                        {/* Dos etapas en el mismo grupo: se enlaza solo la primera. */}
+                        {detail.memberships.findIndex((x) => x.artist_slug === m.artist_slug) === i ? (
+                          <Link
+                            href={`/${m.artist_slug}`}
+                            data-cursor="hover"
+                            className="text-accent hover:underline"
+                          >
+                            {m.artist_name}
+                          </Link>
+                        ) : (
+                          <span>{m.artist_name}</span>
+                        )}{" "}
                         · {m.role}
                         {m.era && ` (${m.era})`}
                         {m.is_founder && (
@@ -507,10 +544,19 @@ export default async function PersonPage({
             </div>
           </header>
 
-          <PersonDataTable detail={detail} />
+          <PersonDataTable detail={detail} yaEnlazados={enlacesCabecera} />
+
+          <RelacionesVerificadas
+            relaciones={detail.jsonld_verificadas}
+            excluir={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
+            cuerpo={detail.seo_body}
+          />
 
           {detail.seo_body && (
-            <MarkdownArticle markdown={detail.seo_body} />
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={[...enlacesCabecera, ...enlacesPersonDataTable(detail)]}
+            />
           )}
         </article>
 

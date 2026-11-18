@@ -27,6 +27,7 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
+from app.services import seo_style
 from app.services.deep_research import gather_entity_dossier
 from app.services.entity_resolver import (
     autolink_corpus,
@@ -79,12 +80,9 @@ _YT_LINE = re.compile(
 # Rojos» y dentro decía «no se detalla los nombres específicos de los miembros». Una
 # sección que promete en el título y se desdice en el cuerpo es PEOR que no tenerla:
 # el lector que buscaba eso entra, lo ve prometido y se va sin respuesta.
-_CONFESIONES = (
-    "no se detalla", "no se especifica", "no hay confirmación", "no hay constancia",
-    "no se conocen", "se desconoce", "no está documentado", "no se menciona",
-    "no se dispone", "no hay información", "no se ha confirmado", "sin confirmación",
-    "no se precisa", "no consta", "no se sabe", "no hay datos",
-)
+# La lista vive en `source_guard.CONFESIONES` (10-11-2026), que también la usan
+# `generate_deep` y el blog: aquí sigue siendo el criterio para descartar la sección.
+from app.services.source_guard import CONFESIONES as _CONFESIONES  # noqa: E402
 
 
 def confiesa_no_saber(seccion: str) -> str | None:
@@ -244,8 +242,10 @@ def _corpus_gap_section(client, subject, current, dossier, existing_heads, prior
         f"{pista}\n\n"
         "Lista SOLO hechos/ángulos VERACES del material que NO estén ya cubiertos en el "
         "texto y merezcan una sección nueva con sustancia (fechas, obras, colaboraciones, "
-        "hechos concretos). NADA que ya esté en el texto. Máximo 1. Devuelve JSON "
-        '{"gaps":[{"heading":"<H2 concreto>","covers":"<qué cubre, nuevo>"}]}. '
+        "hechos concretos). NADA que ya esté en el texto. Máximo 1.\n"
+        + seo_style.PROMPT_HEADING_RULES +
+        'Devuelve JSON {"gaps":[{"heading":"<H2 natural, sin repetir el nombre del '
+        'protagonista>","covers":"<qué cubre, nuevo>"}]}. '
         'Si no hay hueco real, {"gaps":[]}.',
         max_tokens=600,
     )
@@ -383,7 +383,7 @@ def augment_entity(
     after = strip_ai_tells(after) or after
     after = autolink_corpus(
         after, corpus_index if corpus_index is not None else build_corpus_index(db),
-        max_links=6, exclude_slug=entity.slug,
+        exclude_slug=entity.slug,
         link_stats=link_stats if link_stats is not None else load_link_stats(),
     )
 

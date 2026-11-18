@@ -16,12 +16,17 @@ import os
 import tempfile
 import zlib
 
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.services.hero_image import pick_hero_image
 
 logger = logging.getLogger(__name__)
+
+# Lado mayor de una imagen re-alojada: de sobra para una cabecera a 2x, y evita
+# subir originales de 6000 px de Wikimedia.
+LADO_MAXIMO = 2400
 
 
 def used_hero_urls(db: Session) -> set[str]:
@@ -85,6 +90,21 @@ _BAD_IMAGE_HOSTS = (
 )
 
 
+# Webs de venta de entradas y agendas: su imagen es SIEMPRE la portada de un evento
+# concreto, que casi nunca es el del post. El post #65 (Flores Amarillas 2027)
+# salió con la de una banda tributo sacada de ticketere.com.
+_OTRO_EVENTO_HOSTS = (
+    "ticketere.", "ticketmaster.", "entradas.com", "eventbrite.", "wegow.", "dice.fm",
+    "songkick.", "bandsintown.", "giglon.", "entradium.", "compralaentrada.",
+    "todotickets.", "taquilla.com", "seetickets.", "enterticket.", "ataquilla.",
+)
+
+
+def es_portada_de_otro_evento(url: str | None) -> bool:
+    u = (url or "").lower()
+    return any(h in u for h in _OTRO_EVENTO_HOSTS)
+
+
 def _rehost_to_cloudinary(url: str) -> str | None:
     """Descarga una foto web y la RE-SUBE a Cloudinary (folder del blog), devolviendo
     la URL `res.cloudinary.com`. Necesario porque Next.js solo optimiza imágenes de
@@ -98,7 +118,12 @@ def _rehost_to_cloudinary(url: str) -> str | None:
     path = None
     try:
         from app.services.instagram import cloudinary_upload, imaging
-        img = imaging._fetch_image(url)  # valida que es imagen de verdad
+        # SIN recortar. Hasta el 16-11-2026 pasaba por `_fetch_image`, que corta a
+        # cuadrado para Instagram: el cartel de Flores Amarillas 2027 (1200×1600)
+        # quedó en 1080×1080 sin la fecha. Quien pinta la imagen ya la encuadra.
+        img = imaging.descargar_imagen(url)  # valida que es imagen de verdad
+        if max(img.size) > LADO_MAXIMO:
+            img.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fh:
             path = fh.name
         img.convert("RGB").save(path, "JPEG", quality=88)
@@ -145,6 +170,8 @@ def _web_photo_hero(
             if not url or url in used:
                 continue
             if any(h in url.lower() for h in _BAD_IMAGE_HOSTS):
+                continue
+            if es_portada_de_otro_evento(url) or es_portada_de_otro_evento(chosen.get("page_url")):
                 continue
             hosted = url if url.startswith("/") else _rehost_to_cloudinary(url)
             if not hosted or hosted in used:

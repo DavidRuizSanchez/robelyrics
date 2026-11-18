@@ -3,6 +3,8 @@ import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import { EnDirectoLugar } from "@/components/estudio/EnDirectoBloque";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { fusionarVerificadas } from "@/lib/relaciones-jsonld";
 import RelatedPosts from "@/components/RelatedPosts";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
@@ -27,6 +29,8 @@ type Props = {
   detail: PublicTaxonomyDetail;
 };
 
+type Nodo = Record<string, unknown>;
+
 export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Props) {
   const kind = detail.kind as TaxonomyKind;
   const isPlace = kind === "place" && detail.extra?.geo_lat && detail.extra?.geo_lng;
@@ -35,7 +39,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
   // Nodo de la taxonomía: Place (con geo) para lugares; DefinedTerm para temas
   // y conceptos. El JSON-LD usa solo el meta description SEO (texto plano).
-  const taxNode: Record<string, unknown> = {
+  const taxNode: Nodo = {
     "@type": isPlace ? "Place" : "DefinedTerm",
     "@id": canonical.taxonomy(kind, detail.slug),
     name: detail.name,
@@ -51,25 +55,36 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
     };
   }
 
+  // Un lugar puede no tener canciones (Torre Lucía, la Casa de la Salud: solo
+  // tienen página por su ficha). Sin canciones no hay colección: la página es
+  // del propio lugar, y ni el título «Canciones» ni un ItemList vacío pintan nada.
+  const tieneCanciones = detail.songs.length > 0;
   const collectionPage = webPageNode({
     path,
     name: detail.name,
-    type: "CollectionPage",
+    type: tieneCanciones ? "CollectionPage" : "WebPage",
     description: detail.seo_meta_description,
-    mainEntityId: canonical.itemList(path),
+    mainEntityId: tieneCanciones ? canonical.itemList(path) : canonical.taxonomy(kind, detail.slug),
   });
   if (mentions.length > 0) collectionPage.mentions = mentions;
 
+  // Relaciones verificadas: solo los lugares las leen (la API no las da a temas ni conceptos).
+  fusionarVerificadas(taxNode, detail.jsonld_verificadas);
+
   const graph = buildGraph([
     taxNode,
-    itemListNode(
-      path,
-      detail.songs.map((s) => ({
-        name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
-        url: s.url_path,
-        id: `${SITE_URL}${s.url_path}#musiccomposition`,
-      })),
-    ),
+    ...(tieneCanciones
+      ? [
+          itemListNode(
+            path,
+            detail.songs.map((s) => ({
+              name: `${s.title}, ${s.artist_name}, ${s.album_title}`,
+              url: s.url_path,
+              id: `${SITE_URL}${s.url_path}#musiccomposition`,
+            })),
+          ),
+        ]
+      : []),
     collectionPage,
     breadcrumbListNode(path, [
       { name: "Entre Interiores", item: "/" },
@@ -125,9 +140,14 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
           </figure>
         )}
 
+        <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
+
         {detail.seo_body ? (
           <section className="mb-12">
-            <MarkdownArticle markdown={detail.seo_body} />
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={detail.songs.map((s) => s.url_path)}
+            />
           </section>
         ) : (
           detail.description && (
@@ -139,6 +159,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
 
         {hubSlug === "lugares" && <EnDirectoLugar slug={detail.slug} />}
 
+        {tieneCanciones && (
         <section>
           <h2 className="font-mono text-[10px] tracking-[3px] uppercase text-accent mb-5">
             Canciones
@@ -163,6 +184,7 @@ export default function TaxonomyDetailLayout({ hubSlug, hubLabel, detail }: Prop
             ))}
           </ul>
         </section>
+        )}
 
         <RelatedPosts entityType={detail.kind} slug={detail.slug} />
 

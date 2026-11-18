@@ -26,6 +26,7 @@ from app.db.models import (
     BandMembership,
     Concept,
     EntityEdge,
+    EntityRelation,
     Person,
     Place,
     Post,
@@ -151,6 +152,9 @@ def main() -> None:
             "musica": "music_by",
             "poema_original": "adapted_from",
             "adaptacion": "adapted_from",
+            # Intérpretes de la grabación (no autores): coros / voces adicionales.
+            "coros": "vocals_by",
+            "voces": "vocals_by",
         }
         persons_by_name = {}
         for p in persons.values():
@@ -166,6 +170,24 @@ def main() -> None:
                 continue  # autor sin ficha de Person (p.ej. Chinato sin sembrar): sin arista
             add("song", c.song_id, et, "person", pid, weight=2.5,
                 meta={"role": c.credit_role, "credited_name": c.credited_name})
+
+        # 4c) Lugar de nacimiento: person→place cuando `birth_place` nombra un lugar
+        # del catálogo («Plasencia, Cáceres» → Plasencia, el primero que aparece).
+        # Es la relación que necesita `link_policy` para enlazar el lugar desde
+        # la ficha de la persona (regla de relación de las taxonomías, 11-11-2026).
+        lugares_norm = [(_norm(pl.name), pl.id) for pl in places.values() if pl.name]
+        for p in persons.values():
+            texto = _norm(p.birth_place or "")
+            if not texto:
+                continue
+            hallados = []
+            for nombre, plid in lugares_norm:
+                m = re.search(rf"(?<!\w){re.escape(nombre)}(?!\w)", texto)
+                if m:
+                    hallados.append((m.start(), -len(nombre), plid))
+            if hallados:
+                add("person", p.id, "born_in", "place", min(hallados)[2],
+                    meta={"birth_place": p.birth_place})
 
         # 5) mentions: páginas (seo_content/posts) → entidades del corpus
         def resolve_url(url: str) -> tuple[str, int] | None:
@@ -187,6 +209,20 @@ def main() -> None:
             if len(parts) >= 3 and parts[2] in slug_to_id["song"]:
                 return ("song", slug_to_id["song"][parts[2]])
             return None
+
+        # 6) Relaciones verificadas (`entity_relations`, plan de relaciones del
+        #    18-11-2026): una arista por predicado entre dos entidades nuestras. Así la
+        #    regla de relación de `link_policy` y el dossier del motor de contenido ven
+        #    lo verificado (Fito → Platero y Tú), no solo las co-menciones.
+        #    `band`/`label` comparten tabla (Band) y aquí van como «band».
+        for r in (db.query(EntityRelation)
+                  .filter(EntityRelation.status == "verificada",
+                          EntityRelation.object_id.isnot(None),
+                          EntityRelation.predicate != "sameAs").all()):
+            st = "band" if r.subject_type == "label" else r.subject_type
+            dt = "band" if r.object_type == "label" else r.object_type
+            add(st, r.subject_id, f"rel_{r.predicate}", dt, r.object_id, weight=2.0,
+                meta=({"role": r.role_name} if r.role_name else None))
 
         mention_rows: list[tuple[str, int, list]] = []
         for sc in db.query(SeoContent).all():

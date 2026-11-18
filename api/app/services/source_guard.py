@@ -84,7 +84,9 @@ _METATEXTO = re.compile(
     r"|\bel fragmento\b|\bel material (?:disponible|no|consultado)\b"
     r"|\bel an[aá]lisis disponible\b|\bel texto disponible\b"
     r"|\blas fuentes (?:consultadas|disponibles)\b|\bno corresponde adjudic"
-    r"|\ben el texto\b|\bformaci[oó]n citada\b|\bseg[uú]n el material\b",
+    r"|\ben el texto\b|\bformaci[oó]n citada\b|\bseg[uú]n el material\b"
+    # Nuestras fichas son material propio: se afirma en nuestra voz, no «según la ficha».
+    r"|\b(?:la|seg[uú]n la|en la|nuestra) ficha\b(?! t[eé]cnica)",
     re.I,
 )
 _FRASE = re.compile(r"[^.!?\n]+[.!?]?")
@@ -296,6 +298,74 @@ def limpiar(texto: str, nombres: list[str] | None = None) -> tuple[str, list[str
                 buenas.append(original)
         lineas.append("".join(buenas).strip())
     limpio = re.sub(r"\n{3,}", "\n\n", "\n".join(lineas)).strip()
+    return limpio, quitadas
+
+
+# Frases con las que un texto admite no saber. Vivían solo en `augment_deep`
+# (06-2026: «Miembros de Los Niños de los Ojos Rojos» decía dentro «no se detalla
+# los nombres»). El 10-11-2026 aparecieron en las fichas nuevas de `generate_deep` y
+# en un borrador del blog: «No hay información sobre otras bandas…», «El material no
+# detalla el programa…». Una frase que confiesa no saber no informa a nadie.
+CONFESIONES = (
+    "no se detalla", "no se especifica", "no hay confirmación", "no hay constancia",
+    "no se conocen", "se desconoce", "no está documentado", "no se menciona",
+    "no se dispone", "no hay información", "no se ha confirmado", "sin confirmación",
+    "no se precisa", "no consta", "no se sabe", "no hay datos",
+    "no detalla", "no precisa", "no documenta", "no aporta", "no concreta",
+    "no establecen ninguna relación", "no establece ninguna relación",
+    "resultados de búsqueda", "no está confirmado",
+    # Aniversario de «Destrozares» (18-11-2026): «las fuentes no ofrecen análisis…».
+    "las fuentes no ",
+)
+_CITA = re.compile(r"«[^»]*»|\"[^\"]*\"")
+
+
+def confiesa(frase: str) -> str | None:
+    """La fórmula de confesión de la frase, sin contar lo que va entre comillas
+    (un verso o una cita literal pueden decir «no se sabe» sin ser metatexto)."""
+    fuera = _CITA.sub(" ", (frase or "")).lower()
+    return next((c for c in CONFESIONES if c in fuera), None)
+
+
+def quitar_confesiones(texto: str) -> tuple[str, list[str]]:
+    """Quita las frases que confiesan no saber y las secciones que se quedan vacías.
+
+    Determinista y frase a frase, como `limpiar`: un párrafo con una frase mala no
+    se lleva las buenas. Un heading cuya sección queda sin texto se quita con ella:
+    una sección que promete y se desdice es peor que no tenerla.
+    """
+    quitadas: list[str] = []
+    lineas: list[str] = []
+    for linea in (texto or "").split("\n"):
+        if linea.lstrip().startswith("#") or not linea.strip():
+            lineas.append(linea)
+            continue
+        mascara = _enmascarar(linea)
+        buenas = []
+        for m in _FRASE.finditer(mascara):
+            original = linea[m.start():m.end()]
+            if confiesa(original):
+                quitadas.append(original.strip())
+            else:
+                buenas.append(original)
+        lineas.append("".join(buenas).strip())
+    # Secciones vacías: heading seguido solo de líneas en blanco hasta el siguiente.
+    salida: list[str] = []
+    i = 0
+    while i < len(lineas):
+        linea = lineas[i]
+        if re.match(r"^#{2,4}\s", linea):
+            j = i + 1
+            while j < len(lineas) and not lineas[j].strip():
+                j += 1
+            if j >= len(lineas) or re.match(r"^#{1,4}\s", lineas[j]):
+                if quitadas:  # solo se quita lo que vació esta limpieza
+                    quitadas.append(linea.strip())
+                    i = j
+                    continue
+        salida.append(linea)
+        i += 1
+    limpio = re.sub(r"\n{3,}", "\n\n", "\n".join(salida)).strip()
     return limpio, quitadas
 
 

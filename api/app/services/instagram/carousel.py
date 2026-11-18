@@ -224,7 +224,7 @@ def _slide(topic: dict, spec: dict, indice: int, total: int, seed: int) -> Image
     if layout == "closing":
         # Si hay una frase escrita para ESTE post, es ella la que manda y el
         # contador baja a firma. Sin frase, se pinta lo de siempre.
-        firma = f"Día {config.dias_sin_robe()} sin Robe"
+        firma = f"Día {config.dias_sin_robe(topic.get('fecha_publicacion'))} sin Robe"
         titulo = texto or firma
         fuente, lineas, alto = imaging._fit_headline(
             draw, titulo, ancho_texto, 320 if not texto else 420, 3 if not texto else 5

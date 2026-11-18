@@ -110,6 +110,57 @@ _DOMAIN_LEXICONS["musica"] = _DOMAIN_HINTS
 _CC_TRACE = ("wikimedia", "commons", "creative commons", "cc by", "cc-by", "flickr")
 
 Status = str  # own_art | accredited | unaccredited | homonym_risk | unsourced | unknown
+#              | third_party_credited
+
+# Fotos de terceros con crédito (decisión de David, 10-11-2026): cuando no hay
+# foto libre de alguien, se usa la que haya, con su crédito y su fuente. Es un
+# riesgo legal asumido por el dueño del sitio, así que se acota:
+# - marca de licencia explícita (no se infiere de nada),
+# - fuente y crédito obligatorios, y re-alojada en casa,
+# - nunca de agencias que reclaman sus fotos.
+# La identidad (que la página de origen nombra a quien retrata) se comprueba al
+# darla de alta (`apply_manual_photos`), no en el cron: la fuente puede cambiar.
+LICENCIA_TERCEROS = "derechos de su autor"
+AGENCIAS_VETADAS = (
+    "efe.com", "agenciaefe", "europapress", "gettyimages", "getty", "reuters",
+    "apimages", "ap.org", "shutterstock", "alamy", "agefotostock", "afp.com",
+    "dreamstime", "istockphoto", "cordonpress", "servimedia",
+)
+
+
+_AGENCIA_EN_CREDITO = re.compile(
+    r"\b(efe|europa press|getty|reuters|afp|associated press|shutterstock|alamy"
+    r"|cordon press|servimedia)\b", re.I)
+
+
+def es_agencia_vetada(*textos: str | None) -> bool:
+    """Por dominio (en una URL) o por nombre (en un crédito: «Foto: EFE»)."""
+    texto = " ".join(t or "" for t in textos)
+    return (any(a in texto.lower() for a in AGENCIAS_VETADAS)
+            or bool(_AGENCIA_EN_CREDITO.search(texto)))
+
+
+def fuente_no_acredita(fuente: str | None, nombres: list[str] | str) -> str | None:
+    """None si la página de origen de una foto de tercero nombra a quien (o lo que)
+    retrata; si no, el motivo. Se comprueba al darla de alta, no en el cron."""
+    import httpx
+
+    if not (fuente or "").startswith("http"):
+        return "falta la fuente (source_url)"
+    if es_agencia_vetada(fuente):
+        return f"fuente de agencia vetada: {fuente}"
+    try:
+        r = httpx.get(fuente, timeout=20, follow_redirects=True,
+                      headers={"User-Agent": "Mozilla/5.0 (compatible; EntreInteriores/1.0)"})
+        r.raise_for_status()
+    except Exception as exc:  # noqa: BLE001
+        return f"no se pudo leer la fuente ({exc})"
+    plano = lambda s: re.sub(r"\s+", " ", _norm(s))  # noqa: E731
+    pagina = plano(r.text)
+    nombres = [nombres] if isinstance(nombres, str) else nombres
+    if not any(plano(n) in pagina for n in nombres if n):
+        return f"la fuente no nombra a {nombres[0]!r}"
+    return None
 
 
 @dataclass
@@ -124,7 +175,7 @@ class ProvenanceVerdict:
     def publishable(self) -> bool:
         """Lo que puede seguir publicado: acreditado, arte propio (no afirma
         identidad) y lo re-alojado con traza de licencia libre."""
-        return self.status in ("own_art", "accredited", "legacy_cc")
+        return self.status in ("own_art", "accredited", "legacy_cc", "third_party_credited")
 
     @property
     def needs_human(self) -> bool:
@@ -317,6 +368,16 @@ def verify_provenance(
             "own_art",
             "Obra gráfica propia (no retrata a nadie).",
             evidence=[f"crédito: {attribution or '—'}", f"licencia: {license_ or '—'}"],
+        )
+
+    # Foto de un tercero con crédito, fuente y licencia declarada (ver arriba).
+    if (_norm(license_ or "") == _norm(LICENCIA_TERCEROS) and is_own_host(image_url)
+            and (source_url or "").startswith("http") and (attribution or "").strip()
+            and not es_agencia_vetada(source_url, attribution)):
+        return ProvenanceVerdict(
+            "third_party_credited",
+            "Foto de un tercero, con su crédito y su fuente (no es de licencia libre).",
+            evidence=[f"crédito: {attribution}", f"fuente: {source_url}"],
         )
 
     fname = commons_filename(image_url, source_url)

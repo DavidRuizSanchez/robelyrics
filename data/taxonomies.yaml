@@ -499,6 +499,60 @@ places:
       espacio exterior como metáfora de la distancia que uno necesita
       poner a veces con todo lo demás.
 
+  # Lugares de la biografía, sin canción que los nombre: solo tienen página con
+  # su ficha editorial publicada (`_detail_taxonomy`). Alta del 15-11-2026.
+  # Coordenadas: OpenStreetMap (way 183299887 y relation 2463000).
+  # Torre y centro de interpretación: web del Ayuntamiento
+  # (contenidos.plasencia.es/c-i-torre-lucia). El concierto: Casañas, «Talento
+  # innato», primer capítulo (Alianza): «uno de los primeros conciertos», en «un
+  # pequeño escenario de la plaza de Torre Lucía», 1988. La fecha está discutida
+  # (1-10 o 8-4-1988, ledger C-08) y 1987 no tiene fuente: va solo el año.
+  # Verificado el 17-11-2026.
+  - slug: torre-lucia
+    name: Torre Lucía
+    kind: building
+    description: |
+      Torre Lucía es una de las torres de la muralla de Plasencia, que
+      estuvo unida al alcázar de la ciudad. Hoy alberga el Centro de
+      Interpretación de la Ciudad Medieval. En la plaza que hay a sus pies,
+      en 1988, **Extremoduro** dio uno de sus primeros conciertos, en un
+      festival con otros grupos de la zona.
+    geo_lat: 40.032778
+    geo_lng: -6.086209
+
+  # «Casa de la Salud» = el antiguo colegio de los jesuitas (web de la UNED,
+  # uned.es/universidad/centros/es/plasencia/centro/edificio.html): «En 1928 […]
+  # fue destinada a Casa de Salud, condición que perdió cuando se construyó el
+  # nuevo psiquiátrico», y la UNED está allí «desde finales de la década de los
+  # 90». Que los ensayos de los testimonios fueran aquí es inferencia por el
+  # nombre: es el único edificio de Plasencia así llamado. Verificado el 17-11-2026.
+  - slug: casa-de-la-salud
+    name: Casa de la Salud
+    kind: building
+    description: |
+      La antigua Casa de la Salud es el viejo colegio de los jesuitas de
+      Plasencia, en la plaza de Santa Ana. En 1928 pasó a ser casa de salud,
+      hasta que se construyó el nuevo psiquiátrico, y desde finales de los
+      noventa es la sede de la UNED. Ángel Lorenzo cuenta que Robe, Kaíto y
+      él ensayaban allí «de okupas», en la primera planta, en los primeros
+      tiempos.
+    geo_lat: 40.031833
+    geo_lng: -6.087590
+
+  # Alta del 18-11-2026 (plan de relaciones: David pidió página para Úbeda si Robe
+  # tocó allí). Robe, 06-07-2024, gira «Ni santos ni inocentes»: Vivir Ediciones
+  # (02-07-2024) y Hora Jaén (07-07-2024). Sabina nació aquí (Wikidata Q363577 P19).
+  # Coordenadas: Wikidata Q329984 (P625).
+  - slug: ubeda
+    name: Úbeda
+    kind: city
+    description: |
+      Úbeda es una ciudad de la provincia de Jaén. Joaquín Sabina nació aquí
+      en 1949, y Robe tocó en la ciudad el 6 de julio de 2024, con la gira
+      «Ni santos ni inocentes».
+    geo_lat: 38.011667
+    geo_lng: -3.371667
+
 
 concepts:
   - slug: el-aguila
@@ -889,5 +943,5 @@ song_matches_lyrics:
     el-arbol: ["árbol", "cerezo", "sauce"]
     cristo: ["jesucristo", "cristo"]
     el-diablo: ["diablo", "demonio", "lucifer"]
-    don-quijote: ["quijote", "molino"]
+    don-quijote: ["quijote", "molino", "molinos"]  # \m…\M: «molino» no casa con «molinos» (Locura transitoria)
   themes: {}

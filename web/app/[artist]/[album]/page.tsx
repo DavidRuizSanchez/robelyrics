@@ -4,9 +4,11 @@ import AlbumCover from "@/components/AlbumCover";
 import AlbumDataTable from "@/components/AlbumDataTable";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import HeaderImageBackdrop from "@/components/HeaderImageBackdrop";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import RelatedPosts from "@/components/RelatedPosts";
-import MoreFromArtist from "@/components/MoreFromArtist";
+import MoreFromArtist, { discosVecinos } from "@/components/MoreFromArtist";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
 import { apiFetch, ApiError, redirectTargetOf } from "@/lib/api";
@@ -162,7 +164,21 @@ export default async function AlbumPublicPage({
         </header>
 
         <article className="mb-4">
-          <MarkdownArticle markdown={detail.seo_body} />
+          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
+          <MarkdownArticle
+            markdown={detail.seo_body}
+            yaEnlazados={[
+              // Lo que ya enlaza la plantilla: artista, discografía, tracklist y «Más discos».
+              `/${artistSlug}`,
+              `/discografia/${artistSlug}`,
+              ...detail.tracks
+                .filter((t) => t.path || t.from_album !== null || t.slug !== "")
+                .map((t) => t.path ?? `/${artistSlug}/${albumSlug}/${t.slug}`),
+              ...(artistDetail
+                ? discosVecinos(artistDetail.albums, albumSlug).map((a) => `/${artistSlug}/${a.slug}`)
+                : []),
+            ]}
+          />
         </article>
 
         <AlbumDataTable detail={detail} />
@@ -236,6 +252,19 @@ export default async function AlbumPublicPage({
           />
         )}
 
+        {/* Hub de la discografía: desde el cuerpo casi no recibía enlaces (2 en
+            todo el sitio, medido el 11-11-2026), así que lo enlaza la plantilla. */}
+        <p className="mt-10 font-serif text-lg">
+          <Link
+            href={`/discografia/${artistSlug}`}
+            data-cursor="hover"
+            className="text-accent hover:underline"
+          >
+            Discografía completa de {detail.artist.name}
+          </Link>
+          <span className="text-ink-dim">: discos de estudio, directos y recopilatorios, por décadas.</span>
+        </p>
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -247,7 +276,7 @@ export default async function AlbumPublicPage({
                   detail.title,
                   [],
                 ),
-                {
+                conVerificadas({
                   ...musicAlbumNode({
                     slug: albumSlug,
                     artistSlug: artistSlug,
@@ -262,7 +291,7 @@ export default async function AlbumPublicPage({
                   ...(mentionsArray(detail.entities).length > 0
                     ? { mentions: mentionsArray(detail.entities) }
                     : {}),
-                },
+                }, detail.jsonld_verificadas),
                 // Nodo mínimo del artista para conectar @id
                 musicGroupNode({ slug: artistSlug, name: detail.artist.name }),
                 webPageNode({

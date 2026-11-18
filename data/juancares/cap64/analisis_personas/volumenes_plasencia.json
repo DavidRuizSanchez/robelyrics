@@ -1,0 +1,1968 @@
+{
+ "extraido": "2026-11-10 17:00 UTC",
+ "endpoint": "keywords_data/google_ads/search_volume/live",
+ "location_code": 2724,
+ "language_code": "es",
+ "status": [
+  20000,
+  "Ok."
+ ],
+ "coste_usd": 0.09,
+ "por_tema": {
+  "plasencia": {
+   "extremoduro plasencia": {
+    "search_volume": 110,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 70
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 720
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 50
+     }
+    ]
+   },
+   "robe plasencia": {
+    "search_volume": 720,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 260
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 110
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 320
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 260
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 1300
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 260
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 6600
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 40
+     }
+    ]
+   },
+   "robe iniesta plasencia": {
+    "search_volume": 260,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 260
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 70
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 2400
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 20
+     }
+    ]
+   },
+   "extremoduro en plasencia": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 110
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "historia de extremoduro": {
+    "search_volume": 90,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 110
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 480
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 50
+     }
+    ]
+   },
+   "origen de extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "donde nacio robe": {
+    "search_volume": 50,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 320
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "casa de robe plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "casa de la salud plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "concierto extremoduro plasencia": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 140
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "extremoduro plasencia 1995": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 50
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "extremoduro plasencia 2008": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "calle robe plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "avenida robe plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "robe hijo predilecto plasencia": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 140
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "homenaje robe plasencia": {
+    "search_volume": 2400,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 390
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 390
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 27100
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "ruta robe plasencia": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "primeras flores amarillas": {
+    "search_volume": 260,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 1900
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 880
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 320
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "primeras flores amarillas plasencia": {
+    "search_volume": 30,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 260
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "festival robe plasencia": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   }
+  },
+  "murales": {
+   "mural robe plasencia": {
+    "search_volume": 170,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 170
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 110
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 390
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 210
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 210
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "mural robe": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "murales robe": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "mural extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 20
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "mural robe chinato": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "primo mural robe": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "mural plaza san martin plasencia": {
+    "search_volume": null,
+    "monthly": null
+   }
+  },
+  "grupos_escena": {
+   "dosis letal": {
+    "search_volume": 170,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 90
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 110
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 170
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 590
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 140
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 170
+     }
+    ]
+   },
+   "dosis letal robe": {
+    "search_volume": 70,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 30
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 480
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "dosis letal extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 40
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "indecision momentanea": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "orquesta escarlata": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 20
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 20
+     }
+    ]
+   },
+   "colectivo de musicos plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "primer grupo de robe": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   }
+  },
+  "formacion": {
+   "primer bateria de extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "miembros de extremoduro": {
+    "search_volume": 1900,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 140
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 480
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 590
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 720
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 1000
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 14800
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 1000
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 1000
+     }
+    ]
+   },
+   "integrantes de extremoduro": {
+    "search_volume": 110,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 70
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 40
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 50
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 90
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 880
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 50
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 50
+     }
+    ]
+   },
+   "coristas de extremoduro": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "formacion original extremoduro": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 70
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   },
+   "fundadores de extremoduro": {
+    "search_volume": 20,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 140
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 0
+     }
+    ]
+   }
+  },
+  "politica": {
+   "extremoduro vetado plasencia": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "carta de robe al alcalde": {
+    "search_volume": null,
+    "monthly": null
+   },
+   "robe alcalde plasencia": {
+    "search_volume": 10,
+    "monthly": [
+     {
+      "year": 2026,
+      "month": 9,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 8,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 7,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 6,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 5,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 4,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 3,
+      "search_volume": 0
+     },
+     {
+      "year": 2026,
+      "month": 2,
+      "search_volume": 10
+     },
+     {
+      "year": 2026,
+      "month": 1,
+      "search_volume": 10
+     },
+     {
+      "year": 2025,
+      "month": 12,
+      "search_volume": 30
+     },
+     {
+      "year": 2025,
+      "month": 11,
+      "search_volume": 0
+     },
+     {
+      "year": 2025,
+      "month": 10,
+      "search_volume": 10
+     }
+    ]
+   },
+   "extremoduro censura": {
+    "search_volume": null,
+    "monthly": null
+   }
+  }
+ }
+}

@@ -327,3 +327,43 @@ def test_un_clip_no_necesita_cuerpo_de_articulo(db, monkeypatch):
     db.refresh(item)
     assert item.status == "prepared"
     assert item.media_type == "CLIP"
+
+
+# --------------------------------------------------------------------------- #
+# Un rechazo es para siempre (09-11-2026): el tramo rechazado volvía como clip
+# nuevo y 5 acabaron publicados con un clic en la copia.
+# --------------------------------------------------------------------------- #
+def test_un_tramo_rechazado_no_vuelve(db):
+    asset = _asset(db)
+    _segmentos(db, [FRASE] * 30)
+    primero = clip_picker.candidatos_de(db, asset)[0]
+    db.add(VideoClip(video_id=asset.youtube_id, url=asset.url, start_s=primero.start_s,
+                     end_s=primero.end_s, status="retired",
+                     retired_reason="descartado desde el correo de propuestas"))
+    db.commit()
+    assert all(not (c.start_s < primero.end_s and primero.start_s < c.end_s)
+               for c in clip_picker.candidatos_de(db, asset))
+
+
+def test_un_clip_fallido_no_veta_su_tramo(db):
+    """`failed` es la descarga o el montaje, no una decisión: el tramo sigue libre."""
+    asset = _asset(db)
+    _segmentos(db, [FRASE] * 30)
+    primero = clip_picker.candidatos_de(db, asset)[0]
+    db.add(VideoClip(video_id=asset.youtube_id, url=asset.url, start_s=primero.start_s,
+                     end_s=primero.end_s, status="failed"))
+    db.commit()
+    assert any(c.start_s == primero.start_s for c in clip_picker.candidatos_de(db, asset))
+
+
+def test_una_cancion_rechazada_de_un_concierto_no_vuelve_pasados_120_dias(db):
+    from datetime import UTC, datetime, timedelta
+
+    from scripts.instagram import propose_clips
+
+    _asset(db, kind="live_song", song_id=5, title="Extremoduro - Segundo Movimiento (Murcia)")
+    db.add(VideoClip(video_id="dQw4w9WgXcQ", url="u", start_s=1907, end_s=1919, song_id=5,
+                     status="retired", created_at=datetime.now(UTC) - timedelta(days=200)))
+    db.commit()
+    # Si no lo saltara, iría a buscar la canción a `songs`, que este fixture no monta.
+    assert propose_clips._proponer_canciones(db, cupo=3, dry_run=True) == 0

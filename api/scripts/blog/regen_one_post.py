@@ -53,7 +53,7 @@ def regen_post_researched(db, post: Post, *, dry_run: bool) -> bool:
 
     new_body = normalize_headings(out["body_md"]) or out["body_md"]
     new_body = autolink_corpus(
-        new_body, build_corpus_index(db), max_links=4,
+        new_body, build_corpus_index(db), 
         exclude_slug=post.slug, link_stats=load_link_stats(),
     )
     video = out.get("video")
@@ -116,7 +116,7 @@ def regen_post(db, post: Post, *, dry_run: bool) -> bool:
         return False
     new_body = normalize_headings(new_body) or new_body
     new_body = autolink_corpus(
-        new_body, build_corpus_index(db), max_links=4,
+        new_body, build_corpus_index(db), 
         exclude_slug=post.slug, link_stats=load_link_stats(),
     )
     logger.info("  ✓ %s (%d chars)", post.slug, len(new_body))

@@ -39,6 +39,7 @@ _EDGE_PHRASE = {
     "member_of": "fue parte de",
     "other_band": "también tocó en",
     "mentions": "se menciona en",
+    "vocals_by": "lleva coros o voces de",
 }
 
 _MODELS = {

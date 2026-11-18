@@ -81,6 +81,10 @@ class Verdict:
 @dataclass
 class FactCheckReport:
     verdicts: list[Verdict] = field(default_factory=list)
+    # La extracción de afirmaciones falló (JSON cortado, red): NO es «no hay nada que
+    # comprobar». Quien publica decide si eso para la pieza (18-11-2026: «Mayéutica» pasó
+    # con una errata de nombre porque la extracción falló dos veces y salió vacía).
+    extraccion_fallida: bool = False
 
     @property
     def is_clean(self) -> bool:
@@ -366,24 +370,34 @@ def _client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
+class ExtraccionFallida(RuntimeError):
+    """La extracción de afirmaciones no salió (tras reintentar)."""
+
+
 def extract_claims(body_md: str, *, max_claims: int = 12, client: OpenAI | None = None) -> list[Claim]:
     """Extrae hasta `max_claims` afirmaciones factuales del texto. Degrada a []."""
     if not body_md or not body_md.strip():
         return []
-    try:
-        cli = client or _client()
-        resp = cli.chat.completions.create(
-            messages=[
-                {"role": "system", "content": _EXTRACT_SYS},
-                {"role": "user", "content": f"ARTÍCULO:\n\"\"\"{body_md[:12000]}\"\"\""},
-            ],
-            response_format={"type": "json_object"},
-            **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=2000),
-        )
-        data = json.loads(resp.choices[0].message.content or "{}")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[fact_check] extracción falló: %s", exc)
-        return []
+    data = None
+    for intento in range(2):
+        try:
+            cli = client or _client()
+            resp = cli.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": _EXTRACT_SYS},
+                    {"role": "user", "content": f"ARTÍCULO:\n\"\"\"{body_md[:12000]}\"\"\""},
+                ],
+                response_format={"type": "json_object"},
+                # 2.000 se quedaba corto: el JSON salía cortado («Unterminated string») y
+                # la pieza pasaba sin comprobar nada.
+                **openai_chat_kwargs("chat", temperature=0.1, max_completion_tokens=4000),
+            )
+            data = json.loads(resp.choices[0].message.content or "{}")
+            break
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[fact_check] extracción falló (intento %d): %s", intento + 1, exc)
+    if data is None:
+        raise ExtraccionFallida("no se pudieron extraer las afirmaciones")
 
     out: list[Claim] = []
     for raw in (data.get("claims") or [])[:max_claims]:
@@ -552,6 +566,12 @@ def _resolve_web(claim: Claim) -> Verdict:
         logger.warning("[fact_check] classify_fact falló: %s", exc)
         return Verdict(claim, "unverifiable", evidence="verificación web no disponible")
 
+    # La búsqueda NO se pudo hacer (DataForSEO caído, 40101 el 18-11-2026): no hay
+    # evidencia ni a favor ni en contra. Se trata como la web desactivada: ni refuta una
+    # obra (lo haría con `work_exists`) ni manda a revisión; queda sin comprobar.
+    if res.get("sin_red"):
+        return Verdict(claim, "unverifiable", evidence="sin comprobar: la búsqueda web falló",
+                       source="skipped")
     verdict = res.get("verdict")
     ev = res.get("evidence", "")
     if verdict == "supported":
@@ -698,7 +718,11 @@ def check_body(
     canción→álbum (`extract_catalog_claims`), para que un error de disco no
     dependa de que el LLM lo pesque. Se deduplica por (tipo, canción, álbum)."""
     idx = index or build_catalog_index(db)
-    claims = extract_claims(body_md, max_claims=max_claims, client=client)
+    fallida = False
+    try:
+        claims = extract_claims(body_md, max_claims=max_claims, client=client)
+    except ExtraccionFallida:
+        claims, fallida = [], True
     det = extract_catalog_claims(body_md, idx)
     seen = {(c.type, _norm(c.subject), _norm(c.object)) for c in claims}
     for c in det:
@@ -707,9 +731,86 @@ def check_body(
             claims.append(c)
             seen.add(key)
     if not claims:
-        return FactCheckReport(verdicts=[])
-    verdicts = [resolve_claim(db, c, index=idx, use_web=use_web) for c in claims]
-    return FactCheckReport(verdicts=verdicts)
+        return FactCheckReport(verdicts=[], extraccion_fallida=fallida)
+    verdicts = [_resolver_con_material(db, c, idx, material, use_web) for c in claims]
+    return FactCheckReport(verdicts=verdicts, extraccion_fallida=fallida)
+
+
+_ORDINALES = {"primer": 1, "primero": 1, "primera": 1, "segundo": 2, "segunda": 2, "tercer": 3,
+              "tercero": 3, "tercera": 3, "cuarto": 4, "cuarta": 4, "quinto": 5, "quinta": 5,
+              "sexto": 6, "sexta": 6, "séptimo": 7, "séptima": 7, "octavo": 8, "octava": 8,
+              "noveno": 9, "novena": 9, "décimo": 10, "décima": 10}
+
+
+_CARDINALES = {"seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12,
+               "trece": 13, "catorce": 14, "quince": 15, "dieciséis": 16, "diecisiete": 17,
+               "dieciocho": 18, "diecinueve": 19, "veinte": 20}
+
+
+def posicion_confirmada(material: str, texto: str) -> bool:
+    """«X» abre / cierra / ocupa el N.º lugar del disco, o «el disco tiene N canciones»,
+    contra el tracklist de los hechos duros («Tracklist (10 cortes): 1. Hoy al mundo
+    renuncio; 2. …»)."""
+    m = re.search(r"Tracklist \((\d+) cortes\)[^:]*:\s*(.+?)\.\s*$", material or "", re.M)
+    if not m:
+        return False
+    total = int(m.group(1))
+    # «contiene / reúne / tiene diez canciones (cortes, temas)»
+    # La frase ENTERA tiene que ser «X contiene/reúne/tiene/incluye N canciones»: «las
+    # diez canciones se grabaron en Berriz» no se confirma por llevar el 10 (asesor).
+    cuenta = re.fullmatch(
+        r"\s*(?:el (?:disco|álbum)|[«\"“][^«»\"”]+[»\"”]|[\w ,]{0,60}?)\s*"
+        r"(?:contiene|reúne|tiene|incluye|consta de|suma)\s+(\d{1,2}|" + "|".join(_CARDINALES)
+        + r")\s+(?:canciones|cortes|temas|pistas)\s*\.?\s*", (texto or "").lower())
+    if cuenta:
+        n = cuenta.group(1)
+        return (int(n) if n.isdigit() else _CARDINALES[n]) == total
+    titulo = re.search(r"[«\"“]([^«»\"”]+)[»\"”]", texto or "")
+    if not titulo:
+        return False
+    pistas = {_norm(t.split(". ", 1)[1].split(" [")[0]): int(t.split(". ", 1)[0])
+              for t in m.group(2).split("; ") if ". " in t and t.split(". ", 1)[0].isdigit()}
+    pos = pistas.get(_norm(titulo.group(1)))
+    if pos is None:
+        return False
+    t = (texto or "").lower()
+    if re.search(r"\babre\b|\bprimer[oa]? (?:corte|tema|lugar|canci)", t):
+        return pos == 1
+    if re.search(r"\bcierra\b|\búltim[oa]\b", t):
+        return pos == total
+    if "penúltim" in t:
+        return pos == total - 1
+    for palabra, n in _ORDINALES.items():
+        if re.search(rf"\b{palabra}\b", t):
+            return pos == n
+    num = re.search(r"\b(\d{1,2})\.?º?\s*(?:corte|tema|lugar)", t)
+    return bool(num) and pos == int(num.group(1))
+
+
+def _resolver_con_material(db, claim: Claim, idx, material: str, use_web: bool) -> Verdict:
+    """BD primero; después, el MATERIAL PROPIO de la pieza (hechos duros, fichas, letras);
+    solo lo que ninguno respalda va a la web. Medido el 18-11-2026: «Hoy al mundo
+    renuncio abre Destrozares» o la formación del disco iban a Google, salían «sin
+    verificar» y la pieza se paraba, teniéndolo en su propio tracklist y su ficha."""
+    from app.services.corpus_for_queries import tramos_con
+
+    idx_verdict = _resolve_db(idx, claim)
+    if idx_verdict is not None:
+        return idx_verdict
+    if material:
+        if posicion_confirmada(material, claim.text):
+            return Verdict(claim, "confirmed", evidence="posición en el tracklist", source="material")
+        tramos = tramos_con(material, claim.text)
+        if tramos:
+            # Los nombres juntos solo localizan el tramo; el juez decide si lo DICE
+            # (asesor, 18-11-2026: la coincidencia confirmaba afirmaciones falsas).
+            from app.services.web_verify import classify_with_evidence
+            veredicto = classify_with_evidence(claim.text, tramos)
+            if veredicto == "supported":
+                return Verdict(claim, "confirmed", evidence=tramos[:300], source="material")
+            if veredicto == "contradicted":
+                return Verdict(claim, "refuted", evidence=tramos[:300], source="web")
+    return resolve_claim(db, claim, index=idx, use_web=use_web)
 
 
 def _enforce_album_year(body_md: str, album_title: str, year: str) -> str:

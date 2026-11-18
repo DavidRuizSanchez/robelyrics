@@ -1,0 +1,27 @@
+# ============================================================
+# Coros y voces por canción (INTERPRETACIÓN, no autoría)
+# ============================================================
+# Fuente: créditos de Wikipedia ES de cada disco, descargados el 10-11-2026
+# (data/juancares/cap64/analisis_personas/wiki_check.json, SOURCES.md A-06).
+# Se siembran con `python -m scripts.seed_vocal_credits` (idempotente). NO pasan
+# por el consenso de autoría: no son una afirmación de autoría y aquel circuito no
+# es reproducible (memoria: gotcha_consenso_autoria_no_reproducible).
+#
+# role: coros | voces — se respeta la palabra que usa Wikipedia en cada disco.
+# Lo que Wikipedia da solo a nivel de disco (Belén en «¿Dónde están mis amigos?»)
+# no entra: song_credits es por canción y no se reparte a ojo.
+
+credits:
+  - album_slug: somos-unos-animales
+    source_url: https://es.wikipedia.org/wiki/Somos_unos_animales
+    literal: "María Timón y Belén – Coros en \"Tu corazón\", \"Quemando tus recuerdos\" y \"Desidia\""
+    role: coros
+    names: ["María Timón", "Belén"]
+    songs: [tu-corazon, quemando-tus-recuerdos, desidia]
+
+  - album_slug: deltoya
+    source_url: https://es.wikipedia.org/wiki/Deltoya
+    literal: "María Timón – Voces en Sol de invierno, Con un latido del reloj, Papel secante y Ama, ama, ama y ensancha el alma / Belén – Voces en (las mismas)"
+    role: voces
+    names: ["María Timón", "Belén"]
+    songs: [sol-de-invierno, con-un-latido-del-reloj, papel-secante, ama-ama-ama-y-ensancha-el-alma]

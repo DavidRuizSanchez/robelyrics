@@ -1,0 +1,48 @@
+# ============================================================
+# Fotos dentro del cuerpo de las fichas
+# ============================================================
+# Las inserta `python -m scripts.seo.apply_body_images` (en seco por defecto) bajo
+# el heading `section`, con su crédito como pie. Pasan `image_guard`: re-alojadas en
+# casa, y libres o de TERCEROS con crédito (license: derechos de su autor, decisión de
+# David del 10-11-2026), con la identidad comprobada en `source_url`.
+# Nunca agencias (EFE, Europa Press, Getty, Cordon Press, Servimedia…) ni marcas de agua.
+# Si en la foto sale gente que la fuente no identifica, el pie NO la nombra.
+
+images:
+  - target: person:jesus-mateos-brea
+    section: "El mural de Robe y Manolo Chinato"
+    url: "https://www.plasencia.es/web/images/stories/noticias26/20260504-muralbrea.jpg"
+    # Ya aplicada: sin esto, cada --apply la re-aloja con URL nueva y la duplica (pasó el 18-11-2026).
+    rehosted_url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794347045/entreinteriores-art/gz09ca3wcun5olijwnev.jpg"
+    alt: "Uno de los primeros bodegones del mural de Robe y Manolo Chinato en la plaza Puerto de Béjar"
+    attribution: "Foto: Ayuntamiento de Plasencia (mayo de 2026)"
+    source_url: "https://www.plasencia.es/web/noticias/3386-el-mural-homenaje-a-roberto-iniesta-y-manolo-chinato-avanza-en-la-plaza-puerto-de-bejar-con-los-primeros-bodegones-ya-visibles"
+    license: derechos de su autor
+    identity: "Mateos Brea"
+    # En la foto salen dos personas delante del mural que la fuente no identifica:
+    # el pie habla del mural, no de ellas.
+
+  - target: person:paco-doniga
+    section: "La dedicatoria de Robe"
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794346011/entreinteriores-art/tfuoha6fw9qg8oqnzv8g.jpg"
+    alt: "Dedicatoria manuscrita de Robe: «Desde los Dosis hasta aquí», junto al buitre de «Buitre no come alpiste»"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=2381s"
+    license: derechos de su autor
+    identity: "Plasencia y Robe"
+    identity_evidence: "la dedicatoria se lee en el fotograma (0:39:41), mientras habla Paco Dóniga"
+
+  # Pedida por David (17-11-2026). Portada de MARCA del 20-04-1996, en la previa del
+  # Barça-Atleti; la hizo J. G. Matallanas en la sala Sol, donde Extremoduro grababa
+  # el videoclip de «So payaso» (lo cuenta él en MARCA, 11-12-2025, y en su blog,
+  # 09-06-2007). MARCA no es agencia: va como foto de tercero con su crédito. Quién
+  # es quién lo dice el pie del fotógrafo, no la cara: el alt nombra a los dos.
+  - target: person:rosendo-mercado
+    section: "Las colaboraciones y los homenajes de Extremoduro"
+    url: "https://objetos-xlk.estaticos-marca.com/uploads/2025/12/11/693adae79dd65.jpeg"
+    rehosted_url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794956070/entreinteriores-art/qzcsscqmlwr8ydnjcjyo.jpg"
+    alt: "Rosendo y Robe con la camiseta del Atlético de Madrid en la sala Sol, en abril de 1996"
+    attribution: "Foto: J. G. Matallanas / MARCA (portada del 20 de abril de 1996)"
+    source_url: "https://www.marca.com/futbol/atletico/2025/12/11/dia-robe-portada-marca.html"
+    license: derechos de su autor
+    identity: "Rosendo"

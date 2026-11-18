@@ -64,6 +64,7 @@ def _titulo_post(asset, candidato=None) -> str:
             "estribillo": "El estribillo de",
             "arranque": "Arranca",
             "solo": "El solo de",
+            "final": "El final de",
             "canto": "En directo,",
         }.get(candidato.tipo, "En directo,")
         base = f'{etiqueta} «{candidato.cancion}»'
@@ -175,6 +176,11 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
         )).all()}
     videos_fallidos = {v for (v,) in db.execute(
         select(VideoClip.video_id).where(VideoClip.status == "failed")).all()}
+    # Esta canción de ESTE concierto ya se rechazó: no vuelve nunca, pasen los días
+    # que pasen. La misma canción de otro concierto sí, tras los 120 días.
+    rechazadas = {(sid, vid) for sid, vid in db.execute(
+        select(VideoClip.song_id, VideoClip.video_id).where(
+            VideoClip.song_id.is_not(None), VideoClip.status == "retired")).all()}
     assets = db.execute(
         select(VideoAsset).where(VideoAsset.kind == "live_song",
                                  VideoAsset.vetado.is_(False),
@@ -188,7 +194,12 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
             break
         if asset.song_id in usadas or asset.youtube_id in videos_fallidos:
             continue
+        if (asset.song_id, asset.youtube_id) in rechazadas:
+            continue
         song = version_original(db, db.get(Song, asset.song_id))
+        # El clip guarda la versión ORIGINAL de la canción, no la del catálogo del vídeo.
+        if (song.id, asset.youtube_id) in rechazadas:
+            continue
         letra = [(ln.text or "").strip() for ln in song.lines if (ln.text or "").strip()]
         i = _estribillo(letra)
         if i is None:
@@ -226,7 +237,7 @@ def _proponer_canciones(db, cupo: int, dry_run: bool) -> int:
                 partes.append(f"Concierto: {donde} (fuente: {asset.event_source or 'título'})")
             if asset.channel_title:
                 partes.append(f"Canal: {asset.channel_title}")
-            item.summary = "\n".join(partes)
+            item.notas_internas = "\n".join(partes)
             db.commit()
     return hechas
 
@@ -337,7 +348,7 @@ def main() -> None:
                 if sensible:
                     partes.append(f"AVISO: medio profesional («{sensible}»)")
                 partes.append(f"Transcripción del tramo: {c.texto[:600]}")
-                item.summary = "\n".join(partes)
+                item.notas_internas = "\n".join(partes)
                 db.commit()
             logger.info("   → clip #%s, post #%s (esperando tu visto bueno)",
                         clip.id, clip.queue_item_id)

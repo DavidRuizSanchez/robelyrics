@@ -355,6 +355,16 @@ def _diff_fusion(o) -> str:
     return "".join(partes) + _avisos(o)
 
 
+_CIERRE = ("La idea queda cerrada y no se volverá a proponer para esta página. Si cambia "
+           "el material, se reabre en el panel del blog (Ideas descartadas → Recuperar) "
+           "o reactivando sus búsquedas.")
+
+
+def _cerrada(o) -> bool:
+    """Una fusión que dio `noop` por falta de material cierra su idea (`cerrar_por_noop`)."""
+    return o.action == "merge" and bool((o.draft_notes or {}).get("cerrada"))
+
+
 def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
     """Correo con el antes/después de cada borrador y el botón que publica.
 
@@ -407,7 +417,10 @@ def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
     if sin_material:
         lis = "".join(
             f'<li style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.5);margin:0 0 4px;">'
-            f'{_html.escape(o.path)} — {_html.escape((o.error or "sin material")[:150])}</li>'
+            f'{_html.escape(o.path)} — {_html.escape((o.error or "sin material")[:150])}'
+            + (f'<br><span style="color:rgba(237,228,211,0.4);font-style:italic;">'
+               f'{_html.escape(_CIERRE)}</span>' if _cerrada(o) else "")
+            + "</li>"
             for o in sin_material
         )
         nota = (
@@ -444,6 +457,8 @@ def send_drafted(opps: list, *, sin_material: list | None = None) -> bool:
             texto.append(f"    secciones nuevas: {heads}")
     for o in sin_material or []:
         texto.append(f"· (sin material) {o.path}: {(o.error or '')[:150]}")
+        if _cerrada(o):
+            texto.append(f"    {_CIERRE}")
     if todos:
         texto += ["", f"Publicar todos: {todos}"]
     try:

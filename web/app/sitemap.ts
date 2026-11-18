@@ -63,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       apiFetch<{ slug: string; song_count: number }[]>("/public/themes", { authenticated: false }),
       apiFetch<{ slug: string; song_count: number }[]>("/public/places", { authenticated: false }),
       apiFetch<{ slug: string; song_count: number }[]>("/public/concepts", { authenticated: false }),
-      apiFetch<{ slug: string; published_at: string }[]>("/public/posts", { authenticated: false }),
+      apiFetch<{ slug: string; published_at: string }[]>("/public/posts/sitemap", { authenticated: false }),
       apiFetch<{ slug: string }[]>("/public/books", { authenticated: false }),
     ]);
     for (const t of themes) {

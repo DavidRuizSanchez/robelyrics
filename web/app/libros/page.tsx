@@ -44,6 +44,7 @@ const KIND_LABEL: Record<string, string> = {
   novela: "novela",
   monografico: "monográfico",
   poesia: "poesía",
+  novela_grafica: "novela gráfica",
 };
 
 export default async function LibrosPage() {

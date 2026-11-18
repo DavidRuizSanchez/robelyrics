@@ -1,0 +1,27 @@
+id,propiedad_schema,inversa,destino,id_destino,evidencia,estado_del_dato
+E-020,jobTitle / worksFor,employee,Ayuntamiento de Plasencia (concejala 1987-1991; alcaldesa 2003-2011),Organization sin página → Wikidata del Ayuntamiento [por resolver],W-ELIA,no existe: tabla de relaciones
+E-020,birthPlace,—,Cabezuela del Valle,pendiente (sin /lugares); containedInPlace /lugares/valle-del-jerte#place,W-ELIA,no existe: lugar nuevo
+E-020,knows,knows,Robe,https://entreinteriores.com/personas/robe-iniesta#person,TESTIMONIO@1:38:30,no existe: tabla de relaciones
+E-020,sameAs,—,Wikipedia + Wikidata,https://www.wikidata.org/wiki/Q5830178,W-ELIA,se rellena en seed_persons
+E-028,jobTitle / worksFor,employee,Ayuntamiento de Plasencia (alcalde hasta 2003),ídem E-020,MS-366 · W-ELIA,no existe: tabla de relaciones
+E-028,memberOf,member,Partido Popular; Compromiso por Plasencia (2003),Wikidata [por resolver],MS-366 · W-ELIA,no existe
+E-028,subjectOf,about,La carta de Robe al alcalde,pendiente (CreativeWork sin página),W-EXT,no existe
+E-028,relatedTo,relatedTo,Extremoduro (veto),https://entreinteriores.com/extremoduro#musicgroup,W-EXT,no existe: tabla de relaciones
+E-039,"memberOf (OrganizationRole: bajo, 1983)",member,Dosis Letal,"pendiente (/grupos/dosis-letal#musicgroup, fase grupos)",W-EXT · W-ROBE,no existe: grupo nuevo
+E-039,colleague,colleague,Robe,https://entreinteriores.com/personas/robe-iniesta#person,W-ROBE · TESTIMONIO@0:39:37,derivable de membresía común
+E-039,colleague,colleague,"Juano, Luisma Beltrán, Zósimo «Zosi» Pascual",pendiente (sin ficha),W-EXT,derivable de membresía común
+E-037,"memberOf (OrganizationRole: voz, 1983)",member,Dosis Letal,pendiente (fase grupos),W-EXT · W-ROBE,no existe: grupo nuevo
+E-040,"memberOf (OrganizationRole: batería, 1987)",member,Extremoduro,https://entreinteriores.com/extremoduro#musicgroup,W-EXT · TR-404 · TESTIMONIO@0:54:44,band_memberships (existe la tabla)
+E-040,colleague,colleague,Robe; Kaíto; William (le sustituye),https://entreinteriores.com/personas/robe-iniesta#person · /personas/kaito#person · /personas/william-extremoduro#person,W-EXT,derivable de membresía
+E-040,knows,knows,Luis «von Fanta» (el Jazz),https://entreinteriores.com/personas/luis-von-fanta#person,TESTIMONIO@0:54:44,no existe: tabla de relaciones
+E-040,workLocation / Event,location,Casa de la Salud (local de ensayo),pendiente (fase lugares),TESTIMONIO@0:55:19,no existe: lugar nuevo
+E-050,contributor (roleName: coros) en MusicRecording,—,Tu corazón · Quemando tus recuerdos · Desidia,https://entreinteriores.com/extremoduro/somos-unos-animales/tu-corazon (y las otras dos),W-SUA,SongCredit (existe la tabla)
+E-050,contributor (voces) en MusicRecording,—,"Sol de invierno · Con un latido del reloj · Papel secante · Ama, ama, ama…",https://entreinteriores.com/extremoduro/deltoya/<canción>,W-DEL,SongCredit (existe la tabla)
+E-050,contributor en MusicAlbum,—,Somos unos animales; Deltoya; Grandes éxitos y fracasos,https://entreinteriores.com/extremoduro/somos-unos-animales#album …,W-SUA · W-DEL · W-GEF,derivable de SongCredit
+E-050,colleague,colleague,Belén,pendiente (sin ficha),W-SUA · W-DEL,derivable de créditos comunes
+E-049,contributor (coros/voces) en MusicAlbum,—,Somos unos animales; Deltoya; ¿Dónde están mis amigos?,https://entreinteriores.com/extremoduro/<disco>#album,W-SUA · W-DEL · W-DEMA,SongCredit sin persona: crédito con nombre libre
+E-055,creator (artwork) en MusicAlbum,—,"Tú en tu casa, nosotros en la hoguera (1990) [HIPÓTESIS]",https://entreinteriores.com/extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera#album,TESTIMONIO@1:58:35,no existe: crédito de arte
+E-068,creator en CreativeWork (VisualArtwork),—,Mural de Robe y Manolo Chinato (Plasencia),pendiente (página del mural),PR-431,no existe: obra nueva
+E-068,creator en CreativeWork (VisualArtwork),—,«El Descendimiento» (2025),sin página: nodo con nombre,FORBES,no existe
+E-068,homeLocation / birthPlace,—,Plasencia («artista placentino»),https://entreinteriores.com/lugares/plasencia#place,FORBES,no existe: tabla de relaciones
+E-068,about (del mural),subjectOf,Robe; Manolo Chinato,https://entreinteriores.com/personas/robe-iniesta#person · /personas/manolo-chinato#person,PR-431,no existe

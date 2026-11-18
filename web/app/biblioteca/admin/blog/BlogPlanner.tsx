@@ -6,6 +6,7 @@ import Term from "@/components/admin/Term";
 import {
   ActionBar,
   Button,
+  buttonClass,
   Callout,
   Card,
   Details,
@@ -434,8 +435,85 @@ export default function BlogPlanner({
                           Escribiéndose…
                         </StatusBadge>
                       )}
+                      {p.review_verdict === "pasa" && (
+                        <StatusBadge tone="ok" title="La cascada de filtros ya corrió sobre este borrador">
+                          ✓ Pasa los filtros{p.review_score != null ? ` (${p.review_score}/100)` : ""}
+                        </StatusBadge>
+                      )}
+                      {p.has_body && !p.review_verdict && (
+                        <StatusBadge tone="neutral">Pendiente de juzgar</StatusBadge>
+                      )}
                       {forceBadge(p)}
                     </div>
+                    {p.review_verdict === "para_tu_lectura" && !p.force_publish && (
+                      <Callout
+                        tone="info"
+                        className="mt-3"
+                        title={`Lista para tu lectura: pasa todos los filtros y el editor jefe la deja en ${p.review_score ?? "?"}/100. No sale sola.`}
+                      >
+                        <ul className="list-disc pl-5 space-y-1">
+                          {(p.review_reasons?.motivos ?? []).slice(0, 3).map((m) => (
+                            <li key={m}>{m}</li>
+                          ))}
+                        </ul>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Link
+                            href={`/biblioteca/admin/blog/${p.id}`}
+                            className={buttonClass("secondary", "sm")}
+                          >
+                            Leer el borrador
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            loading={busy === p.id}
+                            onClick={() => call("force-publish", p.id)}
+                          >
+                            Publicar tal cual (lo he leído)
+                          </Button>
+                          <Button
+                            size="sm"
+                            loading={busy === p.id}
+                            onClick={() => {
+                              const nota = window.prompt("Nota para el redactor (opcional):", "");
+                              if (nota === null) return;
+                              call("redraft", p.id, { nota });
+                            }}
+                          >
+                            Reescribir
+                          </Button>
+                        </div>
+                      </Callout>
+                    )}
+                    {p.review_verdict === "retenida" && (
+                      <Callout
+                        tone="warn"
+                        className="mt-3"
+                        title={`Retenida: no pasa ${p.review_reasons?.bloquea === "rigor" ? "al editor jefe" : `el filtro «${p.review_reasons?.bloquea ?? "?"}»`}${p.review_score != null ? ` (${p.review_score}/100)` : ""}. No se publica ni se descarta.`}
+                      >
+                        <ul className="list-disc pl-5 space-y-1">
+                          {(p.review_reasons?.motivos ?? []).slice(0, 4).map((m) => (
+                            <li key={m}>{m}</li>
+                          ))}
+                        </ul>
+                        <div className="mt-2">
+                          <Button
+                            size="sm"
+                            loading={busy === p.id}
+                            onClick={() => {
+                              const nota = window.prompt(
+                                "Nota para el redactor (opcional): qué contar, qué evitar…",
+                                "",
+                              );
+                              if (nota === null) return;
+                              call("redraft", p.id, { nota });
+                            }}
+                          >
+                            Reescribir
+                          </Button>
+                        </div>
+                      </Callout>
+                    )}
                     {p.recommended_for && (
                       <p className="mt-2 text-sm text-ink-dim">
                         Fecha sugerida: <b className="text-ink">{fmtDate(p.recommended_for)}</b>
@@ -567,6 +645,13 @@ export default function BlogPlanner({
                   <div className="flex-1 min-w-0 opacity-75">
                     <Meta p={p} />
                     <TitleLink p={p} small />
+                    {p.placement?.last_merge?.cerrada && (
+                      <p className="mt-1 text-sm text-ink-faint">
+                        Cerrada sola: ampliar{" "}
+                        <span className="font-mono">{p.placement.last_merge.path}</span> no tenía
+                        material. Al recuperarla, sus búsquedas vuelven sin esa página.
+                      </p>
+                    )}
                     {errorDe(p.id)}
                   </div>
                   <Button size="sm" loading={busy === p.id} onClick={() => call("restore", p.id)}>
@@ -780,6 +865,13 @@ export default function BlogPlanner({
                     Con <span className="font-mono">{p.placement.last_merge.path}</span> (
                     {p.placement.last_merge.status})
                     {p.placement.last_merge.error ? `: ${p.placement.last_merge.error}` : ""}
+                    {p.placement.last_merge.cerrada && (
+                      <>
+                        {" "}
+                        Sus búsquedas se han desactivado y no se volverá a proponer esa página
+                        para ellas. Si cambia el material, reactívalas y elige otro destino.
+                      </>
+                    )}
                   </Callout>
                 )}
               </div>

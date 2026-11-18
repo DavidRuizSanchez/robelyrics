@@ -5,19 +5,226 @@
 # kind: person (default) | album | band.
 
 photos:
-  # === Personas (retrato individual limpio, verificado) ===
+  # === Fotos de terceros con crédito (decisión de David, 10-11-2026) ===
+  # Fotograma del documental, re-alojado a mano en Cloudinary. La identidad NO la da
+  # la página (YouTube no nombra a Paco): la da el rótulo en pantalla del mismo plano.
+  - slug: paco-doniga
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794346011/entreinteriores-art/w8sbktkueorbslzwbl4r.jpg"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=2337s"
+    identity: "Plasencia y Robe"
+    identity_evidence: "rótulo en pantalla «Paco Dóniga · Bajista de Dosis Letal» en el mismo plano (0:38:53)"
+  # Fotogramas de entrevistas del mismo canal (juancaraes), 10-11-2026. Solo plano
+  # propio del canal con el rótulo del entrevistado; nunca metraje de archivo ajeno.
+  # `identity` es como el TÍTULO del vídeo nombra a la persona.
+  - slug: jesus-mateos-brea
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348262/entreinteriores-art/midacsi2pljksccw0diw.jpg"
+    attribution: "Fotograma del documental «Plasencia y Robe» (Juan Carlos Ramos, 2026)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=cwUsXq54KvA&t=12290s"
+    identity: "Plasencia y Robe"
+    identity_evidence: "rótulo en pantalla «Jesús Mateos Brea · Artista urbano» en el mismo plano (3:24:50)"
+  - slug: capi-gil
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348260/entreinteriores-art/m5mlrpir1cwdnpj3myt4.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 39 (Juan Carlos Ramos, 2023)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=q1vl-sUTzNY&t=226s"
+    identity: "Vida y obra de Capi"
+    identity_evidence: "rótulo en pantalla «alberto gil 'capi'» en el mismo plano (3:46)"
+  - slug: juantxu-mongol-olano
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348262/entreinteriores-art/ykcxtyzstz9qjyf13zgb.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 29 (Juan Carlos Ramos, 2022)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=UuXYkYB1hmk&t=130s"
+    identity: "Juantxu Olano"
+    identity_evidence: "rótulo en pantalla «Juantxu Olano» en el mismo plano (2:10)"
+  - slug: inaki-milindris
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348261/entreinteriores-art/rgq31xkskbz3fkmpm5rl.jpg"
+    attribution: "Fotograma de «La historia de Extremoduro», capítulo 35 (Juan Carlos Ramos, 2022)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=IhWZgdevuQQ&t=344s"
+    identity: "Iñaki Setién"
+    identity_evidence: "rótulo en pantalla «Iñaki Setién» en el mismo plano (5:44)"
+  - slug: david-lerman
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794348261/entreinteriores-art/xrgc52da1lknsvevbafv.jpg"
+    attribution: "Fotograma de una entrevista de Juan Carlos Ramos (2021)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=kWDK1uvcWWM&t=142s"
+    identity: "David Lerman"
+    identity_evidence: "rótulo en pantalla «David Lerman» en el mismo plano (2:22)"
+  # Prensa e instituciones, sin Juancares (David, 11-11-2026). Vistas a mano: una
+  # sola persona y sin marca de agua. Ninguna página indica autor ni licencia.
+  - slug: woody-amores
+    url: "https://pmextremadura.es/wp-content/uploads/2024/02/Woody-Amores-web.jpg"
+    attribution: "Premios de la Música Extremeña"
+    license: derechos de su autor
+    source_url: "https://pmextremadura.es/mejor-solista-destacado-2024/"
+    identity: "Woody Amores"
+    identity_evidence: "alt=«Woody Amores» en su entrada de Mejor solista destacado 2024"
+  - slug: lorenzo-gonzalez
+    url: "https://static.eldiario.es/clip/ee23208e-c867-4896-b27c-c719ec83e581_16-9-discover-aspect-ratio_default_0.jpg"
+    attribution: "eldiario.es (17-03-2026)"
+    license: derechos de su autor
+    source_url: "https://www.eldiario.es/extremadura/cultura/bulo-nueva-banda-formada-musicos-acompanaron-robe-ultimos-doce-anos-encuentra-propia-voz_1_13044524.html"
+    identity: "Loren González"
+    identity_evidence: "pie y alt «Loren González, momentos después de la entrevista»"
+  - slug: alen-ayerdi
+    url: "https://a1.elespanol.com/cronicaglobal/2015/03/12/culemania/culemaniacos/culemaniacos_17508356_311280_1024x576.jpg"
+    attribution: "Marea, vía Crónica Global (09-05-2023)"
+    license: derechos de su autor
+    source_url: "https://cronicaglobal.elespanol.com/culemania/culemaniacos/20230509/alen-ayerdi-marea-lo-que-messi-increible/762423787_0.html"
+    identity: "Alén Ayerdi"
+    identity_evidence: "pie «Alén Ayerdi lo da todo durante un concierto de Marea en directo / MAREA»"
   - slug: alvaro-rodriguez-barroso
     url: "https://lagranbellezaproducciones.com/wp-content/uploads/2019/10/alvaro-rodriguez-barroso-artista-la-gran-belleza.jpg"
     attribution: "La Gran Belleza Producciones"
-  - slug: lorenzo-gonzalez
-    url: "https://static.eldiario.es/clip/ee23208e-c867-4896-b27c-c719ec83e581_16-9-discover-aspect-ratio_default_0.jpg"
-    attribution: "eldiario.es"
-  - slug: woody-amores
-    url: "https://xn--guitarraespaola-9qb.net/wp-content/uploads/2021/09/27500256_1742183679159345_8487985572212521363_o.jpeg"
-    attribution: "M. Rubialls Photography"
-  - slug: david-lerman
-    url: "https://www.canalextremadura.es/sites/default/files/Media/Images/2021-09/lerman.jpg"
+    license: derechos de su autor
+    source_url: "https://lagranbellezaproducciones.com/artista/alvaro-rodriguez-barroso/"
+    identity: "Álvaro Rodríguez Barroso"
+    identity_evidence: "alt «Álvaro Rodríguez Barroso» en su página de artista"
+  - slug: salo
+    url: "https://www.canalextremadura.es/sites/default/files/Media/Images/2021-07/salook.jpg"
     attribution: "Canal Extremadura"
+    license: derechos de su autor
+    source_url: "https://www.canalextremadura.es/noticias/extremadura/muere-de-cancer-los-67-anos-gonzalo-salo-miembro-fundador-de-extremoduro"
+    identity: "Salo"
+    identity_evidence: "alt «Salo tocando la guitarra», en la noticia sobre Gonzalo «Salo», fundador de Extremoduro"
+  # Recortes de fotos de grupo, subidos a mano a Cloudinary (11-11-2026). El pie de
+  # la página de origen dice quién es quién; el recorte deja solo a la persona.
+  - slug: raul-guerrero
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794408507/entreinteriores-art/kg81liv54pzwvmzotzvm.jpg"
+    attribution: "Hemeroteca «Si miro a las nubes» (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.simiroalasnubes.giveevig.com/raul-guerrero/"
+    identity: "Raúl Guerrero"
+    identity_evidence: "pie «Raúl Guerrero, entre Robe e Iñaki 'Uoho', en una foto de años atrás»: el del centro"
+  - slug: alber-fuentes
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794408508/entreinteriores-art/eqxvvhv6ymaftmqc7qys.jpg"
+    attribution: "Redes de Fernando Pizarro, vía MariskalRock (recorte)"
+    license: derechos de su autor
+    source_url: "https://mariskalrock.com/actualidad/robe-reaparece-en-publico-para-reunirse-con-el-alcalde-de-plasencia-donde-tendra-una-avenida-a-su-nombre/"
+    identity: "Alber Fuentes"
+    identity_evidence: "pie «Fernando Pizarro, Robe y Alber Fuentes»: el de la derecha, con Robe en el centro"
+  # Fotos de terceros (12-11-2026, búsqueda ampliada con las mismas reglas: identidad
+  # en la página de origen, nada de Juancares ni de agencias). Las de Discogs las
+  # aceptó David a falta de otra fuente; su web da 403 al servidor, así que la
+  # fuente que comprueba la guarda es su API pública (el mismo registro, con una
+  # sola imagen), y el crédito enlaza a la página. Subidas a mano a Cloudinary.
+  - slug: jon-calvo
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511784/entreinteriores-art/tkwbiufwicnoaenv8k4b.jpg"
+    attribution: "Sergio Sánchez M., Libertad Digital (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.libertaddigital.com/cultura/musica/2016-12-19/inaki-uoho-anton-los-credos-son-el-cancer-de-la-humanidad-1276589010/"
+    identity: "Jon Calvo"
+    identity_evidence: "figcaption «Jon Calvo e Iñaki Antón | Sergio Sánchez M.»: el de la izquierda (la otra foto de la página dice «Iñaki Antón y Jon Calvo» con las posiciones al revés)"
+  - slug: jose-ignacio-cantera
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511785/entreinteriores-art/o7hjx0hxci3bm6xqq1fu.jpg"
+    attribution: "Rebrote (FB rebrote.oficial), vía giveevig.org (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.giveevig.org/banda-rebrote/"
+    identity: "Cantera"
+    identity_evidence: "pie «De izquierda a derecha: 'El profe', Jaime, 'Moreno', 'Uoho', Cantera y Miguel / FB rebrote.oficial»: el quinto. Recortado de la misma foto en color publicada por infolibre (crédito «Cedida»)"
+  - slug: miguel-colino
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511787/entreinteriores-art/fdbkqzrwqjcagvbcv6zj.jpg"
+    attribution: "Rebrote (FB rebrote.oficial), vía giveevig.org (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.giveevig.org/banda-rebrote/"
+    identity: "Miguel"
+    identity_evidence: "pie «De izquierda a derecha: 'El profe', Jaime, 'Moreno', 'Uoho', Cantera y Miguel / FB rebrote.oficial»: el sexto, el de la derecha"
+  - slug: mikel-irazoki
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511788/entreinteriores-art/irxpi4mq7yngrg5n8j9v.jpg"
+    attribution: "Höfner (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.hofner.com/en/blog/hofner-artists-4/mikel-irazoki-50"
+    identity: "Mikel Irazoki"
+    identity_evidence: "imagen de cabecera de la página que Höfner dedica a «Mikel Irazoki. Spanish bass player and musical director»"
+  - slug: carlitos-perez
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511783/entreinteriores-art/cfwjq2zafik5nyxjck0h.jpg"
+    attribution: "robe.es"
+    license: derechos de su autor
+    source_url: "https://robe.es/"
+    identity: "Carlitos Pérez"
+    identity_evidence: "alt «Carlitos Pérez» junto a su biografía «CARLITOS PÉREZ (1990)» en la web oficial de Robe"
+  - slug: aitor-arino
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511782/entreinteriores-art/bqpqx24zxtouf6yg25ma.jpg"
+    attribution: "Radio Popular / Bizkaia Irratia (recorte)"
+    license: derechos de su autor
+    source_url: "https://radiopopular.com/podcast/adentrandonos-en-el-templo-del-sonido-30-anos-de-lorentzo-records"
+    identity: "Aitor Ariño"
+    identity_evidence: "foto de la entrevista dedicada a él en Lorentzo Records («bajo la batuta de Aitor Ariño… como nos cuenta el propio Aitor»)"
+  - slug: luis-von-fanta
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511785/entreinteriores-art/krqietd2flzx34bd0pp5.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/6114989-Luis-Von-fanta)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/6114989"
+    identity: "Fanta"
+    identity_evidence: "foto de su página de artista en Discogs («Luis Von fanta», miembro de Extremoduro). Subida por un usuario, sin autor (aceptado por David el 12-11-2026 a falta de otra)"
+  - slug: diego-garay
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511783/entreinteriores-art/hij8ip0auampox7v7hoq.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/2039910-Dieguillo)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/2039910"
+    identity: "Garai"
+    identity_evidence: "foto de su página de artista en Discogs («Dieguillo», nombre real Diego Garai, grupos Cicatriz y Pedrá). Subida por un usuario, sin autor"
+  - slug: ventura-rico
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511789/entreinteriores-art/sfjldb9dyzvuqxkvwwsb.jpg"
+    attribution: "[Discogs](https://www.discogs.com/artist/657307-Ventura-Rico)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/657307"
+    identity: "Ventura Rico"
+    identity_evidence: "foto de su página de artista en Discogs («Spanish recording and mastering engineer»). Subida por un usuario, sin autor"
+  - slug: mon-sogas
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794511788/entreinteriores-art/d8fxnmmpyngorbfmodyk.jpg"
+    attribution: "[Discogs](https://www.discogs.com/es/artist/3523376-Ram%C3%B3n-Sogas)"
+    license: derechos de su autor
+    source_url: "https://api.discogs.com/artists/3523376"
+    identity: "Sogas"
+    identity_evidence: "foto de su página de artista en Discogs («Ramón Sogas», Extremoduro y Sinvergüenza). Subida por un usuario, sin autor"
+
+  # Fotos de terceros (12-11-2026, segunda búsqueda: Google Imágenes por nombre completo,
+  # mismas reglas). Una fotografía de prensa con su pie, no un fotograma de Juancares.
+  - slug: carlos-el-sucio
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518693/entreinteriores-art/vurwvr6wr253mauiyyuu.jpg"
+    attribution: "E. Botella, El Correo / Diario Vasco (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.diariovasco.com/culturas/musica/extremoduro-cancela-gira-20210827094900-nt.html"
+    identity: "Sucio"
+    identity_evidence: "pie «Karlos 'El Sucio' en 2012, cuando apareció en la serie de verano 'Propios y extraños'. (E. Botella)»; foto individual"
+  - slug: jaime-moreno
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518694/entreinteriores-art/xkvmtyuaubdgfgc2chqg.jpg"
+    attribution: "Mike Caster, vía El Comercio (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.elcomercio.es/aviles/intentado-sonido-inicio-20200131003417-ntvo.html"
+    identity: "Jaime Moreno"
+    identity_evidence: "pie «Jaime Moreno en una imagen promocional. (MIKE CASTER)», en una entrevista con él como cantante de The Electric Alley"
+  - slug: selu
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518721/entreinteriores-art/jpqymlmne1yvcrgq1zst.jpg"
+    attribution: "NAIZ (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.naiz.eus/es/info/noticia/20200728/fallece-el-saxofonista-de-reincidentes-y-extremoduro-jose-luis-nieto-selu"
+    identity: "Selu"
+    identity_evidence: "pie «Selu Nieto con su saxofón. (NAIZ)» en su necrológica; ojo: «Selu Nieto» en redes es su hijo, el actor, y esas fotos se descartaron"
+  # Estas dos, con el visto bueno expreso de David (12-11-2026) pese a sus pegas.
+  - slug: uge-ortiz
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518956/entreinteriores-art/acla53vi9snv8at9h7j4.jpg"
+    attribution: "El Rock de la Urbe (recorte)"
+    license: derechos de su autor
+    source_url: "https://www.rockdelaurbe.com/2010/04/entrevista-uge.html"
+    identity: "Uge"
+    identity_evidence: "única imagen de la entrevista dedicada a él («Eugenio Ortiz 'Uge' vuelve a sus raíces…»); recorte de la foto promocional de su banda"
+  - slug: miguel-ferreras
+    url: "https://res.cloudinary.com/ddnkzrplj/image/upload/v1794518958/entreinteriores-art/kvh964qp7dhlzrk30epw.jpg"
+    attribution: "Canal oficial de Mon Sogas en YouTube (fotograma, recorte)"
+    license: derechos de su autor
+    source_url: "https://www.youtube.com/watch?v=Fblj_fg1o_Y"
+    identity: "Miguel Ferreras"
+    identity_evidence: "vídeo «Mon Sogas - Tengo Miedo (con Miguel Ferreras)» del canal Mon Sogas Oficial (no de Juancares); Ferreras es el del bajo, a la derecha (Mon toca la acústica). La posición la deduce el instrumento: ningún pie la da"
+
+  # === Personas ===
+  # Álvaro Rodríguez Barroso, Lorenzo González y Woody Amores tenían aquí, hasta el
+  # 11-11-2026, entradas sin fuente ni licencia (una con marca de agua). Se retiraron;
+  # las que hay más arriba son las nuevas, con fuente y crédito.
 
   # === Portada de single ===
   - slug: pedra

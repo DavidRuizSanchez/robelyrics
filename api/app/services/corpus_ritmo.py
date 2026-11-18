@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.db.models import YouTubeIngestQueue
@@ -68,10 +68,14 @@ def minutos_whisper_restantes(db: Session, ahora: datetime | None = None) -> flo
 
 
 def hechos_semana(db: Session, ahora: datetime | None = None) -> int:
+    """Lo hecho en 7 días que cuenta para el tope. Lo añadido a mano no cuenta: el
+    tope reparte lo que trae la búsqueda, y lo manual ya es una decisión."""
     ahora = ahora or datetime.now(UTC)
     return (db.query(func.count(YouTubeIngestQueue.id))
             .filter(YouTubeIngestQueue.status == "done",
-                    YouTubeIngestQueue.done_at >= ahora - timedelta(days=7))
+                    YouTubeIngestQueue.done_at >= ahora - timedelta(days=7),
+                    or_(YouTubeIngestQueue.descubierto_por.is_(None),
+                        YouTubeIngestQueue.descubierto_por != "manual"))
             .scalar()) or 0
 
 

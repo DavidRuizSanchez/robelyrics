@@ -25,7 +25,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -45,6 +45,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.services import content_placement as _placement
+from app.services import seo_style
 from app.services.auth import get_current_admin
 from app.services.rate_limit import limiter
 from app.services.seo_templates import render_with_context, resolve_all
@@ -1383,6 +1384,13 @@ class AdminProposalItem(BaseModel):
     placement_groups: list[dict] = []
     merge_target: str | None = None
     merge_opportunity_id: int | None = None
+    # Juicio al preparar (`draft_generator.juzgar_borrador`): pasa | retenida, con su
+    # nota y sus motivos ({bloquea, motivos, faltan_datos}). Y el rastro del descarte.
+    review_verdict: str | None = None
+    review_score: int | None = None
+    review_reasons: dict | None = None
+    discard_reason: str | None = None
+    discarded_by: str | None = None
     created_at: datetime
 
 
@@ -1525,6 +1533,11 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         source_url=p.source_url,
         source_name=p.source_name,
         has_body=bool(p.body_md),
+        review_verdict=getattr(p, "review_verdict", None),
+        review_score=getattr(p, "review_score", None),
+        review_reasons=getattr(p, "review_reasons", None),
+        discard_reason=getattr(p, "discard_reason", None),
+        discarded_by=getattr(p, "discarded_by", None),
         keywords=kws,
         # Solo suman las activas: una keyword desactivada no es demanda de esta pieza.
         keyword_volume=sum(int(k.get("volume") or 0) for k in kws
@@ -1574,6 +1587,29 @@ def admin_corpus_queue(
     return listar(db)
 
 
+class CorpusManualIn(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
+    tipo: Literal["robe_interview", "entorno_interview", "media_report", "youtube_transcript"]
+    titulo: str | None = Field(default=None, max_length=500)
+    autor: str | None = Field(default=None, max_length=120)
+
+
+@router.post("/corpus/queue/manual")
+def admin_corpus_queue_manual(
+    payload: CorpusManualIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Añade una URL a mano: entra aprobada, la primera y sin gastar hueco semanal."""
+    from app.services.corpus_manual import ManualError, anadir
+
+    try:
+        return anadir(db, payload.url, payload.tipo, titulo=payload.titulo,
+                      autor=payload.autor)
+    except ManualError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
 @router.post("/corpus/queue/{item_id}/{accion}")
 def admin_corpus_queue_decidir(
     item_id: int,
@@ -1589,6 +1625,53 @@ def admin_corpus_queue_decidir(
         return decidir(db, item_id, accion)
     except LookupError as e:
         raise HTTPException(status_code=404, detail="vídeo no encontrado") from e
+    except AccionNoValida as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/entidades")
+def admin_entidades(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Relaciones pendientes y entidades propuestas (plan de relaciones, 18-11-2026)."""
+    from app.services.entity_queue import listar
+
+    return listar(db)
+
+
+@router.post("/entidades/propuesta/{item_id}/{accion}")
+def admin_entidades_propuesta(
+    item_id: int,
+    accion: Literal["aprobar", "descartar", "recuperar"],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Aprobar (se le hará ficha), descartar o recuperar una entidad propuesta."""
+    from app.services.entity_queue import AccionNoValida, decidir_propuesta
+
+    try:
+        return decidir_propuesta(db, item_id, accion, quien=_admin.email or "admin")
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="propuesta no encontrada") from e
+    except AccionNoValida as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.post("/entidades/relacion/{item_id}/{accion}")
+def admin_entidades_relacion(
+    item_id: int,
+    accion: Literal["aprobar", "rechazar"],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
+    """Dar por verificada (con quien decide) o rechazar una relación pendiente."""
+    from app.services.entity_queue import AccionNoValida, decidir_relacion
+
+    try:
+        return decidir_relacion(db, item_id, accion, quien="david")
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="relación no encontrada") from e
     except AccionNoValida as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
 
@@ -1663,21 +1746,45 @@ def admin_proposal_detail(
     )
 
 
+def _generate_draft_bg(proposal_id: int) -> None:
+    """Genera el borrador de una propuesta recién aprobada, fuera de la petición.
+
+    Con su propia sesión: la de la petición ya está cerrada cuando esto corre.
+    Si falla, la propuesta sigue `approved` sin cuerpo y la repesca el cron
+    `generate_approved_drafts` (cada 5 min)."""
+    import logging
+
+    from app.db.session import SessionLocal
+    from app.services.draft_generator import generate_proposal_draft
+
+    log = logging.getLogger(__name__)
+    with SessionLocal() as db:
+        p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+        if not p or p.status != "approved" or p.body_md:
+            return
+        try:
+            generate_proposal_draft(db, p)
+        except Exception:  # noqa: BLE001
+            log.exception(
+                "Generación de borrador falló al aprobar propuesta %s; "
+                "el cron de respaldo reintentará",
+                proposal_id,
+            )
+
+
 @router.post("/proposals/{proposal_id}/approve", response_model=AdminProposalItem)
 def admin_proposal_approve(
     proposal_id: int,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> AdminProposalItem:
     """Valida una propuesta: `proposed`/`scheduled` → `approved` (sin fecha).
-    Al aprobar se genera el borrador de forma SÍNCRONA (cuerpo RAG + foto +
-    saneado), salvo que ya tenga cuerpo (noticias). Puede tardar ~1 min. Si la
-    generación falla, queda `approved` sin cuerpo y el cron
-    `generate_approved_drafts` reintenta."""
-    import logging
 
-    from app.services.draft_generator import generate_proposal_draft
-
+    El borrador (cuerpo RAG + foto + saneado) se genera EN SEGUNDO PLANO, salvo
+    que ya tenga cuerpo (noticias). Tiene que ser así: el motor profundo pasa de
+    los 100 s y Cloudflare corta ahí con un 524, así que en síncrono el panel
+    solo veía el error aunque el servidor siguiera trabajando."""
     p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="proposal not found")
@@ -1691,15 +1798,7 @@ def admin_proposal_approve(
     db.refresh(p)
 
     if not p.body_md:
-        try:
-            generate_proposal_draft(db, p)
-            db.refresh(p)
-        except Exception:  # noqa: BLE001
-            logging.getLogger(__name__).exception(
-                "Generación de borrador falló al aprobar propuesta %s; "
-                "el cron de respaldo reintentará",
-                p.id,
-            )
+        background.add_task(_generate_draft_bg, p.id)
     return _proposal_to_item(p)
 
 
@@ -2088,6 +2187,38 @@ def admin_proposal_unschedule(
     return _proposal_to_item(p)
 
 
+class RedraftIn(BaseModel):
+    nota: str | None = None
+
+
+@router.post("/proposals/{proposal_id}/redraft", response_model=AdminProposalItem)
+def admin_proposal_redraft(
+    proposal_id: int,
+    payload: RedraftIn | None = None,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Reescribir una propuesta (la retenida por el juez, o cualquiera aprobada).
+
+    Vacía el borrador y el veredicto; el cron de cada 5 minutos lo vuelve a escribir y a
+    juzgar. La `nota` (opcional) le llega al redactor como corrección, igual que los
+    motivos del juez en las reescrituras automáticas."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status not in ("approved", "scheduled"):
+        raise HTTPException(status_code=409, detail="solo se reescribe lo aprobado")
+    nota = ((payload.nota if payload else None) or "").strip()[:1500]
+    p.body_md = None
+    p.review_verdict = None
+    p.review_score = None
+    p.review_reasons = {"nota": nota} if nota else None
+    p.reviewed_at = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
 @router.post("/proposals/{proposal_id}/discard", response_model=AdminProposalItem)
 def admin_proposal_discard(
     proposal_id: int,
@@ -2100,6 +2231,10 @@ def admin_proposal_discard(
     if p.status == "used":
         raise HTTPException(status_code=409, detail="propuesta ya usada")
     p.status = "discarded"
+    # Quién y cuándo: hasta el 18-11-2026 un descarte no dejaba rastro en la BD.
+    p.discarded_by = (getattr(_admin, "email", None) or "admin")[:32]
+    p.discarded_at = datetime.now(timezone.utc)
+    p.discard_reason = p.discard_reason or "descartada en el panel"
     p.scheduled_for = None
     db.commit()
     db.refresh(p)
@@ -2118,7 +2253,14 @@ def admin_proposal_restore(
         raise HTTPException(status_code=404, detail="proposal not found")
     if p.status != "discarded":
         raise HTTPException(status_code=409, detail="la propuesta no está descartada")
+    from app.services.content_merge import reabrir_cerradas
+
     p.status = "proposed"
+    # Una idea que se cerró sola por `noop` tiene todas sus búsquedas tachadas:
+    # recuperarla sin reactivarlas la dejaría vacía. Vuelven sin la página que no
+    # salió (`noop_path`), y el reparto se recalcula para no recomendarla otra vez.
+    if reabrir_cerradas(p) and p.kind == "evergreen" and p.target_keyword:
+        _placement.store(db, p, _placement.analyze(db, p, use_serp=False))
     db.commit()
     db.refresh(p)
     return _proposal_to_item(p)
@@ -2201,7 +2343,14 @@ def admin_proposal_set_title(
 
     if payload.meta_title is not None:
         meta = (enforce_name_policy(strip_ai_tells(payload.meta_title)) or "").strip()
-        p.meta_title = (meta or title)[:60]
+        # Nunca se corta (`seo_style`): el `[:60]` de aquí partía palabras a mitad.
+        # Sin meta propio, el titular si cabe entero; si no, NULL y la plantilla.
+        if meta and seo_style.fit_or_none(meta, seo_style.TITLE_HARD_MAX) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"el meta title pasa de {seo_style.TITLE_HARD_MAX} caracteres",
+            )
+        p.meta_title = meta or seo_style.fit_or_none(title, seo_style.TITLE_HARD_MAX)
 
     db.commit()
     db.refresh(p)
@@ -2332,6 +2481,8 @@ class AdminIGItem(BaseModel):
     title: str
     category: str | None = None
     summary: str | None = None
+    # Notas del selector y de la ingesta. Se enseñan en el panel; no se publican.
+    notas_internas: str | None = None
     source_name: str | None = None
     source_url: str | None = None
     image_url: str | None = None
@@ -2342,6 +2493,8 @@ class AdminIGItem(BaseModel):
     needs_human: bool = False
     photo_source: str | None = None
     photo_verdict: str | None = None
+    # De dónde salió la imagen que se publica de verdad (portada, ficha, ia…).
+    image_origin: str | None = None
     error: str | None = None
     is_blog: bool = False
     is_prepared: bool = False
@@ -2445,6 +2598,10 @@ class AdminIGUpdateIn(BaseModel):
     clear_publish_at: bool = False
     # Formato: IMAGE | CAROUSEL | REELS. Cambiarlo exige re-preparar.
     media_type: str | None = None
+    # «Lo he revisado, que salga»: quita la retención (`needs_human`). Solo se
+    # concede si el texto, ya con la edición aplicada, pasa el gate final:
+    # revisar a mano no es saltarse la puerta.
+    revisado: bool = False
 
 
 class AdminIGAccount(BaseModel):
@@ -2475,6 +2632,7 @@ def _ig_item_to_model(it: _IGItem, ev=None) -> AdminIGItem:  # noqa: ANN001
         title=it.title,
         category=it.category,
         summary=it.summary,
+        notas_internas=getattr(it, "notas_internas", None),
         source_name=it.source_name,
         source_url=it.source_url,
         image_url=it.image_url,
@@ -2482,6 +2640,7 @@ def _ig_item_to_model(it: _IGItem, ev=None) -> AdminIGItem:  # noqa: ANN001
         needs_human=bool(getattr(it, "needs_human", False)),
         photo_source=getattr(ev, "photo_source", None),
         photo_verdict=getattr(ev, "photo_verdict", None),
+        image_origin=getattr(it, "image_origin", None),
         error=it.error,
         is_blog=it.blog_post_id is not None,
         is_prepared=bool(it.image_path),
@@ -2684,6 +2843,17 @@ def admin_ig_update(
         if programado.tzinfo is None:
             programado = programado.replace(tzinfo=timezone.utc)
         it.publish_at = programado
+    if payload.revisado:
+        veredicto = _ig_publisher.revisar_gate(db, it)
+        if not veredicto.ok:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"El texto sigue sin pasar el gate final: {veredicto.motivo}",
+            )
+        it.needs_human = False
+        if (it.error or "").startswith("Retenido antes de publicar"):
+            it.error = None
     db.commit()
     db.refresh(it)
     return _ig_detail_model(it, db)
@@ -2847,6 +3017,9 @@ def admin_ig_prepare(
     except _ig_newsroom.SujetoNoIdentificado as quien:
         # Tampoco es una avería: es que no sabemos de quién habla la noticia.
         raise HTTPException(status_code=422, detail=str(quien)) from quien
+    except _ig_publisher.TextoRetenido as retenido:
+        # Un clip cuyo texto no pasa las guardas: no hay respaldo honesto.
+        raise HTTPException(status_code=422, detail=str(retenido)) from retenido
     except _ig_publisher.SinMaterial as falta:
         # No es una avería del servidor: es que no hay artículo que leer. 422 para
         # que el panel enseñe el motivo (y la salida: pegar el texto a mano) en
@@ -2887,7 +3060,9 @@ def admin_ig_discard(
         raise HTTPException(status_code=404, detail="item not found")
     if it.status == "published":
         raise HTTPException(status_code=409, detail="ya está publicado")
-    it.status = "discarded"
+    from app.services.instagram import video_clips as _vc
+
+    _vc.descartar(db, it, "descartado desde el panel")
     db.commit()
     db.refresh(it)
     return _ig_item_to_model(it)
@@ -3342,7 +3517,9 @@ def admin_ig_bulk_discard(
         if it.status == "published":
             result.failed.append({"id": item_id, "error": "ya publicado"})
             continue
-        it.status = "discarded"
+        from app.services.instagram import video_clips as _vc
+
+        _vc.descartar(db, it, "descartado en bloque desde el panel")
         db.commit()
         result.ok.append(item_id)
     return result

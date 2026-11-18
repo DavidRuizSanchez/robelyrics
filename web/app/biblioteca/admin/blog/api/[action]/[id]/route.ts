@@ -14,10 +14,11 @@ const VALID_ACTIONS = new Set([
   "placement",
   "apply-plan",
   "keywords",
+  "redraft",
 ]);
 
 // Acciones que llevan body JSON.
-const BODY_ACTIONS = new Set(["schedule", "title", "merge", "apply-plan", "keywords"]);
+const BODY_ACTIONS = new Set(["schedule", "title", "merge", "apply-plan", "keywords", "redraft"]);
 
 // Proxy POST → /admin/proposals/{id}/{action} con auth via cookie.
 // `schedule` lleva { date }; `title` lleva { title, meta_title? }; `merge` lleva

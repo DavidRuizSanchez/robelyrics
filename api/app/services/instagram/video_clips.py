@@ -515,6 +515,31 @@ def descargar_y_recortar(
 
 
 # --------------------------------------------------------------------------- #
+# Descarte — el mismo camino desde el correo y desde el panel
+# --------------------------------------------------------------------------- #
+VIVOS = ("requested", "downloading", "ready", "failed")
+
+
+def descartar(db: Session, item, motivo: str) -> VideoClip | None:
+    """Descarta un post de la cola y, si es un clip, lo retira.
+
+    El correo retiraba el clip y el panel solo marcaba el post: los clips 22, 23 y
+    24 seguían `ready`, con su vídeo en Cloudinary, sin post que los publicara. Y
+    al no quedar `retired`, su tramo volvía a estar libre para `propose_clips`.
+    No hace commit si no hay clip: el de quien llama.
+    """
+    if item is not None and item.status != "published":
+        item.status = "discarded"
+    clip = None
+    if item is not None:
+        clip = db.execute(select(VideoClip).where(VideoClip.queue_item_id == item.id)
+                          ).scalars().first()
+    if clip is not None and clip.status in VIVOS:
+        retire(db, clip, motivo)
+    return clip
+
+
+# --------------------------------------------------------------------------- #
 # Retirada — la válvula que hace asumible publicar sin permiso previo
 # --------------------------------------------------------------------------- #
 def retire(db: Session, clip: VideoClip, motivo: str) -> tuple[bool, str]:

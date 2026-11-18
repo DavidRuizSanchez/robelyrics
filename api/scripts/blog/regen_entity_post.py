@@ -52,7 +52,8 @@ def regen(db, post: Post, *, kind: str, source_type: str | None,
         quality_tier=tier,
         status="proposed",
     )
-    if not generate_proposal_draft(db, p, persist=False):
+    # Propuesta de usar y tirar para regenerar un post: sin juicio de propuesta.
+    if not generate_proposal_draft(db, p, persist=False, juzgar=False):
         logger.error("  ✗ %s: la generación no produjo cuerpo", post.slug)
         return False
 

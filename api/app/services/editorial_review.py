@@ -36,6 +36,15 @@ logger = logging.getLogger(__name__)
 # Mínimo de palabras de prosa real para que un post sea publicable. NO se rellena
 # para alcanzarlo: si no llega con sustancia, se rechaza (o el admin lo fuerza).
 MIN_WORDS = 250
+# Una persona con un papel acotado en la historia (quien tocó en un concierto, un
+# muralista, una corista) no da para 250 palabras de sustancia, y pedírselas era
+# pedir relleno: las fichas del cap. 64 se rechazaban «por cortas» con todo
+# verificado. Criterio de David (10-11-2026): una ficha breve vale si todo es concreto.
+MIN_WORDS_POR_TIPO = {"person": 150}
+
+
+def _min_words(kind: str) -> int:
+    return MIN_WORDS_POR_TIPO.get(kind, MIN_WORDS)
 
 Verdict = Literal["pass", "revise", "reject"]
 
@@ -67,9 +76,11 @@ _RUBRIC: dict[str, str] = {
         "menos varios de estos detalles REALES: canciones/temas concretos que "
         "sonaron, palabras o dedicatorias sobre Robe/Extremoduro, otros artistas o "
         "invitados presentes (con nombre), una anécdota o momento concreto. Si es el "
-        "ANUNCIO de un evento futuro, exige quién/cuándo/dónde/lineup y por qué le "
-        "importa a un fan (no se le pide setlist). Genérico ('ofrecieron "
-        "actuaciones', 'rindió homenaje') sin detalles → reject."
+        "ANUNCIO de un evento futuro, exige cuándo/dónde y qué es, y por qué le "
+        "importa a un fan (no se le pide setlist). El cartel, solo si está "
+        "anunciado: 'aún no se han anunciado los nombres' es un dato CONCRETO y "
+        "correcto, nunca motivo de reject. Genérico ('ofrecieron actuaciones', "
+        "'rindió homenaje') sin detalles → reject."
     ),
     "spotlight": (
         "Análisis de canción. Exige versos citados textualmente, significado "
@@ -88,7 +99,12 @@ _RUBRIC: dict[str, str] = {
         "Aniversario de disco. Exige canciones clave, contexto de grabación, sello, "
         "sonido, lugar en la trayectoria. Sin concreción → reject."
     ),
-    "person": "Persona: discografía y proyectos con NOMBRE, hechos datados, relación real con Robe.",
+    # No a todos se les pide discografía: a un muralista le quitaba puntos por no
+    # tener discos (10-11-2026). Lo que se exige es su obra o su papel, con nombre.
+    "person": ("Persona: su obra o su papel con NOMBRE (discos y proyectos si es músico; "
+               "obras si es artista; cargos si es figura pública), hechos datados y relación "
+               "real con Robe. Una ficha breve es válida si todo lo que dice es concreto: no "
+               "se penaliza que alguien con un papel acotado no tenga trayectoria larga."),
     "band": "Banda: historia, miembros, discos célebres con nombre, vínculo real con Robe/Extremoduro.",
     "album": "Disco: canciones clave, grabación, sonido, contexto. Sin concreción → reject.",
     "song": "Canción: versos citados, significado, música, lugar en el disco.",
@@ -110,6 +126,69 @@ def _rubric_for(kind: str) -> str:
     return _RUBRIC.get(kind, "Contenido general: exige hechos concretos, nombres y datos; nada genérico.")
 
 
+_DISCOGRAFIA_CACHE: str | None = None
+
+
+def discografia_real() -> str:
+    """La discografía de Extremoduro y Robe desde la BD, para el juez. Sin ella, el
+    18-11-2026 rechazó la efeméride del 10-12 por «omitir La voz de los sueños (2024)»,
+    un disco que no existe: su contexto le pide no dejarse discos posteriores y él
+    rellenaba la lista de memoria."""
+    global _DISCOGRAFIA_CACHE
+    if _DISCOGRAFIA_CACHE is not None:
+        return _DISCOGRAFIA_CACHE
+    try:
+        from app.db.session import SessionLocal
+
+        db = SessionLocal()
+        try:
+            obra = robe_facts.discography(db)
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — sin BD, sin lista (no se inventa)
+        return ""
+    if not obra:
+        return ""
+    _DISCOGRAFIA_CACHE = (
+        "DISCOGRAFÍA DE EXTREMODURO Y ROBE QUE CONSTA (de la base de datos): no exijas ni "
+        "reproches la ausencia de ningún disco de Extremoduro o de Robe que no esté en esta "
+        "lista (los discos de otros artistas son menciones legítimas): "
+        + "; ".join(f"{x.title} ({x.year}, {'Robe' if x.artist_slug == 'robe' else 'Extremoduro'}"
+                    f", {x.kind})" for x in obra) + ".\n")
+    return _DISCOGRAFIA_CACHE
+
+
+def foco_persona(subject: str) -> str:
+    """El oficio REAL de la persona, para que la rúbrica `person` se aplique a lo que
+    hace: la obra de un muralista, los discos de un bajista, los cargos de un
+    alcalde. Vacío si no se encuentra (la rúbrica genérica sigue valiendo)."""
+    try:
+        from sqlalchemy import func, or_
+
+        from app.db.models import Person
+        from app.db.session import SessionLocal
+        from app.services.person_jsonld import papeles
+
+        nombre = (subject or "").strip().lower()
+        if not nombre:
+            return ""
+        db = SessionLocal()
+        try:
+            p = (db.query(Person)
+                 .filter(or_(func.lower(Person.stage_name) == nombre,
+                             func.lower(Person.full_name) == nombre)).first())
+            lista = papeles(db, p) if p else []
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 — sin BD, rúbrica genérica
+        return ""
+    if not lista:
+        return ""
+    return ("Lo que consta de su papel: " + "; ".join(lista[:6]) + ". Juzga su obra según "
+            "ESE papel: no le pidas discos si no es músico ni trayectoria larga si su papel "
+            "fue acotado.")
+
+
 def review(
     body_md: str,
     *,
@@ -121,6 +200,7 @@ def review(
     allowed_terms: set[str] | None = None,  # nombres propios que pueden repetirse
     spotlight: str | None = None,  # el texto AÑADIDO, para que no se juzgue a ciegas
     repeats_per_1000: float | None = None,  # presupuesto de repetición relativo
+    no_consta: str = "",  # lo que se buscó y no está en ninguna fuente (piece_checklist)
 ) -> EditorialVerdict:
     """Juzga el rigor de una pieza. Degrada a `pass` si no hay API key o el LLM
     falla (no bloquea la publicación por un fallo de infraestructura; el resto de
@@ -128,6 +208,8 @@ def review(
     body = (body_md or "").strip()
     if not body:
         return EditorialVerdict("reject", 0, ["cuerpo vacío"], None)
+    if kind == "person" and not focus:
+        focus = foco_persona(subject)
 
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
@@ -139,9 +221,11 @@ def review(
     elif event_when == "future":
         when_line = (
             "Es el ANUNCIO de un evento FUTURO: vara MÁS LENIENTE. Si indica de forma "
-            "CONCRETA quién toca + cuándo + dónde, es ÚTIL para un fan que quiera ir → "
-            "'pass' (o 'revise' si hay paja). NO exijas setlist ni 'por qué es "
-            "relevante'. Solo 'reject' si es vago incluso en quién/cuándo/dónde.\n"
+            "CONCRETA cuándo + dónde + qué (y quién toca, si está anunciado), es ÚTIL "
+            "para un fan que quiera ir → 'pass' (o 'revise' si hay paja). NO exijas "
+            "setlist, ni 'por qué es relevante', ni un cartel que no se ha anunciado: "
+            "decir que aún no hay nombres es correcto. Solo 'reject' si es vago en "
+            "cuándo/dónde.\n"
         )
 
     material_block = ""
@@ -198,12 +282,16 @@ def review(
         # contar: por eso pasó un recorrido por toda la trayectoria que terminaba
         # en 2021 sin decir que Robe había muerto.
         + robe_facts.anchor_for_editor()
+        + "\n" + discografia_real()
     )
     user = (
         f"TIPO: {kind}. PROTAGONISTA: «{subject}».\n"
         f"{when_line}"
         f"QUÉ EXIGE ESTE TIPO: {_rubric_for(kind)}\n"
         + (f"ENFOQUE esperado: {focus}\n" if focus else "")
+        # Sin esto el juez pedía el sello de un disco que no consta en ninguna fuente:
+        # la pieza no podía pasar sin inventarlo (aniversario de «Destrozares»).
+        + (f"{no_consta}\n" if no_consta else "")
         + "\nEvalúa el ARTÍCULO con estos criterios DUROS:\n"
         "1. ESPECIFICIDAD Y PRIMERA MANO: ¿aporta detalles concretos y trazables "
         "(nombres propios, canciones/versos, fechas, citas textuales, cifras, "
@@ -215,7 +303,7 @@ def review(
         "4. VALOR DIFERENCIAL: ¿aporta algo que un fan no encuentre ya en una ficha "
         "o un cartel genérico?\n"
         "5. DESARROLLO: un post de apenas unas frases, sin desarrollo, NO es "
-        "publicable aunque sea correcto (mínimo ~250 palabras de sustancia real). "
+        f"publicable aunque sea correcto (mínimo ~{_min_words(kind)} palabras de sustancia real). "
         "Si no hay material para desarrollarlo, es 'reject' (jamás se rellena).\n"
         "6. SOBRE-INTERPRETACIÓN / PSEUDO-ERUDICIÓN: NO vale llamar 'metáfora' o "
         "'símbolo' a lo que es una afirmación DIRECTA (p.ej. una crítica social "
@@ -298,8 +386,9 @@ def review(
     if verdict in ("pass", "revise"):
         final_body = tightened if verdict == "revise" else body
         words = _word_count(final_body)
-        if words < MIN_WORDS:
-            if verdict == "revise" and _word_count(body) >= MIN_WORDS:
+        minimo = _min_words(kind)
+        if words < minimo:
+            if verdict == "revise" and _word_count(body) >= minimo:
                 # El ORIGINAL sí llega al suelo y es la TIJERA la que se ha pasado.
                 # Antes esto era `reject`, y castigaba al editor por hacer bien su
                 # trabajo: un post de 256 palabras condensado a 188/242/246 salía
@@ -309,12 +398,12 @@ def review(
                 verdict, tightened = "pass", None
                 reasons = (reasons or []) + [
                     f"la versión condensada se quedaba en {words} palabras (< "
-                    f"{MIN_WORDS}): se mantiene el original, que sí llega"
+                    f"{minimo}): se mantiene el original, que sí llega"
                 ]
             else:
                 verdict, tightened = "reject", None
                 reasons = (reasons or []) + [
-                    f"demasiado corto ({words} palabras < {MIN_WORDS}); "
+                    f"demasiado corto ({words} palabras < {minimo}); "
                     "sin material para ampliarlo con sustancia"
                 ]
 

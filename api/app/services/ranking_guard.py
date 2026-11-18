@@ -23,6 +23,7 @@ operación: un rename malo no tumba una ampliación buena.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from app.services import seo_style
@@ -78,11 +79,34 @@ def cobertura_conservada(antes: str, despues: str, consultas: list[dict],
     return Veredicto(True)
 
 
+def _sin_sujeto(texto: str, sujeto: frozenset[str]) -> str:
+    return " ".join(w for w in re.findall(r"\S+", texto or "")
+                    if not (set(re.findall(r"[a-z0-9]+", seo_style.flatten(w))) & sujeto))
+
+
 def renombre_permitido(viejo: str, nuevo: str, consultas: list[dict],
-                       alias: dict[str, str] | None = None) -> Veredicto:
-    """Un heading nuevo tiene que seguir cubriendo lo que cubría el viejo."""
+                       alias: dict[str, str] | None = None,
+                       sujeto: frozenset[str] = frozenset()) -> Veredicto:
+    """Un heading nuevo tiene que seguir cubriendo lo que cubría el viejo.
+
+    Con `sujeto` (los tokens del nombre de la página), la cobertura se mide SIN él:
+    el nombre ya va en el title y el H1, así que quitarlo de un H2 no pierde ninguna
+    búsqueda. Sin esto, «Paco Doniga antes de Dosis Letal: …» no se podía cambiar
+    por «Antes de Dosis Letal: …» (headings humanos, criterio de David, 10-11-2026).
+    Una consulta que solo era el nombre no la cubre ningún heading: se descarta.
+    """
     if not (nuevo or "").strip():
         return Veredicto(False, motivo="heading vacío")
+    if sujeto:
+        consultas = [
+            {**q, "query": resto} for q in consultas
+            if (resto := " ".join(t for t in seo_style.content_tokens(q["query"])
+                                  if t not in sujeto))
+        ]
+        # Y el nombre tampoco CUBRE nada desde el heading: por prefijo, «Extremoduro»
+        # cubría «extremadura» y «Barricada» la errata «barrigada» (11-11-2026), así que
+        # quitar el nombre «perdía» búsquedas que el heading nunca respondió.
+        viejo, nuevo = _sin_sujeto(viejo, sujeto), _sin_sujeto(nuevo, sujeto)
     perdidas = sorted(cubiertas(viejo, consultas, alias) - cubiertas(nuevo, consultas, alias))
     if perdidas:
         return Veredicto(False, perdidas,

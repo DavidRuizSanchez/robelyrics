@@ -1,0 +1,2635 @@
+# ============================================================
+# Relaciones del JSON-LD, cada una con su fuente
+# ============================================================
+# Lo carga `python -m scripts.seed_relaciones` en `entity_relations`
+# (servicio: api/app/services/relations.py). Plan: data/seo_plan_autoridad/
+# PLAN_DATOS_ESTRUCTURADOS.md, fase 1.
+#
+# Reglas (las comprueba el cargador; si una falla, no se escribe NADA):
+#   - Solo sale en la web lo que está `verificada`: un T1, o dos T2 de dominios distintos,
+#     y `verificado_por`.
+#   - Un T1 de musicbrainz / wikidata / discogs exige que sujeto y objeto tengan su
+#     identidad acreditada en esa base: una fila `sameAs` verificada (o el wikidata_id de
+#     la ficha). Nada de buscar por nombre.
+#   - No se carga lo que tiene otra autoridad: la formación de Extremoduro y Robe
+#     (band_memberships), los créditos de canción (song_credits) ni las pistas (album_tracks).
+#   - Cada hecho, UNA vez y en un sentido: la inversa (memberOf ↔ member…) se deriva sola.
+#   - Lo familiar queda fuera del plan.
+#   - Lo que se marca también se pinta en la ficha (eso llega con los primeros datos).
+#
+# Referencias: person:<slug> · artist:<slug> · band:<slug> · label:<slug> ·
+#   album:<artista>/<disco> · song:<artista>/<disco>/<canción> · place:<slug> ·
+#   theme:<slug> · concept:<slug> · book:<slug>
+# Un objeto sin página propia va como nodo: {"@type": MusicGroup, name: Ciclonautas}
+#
+# Ejemplo (NO es un dato: no está verificado):
+#   - sujeto: person:alguien
+#     predicado: memberOf
+#     objeto: band:algun-grupo
+#     rol: batería
+#     desde: "1997"
+#     estado: verificada
+#     verificado_por: david
+#     fuentes:
+#       - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/…",
+#          evidencia: "member of band, 1997–"}
+#
+# Identidad acreditada (va primero):
+#   - sujeto: person:alguien
+#     predicado: sameAs
+#     objeto: "https://musicbrainz.org/artist/<mbid>"
+#     estado: verificada
+#     verificado_por: david
+#     fuentes:
+#       - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/<mbid>",
+#          evidencia: "misma persona: discografía y grupos coinciden con su ficha"}
+
+# --- Identidades de la muestra de 10 (confirmadas por David el 13-11-2026) ---------
+# Cruce por relación, no por nombre: Wikidata y MusicBrainz enlazados en los dos sentidos,
+# o la entidad como relación de otra que ya cruza. Evidencia y crudos en
+# data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/ (no versionado).
+relaciones:
+  - sujeto: person:robe-iniesta
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3181267"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267",
+         evidencia: "eswiki «Roberto Iniesta»; P434 b435c75d… que MusicBrainz enlaza de vuelta a Q3181267"}
+  - sujeto: person:robe-iniesta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926",
+         evidencia: "MusicBrainz: miembro de Extremoduro (f59163ba…); enlaza a Q3181267"}
+  - sujeto: person:alen-ayerdi
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q107272976"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976",
+         evidencia: "P463 Marea (Q3091114) con referencia, y Marea lo lista en P527"}
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2311472"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472",
+         evidencia: "eswiki «Extremoduro»; P434 f59163ba… que MusicBrainz enlaza de vuelta"}
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333",
+         evidencia: "MusicBrainz enlaza a Q2311472; miembros Robe, Iñaki Antón, Cantera, Colino"}
+  - sujeto: band:marea
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3091114"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114",
+         evidencia: "eswiki «Marea (banda)»; P434 da4fb281… que MusicBrainz enlaza de vuelta"}
+  - sujeto: band:marea
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077",
+         evidencia: "MusicBrainz «Spanish rock band», 1997-12-24, enlaza a Q3091114"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q24279015"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q24279015",
+         evidencia: "eswiki «El Dromedario Records»; P966 14b000e9… que MusicBrainz enlaza de vuelta"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/label/14b000e9-5cf1-4ecf-a385-fb7d83307d4e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/label/14b000e9-5cf1-4ecf-a385-fb7d83307d4e",
+         evidencia: "MusicBrainz: ES, desde 2013, enlaza a Q24279015"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q614313"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q614313",
+         evidencia: "«álbum de Extremoduro», 1996-02-23; P436 2d9dcaa2… que MusicBrainz enlaza de vuelta"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/2d9dcaa2-fb3f-3fbd-a62d-d2f4094adf5b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/2d9dcaa2-fb3f-3fbd-a62d-d2f4094adf5b",
+         evidencia: "MusicBrainz: Extremoduro, 1996-02-23, enlaza a Q614313"}
+  - sujeto: song:extremoduro/canciones-prohibidas/golfa
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2a777b7c-2d79-45ee-b709-a475cc01ca87"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2a777b7c-2d79-45ee-b709-a475cc01ca87",
+         evidencia: "MusicBrainz: letra de Robe (b435c75d…), música de Robe e Iñaki Antón"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q241767"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q241767",
+         evidencia: "«municipio de la provincia de Cáceres, España», eswiki «Plasencia»"}
+
+# --- Relaciones de la muestra de 10 (aprobadas por David el 13-11-2026) -------------
+# Cada una con sus fuentes; detalle en data/seo_plan_autoridad/evidencias/
+# datos_estructurados/relaciones/RELACIONES_MUESTRA10.md (no versionado). Primero las 4
+# identidades que hacen falta para usar MusicBrainz como fuente (el cargador va en dos pasadas).
+  # --- Identidades nuevas que hacen falta para usar MusicBrainz como fuente ---------------
+  - sujeto: person:kutxi-romero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d8db4ebf-0577-4c95-be76-9902d27d1e9f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845",
+         evidencia: "El Q-ID de la ficha (Q3756845) declara P434 = d8db4ebf…; MusicBrainz lo da como miembro original de Marea (da4fb281…), y Wikidata, P463 Marea"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493",
+         evidencia: "El Q-ID de la ficha (Q5198493) declara P434 = cebb8d3a…; MusicBrainz: miembro de Extremoduro y compositor de «Golfa»"}
+  - sujeto: label:dro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/label/d9cd1c5f-f81c-42be-a79f-f7ffce7e34fb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3030172",
+         evidencia: "El Q-ID de la ficha (Q3030172) declara P966 = d9cd1c5f…; MusicBrainz: sello de la edición de Agila del 23-02-1996"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9",
+         evidencia: "El área de MusicBrainz enlaza a Q241767; es donde nace Robe y donde se forma Extremoduro"}
+
+  # --- Relaciones ------------------------------------------------------------------------
+  - sujeto: person:robe-iniesta              # R1
+    predicado: birthPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P19", evidencia: "P19 = Q241767 (referencia: Freebase)"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "begin area: Plasencia (69e012c7…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Roberto_Iniesta", oldid: 176255840,
+         evidencia: "ficha «lugar de nacimiento»: «lugar de nacimiento = Plasencia, Cáceres (España)»"}
+  - sujeto: person:robe-iniesta              # R2 (aprobado por David: «nacimientos y muertes siempre que podamos»)
+    predicado: deathPlace
+    objeto: {"@type": Place, name: Barakaldo, sameAs: "https://www.wikidata.org/wiki/Q487801"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P20", evidencia: "P20 = Q487801"}
+      - {kind: prensa, tier: T2, url: "https://www.elcorreo.com/culturas/musica/robe-fallecio-hospital-cruces-20251211154905-nt.html", evidencia: "referencia de P20 en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "end area: Barakaldo"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Roberto_Iniesta", oldid: 176255840,
+         evidencia: "ficha «lugar de fallecimiento»: «lugar de fallecimiento = Baracaldo, Vizcaya (España)»"}
+  - sujeto: person:robe-iniesta              # R3
+    predicado: memberOf
+    objeto: {"@type": MusicGroup, name: Extrechinato y Tú, sameAs: ["https://www.wikidata.org/wiki/Q5853668", "https://musicbrainz.org/artist/8a032fcd-8798-4ad5-b22f-b893839beaa8"]}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3181267#P463", evidencia: "P463 = Q5853668"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/b435c75d-25e8-464c-8b82-12ca0eaec926", evidencia: "member of band: Extrechinato y Tú (8a032fcd…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Extrechinato_y_T%C3%BA", oldid: 172172400,
+         evidencia: "ficha «miembros»: «Miembros = Manolo Chinato · Roberto Iniesta, 'Robe' · Adolfo 'Fito' Cabrales · Iñaki 'Uoho' Antón»"}
+  - sujeto: person:alen-ayerdi               # R4
+    predicado: memberOf
+    objeto: band:marea
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q3091114 (referencia: Diario de Navarra); P1303 = batería; Marea lo lista en P527"}
+      - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2019/06/01/alen-ayerdi-marea-siempre-hemos-tenido-claro-hacia-donde-tirar-como-llegar-653235-1034.html", evidencia: "entrevista del 01-06-2019 «Alen Ayerdi (Marea): Siempre hemos tenido claro hacia dónde tirar y cómo llegar»; Marea, «el quinteto de Berriozar»"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_%28banda%29", oldid: 175505759,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Miembros = Kutxi Romero (voz y letras) · Eduardo Beaumont Piñas (bajo y voz) · César Ramallo (guitarra) · David Díaz Kolibrí (guitarra eléctrica y guitarra acústica) · Alén Ayerdi (batería y coros)»"}
+  - sujeto: person:alen-ayerdi               # R5
+    predicado: memberOf
+    objeto: {"@type": MusicGroup, name: Ciclonautas, sameAs: "https://www.wikidata.org/wiki/Q21554945"}
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: prensa, tier: T2, url: "https://www.diariodenavarra.es/noticias/cultura-ocio/cultura/2021/05/19/el-grupo-pamplones-ciclonautas-lanza-viernes-mayo-nuevo-disco-camping-del-hastio-727384-1034.html", evidencia: "«El grupo pamplonés Ciclonautas, formado por Mariano 'Mai' Medina (guitarra y voz), Alén Ayerdi (batería) y José Javier Pintor 'Dr. Txo' (bajista)»"}
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q107272976#P463", evidencia: "P463 = Q21554945"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Ciclonautas", oldid: 167768647,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Alén Ayerdi: Batería»"}
+  - sujeto: person:kutxi-romero              # R6
+    predicado: memberOf
+    objeto: band:marea
+    desde: "1997"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "member of band: Kutxi Romero (d8db4ebf…), original, desde 1997-12-24"}
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P527", evidencia: "P527 incluye Q3756845"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_(banda)", oldid: 175505759,
+         evidencia: "ficha «miembros» del artículo de Marea: «Miembros = Kutxi Romero (voz y letras) · Eduardo Beaumont Piñas (bajo y voz) · …»"}
+  - sujeto: band:marea                       # R7
+    predicado: foundingLocation
+    objeto: {"@type": Place, name: Berriozar, sameAs: "https://www.wikidata.org/wiki/Q1645776"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3091114#P740", evidencia: "P740 = Q1645776"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/da4fb281-2156-442c-87ad-0e02e8a86077", evidencia: "begin area: Berriozar (523d2b1a…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Marea_%28banda%29", oldid: 175505759,
+         evidencia: "ficha «origen»: «Origen = Berriozar, Navarra, España»"}
+  - sujeto: artist:extremoduro               # R8
+    predicado: foundingLocation
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472#P740", evidencia: "P740 = Q241767"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/f59163ba-1a7a-4349-b0fd-fb9582ebe333", evidencia: "begin area: Plasencia (69e012c7…)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Extremoduro", oldid: 176250400,
+         evidencia: "ficha «origen»: «Origen = Plasencia, Cáceres, España»"}
+  - sujeto: album:extremoduro/agila          # R9
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q614313#P162", evidencia: "P162 = Q5198493"}
+      - {kind: libro, tier: T2, url: "data/reference/deprofundis_facts.md:38", evidencia: "«Agila (23 feb 1996, DRO)… Producción/arreglos: Uoho (rol decisivo)»"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Antón (cebb8d3a…): producer de la edición del 23-02-1996"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "ficha «productor»: «productor = Iñaki “Uoho” Antón»"}
+  - sujeto: place:plasencia                  # R10
+    predicado: containedInPlace
+    objeto: {"@type": AdministrativeArea, name: provincia de Cáceres, sameAs: "https://www.wikidata.org/wiki/Q81977"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767#P131", evidencia: "P131 = Q81977"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/area/69e012c7-90b0-48a6-bcf1-6a4185363fd9", evidencia: "part of: Cáceres (subdivisión)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Plasencia", oldid: 174847418,
+         evidencia: "lectura manual (lo dice la primera frase del artículo, con enlace; la ficha no trae el parámetro): «Plasencia es una ciudad y municipio español de la provincia de Cáceres, situada en el norte de la comunidad autónoma de Extremadura. El municipio, que no forma mancomunidad con los pueblos que le rodean, geográficamente …»"}
+
+# --- Identidades, tanda 1 (13-11-2026) ----------------------------------------------
+# Fichas que ya traían Q-ID y miembros del grupo Robe que declara Wikidata (P527).
+# Cruce Wikidata ↔ MusicBrainz en los dos sentidos cuando hay MBID; el MBID es el
+# canónico (Fito & Fitipaldis: e8e2baa6 está fusionada en 16903d74; Freddie Mercury:
+# 022589ac, no la entidad de su nombre legal). Evidencia en data/seo_plan_autoridad/
+# evidencias/datos_estructurados/identidades/tanda1/ (no versionado).
+  - sujeto: person:albert-pla
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q942636"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q942636",
+         evidencia: "Wikidata «Albert Pla» — cantautor y actor español; eswiki «Albert Pla»; wikidata_id de la ficha: Q942636"}
+  - sujeto: person:albert-pla
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e",
+         evidencia: "MusicBrainz «Albert Pla»: Q942636 declara este MBID y MusicBrainz enlaza de vuelta a Q942636"}
+  - sujeto: person:ara-malikian
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3393715"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3393715",
+         evidencia: "Wikidata «Ara Malikian» — músico armenio; eswiki «Ara Malikian»; wikidata_id de la ficha: Q3393715"}
+  - sujeto: person:ara-malikian
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c",
+         evidencia: "MusicBrainz «Ara Malikian»: Q3393715 declara este MBID y MusicBrainz enlaza de vuelta a Q3393715"}
+  - sujeto: person:ariel-rot
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2400623"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2400623",
+         evidencia: "Wikidata «Ariel Rot» — cantante, compositor, músico y productor argentino; eswiki «Ariel Rot»; wikidata_id de la ficha: Q2400623"}
+  - sujeto: person:ariel-rot
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b",
+         evidencia: "MusicBrainz «Ariel Rot»: Q2400623 declara este MBID y MusicBrainz enlaza de vuelta a Q2400623"}
+  - sujeto: band:barricada
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2574210"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2574210",
+         evidencia: "Wikidata «Barricada» — banda navarra de rock; eswiki «Barricada (banda)»; wikidata_id de la ficha: Q2574210"}
+  - sujeto: band:barricada
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/8fe43356-6902-4311-a80c-f221bfcf3efb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/8fe43356-6902-4311-a80c-f221bfcf3efb",
+         evidencia: "MusicBrainz «Barricada»: Q2574210 declara este MBID y MusicBrainz enlaza de vuelta a Q2574210"}
+  - sujeto: band:fito-y-fitipaldis
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q1421204"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q1421204",
+         evidencia: "Wikidata «Fito & Fitipaldis» — banda española; eswiki «Fito & Fitipaldis»; wikidata_id de la ficha: Q1421204"}
+  - sujeto: band:fito-y-fitipaldis
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/16903d74-9a6a-4cd3-9081-1d752703e8ed",
+         evidencia: "MusicBrainz «Fito & Fitipaldis» (Spanish rock band): Q1421204 declara este MBID y MusicBrainz enlaza de vuelta a Q1421204"}
+  - sujeto: band:inconscientes
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q11255096"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q11255096",
+         evidencia: "Wikidata «Inconscientes» — grupo de rock español; eswiki «Inconscientes (banda)»; wikidata_id de la ficha: Q11255096"}
+  - sujeto: band:inconscientes
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e2692d2a-8467-4d1c-9e2f-fcd51cdf549d",
+         evidencia: "MusicBrainz «Inconscientes»: Q11255096 declara este MBID y MusicBrainz enlaza de vuelta a Q11255096"}
+  - sujeto: band:la-fuga
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3133841"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3133841",
+         evidencia: "Wikidata «La Fuga» — banda de rock española; eswiki «La Fuga (banda)»; wikidata_id de la ficha: Q3133841"}
+  - sujeto: band:la-fuga
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2aaf62d2-0018-4a34-a4c9-a03820febd6c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2aaf62d2-0018-4a34-a4c9-a03820febd6c",
+         evidencia: "MusicBrainz «La Fuga» (Spanish rock band): Q3133841 declara este MBID y MusicBrainz enlaza de vuelta a Q3133841"}
+  - sujeto: band:leno
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3328146"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3328146",
+         evidencia: "Wikidata «Leño» — banda española de rock; eswiki «Leño»; wikidata_id de la ficha: Q3328146"}
+  - sujeto: band:leno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/42941f4b-d3ea-4d78-a5af-2be59bc2acd6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/42941f4b-d3ea-4d78-a5af-2be59bc2acd6",
+         evidencia: "MusicBrainz «Leño»: Q3328146 declara este MBID y MusicBrainz enlaza de vuelta a Q3328146"}
+  - sujeto: band:los-enemigos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q6297284"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q6297284",
+         evidencia: "Wikidata «Los Enemigos» — Banda de rock española; eswiki «Los Enemigos»; wikidata_id de la ficha: Q6297284"}
+  - sujeto: band:los-enemigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e3922bc3-c7dc-4eba-a1ee-ba07e14737f4"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e3922bc3-c7dc-4eba-a1ee-ba07e14737f4",
+         evidencia: "MusicBrainz «Los Enemigos»: Q6297284 declara este MBID y MusicBrainz enlaza de vuelta a Q6297284"}
+  - sujeto: band:los-ninos-de-los-ojos-rojos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5492514"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5492514",
+         evidencia: "Wikidata «Los Niños de los Ojos Rojos» — s/d; eswiki «Los Niños de los Ojos Rojos»; wikidata_id de la ficha: Q5492514"}
+  - sujeto: band:los-suaves
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3182761"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3182761",
+         evidencia: "Wikidata «Los Suaves» — grupo de hard rock español; eswiki «Los Suaves»; wikidata_id de la ficha: Q3182761"}
+  - sujeto: band:los-suaves
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/69747c42-016c-4705-9a9c-a411cd859b46"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/69747c42-016c-4705-9a9c-a411cd859b46",
+         evidencia: "MusicBrainz «Los Suaves» (Spanish hard rock): Q3182761 declara este MBID y MusicBrainz enlaza de vuelta a Q3182761"}
+  - sujeto: band:nu
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q4025455"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q4025455",
+         evidencia: "Wikidata «Ñu» — banda de rock; eswiki «Ñu (banda)»; wikidata_id de la ficha: Q4025455"}
+  - sujeto: band:nu
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2586f88c-6ffc-4fbd-913f-6c45121265ed"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2586f88c-6ffc-4fbd-913f-6c45121265ed",
+         evidencia: "MusicBrainz «Ñu» (Spanish hard rock band): Q4025455 declara este MBID y MusicBrainz enlaza de vuelta a Q4025455"}
+  - sujeto: band:platero-y-tu
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q263632"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q263632",
+         evidencia: "Wikidata «Platero y Tú» — banda española; eswiki «Platero y Tú»; wikidata_id de la ficha: Q263632"}
+  - sujeto: band:platero-y-tu
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2b4b6e6b-3e93-4902-8047-fbe76225f794",
+         evidencia: "MusicBrainz «Platero y Tú»: Q263632 declara este MBID y MusicBrainz enlaza de vuelta a Q263632"}
+  - sujeto: band:rebrote
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q138340475"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q138340475",
+         evidencia: "Wikidata «Rebrote» — s/d; eswiki «Rebrote»; wikidata_id de la ficha: Q138340475"}
+  - sujeto: band:rebrote
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/d3f74b59-7f45-422f-9140-78c4fe171691",
+         evidencia: "MusicBrainz «Rebrote»: Q138340475 declara este MBID y MusicBrainz enlaza de vuelta a Q138340475"}
+  - sujeto: band:reincidentes
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2561938"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2561938",
+         evidencia: "Wikidata «Reincidentes» — grupo musical español; eswiki «Reincidentes»; wikidata_id de la ficha: Q2561938"}
+  - sujeto: band:reincidentes
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/47a40555-4df7-41f5-a4a5-6033b198a3e3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/47a40555-4df7-41f5-a4a5-6033b198a3e3",
+         evidencia: "MusicBrainz «Reincidentes» (Spanish punk rock band): Q2561938 declara este MBID y MusicBrainz enlaza de vuelta a Q2561938"}
+  - sujeto: band:tabletom
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5572981"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5572981",
+         evidencia: "Wikidata «Tabletom» — banda de rock española; eswiki «Tabletom»; wikidata_id de la ficha: Q5572981"}
+  - sujeto: band:tabletom
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4a786ef7-131b-4522-bfca-095a48a53ade"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4a786ef7-131b-4522-bfca-095a48a53ade",
+         evidencia: "MusicBrainz «Tabletom»: Q5572981 declara este MBID y MusicBrainz enlaza de vuelta a Q5572981"}
+  - sujeto: band:the-flying-rebollos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q6144458"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q6144458",
+         evidencia: "Wikidata «The Flying Rebollos» — Spanish musical group; eswiki «The Flying Rebollos»; wikidata_id de la ficha: Q6144458"}
+  - sujeto: band:the-flying-rebollos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/142bc978-3830-4d28-8fdf-69c84ec4f600"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/142bc978-3830-4d28-8fdf-69c84ec4f600",
+         evidencia: "MusicBrainz «The Flying Rebollos»: Q6144458 declara este MBID y MusicBrainz enlaza de vuelta a Q6144458"}
+  - sujeto: person:camaron
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q312093"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q312093",
+         evidencia: "Wikidata «Camarón de la Isla» — cantautor español de ascendencia gitana; eswiki «Camarón de la Isla»; wikidata_id de la ficha: Q312093"}
+  - sujeto: person:camaron
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "MusicBrainz «Camarón de la Isla»: Q312093 declara este MBID y MusicBrainz enlaza de vuelta a Q312093"}
+  - sujeto: person:david-lerman
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q123516252"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q123516252",
+         evidencia: "Wikidata «David Lerman» — Guitarrista y Saxofonista Español; Wikidata Q123516175 P527 → Q123516252 (David Lerman)"}
+  - sujeto: person:fermin-muguruza
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q1350622"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q1350622",
+         evidencia: "Wikidata «Fermin Muguruza» — músico, cantautor y director de cine español; eswiki «Fermin Muguruza»; wikidata_id de la ficha: Q1350622"}
+  - sujeto: person:fermin-muguruza
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63",
+         evidencia: "MusicBrainz «Fermín Muguruza»: Q1350622 declara este MBID y MusicBrainz enlaza de vuelta a Q1350622"}
+  - sujeto: person:fito-cabrales
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3751202"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3751202",
+         evidencia: "Wikidata «Fito Cabrales» — músico español; eswiki «Fito Cabrales»; wikidata_id de la ficha: Q3751202"}
+  - sujeto: person:fito-cabrales
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd",
+         evidencia: "MusicBrainz «Fito Cabrales»: Q3751202 declara este MBID y MusicBrainz enlaza de vuelta a Q3751202"}
+  - sujeto: person:frank-zappa
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q127330"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q127330",
+         evidencia: "Wikidata «Frank Zappa» — compositor y guitarrista estadounidense (1940-1993); eswiki «Frank Zappa»; wikidata_id de la ficha: Q127330"}
+  - sujeto: person:frank-zappa
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "MusicBrainz «Frank Zappa» (US musician, composer, activist & filmmaker): Q127330 declara este MBID y MusicBrainz enlaza de vuelta a Q127330"}
+  - sujeto: person:freddie-mercury
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q15869"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q15869",
+         evidencia: "Wikidata «Freddie Mercury» — cantante y compositor británico; eswiki «Freddie Mercury»; wikidata_id de la ficha: Q15869"}
+  - sujeto: person:freddie-mercury
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f",
+         evidencia: "MusicBrainz «Freddie Mercury»: Q15869 declara este MBID y MusicBrainz enlaza de vuelta a Q15869"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5198493"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493",
+         evidencia: "Wikidata «Iñaki Antón» — músico español; eswiki «Iñaki Antón»; MusicBrainz extremoduro member of band → cebb8d3a-064d-481d-a9e4-e61762c66def (Iñaki Antón); wikidata_id de la ficha: Q5198493"}
+  - sujeto: person:jose-ignacio-cantera
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5637367"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5637367",
+         evidencia: "Wikidata «José Ignacio Cantera» — batería español de rock; eswiki «José Ignacio Cantera»; MusicBrainz extremoduro member of band → 450c32e4-1cd8-4aea-b3b9-87e81b4aea01 (José Ignacio Cantera); wikidata_id de la ficha: Q5637367"}
+  - sujeto: person:jose-ignacio-cantera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/450c32e4-1cd8-4aea-b3b9-87e81b4aea01",
+         evidencia: "MusicBrainz «José Ignacio Cantera»: Q5637367 declara este MBID y MusicBrainz enlaza de vuelta a Q5637367"}
+  - sujeto: person:kutxi-romero
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3756845"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845",
+         evidencia: "Wikidata «Kutxi Romero» — escritor español; eswiki «Kutxi Romero»; wikidata_id de la ficha: Q3756845"}
+  - sujeto: label:avispa
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q2069679"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q2069679",
+         evidencia: "Wikidata «Avispa Music» — compañía discográfica; eswiki «Avispa Music»; wikidata_id de la ficha: Q2069679"}
+  - sujeto: label:dro
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3030172"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3030172",
+         evidencia: "Wikidata «Discos Radiactivos Organizados» — Sello discográfico de España; eswiki «Discos Radiactivos Organizados»; wikidata_id de la ficha: Q3030172"}
+  - sujeto: label:warner
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q56517330"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q56517330",
+         evidencia: "Wikidata «Warner Music Spain» — Spanish record label owned by Warner Music Spain, S.L.; eswiki «Warner Music Spain»; wikidata_id de la ficha: Q56517330"}
+  - sujeto: person:leiva
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q11686081"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q11686081",
+         evidencia: "Wikidata «José Miguel Conejo Torres» — cantante español; eswiki «Leiva (cantante)»; wikidata_id de la ficha: Q11686081"}
+  - sujeto: person:leiva
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24",
+         evidencia: "MusicBrainz «Leiva» (singer of Spanish band Pereza): Q11686081 declara este MBID y MusicBrainz enlaza de vuelta a Q11686081"}
+  - sujeto: person:manolete
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q363911"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q363911",
+         evidencia: "Wikidata «Manolete» — torero español; eswiki «Manolete»; wikidata_id de la ficha: Q363911"}
+  - sujeto: person:manolo-chinato
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5790366"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5790366",
+         evidencia: "Wikidata «Manolo Chinato» — poeta español; eswiki «Manolo Chinato»; wikidata_id de la ficha: Q5790366"}
+  - sujeto: person:manolo-chinato
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f",
+         evidencia: "MusicBrainz «Manolo Chinato»: Q5790366 declara este MBID y MusicBrainz enlaza de vuelta a Q5790366"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3572194"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3572194",
+         evidencia: "Wikidata «Manolo Kabezabolo» — cantante español; eswiki «Manolo Kabezabolo»; wikidata_id de la ficha: Q3572194"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/fc83496d-4267-4276-b353-4ef2cf5bd4c9"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/fc83496d-4267-4276-b353-4ef2cf5bd4c9",
+         evidencia: "MusicBrainz «Manolo Kabezabolo»: Q3572194 declara este MBID y MusicBrainz enlaza de vuelta a Q3572194"}
+  - sujeto: person:miguel-colino
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q9032688"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q9032688",
+         evidencia: "Wikidata «Miguel Colino» — músico español; eswiki «Miguel Colino»; MusicBrainz extremoduro member of band → 2eb7c3e1-b562-401a-ac63-7f9a803d577b (Miguel Colino); wikidata_id de la ficha: Q9032688"}
+  - sujeto: person:miguel-colino
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b",
+         evidencia: "MusicBrainz «Miguel Colino»: Q9032688 declara este MBID y MusicBrainz enlaza de vuelta a Q9032688"}
+  - sujeto: person:rosendo-mercado
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3324618"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3324618",
+         evidencia: "Wikidata «Rosendo Mercado» — cantante y compositor español; eswiki «Rosendo Mercado»; wikidata_id de la ficha: Q3324618"}
+  - sujeto: person:rosendo-mercado
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803",
+         evidencia: "MusicBrainz «Rosendo»: Q3324618 declara este MBID y MusicBrainz enlaza de vuelta a Q3324618"}
+  - sujeto: person:woody-amores
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q123516278"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q123516278",
+         evidencia: "Wikidata «Woody Amores» — Guitarrista y productor musical español; Wikidata Q123516175 P527 → Q123516278 (Woody Amores)"}
+
+# --- Identidades, tanda 2 (13-11-2026) ----------------------------------------------
+# Por los créditos de NUESTROS discos: los 20 casan, por título y año, con un grupo de
+# ediciones del catálogo acreditado de Extremoduro o de Robe en MusicBrainz, y de sus
+# créditos de grabación salen 4 personas de nuestra formación o fichas. Q-ID de los
+# discos: MusicBrainz ↔ Wikidata (P436) en los dos sentidos, o P436 + intérprete Robe.
+# Evidencia en data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/tanda2/.
+  - sujeto: person:capi-gil
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/e4c4eaf0-94c6-4f9a-8819-d188037af008"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/e4c4eaf0-94c6-4f9a-8819-d188037af008",
+         evidencia: "MusicBrainz «Alberto Gil»: instrument (drums (drum set)) en Agila (1996), Grandes éxitos y fracasos: Episodio primero (2004), Grandes éxitos y fracasos: Episodio segundo (2004) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: person:diego-garay
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/5f746a43-c27c-49a3-97ad-dbc6e5bfd512"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/5f746a43-c27c-49a3-97ad-dbc6e5bfd512",
+         evidencia: "MusicBrainz «Diego Garay»: instrument (bass guitar) en Pedrá (1995) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro) OJO: MB lo acredita en Pedrá (1995) y nuestra BD le da 1999-2001"}
+  - sujeto: person:inaki-milindris
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/94ce9d96-697c-414b-b794-07a6929e1ff3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/94ce9d96-697c-414b-b794-07a6929e1ff3",
+         evidencia: "MusicBrainz «Iñaki Setien»: instrument (electric guitar) en Agila (1996), Grandes éxitos y fracasos: Episodio primero (2004), Grandes éxitos y fracasos: Episodio segundo (2004) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: person:ventura-rico
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/artist/d1df210e-ae02-44ec-8b40-931c4263bfe3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/artist/d1df210e-ae02-44ec-8b40-931c4263bfe3",
+         evidencia: "MusicBrainz «Ventura Rico»: engineer, producer en ¿Dónde están mis amigos? (1993) (ediciones de nuestros discos, casadas por título y año con el catálogo acreditado de Extremoduro)"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/be718ce7-d997-4547-a211-6a5c7d7deb88"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/be718ce7-d997-4547-a211-6a5c7d7deb88",
+         evidencia: "Grupo de ediciones «Tú en tu casa, nosotros en la hoguera» (1990) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q122974312"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q122974312",
+         evidencia: "Wikidata Q122974312: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/547afdaf-6d27-35cd-af8a-fd651f6f7bea"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/547afdaf-6d27-35cd-af8a-fd651f6f7bea",
+         evidencia: "Grupo de ediciones «Somos unos animales» (1991) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q7560515"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q7560515",
+         evidencia: "Wikidata Q7560515: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/7b6de52e-ce92-389f-951e-a832b093728d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/7b6de52e-ce92-389f-951e-a832b093728d",
+         evidencia: "Grupo de ediciones «Deltoya» (1992) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217497"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217497",
+         evidencia: "Wikidata Q5217497: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/657ee6cf-1280-30ef-8743-1a9556830524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/657ee6cf-1280-30ef-8743-1a9556830524",
+         evidencia: "Grupo de ediciones «¿Dónde están mis amigos?» (1993-09-17) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5307426"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5307426",
+         evidencia: "Wikidata Q5307426: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/4e2382f9-221b-3795-ba0d-02a64e76ff0d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/4e2382f9-221b-3795-ba0d-02a64e76ff0d",
+         evidencia: "Grupo de ediciones «Rock transgresivo» (1994-08-26) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217464"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217464",
+         evidencia: "Wikidata Q5217464: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/9426d89f-08b9-310e-b836-9f32bc0d0492"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/9426d89f-08b9-310e-b836-9f32bc0d0492",
+         evidencia: "Grupo de ediciones «Pedrá» (1995-02-13) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3313048"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3313048",
+         evidencia: "Wikidata Q3313048: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/81def94f-5681-398b-bdec-40f72a34306d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/81def94f-5681-398b-bdec-40f72a34306d",
+         evidencia: "Grupo de ediciones «Iros todos a tomar por culo» (1997-04-21) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217524",
+         evidencia: "Wikidata Q5217524: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/12be837f-562c-355e-9280-e4bf4b8427b5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/12be837f-562c-355e-9280-e4bf4b8427b5",
+         evidencia: "Grupo de ediciones «Canciones prohibidas» (1998-09-28) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217473"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217473",
+         evidencia: "Wikidata Q5217473: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/b0ba36a8-dcdf-341c-af35-281fb159072b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/b0ba36a8-dcdf-341c-af35-281fb159072b",
+         evidencia: "Grupo de ediciones «Yo, minoría absoluta» (2002-03-05) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3312416"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3312416",
+         evidencia: "Wikidata Q3312416: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-primero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/03d1bbae-f590-3078-adbd-c41ae67fae4c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/03d1bbae-f590-3078-adbd-c41ae67fae4c",
+         evidencia: "Grupo de ediciones «Grandes éxitos y fracasos: Episodio primero» (2004-05-03) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-primero
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q5217032"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q5217032",
+         evidencia: "Wikidata Q5217032: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-segundo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/96ca722e-0c7f-3f8a-9a04-ac0e99d3390a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/96ca722e-0c7f-3f8a-9a04-ac0e99d3390a",
+         evidencia: "Grupo de ediciones «Grandes éxitos y fracasos: Episodio segundo» (2004-11-15) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/grandes-exitos-y-fracasos-episodio-segundo
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q122974519"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q122974519",
+         evidencia: "Wikidata Q122974519: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/760dd50e-70a3-38b9-8491-14497d2a59a1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/760dd50e-70a3-38b9-8491-14497d2a59a1",
+         evidencia: "Grupo de ediciones «La ley innata» (2008-09-09) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q3312384"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q3312384",
+         evidencia: "Wikidata Q3312384: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/fd44bb9c-113c-4c51-8a06-296f52d8fd6d"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/fd44bb9c-113c-4c51-8a06-296f52d8fd6d",
+         evidencia: "Grupo de ediciones «Material defectuoso» (2011-05-24) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q383501"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q383501",
+         evidencia: "Wikidata Q383501: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/1fe024fb-354a-46ce-b756-c95b44998737"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/1fe024fb-354a-46ce-b756-c95b44998737",
+         evidencia: "Grupo de ediciones «Para todos los públicos» (2013-11-08) del artista acreditado extremoduro; título y año casan con el nuestro"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q15146540"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q15146540",
+         evidencia: "Wikidata Q15146540: MusicBrainz enlaza a este Q-ID y el Q-ID declara el mismo grupo de ediciones (P436)"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/db6cb107-3447-41f4-9cab-bcf090c4c71e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/db6cb107-3447-41f4-9cab-bcf090c4c71e",
+         evidencia: "Grupo de ediciones «Lo que aletea en nuestras cabezas» (2015-06-09) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q20056387"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q20056387",
+         evidencia: "Wikidata Q20056387: el Q-ID declara este grupo de ediciones (P436) y tiene a Robe (Q3181267) como intérprete; MusicBrainz no enlaza de vuelta"}
+  - sujeto: album:robe/destrozares
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/fad2d33a-6054-4274-a9dc-05dec467df91"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/fad2d33a-6054-4274-a9dc-05dec467df91",
+         evidencia: "Grupo de ediciones «Destrozares, canciones para el final de los tiempos» (2016-11-18) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/bd8ebde9-a60d-4d02-be1f-64a3b3d64453"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/bd8ebde9-a60d-4d02-be1f-64a3b3d64453",
+         evidencia: "Grupo de ediciones «Bienvenidos al temporal» (2018-11-30) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q59348864"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://www.wikidata.org/wiki/Q59348864",
+         evidencia: "Wikidata Q59348864: el Q-ID declara este grupo de ediciones (P436) y tiene a Robe (Q3181267) como intérprete; MusicBrainz no enlaza de vuelta"}
+  - sujeto: album:robe/mayeutica
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/6a685d75-be79-44c2-816d-fa9751e1cf7e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/6a685d75-be79-44c2-816d-fa9751e1cf7e",
+         evidencia: "Grupo de ediciones «Mayéutica» (2021-04-30) del artista acreditado robe; título y año casan con el nuestro"}
+  - sujeto: album:robe/se-nos-lleva-el-aire
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/release-group/4c52bf6e-3118-4837-9b2a-be68f86d7ad4"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/release-group/4c52bf6e-3118-4837-9b2a-be68f86d7ad4",
+         evidencia: "Grupo de ediciones «Se nos lleva el aire» (2023-12-15) del artista acreditado robe; título y año casan con el nuestro"}
+
+# --- Créditos de los discos (13-11-2026) -----------------------------------------------
+# De MusicBrainz (créditos de grabación de la edición más antigua de cada disco), con las
+# identidades acreditadas. Una fila por persona y disco, con todos sus papeles juntos.
+# Fuera los recopilatorios. Corroborado con la sección de personal de Wikipedia en
+# español y, en ¿Dónde están mis amigos?, con la API de Discogs. Colino en Canciones
+# prohibidas: solo MusicBrainz (una canción). Detalle: data/seo_plan_autoridad/evidencias/
+# datos_estructurados/relaciones/creditos/ (no versionado).
+  - sujeto: album:extremoduro/deltoya
+    predicado: contributor
+    objeto: artist:extremoduro
+    rol: arreglos
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/38ae7156-5d88-43e7-a93c-58f824310634", evidencia: "Extremoduro (f59163ba…): arreglos en Ama, ama, ama y ensancha el alma, Bulerías de la sangre caliente, Con un latido del reloj y 9 más"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: producer
+    objeto: artist:extremoduro
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Extremoduro (f59163ba…): producción en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
+      - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Extremoduro — Arranged By, Producer"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F", oldid: 174744552,
+         evidencia: "lectura manual (en la ficha «productor» el grupo va sin enlace): «productor = Ventura Rico y Extremoduro»"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: contributor
+    objeto: artist:extremoduro
+    rol: arreglos
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Extremoduro (f59163ba…): arreglos en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
+      - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Extremoduro — Arranged By, Producer"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: producer
+    objeto: person:ventura-rico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Ventura Rico (d1df210e…): producción en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
+      - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Ventura Rico — Engineer, Producer"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F", oldid: 174744552,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «productor = Ventura Rico y Extremoduro»"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: contributor
+    objeto: person:ventura-rico
+    rol: ingeniería de sonido
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/db93058e-cc2c-4d9c-bcf1-0de61fda96c9", evidencia: "Ventura Rico (d1df210e…): ingeniería de sonido en Bribriblibli (En el más sucio rincón de mi negro corazón), El duende del parque, Estoy muy bien y 8 más"}
+      - {kind: discogs, tier: T3, url: "https://api.discogs.com/releases/1592828", evidencia: "edición de 1993 (DRO): Ventura Rico — Engineer, Producer"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/3567d70c-612e-4cfd-b105-3059ef2e32e2", evidencia: "Iñaki Antón (cebb8d3a…): producción en Arrebato, Decidí, Emparedado y 4 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Rock_transgresivo", oldid: 174757639,
+         evidencia: "ficha «productor»: «productor = Extremoduro · Iñaki Antón (temas 1-4,6-8)»"}
+  - sujeto: album:extremoduro/pedra
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: guitarra eléctrica, teclados
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica, teclados en Pedrá"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "sección «Personal»: «Iñaki Antón «Uoho» (Platero y Tú) – Guitarra, teclados, percusión, trombón de varas y productor artístico»"}
+  - sujeto: album:extremoduro/pedra
+    predicado: contributor
+    objeto: person:diego-garay
+    rol: bajo
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Diego Garay (5f746a43…): bajo en Pedrá"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Diego Garay «Dieguillo» – Bajo»"}
+  - sujeto: album:extremoduro/pedra
+    predicado: contributor
+    objeto: {"@type": Person, name: "José Luis Nieto «Selu»", sameAs: "https://musicbrainz.org/artist/d6f83c1c-02af-4cda-bced-4afdfbf91cc6"}
+    rol: saxofón
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "José Luis Nieto (d6f83c1c…): saxofón en Pedrá"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «José Luis Nieto «Selu» (ex-Reincidentes) – Saxofón y cante jondo»"}
+  - sujeto: album:extremoduro/pedra
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/f0f237c7-a56e-439d-ac6a-b528ff5d7f30", evidencia: "Robe (b435c75d…): guitarra eléctrica en Pedrá"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Pedr%C3%A1", oldid: 175854903,
+         evidencia: "sección «Personal»: «Roberto «Robe» Iniesta (Extremoduro) – Voz, guitarra y coros»"}
+  - sujeto: album:extremoduro/agila
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: arreglos, guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Antón (cebb8d3a…): arreglos, guitarra eléctrica en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Iñaki 'Uoho' Antón – Guitarra, teclados, percusiones, piano, hammond, bajo y efectos»"}
+  - sujeto: album:extremoduro/agila
+    predicado: contributor
+    objeto: person:capi-gil
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Alberto Gil (e4c4eaf0…): batería en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Alberto 'Capi' Gil – Batería»"}
+  - sujeto: album:extremoduro/agila
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Roberto 'Robe' Iniesta – Voz, guitarra eléctrica y acústica; teclados (10)»"}
+  - sujeto: album:extremoduro/agila
+    predicado: contributor
+    objeto: person:inaki-milindris
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Iñaki Setien (94ce9d96…): guitarra eléctrica en Buscando una luna, Cabezabajo, Correcaminos estate al loro y 10 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "lectura manual (la persona no tiene artículo: va sin enlace): «Iñaki 'Milindris' Setién – Guitarra»"}
+  - sujeto: album:extremoduro/agila
+    predicado: contributor
+    objeto: person:albert-pla
+    rol: voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/164a861b-4ff2-4784-afe2-d547dcaf9b1c", evidencia: "Albert Pla (ba77d3af…): voz en El día de la bestia"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Agila_%28%C3%A1lbum%29", oldid: 173434687,
+         evidencia: "sección «Personal»: «Albert Pla – Voz (7)»"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Iñaki Antón (cebb8d3a…): producción en Autorretrato, Enemigo, Esclarecido y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "ficha «productor»: «productor = Iñaki “Uoho” Antón»"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: bajo eléctrico, guitarra eléctrica, teclados
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Iñaki Antón (cebb8d3a…): bajo eléctrico, guitarra eléctrica, teclados en Autorretrato, Enemigo, Esclarecido y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra, bajo, piano, órgano, trombón, percusiones, coros...»"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: contributor
+    objeto: person:jose-ignacio-cantera
+    rol: bombo, batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "José Ignacio Cantera (450c32e4…): bombo, batería en Autorretrato, Enemigo, Esclarecido y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: bajo eléctrico, guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Robe (b435c75d…): bajo eléctrico, guitarra eléctrica, voz en Autorretrato, Enemigo, Esclarecido y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra, bajo con distorsión, pandereta...»"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: contributor
+    objeto: person:miguel-colino
+    rol: bajo eléctrico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Golfa · discrepancia (13-11-2026): Wikipedia (rev. 174757633) y band_memberships dan el bajo de la grabación de 1998 a Mikel Irazoki; Discogs 1412217 no acredita bajo. David decide mantenerla"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: contributor
+    objeto: person:fito-cabrales
+    rol: voz invitada
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/b9b060ad-adaa-4a6d-8656-e80f20398c28", evidencia: "Fito Cabrales (4ec9bd3b…): voz invitada en Golfa"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Canciones_prohibidas", oldid: 174757633,
+         evidencia: "sección «Créditos»: «Adolfo 'Fito' Cabrales; - voz en Golfa»"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Iñaki Antón (cebb8d3a…): producción en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "texto, sección «(entrada)»: «Yo, minoría absoluta es el título del noveno álbum de estudio de la banda de rock española Extremoduro, producido por Iñaki “Uoho” Antón y publicado por DRO el 4 de marzo de 2002.»"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra»"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: contributor
+    objeto: person:jose-ignacio-cantera
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "José Ignacio Cantera (450c32e4…): batería en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: contributor
+    objeto: person:miguel-colino
+    rol: bajo eléctrico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/319835d6-142b-4881-8353-813526733693", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en A fuego, Buitre no come alpiste, Cerca del suelo y 7 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Yo%2C_minor%C3%ADa_absoluta", oldid: 174757638,
+         evidencia: "sección «Créditos»: «Robe Iniesta – Voz y guitarra»"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarra, coros, piano y órgano»"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: contributor
+    objeto: person:jose-ignacio-cantera
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "José Ignacio Cantera (450c32e4…): batería en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: contributor
+    objeto: person:miguel-colino
+    rol: bajo eléctrico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/d4aede44-24d3-491a-a664-986b6a9b24fa", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Coda flamenca (Otra realidad), Cuarto movimiento: La realidad, Dulce introducción al caos y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/La_ley_innata", oldid: 175744432,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra y coros»"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Iñaki Antón (cebb8d3a…): producción en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Iñaki 'Uoho' Antón – Guitarras, piano, órgano, trombón, bajo y coros»"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: contributor
+    objeto: person:jose-ignacio-cantera
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "José Ignacio Cantera (450c32e4…): batería en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería y voz en Tango Suicida»"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: contributor
+    objeto: person:miguel-colino
+    rol: bajo eléctrico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo y voz en Tango Suicida»"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/4d55ac63-d6cd-4aa9-84ad-a466703242ac", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en Calle esperanza s/n, Desarraigo, Mi espíritu imperecedero y 3 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Material_defectuoso", oldid: 174971918,
+         evidencia: "sección «Créditos»: «Roberto 'Robe' Iniesta – Voz, guitarra y coros»"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: producer
+    objeto: person:inaki-uoho-anton
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Iñaki Antón (cebb8d3a…): producción en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "ficha «productor»: «productor = Iñaki «Uoho» Antón»"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: contributor
+    objeto: person:inaki-uoho-anton
+    rol: guitarra eléctrica
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Iñaki Antón (cebb8d3a…): guitarra eléctrica en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Iñaki «Uoho» Antón – Guitarra, piano, teclados y coros»"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: contributor
+    objeto: person:jose-ignacio-cantera
+    rol: batería
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "José Ignacio Cantera (450c32e4…): batería en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «José Ignacio Cantera – Batería»"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: contributor
+    objeto: person:miguel-colino
+    rol: bajo eléctrico
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Miguel Colino (2eb7c3e1…): bajo eléctrico en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Miguel Colino – Bajo»"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: contributor
+    objeto: person:robe-iniesta
+    rol: guitarra eléctrica, voz
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/release/85c2a537-5d8a-4be8-b97d-047c54d9cd3c", evidencia: "Robe (b435c75d…): guitarra eléctrica, voz en El camino de las utopías, Entre interiores, Locura transitoria y 6 más"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos", oldid: 174757636,
+         evidencia: "sección «Créditos»: «Roberto «Robe» Iniesta – Voz, guitarra y coros»"}
+
+# --- Identidades de las canciones (13-11-2026) -------------------------------------
+# La obra (composición) de MusicBrainz de 90 canciones (+ «Golfa», que ya estaba): cada
+# una casada con la pista de la edición acreditada de SU disco por número de pista y
+# título, y de su grabación a la obra. Fuera: los directos, las 7 parejas «Tú en tu casa
+# (1990) / Rock transgresivo (1994)» que comparten obra, y las 34 de Robe sin obra en MB.
+# Evidencia en data/seo_plan_autoridad/evidencias/datos_estructurados/identidades/canciones/.
+  - sujeto: song:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera/amor-castuo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/28e2ddbc-1921-4fce-8e33-e69651439c24"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/28e2ddbc-1921-4fce-8e33-e69651439c24",
+         evidencia: "Pista 4 de la edición b6afa9c1… de su disco (acreditado): «Amor castúo»; su grabación es interpretación de la obra «Amor castúo»"}
+  - sujeto: song:extremoduro/somos-unos-animales/tu-corazon
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5fd3de6b-83cc-48d2-84af-444b95b418cf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5fd3de6b-83cc-48d2-84af-444b95b418cf",
+         evidencia: "Pista 1 de la edición 7b103448… de su disco (acreditado): «Tu corazón»; su grabación es interpretación de la obra «Tu corazón»"}
+  - sujeto: song:extremoduro/somos-unos-animales/la-cancion-de-los-oficios
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/861223e6-64ec-418b-ae7e-6ad7c15d894f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/861223e6-64ec-418b-ae7e-6ad7c15d894f",
+         evidencia: "Pista 2 de la edición 7b103448… de su disco (acreditado): «La canción de los oficios»; su grabación es interpretación de la obra «La canción de los oficios»"}
+  - sujeto: song:extremoduro/somos-unos-animales/quemando-tus-recuerdos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/663aeeaf-3cc0-46f8-bfd6-1b86eb039c10"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/663aeeaf-3cc0-46f8-bfd6-1b86eb039c10",
+         evidencia: "Pista 3 de la edición 7b103448… de su disco (acreditado): «Quemando tus recuerdos»; su grabación es interpretación de la obra «Quemando tus recuerdos»"}
+  - sujeto: song:extremoduro/somos-unos-animales/v-centenario
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a7dcbc5a-ace6-43ec-90a2-9e9af0d5f91b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a7dcbc5a-ace6-43ec-90a2-9e9af0d5f91b",
+         evidencia: "Pista 4 de la edición 7b103448… de su disco (acreditado): «V Centenario»; su grabación es interpretación de la obra «V Centenario»"}
+  - sujeto: song:extremoduro/somos-unos-animales/j-d-la-central-nuclear
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/92c86f17-ea7d-4f9c-89b4-74a3304fa7ee"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/92c86f17-ea7d-4f9c-89b4-74a3304fa7ee",
+         evidencia: "Pista 5 de la edición 7b103448… de su disco (acreditado): «J.D. La central nuclear»; su grabación es interpretación de la obra «J.D. La central nuclear»"}
+  - sujeto: song:extremoduro/somos-unos-animales/ni-principes-ni-princesas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/79ee8e80-ebde-4138-b8ad-480556b33efa"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/79ee8e80-ebde-4138-b8ad-480556b33efa",
+         evidencia: "Pista 6 de la edición 7b103448… de su disco (acreditado): «Ni príncipes ni princesas»; su grabación es interpretación de la obra «Ni príncipes ni princesas»"}
+  - sujeto: song:extremoduro/somos-unos-animales/perro-callejero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/6144fd7e-6e2b-4b54-8464-d8edf7b720bc"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/6144fd7e-6e2b-4b54-8464-d8edf7b720bc",
+         evidencia: "Pista 7 de la edición 7b103448… de su disco (acreditado): «Perro callejero»; su grabación es interpretación de la obra «Perro callejero»"}
+  - sujeto: song:extremoduro/somos-unos-animales/desidia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/bd7ae27d-0f05-44b2-bf71-d9b1fa5a6524"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/bd7ae27d-0f05-44b2-bf71-d9b1fa5a6524",
+         evidencia: "Pista 8 de la edición 7b103448… de su disco (acreditado): «Desidia»; su grabación es interpretación de la obra «Desidia»"}
+  - sujeto: song:extremoduro/somos-unos-animales/resolucion
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2ff35084-736f-4458-9714-4ab1cacab90e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2ff35084-736f-4458-9714-4ab1cacab90e",
+         evidencia: "Pista 9 de la edición 7b103448… de su disco (acreditado): «Resolución»; su grabación es interpretación de la obra «Resolución»"}
+  - sujeto: song:extremoduro/somos-unos-animales/necesito-droga-y-amor-los-camellos-no-me-fian
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ed42c858-258e-465c-a5c8-176aa9e8422c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ed42c858-258e-465c-a5c8-176aa9e8422c",
+         evidencia: "Pista 10 de la edición 7b103448… de su disco (acreditado): «Necesito droga y amor»; su grabación es interpretación de la obra «Necesito droga y amor»"}
+  - sujeto: song:extremoduro/deltoya/sol-de-invierno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cdf12767-e8a8-4f58-9be0-2c6134f90b02"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cdf12767-e8a8-4f58-9be0-2c6134f90b02",
+         evidencia: "Pista 1 de la edición 38ae7156… de su disco (acreditado): «Sol de invierno»; su grabación es interpretación de la obra «Sol de invierno»"}
+  - sujeto: song:extremoduro/deltoya/de-acero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ded5e6a8-3898-475a-bdde-c645de7053cf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ded5e6a8-3898-475a-bdde-c645de7053cf",
+         evidencia: "Pista 2 de la edición 38ae7156… de su disco (acreditado): «De acero»; su grabación es interpretación de la obra «De acero»"}
+  - sujeto: song:extremoduro/deltoya/ultima-generacion
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9b9f4d5d-0377-4a02-b7cc-fa119c4fd726"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9b9f4d5d-0377-4a02-b7cc-fa119c4fd726",
+         evidencia: "Pista 3 de la edición 38ae7156… de su disco (acreditado): «Última generación»; su grabación es interpretación de la obra «Última generación»"}
+  - sujeto: song:extremoduro/deltoya/lucha-contigo-hoy-quiero-ganar-una-batalla-solo-una-pa-empezar
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/34b0e177-a0b4-482b-b2ef-b50b252400fb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/34b0e177-a0b4-482b-b2ef-b50b252400fb",
+         evidencia: "Pista 4 de la edición 38ae7156… de su disco (acreditado): «Lucha contigo»; su grabación es interpretación de la obra «Lucha contigo»"}
+  - sujeto: song:extremoduro/deltoya/con-un-latido-del-reloj
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/646b9a0a-1ac4-4b55-9e81-5dc15a8ba5f5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/646b9a0a-1ac4-4b55-9e81-5dc15a8ba5f5",
+         evidencia: "Pista 5 de la edición 38ae7156… de su disco (acreditado): «Con un latido del reloj»; su grabación es interpretación de la obra «Con un latido del reloj»"}
+  - sujeto: song:extremoduro/deltoya/bulerias-de-la-sangre-caliente-polla-dura-no-cree-en-dios
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cb2dfc92-3a2b-495d-b07d-01ec95da8014"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cb2dfc92-3a2b-495d-b07d-01ec95da8014",
+         evidencia: "Pista 6 de la edición 38ae7156… de su disco (acreditado): «Bulerías de la sangre caliente»; su grabación es interpretación de la obra «Bulerías de la sangre caliente»"}
+  - sujeto: song:extremoduro/deltoya/deltoya
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/35048dc7-b8c3-4fd1-9f13-aa1a62293b08"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/35048dc7-b8c3-4fd1-9f13-aa1a62293b08",
+         evidencia: "Pista 7 de la edición 38ae7156… de su disco (acreditado): «Deltoya»; su grabación es interpretación de la obra «Deltoya»"}
+  - sujeto: song:extremoduro/deltoya/relacion-convencional
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5947d4e5-8308-48d9-ae0b-3ab18174804f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5947d4e5-8308-48d9-ae0b-3ab18174804f",
+         evidencia: "Pista 8 de la edición 38ae7156… de su disco (acreditado): «Relación convencional»; su grabación es interpretación de la obra «Relación convencional»"}
+  - sujeto: song:extremoduro/deltoya/volando-solo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e9887867-b12d-4fe8-bab8-588249bd0ea6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e9887867-b12d-4fe8-bab8-588249bd0ea6",
+         evidencia: "Pista 9 de la edición 38ae7156… de su disco (acreditado): «Volando solo»; su grabación es interpretación de la obra «Volando solo»"}
+  - sujeto: song:extremoduro/deltoya/ama-ama-ama-y-ensancha-el-alma
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/68714365-cc4b-4379-8cb5-3075a80b586e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/68714365-cc4b-4379-8cb5-3075a80b586e",
+         evidencia: "Pista 10 de la edición 38ae7156… de su disco (acreditado): «Ama, ama, ama y ensancha el alma»; su grabación es interpretación de la obra «Ama, ama, ama y ensancha el alma»"}
+  - sujeto: song:extremoduro/deltoya/papel-secante
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9752ff16-6002-4404-b595-6e0316e28c17"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9752ff16-6002-4404-b595-6e0316e28c17",
+         evidencia: "Pista 11 de la edición 38ae7156… de su disco (acreditado): «Papel secante»; su grabación es interpretación de la obra «Papel secante»"}
+  - sujeto: song:extremoduro/deltoya/estado-policial-un-madero-mil-lapiceros
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0cfd4a94-baf1-4445-9161-17049a4b45f0"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0cfd4a94-baf1-4445-9161-17049a4b45f0",
+         evidencia: "Pista 12 de la edición 38ae7156… de su disco (acreditado): «Estado policial»; su grabación es interpretación de la obra «Estado policial»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/el-duende-del-parque
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b144d995-da5a-4592-b5e1-10ba1dea0858"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b144d995-da5a-4592-b5e1-10ba1dea0858",
+         evidencia: "Pista 1 de la edición db93058e… de su disco (acreditado): «El duende del parque»; su grabación es interpretación de la obra «El duende del parque»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/no-me-calientes-que-me-hundo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f6911f86-685f-4d46-a5ef-90578a6f5a98"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f6911f86-685f-4d46-a5ef-90578a6f5a98",
+         evidencia: "Pista 2 de la edición db93058e… de su disco (acreditado): «No me calientes que me hundo»; su grabación es interpretación de la obra «No me calientes que me hundo»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/sin-dios-ni-amo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/8be9101f-38dd-49e0-836d-25fa6da47a55"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/8be9101f-38dd-49e0-836d-25fa6da47a55",
+         evidencia: "Pista 3 de la edición db93058e… de su disco (acreditado): «Sin dios ni amo»; su grabación es interpretación de la obra «Sin dios ni amo»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/pepe-botika-donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/2be6ff2f-011c-42a8-8ece-e4645d72bd14"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/2be6ff2f-011c-42a8-8ece-e4645d72bd14",
+         evidencia: "Pista 4 de la edición db93058e… de su disco (acreditado): «Pepe Botika (¿Dónde están mis amigos?)»; su grabación es interpretación de la obra «Pepe Botika (¿Dónde están mis amigos?)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/estoy-muy-bien
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a4e93b3a-6ce2-4407-a1f3-1605c84df3f1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a4e93b3a-6ce2-4407-a1f3-1605c84df3f1",
+         evidencia: "Pista 5 de la edición db93058e… de su disco (acreditado): «Estoy muy bien»; su grabación es interpretación de la obra «Estoy muy bien»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/bri-bri-bli-bli-en-el-mas-sucio-rincon-de-mi-negro-corazon
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f8257497-c9db-424c-b4a2-1a865126fa35"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f8257497-c9db-424c-b4a2-1a865126fa35",
+         evidencia: "Pista 6 de la edición db93058e… de su disco (acreditado): «Bribriblibli (En el más sucio rincón de mi negro corazón)» (MusicBrainz escribe «Bribriblibli (En el más sucio rincón de mi negro corazón)»); su grabación es interpretación de la obra «Bribriblibli (En el más sucio rincón de mi negro corazón)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/malos-pensamientos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/45c8cdc4-98b8-4d72-b3fa-1cad3830c6f5"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/45c8cdc4-98b8-4d72-b3fa-1cad3830c6f5",
+         evidencia: "Pista 7 de la edición db93058e… de su disco (acreditado): «Malos pensamientos»; su grabación es interpretación de la obra «Malos pensamientos»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/posado-en-un-nenufar
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b223b73a-0b5d-46fb-8bae-0e3c70b5860a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b223b73a-0b5d-46fb-8bae-0e3c70b5860a",
+         evidencia: "Pista 8 de la edición db93058e… de su disco (acreditado): «Posado en un nenúfar»; su grabación es interpretación de la obra «Posado en un nenúfar»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/islero-shirlero-o-ladron
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/5c4bcad4-9600-46a5-8684-9da9625fc453"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/5c4bcad4-9600-46a5-8684-9da9625fc453",
+         evidencia: "Pista 9 de la edición db93058e… de su disco (acreditado): «Islero, shirlero o ladrón»; su grabación es interpretación de la obra «Islero, shirlero o ladrón»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/historias-prohibidas-nos-tiramos-a-joder
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/6a073161-b1cc-4465-9e90-936c05827dce"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/6a073161-b1cc-4465-9e90-936c05827dce",
+         evidencia: "Pista 10 de la edición db93058e… de su disco (acreditado): «Historias prohibidas (Nos tiramos a joder)»; su grabación es interpretación de la obra «Historias prohibidas (Nos tiramos a joder)»"}
+  - sujeto: song:extremoduro/donde-estan-mis-amigos/los-tengo-todos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4dbef863-0e6d-4b61-b3d5-a06bd7f42c3f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4dbef863-0e6d-4b61-b3d5-a06bd7f42c3f",
+         evidencia: "Pista 11 de la edición db93058e… de su disco (acreditado): «Los tengo todos»; su grabación es interpretación de la obra «Los tengo todos»"}
+  - sujeto: song:extremoduro/rock-transgresivo/adios-abanico-que-llego-el-aire
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a5d568bd-a4b5-4d21-b0bd-3a958fe2d697"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a5d568bd-a4b5-4d21-b0bd-3a958fe2d697",
+         evidencia: "Pista 5 de la edición 3567d70c… de su disco (acreditado): «Adiós abanico, que llegó el aire»; su grabación es interpretación de la obra «Adiós abanico, que llegó el aire»"}
+  - sujeto: song:extremoduro/rock-transgresivo/te-juzgaran-solo-por-tus-errores-yo-no
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/645ee31a-c1c8-40de-827d-63512457b5e6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/645ee31a-c1c8-40de-827d-63512457b5e6",
+         evidencia: "Pista 9 de la edición 3567d70c… de su disco (acreditado): «Te juzgarán sólo por tus errores (Yo no)»; su grabación es interpretación de la obra «Te juzgarán sólo por tus errores (Yo no)»"}
+  - sujeto: song:extremoduro/rock-transgresivo/caballero-andante-no-me-dejeis-asiii
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9b310e98-91e4-463e-9706-da3ff318acfa"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9b310e98-91e4-463e-9706-da3ff318acfa",
+         evidencia: "Pista 10 de la edición 3567d70c… de su disco (acreditado): «Caballero andante (¡No me dejéis asííí!)»; su grabación es interpretación de la obra «Caballero andante (¡No me dejéis asííí!)»"}
+  - sujeto: song:extremoduro/pedra/pedra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/160654d4-1835-4b36-b897-3ce3ac542c03"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/160654d4-1835-4b36-b897-3ce3ac542c03",
+         evidencia: "Pista 1 de la edición f0f237c7… de su disco (acreditado): «Pedrá»; su grabación es interpretación de la obra «Pedrá»"}
+  - sujeto: song:extremoduro/agila/buscando-una-luna
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d0eed6de-1226-4ebc-9178-2686c249af73"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d0eed6de-1226-4ebc-9178-2686c249af73",
+         evidencia: "Pista 1 de la edición 164a861b… de su disco (acreditado): «Buscando una luna»; su grabación es interpretación de la obra «Buscando una luna»"}
+  - sujeto: song:extremoduro/agila/prometeo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f0242a74-f5bb-456e-a67f-58fcfbde9724"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f0242a74-f5bb-456e-a67f-58fcfbde9724",
+         evidencia: "Pista 2 de la edición 164a861b… de su disco (acreditado): «Prometeo»; su grabación es interpretación de la obra «Prometeo»"}
+  - sujeto: song:extremoduro/agila/sucede
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/22526eca-a46a-4828-8925-f1a079688c17"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/22526eca-a46a-4828-8925-f1a079688c17",
+         evidencia: "Pista 3 de la edición 164a861b… de su disco (acreditado): «Sucede»; su grabación es interpretación de la obra «Sucede»"}
+  - sujeto: song:extremoduro/agila/so-payaso
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/3137f389-9caa-46ae-aad8-df9a71ecbfd3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/3137f389-9caa-46ae-aad8-df9a71ecbfd3",
+         evidencia: "Pista 4 de la edición 164a861b… de su disco (acreditado): «So payaso»; su grabación es interpretación de la obra «So payaso»"}
+  - sujeto: song:extremoduro/agila/el-dia-de-la-bestia
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/012ec5a2-259b-452c-9b66-a24cb5f31247"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/012ec5a2-259b-452c-9b66-a24cb5f31247",
+         evidencia: "Pista 5 de la edición 164a861b… de su disco (acreditado): «El día de la bestia»; su grabación es interpretación de la obra «El día de la bestia»"}
+  - sujeto: song:extremoduro/agila/tomas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/9e9e107c-efbd-4807-8e36-5ba208e451a2"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/9e9e107c-efbd-4807-8e36-5ba208e451a2",
+         evidencia: "Pista 6 de la edición 164a861b… de su disco (acreditado): «Tomás»; su grabación es interpretación de la obra «Tomás»"}
+  - sujeto: song:extremoduro/agila/que-sonrisa-tan-rara
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b5902b26-196b-42fd-a55f-dbee1c1a0d48"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b5902b26-196b-42fd-a55f-dbee1c1a0d48",
+         evidencia: "Pista 7 de la edición 164a861b… de su disco (acreditado): «¡Qué sonrisa tan rara!»; su grabación es interpretación de la obra «¡Qué sonrisa tan rara!»"}
+  - sujeto: song:extremoduro/agila/cabezabajo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ef75b7bc-1444-4fec-9e28-03f090edda76"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ef75b7bc-1444-4fec-9e28-03f090edda76",
+         evidencia: "Pista 8 de la edición 164a861b… de su disco (acreditado): «Cabezabajo»; su grabación es interpretación de la obra «Cabezabajo»"}
+  - sujeto: song:extremoduro/agila/abreme-el-pecho-y-registra
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/ba015f75-93c6-489d-bc15-a93ec2688a9f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/ba015f75-93c6-489d-bc15-a93ec2688a9f",
+         evidencia: "Pista 9 de la edición 164a861b… de su disco (acreditado): «Ábreme el pecho y registra»; su grabación es interpretación de la obra «Ábreme el pecho y registra»"}
+  - sujeto: song:extremoduro/agila/todos-me-dicen
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/dfb78059-059b-484e-a44a-faeb881177be"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/dfb78059-059b-484e-a44a-faeb881177be",
+         evidencia: "Pista 10 de la edición 164a861b… de su disco (acreditado): «Todos me dicen»; su grabación es interpretación de la obra «Todos me dicen»"}
+  - sujeto: song:extremoduro/agila/correcaminos-estate-al-loro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4a7fc6ca-63e2-4027-91aa-5e06f3ad974b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4a7fc6ca-63e2-4027-91aa-5e06f3ad974b",
+         evidencia: "Pista 11 de la edición 164a861b… de su disco (acreditado): «Correcaminos estate al loro»; su grabación es interpretación de la obra «Correcaminos estate al loro»"}
+  - sujeto: song:extremoduro/agila/la-carrera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e030d4b9-ed48-4f5c-bcb0-349b1fbd853e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e030d4b9-ed48-4f5c-bcb0-349b1fbd853e",
+         evidencia: "Pista 12 de la edición 164a861b… de su disco (acreditado): «La carrera»; su grabación es interpretación de la obra «La carrera»"}
+  - sujeto: song:extremoduro/agila/me-estoy-quitando
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/c2c92732-58bb-4dac-85d2-3ea53edbe58a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/c2c92732-58bb-4dac-85d2-3ea53edbe58a",
+         evidencia: "Pista 13 de la edición 164a861b… de su disco (acreditado): «Me estoy quitando»; su grabación es interpretación de la obra «Me estoy quitando»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/salir
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/99001ab7-114f-4b1a-887f-75af60bf0fa6"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/99001ab7-114f-4b1a-887f-75af60bf0fa6",
+         evidencia: "Pista 1 de la edición b9b060ad… de su disco (acreditado): «Salir»; su grabación es interpretación de la obra «Salir»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/esclarecido
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/4d1075c3-5bb4-427d-895c-1e48518cbe15"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/4d1075c3-5bb4-427d-895c-1e48518cbe15",
+         evidencia: "Pista 2 de la edición b9b060ad… de su disco (acreditado): «Esclarecido»; su grabación es interpretación de la obra «Esclarecido»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/erase-una-vez
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f9a334f3-b0dd-4975-8450-17a683e4675e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f9a334f3-b0dd-4975-8450-17a683e4675e",
+         evidencia: "Pista 3 de la edición b9b060ad… de su disco (acreditado): «Érase una vez»; su grabación es interpretación de la obra «Érase una vez»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/su-culo-es-miel
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/7f7d4b33-dbf8-4826-a0d0-42151f9f4054"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/7f7d4b33-dbf8-4826-a0d0-42151f9f4054",
+         evidencia: "Pista 5 de la edición b9b060ad… de su disco (acreditado): «Su culo es miel»; su grabación es interpretación de la obra «Su culo es miel»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/extraterrestre
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a961a047-645e-4c43-b684-51823b95b1ac"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a961a047-645e-4c43-b684-51823b95b1ac",
+         evidencia: "Pista 6 de la edición b9b060ad… de su disco (acreditado): «Extraterrestre»; su grabación es interpretación de la obra «Extraterrestre»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/autorretrato
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e7e1e148-c0d3-4f6a-a89a-cf23d00257ff"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e7e1e148-c0d3-4f6a-a89a-cf23d00257ff",
+         evidencia: "Pista 7 de la edición b9b060ad… de su disco (acreditado): «Autorretrato»; su grabación es interpretación de la obra «Autorretrato»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/enemigo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e18e71da-c3ea-485f-84ca-2258a6a21166"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e18e71da-c3ea-485f-84ca-2258a6a21166",
+         evidencia: "Pista 8 de la edición b9b060ad… de su disco (acreditado): «Enemigo»; su grabación es interpretación de la obra «Enemigo»"}
+  - sujeto: song:extremoduro/canciones-prohibidas/villancico-del-rey-de-extremadura-vaya-puta-mierda-de-villancico-colega
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/15de1d8d-3a3e-429e-b5d7-c992aa6afaef"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/15de1d8d-3a3e-429e-b5d7-c992aa6afaef",
+         evidencia: "Pista 9 de la edición b9b060ad… de su disco (acreditado): «Villancico del Rey de Extremadura»; su grabación es interpretación de la obra «Villancico del Rey de Extremadura»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/a-fuego
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b529d4b2-09f9-4c5a-b804-89ab5c555f93"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b529d4b2-09f9-4c5a-b804-89ab5c555f93",
+         evidencia: "Pista 1 de la edición 319835d6… de su disco (acreditado): «A fuego»; su grabación es interpretación de la obra «A fuego»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/la-vereda-de-la-puerta-de-atras
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d824c579-560b-42dc-aec5-13cf62fda58e"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d824c579-560b-42dc-aec5-13cf62fda58e",
+         evidencia: "Pista 2 de la edición 319835d6… de su disco (acreditado): «La vereda de la puerta de atrás»; su grabación es interpretación de la obra «La vereda de la puerta de atrás»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/hoy-te-la-meto-hasta-las-orejas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d92e2daa-2df4-4592-b7ff-2d28694ae71f"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d92e2daa-2df4-4592-b7ff-2d28694ae71f",
+         evidencia: "Pista 3 de la edición 319835d6… de su disco (acreditado): «Hoy te la meto hasta las orejas»; su grabación es interpretación de la obra «Hoy te la meto hasta las orejas»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/standby
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/821590ec-e810-4094-a19f-5dfd3433413b"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/821590ec-e810-4094-a19f-5dfd3433413b",
+         evidencia: "Pista 4 de la edición 319835d6… de su disco (acreditado): «Stand By» (MusicBrainz escribe «Stand By»); su grabación es interpretación de la obra «Standby»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/menamoro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/04c8f97f-0749-4006-ab4c-8d3787c9c963"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/04c8f97f-0749-4006-ab4c-8d3787c9c963",
+         evidencia: "Pista 5 de la edición 319835d6… de su disco (acreditado): «Menamoro»; su grabación es interpretación de la obra «Menamoro»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/luce-la-oscuridad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0bdd6127-a440-4293-a633-686205f43456"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0bdd6127-a440-4293-a633-686205f43456",
+         evidencia: "Pista 6 de la edición 319835d6… de su disco (acreditado): «Luce la oscuridad»; su grabación es interpretación de la obra «Luce la oscuridad»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/cerca-del-suelo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/476d54d0-eca0-473a-bf16-0a5c98dd52bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/476d54d0-eca0-473a-bf16-0a5c98dd52bf",
+         evidencia: "Pista 7 de la edición 319835d6… de su disco (acreditado): «Cerca del suelo»; su grabación es interpretación de la obra «Cerca del suelo»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/puta
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b2a1ea8d-74dd-495b-aaf6-02c5977b55d8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b2a1ea8d-74dd-495b-aaf6-02c5977b55d8",
+         evidencia: "Pista 8 de la edición 319835d6… de su disco (acreditado): «Puta»; su grabación es interpretación de la obra «Puta»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/buitre-no-come-alpiste
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fe4a6236-5b46-4d94-8ec7-ddccc2993448"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fe4a6236-5b46-4d94-8ec7-ddccc2993448",
+         evidencia: "Pista 9 de la edición 319835d6… de su disco (acreditado): «Buitre no come alpiste»; su grabación es interpretación de la obra «Buitre no come alpiste»"}
+  - sujeto: song:extremoduro/yo-minoria-absoluta/la-vieja-cancion-sordida
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fc89d1d5-51fd-4170-a39e-a1c8148091bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fc89d1d5-51fd-4170-a39e-a1c8148091bf",
+         evidencia: "Pista 10 de la edición 319835d6… de su disco (acreditado): «La vieja (canción sórdida)»; su grabación es interpretación de la obra «La vieja (canción sórdida)»"}
+  - sujeto: song:extremoduro/la-ley-innata/dulce-introduccion-al-caos
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/a2d72409-9fb1-48e6-82a8-1355672d9eea"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/a2d72409-9fb1-48e6-82a8-1355672d9eea",
+         evidencia: "Pista 1 de la edición d4aede44… de su disco (acreditado): «Dulce introducción al caos»; su grabación es interpretación de la obra «Dulce introducción al caos»"}
+  - sujeto: song:extremoduro/la-ley-innata/primer-movimiento-el-sueno
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/adf28599-a0de-4dca-889b-4b03e27988fe"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/adf28599-a0de-4dca-889b-4b03e27988fe",
+         evidencia: "Pista 2 de la edición d4aede44… de su disco (acreditado): «Primer movimiento: El sueño»; su grabación es interpretación de la obra «Primer movimiento: El sueño»"}
+  - sujeto: song:extremoduro/la-ley-innata/segundo-movimiento-lo-de-fuera
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/72e7cc33-917e-44bc-9b1f-b30359bf0f26"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/72e7cc33-917e-44bc-9b1f-b30359bf0f26",
+         evidencia: "Pista 3 de la edición d4aede44… de su disco (acreditado): «Segundo movimiento: Lo de fuera»; su grabación es interpretación de la obra «Segundo movimiento: Lo de fuera»"}
+  - sujeto: song:extremoduro/la-ley-innata/tercer-movimiento-lo-de-dentro
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/cecfd96a-7625-4ffb-b5fb-7041558a004c"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/cecfd96a-7625-4ffb-b5fb-7041558a004c",
+         evidencia: "Pista 4 de la edición d4aede44… de su disco (acreditado): «Tercer movimiento: Lo de dentro»; su grabación es interpretación de la obra «Tercer movimiento: Lo de dentro»"}
+  - sujeto: song:extremoduro/la-ley-innata/cuarto-movimiento-la-realidad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f7983a45-43b5-4386-9550-17772c59d2bf"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f7983a45-43b5-4386-9550-17772c59d2bf",
+         evidencia: "Pista 5 de la edición d4aede44… de su disco (acreditado): «Cuarto movimiento: La realidad»; su grabación es interpretación de la obra «Cuarto movimiento: La realidad»"}
+  - sujeto: song:extremoduro/la-ley-innata/coda-flamenca-otra-realidad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/90234cfa-a8a4-4b00-89e6-ce112fc436ba"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/90234cfa-a8a4-4b00-89e6-ce112fc436ba",
+         evidencia: "Pista 6 de la edición d4aede44… de su disco (acreditado): «Coda flamenca (Otra realidad)»; su grabación es interpretación de la obra «Coda flamenca (Otra realidad)»"}
+  - sujeto: song:extremoduro/material-defectuoso/desarraigo
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/962f9258-7fe6-487d-9246-f06c75081cfb"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/962f9258-7fe6-487d-9246-f06c75081cfb",
+         evidencia: "Pista 1 de la edición 4d55ac63… de su disco (acreditado): «Desarraigo»; su grabación es interpretación de la obra «Desarraigo»"}
+  - sujeto: song:extremoduro/material-defectuoso/mi-espiritu-imperecedero
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/d515f71d-794a-449d-abb8-4d0c87aa5f01"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/d515f71d-794a-449d-abb8-4d0c87aa5f01",
+         evidencia: "Pista 2 de la edición 4d55ac63… de su disco (acreditado): «Mi espíritu imperecedero»; su grabación es interpretación de la obra «Mi espíritu imperecedero»"}
+  - sujeto: song:extremoduro/material-defectuoso/otra-inutil-cancion-para-la-paz
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/52b0eeb4-329a-4c91-b51e-59c7c28fe928"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/52b0eeb4-329a-4c91-b51e-59c7c28fe928",
+         evidencia: "Pista 3 de la edición 4d55ac63… de su disco (acreditado): «Otra inútil canción para la paz»; su grabación es interpretación de la obra «Otra inútil canción para la paz»"}
+  - sujeto: song:extremoduro/material-defectuoso/si-te-vas
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/b03c910e-86b6-4e13-85a5-101f8bdc16bd"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/b03c910e-86b6-4e13-85a5-101f8bdc16bd",
+         evidencia: "Pista 4 de la edición 4d55ac63… de su disco (acreditado): «Si te vas...»; su grabación es interpretación de la obra «Si te vas...»"}
+  - sujeto: song:extremoduro/material-defectuoso/tango-suicida
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/fe84160e-0b4d-4c5e-aa3b-fb188e48eb93"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/fe84160e-0b4d-4c5e-aa3b-fb188e48eb93",
+         evidencia: "Pista 5 de la edición 4d55ac63… de su disco (acreditado): «Tango suicida»; su grabación es interpretación de la obra «Tango suicida»"}
+  - sujeto: song:extremoduro/material-defectuoso/calle-esperanza-s-n
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/549d60ac-9366-4d0b-b27a-094740b225c3"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/549d60ac-9366-4d0b-b27a-094740b225c3",
+         evidencia: "Pista 6 de la edición 4d55ac63… de su disco (acreditado): «Calle esperanza s/n»; su grabación es interpretación de la obra «Calle esperanza s/n»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/locura-transitoria
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/f7a00c3f-1623-45dc-9d60-920afc5cb878"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/f7a00c3f-1623-45dc-9d60-920afc5cb878",
+         evidencia: "Pista 1 de la edición 85c2a537… de su disco (acreditado): «Locura transitoria»; su grabación es interpretación de la obra «Locura transitoria»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/entre-interiores
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/e6f164ab-e10a-4c5d-9218-74ddfb22edff"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/e6f164ab-e10a-4c5d-9218-74ddfb22edff",
+         evidencia: "Pista 2 de la edición 85c2a537… de su disco (acreditado): «Entre interiores»; su grabación es interpretación de la obra «Entre interiores»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/que-borde-era-mi-valle
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/0c0396b5-7f2a-4ca3-8640-f1d293b36aec"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/0c0396b5-7f2a-4ca3-8640-f1d293b36aec",
+         evidencia: "Pista 3 de la edición 85c2a537… de su disco (acreditado): «¡Qué borde era mi valle!»; su grabación es interpretación de la obra «¡Qué borde era mi valle!»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/poema-sobrecogido
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/65c852ed-26c9-493c-8efa-8d75343a172a"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/65c852ed-26c9-493c-8efa-8d75343a172a",
+         evidencia: "Pista 4 de la edición 85c2a537… de su disco (acreditado): «Poema sobrecogido»; su grabación es interpretación de la obra «Poema sobrecogido»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/manue-iv
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/67aa350c-ff42-47e7-8b0d-66e4fb5302b8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/67aa350c-ff42-47e7-8b0d-66e4fb5302b8",
+         evidencia: "Pista 5 de la edición 85c2a537… de su disco (acreditado): «Manué IV»; su grabación es interpretación de la obra «Manué IV»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/mama
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/67a737c8-8dfa-4ccb-a183-da4205c5bef2"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/67a737c8-8dfa-4ccb-a183-da4205c5bef2",
+         evidencia: "Pista 6 de la edición 85c2a537… de su disco (acreditado): «Mama»; su grabación es interpretación de la obra «Mama»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/mi-voluntad
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/86381476-8ce4-43b5-8840-70bb80ff68a8"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/86381476-8ce4-43b5-8840-70bb80ff68a8",
+         evidencia: "Pista 7 de la edición 85c2a537… de su disco (acreditado): «Mi voluntad»; su grabación es interpretación de la obra «Mi voluntad»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/pequeno-rocanrol-endemico
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/48e684c8-83fa-4842-8e93-0766cb610d86"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/48e684c8-83fa-4842-8e93-0766cb610d86",
+         evidencia: "Pista 8 de la edición 85c2a537… de su disco (acreditado): «Pequeño rocanrol endémico»; su grabación es interpretación de la obra «Pequeño rocanrol endémico»"}
+  - sujeto: song:extremoduro/para-todos-los-publicos/el-camino-de-las-utopias
+    predicado: sameAs
+    objeto: "https://musicbrainz.org/work/abaf777d-39b4-489c-a1df-24c2715a2588"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: revision_manual, tier: T1, url: "https://musicbrainz.org/work/abaf777d-39b4-489c-a1df-24c2715a2588",
+         evidencia: "Pista 9 de la edición 85c2a537… de su disco (acreditado): «El camino de las utopías»; su grabación es interpretación de la obra «El camino de las utopías»"}
+  # --- Wikipedia (eswiki) por el sitelink del Q-ID acreditado, 13-11-2026 ---------------
+  - sujeto: artist:extremoduro
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Extremoduro"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2311472",
+         evidencia: "sitelink eswiki «Extremoduro»; el artículo (revisión 176250400) declara wikibase_item Q2311472"}
+  - sujeto: label:el-dromedario-records
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/El_Dromedario_Records"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q24279015",
+         evidencia: "sitelink eswiki «El Dromedario Records»; el artículo (revisión 169458054) declara wikibase_item Q24279015"}
+  - sujeto: album:extremoduro/agila
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Agila_(%C3%A1lbum)"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q614313",
+         evidencia: "sitelink eswiki «Agila (álbum)»; el artículo (revisión 173434687) declara wikibase_item Q614313"}
+  - sujeto: place:plasencia
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Plasencia"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q241767",
+         evidencia: "sitelink eswiki «Plasencia»; el artículo (revisión 174847418) declara wikibase_item Q241767"}
+  - sujeto: album:extremoduro/tu-en-tu-casa-nosotros-en-la-hoguera
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/T%C3%BA_en_tu_casa,_nosotros_en_la_hoguera"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q122974312",
+         evidencia: "sitelink eswiki «Tú en tu casa, nosotros en la hoguera»; el artículo (revisión 172702807) declara wikibase_item Q122974312"}
+  - sujeto: album:extremoduro/somos-unos-animales
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Somos_unos_animales"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q7560515",
+         evidencia: "sitelink eswiki «Somos unos animales»; el artículo (revisión 174744548) declara wikibase_item Q7560515"}
+  - sujeto: album:extremoduro/deltoya
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Deltoya"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217497",
+         evidencia: "sitelink eswiki «Deltoya»; el artículo (revisión 175854900) declara wikibase_item Q5217497"}
+  - sujeto: album:extremoduro/donde-estan-mis-amigos
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/%C2%BFD%C3%B3nde_est%C3%A1n_mis_amigos%3F"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5307426",
+         evidencia: "sitelink eswiki «¿Dónde están mis amigos?»; el artículo (revisión 174744552) declara wikibase_item Q5307426"}
+  - sujeto: album:extremoduro/rock-transgresivo
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Rock_transgresivo"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217464",
+         evidencia: "sitelink eswiki «Rock transgresivo»; el artículo (revisión 174757639) declara wikibase_item Q5217464"}
+  - sujeto: album:extremoduro/pedra
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Pedr%C3%A1"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3313048",
+         evidencia: "sitelink eswiki «Pedrá»; el artículo (revisión 175854903) declara wikibase_item Q3313048"}
+  - sujeto: album:extremoduro/iros-todos-a-tomar-por-culo
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Iros_todos_a_tomar_por_culo"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217524",
+         evidencia: "sitelink eswiki «Iros todos a tomar por culo»; el artículo (revisión 174757637) declara wikibase_item Q5217524"}
+  - sujeto: album:extremoduro/canciones-prohibidas
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Canciones_prohibidas"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5217473",
+         evidencia: "sitelink eswiki «Canciones prohibidas»; el artículo (revisión 174757633) declara wikibase_item Q5217473"}
+  - sujeto: album:extremoduro/yo-minoria-absoluta
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Yo,_minor%C3%ADa_absoluta"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3312416",
+         evidencia: "sitelink eswiki «Yo, minoría absoluta»; el artículo (revisión 174757638) declara wikibase_item Q3312416"}
+  - sujeto: album:extremoduro/la-ley-innata
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/La_ley_innata"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3312384",
+         evidencia: "sitelink eswiki «La ley innata»; el artículo (revisión 175744432) declara wikibase_item Q3312384"}
+  - sujeto: album:extremoduro/material-defectuoso
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Material_defectuoso"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q383501",
+         evidencia: "sitelink eswiki «Material defectuoso»; el artículo (revisión 174971918) declara wikibase_item Q383501"}
+  - sujeto: album:extremoduro/para-todos-los-publicos
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Para_todos_los_p%C3%BAblicos"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q15146540",
+         evidencia: "sitelink eswiki «Para todos los públicos»; el artículo (revisión 174757636) declara wikibase_item Q15146540"}
+  - sujeto: album:robe/lo-que-aletea-en-nuestras-cabezas
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Lo_que_aletea_en_nuestras_cabezas"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q20056387",
+         evidencia: "sitelink eswiki «Lo que aletea en nuestras cabezas»; el artículo (revisión 173118822) declara wikibase_item Q20056387"}
+  - sujeto: album:robe/bienvenidos-al-temporal
+    predicado: sameAs
+    objeto: "https://es.wikipedia.org/wiki/Bienvenidos_al_temporal_(%C3%A1lbum)"
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q59348864",
+         evidencia: "sitelink eswiki «Bienvenidos al temporal (álbum)»; el artículo (revisión 171202244) declara wikibase_item Q59348864"}
+  # --- Lugares de nacimiento y muerte: Wikidata + MusicBrainz o nota de prensa, 13-11-2026 ---
+  - sujeto: person:kutxi-romero
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Berriozar", sameAs: "https://www.wikidata.org/wiki/Q1645776"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3756845#P19",
+         evidencia: "P19 = Q1645776 (Berriozar); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/d8db4ebf-0577-4c95-be76-9902d27d1e9f",
+         evidencia: "begin area: Berriozar (área 523d2b1a…, que enlaza a Q1645776)"}
+  - sujeto: person:inaki-uoho-anton
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Bilbao", sameAs: "https://www.wikidata.org/wiki/Q8692"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5198493#P19",
+         evidencia: "P19 = Q8692 (Bilbao); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/cebb8d3a-064d-481d-a9e4-e61762c66def",
+         evidencia: "begin area: Bilbao (área ebcd61d1…, que enlaza a Q8692)"}
+  - sujeto: person:albert-pla
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Sabadell", sameAs: "https://www.wikidata.org/wiki/Q12258"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q942636#P19",
+         evidencia: "P19 = Q12258 (Sabadell); referencia: GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/ba77d3af-37d0-466f-875a-3240f4403f7e",
+         evidencia: "begin area: Sabadell (área c5f92386…, que enlaza a Q12258)"}
+  - sujeto: person:ara-malikian
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Beirut", sameAs: "https://www.wikidata.org/wiki/Q3820"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3393715#P19",
+         evidencia: "P19 = Q3820 (Beirut); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/50d60dda-b9c3-46e3-8b75-cd5e7ea20f1c",
+         evidencia: "begin area: Beirut (área 1d9b2b8d…, que enlaza a Q3820)"}
+  - sujeto: person:ariel-rot
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Buenos Aires", sameAs: "https://www.wikidata.org/wiki/Q1486"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q2400623#P19",
+         evidencia: "P19 = Q1486 (Buenos Aires); referencia: MusicBrainz"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/86c4c7dd-5289-4c49-aee2-28318a70984b",
+         evidencia: "begin area: Buenos Aires (área 2bd8607d…, que enlaza a Q1486)"}
+  - sujeto: person:camaron
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "San Fernando", sameAs: "https://www.wikidata.org/wiki/Q741765"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q312093#P19",
+         evidencia: "P19 = Q741765 (San Fernando); referencia: importado de Wikipedia en ruso; GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "begin area: San Fernando (área 28de1cc8…, que enlaza a Q741765)"}
+      - {kind: prensa, tier: T2, url: "https://elpais.com/diario/1992/07/03/cultura/710114411_850215.html",
+         evidencia: "El País, 03-07-1992: «en su ciudad natal, San Fernando» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:camaron
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Badalona", sameAs: "https://www.wikidata.org/wiki/Q15468"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q312093#P20",
+         evidencia: "P20 = Q15468 (Badalona); referencia: importado de Wikipedia en español"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/1f25c419-4084-40bc-9bac-c39f375384c5",
+         evidencia: "end area: Badalona (área 46e9606c…, que enlaza a Q15468)"}
+  - sujeto: person:david-lerman
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Cáceres", sameAs: "https://www.wikidata.org/wiki/Q15678"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q123516252#P19",
+         evidencia: "P19 = Q15678 (Cáceres); referencia: https://raex.es/index.php/actividades/3177-robe-iniesta-sigue-con-sus-musicos-extremenos-lporque-disfrutamosr.html"}
+      - {kind: prensa, tier: T2, url: "https://raex.es/index.php/actividades/3177-robe-iniesta-sigue-con-sus-musicos-extremenos-lporque-disfrutamosr.html",
+         evidencia: "RAEX: «David Lerman (Cáceres, 1988)» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:fermin-muguruza
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Irún", sameAs: "https://www.wikidata.org/wiki/Q200201"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q1350622#P19",
+         evidencia: "P19 = Q200201 (Irún); referencia: importado de Wikipedia en euskera; GND"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/6b37c90e-5077-4097-988f-d64f2eb42f63",
+         evidencia: "begin area: Irun (área b8998028…, que enlaza a Q200201)"}
+  - sujeto: person:fito-cabrales
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Bilbao", sameAs: "https://www.wikidata.org/wiki/Q8692"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3751202#P19",
+         evidencia: "P19 = Q8692 (Bilbao); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/4ec9bd3b-0c6e-42cd-9d2a-b028379c24cd",
+         evidencia: "begin area: Bilbao (área ebcd61d1…, que enlaza a Q8692)"}
+  - sujeto: person:frank-zappa
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Baltimore", sameAs: "https://www.wikidata.org/wiki/Q5092"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q127330#P19",
+         evidencia: "P19 = Q5092 (Baltimore); referencia: GND; Store norske leksikon"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "begin area: Baltimore (área 2fb5445d…, que enlaza a Q5092)"}
+      - {kind: prensa, tier: T2, url: "https://www.cbsnews.com/stories/2008/05/07/national/main4078921.shtml",
+         evidencia: "AP en CBS News, 2008: «was born in Baltimore» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:frank-zappa
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Los Ángeles", sameAs: "https://www.wikidata.org/wiki/Q65"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q127330#P20",
+         evidencia: "P20 = Q65 (Los Ángeles); referencia: importado de Wikipedia en italiano; Store norske leksikon"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/e20747e7-55a4-452e-8766-7b985585082d",
+         evidencia: "end area: Los Angeles (área 1f40c6e1…, que enlaza a Q65)"}
+  - sujeto: person:freddie-mercury
+    predicado: deathPlace
+    objeto: {"@type": Place, name: "Kensington", sameAs: "https://www.wikidata.org/wiki/Q288781"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q15869#P20",
+         evidencia: "P20 = Q288781 (Kensington); referencia: importado de Wikipedia en inglés"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/022589ac-7177-460d-a178-9976cf70e29f",
+         evidencia: "end area: Kensington (área a37eca4d…, que enlaza a Q288781)"}
+  - sujeto: person:leiva
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Madrid", sameAs: "https://www.wikidata.org/wiki/Q2807"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q11686081#P19",
+         evidencia: "P19 = Q2807 (Madrid); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/abe0a421-66ed-4401-9144-1e9aa832ed24",
+         evidencia: "begin area: Madrid (área 9ddf829c…, que enlaza a Q2807)"}
+      - {kind: prensa, tier: T2, url: "http://www.elmundo.es/cultura/2014/06/23/53a8087b268e3e6f058b4582.html",
+         evidencia: "El Mundo/EFE, 23-06-2014: «El cantante madrileño» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:manolo-chinato
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Puerto de Béjar", sameAs: "https://www.wikidata.org/wiki/Q1904694"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q5790366#P19",
+         evidencia: "P19 = Q1904694 (Puerto de Béjar); referencia: importado de Wikipedia en español"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/6d49c95c-c686-4259-a18c-0f318939047f",
+         evidencia: "begin area: Puerto de Béjar (área 67f5f9cb…, que enlaza a Q1904694)"}
+  - sujeto: person:manolo-kabezabolo
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Zaragoza", sameAs: "https://www.wikidata.org/wiki/Q10305"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3572194#P19",
+         evidencia: "P19 = Q10305 (Zaragoza); referencia: ninguna en Wikidata"}
+      - {kind: prensa, tier: T2, url: "https://www.publico.es/culturas/vida-salvaje-manolo-kabezabolo-punk-deslenguado-lucido-antisistema.html",
+         evidencia: "Público: «El músico zaragozano» (nota de Wikipedia, leída el 13-11-2026)"}
+  - sujeto: person:miguel-colino
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Portugalete", sameAs: "https://www.wikidata.org/wiki/Q548441"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q9032688#P19",
+         evidencia: "P19 = Q548441 (Portugalete); referencia: ninguna en Wikidata"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/2eb7c3e1-b562-401a-ac63-7f9a803d577b",
+         evidencia: "begin area: Portugalete (área c8fb6432…, que enlaza a Q548441)"}
+  - sujeto: person:rosendo-mercado
+    predicado: birthPlace
+    objeto: {"@type": Place, name: "Madrid", sameAs: "https://www.wikidata.org/wiki/Q2807"}
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q3324618#P19",
+         evidencia: "P19 = Q2807 (Madrid); referencia: Freebase"}
+      - {kind: musicbrainz, tier: T1, url: "https://musicbrainz.org/artist/4c7e8420-1ed6-4878-8b86-70bdd3ee5803",
+         evidencia: "begin area: Madrid (área 9ddf829c…, que enlaza a Q2807)"}
+  # --- Altas del 17-11-2026 (Torre Lucía, Casa de la Salud y Joaquín Sabina) ---
+  # Fuentes comprobadas ese día; `verificado_por: david` vale al aprobar el PR.
+  - sujeto: person:joaquin-sabina
+    predicado: birthPlace
+    objeto: place:ubeda
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q363577#P19",
+         evidencia: "P19 = Q329984 (Úbeda, municipio de la provincia de Jaén)"}
+      - {kind: wikipedia, tier: T3, url: "https://es.wikipedia.org/wiki/Joaqu%C3%ADn_Sabina",
+         evidencia: "ficha «Nacimiento: 12 de febrero de 1949, Úbeda, Jaén, España»"}
+  - sujeto: place:torre-lucia
+    predicado: containedInPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: web_oficial, tier: T2, url: "https://contenidos.plasencia.es/c-i-torre-lucia/",
+         evidencia: "Ayuntamiento de Plasencia: «alberga el Centro de Interpretación de la Ciudad Medieval de Plasencia»"}
+      - {kind: web_oficial, tier: T2, url: "https://culturaplasencia.es/espacio/torre-lucia/",
+         evidencia: "«Recinto enmarcado dentro de la antigua muralla de la ciudad, junto a la célebre Torre Lucía…» (Festival Internacional Folk Plasencia)"}
+  - sujeto: place:casa-de-la-salud
+    predicado: containedInPlace
+    objeto: place:plasencia
+    estado: verificada
+    verificado_por: david
+    fuentes:
+      - {kind: web_oficial, tier: T2, url: "https://www.uned.es/universidad/centros/es/plasencia/centro/edificio.html",
+         evidencia: "«el viejo colegio de los jesuitas acoge… el Centro Asociado a la UNED en Plasencia»; Plaza Santa Ana, s/n, 10600"}
+      - {kind: web_oficial, tier: T2, url: "https://contenidos.plasencia.es/claustro/",
+         evidencia: "Ayuntamiento de Plasencia: «En 1928, la Antigua Casa de la Compañía se destinó a Casa de Salud»"}
+  # --- Úbeda (18-11-2026): ficha nueva, por Sabina y por el concierto de Robe ---
+  - sujeto: place:ubeda
+    predicado: sameAs
+    objeto: "https://www.wikidata.org/wiki/Q329984"
+    estado: verificada
+    verificado_por: claude (autorización de David, 18-11-2026)
+    fuentes:
+      - {kind: wikidata, tier: T1, url: "https://www.wikidata.org/wiki/Q329984",
+         evidencia: "«Úbeda», municipio de la provincia de Jaén; P19 de Joaquín Sabina (Q363577); eswiki «Úbeda»"}
+  - sujeto: place:ubeda
+    predicado: event
+    objeto: {"@type": MusicEvent, name: "Robe en Úbeda, 06-07-2024", startDate: "2024-07-06",
+             performer: {"@type": MusicGroup, "@id": "https://entreinteriores.com/robe#musicgroup", name: "Robe"}}
+    estado: verificada
+    verificado_por: claude (autorización de David, 18-11-2026)
+    fuentes:
+      - {kind: prensa, tier: T2, url: "https://vivirediciones.es/?p=624827",
+         evidencia: "02-07-2024: «todavía pasará en julio por Córdoba (día 5), Úbeda (6), Gijón (12)…» (gira de «Se nos lleva el aire»)"}
+      - {kind: prensa, tier: T2, url: "https://www.horajaen.com/2024/07/07/robe-inaugura-festmuve-2024-en-ubeda-con-un-concierto-apoteosico/",
+         evidencia: "07-07-2024: «La noche del sábado 6 de julio, el recinto ferial de Úbeda vibró al ritmo de Robe… con su gira «Ni santos ni inocentes»»"}

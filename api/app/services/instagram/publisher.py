@@ -11,8 +11,9 @@ import logging
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, case, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -45,12 +46,13 @@ from app.services.instagram import (
     video,
 )
 from app.services import news_entities
-from app.services.instagram import identity_photo, newsroom
+from app.services.instagram import gate_final, identity_photo, newsroom
 from app.services.instagram.evergreen import EVERGREEN_TYPES
 
 logger = logging.getLogger(__name__)
 
 BLOG_BASE_URL = f"{config.SITE_URL}/blog"
+ROBE_PERSON_SLUG = "robe-iniesta"
 
 
 class SinMaterial(RuntimeError):
@@ -77,12 +79,233 @@ class MaterialPendiente(RuntimeError):
     """
 
 
+class TextoRetenido(RuntimeError):
+    """El texto no se puede publicar y no hay respaldo honesto: lo mira una persona.
+
+    No es un fallo de publicación. No se marca `failed` a propósito: el
+    cortacircuitos (`publicacion_bloqueada`) cuenta los `failed` recientes de
+    items distintos como señal de que Meta nos bloquea, y tres textos retenidos
+    seguidos pararían la cola entera acusando a Meta de algo que no ha hecho.
+    """
+
+
+def _catalogo_del_clip(
+    db: Session, clip: VideoClip, item: InstagramQueueItem
+) -> tuple[set[str], set[str]]:
+    """(títulos que el texto PUEDE citar, todos los títulos del catálogo).
+
+    Lo que puede citar es la canción del clip y su disco. La canción sale de
+    `video_clips.song_id` o, si no está, de la línea «Canción:» que dejó el
+    selector en las notas internas.
+    """
+    song = db.get(Song, clip.song_id) if clip.song_id else None
+    if song is None:
+        for linea in (item.notas_internas or item.summary or "").splitlines():
+            clave, _, valor = linea.partition(":")
+            if clave.strip().lower() in ("canción", "cancion") and valor.strip():
+                song = db.execute(
+                    select(Song).where(func.lower(Song.title) == valor.strip().lower())
+                ).scalars().first()
+                break
+    permitidos: set[str] = set()
+    if song is not None:
+        permitidos.add(song.title)
+        if song.album is not None:
+            permitidos.add(song.album.title)
+    catalogo = set(db.execute(select(Song.title)).scalars().all())
+    catalogo |= set(db.execute(select(Album.title)).scalars().all())
+    return permitidos, catalogo
+
+
+def _contexto_clip(db: Session, item: InstagramQueueItem) -> dict | None:
+    """Lo que el gate necesita saber de un clip para comprobar que el texto habla
+    de ESE clip: quién toca, qué canción es y de qué disco, y qué títulos tiene
+    el catálogo (para saber si una cita entre comillas es un título)."""
+    clip = db.execute(
+        select(VideoClip).where(VideoClip.queue_item_id == item.id)
+    ).scalars().first()
+    if clip is None:
+        return None
+    permitidos, catalogo = _catalogo_del_clip(db, clip, item)
+    return {
+        "interprete": gate_final.interprete_del_video(
+            clip.video_title or "", clip.channel_title or ""
+        ),
+        "titulos_permitidos": permitidos,
+        "titulos_catalogo": catalogo,
+        "rotulo": "\n".join(x for x in (clip.overlay, clip.subtitle) if x),
+    }
+
+
+def contexto_formacion(db: Session) -> tuple[list, list]:
+    """Quién estuvo en cada grupo y cuándo (`band_memberships`) y el año de cada disco,
+    en la forma que espera `gate_final.formacion_falsa`."""
+    from app.db.models import Artist, BandMembership, Person
+
+    pertenencias = []
+    filas = db.execute(
+        select(BandMembership, Person, Artist)
+        .join(Person, BandMembership.person_id == Person.id)
+        .join(Artist, BandMembership.artist_id == Artist.id)
+    ).all()
+    for m, persona, artista in filas:
+        anios = gate_final.era_a_anios(m.era, actual=bool(m.is_current))
+        if anios is None:
+            continue
+        nombres = []
+        for n in (persona.full_name, persona.stage_name):
+            plano = gate_final._plano(n or "").lower().strip()
+            # Un alias corto («Mon», «Uge») casa con cualquier cosa: solo nombres de
+            # dos palabras o de cuatro letras o más.
+            if plano and (" " in plano or len(plano) >= 4) and plano not in nombres:
+                nombres.append(plano)
+        if nombres:
+            pertenencias.append(gate_final.Pertenencia(
+                tuple(nombres), artista.slug, anios[0], anios[1]))
+    invitados = _invitados_por_disco(db)
+    discos = [
+        gate_final.Disco(gate_final._plano(a.title).lower(), art.slug, a.year,
+                         invitados.get((art.slug, a.slug), frozenset()))
+        for a, art in db.execute(select(Album, Artist).join(Artist, Album.artist_id == Artist.id)).all()
+        if a.year
+    ]
+    return pertenencias, discos
+
+
+def _invitados_por_disco(db: Session) -> dict[tuple[str, str], frozenset]:
+    """(artista, disco) → nombres planos de quien tocó sin ser miembro, de
+    `data/formacion_invitados.yaml` (cada entrada lleva su fuente)."""
+    from pathlib import Path
+
+    import yaml
+
+    from app.db.models import Person
+
+    for ruta in (Path("/app/data/formacion_invitados.yaml"),
+                 Path(__file__).resolve().parents[4] / "data" / "formacion_invitados.yaml"):
+        if ruta.exists():
+            datos = yaml.safe_load(ruta.read_text()) or {}
+            break
+    else:
+        return {}
+    out: dict[tuple[str, str], frozenset] = {}
+    for e in datos.get("invitados") or []:
+        nombres = set()
+        for slug in e.get("personas") or []:
+            p = db.execute(select(Person).where(Person.slug == slug)).scalars().first()
+            for n in ((p.full_name, p.stage_name) if p else ()):
+                if n:
+                    nombres.add(gate_final._plano(n).lower().strip())
+        out[(e["artista"], e["disco"])] = frozenset(nombres)
+    return out
+
+
+def revisar_gate(db: Session, item: InstagramQueueItem) -> gate_final.VeredictoGate:
+    """El gate final sobre lo que ESTE item va a publicar.
+
+    Falla CERRADO: si no se puede comprobar un clip (la BD no responde, falta el
+    catálogo), el veredicto es «no», nunca «sin comprobar, adelante».
+    """
+    try:
+        ctx = _contexto_clip(db, item) if item.content_type == "clip" else None
+        formacion = contexto_formacion(db)
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("[gate] no se pudo leer el contexto de %s: %s", item.id, exc)
+        return gate_final.VeredictoGate(
+            bloqueos=[f"no se pudo comprobar contra el catálogo y la formación: {exc}"[:300]]
+        )
+    return gate_final.revisar(
+        caption=item.caption or "",
+        rotulo=(ctx or {}).get("rotulo", ""),
+        clip=ctx,
+        formacion=formacion,
+    )
+
+
+def _retener(db: Session, item: InstagramQueueItem, motivo: str) -> InstagramQueueItem:
+    """Saca el item de la cola hasta que lo mire una persona. Ver `TextoRetenido`."""
+    item.needs_human = True
+    item.error = f"Retenido antes de publicar: {motivo}"[:2000]
+    db.commit()
+    logger.warning("[IG] item %s retenido: %s", item.id, motivo)
+    return item
+
+
+_MADRID = ZoneInfo("Europe/Madrid")
+_CONTADOR = re.compile(r"Día (\d+) sin Robe")
+
+
+def fecha_de_publicacion(item: InstagramQueueItem, hoy: date | None = None) -> date:
+    """El día en que saldrá el post, en Madrid: el fijado, o hoy si va al goteo.
+
+    `hoy` existe para que quien ya fijó el día (`_dia_de_salida`, los tests) no
+    mezcle dos relojes: sin él, el test del contador solo pasaba el 09-11-2026.
+    """
+    if item.publish_at is not None:
+        cuando = item.publish_at
+        if cuando.tzinfo is None:
+            cuando = cuando.replace(tzinfo=timezone.utc)
+        return cuando.astimezone(_MADRID).date()
+    if item.publish_on is not None:
+        return item.publish_on
+    return hoy or datetime.now(_MADRID).date()
+
+
+def contador_desfasado(item: InstagramQueueItem, hoy: date | None = None) -> bool:
+    """¿El «Día N sin Robe» del post no es el de HOY?
+
+    El texto y las imágenes se preparan días (o meses) antes de salir, y el
+    contador se quedaba con el número del día de preparar: 94 de 140 publicados
+    en 60 días salieron con el día equivocado (medido el 09-11-2026).
+    """
+    m = _CONTADOR.search(item.caption or "")
+    if not m:
+        return False
+    return int(m.group(1)) != config.dias_sin_robe(_dia_de_salida(item, hoy))
+
+
+def _dia_de_salida(item: InstagramQueueItem, hoy: date | None = None) -> date:
+    """Hoy, salvo que esté fijado para más adelante (un ensayo en seco de un post
+    programado no tiene que rehacerlo para el día de hoy)."""
+    hoy = hoy or datetime.now(_MADRID).date()
+    return max(hoy, fecha_de_publicacion(item, hoy))
+
+
+def _poner_al_dia_el_contador(db: Session, item: InstagramQueueItem) -> None:
+    """Deja el contador con el número de hoy antes de publicar.
+
+    En las imágenes nuestras el número va QUEMADO (cabecera y última tarjeta),
+    así que se vacían y `publish` las vuelve a preparar, gate incluido. Lo que no
+    se puede rehacer (vídeo, piezas subidas a mano, capturas) solo lleva el
+    número en el caption, y ahí basta con cambiarlo.
+    """
+    hoy = config.dias_sin_robe(_dia_de_salida(item))
+    if item.media_type in ("IMAGE", "CAROUSEL") and not item.media_locked:
+        db.query(InstagramQueueMedia).filter(InstagramQueueMedia.item_id == item.id).delete()
+        item.caption = None
+        item.image_url = None
+        item.image_path = None
+        db.commit()
+        db.refresh(item)
+        logger.info("[IG] item %s: contador desfasado, se rehace entero", item.id)
+        return
+    item.caption = _CONTADOR.sub(f"Día {hoy} sin Robe", item.caption or "")
+    db.commit()
+    logger.info("[IG] item %s: contador del caption puesto al día (%s)", item.id, hoy)
+
+
 def _topic_from_item(db: Session, item: InstagramQueueItem) -> dict:
     """Construye el dict de tema que consumen editorial / imaging / captions."""
     topic = {
+        # El contador «Día N sin Robe» se calcula con el día en que SALE.
+        "fecha_publicacion": fecha_de_publicacion(item),
         "title": item.title,
         "category": item.category or "Actualidad",
-        "summary": item.summary or "",
+        # El `summary` de un clip nunca llega al redactor ni al caption: lo
+        # interno vive en `notas_internas`, y si quedara algo en `summary` (un
+        # item anterior a la migración) se trata como interno también.
+        "summary": "" if item.content_type == "clip" else (item.summary or ""),
         "source": item.source_name or "",
         "url": item.source_url or "",
         # Semilla estable de la rotación de moldes del caption: re-preparar un
@@ -138,6 +361,32 @@ def _sin_desambiguador(song: str, album: str) -> str:
     if dentro.rstrip(")").strip().casefold() == a.casefold():
         return base.strip()
     return s
+
+
+def _hero_es_arte(db: Session, item: InstagramQueueItem) -> bool:
+    """¿El hero del post del blog es arte propio (IA)? Lo dice su `alt`, que
+    `blog_hero` escribe así para el arte generado."""
+    if not item.blog_post_id:
+        return False
+    post = db.get(Post, item.blog_post_id)
+    return bool(post and (post.hero_image_alt or "").startswith("Ilustración editorial"))
+
+
+def _cancion_de_item(db: Session, item: InstagramQueueItem) -> int | None:
+    """La canción de la que va el post, si se SABE (nunca adivinada del texto).
+
+    Un verso (`quote:line_<id>`) es de la canción de esa línea; un clip o una
+    ficha de canción del blog, lo que diga `robe_quote.cancion_del_post`.
+    """
+    key = item.content_key or ""
+    if key.startswith("quote:line_"):
+        try:
+            line = db.get(Line, int(key.rsplit("_", 1)[1]))
+        except (IndexError, ValueError):
+            line = None
+        return line.song_id if line is not None else None
+    sid, _ = robe_quote.cancion_del_post(db, item)
+    return sid
 
 
 def _corpus_context(db: Session, item: InstagramQueueItem) -> dict:
@@ -218,9 +467,14 @@ def _apply_person_photo(
     """
     key = item.content_key or ""
     prefix = "ephemeris:birth_"
-    if not key.startswith(prefix):
+    if key.startswith(prefix):
+        slug = key[len(prefix):].rsplit("_", 1)[0]
+    elif item.content_type == "robe_quote":
+        # Una cita de Robe es de Robe: su foto acreditada de ficha no sugiere
+        # ninguna identidad que no sea la suya. Antes estas salían con arte IA.
+        slug = ROBE_PERSON_SLUG
+    else:
         return
-    slug = key[len(prefix):].rsplit("_", 1)[0]
     if not slug:
         return
     person = db.execute(
@@ -233,6 +487,7 @@ def _apply_person_photo(
         url = config.SITE_URL + url
     topic["image_hint"] = url
     topic["image_kind"] = "photo"
+    topic["image_origin"] = "ficha"
     attribution = _clean_credit(person.image_attribution or "")
     if attribution:
         lic = (person.image_license or "").strip()
@@ -241,6 +496,24 @@ def _apply_person_photo(
         topic["image_credit"] = attribution
     logger.info("[IG] efeméride de %s → foto de ficha %s", slug, url[:60])
 
+
+
+# Avisos que se ENSEÑAN en el panel pero no retienen el post. Desde el 09-11-2026
+# `needs_human` saca el item de la cola (antes era solo una etiqueta), así que
+# cualquier aviso retenía: una noticia ilustrada con arte propio se quedaba
+# esperando un clic, y la decisión de David es que la IA, como último recurso,
+# salga sin aprobación. Los demás avisos (un verso dudoso, una foto sin
+# comprobar, un año sin verificar, la muerte de Robe) siguen pidiendo persona.
+AVISOS_INFORMATIVOS = (
+    "El texto se reescribió",
+    "Sin foto acreditada de",
+    "una slide repite",
+    "Las slides no pasaron las guardas: el post va con el texto de siempre",
+)
+
+
+def es_aviso_informativo(aviso: str) -> bool:
+    return any((aviso or "").startswith(p) for p in AVISOS_INFORMATIVOS)
 
 
 def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
@@ -298,6 +571,12 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
             fila.photo_page_url = foto.page_url
             fila.photo_site = foto.site
             fila.photo_evidence = list(foto.evidence or [])
+        elif topic.get("image_origin") == "portada":
+            # Antes caía en el `else` y una portada se registraba como arte
+            # propio: inflaba el recuento de IA del panel.
+            fila.photo_source = "portada"
+            fila.photo_verdict = "accredited"
+            fila.photo_reason = "Portada oficial del disco del que va el post."
         else:
             fila.photo_source = identity_photo.ARTE_PROPIO
             fila.photo_verdict = "own_art"
@@ -305,7 +584,7 @@ def _guardar_evidencia(db, item, topic: dict, entidades: list) -> None:
 
         fila.claims = topic.get("claims") or []
         fila.avisos = topic.get("avisos") or []
-        item.needs_human = bool(fila.avisos)
+        item.needs_human = any(not es_aviso_informativo(a) for a in fila.avisos)
         db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[evidencia] no se pudo guardar la del item %s: %s", item.id, exc)
@@ -323,9 +602,12 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
     Si no hay material, no se llama al modelo: el post sale exactamente como
     salía. La regla no era «no usar IA», era «no inventar».
     """
-    topic["texto_base"] = (
-        topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
-    ).strip()
+    if topic.get("content_type") == "clip":
+        topic["texto_base"] = (topic.get("title") or "").strip()
+    else:
+        topic["texto_base"] = (
+            topic.get("caption_body") or topic.get("summary") or topic.get("title") or ""
+        ).strip()
     mat = material_ig.reunir(db, topic)
     if extra:
         # Material que no sale del corpus: los datos del clip de directo (qué
@@ -346,6 +628,10 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
     try:
         avisos = newsroom.escribir(db, topic, [], material=material, verificar_rel=False)
     except newsroom.TextoNoPublicable as exc:
+        if topic.get("content_type") == "clip":
+            # Un clip NO tiene «texto de siempre»: su texto de partida eran las
+            # notas del selector, y publicarlas es justo lo que pasó en el #487.
+            raise TextoRetenido(f"el texto del clip no pasa las guardas: {exc}") from exc
         # Un evergreen no se tira por esto: su texto ya era publicable antes de
         # que existiera el redactor. Se queda sin slides escritas y sigue.
         logger.warning("[prepare] redacción descartada: %s", exc)
@@ -367,15 +653,15 @@ def _redactar_con_corpus(db: Session, topic: dict, *, extra: str = "") -> None:
 def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> None:
     """Qué se ve en el clip, para que el texto hable de ESO.
 
-    El momento y la canción los dejó escritos `propose_clips` en el `summary`
-    del item (es lo que también se enseña en el correo de aprobación). La fecha
+    El momento y la canción los dejó escritos `propose_clips` en las
+    `notas_internas` del item (es lo que también se enseña en el correo de aprobación). La fecha
     y el sitio salen del catálogo de conciertos, nunca de la transcripción: la
     de un directo está garbleada y solo sirve para ELEGIR el tramo.
 
     Si no hay nada de esto —un clip dado de alta a mano, por ejemplo— no se
     inventa: el post sale como salía.
     """
-    resumen = (item.summary or "")
+    resumen = (item.notas_internas or item.summary or "")
     datos: dict[str, str] = {}
     for linea in resumen.splitlines():
         if ":" in linea:
@@ -388,13 +674,27 @@ def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> 
             select(Song.title, Album.title, Album.year, Artist.name)
             .join(Album, Song.album_id == Album.id)
             .join(Artist, Album.artist_id == Artist.id)
-            .where(Song.title == cancion)
+            .where(func.lower(Song.title) == cancion.lower())
         ).first()
         if fila:
             topic["corpus"] = {"song": fila[0], "album": fila[1],
                                "year": fila[2], "artist": fila[3]}
 
     partes = []
+    clip = db.execute(
+        select(VideoClip).where(VideoClip.queue_item_id == item.id)
+    ).scalars().first()
+    interprete = (
+        gate_final.interprete_del_video(clip.video_title or "", clip.channel_title or "")
+        if clip else None
+    )
+    if interprete:
+        # Quién toca lo dice el vídeo, no el autor de la canción: el #504 decía
+        # «Extremoduro la tocó en Vigo» en un concierto de Robe de 2024.
+        partes.append(
+            f"Quién toca en este concierto: {interprete} (lo dice el propio vídeo). "
+            f"Atribuye el directo a {interprete} y a nadie más."
+        )
     if datos.get("momento"):
         partes.append(f"Lo que se ve en el clip: {datos['momento']}"
                       + (f" de «{cancion}»" if cancion else ""))
@@ -438,10 +738,11 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         #   2) Efeméride de una PERSONA (cumpleaños/aniversario natal): SU foto
         #      curada de la ficha de la web (misma imagen, sin homónimos).
         #   3) Si no, arte temático (IA) afín a la categoría.
-        cover = album_cover.find(db, topic)
+        cover = album_cover.find(db, topic, song_id=_cancion_de_item(db, item))
         if cover:
             topic["image_hint"] = cover["url"]
             topic["image_kind"] = "cover"
+            topic["image_origin"] = "portada"
         else:
             _apply_person_photo(db, item, topic)
         # El contenido se basta solo: sin verso ornamental (evita duplicarlo en
@@ -467,6 +768,19 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             # El cuerpo del post no se toca (lo escribió el motor profundo), pero
             # sus slides también las escribe alguien ahora.
             _redactar_con_corpus(db, topic)
+            # Sin hero, o con un hero de arte propio, el post salía con IA aunque
+            # su título nombrara un disco: medido el 09-11-2026, 6 de los 15
+            # posts de blog del mes («La Gira 2002 de Yo, minoría absoluta»,
+            # «Robando perchas del hotel (2012)»…). En IG una portada sí puede
+            # repetirse, así que va por delante del arte.
+            if not topic.get("image_hint") or _hero_es_arte(db, item):
+                cover = album_cover.find(db, topic, song_id=_cancion_de_item(db, item))
+                if cover:
+                    topic["image_hint"] = cover["url"]
+                    topic["image_kind"] = "cover"
+                    topic["image_origin"] = "portada"
+            if topic.get("image_hint") and not topic.get("image_origin"):
+                topic["image_origin"] = "hero_blog"
         # SOLO las noticias AJENAS. Dos formas de equivocarse aquí, y las dos
         # han pasado:
         #
@@ -517,6 +831,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
             if cover:
                 topic["image_hint"] = cover["url"]
                 topic["image_kind"] = "cover"
+                topic["image_origin"] = "portada"
             else:
                 # Créditos de las fotos recientes: para no repetir imagen.
                 recent_credits = {
@@ -549,6 +864,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                     topic["image_hint_thumb"] = foto.thumb
                     topic["image_credit"] = foto.credit
                     topic["image_kind"] = "photo"
+                    topic["image_origin"] = f"foto:{foto.source}"
                     topic["foto"] = foto
                     if foto.needs_human:
                         topic.setdefault("avisos", []).append(
@@ -626,6 +942,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
                 _redactar_con_corpus(db, topic, extra=topic["material_directo"])
             item.image_path = None      # el material vive en Cloudinary
             item.media_type = "CLIP"
+            item.image_origin = "video"
             item.caption = captions.build(db, topic)
             item.status = "prepared"
             item.error = None
@@ -638,6 +955,7 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         ruta = video.render_verse_reel(topic, slot=item.slot or 1)
         specs, paths, used_hero = [{"layout": "reel"}], [ruta], False
         _sync_media(db, item, paths, specs, kind="video")
+        item.image_origin = "reel_propio"
         item.image_path = ruta
         item.caption = captions.build(db, topic)
         item.status = "prepared"
@@ -676,6 +994,9 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
     # licencia; si la generación cayó al fondo IA, no hay crédito que poner.
     if not used_hero:
         topic.pop("image_credit", None)
+    # Lo que se usó DE VERDAD: si la foto no se pudo bajar, `imaging` cae a arte
+    # propio y eso es lo que sale publicado.
+    item.image_origin = (topic.get("image_origin") or "foto") if used_hero else "ia"
 
     _sync_media(db, item, paths, specs)
     item.image_path = paths[0]      # espejo de la diapositiva 0
@@ -745,6 +1066,7 @@ def _prepare_product(
 
     _sync_media(db, item, [ruta], [{"layout": "product"}])
     item.image_path = ruta
+    item.image_origin = "producto"
     item.caption = captions.build(db, topic)
     item.status = "prepared"
     item.error = None
@@ -916,6 +1238,9 @@ def publish(
     humano que le da a publicar tiene que poder ver el error real de Meta (y de
     paso ese intento sirve de sondeo).
     """
+    if contador_desfasado(item):
+        _poner_al_dia_el_contador(db, item)
+
     if not _media_lista(item):
         # Preparar puede fallar por motivos legítimos (un post de clip sin clip
         # enlazado, un carrusel sin material). Eso NO puede tumbar el cron: sin
@@ -929,10 +1254,22 @@ def publish(
             db.rollback()
             logger.info("[IG] item %s todavía no: %s", item.id, esperando)
             return item
+        except (TextoRetenido, newsroom.TextoNoPublicable) as retenido:
+            # El texto no se sostiene: no es una avería ni un fallo de Meta. Con
+            # `_marcar_fallo` quedaría `failed`, gastaría intento y contaría para
+            # la racha del cortacircuitos, que acusaría a Meta en falso.
+            db.rollback()
+            return _retener(db, item, str(retenido))
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             logger.error("[IG] item %s no se pudo preparar: %s", item.id, exc)
             return _marcar_fallo(db, item, f"al preparar: {exc}")
+
+    # La última puerta: TODO lo que va a ver la gente, ya montado. Va antes del
+    # dry-run para que el ensayo diga lo mismo que diría la publicación real.
+    veredicto = revisar_gate(db, item)
+    if not veredicto.ok:
+        return _retener(db, item, veredicto.motivo)
 
     if dry_run:
         item.status = "prepared"
@@ -1063,14 +1400,21 @@ def _publicable():
     diaria pudiera avisar de nada.
     """
     limite = datetime.now(timezone.utc) - timedelta(hours=config.RETRY_COOLDOWN_H)
-    return or_(
-        InstagramQueueItem.status.in_(("pending", "prepared")),
-        and_(
-            InstagramQueueItem.status == "failed",
-            InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
-            or_(
-                InstagramQueueItem.last_attempt_at.is_(None),
-                InstagramQueueItem.last_attempt_at <= limite,
+    # Lo que pide que lo mire una persona NO sale solo. Antes `needs_human` era
+    # solo una etiqueta del panel y el goteo lo publicaba igual; ahora es lo que
+    # usa el gate final para retener, y si el selector no lo saltara elegiría el
+    # mismo item cada 15 minutos y pararía la cola entera detrás de él.
+    return and_(
+        InstagramQueueItem.needs_human.is_(False),
+        or_(
+            InstagramQueueItem.status.in_(("pending", "prepared")),
+            and_(
+                InstagramQueueItem.status == "failed",
+                InstagramQueueItem.attempts < config.MAX_PUBLISH_ATTEMPTS,
+                or_(
+                    InstagramQueueItem.last_attempt_at.is_(None),
+                    InstagramQueueItem.last_attempt_at <= limite,
+                ),
             ),
         ),
     )
@@ -1150,7 +1494,7 @@ def next_pending(db: Session, *, video: bool | None = None) -> InstagramQueueIte
     ).scalar_one_or_none()
 
 
-def due_pinned(db: Session) -> list[InstagramQueueItem]:
+def due_pinned(db: Session, ahora: datetime | None = None) -> list[InstagramQueueItem]:
     """Items con momento fijado que YA toca publicar, al margen del cuentagotas.
 
     Dos formas de fijar el momento, y las dos vencen aquí:
@@ -1163,16 +1507,25 @@ def due_pinned(db: Session) -> list[InstagramQueueItem]:
     Lo que falló con intentos de sobra también vence aquí: un post programado no
     puede evaporarse porque el CDN diera un error a su hora exacta.
     """
-    today = date.today()
-    ahora = datetime.now(timezone.utc)
+    from app.services.instagram import scheduling
+
+    ahora = ahora or datetime.now(timezone.utc)
+    local = ahora.astimezone(_MADRID)
+    # Una efeméride vence en su día, pero no antes de la primera franja: con el
+    # día a secas salía a las 00:00 UTC, la 01:00 en Madrid (09-11-2026).
+    primera = min(scheduling.slots_diarios(), default=None)
+    efemeride_toca = primera is None or local.time() >= primera
+    condiciones = [InstagramQueueItem.publish_at <= ahora]
+    if efemeride_toca:
+        condiciones.append(and_(
+            InstagramQueueItem.publish_on == local.date(),
+            InstagramQueueItem.publish_at.is_(None),
+        ))
     return db.execute(
         select(InstagramQueueItem)
         .where(
             _publicable(),
-            or_(
-                InstagramQueueItem.publish_on == today,
-                InstagramQueueItem.publish_at <= ahora,
-            ),
+            or_(*condiciones),
         )
         .order_by(InstagramQueueItem.position, InstagramQueueItem.created_at)
     ).scalars().all()

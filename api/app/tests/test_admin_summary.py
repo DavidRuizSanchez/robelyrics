@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ContentProposal,
+    EntityProposal,
+    EntityRelation,
     ErrataReport,
     InstagramQueueItem,
     NotificationDigest,
@@ -27,7 +29,8 @@ from app.services.admin_summary import resumen
 from app.services.instagram.config import MAX_PUBLISH_ATTEMPTS
 
 MODELOS = (Post, ContentProposal, InstagramQueueItem, VideoClip, SeoOpportunity, ErrataReport,
-           YouTubeIngestQueue, SourceSegment, SongInterpretation, NotificationDigest, PageChange)
+           YouTubeIngestQueue, SourceSegment, SongInterpretation, NotificationDigest, PageChange,
+           EntityProposal, EntityRelation)
 
 
 def _con_dependencias(tablas):

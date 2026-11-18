@@ -324,3 +324,140 @@ def test_una_objecion_factual_no_la_tapa_una_nota_mas_alta(monkeypatch):
                         lambda body, **kw: _Vf(58 if kw.get("spotlight") else 0,
                                                kw.get("spotlight")))
     assert not md.juzgar("c", "n", kind="page", subject="E", consultas=[], material="").ok
+
+
+# --------------------------------------------------------------------------- #
+# Kabezabolo (#53, 09-11-2026): el nombre del sujeto no cubre nada por sí solo
+# --------------------------------------------------------------------------- #
+FICHA_PERSONA = ("Manolo Kabezabolo es un músico de Alicante.\n\n"
+                 "## Los inicios de Manolo Kabezabolo\n\n"
+                 "Manolo Kabezabolo empezó a tocar en 1990.\n\n"
+                 "## Manolo Kabezabolo y Extremoduro\n\n"
+                 "Manolo Kabezabolo coincidió con Robe en varios bolos.\n")
+SUJETO_K = md.terminos_del_sujeto("Manolo Kabezabolo")
+
+
+def test_la_busqueda_que_solo_nombra_al_sujeto_no_la_cubre_ninguna_seccion():
+    mapa = md.cobertura_por_seccion(FICHA_PERSONA, ["canciones de manolo kabezabolo"],
+                                    SUJETO_K)
+    assert mapa["canciones de manolo kabezabolo"] is None
+    # Sin quitar el sujeto, la primera sección con el nombre «la cubría»: el bug.
+    assert md.cobertura_por_seccion(FICHA_PERSONA, ["canciones de manolo kabezabolo"])[
+        "canciones de manolo kabezabolo"] == "Los inicios de Manolo Kabezabolo"
+
+
+def test_lo_que_la_busqueda_anade_al_nombre_se_sigue_midiendo():
+    mapa = md.cobertura_por_seccion(FICHA_PERSONA, ["manolo kabezabolo extremoduro",
+                                                    "conciertos manolo kabezabolo"], SUJETO_K)
+    assert mapa["manolo kabezabolo extremoduro"] == "Manolo Kabezabolo y Extremoduro"
+    assert mapa["conciertos manolo kabezabolo"] is None
+
+
+def test_los_alias_del_sujeto_tambien_se_quitan():
+    sujeto = md.terminos_del_sujeto("Robe", {"robe": "robe roberto iniesta"})
+    assert md.sin_sujeto("canciones de roberto iniesta", sujeto) == ""
+
+
+def _motor_persona(monkeypatch, plan, *, escritas=None):
+    from types import SimpleNamespace
+
+    from scripts.seo import augment_deep, generate_deep
+
+    destino = md.Destino("ficha", SimpleNamespace(target_keyword=None),
+                         "/personas/manolo-kabezabolo", "Manolo Kabezabolo", "person",
+                         object(), FICHA_PERSONA, "Manolo Kabezabolo", "", "manolo-kabezabolo")
+    monkeypatch.setattr(md, "cargar_destino", lambda db, opp: destino)
+    monkeypatch.setattr(md, "reunir_material", lambda db, c, d, q: md.Material(
+        escritor="DATOS PROPIOS", verificable="Manolo Kabezabolo 1990 Alicante", hard="",
+        pasajes=0))
+    monkeypatch.setattr(md, "planificar", lambda *a, **kw: plan)
+    monkeypatch.setattr("app.services.seo_opportunities.nombre_alias_index", lambda db: {})
+    monkeypatch.setattr("app.services.source_guard.nombres_de_fuentes", lambda db=None: [])
+    monkeypatch.setattr("app.services.content_placement.load_gsc_pages", lambda: ({}, None))
+    vistos = escritas if escritas is not None else []
+
+    def _escribe(client, subject, sec, *a, **kw):
+        vistos.append(("insert", sec["heading"]))
+        return f"## {sec['heading']}\n\nManolo Kabezabolo tocó en Alicante en 1990."
+
+    def _chat(client, prompt, **kw):
+        vistos.append(("enrich", prompt[:60]))
+        return {"texto": "Manolo Kabezabolo grabó en Alicante en 1990."}
+
+    monkeypatch.setattr(generate_deep, "_write_section", _escribe)
+    monkeypatch.setattr(generate_deep, "_verify_section", lambda c, t, m: t)
+    monkeypatch.setattr(generate_deep, "_chat", _chat)
+    monkeypatch.setattr(augment_deep, "confiesa_no_saber", lambda t: None)
+    # El juez rechaza todo: lo que se mide aquí es qué llega a redactarse.
+    monkeypatch.setattr("app.services.editorial_review.review",
+                        lambda body, **kw: _V("reject", 10))
+    return SimpleNamespace(queries=[{"query": "canciones de manolo kabezabolo"},
+                                    {"query": "conciertos manolo kabezabolo"}], gap_hint="")
+
+
+def test_las_secciones_nuevas_no_se_tiran_por_llevar_el_nombre(monkeypatch):
+    vistos: list = []
+    opp = _motor_persona(monkeypatch, {"insert": [
+        {"after": "Los inicios de Manolo Kabezabolo", "heading": "Conciertos de Manolo Kabezabolo",
+         "covers": "conciertos"}]}, escritas=vistos)
+    res = md.merge_page(object(), object(), opp)
+    assert ("insert", "Conciertos de Manolo Kabezabolo") in vistos
+    assert not any("ya la responde" in d for d in res["notas"]["descartado"])
+    assert res["causa"] == "no_mejora"
+
+
+def test_un_insert_que_si_repite_se_convierte_en_enriquecer(monkeypatch):
+    vistos: list = []
+    opp = _motor_persona(monkeypatch, {"insert": [
+        {"after": "Los inicios de Manolo Kabezabolo",
+         "heading": "Kabezabolo junto a Extremoduro", "covers": "su relación con Extremoduro"}]},
+        escritas=vistos)
+    opp.queries = [{"query": "manolo kabezabolo extremoduro"}]
+    res = md.merge_page(object(), object(), opp)
+    assert [v for v, _ in vistos] == ["enrich"] * (md.MAX_VUELTAS + 1)
+    assert any("se mejora esa sección" in d for d in res["notas"]["descartado"])
+
+
+def test_un_plan_vacio_dice_por_que(monkeypatch):
+    opp = _motor_persona(monkeypatch, {"insert": [], "enrich": [],
+                                       "motivo": "el material no habla de sus conciertos"})
+    res = md.merge_page(object(), object(), opp)
+    assert res["noop"] is True and res["causa"] == "sin_plan"
+    assert "no habla de sus conciertos" in res["motivo"]
+
+
+def test_un_fallo_del_plan_no_es_un_noop(monkeypatch):
+    """Si OpenAI cae, `planificar` devolvía {} y eso era «nada que añadir»: con el
+    cierre por noop habría tachado las búsquedas por un fallo de red."""
+    import pytest
+
+    opp = _motor_persona(monkeypatch, {"_fallo": "plan: APITimeoutError"})
+    with pytest.raises(md.FalloTecnico):
+        md.merge_page(object(), object(), opp)
+
+
+def test_si_el_juez_no_pudo_correr_tampoco_es_un_noop(monkeypatch):
+    import pytest
+
+    opp = _motor_persona(monkeypatch, {"insert": [
+        {"after": "Los inicios de Manolo Kabezabolo", "heading": "Conciertos de Manolo Kabezabolo",
+         "covers": "conciertos"}]})
+
+    def _cae(body, **kw):
+        raise TimeoutError("juez")
+
+    monkeypatch.setattr("app.services.editorial_review.review", _cae)
+    with pytest.raises(md.FalloTecnico):
+        md.merge_page(object(), object(), opp)
+
+
+def test_planificar_avisa_del_fallo_en_vez_de_devolver_un_plan_vacio(monkeypatch):
+    from scripts.seo import generate_deep
+
+    def _cae(*a, **kw):
+        raise TimeoutError("openai")
+
+    monkeypatch.setattr(generate_deep, "_chat", _cae)
+    destino = md.Destino("ficha", None, "/x", "X", None, None, FICHA_PERSONA, "", "", "x")
+    plan = md.planificar(object(), destino, ["q"], [], md.Material("", "", "", 0), "idea")
+    assert plan.get("_fallo", "").startswith("plan: TimeoutError")

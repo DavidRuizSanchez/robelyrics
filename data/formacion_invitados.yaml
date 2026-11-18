@@ -1,0 +1,10 @@
+# Músicos que tocaron en un disco sin ser todavía (o ya) miembros del grupo.
+#
+# La guarda de formación de Instagram (`gate_final.formacion_falsa`, 12-11-2026)
+# compara quién toca en un disco con las fechas de `band_memberships`. Un invitado
+# no está en esas fechas y no es un error: va aquí, con su fuente. Sin fuente no entra.
+invitados:
+  - disco: pedra
+    artista: extremoduro
+    personas: [inaki-uoho-anton]
+    fuente: "Ficha de «Pedrá» en entreinteriores.com y deprofundis_facts.md: Uoho grabó «Pedrá» (1993-1995) siendo aún de Platero y Tú; entra en Extremoduro en 1996"

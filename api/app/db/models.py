@@ -1422,6 +1422,19 @@ class ContentProposal(Base):
     # Sin FK a propósito: los tests del blog montan `content_proposals` sola en
     # SQLite (`to_metadata`) y una FK a `seo_opportunities` no resolvería.
     merge_opportunity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Juicio de la cascada en seco (`blog_gates`) al preparar el borrador, días antes
+    # de publicar. `review_verdict`: pasa | retenida. `review_reasons`: {bloquea,
+    # motivos, faltan_datos}. Migración `blogjuez2026_01`.
+    review_verdict: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    review_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    review_reasons: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0"))
+    # Quién descarta y por qué (antes solo iba en un correo: 419 descartes sin motivo).
+    discard_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    discarded_by: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    discarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -1573,6 +1586,17 @@ class InstagramQueueItem(Base):
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str | None] = mapped_column(String(40))
     summary: Mapped[str | None] = mapped_column(Text)
+    # Lo que se apunta SOBRE el post y no es el post: por qué se eligió un clip,
+    # el corte, la transcripción del tramo, avisos de la ingesta. Lo ven el
+    # correo de aprobación y el panel, y NUNCA un redactor ni un caption. Antes
+    # vivía en `summary` y cuatro caminos de respaldo lo publicaban: el #487 y el
+    # #374 salieron con «Tramo 45-57s… Motivos:… Corte: pausa» en el caption.
+    notas_internas: Mapped[str | None] = mapped_column(Text)
+    # De dónde salió la imagen que se publica, de verdad (no la que se intentó):
+    # portada · ficha · foto:<fuente> · hero_blog · ia · video · producto ·
+    # reel_propio. Antes no se guardaba y solo se podía reconstruir a mano: el
+    # 09-11-2026 la reconstrucción dio 12 de 51 posts con IA en un mes.
+    image_origin: Mapped[str | None] = mapped_column(String(32))
     source_name: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(String(700))
     caption: Mapped[str | None] = mapped_column(Text)
@@ -1871,7 +1895,8 @@ class EntityEdge(Base):
     los JSONB (Person.other_bands, SeoContent/Post.entities). Consultable en
     ambos sentidos (índices en src y dst). `edge_type` ∈ {song_of_album,
     album_of_artist, song_theme, song_place, song_concept, member_of,
-    other_band, video_of, mentions, lyrics_by, music_by, adapted_from}.
+    other_band, video_of, mentions, lyrics_by, music_by, adapted_from,
+    vocals_by}. `vocals_by` (coros/voces de la grabación) también sale de `SongCredit`.
 
     Los tres últimos (autoría) los genera `build_graph.py` desde `SongCredit`:
     conectan una canción con la persona que firma su letra/música o el poema
@@ -1900,6 +1925,104 @@ class EntityEdge(Base):
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     meta: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class EntityRelation(Base):
+    """Una relación entre entidades que sale en el JSON-LD, CON SU FUENTE.
+
+    Plan de datos estructurados, fase 1 (13-11-2026). A diferencia de
+    `entity_edges` (derivado, se reconstruye cada noche), esto es la fuente de verdad
+    de lo que no tiene otra autoridad: `band_memberships` manda en la formación de
+    Extremoduro y Robe, `song_credits` en los créditos y `album_tracks` en las pistas,
+    y eso NO se carga aquí (lo rechaza `relations.validar`).
+
+    Cada hecho se guarda UNA vez y en un sentido; la inversa (`member` ↔ `memberOf`)
+    se deriva al servir. Solo se emite lo `verificada`. Las identidades acreditadas
+    (Wikidata, MusicBrainz…) son filas `sameAs` con `object_literal` = la URL.
+
+    `clave` es derivada y no nula: Postgres trata los NULL como distintos, así que una
+    restricción única sobre columnas que pueden ser NULL no evitaría duplicados.
+    """
+
+    __tablename__ = "entity_relations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('verificada', 'pendiente', 'rechazada')",
+            name="ck_entity_relations_status",
+        ),
+        CheckConstraint(
+            "(object_id IS NOT NULL) <> (object_literal IS NOT NULL)",
+            name="ck_entity_relations_objeto",
+        ),
+        Index("ix_entity_relations_subject", "subject_type", "subject_id"),
+        Index("ix_entity_relations_object", "object_type", "object_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clave: Mapped[str] = mapped_column(String(600), unique=True, nullable=False)
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    predicate: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_type: Mapped[str | None] = mapped_column(String(16))
+    object_id: Mapped[int | None] = mapped_column(Integer)
+    # Nodo externo sin página propia ({"@type": "MusicGroup", "name": "Ciclonautas"})
+    # o, en `sameAs`, la URL de la identidad.
+    # none_as_null: sin él SQLAlchemy guarda None como el JSON `null`, que NO es NULL, y
+    # la restricción «id o literal» rechazaría toda relación con objeto por id.
+    object_literal: Mapped[dict | str | None] = mapped_column(JSONB(none_as_null=True))
+    role_name: Mapped[str | None] = mapped_column(String(120))
+    start_date: Mapped[str | None] = mapped_column(String(10))   # «1993», «1993-05» o fecha
+    end_date: Mapped[str | None] = mapped_column(String(10))
+    # [{"kind": "musicbrainz|wikidata|creditos_disco|prensa|…", "tier": "T1|T2|T3",
+    #   "url": str, "evidencia": str}] — al menos una.
+    fuentes: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pendiente")
+    verified_by: Mapped[str | None] = mapped_column(String(64))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class EntityProposal(Base):
+    """Una entidad sin página que sale de las relaciones verificadas, para decidir si se
+    crea (plan de relaciones, 18-11-2026). No se crea nada sola: `propuesta` →
+    `aprobada` (se le hará ficha) → `publicada`, o `descartada`."""
+
+    __tablename__ = "entity_proposals"
+    __table_args__ = (
+        CheckConstraint("estado IN ('propuesta', 'aprobada', 'publicada', 'descartada')",
+                        name="ck_entity_proposals_estado"),
+        Index("ix_entity_proposals_estado", "estado"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # `qid:Q…` si tiene Q-ID; si no, `tipo:nombre normalizado` (una ciudad de un concierto).
+    clave: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    tipo: Mapped[str] = mapped_column(String(40), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(300), nullable=False)
+    qid: Mapped[str | None] = mapped_column(String(20))
+    # [{"desde": "person:joaquin-sabina", "predicado": "alumniOf", "fuente": url}, …]
+    relaciones: Mapped[list] = mapped_column(_JSON, default=list, nullable=False)
+    # Fuentes del corpus que la nombran (con qué escribir su ficha sin inventar).
+    material: Mapped[int | None] = mapped_column(Integer)
+    demanda: Mapped[dict | None] = mapped_column(_JSON)
+    estado: Mapped[str] = mapped_column(String(12), default="propuesta",
+                                        server_default="propuesta", nullable=False)
+    nota: Mapped[str | None] = mapped_column(Text)
+    decidida_por: Mapped[str | None] = mapped_column(String(64))
+    decidida_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
@@ -2048,7 +2171,8 @@ class YouTubeIngestQueue(Base):
     __tablename__ = "youtube_ingest_queue"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('detected', 'approved', 'processing', 'done', 'failed', 'retired')",
+            "status IN ('detected', 'approved', 'processing', 'done', 'failed', 'retired', "
+            "'abandoned')",
             name="ck_youtube_ingest_status",
         ),
         CheckConstraint(
@@ -2378,20 +2502,32 @@ class PageChange(Base):
 # --------------------------------------------------------------------------- #
 from sqlalchemy import event as _event  # noqa: E402
 from app.services.text_sanitizer import enforce_name_policy as _fix_name  # noqa: E402
+from app.services.text_sanitizer import quitar_rayas as _sin_rayas  # noqa: E402
 
 
-def _make_name_policy_listener(fields: tuple[str, ...]):
+def _make_name_policy_listener(fields: tuple[str, ...], *, rayas: tuple[str, ...] = (),
+                               rayas_titulo: tuple[str, ...] = ()):
+    """Política de nombre en `fields`. Además, sin raya larga (David, 12-11-2026)
+    en `rayas` (texto) y `rayas_titulo` (títulos de vídeo: « - »)."""
+    def _limpia(f: str, s: str) -> str:
+        s = _fix_name(s) if f in fields else s
+        if f in rayas or f in rayas_titulo:
+            s = _sin_rayas(s, titulo=f in rayas_titulo)
+        return s
+
     def _listener(mapper, connection, target):  # noqa: ANN001
         import json as _json
-        for f in fields:
+        for f in dict.fromkeys(fields + rayas + rayas_titulo):
             v = getattr(target, f, None)
             if isinstance(v, str) and v:
-                setattr(target, f, _fix_name(v))
+                clean = _limpia(f, v)
+                if clean != v:
+                    setattr(target, f, clean)
             elif isinstance(v, (dict, list)) and v:
                 # Campos JSONB (p.ej. schema_jsonld): era el hueco por donde se
                 # colaba "Robe Iniesta". Se sanea el JSON serializado.
                 raw = _json.dumps(v, ensure_ascii=False)
-                clean = _fix_name(raw)
+                clean = _limpia(f, raw)
                 if clean != raw:
                     setattr(target, f, _json.loads(clean))
     return _listener
@@ -2401,15 +2537,40 @@ def _make_name_policy_listener(fields: tuple[str, ...]):
 # entidades (Person/Artist/Album/Band), que antes quedaban fuera. Ojo: para
 # persons.full_name lo correcto es "Roberto Iniesta"; la política solo actúa si
 # aparece literalmente "Robe Iniesta" (previene la violación, no toca "Roberto").
-for _model, _fields in (
-    (SeoContent, ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld", "entities")),
-    (Post, ("body_md", "title", "excerpt", "meta_title", "meta_description")),
-    (InstagramQueueItem, ("caption",)),
-    (Person, ("full_name", "stage_name", "bio_short", "bio_long")),
-    (Artist, ("name",)),
-    (Album, ("title",)),
-    (Band, ("name",)),
+# Los nombres (full_name, stage_name, títulos de disco, grupos) solo pasan por la
+# política de nombre: la raya se quita del TEXTO que se publica.
+_SEO = ("body_md", "meta_title", "meta_description", "h1", "schema_jsonld", "entities")
+_POST = ("body_md", "title", "excerpt", "meta_title", "meta_description")
+for _model, _fields, _rayas, _rayas_titulo in (
+    (SeoContent, _SEO, _SEO, ()),
+    (Post, _POST, _POST, ()),
+    (InstagramQueueItem, ("caption",), ("caption",), ()),
+    (Person, ("full_name", "stage_name", "bio_short", "bio_long"), ("bio_short", "bio_long"), ()),
+    (Artist, ("name",), (), ()),
+    (Album, ("title",), (), ()),
+    (Band, ("name",), (), ()),
+    (RelatedVideo, (), (), ("title",)),
+    (Song, (), (), ("youtube_title",)),
 ):
-    _lst = _make_name_policy_listener(_fields)
+    _lst = _make_name_policy_listener(_fields, rayas=_rayas, rayas_titulo=_rayas_titulo)
     _event.listen(_model, "before_insert", _lst)
     _event.listen(_model, "before_update", _lst)
+
+
+# El título de un post (su H1 y sus tarjetas) con mayúsculas españolas y «»
+# (12-11-2026): los posts se crean desde ocho sitios y salían en Title Case de
+# molde. Solo cuando el título es nuevo o cambia: lo publicado no se reescribe solo.
+def _titulo_post_listener(mapper, connection, target):  # noqa: ANN001
+    from sqlalchemy import inspect as _inspect
+
+    from app.services.seo_style import titulo_post_a_la_espanola
+
+    estado = _inspect(target)
+    if estado.persistent and not estado.attrs.title.history.has_changes():
+        return
+    if target.title and target.body_md:
+        target.title = titulo_post_a_la_espanola(target.title, target.body_md)
+
+
+_event.listen(Post, "before_insert", _titulo_post_listener)
+_event.listen(Post, "before_update", _titulo_post_listener)

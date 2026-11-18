@@ -113,14 +113,22 @@ def download_audio(video_id: str, tmpdir: str, url: str | None = None) -> str | 
     sepa leer (un episodio de iVoox, por ejemplo)."""
     url = url or f"https://www.youtube.com/watch?v={video_id}"
     out_tmpl = os.path.join(tmpdir, "audio.%(ext)s")
-    subprocess.run(
+    res = subprocess.run(
         # `--js-runtimes`: YouTube firma las URLs con un desafío en JavaScript y
         # sin intérprete la descarga acaba en 403. yt-dlp solo habilita `deno`
         # por defecto; aquí se le ofrece lo que haya instalado.
         ["yt-dlp", "-f", "bestaudio", "--no-playlist", "--quiet", "--no-warnings",
          *_flags_runtime_js(), "-o", out_tmpl, url],
-        check=True,
+        capture_output=True, text=True,
     )
+    if res.returncode != 0:
+        # Con `check=True` a prod solo llegaba «returned non-zero exit status 1» y
+        # el motivo (restricción de edad, vídeo privado, el extractor de iVoox) se
+        # perdía: sin él no se distingue lo que tiene arreglo de lo que no.
+        errores = [ln for ln in (res.stderr or "").splitlines() if "ERROR" in ln]
+        raise RuntimeError("yt-dlp: " + (" | ".join(errores[-3:]) or
+                                         (res.stderr or "").strip()[-400:] or
+                                         f"código {res.returncode}"))
     files = [f for f in os.listdir(tmpdir) if f.startswith("audio.")]
     return os.path.join(tmpdir, files[0]) if files else None
 

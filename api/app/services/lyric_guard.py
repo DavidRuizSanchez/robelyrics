@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from app.services.link_policy import ANCHOR
+
 logger = logging.getLogger(__name__)
 
 # Umbrales del matcher fuzzy (calibrados con letras reales del corpus).
@@ -47,7 +49,8 @@ _ATTRIB_WINDOW = 420    # chars antes de la cita donde buscar la canción atribu
 # Indica que lo entrecomillado es una LETRA aunque no haya título justo al lado.
 _LYRIC_HINT = re.compile(
     r"\b(canta|cantaba|verso|versos|letra|estribillo|reza la (?:letra|cancion)|"
-    r"dice (?:la|el) (?:cancion|tema|estribillo)|en la cancion)\b",
+    r"dice (?:la|el) (?:cancion|tema|estribillo)|en la cancion|"
+    r"(?:cancion|tema|estribillo|letra) (?:dice|decia|cuenta|reza))\b",
     re.IGNORECASE,
 )
 
@@ -166,7 +169,7 @@ def _unwrap_md_links(s: str) -> str:
     """`[texto](url)` → `texto`. Un enlace markdown con el TÍTULO de una canción
     como ancla no es un verso citado; sin desenvolverlo, la URL contamina la
     comparación y produce falsos positivos."""
-    return re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s or "")
+    return re.sub(r"\[(" + ANCHOR + r")\]\([^)]*\)", r"\1", s or "")
 
 
 def _mask_link_urls(s: str) -> str:
@@ -205,7 +208,33 @@ def _title_occurrences(body_norm: str, titles_norm: list[str]) -> list[tuple[int
 
 
 _ALBUM_WORD = re.compile(r"(?:^|\s)(?:disco|album|lp|ep|elepe)\s$")
-_MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)\n]*)\)")
+_CITA_PREVIA = re.compile(r"«[^«»\n]*»|\"[^\"\n]*\"|“[^”\n]*”")
+_FIN_DE_FRASE = re.compile(r"[.!?…](?=\s)|\n")
+
+
+def _es_declaracion(antes: str) -> bool:
+    """¿La frase que abre la cita la presenta como algo que alguien DIJO?"""
+    frase = _CITA_PREVIA.sub(" X ", antes or "")
+    cortes = list(_FIN_DE_FRASE.finditer(frase))
+    if cortes:
+        frase = frase[cortes[-1].end():]
+    return bool(_DECLARACION.search(frase)) and not _LYRIC_HINT.search(normalize(frase))
+
+
+# Lo entrecomillado es lo que alguien DIJO (verbo de habla justo antes de abrir la
+# cita): «Robe explicó que «el violín es otro instrumento más»». Medido el 18-11-2026
+# en el aniversario de «Destrozares»: dos declaraciones de Robe salían como versos
+# «inventados» de la canción homónima, mencionada unas líneas antes.
+_DECLARACION = re.compile(
+    # Solo pasados de persona: «dice», «cuenta» o «explica» valen también para una
+    # canción («la canción dice: …») y abrirían un hueco a un verso inventado.
+    r"\b(?:dijo|explicó|contó|declaró|respondió|afirmó|"
+    r"comentó|reconoció|aseguró|añadió|señaló|confesó|resumió|vinculó|apuntó|"
+    r"recordó|insistió|admitió|comparó|matizó|precisó|sostuvo|opinó|aclaró|"
+    r"relató|detalló|bromeó|zanjó|defendió|explicaba|remitió)\b",
+    re.IGNORECASE,
+)
+_MD_LINK = re.compile(r"\[(" + ANCHOR + r")\]\(([^)\n]*)\)")
 
 
 def _album_mention_spans(body_md: str, body_norm: str, orig_to_norm: dict[int, int],
@@ -364,12 +393,26 @@ def complete_verses(db, body_md: str) -> str:
     matches = list(re.finditer(r'["“«]([^"”»\n]{6,240})["”»]', body_md))
     if not matches:
         return body_md
+    # Un TÍTULO entre comillas no es un verso citado. Sin esto, «Hoy al mundo renuncio»
+    # se «completaba» a «Y no ver más que anuncios de mierda / Pero hoy al mundo
+    # renuncio»: el tracklist del aniversario de «Destrozares» salió en versos y el juez
+    # lo rechazó por eso (18-11-2026). Afectaba a todo post que nombrara canciones.
+    titulos = {normalize(s["title"]) for s in songs if s.get("title")}
+    try:
+        from sqlalchemy import select as _select
+
+        from app.db.models import Album as _Album
+        titulos |= {normalize(t) for t in db.execute(_select(_Album.title)).scalars() if t}
+    except Exception:  # noqa: BLE001
+        pass
     body = body_md
     for m in reversed(matches):  # de atrás→delante para no invalidar posiciones
         inner = m.group(1).strip()
         qn = normalize(_unwrap_md_links(inner))
         qtok = set(qn.split())
         if len(qtok) < 3:
+            continue
+        if qn in titulos:
             continue
         completions = set()
         for s in songs:
@@ -456,6 +499,16 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
     # Títulos (canción + álbum) para descartar citas que son NOMBRES de obra, no
     # versos ("Destrozares, Canciones para el Final de los Tiempos" es un disco).
     title_set = set(titles_norm) | {normalize(s.album) for s in songs if s.album}
+    # Todos los discos, también los que no tienen filas `Song` propias (directos y
+    # recopilatorios viven en `album_tracks`): «Bienvenidos al temporal» es un disco
+    # y además un verso de «Puta humanidad», y citado como disco salía «misatribuido».
+    try:
+        from sqlalchemy import select as _select
+
+        from app.db.models import Album as _Album
+        title_set |= {normalize(t) for t in db.execute(_select(_Album.title)).scalars() if t}
+    except Exception:  # noqa: BLE001 — sin la tabla, se sigue con lo de las canciones
+        pass
     title_tok = {t: frozenset(t.split()) for t in title_set}
 
     # Para localizar menciones de canción usamos el body con las URLs de los
@@ -474,6 +527,13 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
 
     report = LyricGuardReport()
     for quote, start in extract_quotes(body_md):
+        # ¿Es lo que alguien DIJO? Se mira la FRASE en la que va la cita (desde el último
+        # punto o salto de línea, con las citas anteriores neutralizadas): si trae un
+        # verbo de habla y ninguna pista de letra («canta», «la canción dice»), es una
+        # declaración. Un punto o un título en otra frase cortan (asesor, 18-11-2026);
+        # una ventana fija de caracteres no bastaba («afirmó que…» a 90 caracteres,
+        # «remitió… para explicar «Destrozares»: «…»»).
+        es_declaracion = _es_declaracion(body_md[max(0, start - 240):start])
         q_norm = normalize(quote)
         q_words = q_norm.split()
         if len(q_words) < _MIN_QUOTE_WORDS:
@@ -507,6 +567,16 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
         is_lyricish = attributed is not None or bool(_LYRIC_HINT.search(pre_context))
         if not is_lyricish:
             continue  # cita no ligada a canción → no es asunto del guardia de letra
+        # Una DECLARACIÓN («Robe explicó que «…»») no es un verso, aunque haya una
+        # canción nombrada cerca. Solo se deja pasar si de verdad no es letra: si la
+        # frase ES un verso de alguna canción, sigue el camino de siempre (una letra
+        # presentada como declaración también hay que mirarla). Un parecido a medias no
+        # basta: «lo que vemos alrededor» se parecía a un verso de «Destrozares».
+        if es_declaracion and not any(
+                _overlap(q_tokens, s.tokens) >= 0.5
+                and best_ratio(q_norm, s.lyrics_norm) >= _OK_RATIO
+                for s in with_lyrics):
+            continue
 
         attr_song = by_title.get(attributed) if attributed else None
 

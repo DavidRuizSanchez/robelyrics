@@ -136,7 +136,15 @@ def bloque_prohibidas() -> str:
         "FRASES PROHIBIDAS (se rechaza el texto automáticamente si aparece "
         "alguna, en cualquier forma): "
         + "; ".join(f"«{f}»" for f in EJEMPLOS_PROHIBIDOS)
-        + ". No son ejemplos de lo que evitar: son literales vetados."
+        + ". No son ejemplos de lo que evitar: son literales vetados.\n"
+        "SI UN DATO NO ESTÁ EN EL MATERIAL, NO SE MENCIONA. Nunca escribas que "
+        "falta: nada de «el material disponible no confirma…», «no permite "
+        "precisar más», «sin inventar», «no aporta datos». Quien lee no sabe "
+        "que hay material ni proceso: calla lo que no sabes y cuenta lo que sí. "
+        "No uses la palabra «material» para hablar de tus fuentes ni digas de "
+        "dónde sale un dato («según el material», «el material sitúa»…). "
+        "Tampoco hables de «tramos», «segmentos», «cortes» ni de cómo se eligió "
+        "el clip: habla de la música."
     )
 
 
