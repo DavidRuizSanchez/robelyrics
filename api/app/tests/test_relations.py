@@ -225,8 +225,10 @@ def test_lo_emitido_pasa_la_auditoria(cat):
                                        "Organization")):
         ref = rel.resolver_ref(cat, f"{tipo}:{slug}")
         props = rel.jsonld_de(cat, tipo, ref.id, site_url=BASE)
+        # Lo de `_inv:` se pinta y no se marca (`fusionarVerificadas` lo salta).
         nodo = {"@context": "https://schema.org", "@type": tipo_ld,
-                "@id": f"{BASE}{path}#{rel.TIPOS[tipo][1]}", **props}
+                "@id": f"{BASE}{path}#{rel.TIPOS[tipo][1]}",
+                **{k: v for k, v in props.items() if not k.startswith(rel.PREFIJO_VISIBLE)}}
         pag = ja.analizar([nodo], path)
         assert ja.problemas_de_pagina(pag, ja.cargar_vocabulario()) == [], (slug, props)
 
@@ -333,3 +335,48 @@ def test_las_relaciones_no_tocan_la_regla_de_enlazado(cat):
                          {"kind": "creditos_disco", "tier": "T1", "evidencia": "x"}]))
     alen = rel.resolver_ref(cat, "person:alen")
     assert "/grupos/marea" not in plantilla_de(cat, "person", alen.id, {})
+
+
+# --- Inversas visibles y de schema.org (plan de relaciones, 18-11-2026) ------------
+def test_lo_que_schema_no_invierte_se_ve_pero_no_se_marca(cat):
+    """Plasencia no decía «aquí nació Alén»: `birthPlace` no tiene inversa en schema.org.
+    Se pinta con la clave `_inv:` (la web no la fusiona en el JSON-LD)."""
+    _guardar(cat, _p("person:alen", "birthPlace", "place:plasencia", estado="verificada",
+                     verificado_por="david", fuentes=[
+                         {"kind": "creditos_disco", "tier": "T1", "evidencia": "x"}]))
+    plasencia = rel.resolver_ref(cat, "place:plasencia")
+    out = rel.jsonld_de(cat, "place", plasencia.id, site_url=BASE)
+    assert list(out) == ["_inv:birthPlace"]
+    assert out["_inv:birthPlace"][0]["@id"] == f"{BASE}/personas/alen#person"
+
+
+def test_contained_in_place_se_marca_en_los_dos_sentidos(cat):
+    """`containsPlace` es la inversa oficial de `containedInPlace` en schema.org."""
+    cat.add(Place(slug="torre", name="Torre Lucía", kind="building", geo_lat=40.0, geo_lng=-6.0))
+    cat.commit()
+    _guardar(cat, _p("place:torre", "containedInPlace", "place:plasencia", estado="verificada",
+                     verificado_por="david", fuentes=[
+                         {"kind": "creditos_disco", "tier": "T1", "evidencia": "x"}]))
+    plasencia = rel.resolver_ref(cat, "place:plasencia")
+    out = rel.jsonld_de(cat, "place", plasencia.id, site_url=BASE)
+    assert out["containsPlace"][0]["name"] == "Torre Lucía"
+    nodo = {"@context": "https://schema.org", "@type": "Place",
+            "@id": f"{BASE}/lugares/plasencia#place",
+            **{k: v for k, v in out.items() if not k.startswith("_")}}
+    pag = ja.analizar([nodo], "/lugares/plasencia")
+    assert ja.problemas_de_pagina(pag, ja.cargar_vocabulario()) == []
+
+
+def test_el_yaml_automatico_tambien_esta_bien_formado():
+    from scripts.seed_relaciones import cargar_propuestas
+
+    try:
+        ruta = ja.ruta_data("relaciones_auto.yaml")
+    except FileNotFoundError:
+        pytest.skip("relaciones_auto.yaml llega con el PR del descubrimiento (#145)")
+    props = cargar_propuestas(ruta)
+    assert props
+    for p in props:
+        assert p.fuentes and all(f.get("tier") in rel.NIVELES for f in p.fuentes), p
+        if p.estado == "verificada":
+            assert p.verificado_por, p
