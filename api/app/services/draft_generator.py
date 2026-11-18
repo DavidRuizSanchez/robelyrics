@@ -1005,9 +1005,12 @@ def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
         else:
             for k, v in previo.items():
                 setattr(p, k, v)
-    if juicio.pasa and juicio.cuerpo and reescribir:
+    if juicio.cuerpo and reescribir:
         # Con el recorte del foco y el tensado del juez. Con `reescribir=False` (el backlog
         # del cron) no se toca el texto: solo se juzga (es lo que se le dijo a David).
+        # TAMBIÉN si no pasa: lo que David lee en «para tu lectura» tiene que ser lo que se
+        # juzgó. El 18-11-2026 la #417 se juzgó sin las secciones que el foco recortó y se
+        # guardó entera, con cinco menciones a Mondo Sonoro que la voz propia habría parado.
         p.body_md = juicio.cuerpo
     # Pieza CENTRAL que solo frena el juez de rigor, y en la frontera: la decide David
     # (18-11-2026: «buscar la recepción y que decidas tú»). Su lectura es el filtro final.

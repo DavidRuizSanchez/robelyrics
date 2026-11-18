@@ -316,6 +316,11 @@ CONFESIONES = (
     "resultados de búsqueda", "no está confirmado",
     # Aniversario de «Destrozares» (18-11-2026): «las fuentes no ofrecen análisis…».
     "las fuentes no ",
+    # Reescrituras del 18-11-2026 (#417 y otras): hablar del material es hablar del
+    # proceso, no del tema.
+    "el material confirma", "el material no ", "el material disponible", "el material sitúa",
+    "el material indica", "no dejó una explicación documentada",
+    "no una interpretación confirmada por robe",
 )
 _CITA = re.compile(r"«[^»]*»|\"[^\"]*\"")
 

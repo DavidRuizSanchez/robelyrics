@@ -492,3 +492,29 @@ def test_los_videos_no_cuentan_para_el_minimo(monkeypatch):
     p = _propuesta(body_md="texto corto\n\nhttps://www.youtube.com/watch?v=OcXZqMVb6lU" * 1)
     assert dg._corta(p)
     assert not dg._corta(_propuesta(kind="evergreen", source_type="seo", body_md="x"))
+
+
+def test_lo_que_se_guarda_es_lo_que_se_juzgo_aunque_no_pase(monkeypatch):
+    """#417: el foco recortó dos secciones, el juez leyó el recorte y se guardó el texto
+    entero, con cinco menciones a un medio. «Para tu lectura» tiene que enseñar lo
+    juzgado."""
+    from app.services import draft_generator as dg
+
+    monkeypatch.setattr(dg, "hechos_de_propuesta", lambda db, p: "")
+    monkeypatch.setattr(dg, "_juzgar",
+                        lambda db, p, hard: Juicio(False, "rigor", ["x"], 58, "recortado"))
+    monkeypatch.setattr(dg, "generate_proposal_draft", lambda db, p, **k: False)
+    p = _propuesta(body_md="entero con secciones fuera de foco")
+    dg.juzgar_borrador(None, p)
+    assert p.body_md == "recortado" and p.review_verdict == "para_tu_lectura"
+
+
+def test_hablar_del_material_es_una_confesion():
+    from app.services.source_guard import quitar_confesiones
+
+    texto = ("El comunicado planteó tocar una vez más. El material confirma que el plan "
+             "se anunció, no que la gira llegara a celebrarse.")
+    limpio, quitadas = quitar_confesiones(texto)
+    assert limpio == "El comunicado planteó tocar una vez más." and len(quitadas) == 1
+    # Un disco que se llama así, entre comillas, no es confesión.
+    assert quitar_confesiones("Salió «Material defectuoso» en 2011.")[1] == []
