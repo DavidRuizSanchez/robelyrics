@@ -329,6 +329,15 @@ def plantilla_de(db, entity_type: str, entity_id: int,
     elif entity_type == "person":
         for m in db.query(BandMembership).filter(BandMembership.person_id == entity_id):
             r("artist", m.artist_id)
+    elif entity_type == "band":
+        # La formación de la cabecera de `web/app/grupos/[slug]` (miembros con relación
+        # verificada y ficha publicada).
+        from app.db.models import Band
+        from app.routers.public import _band_members, _rutas_de_miembros
+
+        band = db.get(Band, entity_id)
+        if band is not None:
+            out |= set(_rutas_de_miembros(db, band, _band_members(band.members)).values())
     elif entity_type == "artist":
         if rutas.get(("artist", entity_id)):
             out.add("/discografia" + rutas[("artist", entity_id)])

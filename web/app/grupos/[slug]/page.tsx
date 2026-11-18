@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
@@ -58,6 +59,9 @@ type BandDetail = {
   image_license: string | null;
   image_source_url: string | null;
   members: string[];
+  // Ruta de la ficha de cada miembro (clave: el texto de `members`), solo con la
+  // relación de pertenencia verificada.
+  members_rutas?: Record<string, string>;
   entities: ResolvedEntity[];
   related_videos: PublicRelatedVideo[];
   seo_body: string | null;
@@ -134,8 +138,11 @@ function buildJsonLd(detail: BandDetail): Record<string, unknown> {
     schema.dissolutionDate = String(detail.dissolved_year);
   if (detail.image_url) schema.image = detail.image_url;
   if (sameAs.length > 0) schema.sameAs = sameAs;
-  if (detail.members.length > 0) {
-    schema.member = detail.members.map((m) => ({
+  // Un miembro con ficha ya lo marcan las relaciones verificadas (con su @id, su rol y
+  // sus fechas): aquí solo van los que no la tienen, para no marcarlo dos veces.
+  const sinFicha = detail.members.filter((m) => !detail.members_rutas?.[m]);
+  if (sinFicha.length > 0) {
+    schema.member = sinFicha.map((m) => ({
       "@type": "Person",
       name: m.split(" · ")[0],
     }));
@@ -282,7 +289,21 @@ export default async function GrupoPage({
                   <div className="flex gap-4">
                     <dt className="w-32">formación</dt>
                     <dd className="text-ink-dim normal-case tracking-normal font-serif">
-                      {detail.members.join(" · ")}
+                      {detail.members.map((m, i) => {
+                        const href = detail.members_rutas?.[m];
+                        return (
+                          <span key={m}>
+                            {i > 0 && " · "}
+                            {href ? (
+                              <Link href={href} data-cursor="hover" className="text-accent hover:underline">
+                                {m}
+                              </Link>
+                            ) : (
+                              m
+                            )}
+                          </span>
+                        );
+                      })}
                     </dd>
                   </div>
                 )}
@@ -305,9 +326,18 @@ export default async function GrupoPage({
             </div>
           </header>
 
-          <RelacionesVerificadas relaciones={detail.jsonld_verificadas} cuerpo={detail.seo_body} />
+          <RelacionesVerificadas
+            relaciones={detail.jsonld_verificadas}
+            cuerpo={detail.seo_body}
+            excluir={Object.values(detail.members_rutas ?? {})}
+          />
 
-          {detail.seo_body && <MarkdownArticle markdown={detail.seo_body} />}
+          {detail.seo_body && (
+            <MarkdownArticle
+              markdown={detail.seo_body}
+              yaEnlazados={Object.values(detail.members_rutas ?? {})}
+            />
+          )}
         </article>
 
         <RelatedVideos videos={detail.related_videos} />

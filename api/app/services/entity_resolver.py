@@ -106,9 +106,14 @@ def _resolve_one(
             persona_publicada(),
         )
         person = q.first()
-        if person is None and slug_hint is None:
-            # fuzzy por stage_name o full_name normalizado
+        if person is None:
+            # fuzzy por stage_name o full_name normalizado. Una pista de slug que no
+            # casa no descarta el nombre (el modelo escribe `robe` y la ficha es
+            # `robe-iniesta`: 12 menciones de Robe sin @id, 18-11-2026), pero la ficha
+            # tiene que empezar por ella: «Fito» con pista `fito-paez` no es Fito Cabrales.
             for p in db.query(Person).filter(persona_publicada()).all():
+                if slug_hint and not (p.slug == slug_hint or p.slug.startswith(slug_hint + "-")):
+                    continue
                 if _normalize(p.stage_name or "") == norm_name or _normalize(p.full_name) == norm_name:
                     person = p
                     break
@@ -129,6 +134,27 @@ def _resolve_one(
         if artist is not None:
             canonical_id = f"{site_url}/{artist.slug}#musicgroup"
             url = f"{site_url}/{artist.slug}"
+            from_corpus = True
+
+    if not from_corpus and e_type in {"MusicGroup", "Organization"}:
+        # Grupos y sellos con ficha publicada (`bands`). Sin ella no existen y su @id
+        # apuntaría a un 404, igual que las personas.
+        from app.db.models import Band
+        from app.services.person_visibility import banda_publicada
+
+        band = None
+        if slug_hint:
+            band = db.query(Band).filter(Band.slug == slug_hint, banda_publicada()).first()
+        if band is None:
+            band = next((b for b in db.query(Band).filter(banda_publicada()).all()
+                         if _normalize(b.name) == norm_name), None)
+        if band is not None:
+            if band.kind == "label":
+                canonical_id = f"{site_url}/sellos/{band.slug}#organization"
+                url = f"{site_url}/sellos/{band.slug}"
+            else:
+                canonical_id = f"{site_url}/grupos/{band.slug}#musicgroup"
+                url = f"{site_url}/grupos/{band.slug}"
             from_corpus = True
 
     if not from_corpus and e_type in {"MusicAlbum"}:

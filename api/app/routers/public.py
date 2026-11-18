@@ -1754,6 +1754,9 @@ class PublicBandDetailOut(PublicBandListItem):
     image_license: str | None = None
     image_source_url: str | None = None
     members: list[str] = []
+    # Ruta de la ficha de cada miembro de `members` (por su nombre tal cual sale ahí),
+    # solo si la relación de pertenencia está verificada y la persona tiene ficha.
+    members_rutas: dict[str, str] = {}
     seo_body: str | None = None
     # Vídeos embebidos EN el cuerpo con metadatos reales (título, fecha), para su
     # VideoObject. Solo los que tienen ficha en `related_videos`.
@@ -1780,6 +1783,40 @@ def _band_members(raw) -> list[str]:
             if name:
                 role = m.get("role") or m.get("rol")
                 out.append(f"{name} · {role}" if role else name)
+    return out
+
+
+def _rutas_de_miembros(db: Session, band, miembros: list[str]) -> dict[str, str]:
+    """Enlaza la formación por IDENTIDAD, no por nombre suelto: solo se buscan las
+    personas con una relación `member`/`memberOf` VERIFICADA con este grupo, y dentro de
+    ellas el nombre de la formación tiene que ser su nombre artístico o su nombre
+    completo (o el principio de este: «Rosendo Mercado» es Rosendo Mercado Ruiz)."""
+    from app.db.models import EntityRelation, Person  # lazy
+    from app.services.entity_resolver import _normalize  # lazy
+    from app.services.person_visibility import ids_publicadas  # lazy
+
+    if not miembros:
+        return {}
+    ids: set[int] = set()
+    for r in db.query(EntityRelation).filter(EntityRelation.status == "verificada",
+                                             EntityRelation.predicate.in_(("member", "memberOf"))):
+        if r.subject_type == "band" and r.subject_id == band.id and r.object_type == "person":
+            ids.add(r.object_id)
+        elif r.object_type == "band" and r.object_id == band.id and r.subject_type == "person":
+            ids.add(r.subject_id)
+    ids &= ids_publicadas(db)
+    if not ids:
+        return {}
+    personas = db.query(Person).filter(Person.id.in_(ids)).all()
+    out: dict[str, str] = {}
+    for m in miembros:
+        nombre = _normalize(m.split(" · ")[0])
+        for p in personas:
+            completo = _normalize(p.full_name or "")
+            if nombre and (nombre == _normalize(p.stage_name or "") or nombre == completo
+                           or completo.startswith(nombre + " ")):
+                out[m] = f"/personas/{p.slug}"
+                break
     return out
 
 
@@ -1848,6 +1885,7 @@ def public_band_detail(
         image_license=band.image_license,
         image_source_url=band.image_source_url,
         members=_band_members(band.members),
+        members_rutas=_rutas_de_miembros(db, band, _band_members(band.members)),
         seo_body=seo.body_md if seo else None,
         seo_body_videos=_body_videos(db, seo.body_md if seo else None),
         seo_meta_title=seo.meta_title if seo else None,
