@@ -178,5 +178,10 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
             return Juicio(False, "facts",
                           [f"{x.claim.type}: {x.claim.subject}" for x in rep.to_review[:5]],
                           v.score, cuerpo)
+        if rep.sin_comprobar:
+            # Al preparar hay tiempo: lo que no se pudo comprobar no pasa en abierto.
+            return Juicio(False, "facts",
+                          [f"sin comprobar (buscador caído): {x.claim.text[:120]}"
+                           for x in rep.sin_comprobar[:5]], v.score, cuerpo)
 
     return rechazo_rigor or Juicio(True, None, v.reasons, v.score, cuerpo)

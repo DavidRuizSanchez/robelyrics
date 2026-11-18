@@ -109,6 +109,15 @@ class FactCheckReport:
         )]
 
     @property
+    def sin_comprobar(self) -> list[Verdict]:
+        """Datos concretos (riesgo alto) que no se pudieron comprobar porque la búsqueda
+        web falló. No mandan a revisión el día de publicar (una caída de DataForSEO no
+        puede parar la cola entera), pero al PREPARAR un borrador sí paran: el 18-11-2026,
+        con el buscador caído toda la tarde, pasó «grabado en El Cielo, Madrid», un estudio
+        que no está en ninguna fuente (Wikipedia dice Estudio Uno y Tresnueces)."""
+        return [v for v in self.verdicts if v.source == "sin_red" and v.claim.risk == "high"]
+
+    @property
     def corrections(self) -> list[Verdict]:
         """Todo lo que rompe la limpieza (auto-corregible + a revisar)."""
         return self.autofixes + self.to_review
@@ -571,7 +580,7 @@ def _resolve_web(claim: Claim) -> Verdict:
     # obra (lo haría con `work_exists`) ni manda a revisión; queda sin comprobar.
     if res.get("sin_red"):
         return Verdict(claim, "unverifiable", evidence="sin comprobar: la búsqueda web falló",
-                       source="skipped")
+                       source="sin_red")
     verdict = res.get("verdict")
     ev = res.get("evidence", "")
     if verdict == "supported":

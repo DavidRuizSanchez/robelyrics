@@ -44,7 +44,7 @@ def test_lo_que_no_consta_no_se_pide_y_el_juez_lo_sabe():
 
 def test_lo_buscable_se_busca_antes_y_solo_cuenta_si_aparece():
     pend = {p.clave for p in piece_checklist.pendientes("album-anniversary", HECHOS)}
-    assert pend == {"grabacion", "sonido"}
+    assert pend == {"grabacion", "sonido", "curiosidades"}
     sin = piece_checklist.liston("album-anniversary", HECHOS)
     con = piece_checklist.liston("album-anniversary", HECHOS, {"grabacion"})
     assert "grabacion" not in {p.clave for p in sin.exigibles}
@@ -275,7 +275,7 @@ def test_con_la_web_caida_una_obra_no_se_refuta(monkeypatch):
     claim = fact_check.Claim(type="work_exists", subject="Destrozares", text="Robe publicó Destrozares",
                              risk="high")
     v = fact_check._resolve_web(claim)
-    assert v.status == "unverifiable" and v.source == "skipped"
+    assert v.status == "unverifiable" and v.source == "sin_red"
     rep = fact_check.FactCheckReport(verdicts=[v])
     assert rep.to_review == []
 
@@ -518,3 +518,24 @@ def test_hablar_del_material_es_una_confesion():
     assert limpio == "El comunicado planteó tocar una vez más." and len(quitadas) == 1
     # Un disco que se llama así, entre comillas, no es confesión.
     assert quitar_confesiones("Salió «Material defectuoso» en 2011.")[1] == []
+
+
+def test_el_encargo_del_disco_no_pide_un_verso_por_cancion():
+    """David (18-11-2026): «enumerar canciones y decir los versos que tienen cansa».
+    El encargo pide dos o tres canciones con historia y busca anécdotas."""
+    from app.services.draft_generator import ESTILO_DISCO
+
+    con = piece_checklist.liston("album-anniversary", HECHOS, {"curiosidades"})
+    assert "dos o tres canciones" in con.encargo() and "NO el tracklist" in con.encargo()
+    assert "anécdotas" in con.encargo()
+    assert "canción a canción" in ESTILO_DISCO
+
+
+def test_sin_red_no_manda_a_revision_pero_al_preparar_si_para():
+    from app.services import fact_check
+
+    claim = fact_check.Claim(type="other", subject="Se nos lleva el aire",
+                             text="Se grabó en El Cielo, Madrid", risk="high")
+    v = fact_check.Verdict(claim, "unverifiable", evidence="sin comprobar", source="sin_red")
+    rep = fact_check.FactCheckReport(verdicts=[v])
+    assert rep.to_review == [] and rep.sin_comprobar == [v]

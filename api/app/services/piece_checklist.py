@@ -36,15 +36,22 @@ LISTAS: dict[str, tuple[Punto, ...]] = {
         Punto("grabacion", "la grabación: cuándo, dónde y con quién",
               ("Grabación:",),
               ("cómo se grabó el disco {t}", "estudio y producción de {t}")),
-        Punto("canciones", "las canciones clave, nombradas por su TÍTULO y con un verso "
-              "literal de su letra al comentarlas", ("Tracklist",)),
+        # David (18-11-2026), tras leer «Se nos lleva el aire»: «enumerar canciones y decir
+        # los versos que tienen cansa». Dos o tres con algo que contar, no el tracklist.
+        Punto("canciones", "dos o tres canciones con historia propia (NO el tracklist entero "
+              "ni una tras otra): por qué importan y qué quieren decir sus versos, con un "
+              "verso LITERAL explicado, nombrando la canción por su TÍTULO", ("Tracklist",)),
+        Punto("curiosidades", "las anécdotas y los detalles curiosos del disco (cómo nació, "
+              "el título, la portada, el videoclip, lo que contó Robe, los directos)", (),
+              ("anécdotas y curiosidades del disco {t}", "Robe cuenta cómo nació el disco {t}",
+               "portada y título del disco {t}", "videoclip y presentación de {t}")),
         Punto("sonido", "el sonido y la formación que lo toca", (),
               ("sonido y arreglos del disco {t}", "músicos que tocan en {t}")),
         Punto("recepcion", "cómo se recibió (primer sencillo, ventas, listas) si consta",
               ("Listas:", "Certificación:", "Primer sencillo:")),
         # La muerte de Robe NO se exige aquí (David, 18-11-2026: solo donde merece ir).
         Punto("trayectoria", "su lugar en la trayectoria (los discos de antes y de "
-              "después)", ("Discografía:",)),
+              "después), en una o dos frases", ("Discografía:",)),
     ),
 }
 

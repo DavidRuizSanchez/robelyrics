@@ -189,6 +189,22 @@ def _deep_body(
         return None
 
 
+# Cómo se escribe un post de un disco. Criterio de David (18-11-2026) tras leer «Se nos
+# lleva el aire»: «parece una concatenación de canciones y versos, sin ningún toque fan ni
+# explicación ni anécdota. Debe ser una mezcla entre exactitud técnica y comentarios sobre
+# cosas curiosas del disco». El encargo anterior pedía un verso por canción comentada y el
+# redactor tenía delante las diez letras: recorría el disco entero.
+ESTILO_DISCO = (
+    "Escribe como un fan que se lo sabe todo: mezcla la exactitud técnica (fecha, estudio, "
+    "músicos, listas) con lo curioso, la anécdota y lo que no sabe todo el mundo, y explica "
+    "por qué importa. NO recorras el disco canción a canción ni enumeres el tracklist en "
+    "prosa (la ficha del disco ya lo tiene y la enlazamos): elige dos o tres canciones con "
+    "algo que contar y explica qué quieren decir sus versos. Nada de un verso por canción ni "
+    "de versos seguidos sin explicar. Cada sección cuenta algo distinto y no repite datos. "
+    "Sin vivencias inventadas: no digas que estuviste ni que lo escuchaste."
+)
+
+
 # Motivos del editor jefe en la versión anterior; `_deep_body` los añade al encargo
 # cuando `juzgar_borrador` pide una reescritura. ContextVar para no cambiar la firma de
 # todos los generadores por kind.
@@ -404,6 +420,8 @@ def _deep_catalogo(db, p: ContentProposal, cat: tuple[str, str], *, tier: str, s
         "nuestra: no nombres medios, blogs ni analistas. Nunca hables del proceso («el "
         "material», «las fuentes»). Nada de loas vacías."
     )
+    if tipo == "album":
+        framing = f"{framing} {ESTILO_DISCO}"
     return _deep_body(db, entity_type=tipo, entity=entidad, framing=framing, tier=tier,
                       serp_guidance=serp,
                       tipo_pieza="album-historia" if (tipo, angulo) == ("album", "historia") else None)
@@ -501,8 +519,9 @@ def generate_body(db, p: ContentProposal) -> dict | None:
             framing=(
                 f"{max(years,1)} años del disco «{album.title}» "
                 f"(publicado el {album.release_date.isoformat() if album.release_date else rel_year}). "
-                "Nombra cada canción por su TÍTULO (nunca por un verso suelto) y, cuando "
-                "comentes una, cita un verso LITERAL de su [LETRA]. La voz es "
+                f"{ESTILO_DISCO} "
+                "Nombra cada canción por su TÍTULO (nunca por un verso suelto) y, si citas "
+                "un verso, que sea LITERAL de su [LETRA]. La voz es "
                 "nuestra: no nombres medios, blogs ni analistas (solo Robe se cita, con su "
                 "medio). Nunca hables del proceso: nada de «el material», «las fuentes», "
                 "«la reseña» ni «no se especifica»; lo que no sabes, no lo menciones. No "
