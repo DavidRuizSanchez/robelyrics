@@ -27,6 +27,7 @@ from scripts.seed_persons import (
     _wikidata_qid_from_wikipedia,
     _wikipedia_extract,
     _wikipedia_fulltext,
+    rehost_si_hace_falta,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -117,6 +118,7 @@ def main() -> None:
                                 band.image_source_url = img.source_page_url
                     except Exception as exc:  # noqa: BLE001
                         logger.warning("  wikidata enrich falló (%s): %s", slug, exc)
+            rehost_si_hace_falta(band)
             db.commit()
             logger.info("✓ %-22s wd=%s · bio=%s · img=%s", slug,
                         band.wikidata_id or "-", bool(band.bio_short), bool(band.image_url))
