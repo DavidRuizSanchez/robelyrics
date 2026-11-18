@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-from datetime import date, timedelta
 
 from sqlalchemy import or_, text
 
@@ -23,9 +22,6 @@ from app.db.models import ContentProposal
 from app.db.session import SessionLocal
 from app.services.draft_generator import generate_proposal_draft, juzgar_borrador
 
-# Las programadas se preparan con este margen: la de «Destrozares» estaba programada
-# desde agosto y su borrador se escribió a las 08:00 del día de publicar (18-11-2026).
-MARGEN_DIAS = 14
 CANDADO = 18112026  # pg_advisory_lock de este cron
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -45,12 +41,13 @@ def main() -> None:
         if not db.execute(text("select pg_try_advisory_lock(:k)"), {"k": CANDADO}).scalar():
             logger.info("Otra pasada sigue trabajando: esta se salta.")
             return
-        limite = date.today() + timedelta(days=MARGEN_DIAS)
+        # Toda programada sin borrador se escribe ya, sea cual sea su fecha: tras
+        # «Reescribir» en el panel, una efeméride del 10-12 no puede esperar a estar a
+        # 14 días (18-11-2026). Escribir antes no cuesta más y da margen para revisar.
         pending = (
             db.query(ContentProposal)
             .filter(or_(ContentProposal.status == "approved",
-                        (ContentProposal.status == "scheduled")
-                        & (ContentProposal.scheduled_for <= limite)))
+                        ContentProposal.status == "scheduled"))
             .filter(ContentProposal.body_md.is_(None))
             .order_by(ContentProposal.scheduled_for.nulls_last(), ContentProposal.created_at)
             .limit(args.limit)
