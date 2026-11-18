@@ -315,7 +315,7 @@ def _headings_humanos(client: OpenAI, subject: str, outline: list[dict]) -> list
     return outline
 
 
-def _material_afirmable(client: OpenAI, dossier, consultas: list[str]) -> str:
+def _material_afirmable(client: OpenAI, dossier, consultas: list[str], db=None) -> str:
     """Lo que el verificador puede dar por bueno: lo propio + lo ajeno corroborado.
 
     Hasta el 10-11-2026 el verificador recibía `hard_facts + material` con el FONDO
@@ -328,7 +328,7 @@ def _material_afirmable(client: OpenAI, dossier, consultas: list[str]) -> str:
 
     propio, fondo = separar_material(dossier.material)
     base = f"{dossier.hard_facts}\n\n{propio}"
-    verificados, descartados = corroborar(client, fondo, base, consultas)
+    verificados, descartados = corroborar(client, fondo, base, consultas, db=db)
     if descartados:
         log(f"  · fondo sin corroborar (no se puede afirmar): {len(descartados)} dato(s)")
     if verificados:

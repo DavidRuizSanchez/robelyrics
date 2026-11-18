@@ -208,7 +208,19 @@ def _title_occurrences(body_norm: str, titles_norm: list[str]) -> list[tuple[int
 
 
 _ALBUM_WORD = re.compile(r"(?:^|\s)(?:disco|album|lp|ep|elepe)\s$")
-_CONECTOR = re.compile(r"\s*(?:[,;]\s*)?(?:(?:y|e)\s+(?:que\s*)?|que\s*)?", re.IGNORECASE)
+_CITA_PREVIA = re.compile(r"«[^«»\n]*»|\"[^\"\n]*\"|“[^”\n]*”")
+_FIN_DE_FRASE = re.compile(r"[.!?…](?=\s)|\n")
+
+
+def _es_declaracion(antes: str) -> bool:
+    """¿La frase que abre la cita la presenta como algo que alguien DIJO?"""
+    frase = _CITA_PREVIA.sub(" X ", antes or "")
+    cortes = list(_FIN_DE_FRASE.finditer(frase))
+    if cortes:
+        frase = frase[cortes[-1].end():]
+    return bool(_DECLARACION.search(frase)) and not _LYRIC_HINT.search(normalize(frase))
+
+
 # Lo entrecomillado es lo que alguien DIJO (verbo de habla justo antes de abrir la
 # cita): «Robe explicó que «el violín es otro instrumento más»». Medido el 18-11-2026
 # en el aniversario de «Destrozares»: dos declaraciones de Robe salían como versos
@@ -218,7 +230,8 @@ _DECLARACION = re.compile(
     # canción («la canción dice: …») y abrirían un hueco a un verso inventado.
     r"\b(?:dijo|explicó|contó|declaró|respondió|afirmó|"
     r"comentó|reconoció|aseguró|añadió|señaló|confesó|resumió|vinculó|apuntó|"
-    r"recordó|insistió|admitió)\b[^«»\"\n]{0,80}[:,]?\s*(?:que\s*)?$",
+    r"recordó|insistió|admitió|comparó|matizó|precisó|sostuvo|opinó|aclaró|"
+    r"relató|detalló|bromeó|zanjó|defendió|explicaba|remitió)\b",
     re.IGNORECASE,
 )
 _MD_LINK = re.compile(r"\[(" + ANCHOR + r")\]\(([^)\n]*)\)")
@@ -513,22 +526,14 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
                  if not _is_album_mention(p, t, body_norm, album_spans)]
 
     report = LyricGuardReport()
-    prev_decl_end: int | None = None
-    body_t = (body_md or "").translate(_QUOTES)
     for quote, start in extract_quotes(body_md):
-        # ¿Es lo que alguien DIJO? Un verbo de habla justo antes, o la continuación de
-        # la declaración ANTERIOR a través de un conector desnudo («…» y que «…»). Con
-        # cualquier otra cosa en medio (un título, «canta», un punto) es una cita normal
-        # (asesor, 18-11-2026). Se calcula y se resetea en CADA cita, antes de cualquier
-        # `continue`, para que no herede de una cita que no le toca.
-        apertura = body_md[max(0, start - 120):start]
-        entre = (body_md[prev_decl_end:start]
-                 if prev_decl_end is not None and start >= prev_decl_end else None)
-        es_declaracion = (bool(_DECLARACION.search(apertura))
-                          and not _LYRIC_HINT.search(normalize(apertura))) or (
-            entre is not None and bool(_CONECTOR.fullmatch(entre)))
-        cierre = body_t.find('"', start + 1) if body_t[start:start + 1] == '"' else -1
-        prev_decl_end = (cierre + 1) if (es_declaracion and cierre != -1) else None
+        # ¿Es lo que alguien DIJO? Se mira la FRASE en la que va la cita (desde el último
+        # punto o salto de línea, con las citas anteriores neutralizadas): si trae un
+        # verbo de habla y ninguna pista de letra («canta», «la canción dice»), es una
+        # declaración. Un punto o un título en otra frase cortan (asesor, 18-11-2026);
+        # una ventana fija de caracteres no bastaba («afirmó que…» a 90 caracteres,
+        # «remitió… para explicar «Destrozares»: «…»»).
+        es_declaracion = _es_declaracion(body_md[max(0, start - 240):start])
         q_norm = normalize(quote)
         q_words = q_norm.split()
         if len(q_words) < _MIN_QUOTE_WORDS:
@@ -564,11 +569,12 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
             continue  # cita no ligada a canción → no es asunto del guardia de letra
         # Una DECLARACIÓN («Robe explicó que «…»») no es un verso, aunque haya una
         # canción nombrada cerca. Solo se deja pasar si de verdad no es letra: si la
-        # frase aparece en alguna canción, sigue el camino de siempre (una letra
-        # presentada como declaración también hay que mirarla).
+        # frase ES un verso de alguna canción, sigue el camino de siempre (una letra
+        # presentada como declaración también hay que mirarla). Un parecido a medias no
+        # basta: «lo que vemos alrededor» se parecía a un verso de «Destrozares».
         if es_declaracion and not any(
                 _overlap(q_tokens, s.tokens) >= 0.5
-                and best_ratio(q_norm, s.lyrics_norm) >= _REVIEW_RATIO
+                and best_ratio(q_norm, s.lyrics_norm) >= _OK_RATIO
                 for s in with_lyrics):
             continue
 

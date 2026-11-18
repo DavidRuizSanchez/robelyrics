@@ -273,6 +273,26 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
         facts.append(f"«{entity.title}» ({art.name if art else ''}, {entity.year}), tipo {entity.kind}.")
         if entity.release_date:
             facts.append(f"Fecha de publicación: {entity.release_date.isoformat()}.")
+        # Sello, producción y primer sencillo, corroborados (MusicBrainz, Wikipedia +
+        # corpus). Sin esto el aniversario de «Destrozares» se descartó por no dar el
+        # sello, que no estaba en ningún sitio de la casa (18-11-2026).
+        try:
+            from app.services.album_facts import datos_del_disco
+            facts.extend(d.linea() for d in datos_del_disco(db, entity))
+        except Exception as exc:  # noqa: BLE001 — sin datos de edición, sigue
+            logger.warning("[deep] datos de edición de %s: %s", entity.slug, exc)
+        # Un disco de Robe o de Extremoduro está en su trayectoria: un repaso que no
+        # diga que Robe murió es un defecto que el juez señala (3 descartes medidos).
+        if art is not None and art.slug in robe_facts.PERIMETER_SLUGS:
+            # Su lugar en la trayectoria, desde la BD: los discos del mismo artista por
+            # orden, con este marcado. Sin esto «su lugar en la obra» se escribía de
+            # memoria o no se escribía (el juez lo pedía en los tres aniversarios).
+            obra = [x for x in robe_facts.discography(db) if x.artist_slug == art.slug]
+            if obra:
+                facts.append("Discografía: " + "; ".join(
+                    f"{x.title} ({x.year}, {x.kind})" + (" ← ESTE DISCO" if x.title == entity.title
+                                                        else "") for x in obra) + ".")
+            facts.append(robe_facts.DEATH_SENTENCE)
 
         # El tracklist REAL. Sin esto el motor escribía sobre un disco cuyo
         # contenido no conocía, que es justo la puerta por la que se cuelan
@@ -397,6 +417,17 @@ def gather_entity_dossier(db: Session, entity_type: str, entity) -> Dossier:
 
     def _source_head(kind: str, title: str, ext: str) -> str:
         """Cabecera etiquetada de una fuente (marca transcripciones como no-declaración)."""
+        from app.services.corpus_for_queries import es_entrevista_transcrita
+        if kind == "robe_interview" and "youtu" in (ext or ""):
+            # Entrevista a Robe que viene de un VÍDEO: transcrita, con erratas posibles.
+            # Regla de David (18-11-2026): se afirma lo que cuenta, sin entrecomillar.
+            return (f"[robe_interview · {title}] (transcripción de vídeo: AFIRMA lo que Robe "
+                    "cuenta; PROHIBIDO entrecomillar sus palabras)" + f" — FUENTE: {ext}")
+        if es_entrevista_transcrita(kind, title):
+            # Material propio (David, 18-11-2026): `separar_material` no lo manda al fondo.
+            return (f"[ENTREVISTA A ROBE TRANSCRITA · {title}] (lo que Robe cuenta aquí se "
+                    "puede AFIRMAR; PROHIBIDO entrecomillar sus palabras: la transcripción "
+                    "automática trae erratas)" + (f" — FUENTE: {ext}" if ext else ""))
         if "transcript" in kind or kind in ("youtube", "directo", "concierto"):
             return (f"[TRANSCRIPCIÓN de audio/vídeo · {title}] (contiene LETRAS de canciones "
                     "cantadas y ruido de transcripción; NO es una entrevista: prohibido citar "

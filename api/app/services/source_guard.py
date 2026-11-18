@@ -84,7 +84,9 @@ _METATEXTO = re.compile(
     r"|\bel fragmento\b|\bel material (?:disponible|no|consultado)\b"
     r"|\bel an[aá]lisis disponible\b|\bel texto disponible\b"
     r"|\blas fuentes (?:consultadas|disponibles)\b|\bno corresponde adjudic"
-    r"|\ben el texto\b|\bformaci[oó]n citada\b|\bseg[uú]n el material\b",
+    r"|\ben el texto\b|\bformaci[oó]n citada\b|\bseg[uú]n el material\b"
+    # Nuestras fichas son material propio: se afirma en nuestra voz, no «según la ficha».
+    r"|\b(?:la|seg[uú]n la|en la|nuestra) ficha\b(?! t[eé]cnica)",
     re.I,
 )
 _FRASE = re.compile(r"[^.!?\n]+[.!?]?")
@@ -312,6 +314,8 @@ CONFESIONES = (
     "no detalla", "no precisa", "no documenta", "no aporta", "no concreta",
     "no establecen ninguna relación", "no establece ninguna relación",
     "resultados de búsqueda", "no está confirmado",
+    # Aniversario de «Destrozares» (18-11-2026): «las fuentes no ofrecen análisis…».
+    "las fuentes no ",
 )
 _CITA = re.compile(r"«[^»]*»|\"[^\"]*\"")
 

@@ -714,8 +714,85 @@ def check_body(
             seen.add(key)
     if not claims:
         return FactCheckReport(verdicts=[])
-    verdicts = [resolve_claim(db, c, index=idx, use_web=use_web) for c in claims]
+    verdicts = [_resolver_con_material(db, c, idx, material, use_web) for c in claims]
     return FactCheckReport(verdicts=verdicts)
+
+
+_ORDINALES = {"primer": 1, "primero": 1, "primera": 1, "segundo": 2, "segunda": 2, "tercer": 3,
+              "tercero": 3, "tercera": 3, "cuarto": 4, "cuarta": 4, "quinto": 5, "quinta": 5,
+              "sexto": 6, "sexta": 6, "séptimo": 7, "séptima": 7, "octavo": 8, "octava": 8,
+              "noveno": 9, "novena": 9, "décimo": 10, "décima": 10}
+
+
+_CARDINALES = {"seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12,
+               "trece": 13, "catorce": 14, "quince": 15, "dieciséis": 16, "diecisiete": 17,
+               "dieciocho": 18, "diecinueve": 19, "veinte": 20}
+
+
+def posicion_confirmada(material: str, texto: str) -> bool:
+    """«X» abre / cierra / ocupa el N.º lugar del disco, o «el disco tiene N canciones»,
+    contra el tracklist de los hechos duros («Tracklist (10 cortes): 1. Hoy al mundo
+    renuncio; 2. …»)."""
+    m = re.search(r"Tracklist \((\d+) cortes\)[^:]*:\s*(.+?)\.\s*$", material or "", re.M)
+    if not m:
+        return False
+    total = int(m.group(1))
+    # «contiene / reúne / tiene diez canciones (cortes, temas)»
+    # La frase ENTERA tiene que ser «X contiene/reúne/tiene/incluye N canciones»: «las
+    # diez canciones se grabaron en Berriz» no se confirma por llevar el 10 (asesor).
+    cuenta = re.fullmatch(
+        r"\s*(?:el (?:disco|álbum)|[«\"“][^«»\"”]+[»\"”]|[\w ,]{0,60}?)\s*"
+        r"(?:contiene|reúne|tiene|incluye|consta de|suma)\s+(\d{1,2}|" + "|".join(_CARDINALES)
+        + r")\s+(?:canciones|cortes|temas|pistas)\s*\.?\s*", (texto or "").lower())
+    if cuenta:
+        n = cuenta.group(1)
+        return (int(n) if n.isdigit() else _CARDINALES[n]) == total
+    titulo = re.search(r"[«\"“]([^«»\"”]+)[»\"”]", texto or "")
+    if not titulo:
+        return False
+    pistas = {_norm(t.split(". ", 1)[1].split(" [")[0]): int(t.split(". ", 1)[0])
+              for t in m.group(2).split("; ") if ". " in t and t.split(". ", 1)[0].isdigit()}
+    pos = pistas.get(_norm(titulo.group(1)))
+    if pos is None:
+        return False
+    t = (texto or "").lower()
+    if re.search(r"\babre\b|\bprimer[oa]? (?:corte|tema|lugar|canci)", t):
+        return pos == 1
+    if re.search(r"\bcierra\b|\búltim[oa]\b", t):
+        return pos == total
+    if "penúltim" in t:
+        return pos == total - 1
+    for palabra, n in _ORDINALES.items():
+        if re.search(rf"\b{palabra}\b", t):
+            return pos == n
+    num = re.search(r"\b(\d{1,2})\.?º?\s*(?:corte|tema|lugar)", t)
+    return bool(num) and pos == int(num.group(1))
+
+
+def _resolver_con_material(db, claim: Claim, idx, material: str, use_web: bool) -> Verdict:
+    """BD primero; después, el MATERIAL PROPIO de la pieza (hechos duros, fichas, letras);
+    solo lo que ninguno respalda va a la web. Medido el 18-11-2026: «Hoy al mundo
+    renuncio abre Destrozares» o la formación del disco iban a Google, salían «sin
+    verificar» y la pieza se paraba, teniéndolo en su propio tracklist y su ficha."""
+    from app.services.corpus_for_queries import tramos_con
+
+    idx_verdict = _resolve_db(idx, claim)
+    if idx_verdict is not None:
+        return idx_verdict
+    if material:
+        if posicion_confirmada(material, claim.text):
+            return Verdict(claim, "confirmed", evidence="posición en el tracklist", source="material")
+        tramos = tramos_con(material, claim.text)
+        if tramos:
+            # Los nombres juntos solo localizan el tramo; el juez decide si lo DICE
+            # (asesor, 18-11-2026: la coincidencia confirmaba afirmaciones falsas).
+            from app.services.web_verify import classify_with_evidence
+            veredicto = classify_with_evidence(claim.text, tramos)
+            if veredicto == "supported":
+                return Verdict(claim, "confirmed", evidence=tramos[:300], source="material")
+            if veredicto == "contradicted":
+                return Verdict(claim, "refuted", evidence=tramos[:300], source="web")
+    return resolve_claim(db, claim, index=idx, use_web=use_web)
 
 
 def _enforce_album_year(body_md: str, album_title: str, year: str) -> str:
