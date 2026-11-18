@@ -13,6 +13,7 @@ nada, para que un YAML a medias no deje la tabla a medias).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -103,11 +104,20 @@ def cargar(db, propuestas: list[relations.Propuesta]) -> tuple[dict[str, int], l
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--yaml", default=str(ruta_data("relaciones.yaml")))
+    # Por defecto, las dos fuentes: la curada a mano y la descubierta por
+    # `scripts.relaciones` (18-11-2026). Se validan juntas: las identidades de una
+    # pueden hacer falta para las relaciones de la otra.
+    ap.add_argument("--yaml", action="append",
+                    help="YAML a cargar (repetible). Por defecto: relaciones.yaml y "
+                         "relaciones_auto.yaml")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    propuestas = cargar_propuestas(Path(args.yaml))
+    rutas = args.yaml or [str(ruta_data("relaciones.yaml"))]
+    if not args.yaml:
+        with contextlib.suppress(FileNotFoundError):
+            rutas.append(str(ruta_data("relaciones_auto.yaml")))
+    propuestas = [p for ruta in rutas for p in cargar_propuestas(Path(ruta))]
     db = SessionLocal()
     try:
         cuenta, rechazadas = cargar(db, propuestas)
