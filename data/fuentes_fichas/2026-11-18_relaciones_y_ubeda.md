@@ -50,7 +50,7 @@ Foto: la de Commons «Sacra Capilla del Salvador, en Úbeda» no acreditó proce
 - 393 URLs con 200;
 - 1 fallo nuevo: `/personas/joaquin-sabina` cita `/lugares/ubeda#place` y la auditoría no veía la
   página, porque el sitemap estaba en caché. El sitemap se revalidó a las 00:41 UTC y ya trae
-  `/lugares/ubeda`;
+  `/lugares/ubeda`. Segunda pasada a las 00:45 UTC: 394 URLs con 200 y **0 fallos nuevos**;
 - 8 lugares sin canciones pierden adrede su `ItemList` vacío (#141): Barakaldo, Berriz, Bilbao,
   La Zubia, Madrid, Mérida, Muxika y Pamplona.
 
