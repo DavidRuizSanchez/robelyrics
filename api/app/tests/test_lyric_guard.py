@@ -279,3 +279,84 @@ def test_misatribucion_explicita_se_caza_aunque_el_post_vaya_de_esa_cancion(_cor
             '"Si te da por volver / Al venir, si te acuerdas".')
     rep = lg.check_lyrics(None, body)
     assert rep.to_review and rep.to_review[0].status == "misattributed"
+
+
+# --------------------------------------------------------------------------- #
+# Declaraciones junto a una canción (aniversario de «Destrozares», 18-11-2026)
+# --------------------------------------------------------------------------- #
+def test_declaracion_cerca_de_una_cancion_no_es_verso():
+    body = (
+        'En "So payaso" hay piano. En una entrevista, Robe explicó que '
+        '"el violín es otro instrumento más" y que "no es la guitarra lo que define el rock".'
+    )
+    st, rep = _statuses(body)
+    assert not rep.blocking and not rep.to_review, st
+
+
+def test_verso_inventado_tras_canta_sigue_bloqueando():
+    body = ('En "So payaso", Robe dijo que era su favorita y luego canta '
+            '"te voy a colgar de las piernas en la plaza".')
+    _, rep = _statuses(body)
+    assert rep.blocking
+
+
+def test_la_cancion_dice_no_cuenta_como_declaracion():
+    body = 'En "So payaso" la canción dice: "te voy a colgar de las piernas en la plaza".'
+    _, rep = _statuses(body)
+    assert rep.blocking
+
+
+def test_letra_presentada_como_declaracion_se_sigue_mirando():
+    # Si la frase SÍ es un verso (de otra canción), no se salta: sigue el camino de siempre.
+    body = 'En "So payaso", Robe dijo: "Si te vas, me quedo en esta calle sin salida".'
+    st, _ = _statuses(body)
+    assert st["Si te vas, me quedo en esta calle sin salida"] in ("ok", "misattributed", "review")
+
+
+class _DbDiscos:
+    """Lo justo para `select(Album.title)`: devuelve los títulos de los discos."""
+
+    def __init__(self, titulos):
+        self.titulos = titulos
+
+    def execute(self, _stmt):
+        return self
+
+    def scalars(self):
+        return self.titulos
+
+
+def test_disco_sin_canciones_propias_es_titulo_no_verso():
+    # «Bienvenidos al temporal» es un directo (sin filas Song) y también un verso.
+    body = ('Después de "So payaso", Robe publicó el directo "Bienvenidos al temporal" '
+            '(2018).')
+    rep = lg.check_lyrics(_DbDiscos(["Bienvenidos al temporal"]), body)
+    assert not rep.blocking and not rep.to_review
+
+
+def test_tras_una_declaracion_un_titulo_corta_la_herencia():
+    # Asesor 18-11: «Robe dijo: «…». En «So payaso»: «verso inventado»» no puede colar.
+    body = ('Robe dijo: "esto es otra cosa distinta". En "So payaso": '
+            '"te voy a colgar de las piernas en la plaza".')
+    _, rep = _statuses(body)
+    assert rep.blocking
+
+
+def test_blockquote_tras_declaracion_no_hereda():
+    body = ('En "So payaso", Robe explicó que "el violín es otro instrumento más".\n'
+            '> te voy a colgar de las piernas en la plaza mayor')
+    _, rep = _statuses(body)
+    assert rep.blocking
+
+
+def test_complete_verses_no_convierte_un_titulo_en_verso(monkeypatch):
+    """«Hoy al mundo renuncio» es el TÍTULO; antes se «completaba» al verso entero y el
+    tracklist del aniversario de «Destrozares» salió en versos (18-11-2026)."""
+    linea = "Y no ver más que anuncios de mierda / Pero hoy al mundo renuncio"
+    corpus = [{"title": "Hoy al mundo renuncio",
+               "lines": [("Y no ver más que anuncios de mierda", lg.normalize("Y no ver más que anuncios de mierda")),
+                         ("Pero hoy al mundo renuncio", lg.normalize("Pero hoy al mundo renuncio"))],
+               "tokens": frozenset(lg.normalize(linea.replace("/", " ")).split())}]
+    monkeypatch.setattr(lg, "_load_song_lines", lambda db: corpus)
+    body = "El disco abre con «Hoy al mundo renuncio» y sigue."
+    assert lg.complete_verses(None, body) == body

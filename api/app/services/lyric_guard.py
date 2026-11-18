@@ -49,7 +49,8 @@ _ATTRIB_WINDOW = 420    # chars antes de la cita donde buscar la canción atribu
 # Indica que lo entrecomillado es una LETRA aunque no haya título justo al lado.
 _LYRIC_HINT = re.compile(
     r"\b(canta|cantaba|verso|versos|letra|estribillo|reza la (?:letra|cancion)|"
-    r"dice (?:la|el) (?:cancion|tema|estribillo)|en la cancion)\b",
+    r"dice (?:la|el) (?:cancion|tema|estribillo)|en la cancion|"
+    r"(?:cancion|tema|estribillo|letra) (?:dice|decia|cuenta|reza))\b",
     re.IGNORECASE,
 )
 
@@ -207,6 +208,19 @@ def _title_occurrences(body_norm: str, titles_norm: list[str]) -> list[tuple[int
 
 
 _ALBUM_WORD = re.compile(r"(?:^|\s)(?:disco|album|lp|ep|elepe)\s$")
+_CONECTOR = re.compile(r"\s*(?:[,;]\s*)?(?:(?:y|e)\s+(?:que\s*)?|que\s*)?", re.IGNORECASE)
+# Lo entrecomillado es lo que alguien DIJO (verbo de habla justo antes de abrir la
+# cita): «Robe explicó que «el violín es otro instrumento más»». Medido el 18-11-2026
+# en el aniversario de «Destrozares»: dos declaraciones de Robe salían como versos
+# «inventados» de la canción homónima, mencionada unas líneas antes.
+_DECLARACION = re.compile(
+    # Solo pasados de persona: «dice», «cuenta» o «explica» valen también para una
+    # canción («la canción dice: …») y abrirían un hueco a un verso inventado.
+    r"\b(?:dijo|explicó|contó|declaró|respondió|afirmó|"
+    r"comentó|reconoció|aseguró|añadió|señaló|confesó|resumió|vinculó|apuntó|"
+    r"recordó|insistió|admitió)\b[^«»\"\n]{0,80}[:,]?\s*(?:que\s*)?$",
+    re.IGNORECASE,
+)
 _MD_LINK = re.compile(r"\[(" + ANCHOR + r")\]\(([^)\n]*)\)")
 
 
@@ -366,12 +380,26 @@ def complete_verses(db, body_md: str) -> str:
     matches = list(re.finditer(r'["“«]([^"”»\n]{6,240})["”»]', body_md))
     if not matches:
         return body_md
+    # Un TÍTULO entre comillas no es un verso citado. Sin esto, «Hoy al mundo renuncio»
+    # se «completaba» a «Y no ver más que anuncios de mierda / Pero hoy al mundo
+    # renuncio»: el tracklist del aniversario de «Destrozares» salió en versos y el juez
+    # lo rechazó por eso (18-11-2026). Afectaba a todo post que nombrara canciones.
+    titulos = {normalize(s["title"]) for s in songs if s.get("title")}
+    try:
+        from sqlalchemy import select as _select
+
+        from app.db.models import Album as _Album
+        titulos |= {normalize(t) for t in db.execute(_select(_Album.title)).scalars() if t}
+    except Exception:  # noqa: BLE001
+        pass
     body = body_md
     for m in reversed(matches):  # de atrás→delante para no invalidar posiciones
         inner = m.group(1).strip()
         qn = normalize(_unwrap_md_links(inner))
         qtok = set(qn.split())
         if len(qtok) < 3:
+            continue
+        if qn in titulos:
             continue
         completions = set()
         for s in songs:
@@ -458,6 +486,16 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
     # Títulos (canción + álbum) para descartar citas que son NOMBRES de obra, no
     # versos ("Destrozares, Canciones para el Final de los Tiempos" es un disco).
     title_set = set(titles_norm) | {normalize(s.album) for s in songs if s.album}
+    # Todos los discos, también los que no tienen filas `Song` propias (directos y
+    # recopilatorios viven en `album_tracks`): «Bienvenidos al temporal» es un disco
+    # y además un verso de «Puta humanidad», y citado como disco salía «misatribuido».
+    try:
+        from sqlalchemy import select as _select
+
+        from app.db.models import Album as _Album
+        title_set |= {normalize(t) for t in db.execute(_select(_Album.title)).scalars() if t}
+    except Exception:  # noqa: BLE001 — sin la tabla, se sigue con lo de las canciones
+        pass
     title_tok = {t: frozenset(t.split()) for t in title_set}
 
     # Para localizar menciones de canción usamos el body con las URLs de los
@@ -475,7 +513,22 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
                  if not _is_album_mention(p, t, body_norm, album_spans)]
 
     report = LyricGuardReport()
+    prev_decl_end: int | None = None
+    body_t = (body_md or "").translate(_QUOTES)
     for quote, start in extract_quotes(body_md):
+        # ¿Es lo que alguien DIJO? Un verbo de habla justo antes, o la continuación de
+        # la declaración ANTERIOR a través de un conector desnudo («…» y que «…»). Con
+        # cualquier otra cosa en medio (un título, «canta», un punto) es una cita normal
+        # (asesor, 18-11-2026). Se calcula y se resetea en CADA cita, antes de cualquier
+        # `continue`, para que no herede de una cita que no le toca.
+        apertura = body_md[max(0, start - 120):start]
+        entre = (body_md[prev_decl_end:start]
+                 if prev_decl_end is not None and start >= prev_decl_end else None)
+        es_declaracion = (bool(_DECLARACION.search(apertura))
+                          and not _LYRIC_HINT.search(normalize(apertura))) or (
+            entre is not None and bool(_CONECTOR.fullmatch(entre)))
+        cierre = body_t.find('"', start + 1) if body_t[start:start + 1] == '"' else -1
+        prev_decl_end = (cierre + 1) if (es_declaracion and cierre != -1) else None
         q_norm = normalize(quote)
         q_words = q_norm.split()
         if len(q_words) < _MIN_QUOTE_WORDS:
@@ -509,6 +562,15 @@ def check_lyrics(db, body_md: str) -> LyricGuardReport:
         is_lyricish = attributed is not None or bool(_LYRIC_HINT.search(pre_context))
         if not is_lyricish:
             continue  # cita no ligada a canción → no es asunto del guardia de letra
+        # Una DECLARACIÓN («Robe explicó que «…»») no es un verso, aunque haya una
+        # canción nombrada cerca. Solo se deja pasar si de verdad no es letra: si la
+        # frase aparece en alguna canción, sigue el camino de siempre (una letra
+        # presentada como declaración también hay que mirarla).
+        if es_declaracion and not any(
+                _overlap(q_tokens, s.tokens) >= 0.5
+                and best_ratio(q_norm, s.lyrics_norm) >= _REVIEW_RATIO
+                for s in with_lyrics):
+            continue
 
         attr_song = by_title.get(attributed) if attributed else None
 
