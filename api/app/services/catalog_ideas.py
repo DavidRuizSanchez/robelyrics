@@ -254,3 +254,50 @@ def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True) -
         "muestra": [i.to_dict() for i in elegidas],
         "ejemplos_canibalizacion": [i.to_dict() for i in ideas if i.canibaliza][:5],
     }
+
+
+# --------------------------------------------------------------------------- #
+# Al banco de propuestas (1-2 por semana: decisión de David, 18-11-2026)
+# --------------------------------------------------------------------------- #
+CATALOGO_POR_SEMANA = 2
+_COD_TIPO = {"album": "alb", "song": "son", "person": "per", "place": "pla"}
+_COD_ANGULO = {"historia": "his", "directo": "dir", "con-robe": "con", "robe-aqui": "aqu"}
+TIPO_DE_CODIGO = {v: k for k, v in _COD_TIPO.items()}
+
+
+def source_type_de(tipo: str, angulo: str) -> str:
+    """`cat-alb-his`: la entidad y el ángulo en la clave única (kind, source_type,
+    source_id), para que el mismo ángulo de la misma entidad no se proponga dos veces."""
+    return f"cat-{_COD_TIPO[tipo]}-{_COD_ANGULO[angulo]}"
+
+
+def entidad_de(source_type: str | None) -> tuple[str, str] | None:
+    """(tipo, ángulo) de un `source_type` de catálogo, o None."""
+    if not (source_type or "").startswith("cat-"):
+        return None
+    _, t, a = source_type.split("-", 2)
+    angulo = {v: k for k, v in _COD_ANGULO.items()}.get(a)
+    return (TIPO_DE_CODIGO[t], angulo) if t in TIPO_DE_CODIGO and angulo else None
+
+
+def filas_para_el_banco(db, *, n: int = CATALOGO_POR_SEMANA) -> list[dict]:
+    """Las `n` mejores ideas, listas para `content_proposals` (sin target_keyword: el
+    reparto «ampliar o nuevo» no las toca; su ángulo ya es distinto de la ficha)."""
+    out = []
+    for i in banco(db, muestra=n)["muestra"]:
+        evidencia = (f"Material: {i['material_propio']} propio(s) de {i['material_total']} "
+                     f"({'; '.join(i['fuentes'][:3])}). Demanda: GSC "
+                     f"{'n/d' if i['gsc_impresiones'] is None else i['gsc_impresiones']} impr., "
+                     f"volumen {'n/d' if i['volumen'] is None else i['volumen']}/mes.")
+        out.append({
+            "kind": "evergreen",
+            "source_type": source_type_de(i["tipo"], i["angulo"]),
+            "source_id": i["entidad_id"],
+            "title": i["titulo"],
+            "angle": f"{i['encargo'][:1].upper()}{i['encargo'][1:]}. {evidencia}",
+            "keywords": [{"keyword": i["keyword"], "volume": i["volumen"]}] if i["keyword"] else [],
+            "search_volume": i["volumen"],
+            "signal_source": "catalogo",
+            "content_key": f"catalogo:{i['tipo']}_{i['entidad_id']}:{i['angulo']}",
+        })
+    return out

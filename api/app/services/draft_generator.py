@@ -362,6 +362,39 @@ def _deep_seo_evergreen(
     return deep
 
 
+def _entidad_catalogo(db, tipo: str, ident: int):
+    from app.db.models import Person, Place
+    return db.get({"album": Album, "song": Song, "person": Person, "place": Place}[tipo], ident)
+
+
+def _deep_catalogo(db, p: ContentProposal, cat: tuple[str, str], *, tier: str, serp: str):
+    """Idea de catálogo: se escribe CON su entidad (no se adivina por keyword) y con el
+    listón de su ángulo. Es una historia para fans: no repite la ficha, la enlaza."""
+    tipo, angulo = cat
+    entidad = _entidad_catalogo(db, tipo, p.source_id)
+    if entidad is None:
+        return None
+    framing = (
+        f"{p.title}. Cuenta {(p.angle or '').split('. Material:')[0].lower()}. Es una historia "
+        "para quien ya conoce la obra: no repitas lo que dice la ficha de la entidad, cuenta "
+        "otra cosa y apóyate en hechos concretos, versos LITERALES de [LETRA] si citas una "
+        "canción y lo que contó Robe (con el medio si es una entrevista escrita). La voz es "
+        "nuestra: no nombres medios, blogs ni analistas. Nunca hables del proceso («el "
+        "material», «las fuentes»). Nada de loas vacías."
+    )
+    return _deep_body(db, entity_type=tipo, entity=entidad, framing=framing, tier=tier,
+                      serp_guidance=serp,
+                      tipo_pieza="album-historia" if (tipo, angulo) == ("album", "historia") else None)
+
+
+def tipo_pieza_de(p: ContentProposal) -> str:
+    """El tipo de pieza para el listón y el juez."""
+    from app.services.catalog_ideas import entidad_de
+    if entidad_de(p.source_type) == ("album", "historia"):
+        return "album-historia"
+    return p.kind
+
+
 def generate_body(db, p: ContentProposal) -> dict | None:
     """Genera el contenido editorial de una propuesta sin body, según kind.
     Devuelve dict con title/excerpt/body_md/meta_title/meta_description/entities
@@ -379,6 +412,11 @@ def generate_body(db, p: ContentProposal) -> dict | None:
             _serp = build_brief(p.target_keyword or p.title or "")
         except Exception as exc:  # noqa: BLE001 — el brief es opcional
             logger.warning("draft: brief SERP falló: %s", exc)
+
+    from app.services.catalog_ideas import entidad_de
+    cat = entidad_de(p.source_type)
+    if cat and p.source_id:
+        return _deep_catalogo(db, p, cat, tier=_tier, serp=_serp)
 
     if p.kind == "spotlight" and p.source_type == "song" and p.source_id:
         song = db.get(Song, p.source_id)
@@ -765,7 +803,10 @@ def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True,
 
     # 2. Post-procesado (hero ÚNICO + saneado + enlazado). El aniversario de un disco
     #    enlaza primero a la ficha del disco (no canibalizarla).
-    if p.kind == "album-anniversary" and p.source_type == "album" and p.source_id:
+    from app.services.catalog_ideas import entidad_de as _entidad_de
+    _cat = _entidad_de(p.source_type)
+    if p.source_id and ((p.kind == "album-anniversary" and p.source_type == "album")
+                        or (_cat is not None and _cat[0] == "album")):
         album = db.get(Album, p.source_id)
         artista = db.get(Artist, album.artist_id) if album else None
         if album and artista:
@@ -801,10 +842,14 @@ def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True,
 # --------------------------------------------------------------------------- #
 def hechos_de_propuesta(db, p: ContentProposal) -> str:
     """Los hechos duros de la entidad de la propuesta, para el juez y el listón."""
+    from app.services.catalog_ideas import entidad_de
     from app.services.deep_research import _hard_facts, entity_names
 
     tipo, entidad = None, None
-    if p.kind == "album-anniversary" and p.source_type == "album" and p.source_id:
+    cat = entidad_de(p.source_type)
+    if cat and p.source_id:
+        tipo, entidad = cat[0], _entidad_catalogo(db, cat[0], p.source_id)
+    elif p.kind == "album-anniversary" and p.source_type == "album" and p.source_id:
         tipo, entidad = "album", db.get(Album, p.source_id)
     elif p.kind == "spotlight" and p.source_type == "song" and p.source_id:
         tipo, entidad = "song", db.get(Song, p.source_id)
@@ -821,11 +866,20 @@ def hechos_de_propuesta(db, p: ContentProposal) -> str:
 def material_propio_de_propuesta(db, p: ContentProposal) -> str:
     """Fichas publicadas y letras de la entidad de la propuesta (lo que el fact-check
     puede dar por bueno sin ir a la web)."""
-    if p.kind == "album-anniversary" and p.source_type == "album" and p.source_id:
+    from app.services.catalog_ideas import entidad_de
+
+    cat = entidad_de(p.source_type)
+    es_disco = (p.kind == "album-anniversary" and p.source_type == "album") or (
+        cat is not None and cat[0] == "album")
+    if es_disco and p.source_id:
         al = db.get(Album, p.source_id)
         if al:
             return "\n\n".join(x for x in (_fichas_propias(db, "album", al),
                                             _letras_del_disco(db, "album", al)) if x)
+    if cat is not None and cat[0] == "song" and p.source_id:
+        so = db.get(Song, p.source_id)
+        if so:
+            return _fichas_propias(db, "song", so) + "\n\n" + (so.lyrics_clean or "")
     if p.kind == "spotlight" and p.source_type == "song" and p.source_id:
         so = db.get(Song, p.source_id)
         if so:
@@ -838,7 +892,8 @@ def _juzgar(db, p: ContentProposal, hard: str):
 
     return cascada_en_seco(db, kind=p.kind, subject=(p.target_keyword or p.title or "").strip(),
                            title=p.title or "", body_md=p.body_md or "", hard_facts=hard,
-                           tipo_pieza=p.kind, material_propio=material_propio_de_propuesta(db, p))
+                           tipo_pieza=tipo_pieza_de(p),
+                           material_propio=material_propio_de_propuesta(db, p))
 
 
 def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
