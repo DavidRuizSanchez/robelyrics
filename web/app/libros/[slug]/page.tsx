@@ -7,7 +7,9 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import MarkdownArticle from "@/components/MarkdownArticle";
 import PublicFooter from "@/components/PublicFooter";
 import PublicHeader from "@/components/PublicHeader";
+import RelacionesVerificadas from "@/components/RelacionesVerificadas";
 import { apiFetch, ApiError } from "@/lib/api";
+import { conVerificadas } from "@/lib/relaciones-jsonld";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import {
   bookNode,
@@ -49,6 +51,7 @@ type BookDetail = {
   about: string[];
   meta_title: string | null;
   meta_description: string | null;
+  jsonld_verificadas?: Record<string, unknown> | null;
 };
 
 // Mapa slug-de-artista → nombre, para enlazar de vuelta al universo.
@@ -110,7 +113,7 @@ export default async function LibroPage({
   const aboutIds = detail.about.map((s) => canonical.musicGroup(s));
 
   const jsonLd = buildGraph([
-    bookNode({
+    conVerificadas(bookNode({
       slug: detail.slug,
       title: detail.title,
       subtitle: detail.subtitle,
@@ -124,7 +127,7 @@ export default async function LibroPage({
       summary: detail.summary,
       aboutIds,
       kind: detail.kind,
-    }),
+    }), detail.jsonld_verificadas),
     webPageNode({
       path,
       name: detail.title,
@@ -223,6 +226,12 @@ export default async function LibroPage({
               kind: detail.kind,
               availability: detail.availability,
             }}
+          />
+
+          <RelacionesVerificadas
+            relaciones={detail.jsonld_verificadas}
+            excluir={detail.about.map((s) => `/${s}`)}
+            cuerpo={detail.body_md}
           />
 
           {detail.body_md && (
