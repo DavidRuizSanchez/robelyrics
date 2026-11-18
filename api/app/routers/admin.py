@@ -1384,6 +1384,13 @@ class AdminProposalItem(BaseModel):
     placement_groups: list[dict] = []
     merge_target: str | None = None
     merge_opportunity_id: int | None = None
+    # Juicio al preparar (`draft_generator.juzgar_borrador`): pasa | retenida, con su
+    # nota y sus motivos ({bloquea, motivos, faltan_datos}). Y el rastro del descarte.
+    review_verdict: str | None = None
+    review_score: int | None = None
+    review_reasons: dict | None = None
+    discard_reason: str | None = None
+    discarded_by: str | None = None
     created_at: datetime
 
 
@@ -1526,6 +1533,11 @@ def _proposal_to_item(p: _Proposal) -> AdminProposalItem:
         source_url=p.source_url,
         source_name=p.source_name,
         has_body=bool(p.body_md),
+        review_verdict=getattr(p, "review_verdict", None),
+        review_score=getattr(p, "review_score", None),
+        review_reasons=getattr(p, "review_reasons", None),
+        discard_reason=getattr(p, "discard_reason", None),
+        discarded_by=getattr(p, "discarded_by", None),
         keywords=kws,
         # Solo suman las activas: una keyword desactivada no es demanda de esta pieza.
         keyword_volume=sum(int(k.get("volume") or 0) for k in kws
@@ -2175,6 +2187,38 @@ def admin_proposal_unschedule(
     return _proposal_to_item(p)
 
 
+class RedraftIn(BaseModel):
+    nota: str | None = None
+
+
+@router.post("/proposals/{proposal_id}/redraft", response_model=AdminProposalItem)
+def admin_proposal_redraft(
+    proposal_id: int,
+    payload: RedraftIn | None = None,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> AdminProposalItem:
+    """Reescribir una propuesta (la retenida por el juez, o cualquiera aprobada).
+
+    Vacía el borrador y el veredicto; el cron de cada 5 minutos lo vuelve a escribir y a
+    juzgar. La `nota` (opcional) le llega al redactor como corrección, igual que los
+    motivos del juez en las reescrituras automáticas."""
+    p = db.query(_Proposal).filter(_Proposal.id == proposal_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="proposal not found")
+    if p.status not in ("approved", "scheduled"):
+        raise HTTPException(status_code=409, detail="solo se reescribe lo aprobado")
+    nota = ((payload.nota if payload else None) or "").strip()[:1500]
+    p.body_md = None
+    p.review_verdict = None
+    p.review_score = None
+    p.review_reasons = {"nota": nota} if nota else None
+    p.reviewed_at = None
+    db.commit()
+    db.refresh(p)
+    return _proposal_to_item(p)
+
+
 @router.post("/proposals/{proposal_id}/discard", response_model=AdminProposalItem)
 def admin_proposal_discard(
     proposal_id: int,
@@ -2187,6 +2231,10 @@ def admin_proposal_discard(
     if p.status == "used":
         raise HTTPException(status_code=409, detail="propuesta ya usada")
     p.status = "discarded"
+    # Quién y cuándo: hasta el 18-11-2026 un descarte no dejaba rastro en la BD.
+    p.discarded_by = (getattr(_admin, "email", None) or "admin")[:32]
+    p.discarded_at = datetime.now(timezone.utc)
+    p.discard_reason = p.discard_reason or "descartada en el panel"
     p.scheduled_for = None
     db.commit()
     db.refresh(p)

@@ -2921,6 +2921,9 @@ def proposal_action(
     else:
         p.status = "discarded"
         p.scheduled_for = None
+        p.discarded_by = "correo"
+        p.discarded_at = datetime.now(timezone.utc)
+        p.discard_reason = p.discard_reason or "rechazada desde el correo de propuestas"
         db.commit()
         msg = f"✓ «{p.title}» rechazada."
     return HTMLResponse(_render_admin_action_page(msg, success=True))

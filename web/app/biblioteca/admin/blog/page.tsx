@@ -45,6 +45,12 @@ export type ProposalItem = {
   placement_groups: PlacementGroup[];
   merge_target: string | null;
   merge_opportunity_id: number | null;
+  // Juicio al preparar el borrador: pasa | retenida (con nota y motivos).
+  review_verdict?: string | null;
+  review_score?: number | null;
+  review_reasons?: { bloquea?: string | null; motivos?: string[]; nota?: string } | null;
+  discard_reason?: string | null;
+  discarded_by?: string | null;
   created_at: string;
 };
 

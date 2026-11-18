@@ -689,7 +689,7 @@ def _collect_videos(db, p: ContentProposal) -> None:
 
 
 def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True,
-                            juzgar: bool = False) -> bool:
+                            juzgar: bool = True) -> bool:
     """Construye el borrador completo de la propuesta y lo guarda en ella
     (body_md + excerpt + meta + hero + entities). Devuelve True si quedó listo.
 

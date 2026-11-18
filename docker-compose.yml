@@ -67,6 +67,9 @@ services:
       CORPUS_AUTO_ENTRY: ${CORPUS_AUTO_ENTRY:-false}
       # Monitor de cambios: correo apagado la primera semana (modo sombra).
       MONITOR_CAMBIOS_CORREO: ${MONITOR_CAMBIOS_CORREO:-}
+      # La repesca del blog también adelanta APROBADAS que pasaron el juicio. Apagada
+      # hasta limpiar la cola de aprobadas (18-11-2026).
+      BLOG_REPESCA_APROBADAS: ${BLOG_REPESCA_APROBADAS:-}
       MONITOR_BASE_URL: ${MONITOR_BASE_URL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
