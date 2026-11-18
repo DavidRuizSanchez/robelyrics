@@ -767,10 +767,14 @@ def generate_proposal_draft(db, p: ContentProposal, *, persist: bool = True,
         if payload is None:
             logger.error("draft: no se pudo generar body para propuesta %s", p.id)
             return False
-        p.title = (payload.get("title") or p.title)[:240]
+        from app.services.catalog_ideas import entidad_de as _ent
+        # Una idea de catálogo conserva SU título: es el ángulo que la separa de la ficha
+        # (no canibalizar). El modelo lo cambiaba por uno suyo (asesor, 18-11-2026).
+        if _ent(p.source_type) is None:
+            p.title = (payload.get("title") or p.title)[:240]
         p.excerpt = payload.get("excerpt")
         p.body_md = payload["body_md"]
-        p.meta_title = (payload.get("meta_title") or None)
+        p.meta_title = (p.title[:60] if _ent(p.source_type) else (payload.get("meta_title") or None))
         p.meta_description = (payload.get("meta_description") or None)
         p.entities = payload.get("entities") or []
 
@@ -941,8 +945,10 @@ def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
         else:
             for k, v in previo.items():
                 setattr(p, k, v)
-    if juicio.pasa and juicio.cuerpo:
-        p.body_md = juicio.cuerpo   # con el recorte del foco y el tensado del juez
+    if juicio.pasa and juicio.cuerpo and reescribir:
+        # Con el recorte del foco y el tensado del juez. Con `reescribir=False` (el backlog
+        # del cron) no se toca el texto: solo se juzga (es lo que se le dijo a David).
+        p.body_md = juicio.cuerpo
     # Pieza CENTRAL que solo frena el juez de rigor, y en la frontera: la decide David
     # (18-11-2026: «buscar la recepción y que decidas tú»). Su lectura es el filtro final.
     para_ti = (not juicio.pasa and juicio.bloquea == "rigor" and p.kind in PIEZAS_CENTRALES

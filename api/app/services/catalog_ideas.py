@@ -60,6 +60,7 @@ ANGULOS: tuple[Angulo, ...] = (
 )
 
 # Vetos de David (18-11-2026). La causa de la muerte NO se veta.
+_ARTICULOS = {"el", "la", "los", "las", "un", "una"}
 _VETO = re.compile(r"\b(?:pareja|novia|novio|esposa|esposo|mujer de|marido|hij[oa]s?|"
                    r"vida privada|descarga\w*|mp3|torrent|gratis)\b", re.I)
 PROPIOS = ("robe_interview", "entorno_interview")
@@ -100,6 +101,33 @@ class Idea:
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", (s or "").lower())
     return " ".join("".join(c for c in s if not unicodedata.combining(c)).split())
+
+
+def _pliega(s: str) -> str:
+    """Sin tildes pero CON mayúsculas: la mayúscula es lo que distingue el nombre propio."""
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def nombra(texto: str, nombre: str) -> bool:
+    """¿Nombra el texto la entidad? Como palabra completa y como NOMBRE PROPIO: con su
+    palabra significativa en mayúscula («La Hoguera», «Mayéutica») o citada entre comillas
+    o tras «canción/disco». Así no cuenta «nosotros en la hoguera» (una reseña de *Tú en tu
+    casa…*: asesor, 18-11-2026) ni un «salir» cualquiera. Mismo espíritu que
+    `youtube_relevance` con los títulos cortos."""
+    t, n = _pliega(texto), _pliega(nombre).strip()
+    if not n:
+        return False
+    for m in re.finditer(rf"(?<![\w]){re.escape(n)}(?![\w])", t, re.I):
+        trozo = m.group(0)
+        palabras = trozo.split()
+        significativa = next((w for w in palabras if w.lower() not in _ARTICULOS), palabras[0])
+        if significativa[:1].isupper():
+            return True
+        antes = t[max(0, m.start() - 12):m.start()].lower()
+        if re.search(r"(?:[«\"“]|\b(?:cancion|tema|disco|album)\s+)$", antes):
+            return True
+    return False
 
 
 def _gsc(ruta_datos: Path | None = None) -> tuple[dict, dict]:
@@ -178,20 +206,29 @@ def medir_demanda(ideas: list[Idea], paginas: dict) -> None:
 
 
 def filtrar(db, ideas: list[Idea]) -> None:
-    """Vetos y frescura: lo vivo o publicado sobre la entidad en las últimas semanas."""
+    """Vetos, lo ya propuesto (cualquier estado) y lo reciente sobre la entidad."""
     from datetime import UTC, datetime, timedelta
 
     from sqlalchemy import text
 
+    from app.db.models import ContentProposal
+
+    # Ese ángulo de esa entidad ya pasó por el banco, en CUALQUIER estado: se descartó,
+    # se usó o está vivo. Sin esto volvía a salir arriba cada lunes y moría en silencio en
+    # la clave única (el fallo de los aniversarios otra vez: asesor, 18-11-2026).
+    ya = {(st, sid) for st, sid in db.query(ContentProposal.source_type, ContentProposal.source_id)
+          .filter(ContentProposal.source_type.like("cat-%"))}
     desde = datetime.now(UTC) - timedelta(weeks=SEMANAS_SIN_REPETIR)
-    recientes = {_norm(t) for (t,) in db.execute(text(
+    recientes = [t for (t,) in db.execute(text(
         "select title from content_proposals where created_at >= :d and status <> 'discarded' "
         "union all select title from posts where coalesce(published_at, created_at) >= :d"),
-        {"d": desde})}
+        {"d": desde})]
     for idea in ideas:
         if _VETO.search(f"{idea.titulo} {idea.keyword}"):
             idea.descarte = "tema vetado"
-        elif any(_norm(idea.nombre.split(",")[0]) in r for r in recientes):
+        elif (source_type_de(idea.tipo, idea.angulo), idea.entidad_id) in ya:
+            idea.descarte = "ese ángulo de esa entidad ya pasó por el banco"
+        elif any(nombra(r, idea.nombre.split(",")[0]) for r in recientes):
             idea.descarte = f"ya hay algo sobre «{idea.nombre}» en las últimas {SEMANAS_SIN_REPETIR} semanas"
 
 
@@ -202,8 +239,7 @@ def medir_material(db, idea: Idea) -> None:
     n = idea.nombre.split(",")[0].strip()
     pasajes = material_para_consultas(db, [c.format(n=n) for c in ang.consultas], k=5, max_pasajes=8)
     # Solo cuenta lo que nombra a la entidad: un vecino semántico no responde al ángulo.
-    nombre = _norm(n)
-    utiles = [p for p in pasajes if nombre in _norm(p.get("fragmento") or "")]
+    utiles = [p for p in pasajes if nombra(p.get("fragmento") or "", n)]
     idea.material_total = len(utiles)
     idea.material_propio = sum(1 for p in utiles if p.get("kind") in PROPIOS
                                or es_entrevista_transcrita(p.get("kind"), p.get("title")))
@@ -213,18 +249,29 @@ def medir_material(db, idea: Idea) -> None:
                                           f"{idea.material_total} en total")
 
 
-def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True) -> dict:
-    """Las mejores ideas con su evidencia. No escribe nada en la BD."""
+def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True,
+          solo: set[tuple[str, str]] | None = None) -> dict:
+    """Las mejores ideas con su evidencia. No escribe nada en la BD. `solo`: limitar a
+    estos (tipo, ángulo)."""
     paginas, periodo = _gsc()
-    ideas = candidatas(db)
+    ideas = [i for i in candidatas(db) if solo is None or (i.tipo, i.angulo) in solo]
     medir_demanda(ideas, paginas)
     filtrar(db, ideas)
     vivas = [i for i in ideas if not i.descarte and not i.canibaliza]
-    # Material (embeddings + Qdrant) solo para las de más demanda: es lo caro.
+    # Material (embeddings + Qdrant) solo para `medir_top`: es lo caro. La mitad, las de
+    # más demanda; la otra mitad ROTA por semana, para que las canciones (casi todas sin
+    # impresiones) lleguen a medirse (asesor, 18-11-2026).
     vivas.sort(key=lambda i: -((i.gsc_impresiones or 0) + (5 if i.tipo == "album" else 0)))
-    for i in vivas[:medir_top]:
+    mitad = medir_top // 2
+    resto = vivas[mitad:]
+    if resto:
+        from datetime import date
+        ini = (date.today().isocalendar().week * mitad) % len(resto)
+        resto = (resto[ini:] + resto[:ini])[:medir_top - mitad]
+    a_medir = vivas[:mitad] + resto
+    for i in a_medir:
         medir_material(db, i)
-    con_material = [i for i in vivas[:medir_top] if not i.descarte]
+    con_material = [i for i in a_medir if not i.descarte]
     if volumen and con_material:
         from app.services.seo_research import search_volume
 
@@ -232,7 +279,7 @@ def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True) -
             vols = search_volume(sorted({i.keyword for i in con_material if i.keyword}))
             for i in con_material:
                 v = vols.get(i.keyword)
-                i.volumen = v.volume if v is not None else None
+                i.volumen = v.volume if (v is not None and not v.sin_dato) else None
         except Exception:  # noqa: BLE001 — sin DataForSEO, volumen n/d
             pass
     con_material.sort(key=lambda i: -i.puntos)
@@ -249,8 +296,8 @@ def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True) -
         "candidatas": len(ideas),
         "vetadas_o_recientes": sum(1 for i in ideas if i.descarte and not i.descarte.startswith("sin material")),
         "canibalizarian": sum(1 for i in ideas if i.canibaliza),
-        "medidas": min(medir_top, len(vivas)),
-        "sin_material": sum(1 for i in vivas[:medir_top] if i.descarte),
+        "medidas": len(a_medir),
+        "sin_material": sum(1 for i in a_medir if i.descarte),
         "muestra": [i.to_dict() for i in elegidas],
         "ejemplos_canibalizacion": [i.to_dict() for i in ideas if i.canibaliza][:5],
     }
@@ -260,6 +307,10 @@ def banco(db, *, muestra: int = 10, medir_top: int = 40, volumen: bool = True) -
 # Al banco de propuestas (1-2 por semana: decisión de David, 18-11-2026)
 # --------------------------------------------------------------------------- #
 CATALOGO_POR_SEMANA = 2
+# Los ángulos que entran al banco. «Cómo se hizo un disco» pasó su prueba de fuego
+# (Mayéutica, 3/3); canciones, personas, lugares y directos se encienden tras la suya:
+# por el camino de esos tipos las canciones sacaban 18-42 (18-11-2026).
+ANGULOS_ACTIVOS = {("album", "historia")}
 _COD_TIPO = {"album": "alb", "song": "son", "person": "per", "place": "pla"}
 _COD_ANGULO = {"historia": "his", "directo": "dir", "con-robe": "con", "robe-aqui": "aqu"}
 TIPO_DE_CODIGO = {v: k for k, v in _COD_TIPO.items()}
@@ -284,7 +335,7 @@ def filas_para_el_banco(db, *, n: int = CATALOGO_POR_SEMANA) -> list[dict]:
     """Las `n` mejores ideas, listas para `content_proposals` (sin target_keyword: el
     reparto «ampliar o nuevo» no las toca; su ángulo ya es distinto de la ficha)."""
     out = []
-    for i in banco(db, muestra=n)["muestra"]:
+    for i in banco(db, muestra=n, solo=ANGULOS_ACTIVOS)["muestra"]:
         evidencia = (f"Material: {i['material_propio']} propio(s) de {i['material_total']} "
                      f"({'; '.join(i['fuentes'][:3])}). Demanda: GSC "
                      f"{'n/d' if i['gsc_impresiones'] is None else i['gsc_impresiones']} impr., "

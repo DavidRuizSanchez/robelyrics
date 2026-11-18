@@ -38,3 +38,42 @@ def test_temas_vetados():
 def test_cómo_se_hizo_un_disco_usa_el_liston_del_aniversario():
     from app.services.piece_checklist import LISTAS
     assert LISTAS["album-historia"] is LISTAS["album-anniversary"]
+
+
+def test_nombrar_es_palabra_completa_y_los_titulos_cortos_van_citados():
+    assert not ci.nombra("Reseña de Tú en tu casa, nosotros en la hoguera", "La hoguera")
+    assert ci.nombra("En «La hoguera» Robe canta…", "La hoguera")
+    assert not ci.nombra("Iba a salir de casa", "Salir")            # corto y sin citar
+    assert ci.nombra("La canción Salir es de 1998", "Salir")
+    assert ci.nombra("Mayéutica se grabó en 2019", "Mayéutica")    # ≥ 10: basta la palabra
+
+
+def test_lo_que_ya_paso_por_el_banco_no_vuelve(monkeypatch):
+    from app.db.models import ContentProposal
+    from app.tests.test_blog_backfill import db as _db_fixture  # noqa: F401
+
+    class _Q:
+        def __init__(self, filas):
+            self.filas = filas
+
+        def filter(self, *a):
+            return self
+
+        def __iter__(self):
+            return iter(self.filas)
+
+    class _Db:
+        def query(self, *a):
+            return _Q([("cat-alb-his", 7)])
+
+        def execute(self, *a, **k):
+            return []
+
+    a = ci.Idea("album", 7, "Mayéutica", "/robe/mayeutica", "historia", "Cómo se hizo «Mayéutica»",
+                "…", "mayeutica historia")
+    b = ci.Idea("album", 8, "Destrozares", "/robe/destrozares", "historia", "Cómo se hizo «Destrozares»",
+                "…", "destrozares historia")
+    ci.filtrar(_Db(), [a, b])
+    assert a.descarte and "ya pasó por el banco" in a.descarte
+    assert b.descarte is None
+    del ContentProposal

@@ -209,6 +209,7 @@ def main() -> None:
             logger.info("Catálogo: %d idea(s): %s", len(catalogo),
                         "; ".join(r["title"] for r in catalogo))
         except Exception:  # noqa: BLE001 — sin catálogo, el banco sigue con lo demás
+            db.rollback()   # un error de BD aquí no puede tumbar el resto del lunes
             logger.exception("ideas de catálogo fallaron")
 
         # --- Propuestas SEO-driven (keyword research long-tail del corpus) ---
