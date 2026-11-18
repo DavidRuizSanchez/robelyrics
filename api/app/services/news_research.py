@@ -34,6 +34,7 @@ from app.services.openai_chat import openai_chat_kwargs
 logger = logging.getLogger(__name__)
 
 _SERP = "https://api.dataforseo.com/v3/serp/google/organic/live/advanced"
+_SERP_REGULAR = "https://api.dataforseo.com/v3/serp/google/organic/live/regular"
 _LOCATION_ES = 2724
 _LANG_ES = "es"
 
@@ -159,16 +160,18 @@ def web_research(query: str, n: int = 6, *, estado: dict | None = None) -> list[
         corta = " ".join(consulta.split()[:8])
         # 40101 es en parte aleatorio (la misma consulta falla y a los segundos responde):
         # se reintenta tras una pausa y, la última vez, con sus primeras palabras.
-        intentos = (consulta, consulta, corta)
+        # Medido en prod: viene por rachas, y el endpoint `regular` respondía mientras el
+        # `advanced` daba 40101 con la misma consulta.
+        intentos = ((consulta, _SERP), (corta, _SERP), (consulta, _SERP_REGULAR))
         with httpx.Client(timeout=30.0) as c:
-            for i, intento in enumerate(intentos):
+            for i, (intento, endpoint) in enumerate(intentos):
                 if i:
                     time.sleep(2)
                 payload = [{
                     "keyword": intento, "location_code": _LOCATION_ES,
                     "language_code": _LANG_ES, "depth": n,
                 }]
-                r = c.post(_SERP, auth=(login, pwd), json=etiquetar(payload, PROYECTO_DFS))
+                r = c.post(endpoint, auth=(login, pwd), json=etiquetar(payload, PROYECTO_DFS))
                 r.raise_for_status()
                 respuesta = r.json()
                 registrar(respuesta, PROYECTO_DFS)
