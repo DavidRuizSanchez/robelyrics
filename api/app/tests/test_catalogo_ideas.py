@@ -48,10 +48,7 @@ def test_nombrar_es_palabra_completa_y_los_titulos_cortos_van_citados():
     assert ci.nombra("Mayéutica se grabó en 2019", "Mayéutica")    # ≥ 10: basta la palabra
 
 
-def test_lo_que_ya_paso_por_el_banco_no_vuelve(monkeypatch):
-    from app.db.models import ContentProposal
-    from app.tests.test_blog_backfill import db as _db_fixture  # noqa: F401
-
+def test_lo_que_ya_paso_por_el_banco_no_vuelve():
     class _Q:
         def __init__(self, filas):
             self.filas = filas
@@ -76,4 +73,3 @@ def test_lo_que_ya_paso_por_el_banco_no_vuelve(monkeypatch):
     ci.filtrar(_Db(), [a, b])
     assert a.descarte and "ya pasó por el banco" in a.descarte
     assert b.descarte is None
-    del ContentProposal
