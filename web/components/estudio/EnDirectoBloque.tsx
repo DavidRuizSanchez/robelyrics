@@ -116,7 +116,10 @@ export function EnDirectoLugar({ slug }: { slug: string }) {
       </p>
       {d.es_el_primero && primero && (
         <p>
-          Aquí está <strong>el primer concierto documentado</strong> de todos: el {primero}
+          {/* «Que recoge setlist.fm», no «documentado» a secas (David, 18-11-2026): el 19-09-1987
+              es una entrada de setlist.fm; lo documentado en prensa y libros es 1988, y es lo que
+              dicen nuestras fichas (Torre Lucía). El dato del estudio no se toca. */}
+          Aquí está <strong>el primer concierto que recoge setlist.fm</strong>: el {primero}
           {d.primero_recinto && d.tipo === "ciudad" ? `, en ${d.primero_recinto}` : ""}.
         </p>
       )}

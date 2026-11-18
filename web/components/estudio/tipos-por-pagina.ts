@@ -38,7 +38,7 @@ type BaseLugar = {
   primero: string | null;
   primero_recinto: string | null;
   ultimo: string | null;
-  /** Si aquí fue el primer concierto documentado de todos (19-09-1987). */
+  /** Si aquí está el primer concierto que recoge setlist.fm (19-09-1987; en prensa y libros, 1988). */
   es_el_primero: boolean;
 };
 
