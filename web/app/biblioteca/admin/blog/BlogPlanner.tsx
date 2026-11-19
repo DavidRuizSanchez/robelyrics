@@ -20,7 +20,7 @@ import {
   filterClass,
   inputClass,
 } from "@/components/admin/ui";
-import { kindLabel } from "@/lib/admin/labels";
+import { kindLabel, cifra } from "@/lib/admin/labels";
 import PlacementGroupCard from "./PlacementGroupCard";
 import type { PlacementGroup, ProposalItem } from "./page";
 
@@ -710,7 +710,7 @@ export default function BlogPlanner({
   function renderProposal(p: ProposalItem) {
     const gs = grupos(p);
     const volumes = Object.fromEntries((p.keywords ?? []).map((k) => [k.keyword, k.volume]));
-    const kws = (p.keywords ?? []).slice().sort((a, b) => b.volume - a.volume);
+    const kws = (p.keywords ?? []).slice().sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
     const visibles = kws.slice(0, 8);
     const ocultas = kws.length - visibles.length;
     const reparto = hayReparto(p);
@@ -791,7 +791,7 @@ export default function BlogPlanner({
                 <Eyebrow>
                   Búsquedas que cubre ·{" "}
                   <span className="font-mono normal-case tracking-normal text-ink-dim">
-                    {p.keyword_volume.toLocaleString("es-ES")}
+                    {cifra(p.keyword_volume)}
                   </span>{" "}
                   <Term k="volumen">al mes</Term>
                 </Eyebrow>
@@ -827,7 +827,7 @@ export default function BlogPlanner({
                       >
                         <span className="font-mono">{k.keyword}</span>
                         <span className={cx("font-mono text-xs", k.excluded ? "" : "text-ink-dim")}>
-                          {k.volume.toLocaleString("es-ES")}
+                          {cifra(k.volume)}
                         </span>
                       </button>
                     ),
@@ -1024,7 +1024,7 @@ function Meta({ p }: { p: ProposalItem }) {
         <span>
           · objetivo: <span className="font-mono text-ink">{p.target_keyword}</span>
           {p.search_volume ? (
-            <span className="font-mono text-ink-faint"> ({p.search_volume.toLocaleString("es-ES")}/mes)</span>
+            <span className="font-mono text-ink-faint"> ({cifra(p.search_volume)}/mes)</span>
           ) : null}
         </span>
       )}

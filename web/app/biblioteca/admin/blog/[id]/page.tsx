@@ -7,7 +7,7 @@ import type { AuthMe } from "@/lib/types";
 import ProposalActions from "./ProposalActions";
 import TitleEditor from "./TitleEditor";
 import { Card, Data, Eyebrow, StatusBadge } from "@/components/admin/ui";
-import { PROPOSAL_STATUS, etiqueta, kindLabel } from "@/lib/admin/labels";
+import { PROPOSAL_STATUS, etiqueta, kindLabel, cifra } from "@/lib/admin/labels";
 import GenerationStatus from "./GenerationStatus";
 
 type ProposalDetail = {
@@ -61,7 +61,7 @@ export default async function ProposalReviewPage({
   }
 
   const st = etiqueta(PROPOSAL_STATUS, p.status);
-  const kws = (p.keywords ?? []).slice().sort((a, b) => b.volume - a.volume);
+  const kws = (p.keywords ?? []).slice().sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
 
   return (
     <main className="px-5 md:px-14 py-8 md:py-10 max-w-[820px] mx-auto">
@@ -102,7 +102,7 @@ export default async function ProposalReviewPage({
               <dd>
                 <Data>{p.target_keyword}</Data>
                 {p.search_volume ? (
-                  <span className="text-ink-dim"> · {p.search_volume.toLocaleString("es-ES")} al mes</span>
+                  <span className="text-ink-dim"> · {cifra(p.search_volume)} al mes</span>
                 ) : null}
                 {p.is_longtail ? <span className="text-ink-dim"> · long-tail</span> : null}
               </dd>
@@ -114,7 +114,7 @@ export default async function ProposalReviewPage({
               <dd className="flex flex-wrap gap-1.5">
                 {kws.slice(0, 10).map((k) => (
                   <span key={k.keyword} className="rounded border border-divider px-1.5 py-0.5 font-mono text-xs text-ink">
-                    {k.keyword} <span className="text-ink-faint">{k.volume.toLocaleString("es-ES")}</span>
+                    {k.keyword} <span className="text-ink-faint">{cifra(k.volume)}</span>
                   </span>
                 ))}
                 {kws.length > 10 && <span className="text-xs text-ink-faint">+{kws.length - 10} más</span>}

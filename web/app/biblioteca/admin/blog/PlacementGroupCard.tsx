@@ -16,12 +16,11 @@ import {
   PLACEMENT_VIA,
   bandaParecido,
   etiqueta,
-  type Etiqueta,
-} from "@/lib/admin/labels";
+  type Etiqueta, cifra } from "@/lib/admin/labels";
 import type { PlacementCandidate, PlacementGroup } from "./page";
 
-function fmtNum(n: number, dec = 0): string {
-  return n.toLocaleString("es-ES", { maximumFractionDigits: dec });
+function fmtNum(n: number | null | undefined, dec = 0): string {
+  return cifra(n, dec);
 }
 
 /** La decisión tal y como hay que leerla. Ampliar una página de CÓDIGO no se
@@ -50,14 +49,14 @@ export default function PlacementGroupCard({
   disabled,
 }: {
   g: PlacementGroup;
-  volumes: Record<string, number>;
+  volumes: Record<string, number | null>;
   value: string;
   onChange: (v: string) => void;
   disabled: boolean;
 }) {
   const dec = decisionDe(g);
   const volTotal = g.keywords.reduce((acc, k) => acc + (volumes[k] ?? 0), 0);
-  const conocido = g.keywords.some((k) => k in volumes);
+  const conocido = g.keywords.some((k) => typeof volumes[k] === "number");
   const conf = g.decision === "cubierto" ? null : etiqueta(CONFIDENCE_LABEL, g.confidence);
   const motivosVia = (g.via ?? []).map((v) => PLACEMENT_VIA[v]).filter(Boolean);
   const selectId = `destino-${g.keywords.join("-")}`;

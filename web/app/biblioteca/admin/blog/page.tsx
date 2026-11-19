@@ -8,7 +8,7 @@ import PostQueues, { agruparPorEstado } from "./PostQueues";
 
 export type ProposalKeyword = {
   keyword: string;
-  volume: number;
+  volume: number | null;
   cpc: number | null;
   competition: number | null;
   // Desactivada a mano (o fundida con una página: `merged` lleva la ruta).
@@ -33,7 +33,7 @@ export type ProposalItem = {
   source_name: string | null;
   has_body: boolean;
   keywords: ProposalKeyword[];
-  keyword_volume: number;
+  keyword_volume: number | null;
   target_keyword: string | null;
   search_volume: number | null;
   is_longtail: boolean;
