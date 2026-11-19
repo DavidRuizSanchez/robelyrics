@@ -317,3 +317,18 @@ def test_un_titulo_entre_comillas_es_una_clave():
     material = ("«Se nos lleva el aire» salió el 15 de diciembre de 2023 y fue número 1 de "
                 "la lista de álbumes de España sus dos primeras semanas.")
     assert "dos primeras semanas" in tramos_con(material, c)
+
+
+def test_una_cifra_corta_con_unidad_es_clave():
+    from app.services.corpus_for_queries import claves_de, tramos_con
+
+    c = "El sello dedicado a Robe tiene un valor postal de 5 euros."
+    assert "5 euros" in claves_de(c)
+    assert tramos_con("Correos dedica un sello a Robe, con un valor postal de 5 euros.", c)
+
+
+def test_robe_murio_en_barakaldo():
+    from app.services import robe_facts
+
+    assert "Barakaldo" in robe_facts.DEATH_PLACE
+    assert any("Barakaldo" in x for x in robe_facts.must_facts_lines())
