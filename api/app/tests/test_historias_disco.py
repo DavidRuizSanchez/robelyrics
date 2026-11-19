@@ -44,3 +44,17 @@ def test_en_una_entrevista_escrita_la_etiqueta_robe_es_robe():
     h = hd._validar(None, {"ancla": "declaracion", "tramo": tramo, "fuente": "P7"},
                     por_id, "", usar_web=False)
     assert h.afirmable and h.quien == "robe" and h.tramo.startswith("Yo creo")
+
+
+def test_sin_tres_historias_afirmables_no_hay_post():
+    """#399: sin material no se cae al motor de fichas; no hay post."""
+    album = type("A", (), {"title": "Bienvenidos al temporal", "id": 1})()
+    flojas = [hd.Historia("g", "dato", "hechos duros", "x" * 30, "hechos", True),
+              hd.Historia("g", "contexto", "P1", "x" * 30, "tercero", False)]
+    assert hd.escribir(None, None, album, flojas, hechos_duros="") is None
+
+
+def test_el_redactor_por_historias_esta_apagado_por_defecto():
+    from app.services import draft_generator as dg
+
+    assert dg.POR_HISTORIAS.get() is False
