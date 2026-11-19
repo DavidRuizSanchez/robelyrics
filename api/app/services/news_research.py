@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import time
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
@@ -637,6 +638,62 @@ def _boost_queries(topic_type: str, subject: str) -> list[str]:
     return common + by_type.get(topic_type, [f"{subject} qué es contexto detalles"])
 
 
+NOTICIAS_POR_HISTORIAS: ContextVar[bool] = ContextVar(
+    "NOTICIAS_POR_HISTORIAS", default=os.environ.get("BLOG_NOTICIAS_HISTORIAS") == "1")
+
+
+def _cerrar_noticia(db, *, subject, body_md, source_excerpt, cronica_txt, dossier_txt,
+                    target_kw, video, image, event_date, plan) -> dict[str, Any]:
+    """El final común de una noticia: saneado, comprobación contra el artículo, meta,
+    vídeo y cabecera. Lo comparten el motor de siempre y el redactor por historias."""
+    # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
+    from app.services.text_sanitizer import strip_ai_tells
+    body_md = strip_ai_tells(body_md) or body_md
+
+    # Lo que la noticia no dice no se afirma: comparación determinista con el
+    # artículo (y juez CONTRA EL ARTÍCULO para lo que no se ve por texto). Va
+    # DESPUÉS del pulido, que reescribe sin volver a verificar.
+    from app.services import source_grounding
+
+    fuente_check = source_excerpt + (f"\n\n{cronica_txt}" if cronica_txt else "")
+    grounding = source_grounding.revisar(
+        body_md, fuente_check, casa=source_grounding.nombres_de_casa(db), propio=dossier_txt,
+    )
+    if grounding.bloqueos:
+        logger.warning("[news_research] %s", grounding.motivo())
+        body_md = source_grounding.quitar_frases(body_md, grounding)
+
+    # Metadatos del post a partir del cuerpo final.
+    meta = _news_meta(subject, body_md)
+    out = {
+        "title": meta.get("title") or subject,
+        "excerpt": meta.get("excerpt") or "",
+        "body_md": body_md,
+        "meta_title": meta.get("meta_title") or "",
+        "meta_description": meta.get("meta_description") or "",
+        "slug": _slugify(meta.get("title") or subject),
+        "target_keyword": target_kw,
+        # Lo que se retiró por no constar en la noticia (para el panel y el log).
+        "grounding_retirado": grounding.motivo() if grounding.bloqueos else "",
+    }
+
+    # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
+    # detecta) y se publica su VideoObject vía posts.video.
+    if video:
+        out["body_md"] = (out.get("body_md") or "").rstrip() + (
+            f"\n\nhttps://www.youtube.com/watch?v={video['youtube_id']}\n"
+        )
+    out["video"] = video
+    # Paquete hero coherente (url+alt+attribution+license+source) para apply_hero.
+    # `image_url` se mantiene por compatibilidad con lectores antiguos.
+    out["hero"] = image
+    out["image_url"] = image["url"] if image else None
+    out["event_date"] = event_date  # date o None (solo si explícita en la fuente)
+    out["is_event"] = bool(plan.get("is_event"))
+    out["is_relevant"] = True
+    return out
+
+
 def research_and_write(
     *, db, headline: str, source_excerpt: str, matched_term: str,
     today=None, tense: str = "informativo", boost: bool = False,
@@ -721,6 +778,21 @@ def research_and_write(
     dossier_txt = entity_dossiers(
         db, " ".join([headline, source_excerpt[:4000], web_txt])
     )
+
+    # Redactor por historias (19-11-2026), detrás de `BLOG_NOTICIAS_HISTORIAS`: el motor de
+    # siempre hablaba del proceso («la información disponible no identifica…»), montaba
+    # secciones sobre lo que no sabía y copiaba errores del artículo. Sin historias
+    # bastantes no hay post: no se cae al motor de siempre.
+    if NOTICIAS_POR_HISTORIAS.get() and tense == "informativo":
+        from app.services.historias_disco import escribir_noticia
+        cuerpo = escribir_noticia(db, headline, source_excerpt)
+        if not cuerpo:
+            return {"title": "", "is_relevant": False,
+                    "motivo": "sin historias bastantes en el artículo"}
+        return _cerrar_noticia(db, subject=subject, body_md=cuerpo,
+                               source_excerpt=source_excerpt, cronica_txt="",
+                               dossier_txt=dossier_txt, target_kw=subject, video=video,
+                               image=image, event_date=event_date, plan=plan)
 
     # En modo crónica el evento ya ocurrió: redacta en pasado, sin anunciar nada
     # a futuro. En informativo, respeta el tiempo del hecho.
@@ -840,49 +912,7 @@ def research_and_write(
         )
         body_md = verify_facts(oneshot.get("body_md") or body_md, afirmable)
 
-    # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
-    from app.services.text_sanitizer import strip_ai_tells
-    body_md = strip_ai_tells(body_md) or body_md
-
-    # Lo que la noticia no dice no se afirma: comparación determinista con el
-    # artículo (y juez CONTRA EL ARTÍCULO para lo que no se ve por texto). Va
-    # DESPUÉS del pulido, que reescribe sin volver a verificar.
-    from app.services import source_grounding
-
-    fuente_check = source_excerpt + (f"\n\n{cronica_txt}" if cronica_txt else "")
-    grounding = source_grounding.revisar(
-        body_md, fuente_check, casa=source_grounding.nombres_de_casa(db), propio=dossier_txt,
-    )
-    if grounding.bloqueos:
-        logger.warning("[news_research] %s", grounding.motivo())
-        body_md = source_grounding.quitar_frases(body_md, grounding)
-
-    # Metadatos del post a partir del cuerpo final.
-    meta = _news_meta(subject, body_md)
-    out = {
-        "title": meta.get("title") or subject,
-        "excerpt": meta.get("excerpt") or "",
-        "body_md": body_md,
-        "meta_title": meta.get("meta_title") or "",
-        "meta_description": meta.get("meta_description") or "",
-        "slug": _slugify(meta.get("title") or subject),
-        "target_keyword": target_kw,
-        # Lo que se retiró por no constar en la noticia (para el panel y el log).
-        "grounding_retirado": grounding.motivo() if grounding.bloqueos else "",
-    }
-
-    # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
-    # detecta) y se publica su VideoObject vía posts.video.
-    if video:
-        out["body_md"] = (out.get("body_md") or "").rstrip() + (
-            f"\n\nhttps://www.youtube.com/watch?v={video['youtube_id']}\n"
-        )
-    out["video"] = video
-    # Paquete hero coherente (url+alt+attribution+license+source) para apply_hero.
-    # `image_url` se mantiene por compatibilidad con lectores antiguos.
-    out["hero"] = image
-    out["image_url"] = image["url"] if image else None
-    out["event_date"] = event_date  # date o None (solo si explícita en la fuente)
-    out["is_event"] = bool(plan.get("is_event"))
-    out["is_relevant"] = True
-    return out
+    return _cerrar_noticia(db, subject=subject, body_md=body_md, source_excerpt=source_excerpt,
+                           cronica_txt=cronica_txt, dossier_txt=dossier_txt,
+                           target_kw=target_kw, video=video, image=image,
+                           event_date=event_date, plan=plan)

@@ -714,6 +714,7 @@ class Pieza:
     otros_titulos: tuple[str, ...] = ()    # títulos que no son del catálogo («El mapa de Robe»)
     palabras_dato: str = "40-120"          # largo de una sección de dato duro
     entradilla_fija: str = ""              # primera frase ya verificada (la efeméride)
+    min_historias: int = 3                 # sin estas, no hay post
 
 
 def pieza_de_disco(db, album) -> Pieza:
@@ -746,7 +747,7 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
     from app.db.models import Song
 
     buenas = [h for h in historias if h.afirmable]
-    if len(buenas) < MIN_HISTORIAS:
+    if len(buenas) < pieza.min_historias:
         logger.info("[historias] «%s»: %d historia(s) afirmable(s), no da para un post",
                     pieza.titulo, len(buenas))
         return None
@@ -801,7 +802,7 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
             partes.append(sec)
             usados += datos
             hechas += 1
-    if hechas < MIN_HISTORIAS:
+    if hechas < pieza.min_historias:
         logger.info("[historias] «%s»: solo %d sección(es) limpias", pieza.titulo, hechas)
         return None
     # La entradilla, la ÚLTIMA: sabiendo qué cuentan ya las secciones. Escrita la primera,
@@ -868,3 +869,89 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
     cuerpo = "\n".join(p for p in cuerpo.split("\n") if p.count("«") == p.count("»"))
     cuerpo = re.sub(r"\n{3,}", "\n\n", cuerpo).strip()
     return cuerpo if len(cuerpo) >= 300 else None
+
+
+# --------------------------------------------------------------------------- #
+# Noticias por historias (19-11-2026)
+# --------------------------------------------------------------------------- #
+_SYS_EDITOR_NOTICIA = (
+    "Eres el editor de un blog de fans de Robe y Extremoduro. Te dan el ARTÍCULO de una "
+    "noticia. Eliges las HISTORIAS que la cuentan: el hecho principal y los detalles que "
+    "aportan algo (quién, qué, cuándo, dónde, cifras, lo que dijo alguien).\n"
+    "REGLAS:\n"
+    "- «tramo»: copia LITERAL del artículo, sin cambiar una palabra, entre 25 y 300 "
+    "caracteres, que sostiene la historia.\n"
+    "- «ancla»: UNA de estas palabras, tal cual: dato, declaracion (alguien lo dice en el "
+    "artículo) o contexto.\n"
+    "- «quien»: robe si habla Robe; tercero si habla otra persona; hechos si es un dato.\n"
+    "- El «gancho» dice SOLO lo que dice su tramo, sin añadir nada.\n"
+    "- Nada que no esté en el artículo. Cada dato en UNA historia. Entre 2 y 5 historias; "
+    "si el artículo da para poco, menos.\n"
+    'Devuelve JSON {"historias": [{"gancho": "...", "ancla": "...", "tramo": "...", '
+    '"quien": "..."}]}'
+)
+
+
+def inventario_noticia(titular: str, articulo: str) -> list[Historia]:
+    """Las historias de una noticia, todas del artículo: el tramo tiene que estar literal
+    en él y el gancho no puede decir más que el tramo."""
+    from app.services.news_research import _json
+
+    data = _json(_SYS_EDITOR_NOTICIA,
+                 f"TITULAR: {titular}\n\nARTÍCULO:\n{articulo[:9000]}", max_tokens=1500,
+                 temperature=0.2)
+    out: list[Historia] = []
+    for h in (data or {}).get("historias") or []:
+        tramo = (h.get("tramo") or "").strip()
+        # El modelo a veces escribe una descripción en «ancla»: se interpreta, no se tira
+        # la historia (19-11-2026: así salían 0 historias de artículos con material).
+        ancla = (h.get("ancla") or "dato").strip().lower()
+        if ancla not in ANCLAS:
+            ancla = "declaracion" if re.search(r"declar|dice|cuenta|explica", ancla) else "dato"
+        if not tramo_literal(tramo, articulo):
+            continue
+        if any(_plano(tramo) in _plano(x.tramo) or _plano(x.tramo) in _plano(tramo) for x in out):
+            continue
+        quien = (h.get("quien") or "hechos").strip()
+        historia = Historia(h.get("gancho") or tramo, ancla, "artículo de la noticia", tramo,
+                            "hechos" if quien not in ("robe", "tercero") else quien, True,
+                            contexto="[ARTÍCULO DE LA NOTICIA] (se cuenta en nuestra voz; no "
+                                     "nombres el medio)\n" + articulo[:6000])
+        out.append(gancho_fiel(historia))
+    return out
+
+
+def pieza_de_noticia(db, titular: str) -> Pieza:
+    from app.services import robe_facts
+    datos = "\n".join(robe_facts.must_facts_lines(db))
+    return Pieza(
+        objeto=f"la noticia «{titular}»", titulo=titular,
+        entradilla_pide=("cuenta la noticia en dos frases: qué ha pasado, quién y cuándo, "
+                         "con los datos del artículo"),
+        aviso_seccion="Lo principal ya va en la entradilla: no lo repitas.",
+        cierre_pide=("dos frases que sitúen la noticia en la obra o la vida de Robe con "
+                     "ESTOS datos; si no encajan, recuerda solo quién era, sin solemnidad"),
+        cierre_datos=datos, es_ultimo=None, palabras_dato="40-120", min_historias=2)
+
+
+def escribir_noticia(db, titular: str, articulo: str) -> str | None:
+    """El cuerpo de una noticia por historias, o None si el artículo no da para ello."""
+    import os
+
+    from openai import OpenAI
+
+    if not (articulo or "").strip():
+        return None
+    historias = inventario_noticia(titular, articulo)
+    if len(historias) < 2:
+        logger.info("[historias] noticia «%s»: %d historia(s), no da para un post",
+                    titular, len(historias))
+        return None
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    from app.services import robe_facts
+    hechos = articulo[:6000] + "\n\n" + "\n".join(robe_facts.must_facts_lines(db))
+    return escribir_pieza(db, client, pieza_de_noticia(db, titular), historias,
+                          hechos_duros=hechos,
+                          encargo="Es una noticia: cuéntala con sus datos exactos, sin "
+                                  "inflarla. Los hechos se cuentan como hechos, sin hablar "
+                                  "de fuentes.")

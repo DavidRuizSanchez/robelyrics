@@ -332,3 +332,32 @@ def test_robe_murio_en_barakaldo():
 
     assert "Barakaldo" in robe_facts.DEATH_PLACE
     assert any("Barakaldo" in x for x in robe_facts.must_facts_lines())
+
+
+def test_una_noticia_solo_tiene_historias_de_su_articulo(monkeypatch):
+    articulo = ("Correos lanza un sello dedicado a Robe. La emisión llegará el 23 de noviembre "
+                "de 2026 con un valor postal de 5 euros y una tirada de 65.000 ejemplares.")
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: {"historias": [
+        {"gancho": "Sale el 23 de noviembre", "ancla": "dato", "quien": "hechos",
+         "tramo": "La emisión llegará el 23 de noviembre de 2026 con un valor postal de 5 euros"},
+        {"gancho": "Inspirado en Deltoya", "ancla": "dato", "quien": "hechos",
+         "tramo": "El diseño se inspira en los discos Deltoya y Mayéutica"},   # no está
+    ]})
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_noticia("Correos dedica un sello a Robe", articulo)
+    assert [h.gancho for h in hs] == ["Sale el 23 de noviembre"]
+
+
+def test_el_redactor_de_noticias_por_historias_esta_apagado_por_defecto():
+    from app.services import news_research
+    assert news_research.NOTICIAS_POR_HISTORIAS.get() is False
+
+
+def test_un_ancla_descriptiva_no_tira_la_historia(monkeypatch):
+    articulo = "En los primeros cinco días el capítulo ha superado las 66.000 visualizaciones."
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: {"historias": [
+        {"gancho": "66.000 visualizaciones", "ancla": "Dato de audiencia del documental",
+         "quien": "hechos", "tramo": articulo}]})
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_noticia("x", articulo)
+    assert len(hs) == 1 and hs[0].ancla == "dato"
