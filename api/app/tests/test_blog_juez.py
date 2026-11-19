@@ -108,8 +108,12 @@ def test_productor_sin_corpus_no_entra(monkeypatch):
     datos = album_facts.datos_corroborados(
         _DbCanciones(), album, release_group="rg", sellos_mb=["El Dromedario Records"],
         wiki=("Destrozares", DESTROZARES_WIKI))
-    assert [d.campo for d in datos] == ["sello"]
+    campos = [d.campo for d in datos]
+    assert "productor" not in campos and "estudio" not in campos
+    assert campos[0] == "sello"
     assert len(datos[0].fuentes) == 2  # MusicBrainz y Wikipedia coinciden
+    # La grabación de la ficha sí entra (David, 19-11-2026: vale como dato).
+    assert all(c in ("sello", "grabacion", "seccion", "listas") for c in campos)
 
 
 def test_productor_corroborado_se_dice_como_participacion(monkeypatch):

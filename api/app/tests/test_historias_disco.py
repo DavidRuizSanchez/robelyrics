@@ -219,3 +219,42 @@ def test_robe_advirtio_con_su_medio_se_cita():
     t = "En una entrevista de 2016 con Diario de Noticias de Navarra, Robe advirtió que no era triste."
     assert source_guard.limpiar(t, [])[0] == t
     assert hd._PROCESO.search("La transcripción menciona también «A la orilla del río».")
+
+
+def test_la_grabacion_entra_siempre_si_hay_datos():
+    hechos = ("Sello: El Dromedario Records.\nGrabación: Las canciones estaban compuestas "
+              "desde el confinamiento. El bajo y la batería se grabaron en Estudio Uno.")
+    h = hd.historia_de_grabacion(hechos)
+    assert h and h.afirmable and h.ancla == "grabacion" and "Estudio Uno" in h.tramo
+    assert hd.historia_de_grabacion("Sello: X.") is None
+
+
+def test_la_nota_del_editor_sobrevive_al_juicio():
+    from app.services.draft_generator import con_nota
+
+    previas = {"nota": "Enfoque: el primer aniversario de la muerte de Robe"}
+    assert con_nota({"pasa": False}, previas)["nota"].startswith("Enfoque")
+    assert "nota" not in con_nota({"pasa": True}, {"pasa": False, "motivos": []})
+    # Y la siguiente vuelta la conserva también.
+    v2 = con_nota({"pasa": True}, con_nota({"pasa": False}, previas))
+    assert v2["nota"] == previas["nota"]
+
+
+def test_la_grabacion_de_la_entradilla_de_wikipedia():
+    from app.services.album_facts import frases_de_edicion_en_entradilla
+
+    wt = ("{{Ficha de álbum\n|nombre = Bienvenidos al temporal\n|grabación = 2017\n}}\n"
+          "'''Bienvenidos al temporal''' es el único álbum en directo de Robe.\n\n"
+          "Los escenarios elegidos para la grabación del disco fueron el [[Teatro romano de "
+          "Mérida]] y el [[WiZink Center]] de Madrid.\nLa gira repasaba sus discos.\n"
+          "== Lista de canciones ==\n")
+    t = frases_de_edicion_en_entradilla(wt)
+    assert t == ("Los escenarios elegidos para la grabación del disco fueron el Teatro romano "
+                 "de Mérida y el WiZink Center de Madrid.")
+
+
+def test_album_de_estudio_no_es_dato_de_grabacion():
+    from app.services.album_facts import frases_de_edicion_en_entradilla
+
+    wt = "'''Destrozares''' es el segundo álbum de estudio de Robe, publicado en 2016.\n== X ==\n"
+    assert frases_de_edicion_en_entradilla(wt) == ""

@@ -329,7 +329,17 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
                     f"cada tema: " + "; ".join(partes) + "."
                 )
                 rerec = [tr for tr, _, _ in filas if tr.is_rerecording]
-                if rerec:
+                if rerec and entity.kind == "live":
+                    # En un directo, «regrabación» es la toma EN DIRECTO. Dicho como
+                    # «regrabaciones hechas para este disco», el redactor escribió «un
+                    # directo rehecho en el estudio» de «Bienvenidos al temporal»
+                    # (19-11-2026), que se grabó en tres escenarios.
+                    facts.append(
+                        f"{len(rerec)} de estos cortes son grabaciones EN DIRECTO de este "
+                        "disco, no las versiones de estudio originales: "
+                        + ", ".join(f"«{t.title_as_released}»" for t in rerec[:10]) + "."
+                    )
+                elif rerec:
                     facts.append(
                         f"{len(rerec)} de estos cortes son REGRABACIONES hechas "
                         "para este disco, no las tomas originales: "

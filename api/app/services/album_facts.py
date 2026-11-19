@@ -167,7 +167,7 @@ def pagina_wikipedia(http, titulo_disco: str, artista: str) -> tuple[str, str] |
 _SECCIONES_DE_EDICION = re.compile(r"grabaci|producci|composici|promoci|lanzamiento|edici",
                                    re.I)
 MAX_SECCION = 1200
-VERSION_CACHE = 2
+VERSION_CACHE = 3
 
 
 def secciones_de_edicion(wikitexto: str) -> list[tuple[str, str]]:
@@ -189,6 +189,28 @@ def secciones_de_edicion(wikitexto: str) -> list[tuple[str, str]]:
         if len(texto) >= 40:
             out.append((titulo.strip(), texto[:MAX_SECCION]))
     return out
+
+
+_FRASE_DE_EDICION = re.compile(r"grab|produc|estudio|escenario|dirigid|mezcl|masteri", re.I)
+
+
+def frases_de_edicion_en_entradilla(wikitexto: str) -> str:
+    """Las frases de la entradilla del artículo (antes del primer apartado) que hablan de
+    grabación, producción o estudios. La ficha y las plantillas se quitan antes."""
+    cabeza = re.split(r"^==", wikitexto or "", maxsplit=1, flags=re.M)[0]
+    # Fuera la ficha y cualquier plantilla de varias líneas.
+    while True:
+        nuevo = re.sub(r"\{\{[^{}]*\}\}", "", cabeza, flags=re.S)
+        if nuevo == cabeza:
+            break
+        cabeza = nuevo
+    texto = " ".join(_limpiar_wiki(x) for x in cabeza.splitlines() if x.strip())
+    frases = re.split(r"(?<=[.!?])\s+", texto)
+    # «segundo álbum de estudio» no es un dato de grabación.
+    sin_tipo = [re.sub(r"\b(?:álbum|disco|trabajo)s? de estudio\b", "", f, flags=re.I)
+                for f in frases]
+    return " ".join(f for f, limpia in zip(frases, sin_tipo)
+                    if _FRASE_DE_EDICION.search(limpia))[:MAX_SECCION].strip()
 
 
 # --------------------------------------------------------------------------- #
@@ -306,6 +328,17 @@ def datos_corroborados(db, album, *, release_group: str | None, sellos_mb: list[
     # Primer sencillo: que la canción esté en el disco no prueba que fuera el sencillo
     # (asesor, 18-11-2026). Hace falta un texto del corpus que nombre la canción como
     # sencillo o adelanto del disco.
+    # La grabación también puede estar en la ficha («grabación = 12 de junio de 2017 -
+    # 11 de noviembre de 2017») o en la entradilla del artículo: «Bienvenidos al temporal»
+    # no tiene apartado de grabación y sus escenarios solo salen ahí (19-11-2026).
+    if ficha.get("grabacion"):
+        datos.append(Dato("grabacion", ficha["grabacion"], [
+            {"kind": "wikipedia", "tier": "T2", "url": wiki_url,
+             "cita": f"grabación = {ficha['grabacion']}"}]))
+    entradilla = frases_de_edicion_en_entradilla(wiki[1] if wiki else "")
+    if entradilla:
+        datos.append(Dato("seccion", f"Grabación y edición: {entradilla}", [
+            {"kind": "wikipedia", "tier": "T2", "url": wiki_url, "cita": "entradilla"}]))
     for titulo, texto in secciones_de_edicion(wiki[1] if wiki else ""):
         datos.append(Dato("seccion", f"{titulo}: {texto}", [
             {"kind": "wikipedia", "tier": "T2", "url": wiki_url, "cita": f"== {titulo} =="}]))
