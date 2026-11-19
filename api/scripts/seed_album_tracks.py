@@ -13,8 +13,9 @@ El casado usa el alias sin sufijo desambiguador, porque el catálogo guarda
 títulos verbosos: «Jesucristo García (Rock Transgresivo)» y «Bulerías de la
 sangre caliente (...)» no casan por igualdad literal con lo que trae MusicBrainz.
 
-Además marca `is_rerecording` comparando el MBID de grabación con el de la
-canción original: es el dato que acredita que un recopilatorio aporta material.
+`is_rerecording`: en un directo, todos los cortes (cada uno es una toma nueva); en el
+resto se conserva la marca que ya tuviera la grabación (se puso a mano comparando MBIDs:
+es el dato que acredita que un recopilatorio aporta material).
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ from app.db.session import SessionLocal
 from app.services.kw_normalize import kw_norm, strip_title_suffix
 
 MB = "https://musicbrainz.org/ws/2"
-UA = {"User-Agent": "RobeLyrics/1.0 (davidruizsanchez@gmail.com)"}
+UA = {"User-Agent": "EntreInteriores/1.0 (https://entreinteriores.com)"}
 PAUSA = 1.3
 
 NO_ESTUDIO = ("live", "compilation", "single")
@@ -64,7 +65,13 @@ def fetch_tracklist(client: httpx.Client, titulo: str, artista_mbid: str) -> lis
     d = _get(client, "release", **{"release-group": rg["id"],
                                    "inc": "recordings", "limit": 5})
     time.sleep(PAUSA)
-    rels = sorted(d.get("releases", []), key=lambda x: x.get("date") or "zzzz")
+    # La más antigua y, a igual fecha, la MÁS COMPLETA: «Bienvenidos al temporal» tiene
+    # tres ediciones del 30-11-2018 (digital de 9, CD doble de 19 y digital de 10) y el
+    # orden de llegada metía la de 9 (19-11-2026).
+    rels = sorted(d.get("releases", []),
+                  key=lambda x: (x.get("date") or "zzzz",
+                                 -sum(m.get("track-count") or len(m.get("tracks") or [])
+                                      for m in x.get("media", []))))
     if not rels:
         return []
     out = []
@@ -156,6 +163,9 @@ def seed(db: Session, album: Album, *, dry_run: bool = False) -> tuple[int, int]
         return 0, 0
 
     propio, ajeno = build_song_index(db, album.artist_id)
+    # La marca de regrabación que ya hubiera, por grabación: resembrar no la pierde.
+    previas = {t.recording_mbid: t.is_rerecording for t in db.query(AlbumTrack)
+               .filter(AlbumTrack.album_id == album.id) if t.recording_mbid}
     enlazados = huerfanos = 0
     filas: list[AlbumTrack] = []
 
@@ -189,6 +199,8 @@ def seed(db: Session, album: Album, *, dry_run: bool = False) -> tuple[int, int]
             match_source=fuente,
             duration_sec=t["length"],
             recording_mbid=t["recording"],
+            # Un directo es, por definición, una grabación nueva de cada tema.
+            is_rerecording=(True if album.kind == "live" else previas.get(t["recording"])),
         ))
         marca = f"→ {song.slug}  [{fuente}]" if song else "SIN ENLAZAR"
         print(f"   {t['disc']}.{t['position']:>2}  {t['title'][:44]:<46} {marca}")
