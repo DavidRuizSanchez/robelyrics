@@ -40,6 +40,9 @@ _MEDIOS = (
     "indie hoy", "dirty rock", "science of noise", "20minutos", "el confidencial",
     "eldiario", "la razón", "el español", "infolibre", "la vanguardia", "diario hoy",
     "hoy.es", "fuego y chinchetas", "la gran travesía", "el periódico extremadura",
+    # Entrevista de 2016 a Robe (Fernando F. Garayoa): es prensa, y su nombre llegaba
+    # como autor del corpus, así que «Robe contó a Diario de Noticias…» se quitaba.
+    "diario de noticias de navarra", "noticias de navarra",
 )
 # Medios cuyo nombre es también una frase corriente («todo el mundo», «el público
 # cantaba»): solo cuentan escritos tal cual, con su mayúscula.
@@ -67,7 +70,8 @@ _FORMULAS = re.compile(
 _ROBE_HABLA = re.compile(
     r"\bRobe\b[^.!?]{0,60}\b(?:dijo|cont[oó]|explic[oó]|declar[oó]|confes[oó]|asegur[oó]"
     r"|reconoci[oó]|coment[oó]|afirm[oó]|record[oó]|habl[oó]|respond[ií]a|respondi[oó]"
-    r"|dec[ií]a|contaba|explicaba|confesaba)\b",
+    r"|dec[ií]a|contaba|explicaba|confesaba|advirti[oó]|señal[oó]|sostuvo|insisti[oó]"
+    r"|apunt[oó]|matiz[oó]|aseguraba|admiti[oó]|rechaz[oó]|neg[oó]|cuestion[oó])\b",
     re.I,
 )
 _EXENTAS = ("setlist.fm", "musicbrainz")
@@ -200,7 +204,8 @@ def nombres_de_fuentes(db=None) -> list[str]:
             gente = {_plano(n) for p in db.query(Person).all()
                      for n in (p.stage_name, p.full_name) if n}
             for (autor,) in db.query(InterpretationSource.author).distinct().all():
-                if autor and len(autor.strip()) >= 4 and _plano(autor) not in gente:
+                if (autor and len(autor.strip()) >= 4 and _plano(autor) not in gente
+                        and _plano(autor) not in medios):
                     nombres.append(autor.strip())
         except Exception:  # noqa: BLE001
             pass
@@ -273,6 +278,22 @@ def _enmascarar(linea: str) -> str:
     return re.sub(r"https?://\S+", lambda m: "x" * len(m.group(0)), linea)
 
 
+def _unidades(linea: str) -> list[tuple[int, int]]:
+    """Las frases de la línea, sin partir nunca una cita: si una frase abre «…» y la
+    cierra otra, van juntas. Medido el 19-11-2026: al quitar «Robe contó a X: «Pero no
+    solo cambia eso.», el resto de la cita quedaba suelto, en boca del narrador."""
+    out: list[tuple[int, int]] = []
+    abierta = 0
+    for m in _FRASE.finditer(linea):
+        trozo = m.group(0)
+        if abierta > 0 and out:
+            out[-1] = (out[-1][0], m.end())
+        else:
+            out.append((m.start(), m.end()))
+        abierta = max(0, abierta + trozo.count("«") - trozo.count("»"))
+    return out
+
+
 def limpiar(texto: str, nombres: list[str] | None = None) -> tuple[str, list[str]]:
     """Quita las frases que nombran fuentes o hablan del proceso.
 
@@ -289,9 +310,9 @@ def limpiar(texto: str, nombres: list[str] | None = None) -> tuple[str, list[str
             continue
         mascara = _enmascarar(linea)
         buenas = []
-        for m in _FRASE.finditer(mascara):
-            original = linea[m.start():m.end()]
-            evaluable = re.sub(r"\]\(x*\)", "]", m.group(0))
+        for ini, fin in _unidades(mascara):
+            original = linea[ini:fin]
+            evaluable = re.sub(r"\]\(x*\)", "]", mascara[ini:fin])
             if _METATEXTO.search(evaluable) or _culpa(evaluable, nombres):
                 quitadas.append(original.strip())
             else:

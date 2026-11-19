@@ -549,6 +549,26 @@ def test_la_consulta_va_sin_los_signos_que_rompen_dataforseo():
     assert limpiar_consulta("10º aniversario de «Destrozares»") == "10 aniversario de Destrozares"
 
 
+def test_listas_se_confirman_con_los_datos_del_disco():
+    from app.services.fact_check import listas_confirmadas
+
+    material = ("«Se nos lleva el aire» (Robe, 2023), tipo studio.\n"
+                "Listas: n.º 1 en la lista oficial de álbumes de España, 132 semanas en lista "
+                "(entró el 24-12-2023).")
+    assert listas_confirmadas(material, "«Se nos lleva el aire» alcanzó el número uno de la "
+                                        "lista oficial de álbumes de España.")
+    assert listas_confirmadas(material, "El álbum, publicado el 15 de diciembre de 2023, llegó "
+                                        "al n.º 1 de la lista y permaneció 132 semanas.")
+    assert listas_confirmadas(material, "Entró en la lista el 24 de diciembre de 2023.")
+    assert not listas_confirmadas(material, "Alcanzó el número cinco de la lista oficial.")
+    assert not listas_confirmadas(material, "Estuvo 48 semanas en la lista.")
+    assert not listas_confirmadas(material, "«Mayéutica» alcanzó el número uno de la lista.")
+    assert not listas_confirmadas(material, "Entró en la lista el 27 de noviembre.")
+    d = ("«Destrozares, canciones para el final de los tiempos» (Robe, 2016), tipo studio.\n"
+         "Listas: n.º 5 en la lista oficial de álbumes de España, 48 semanas en lista "
+         "(entró el 27-11-2016).")
+    assert listas_confirmadas(d, "Alcanzó el quinto puesto de la lista y entró el 27 de noviembre.")
+
 DISCOGRAFIA_ROBE = ("Discografía: Lo que aletea en nuestras cabezas (2015, studio); Destrozares, "
                     "canciones para el final de los tiempos (2016, studio); Bienvenidos al "
                     "temporal (2018, live); Mayéutica (2021, studio); Se nos lleva el aire "

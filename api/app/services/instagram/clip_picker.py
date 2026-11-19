@@ -652,6 +652,12 @@ def _variados(candidatos: list[Candidato], cuantos: int) -> list[Candidato]:
 #
 # Dos señales deterministas primero, que son gratis y cazan la mayoría:
 _PREGUNTA = re.compile(r"[¿?]")
+# Las muletillas («¿no?», «¿sabes?») no son preguntas de quien entrevista: Robe las
+# suelta a media respuesta. Medido el 19-11-2026: «da un poco de miedo, ¿no? Sí, a mí
+# sí» (rueda de prensa de Destrozares) salía como pregunta del periodista.
+_MULETILLA = re.compile(
+    r"¿\s*(no|eh|sabes|verdad|vale|entiendes|me entiendes|sabes lo que te digo|"
+    r"me explico|sabes lo que quiero decir)\s*\?", re.I)
 # Quien nombra a Robe está hablando DE él: es quien presenta o entrevista. Robe
 # no se nombra a sí mismo en tercera persona.
 _NOMBRA_AL_SUJETO = re.compile(r"\b(robe|roberto iniesta|extremoduro)\b", re.I)
@@ -679,7 +685,7 @@ def habla_el_protagonista(texto: str, *, usar_llm: bool = True) -> tuple[bool, s
     t = (texto or "").strip()
     if not t:
         return False, "sin texto"
-    if _PREGUNTA.search(t):
+    if _PREGUNTA.search(_MULETILLA.sub(" ", t)):
         return False, "es una pregunta: la hace quien entrevista"
     if _NOMBRA_AL_SUJETO.search(t):
         return False, "nombra al sujeto: habla DE él, no es él"

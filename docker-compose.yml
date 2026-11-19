@@ -70,6 +70,8 @@ services:
       # La repesca del blog también adelanta APROBADAS que pasaron el juicio. Apagada
       # hasta limpiar la cola de aprobadas (18-11-2026).
       BLOG_REPESCA_APROBADAS: ${BLOG_REPESCA_APROBADAS:-}
+      # Aniversarios e historias de un disco con el redactor por historias (19-11-2026).
+      BLOG_DISCO_HISTORIAS: ${BLOG_DISCO_HISTORIAS:-}
       MONITOR_BASE_URL: ${MONITOR_BASE_URL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}

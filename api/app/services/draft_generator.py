@@ -52,6 +52,34 @@ logger = logging.getLogger(__name__)
 ROBE = "Robe Iniesta"
 
 
+# Redactor de discos por historias (`historias_disco`). Apagado hasta que David lo valide:
+# `BLOG_DISCO_HISTORIAS=1` o, en las pruebas en seco, `POR_HISTORIAS.set(True)`.
+POR_HISTORIAS: ContextVar[bool] = ContextVar(
+    "POR_HISTORIAS", default=os.environ.get("BLOG_DISCO_HISTORIAS") == "1")
+
+
+def _por_historias(db, album, dossier, framing: str) -> dict | None:
+    from openai import OpenAI
+
+    from app.services import historias_disco
+    from app.services.news_research import _news_meta
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    historias = historias_disco.inventario(db, album, hechos_duros=dossier.hard_facts)
+    TRAZA.clear()
+    TRAZA.extend({"historia": h.to_dict()} for h in historias)
+    encargo = framing.split(" Escribe como un fan")[0][:400]
+    cuerpo = historias_disco.escribir(db, client, album, historias,
+                                      hechos_duros=dossier.hard_facts, encargo=encargo)
+    if not cuerpo:
+        return None
+    meta = _news_meta(dossier.subject, cuerpo)
+    return {"title": (meta.get("title") or dossier.subject)[:240],
+            "excerpt": meta.get("excerpt") or "", "body_md": cuerpo,
+            "meta_title": meta.get("meta_title") or "",
+            "meta_description": meta.get("meta_description") or "", "entities": []}
+
+
 def _deep_body(
     db, *, entity_type: str, entity, framing: str, coverage: str = "",
     extra_material: str = "", tier: str = "standard", serp_guidance: str = "",
@@ -83,6 +111,14 @@ def _deep_body(
         )
 
         dossier = gather_entity_dossier(db, entity_type, entity)
+        if (entity_type == "album" and tipo_pieza in ("album-anniversary", "album-historia")
+                and POR_HISTORIAS.get()):
+            hecho = _por_historias(db, entity, dossier, framing)
+            if hecho is not None:
+                return hecho
+            # Sin historias bastantes no hay post de disco: no se cae al motor de fichas,
+            # que es justo lo que David rechazó (18-11-2026).
+            return None
         material = dossier.material or ""
         if extra_material.strip():
             material = f"{material}\n\nINVESTIGACIÓN WEB (material real adicional):\n{extra_material}"
@@ -533,6 +569,10 @@ def generate_body(db, p: ContentProposal) -> dict | None:
         )
         if deep:
             return deep
+        if POR_HISTORIAS.get():
+            # Sin historias bastantes no hay post: el generador clásico escribe sin
+            # material y se inventó la fecha de salida de los dos discos (19-11-2026).
+            return None
         try:
             ctx = album_context(db, album.id)
         except Exception:

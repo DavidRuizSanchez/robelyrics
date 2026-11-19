@@ -796,6 +796,63 @@ def posicion_confirmada(material: str, texto: str) -> bool:
     return bool(num) and pos == int(num.group(1))
 
 
+_NUM_PALABRA = {
+    "uno": 1, "primer": 1, "primero": 1, "primera": 1, "dos": 2, "segundo": 2, "tres": 3,
+    "tercero": 3, "tercer": 3, "cuatro": 4, "cuarto": 4, "cinco": 5, "quinto": 5, "seis": 6,
+    "sexto": 6, "siete": 7, "séptimo": 7, "ocho": 8, "octavo": 8, "nueve": 9, "noveno": 9,
+    "diez": 10, "décimo": 10,
+}
+_LISTAS_MATERIAL = re.compile(
+    r"Listas: n\.º (\d+) en la lista oficial de álbumes de España, (\d+) semanas en lista"
+    r"(?: \(entró el (\d{2})-(\d{2})-(\d{4})\))?")
+_CABECERA_DISCO = re.compile(r"^«([^»]+)» \((?:Robe|Extremoduro), \d{4}\)", re.M)
+
+
+def listas_confirmadas(material: str, texto: str) -> bool:
+    """¿La afirmación sobre la lista oficial cuadra con la línea «Listas:» del disco?
+
+    Medido el 19-11-2026: «"Se nos lleva el aire" alcanzó el número uno de la lista
+    oficial» se iba a la web, porque la línea de listas no lleva el nombre del disco y
+    el localizador de tramos no la encontraba; la web traía «Mayéutica» n.º 1 y quedaba
+    «sin confirmar». Determinista: el puesto y las semanas que diga el texto tienen que
+    ser los del material, y no puede nombrar otro disco."""
+    m = _LISTAS_MATERIAL.search(material or "")
+    if not m or not re.search(r"\blista", texto or "", re.I):
+        return False
+    puesto, semanas = int(m.group(1)), int(m.group(2))
+    cab = _CABECERA_DISCO.search(material)
+    titulos = re.findall(r"«\[?([^»\]]+)", texto)
+    if cab and any(_norm_title(t) != _norm_title(cab.group(1)) for t in titulos):
+        return False
+    low = (texto or "").lower()
+    dichos_puesto = [int(x) for x in re.findall(r"(?:n\.?\s?º|número|puesto)\s*(\d+)", low)]
+    dichos_puesto += [n for w, n in _NUM_PALABRA.items()
+                      if re.search(rf"\b(?:número|n\.º) {w}\b|\b{w} puesto\b|\bel {w}\b(?= de la lista)",
+                                   low)]
+    dichas_semanas = [int(x) for x in re.findall(r"(\d+)\s+semanas", low)]
+    if not dichos_puesto and not dichas_semanas and not re.search(r"\bentr[óo]\b", low):
+        return False
+    if any(x != puesto for x in dichos_puesto) or any(x != semanas for x in dichas_semanas):
+        return False
+    if re.search(r"\bentr[óo]\b", low):
+        # La fecha de entrada tiene que ser la del material. Sin año («entró el 27 de
+        # noviembre») vale el día y el mes; cualquier otra fecha no se mira aquí.
+        if not m.group(3):
+            return False
+        meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                 "septiembre", "octubre", "noviembre", "diciembre"]
+        d, mes, a = int(m.group(3)), int(m.group(4)), int(m.group(5))
+        dichas = re.findall(r"\b(\d{1,2}) de (" + "|".join(meses) + r")(?: de (\d{4}))?", low)
+        if not any(int(x) == d and meses.index(y) + 1 == mes and (not z or int(z) == a)
+                   for x, y, z in dichas):
+            return False
+    return True
+
+
+def _norm_title(t: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", (t or "").lower())
+    return " ".join("".join(c for c in t if not unicodedata.combining(c)).split()).strip(" .,")
 def orden_en_discografia_confirmado(material: str, texto: str) -> bool:
     """«X fue el cuarto (o el último) álbum de estudio de Robe», contra la línea
     «Discografía: A (2015, studio); …; X (2023, studio) ← ESTE DISCO» de los hechos duros.
@@ -839,6 +896,9 @@ def _resolver_con_material(db, claim: Claim, idx, material: str, use_web: bool) 
     if material:
         if posicion_confirmada(material, claim.text):
             return Verdict(claim, "confirmed", evidence="posición en el tracklist", source="material")
+        if listas_confirmadas(material, claim.text):
+            return Verdict(claim, "confirmed", evidence="lista oficial (datos del disco)",
+                           source="material")
         if orden_en_discografia_confirmado(material, claim.text):
             return Verdict(claim, "confirmed", evidence="orden en la discografía", source="material")
         tramos = tramos_con(material, claim.text)
