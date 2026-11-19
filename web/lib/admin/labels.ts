@@ -357,3 +357,13 @@ export const CAMBIO_SEVERIDAD: Record<string, Etiqueta> = {
     hint: "Página nueva, más lenta o con imágenes sin texto alternativo.",
   },
 };
+
+
+/** Una cifra para el panel; vacía es «n/d», nunca 0 ni un error. Las ideas de catálogo
+ *  traen el volumen a `null` a propósito (no se inventa) y el panel reventaba con
+ *  `null.toLocaleString` (19-11-2026). */
+export function cifra(n: number | null | undefined, dec = 0): string {
+  return typeof n === "number" && Number.isFinite(n)
+    ? n.toLocaleString("es-ES", { maximumFractionDigits: dec })
+    : "n/d";
+}
