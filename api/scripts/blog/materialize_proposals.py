@@ -73,8 +73,10 @@ def _retener(p: ContentProposal, bloquea: str, motivos: list[str], score: int | 
     p.scheduled_for = None
     p.review_verdict = "retenida"
     p.review_score = score
-    p.review_reasons = {"pasa": False, "bloquea": bloquea, "motivos": motivos[:6],
-                        "score": score, "faltan_datos": []}
+    from app.services.draft_generator import con_nota
+    p.review_reasons = con_nota({"pasa": False, "bloquea": bloquea, "motivos": motivos[:6],
+                                 "score": score, "faltan_datos": []},
+                                getattr(p, "review_reasons", None))
     p.reviewed_at = datetime.now(UTC)
 
 

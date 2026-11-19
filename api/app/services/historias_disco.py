@@ -229,7 +229,24 @@ def inventario(db, album, *, hechos_duros: str, usar_web: bool = True) -> list[H
         historia = _validar(db, h, por_id, hechos_duros, usar_web=usar_web)
         if historia:
             out.append(historia)
-    return out[:MAX_HISTORIAS]
+    out = out[:MAX_HISTORIAS]
+    grabacion = historia_de_grabacion(hechos_duros)
+    if grabacion and not any(h.ancla == "grabacion" and h.afirmable for h in out):
+        # Es lo primero que pide el juez a un aniversario, y el editor a veces no la
+        # elegía teniendo los datos (#425, 19-11-2026: rechazada por eso con 38).
+        out.append(grabacion)
+    return out
+
+
+def historia_de_grabacion(hechos_duros: str) -> Historia | None:
+    """La historia de cómo y dónde se grabó, si los datos duros la traen."""
+    lineas = [x.strip() for x in (hechos_duros or "").splitlines()
+              if re.match(r"\s*Grabaci[oó]n", x)]
+    if not lineas:
+        return None
+    tramo = max(lineas, key=len)
+    return Historia("Cómo y dónde se grabó el disco, y con quién", "grabacion",
+                    "hechos duros", tramo[:300], "hechos", True, contexto=hechos_duros)
 
 
 def _validar(db, h: dict, por_id: dict, hechos_duros: str, *, usar_web: bool

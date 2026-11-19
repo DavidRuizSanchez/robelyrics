@@ -69,6 +69,10 @@ def _por_historias(db, album, dossier, framing: str) -> dict | None:
     TRAZA.clear()
     TRAZA.extend({"historia": h.to_dict()} for h in historias)
     encargo = framing.split(" Escribe como un fan")[0][:400]
+    correcciones = _CORRECCIONES.get()
+    if correcciones:
+        # La nota del editor (o los motivos del juez) también le llegan a este redactor.
+        encargo = f"{encargo} {correcciones[:800]}"
     cuerpo = historias_disco.escribir(db, client, album, historias,
                                       hechos_duros=dossier.hard_facts, encargo=encargo)
     if not cuerpo:
@@ -976,6 +980,14 @@ def material_propio_de_propuesta(db, p: ContentProposal) -> str:
     return ""
 
 
+def con_nota(veredicto: dict, previas) -> dict:
+    """El veredicto nuevo, sin perder la nota del editor. La nota vive en
+    `review_reasons["nota"]` y el primer juicio la pisaba: la #417 se reescribió el
+    19-11-2026 sin su enfoque («el primer aniversario de la muerte de Robe»)."""
+    nota = previas.get("nota") if isinstance(previas, dict) else None
+    return {**veredicto, "nota": nota} if nota else veredicto
+
+
 def _juzgar(db, p: ContentProposal, hard: str):
     from app.services.blog_gates import cascada_en_seco
 
@@ -1081,7 +1093,7 @@ def juzgar_borrador(db, p: ContentProposal, *, reescribir: bool = True):
                and (juicio.score or 0) >= UMBRAL_PARA_TU_LECTURA)
     p.review_verdict = "pasa" if juicio.pasa else ("para_tu_lectura" if para_ti else "retenida")
     p.review_score = juicio.score
-    p.review_reasons = juicio.to_dict()
+    p.review_reasons = con_nota(juicio.to_dict(), getattr(p, "review_reasons", None))
     p.reviewed_at = datetime.now(UTC)
     p.review_attempts = intentos
     logger.info("draft: propuesta %s %s (score %s, %d intento/s)%s", p.id, p.review_verdict,
