@@ -52,11 +52,16 @@ def _accion_url(p: ContentProposal, action: str, target: str | None = None,
 
 
 def _boton(url: str, label: str, *, principal: bool) -> str:
-    color = "#a83a3a" if principal else "rgba(237,228,211,0.45)"
-    return (f'<a href="{url}" style="display:inline-block;padding:6px 10px;margin:6px 6px 0 0;'
-            f'border:1px solid {color};color:{color};text-decoration:none;'
-            f"font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;"
-            f'text-transform:uppercase;">{label}</a>')
+    # Legible en cualquier cliente (19-11-2026, David no podía leer el correo): el principal
+    # relleno con texto oscuro en negrita; el secundario, borde y texto claros sólidos.
+    if principal:
+        estilo = "background:#e85050;border:1px solid #e85050;color:#0d0b0a;font-weight:bold;"
+    else:
+        estilo = "background:transparent;border:1px solid #c9bfae;color:#f4eee3;"
+    return (f'<a href="{url}" style="display:inline-block;padding:8px 12px;margin:6px 6px 0 0;'
+            f'{estilo}text-decoration:none;'
+            f"font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:0.5px;"
+            f'">{label}</a>')
 
 
 def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
@@ -72,7 +77,7 @@ def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
 
     from app.services import content_placement as cp
 
-    mono = "font-family:'Courier New',monospace;"
+    mono = "font-family:Arial,Helvetica,sans-serif;"
     bloques = []
     for g in cp.grupos(p.placement):
         kws = g.get("keywords") or []
@@ -86,17 +91,17 @@ def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
         evid = escape(" ".join((g.get("reasons") or [])[:2])[:400])
         # «cubierto» siempre trae confianza alta (la fuerza el reparto): no informa.
         conf = ("" if g.get("decision") == "cubierto"
-                else f' <span style="color:#a83a3a;">· seguridad '
+                else f' <span style="color:#e85050;">· seguridad '
                      f'{escape(g.get("confidence") or "")}</span>')
         bloques.append(
             f'<div style="margin:10px 0 0;padding:8px 0 0;border-top:1px solid '
-            f'rgba(237,228,211,0.08);">'
-            f'<p style="{mono}font-size:10px;color:rgba(237,228,211,0.55);margin:0;">'
+            f'#3b342e;">'
+            f'<p style="{mono}font-size:12px;color:#c9bfae;margin:0;">'
             f'{escape(" · ".join(kws))}</p>'
             # La frase de `headline` se lee como frase: sin mayúsculas ni tracking.
-            f'<p style="font-family:Georgia,serif;font-size:14px;color:#ede4d3;'
+            f'<p style="font-family:Georgia,serif;font-size:16px;color:#f4eee3;'
             f'margin:4px 0 2px;line-height:1.45;">{escape(cp.headline(g))}{conf}</p>'
-            f'<p style="font-family:Georgia,serif;font-size:13px;color:rgba(237,228,211,0.6);'
+            f'<p style="font-family:Georgia,serif;font-size:13px;color:#d4cbbb;'
             f'margin:0;line-height:1.5;">{evid}</p>'
             f'<p style="margin:2px 0 0;">{"".join(botones)}</p></div>'
         )
@@ -111,8 +116,8 @@ def _placement_html(p: ContentProposal, admin_url: str = "") -> str:
 def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, str]:
     def _item_html(p: ContentProposal) -> str:
         angle = (
-            f'<p style="font-family:Georgia,serif;font-style:italic;font-size:13px;'
-            f'color:rgba(237,228,211,0.65);margin:4px 0 0;line-height:1.5;">{p.angle}</p>'
+            f'<p style="font-family:Georgia,serif;font-style:italic;font-size:15px;'
+            f'color:#ddd5c7;margin:4px 0 0;line-height:1.5;">{p.angle}</p>'
             if p.angle else ""
         )
         kw_html = ""
@@ -121,25 +126,25 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
         if kws:
             total = sum(int(k.get("volume") or 0) for k in activas)
             chips = " ".join(
-                f'<span style="font-family:\'Courier New\',monospace;font-size:10px;'
-                f'color:rgba(237,228,211,0.6);border:1px solid rgba(237,228,211,0.15);'
+                f'<span style="font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+                f'color:#d4cbbb;border:1px solid #5c544b;'
                 f'padding:1px 5px;">{k.get("keyword")} '
-                f'<b style="color:#a83a3a;">{k.get("volume") or 0}</b></span>'
+                f'<b style="color:#e85050;">{k.get("volume") or 0}</b></span>'
                 for k in kws
             )
             kw_html = (
-                f'<p style="font-family:\'Courier New\',monospace;font-size:9px;'
-                f'color:rgba(237,228,211,0.4);margin:8px 0 4px;">'
+                f'<p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+                f'color:#bfb5a3;margin:8px 0 4px;">'
                 f'KEYWORDS · {total} búsquedas/mes</p><p style="margin:0;line-height:1.9;">'
                 f'{chips}</p>'
             )
         return (
             f'<li style="margin:0 0 14px;padding:12px 14px;'
-            f'background:rgba(237,228,211,0.03);border-left:3px solid #a83a3a;">'
-            f'<p style="font-family:\'Courier New\',monospace;font-size:9px;'
-            f'letter-spacing:2px;text-transform:uppercase;color:rgba(237,228,211,0.5);'
+            f'background:#191512;border-left:3px solid #e85050;">'
+            f'<p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+            f'letter-spacing:1px;text-transform:uppercase;font-weight:bold;color:#c9bfae;'
             f'margin:0 0 4px;">{KIND_LABEL.get(p.kind, p.kind)}</p>'
-            f'<p style="font-family:Georgia,serif;font-size:16px;color:#ede4d3;'
+            f'<p style="font-family:Georgia,serif;font-size:16px;color:#f4eee3;'
             f'margin:0;font-weight:bold;">{p.title}</p>{angle}{kw_html}'
             f'{_placement_html(p, admin_url)}</li>'
         )
@@ -149,8 +154,8 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
             return ""
         lis = "".join(_item_html(p) for p in items)
         return (
-            f'<p style="font-family:\'Courier New\',monospace;font-size:11px;'
-            f'letter-spacing:3px;text-transform:uppercase;color:#a83a3a;'
+            f'<p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;'
+            f'letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;color:#e85050;'
             f'margin:24px 0 10px;">{titulo} ({len(items)})</p>'
             f'<ul style="list-style:none;padding:0;margin:0;">{lis}</ul>'
         )
@@ -159,22 +164,22 @@ def _render(actualidad: list, repositorio: list, admin_url: str) -> tuple[str, s
     html = f"""\
 <!doctype html>
 <html lang="es">
-<body style="margin:0;padding:32px;background:#0d0b0a;color:#ede4d3;font-family:Georgia,serif;">
-  <div style="max-width:640px;margin:0 auto;padding:32px;border:1px solid rgba(237,228,211,0.08);background:rgba(237,228,211,0.02);">
-    <p style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#a83a3a;margin:0 0 12px;">
+<body style="margin:0;padding:32px;background:#0d0b0a;color:#f4eee3;font-family:Georgia,serif;">
+  <div style="max-width:640px;margin:0 auto;padding:32px;border:1px solid #3b342e;background:#141110;">
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;color:#e85050;margin:0 0 12px;">
       entre interiores · banco de propuestas
     </p>
-    <h1 style="font-family:Georgia,serif;font-size:25px;color:#ede4d3;margin:0 0 8px;line-height:1.2;">
+    <h1 style="font-family:Georgia,serif;font-size:25px;color:#f4eee3;margin:0 0 8px;line-height:1.2;">
       {n} propuesta{'s' if n != 1 else ''} esperando en el banco
     </h1>
-    <p style="font-family:Georgia,serif;font-style:italic;color:rgba(237,228,211,0.6);font-size:14px;margin:0 0 8px;line-height:1.6;">
+    <p style="font-family:Georgia,serif;font-style:italic;color:#d4cbbb;font-size:16px;margin:0 0 8px;line-height:1.6;">
       Entra al panel del blog y programa las que quieras. Máximo {WEEKLY_CAP} por semana.
       Lo que no programes se queda en el banco para más adelante.
     </p>
     {_section("Actualidad", actualidad)}
     {_section("Repositorio de fondo", repositorio)}
-    <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid rgba(237,228,211,0.08);text-align:center;">
-      <a href="{admin_url}" style="display:inline-block;padding:14px 28px;border:1px solid #a83a3a;color:#a83a3a;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;">
+    <div style="margin:32px 0 0;padding:18px 0 0;border-top:1px solid #3b342e;text-align:center;">
+      <a href="{admin_url}" style="display:inline-block;padding:14px 28px;border:1px solid #e85050;background:#e85050;color:#0d0b0a;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-weight:bold;">
         abrir el panel del blog
       </a>
     </div>
