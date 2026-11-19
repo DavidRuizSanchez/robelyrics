@@ -93,7 +93,11 @@ _METATEXTO = re.compile(
     r"|\b(?:la|seg[uú]n la|en la|nuestra) ficha\b(?! t[eé]cnica)",
     re.I,
 )
-_FRASE = re.compile(r"[^.!?\n]+[.!?]?")
+# Una frase con TODA su puntuación final («…», «?!»): con `[.!?]?` los puntos
+# suspensivos se perdían al volver a juntar las frases y «Y tristes... pienso» salía
+# «Y tristes. pienso» dentro de una cita de Robe (19-11-2026). Trocear y juntar tiene
+# que devolver la línea tal cual.
+_FRASE = re.compile(r"[^.!?…\n]+(?:[.!?…]+|$)|[.!?…]+")
 
 
 def _plano(s: str) -> str:
@@ -368,8 +372,8 @@ def quitar_confesiones(texto: str) -> tuple[str, list[str]]:
             continue
         mascara = _enmascarar(linea)
         buenas = []
-        for m in _FRASE.finditer(mascara):
-            original = linea[m.start():m.end()]
+        for ini, fin in _unidades(mascara):
+            original = linea[ini:fin]
             if confiesa(original):
                 quitadas.append(original.strip())
             else:

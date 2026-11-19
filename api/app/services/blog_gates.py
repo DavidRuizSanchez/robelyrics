@@ -99,7 +99,8 @@ def nombres_dudosos(db, cuerpo: str) -> list[tuple[str, str]]:
 
 def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
                     hard_facts: str = "", tipo_pieza: str | None = None,
-                    usar_web: bool = True, material_propio: str = "") -> Juicio:
+                    usar_web: bool = True, material_propio: str = "",
+                    tensar: bool = True) -> Juicio:
     from app.services.editorial_review import review
     from app.services.focus_check import check_focus
     from app.services.piece_checklist import liston
@@ -137,7 +138,9 @@ def cascada_en_seco(db, *, kind: str, subject: str, title: str, body_md: str,
         # verdad (asesor, 18-11-2026). Si otro filtro frena, manda ese.
         rechazo_rigor = Juicio(False, "rigor", v.reasons, v.score, cuerpo,
                                faltan_datos=motivos_de_dato(v.reasons))
-    elif v.verdict == "revise" and v.tightened_body_md:
+    elif v.verdict == "revise" and v.tightened_body_md and tensar:
+        # `tensar=False`: el texto ya viene comprobado frase a frase (redactor por
+        # historias) y el tensado lo reescribe un modelo DESPUÉS de esas comprobaciones.
         cuerpo = v.tightened_body_md
 
     # 3. Deterministas del día D: citas de letra, años de disco, completitud.

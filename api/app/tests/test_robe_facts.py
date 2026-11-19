@@ -50,7 +50,8 @@ def test_las_cuatro_constantes_viejas_son_la_misma():
 
 def test_la_fecha_es_la_documentada():
     assert date(2025, 12, 10) == rf.DEATH_DATE
-    assert date(2019, 12, 18) == rf.EXTREMODURO_DISSOLUTION_DATE
+    # 17-12-2019: tuit de @Oficina_Extremo, El Independiente y MusicBrainz (end).
+    assert date(2019, 12, 17) == rf.EXTREMODURO_DISSOLUTION_DATE
 
 
 # --- La causa no se afirma -------------------------------------------------- #
@@ -96,7 +97,7 @@ def test_los_hechos_obligatorios_citan_el_ultimo_disco():
 
     assert "Se nos lleva el aire" in lineas
     assert "falleció el 10 de diciembre de 2025" in lineas
-    assert "18 de diciembre de 2019" in lineas
+    assert "17 de diciembre de 2019" in lineas
 
 
 # --- El debut ---------------------------------------------------------------- #

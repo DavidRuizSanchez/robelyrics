@@ -258,3 +258,30 @@ def test_album_de_estudio_no_es_dato_de_grabacion():
 
     wt = "'''Destrozares''' es el segundo álbum de estudio de Robe, publicado en 2016.\n== X ==\n"
     assert frases_de_edicion_en_entradilla(wt) == ""
+
+
+def test_las_guardas_no_tocan_los_puntos_suspensivos():
+    """«Y tristes... pienso» salía «Y tristes. pienso» en una cita de Robe (19-11-2026)."""
+    from app.services import source_guard
+
+    t = ("Robe contó a RockFM: «Y tristes... pienso que hay toques esperanzadores, lo fácil "
+         "es quedarte con lo primero que te dan... Y lo primero es la portada, el título... "
+         "pero el disco hay que oírlo». ¿Y ahora?! Pues eso…")
+    assert source_guard.limpiar(t, [])[0] == t
+    assert source_guard.quitar_confesiones(t)[0] == t
+    # Trocear y juntar devuelve la línea tal cual.
+    assert "".join(source_guard._FRASE.findall(t)) == t
+
+
+def test_la_entradilla_no_repite_cifras_de_las_secciones():
+    from datetime import date
+    from types import SimpleNamespace
+
+    album = SimpleNamespace(release_date=date(2023, 12, 15))
+    resto = "## Listas\nAlcanzó el número uno y estuvo 132 semanas. Entró el 24 de diciembre."
+    malo = "Salió el 15 de diciembre de 2023, llegó al número uno y estuvo 132 semanas."
+    assert {"repite «132», que ya va en una sección",
+            "repite «número uno», que ya va en una sección"} <= set(
+                hd.cifras_repetidas(malo, resto, album))
+    assert hd.cifras_repetidas("Salió el 15 de diciembre de 2023 con El Dromedario.",
+                               resto + " Publicado el 15 de diciembre de 2023.", album) == []

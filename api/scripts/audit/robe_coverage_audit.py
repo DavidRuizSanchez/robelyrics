@@ -11,7 +11,7 @@ Cuatro reglas, todas deterministas (`app.services.sensitive_topics`):
                  deja al lector creyendo que la historia sigue.
   DEBUT          llama debut a «Rock Transgresivo» (1994). El debut es «Tú en tu
                  casa, nosotros en la hoguera» (1990).
-  DISOLUCION     data la disolución en 2018; fue el 18 de diciembre de 2019.
+  DISOLUCION     data la disolución en 2018; fue el 17 de diciembre de 2019.
   DISCOGRAFIA    enumera discos y se deja alguno del catálogo.
 
 Uso:
