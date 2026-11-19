@@ -853,6 +853,34 @@ def _norm_title(t: str) -> str:
     import unicodedata
     t = unicodedata.normalize("NFKD", (t or "").lower())
     return " ".join("".join(c for c in t if not unicodedata.combining(c)).split()).strip(" .,")
+def orden_en_discografia_confirmado(material: str, texto: str) -> bool:
+    """«X fue el cuarto (o el último) álbum de estudio de Robe», contra la línea
+    «Discografía: A (2015, studio); …; X (2023, studio) ← ESTE DISCO» de los hechos duros.
+
+    El 18-11-2026 «Se nos lleva el aire fue el cuarto álbum de estudio en solitario de
+    Robe» retuvo la pieza: la web no lo confirmaba, y nuestra discografía lo dice."""
+    m = re.search(r"Discograf[ií]a:\s*(.+)", material or "")
+    titulo = re.search(r"[«\"“]([^«»\"”]+)[»\"”]", texto or "")
+    t = (texto or "").lower()
+    if not m or not titulo or not re.search(r"\b(álbum|disco)\b", t):
+        return False
+    entradas = []
+    for trozo in m.group(1).split(";"):
+        e = re.match(r"\s*(.+?)\s*\((\d{4}),\s*(\w+)\)", trozo)
+        if e:
+            entradas.append((_norm(e.group(1)), e.group(3)))
+    solo_estudio = "de estudio" in t
+    lista = [n for n, k in entradas if k == "studio" or not solo_estudio]
+    nombre = _norm(titulo.group(1))
+    if nombre not in lista:
+        return False
+    pos = lista.index(nombre) + 1
+    if re.search(r"\búltim[oa]\b", t):
+        return pos == len(lista)
+    for palabra, n in _ORDINALES.items():
+        if re.search(rf"\b{palabra}\b", t):
+            return pos == n
+    return False
 
 
 def _resolver_con_material(db, claim: Claim, idx, material: str, use_web: bool) -> Verdict:
@@ -871,6 +899,8 @@ def _resolver_con_material(db, claim: Claim, idx, material: str, use_web: bool) 
         if listas_confirmadas(material, claim.text):
             return Verdict(claim, "confirmed", evidence="lista oficial (datos del disco)",
                            source="material")
+        if orden_en_discografia_confirmado(material, claim.text):
+            return Verdict(claim, "confirmed", evidence="orden en la discografía", source="material")
         tramos = tramos_con(material, claim.text)
         if tramos:
             # Los nombres juntos solo localizan el tramo; el juez decide si lo DICE
@@ -1026,7 +1056,12 @@ def check_and_correct(
 # «Disco» (AAAA): el par título-año tiene que cuadrar con el catálogo
 # --------------------------------------------------------------------------- #
 def pares_disco_anio_falsos(db: Session, texto: str) -> list[str]:
-    """Pares «Disco» (AAAA) cuyo año no es el del disco. Determinista, sin LLM.
+    """Pares «Disco» (AAAA) cuyo año no es el del disco, como motivo legible."""
+    return [f"«{t}» ({dicho}): el disco es de {real}" for t, dicho, real in _anios_falsos(db, texto)]
+
+
+def _anios_falsos(db: Session, texto: str) -> list[tuple[str, int, int]]:
+    """(título, año dicho, año real) de cada «Disco» (AAAA) mal. Determinista, sin LLM.
 
     El 09-10-2026 salió en Instagram «formó parte del álbum 'Iros todos a tomar
     por culo' (1992)»: el directo es de 1997 (1992 es «Deltoya», el disco de
@@ -1056,7 +1091,7 @@ def pares_disco_anio_falsos(db: Session, texto: str) -> list[str]:
         al = orig.album
         if al and al.year:
             canciones.setdefault(_plano(song.title), set()).add(int(al.year))
-    falsos: list[str] = []
+    falsos: list[tuple[str, int, int]] = []
     for titulo, anio in discos:
         if not titulo or not anio:
             continue
@@ -1066,5 +1101,20 @@ def pares_disco_anio_falsos(db: Session, texto: str) -> list[str]:
             dicho = int(m.group(1))
             if dicho == int(anio) or dicho in canciones.get(_plano(titulo), set()):
                 continue
-            falsos.append(f"«{titulo}» ({dicho}): el disco es de {anio}")
+            falsos.append((titulo, dicho, int(anio)))
     return falsos
+
+
+def corregir_anios_de_disco(db: Session, texto: str) -> tuple[str, list[str]]:
+    """Pone el año del catálogo en cada «Disco» (AAAA) que lo trae mal.
+
+    Es un dato duro sin ambigüedad (el año va pegado al título) y es lo que el filtro de
+    años bloquea el día de publicar: corregirlo al preparar evita retener la pieza por
+    algo que la BD sabe. El 18-11-2026 la efeméride #417 quedó retenida por «Colino entró
+    para «Yo, minoría absoluta» (2001)»: se grabó en 2001, pero el disco es de 2002."""
+    falsos = _anios_falsos(db, texto)
+    for titulo, dicho, real in falsos:
+        patron = (r"(" + re.escape(titulo) + r"[^()\n]{0,40}?\(\s*)" + str(dicho) + r"(\s*\))")
+        texto = re.sub(patron, lambda m: f"{m.group(1)}{real}{m.group(2)}", texto,
+                       flags=re.IGNORECASE)
+    return texto, [f"«{t}» ({d}) → {r}" for t, d, r in falsos]

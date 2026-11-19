@@ -568,3 +568,32 @@ def test_listas_se_confirman_con_los_datos_del_disco():
          "Listas: n.º 5 en la lista oficial de álbumes de España, 48 semanas en lista "
          "(entró el 27-11-2016).")
     assert listas_confirmadas(d, "Alcanzó el quinto puesto de la lista y entró el 27 de noviembre.")
+
+DISCOGRAFIA_ROBE = ("Discografía: Lo que aletea en nuestras cabezas (2015, studio); Destrozares, "
+                    "canciones para el final de los tiempos (2016, studio); Bienvenidos al "
+                    "temporal (2018, live); Mayéutica (2021, studio); Se nos lleva el aire "
+                    "(2023, studio) ← ESTE DISCO.")
+
+
+def test_el_orden_en_la_discografia_sale_de_los_hechos_duros():
+    """#425 (18-11-2026): «cuarto álbum de estudio» retenía la pieza; la web no lo veía y
+    nuestra discografía lo dice (el directo no cuenta como disco de estudio)."""
+    from app.services.fact_check import orden_en_discografia_confirmado as ok
+
+    assert ok(DISCOGRAFIA_ROBE, "«Se nos lleva el aire» fue el cuarto álbum de estudio en "
+              "solitario de Robe.")
+    assert ok(DISCOGRAFIA_ROBE, "«Se nos lleva el aire» fue el último disco de estudio de Robe.")
+    assert not ok(DISCOGRAFIA_ROBE, "«Se nos lleva el aire» fue el tercer álbum de estudio.")
+    assert ok(DISCOGRAFIA_ROBE, "«Mayéutica» fue el cuarto disco de Robe.")   # contando el directo
+    assert not ok(DISCOGRAFIA_ROBE, "«Mayéutica» se grabó en cuarto lugar.")
+
+
+def test_el_anio_de_un_disco_se_corrige_con_el_catalogo(monkeypatch):
+    from app.services import fact_check
+
+    monkeypatch.setattr(fact_check, "_anios_falsos",
+                        lambda db, t: [("Yo, minoría absoluta", 2001, 2002)])
+    texto, cambios = fact_check.corregir_anios_de_disco(
+        None, "Colino entró para «Yo, minoría absoluta» (2001), y se grabó en 2001.")
+    assert texto == "Colino entró para «Yo, minoría absoluta» (2002), y se grabó en 2001."
+    assert cambios == ["«Yo, minoría absoluta» (2001) → 2002"]
