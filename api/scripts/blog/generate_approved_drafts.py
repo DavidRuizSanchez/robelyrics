@@ -28,6 +28,29 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+MAX_FALLOS_SIN_CUERPO = 2
+
+
+def anotar_fallo(p: ContentProposal) -> None:
+    """Un borrador que no sale (sin historias bastantes, sin material) se reintentaba
+    cada 5 minutos, con su gasto en OpenAI: la #399 cuatro veces seguidas y la #556 sin
+    parar (19-11-2026). Al segundo fallo queda retenida por falta de material."""
+    from app.services.draft_generator import con_nota
+
+    previas = p.review_reasons if isinstance(p.review_reasons, dict) else {}
+    fallos = int(previas.get("fallos_borrador") or 0) + 1
+    if fallos >= MAX_FALLOS_SIN_CUERPO:
+        p.review_verdict = "retenida"
+        p.review_reasons = con_nota({
+            "pasa": False, "bloquea": "material", "fallos_borrador": fallos,
+            "motivos": [f"No sale un borrador con el material que hay ({fallos} intentos). "
+                        "«Reescribir» en el panel lo vuelve a intentar."],
+            "faltan_datos": []}, previas)
+    else:
+        p.review_reasons = {**previas, "fallos_borrador": fallos}
+    logger.info("borrador sin cuerpo para la propuesta %s (%d fallo/s)", p.id, fallos)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=20)
@@ -49,6 +72,10 @@ def main() -> None:
             .filter(or_(ContentProposal.status == "approved",
                         ContentProposal.status == "scheduled"))
             .filter(ContentProposal.body_md.is_(None))
+            # Retenida sin cuerpo = el redactor ya lo intentó y no hay material: no se
+            # insiste cada 5 minutos («Reescribir» en el panel limpia el veredicto).
+            .filter(or_(ContentProposal.review_verdict.is_(None),
+                        ContentProposal.review_verdict != "retenida"))
             .order_by(ContentProposal.scheduled_for.nulls_last(), ContentProposal.created_at)
             .limit(args.limit)
             .all()
@@ -60,8 +87,12 @@ def main() -> None:
             try:
                 if generate_proposal_draft(db, p):
                     done += 1
+                else:
+                    anotar_fallo(p)
+                    db.commit()
             except Exception:  # noqa: BLE001
                 logger.exception("falló el borrador de la propuesta %s", p.id)
+                db.rollback()
         logger.info("Borradores generados: %d/%d", done, len(pending))
 
         # Borradores que nunca pasaron por el juicio (los de antes del 18-11-2026): se

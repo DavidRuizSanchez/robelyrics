@@ -586,3 +586,15 @@ def test_el_nombre_corto_suelto_si_se_enlaza():
               _ent("Destrozares", cancion, "song")]
     assert "Destrozares](https://entreinteriores.com/robe/destrozares/destrozares)" in \
         autolink_corpus(md, indice, max_links=3)
+
+
+def test_no_se_enlaza_dentro_del_titulo_de_otra_obra():
+    from app.services.entity_resolver import _dentro_de_titulo
+
+    t = "El cuadro «El rey de Extremadura» ganó. En Extremadura gustó. Y «Agila» también."
+    i = t.index("Extremadura»")
+    assert _dentro_de_titulo((i, i + len("Extremadura"), "Extremadura"), t)
+    j = t.index("En Extremadura") + 3
+    assert not _dentro_de_titulo((j, j + len("Extremadura"), "Extremadura"), t)
+    k = t.index("Agila")
+    assert not _dentro_de_titulo((k, k + len("Agila"), "Agila"), t)   # el título es él mismo

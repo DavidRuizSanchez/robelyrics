@@ -601,3 +601,16 @@ def test_el_anio_de_un_disco_se_corrige_con_el_catalogo(monkeypatch):
         None, "Colino entró para «Yo, minoría absoluta» (2001), y se grabó en 2001.")
     assert texto == "Colino entró para «Yo, minoría absoluta» (2002), y se grabó en 2001."
     assert cambios == ["«Yo, minoría absoluta» (2001) → 2002"]
+
+
+def test_un_borrador_que_no_sale_se_retiene_al_segundo_fallo():
+    import sys; sys.path.insert(0, "/app")
+    from types import SimpleNamespace
+    from scripts.blog.generate_approved_drafts import anotar_fallo
+
+    p = SimpleNamespace(id=1, review_reasons={"nota": "eje: el aniversario"}, review_verdict=None)
+    anotar_fallo(p)
+    assert p.review_verdict is None and p.review_reasons["fallos_borrador"] == 1
+    anotar_fallo(p)
+    assert p.review_verdict == "retenida" and p.review_reasons["bloquea"] == "material"
+    assert p.review_reasons["nota"] == "eje: el aniversario"
