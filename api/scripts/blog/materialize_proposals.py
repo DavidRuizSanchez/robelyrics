@@ -405,7 +405,9 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     # mandaba a revisión una pieza que el juicio previo ya había dado por buena (19-11-2026).
     try:
         from app.services.draft_generator import hechos_de_propuesta, material_propio_de_propuesta
-        material_dia_d = "\n\n".join(x for x in (hechos_de_propuesta(db, p),
+        # En una noticia, también su artículo (o el texto pegado): es la fuente con la
+        # que se escribió, y sin él «un valor postal de 5 euros» iba a la web.
+        material_dia_d = "\n\n".join(x for x in (fuente_noticia, hechos_de_propuesta(db, p),
                                                    material_propio_de_propuesta(db, p)) if x)
     except Exception:  # noqa: BLE001 — sin material, la web como siempre
         logger.exception("  no se pudo reunir el material de la propuesta %s", p.id)

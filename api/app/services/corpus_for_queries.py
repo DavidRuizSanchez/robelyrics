@@ -277,6 +277,9 @@ def _juntos(texto: str, claves: list[str], ventana: int = VENTANA_CORROBORA) -> 
 _ARTICULOS = {"el", "la", "los", "las", "en", "un", "una", "su", "sus", "tras", "con", "del"}
 
 
+_CIFRA_CON_UNIDAD = re.compile(
+    r"\b\d{1,3}(?:[.,]\d+)?\s(?:euros|ejemplares|semanas|minutos|años|discos|canciones|"
+    r"conciertos|copias)\b", re.I)
 _TITULO_ENTRE_COMILLAS = re.compile(r"«\[?([^«»\[\]]{3,60})\]?(?:\([^)]*\))?»")
 
 
@@ -291,7 +294,10 @@ def claves_de(hecho: str) -> list[str]:
     titulos = [t.strip() for t in _TITULO_ENTRE_COMILLAS.findall(texto)
                if len(t.split()) <= 8]
     resto = _TITULO_ENTRE_COMILLAS.sub(" ", texto)
-    claves = list(dict.fromkeys(titulos + _NOMBRE_O_CIFRA.findall(resto)))
+    # Una cifra corta con su unidad también es clave: «un valor postal de 5 euros» se
+    # quedaba con la clave «Robe» sola y no se localizaba (19-11-2026).
+    con_unidad = [m.group(0) for m in _CIFRA_CON_UNIDAD.finditer(resto)]
+    claves = list(dict.fromkeys(titulos + _NOMBRE_O_CIFRA.findall(resto) + con_unidad))
     return [c for c in claves if c.lower() not in _ARTICULOS]
 
 

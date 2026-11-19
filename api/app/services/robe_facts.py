@@ -29,6 +29,10 @@ from datetime import date
 BIRTH_DATE = date(1962, 5, 16)
 BIRTH_PLACE = "Plasencia"
 DEATH_DATE = date(2025, 12, 10)
+# Dónde: hospital de Cruces, Barakaldo (El Correo 11-12-2025; Wikidata P20; MusicBrainz end
+# area, comprobado el 19-11-2026). Varios medios escribieron «falleció en Plasencia» y el
+# motor de noticias lo copió en el borrador del sello de Correos.
+DEATH_PLACE = "en el hospital de Cruces, en Barakaldo (Vizcaya)"
 DEATH_AGE = 63
 
 # La causa NO se hizo pública. `None` a propósito: quien quiera escribirla no
@@ -174,6 +178,7 @@ def must_facts_lines(db=None) -> list[str]:
     """Hechos duros, para inyectar como material junto a los de la entidad."""
     lineas = [
         f"{DEATH_SENTENCE} (nacido el {_fecha_larga(BIRTH_DATE)} en {BIRTH_PLACE}).",
+        f"Murió {DEATH_PLACE}, no en Plasencia.",
         f"Sobre su muerte, {DEATH_CAUSE_NOTE}; lo documentado es que "
         f"{DEATH_ANTECEDENT}.",
         f"Extremoduro anunció su disolución el "
