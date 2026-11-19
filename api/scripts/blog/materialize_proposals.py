@@ -400,7 +400,17 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     #    canónicas de BD (canción↔álbum↔año); si la verificación web
     #    detecta algo dudoso (to_review), el post NO se auto-publica: va a
     #    revisión humana. Solo lo que pasa LIMPIO se publica solo.
-    report = check_body(db, post.body_md, use_web=True)
+    # Con el MISMO material que el juicio al preparar (datos duros + material propio): sin
+    # él, un dato de la casa que la web no encuentra («n.º 1 sus dos primeras semanas»)
+    # mandaba a revisión una pieza que el juicio previo ya había dado por buena (19-11-2026).
+    try:
+        from app.services.draft_generator import hechos_de_propuesta, material_propio_de_propuesta
+        material_dia_d = "\n\n".join(x for x in (hechos_de_propuesta(db, p),
+                                                   material_propio_de_propuesta(db, p)) if x)
+    except Exception:  # noqa: BLE001 — sin material, la web como siempre
+        logger.exception("  no se pudo reunir el material de la propuesta %s", p.id)
+        material_dia_d = ""
+    report = check_body(db, post.body_md, use_web=True, material=material_dia_d)
     skipped: list = []
     if report.autofixes:
         fixed, skipped = correct_body(db, post.body_md, report)

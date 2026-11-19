@@ -238,8 +238,8 @@ def inventario(db, album, *, hechos_duros: str, usar_web: bool = True) -> list[H
     return out
 
 
-_CIFRA = re.compile(r"\b\d{2,}\b|\bn[uú]mero (?:uno|dos|tres|cuatro|cinco|seis|siete|ocho|"
-                    r"nueve|diez)\b|\bn\.º ?\d+", re.I)
+_CIFRA = re.compile(r"\bn[uú]mero (?:uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|"
+                    r"\d+)\b|\bn\.º ?\d+|\b\d{2,}\b", re.I)
 
 
 def cifras_repetidas(texto: str, resto: str, album) -> list[str]:
@@ -247,9 +247,39 @@ def cifras_repetidas(texto: str, resto: str, album) -> list[str]:
     salida, que la entradilla tiene que dar)."""
     salida = getattr(album, "release_date", None)
     propias = {str(salida.day), str(salida.year)} if salida else set()
-    dichas = {m.group(0).lower() for m in _CIFRA.finditer(resto or "")}
-    rep = {m.group(0).lower() for m in _CIFRA.finditer(texto or "")} & dichas
+    propias |= set(getattr(album, "fechas_propias", ()) or ())
+    rep = _cifras(texto) & _cifras(resto)
     return [f"repite «{x}», que ya va en una sección" for x in sorted(rep - propias)]
+
+
+def _fechas_de(d) -> tuple[str, ...]:
+    return (str(d.day), str(d.year)) if d else ()
+
+
+_NUM_PALABRA_CIFRA = {"uno": "1", "dos": "2", "tres": "3", "cuatro": "4", "cinco": "5",
+                      "seis": "6", "siete": "7", "ocho": "8", "nueve": "9", "diez": "10"}
+
+
+def _cifras(texto: str) -> set[str]:
+    """Las cifras de un texto, con «número uno», «n.º 1» y «número 1» como la misma."""
+    out = set()
+    for m in _CIFRA.finditer(texto or ""):
+        x = m.group(0).lower()
+        n = re.match(r"(?:n[uú]mero|n\.º) ?(\w+)", x)
+        out.add("n.º " + _NUM_PALABRA_CIFRA.get(n.group(1), n.group(1)) if n else x)
+    return out
+
+
+def cifras_ajenas(texto: str, contexto: str, pieza) -> list[str]:
+    """Cifras de una sección que no son de SU historia (ni fechas propias de la pieza).
+    En la efeméride, «murió el 10 de diciembre de 2025, a los 63 años» acababa en tres
+    secciones (19-11-2026): cada una solo cuenta lo suyo."""
+    suyas = _cifras(contexto)
+    # Solo el día y el año de salida de un disco: las demás fechas propias de la pieza
+    # (la muerte en la efeméride) son de la entradilla, no de cada sección.
+    propias = set(_fechas_de(getattr(pieza, "release_date", None)))
+    ajenas = _cifras(texto) - suyas - propias
+    return [f"«{x}» no es de esta historia: quítalo" for x in sorted(ajenas)]
 
 
 def gancho_fiel(h: Historia) -> Historia:
@@ -304,6 +334,15 @@ def inventario_congelado(db, album, *, hechos_duros: str, rondas: int = RONDAS,
         for h in inventario(db, album, hechos_duros=hechos_duros):
             t = _plano(h.tramo)
             if any(t in _plano(x.tramo) or _plano(x.tramo) in t for x in union):
+                continue
+            # Dos citas de la MISMA fuente con el mismo ancla son la misma historia: la
+            # gira en dos partes de «Bienvenidos al temporal» salía en dos secciones.
+            if h.quien != "hechos" and any(x.fuente == h.fuente and x.ancla == h.ancla
+                                           for x in union):
+                continue
+            # Un dato duro sin cifra ni nombre propio no es una historia («los temas ya
+            # existían; el disco aporta versiones distintas»): repetirlo era relleno.
+            if h.quien == "hechos" and not re.search(r"\d|\s[A-ZÁÉÍÓÚÑ«]", h.tramo[1:]):
                 continue
             union.append(h)
     buenas = sorted((gancho_fiel(h) for h in union if h.afirmable),
@@ -443,7 +482,7 @@ def _letras(db, titulos: list[str], album_id: int) -> str:
 
     from app.db.models import Song
 
-    if not titulos:
+    if not titulos or album_id is None:
         return ""
     bloques = []
     for t, letra in db.execute(select(Song.title, Song.lyrics_clean)
@@ -503,6 +542,14 @@ def cierre_falso(texto: str, titulo: str, es_ultimo: bool) -> bool:
     return False
 
 
+def _es_nombre_propio(c: str) -> bool:
+    """«Primeras Flores Amarillas»: todas las palabras con chicha en mayúscula y sin
+    puntuación de frase. Una cita es una frase; un nombre, no."""
+    palabras = [w for w in re.findall(r"[\wáéíóúñü]+", c, re.I) if len(w) > 3]
+    return (bool(palabras) and len(c) <= 60 and not re.search(r"[.,;:?!]", c)
+            and all(w[0].isupper() for w in palabras))
+
+
 def citas_que_fallan(texto: str, fuente: str, titulos: list[str], *,
                      no_citable: str = "") -> list[str]:
     """Lo que la sección pone entre comillas sin estar LITERAL en su fuente, y los
@@ -517,6 +564,8 @@ def citas_que_fallan(texto: str, fuente: str, titulos: list[str], *,
         if _plano(c) in tit:
             continue
         inicio = (texto or "").rfind("\n", 0, m.start()) + 1
+        if _es_nombre_propio(c):
+            continue   # «Primeras Flores Amarillas» es el nombre de un festival, no una cita
         if not _QUIEN_LO_DICE.search(texto[inicio:m.start()]):
             fallos.append(f"«{c[:60]}» va sin decir antes quién lo dice")
             continue
@@ -614,12 +663,22 @@ def _seccion(client, prompt: str, fuente: str, titulos: list[str], *, max_tokens
         extra = ("\nLA VERSIÓN ANTERIOR TENÍA ESTOS FALLOS. Escríbela de nuevo QUITANDO esas "
                  "afirmaciones o frases (no las corrijas, no las matices y no digas lo que no "
                  "se dijo):\n- " + "\n- ".join(fallos)) if fallos else ""
-        data = _chat(client, prompt + extra, max_tokens=max_tokens, temp=0.6)
+        try:
+            data = _chat(client, prompt + extra, max_tokens=max_tokens, temp=0.6)
+        except Exception as exc:  # noqa: BLE001 — un 500 de OpenAI es un intento fallido
+            logger.warning("[historias] el modelo falló (%s): se reintenta", exc)
+            fallos = ["fallo técnico del modelo"]
+            continue
         sec = (data.get("body_md") or "").strip()
         if not sec:
             fallos = ["vacía"]
             continue
-        sec = _verify_section(client, sec, fuente).strip()
+        try:
+            sec = _verify_section(client, sec, fuente).strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[historias] el verificador falló (%s): se reintenta", exc)
+            fallos = ["fallo técnico del verificador"]
+            continue
         if not sec:
             fallos = ["el verificador no dejó nada"]
             continue
@@ -637,8 +696,50 @@ def _seccion(client, prompt: str, fuente: str, titulos: list[str], *, max_tokens
     return "", []
 
 
+@dataclass
+class Pieza:
+    """Lo que cambia entre un post de disco y otro post por historias (la efeméride del
+    primer aniversario, 19-11-2026). El resto del redactor —secciones, comprobaciones,
+    limpieza— es el mismo."""
+    objeto: str                 # «el disco «X» de Robe»
+    titulo: str                 # para la lista de títulos y el cierre
+    entradilla_pide: str        # qué da la entradilla además del gancho
+    aviso_seccion: str          # lo que las secciones no repiten
+    cierre_pide: str
+    cierre_datos: str           # lo único que el cierre puede afirmar
+    album_id: int | None = None
+    release_date: object = None
+    es_ultimo: bool | None = None   # None: no se comprueba «último disco»
+    fechas_propias: tuple[str, ...] = ()   # cifras que la entradilla SÍ da (día y año…)
+    otros_titulos: tuple[str, ...] = ()    # títulos que no son del catálogo («El mapa de Robe»)
+    palabras_dato: str = "40-120"          # largo de una sección de dato duro
+    entradilla_fija: str = ""              # primera frase ya verificada (la efeméride)
+
+
+def pieza_de_disco(db, album) -> Pieza:
+    tray = trayectoria(db, album)
+    return Pieza(
+        objeto=f"el disco «{album.title}» de Robe", titulo=album.title,
+        entradilla_pide=("da la fecha de salida, el sello y quién lo produjo (si está en los "
+                         "DATOS DUROS)"),
+        aviso_seccion="La fecha de salida, el sello y la producción van en la entradilla: NO "
+                      "los repitas aquí.",
+        cierre_pide=("dos a cuatro frases que lo sitúen en su obra (el disco de antes y el de "
+                     "después) y, si encaja, que Robe murió: solo el dato, sin comentarlo"),
+        cierre_datos=tray, album_id=album.id,
+        release_date=getattr(album, "release_date", None), es_ultimo="ÚLTIMO" in tray,
+        fechas_propias=_fechas_de(getattr(album, "release_date", None)))
+
+
 def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
              encargo: str = "") -> str | None:
+    """El cuerpo del post de un disco, o None si no hay historias afirmables bastantes."""
+    return escribir_pieza(db, client, pieza_de_disco(db, album), historias,
+                          hechos_duros=hechos_duros, encargo=encargo)
+
+
+def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
+                   hechos_duros: str, encargo: str = "") -> str | None:
     """El cuerpo del post, o None si no hay historias afirmables bastantes."""
     from sqlalchemy import select
 
@@ -647,34 +748,34 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
     buenas = [h for h in historias if h.afirmable]
     if len(buenas) < MIN_HISTORIAS:
         logger.info("[historias] «%s»: %d historia(s) afirmable(s), no da para un post",
-                    album.title, len(buenas))
+                    pieza.titulo, len(buenas))
         return None
     # Todo el catálogo: «Lo que aletea en nuestras cabezas» entre comillas es un título,
     # no una cita (tumbaba los cierres de «Destrozares», 19-11-2026).
     from app.services import robe_facts
-    titulos = ([album.title] + [x.title for x in robe_facts.discography(db)]
+    titulos = ([pieza.titulo, *pieza.otros_titulos] + [x.title for x in robe_facts.discography(db)]
                + [t for (t,) in db.execute(select(Song.title)).all()])
     indice = "\n".join(f"{i}. {h.gancho}" for i, h in enumerate(buenas, 1))
     usados: list[str] = []
     partes: list[str] = []
     hechas = 0
     for h in buenas:
-        letras = _letras(db, h.canciones, album.id)
+        letras = _letras(db, h.canciones, pieza.album_id)
         otras = "; ".join(x.gancho for x in buenas if x is not h)
         fuente = f"{hechos_duros}\n\n{h.contexto}\n\n{letras}"
         sec, datos = _seccion(client, (
-            f"Escribe UNA sección de un post sobre el disco «{album.title}» de Robe. Cuenta "
+            f"Escribe UNA sección de un post sobre {pieza.objeto}. Cuenta "
             f"esta historia: {h.gancho}\n"
             f"Se apoya en: «{h.tramo}».\n"
             f"Las otras secciones cuentan (no las invadas): {otras}\n"
-            + "La fecha de salida, el sello y la producción van en la entradilla: NO los "
-            "repitas aquí.\n"
+            + f"{pieza.aviso_seccion}\n"
             + (f"DATOS YA DICHOS en otras secciones (NO los repitas): "
                f"{'; '.join(usados)}\n" if usados else "")
             + "INSTRUCCIONES:\n- Empieza con «## » y un encabezado natural, como lo escribiría "
             "una persona (sin dos puntos ni «Sujeto: tema»).\n"
-            + ("- 40-120 palabras: es un dato, cuéntalo una vez y con su porqué, sin "
-               "repetirlo con otras palabras." if h.quien == "hechos" else "- 80-220 palabras.")
+            + (f"- {pieza.palabras_dato} palabras: es un dato, cuéntalo una vez y con su "
+               "porqué, sin repetirlo con otras palabras." if h.quien == "hechos"
+               else "- 80-220 palabras.")
             + " Abre con lo curioso, no con el dato. Cuéntalo como se lo "
             "contarías a otro fan: con sus detalles concretos y por qué importa. Si la "
             "historia da para poco, que la sección sea corta: NUNCA repitas ni resumas al "
@@ -694,28 +795,41 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
             f"PASAJE:\n\"\"\"{h.contexto}\"\"\"\n\n{letras}\n\nDATOS DUROS:\n{hechos_duros}\n"
             'Devuelve JSON {"body_md": "...", "datos": ["cada dato concreto que has usado"]}'),
             fuente, titulos, max_tokens=1500, db=db,
-            no_citable="" if h.citable or h.quien == "hechos" else h.contexto)
+            no_citable="" if h.citable or h.quien == "hechos" else h.contexto,
+            extra_check=lambda t, h=h: cifras_ajenas(t, h.contexto, pieza))
         if sec:
             partes.append(sec)
             usados += datos
             hechas += 1
     if hechas < MIN_HISTORIAS:
-        logger.info("[historias] «%s»: solo %d sección(es) limpias", album.title, hechas)
+        logger.info("[historias] «%s»: solo %d sección(es) limpias", pieza.titulo, hechas)
         return None
     # La entradilla, la ÚLTIMA: sabiendo qué cuentan ya las secciones. Escrita la primera,
     # repetía el n.º 1 y las 132 semanas que luego tenían su sección (19-11-2026).
     resto = "\n\n".join(partes)
     entradilla, _ = _seccion(client, (
-        f"Escribe la ENTRADILLA de un post sobre el disco «{album.title}» de Robe. "
+        f"Escribe la ENTRADILLA de un post sobre {pieza.objeto}. "
         f"{encargo}\nDos o tres frases, sin encabezado: engancha con lo más curioso de "
-        "lo que se va a contar y da la fecha de salida, el sello y quién lo produjo (si está en "
-        "los DATOS DUROS). NO repitas ningún dato de las secciones (ni listas, ni semanas, ni "
+        f"lo que se va a contar y {pieza.entradilla_pide}. NO repitas ningún dato de las secciones (ni listas, ni semanas, ni "
         "grabación, ni sencillos). No resumas el post ni digas lo que el post NO cuenta.\n"
         f"{_REGLAS_VOZ}\nLAS SECCIONES YA CUENTAN ESTO (no lo repitas):\n{'; '.join(usados)}\n"
         f"Lo que se va a contar:\n{indice}\n\nDATOS DUROS:\n{hechos_duros}\n"
         'Devuelve JSON {"body_md": "..."}'),
         hechos_duros, titulos, max_tokens=500, db=db,
-        extra_check=lambda t: cifras_repetidas(t, resto, album))
+        extra_check=lambda t: cifras_repetidas(t, resto, pieza))
+    if pieza.entradilla_fija:
+        # La primera frase va fija y verificada; el modelo solo añade el enganche, y si
+        # no sale limpio, la entradilla es la frase fija sola. En la efeméride el modelo
+        # mezclaba «el primer aniversario» con la fecha de la muerte (19-11-2026).
+        enganche, _ = _seccion(client, (
+            f"Este post sobre {pieza.objeto} empieza con esta frase: «{pieza.entradilla_fija}» "
+            "Escribe UNA sola frase que vaya detrás y enganche con lo que se va a contar, sin "
+            "repetir esa frase ni ningún dato de las secciones. Sin encabezado.\n"
+            f"{_REGLAS_VOZ}\nLo que se va a contar:\n{indice}\n"
+            'Devuelve JSON {"body_md": "..."}'),
+            f"{pieza.entradilla_fija}\n{hechos_duros}", titulos, max_tokens=200, db=db,
+            extra_check=lambda t: cifras_repetidas(t, resto, pieza))
+        entradilla = f"{pieza.entradilla_fija} {enganche}".strip()
     lineas_e = entradilla.strip().split("\n")
     if lineas_e and lineas_e[0].lstrip().startswith("#"):
         # Un encabezado aquí («## «Destrozares…»») es ruido: fuera, o fuera las almohadillas.
@@ -724,15 +838,15 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
     entradilla = entradilla.strip()
     if entradilla:
         partes.insert(0, entradilla)
-    tray = trayectoria(db, album)
+    tray = pieza.cierre_datos
     cierre, _ = _seccion(client, (
-        f"Escribe el CIERRE de un post sobre el disco «{album.title}» de Robe: empieza con «## » "
-        "y un encabezado natural, y luego dos a cuatro frases que lo sitúen en su obra (el disco de antes y el de "
-        "después) y, si encaja, que Robe murió, sin convertir el disco en una despedida ni "
-        f"en una profecía. {encargo}\n{_REGLAS_VOZ}\nDATOS (solo estos):\n{tray}\n"
+        f"Escribe el CIERRE de un post sobre {pieza.objeto}: empieza con «## » y un "
+        f"encabezado natural, y luego {pieza.cierre_pide}. {encargo}\n{_REGLAS_VOZ}\n"
+        f"DATOS (solo estos):\n{tray}\n"
         f"DATOS YA DICHOS (no los repitas): {'; '.join(usados)}\n"
         'Devuelve JSON {"body_md": "..."}'), tray, titulos, max_tokens=400)
-    if cierre and cierre_falso(cierre, album.title, "ÚLTIMO" in tray):
+    if cierre and pieza.es_ultimo is not None and cierre_falso(cierre, pieza.titulo,
+                                                                pieza.es_ultimo):
         logger.info("[historias] cierre fuera (confunde el último disco): %s",
                     cierre.replace("\n", " ⏎ ")[:400])
         cierre = ""
