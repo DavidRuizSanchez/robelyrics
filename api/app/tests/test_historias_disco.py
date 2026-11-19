@@ -281,7 +281,39 @@ def test_la_entradilla_no_repite_cifras_de_las_secciones():
     resto = "## Listas\nAlcanzó el número uno y estuvo 132 semanas. Entró el 24 de diciembre."
     malo = "Salió el 15 de diciembre de 2023, llegó al número uno y estuvo 132 semanas."
     assert {"repite «132», que ya va en una sección",
-            "repite «número uno», que ya va en una sección"} <= set(
+            "repite «n.º 1», que ya va en una sección"} <= set(
                 hd.cifras_repetidas(malo, resto, album))
     assert hd.cifras_repetidas("Salió el 15 de diciembre de 2023 con El Dromedario.",
                                resto + " Publicado el 15 de diciembre de 2023.", album) == []
+
+
+def test_una_seccion_solo_lleva_las_cifras_de_su_historia():
+    from types import SimpleNamespace
+
+    pieza = SimpleNamespace(fechas_propias=("10", "2025", "63"), release_date=None)
+    contexto = "El vídeo se publicó el 11 de diciembre de 2025; el disco, el 30 de enero de 2026."
+    bien = "El vídeo salió el 11 de diciembre de 2025, y el disco el 30 de enero de 2026."
+    assert hd.cifras_ajenas(bien, contexto, pieza) == []
+    mal = bien + " Robe murió el 10 de diciembre de 2025, a los 63 años."
+    # La muerte es de la entradilla: ni el día ni la edad caben en otra sección.
+    assert hd.cifras_ajenas(mal, contexto, pieza) == ["«10» no es de esta historia: quítalo",
+                                                      "«63» no es de esta historia: quítalo"]
+
+
+def test_numero_uno_es_numero_1_y_un_nombre_no_es_cita():
+    from types import SimpleNamespace
+
+    pieza = SimpleNamespace(release_date=None)
+    assert hd.cifras_ajenas("Fue número uno.", "fue número 1 sus dos semanas", pieza) == []
+    assert hd.citas_que_fallan("Plasencia celebró el festival «Primeras Flores Amarillas».",
+                               "el festival «Primeras Flores Amarillas»", []) == []
+
+
+def test_un_titulo_entre_comillas_es_una_clave():
+    from app.services.corpus_for_queries import claves_de, tramos_con
+
+    c = "«Se nos lleva el aire» fue número uno de la lista de álbumes de España."
+    assert claves_de(c)[:2] == ["Se nos lleva el aire", "España"]
+    material = ("«Se nos lleva el aire» salió el 15 de diciembre de 2023 y fue número 1 de "
+                "la lista de álbumes de España sus dos primeras semanas.")
+    assert "dos primeras semanas" in tramos_con(material, c)

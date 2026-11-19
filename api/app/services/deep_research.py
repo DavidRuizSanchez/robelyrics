@@ -334,10 +334,15 @@ def _hard_facts(db: Session, entity_type: str, entity, subject: str) -> str:
                     # «regrabaciones hechas para este disco», el redactor escribió «un
                     # directo rehecho en el estudio» de «Bienvenidos al temporal»
                     # (19-11-2026), que se grabó en tres escenarios.
+                    # Sin recortar la lista: «19 cortes… » seguido de solo diez títulos
+                    # hacía que el verificador tumbara toda sección que dijera «los 19».
+                    todos = len(rerec) == len(filas)
                     facts.append(
-                        f"{len(rerec)} de estos cortes son grabaciones EN DIRECTO de este "
-                        "disco, no las versiones de estudio originales: "
-                        + ", ".join(f"«{t.title_as_released}»" for t in rerec[:10]) + "."
+                        (f"Los {len(rerec)} cortes son grabaciones EN DIRECTO de este disco"
+                         if todos else
+                         f"{len(rerec)} de estos cortes son grabaciones EN DIRECTO de este "
+                         "disco: " + ", ".join(f"«{t.title_as_released}»" for t in rerec))
+                        + ", no las versiones de estudio originales."
                     )
                 elif rerec:
                     facts.append(

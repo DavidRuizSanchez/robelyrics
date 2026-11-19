@@ -115,7 +115,7 @@ def gates(monkeypatch):
     monkeypatch.setattr(mp, "editorial_review", _rigor)
     monkeypatch.setattr(mp, "check_focus", lambda body, subject, focus="":
                         FocusReport(ok=True, score=95, drift_headings=[], trimmed_body_md=None))
-    monkeypatch.setattr(mp, "check_body", lambda db, body, use_web=False: FactCheckReport())
+    monkeypatch.setattr(mp, "check_body", lambda db, body, use_web=False, **k: FactCheckReport())
     monkeypatch.setattr(mp, "auto_publish_post", _publicar)
     monkeypatch.setattr(mp, "propose_for_review", _a_revision)
     monkeypatch.setattr(mp, "_notify_admin", lambda s, t: estado["mails"].append((s, t)))

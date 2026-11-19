@@ -277,9 +277,21 @@ def _juntos(texto: str, claves: list[str], ventana: int = VENTANA_CORROBORA) -> 
 _ARTICULOS = {"el", "la", "los", "las", "en", "un", "una", "su", "sus", "tras", "con", "del"}
 
 
+_TITULO_ENTRE_COMILLAS = re.compile(r"«\[?([^«»\[\]]{3,60})\]?(?:\([^)]*\))?»")
+
+
 def claves_de(hecho: str) -> list[str]:
-    """Los nombres propios y cifras de un hecho: lo que tiene que estar en la fuente."""
-    claves = list(dict.fromkeys(t for t in _NOMBRE_O_CIFRA.findall(hecho or "")))
+    """Los nombres propios y cifras de un hecho: lo que tiene que estar en la fuente.
+
+    Un título entre comillas es UNA clave entera: «Se nos lleva el aire» no tiene ninguna
+    palabra que pase por nombre propio («Se» es corta), y la afirmación «"Se nos lleva el
+    aire" fue número uno… en España» se quedaba con la clave «España» sola y no se
+    localizaba en su propio material (19-11-2026)."""
+    texto = hecho or ""
+    titulos = [t.strip() for t in _TITULO_ENTRE_COMILLAS.findall(texto)
+               if len(t.split()) <= 8]
+    resto = _TITULO_ENTRE_COMILLAS.sub(" ", texto)
+    claves = list(dict.fromkeys(titulos + _NOMBRE_O_CIFRA.findall(resto)))
     return [c for c in claves if c.lower() not in _ARTICULOS]
 
 
