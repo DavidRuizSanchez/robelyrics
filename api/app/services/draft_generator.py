@@ -569,6 +569,10 @@ def generate_body(db, p: ContentProposal) -> dict | None:
         )
         if deep:
             return deep
+        if POR_HISTORIAS.get():
+            # Sin historias bastantes no hay post: el generador clásico escribe sin
+            # material y se inventó la fecha de salida de los dos discos (19-11-2026).
+            return None
         try:
             ctx = album_context(db, album.id)
         except Exception:

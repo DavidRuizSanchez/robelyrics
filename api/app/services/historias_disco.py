@@ -46,6 +46,7 @@ class Historia:
     canciones: list[str] = field(default_factory=list)
     motivo: str = ""            # por qué no es afirmable, si no lo es
     contexto: str = ""          # el pasaje entero, para escribir y verificar
+    citable: bool = False       # se puede entrecomillar (entrevista ESCRITA de Robe)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -53,8 +54,24 @@ class Historia:
         return d
 
 
+_HOSTS_HABLADOS = re.compile(r"youtube\.com|youtu\.be|ivoox|spotify|podcast|cadenaser|rtve",
+                             re.I)
+
+
+def es_transcrita(p: dict) -> bool:
+    """¿El pasaje es una entrevista HABLADA (vídeo, radio) transcrita a máquina?
+    Criterio de David (18-11-2026): se afirma lo que cuenta, pero no se entrecomilla.
+    En el corpus casi todas las entrevistas de Robe son vídeos de YouTube, con kind
+    `robe_interview`: mirar solo el kind `youtube_transcript` las dejaba citables."""
+    from app.services.corpus_for_queries import es_entrevista_transcrita
+
+    return (es_entrevista_transcrita(p.get("kind"), p.get("title"))
+            or bool(_HOSTS_HABLADOS.search(p.get("url") or "")))
+
+
 def _plano(s: str) -> str:
     s = re.sub(r"[«»\"“”‘’']", "", s or "")
+    s = re.sub(r"(?:\.\s*){2,}|…", ". ", s)   # «tristes...» y «tristes.» son lo mismo
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
@@ -96,6 +113,10 @@ _SYS_EDITOR = (
     "- «quien»: robe, entorno, tercero (crítico, analista, fan, locutor) o hechos (datos "
     "duros). En una entrevista transcrita, una PREGUNTA es del entrevistador: quien = "
     "tercero.\n"
+    "- Los DATOS DUROS también dan historias (fuente «hechos duros»): cómo se grabó y "
+    "quién lo produjo, el sencillo que lo adelantó, la canción más larga, cómo le fue en "
+    "listas. La fecha de salida y el sello NO son una historia: van en la entradilla.\n"
+    "- El «gancho» cuenta lo CURIOSO, no el dato seco.\n"
     "- Cada dato en UNA sola historia. Entre 3 y 7 historias; si no hay material para 3, "
     "devuelve las que haya.\n"
     'Devuelve JSON {"historias": [{"gancho": "...", "ancla": "...", "fuente": "P3", '
@@ -124,6 +145,9 @@ def pasajes_de_robe(db, titulo: str, *, max_por_fuente: int = 3, maximo: int = 1
 
     if not titulo or db is None:
         return []
+    # «Destrozares, canciones para el final de los tiempos» casi nunca se dice entero.
+    corto = titulo.split(",")[0].strip()
+    titulo = corto if len(corto) >= 6 else titulo
     filas = db.execute(text(
         "select id, kind, author, title, url, content_clean from interpretation_sources "
         "where kind = any(:kinds) and content_clean ilike :t limit 40"),
@@ -184,7 +208,11 @@ def inventario(db, album, *, hechos_duros: str, usar_web: bool = True) -> list[H
     canciones = [t for (t,) in db.execute(
         select(Song.title).where(Song.album_id == album.id)
         .order_by(Song.track_number.nulls_last())).all()]
-    pasajes = pasajes_de_robe(db, album.title) + _pasajes(
+    # Lo que Robe dijo de una canción del disco también es del disco («El poder del
+    # arte», «podría haber hecho una cosa más»); solo títulos largos, que no casan solos.
+    de_canciones = [x for c in canciones if len(c) >= 10
+                    for x in pasajes_de_robe(db, c, max_por_fuente=1, maximo=2)][:8]
+    pasajes = pasajes_de_robe(db, album.title) + de_canciones + _pasajes(
         db, consultas_del_disco(album.title, canciones))
     bloques, por_id = [], {}
     for i, p in enumerate(pasajes, 1):
@@ -239,6 +267,7 @@ def _validar(db, h: dict, por_id: dict, hechos_duros: str, *, usar_web: bool
                 return historia
         historia.quien = "robe" if kind == "robe_interview" else "entorno"
         historia.afirmable = True
+        historia.citable = kind == "robe_interview" and not es_transcrita(p)
         return historia
     # Un tercero: solo se afirma si se corrobora por otra vía. Primero, dos fuentes del
     # corpus de autores distintos (criterio de David, 18-11-2026); después, la web.
@@ -265,8 +294,7 @@ def _rotulo(p: dict) -> str:
     """Cómo se presenta el pasaje al redactor: de quién es y si se puede citar."""
     kind, titulo = p.get("kind"), (p.get("title") or "").strip()
     if kind == "robe_interview":
-        from app.services.corpus_for_queries import es_entrevista_transcrita
-        if es_entrevista_transcrita(kind, titulo):
+        if es_transcrita(p):
             return (f"[ENTREVISTA A ROBE TRANSCRITA · {titulo}] (afirma lo que cuenta; "
                     "PROHIBIDO entrecomillar: la transcripción trae erratas)")
         return f"[LO QUE DIJO ROBE · {titulo}] (se puede citar entre comillas, con el medio)"
@@ -308,57 +336,262 @@ def _letras(db, titulos: list[str], album_id: int) -> str:
     return "\n\n".join(bloques)
 
 
+def trayectoria(db, album) -> str:
+    """El disco de estudio de antes y el de después en la obra de Robe (sus dos etapas)
+    y su muerte: lo que el cierre puede afirmar. Sale de la BD, nunca de memoria."""
+    from app.services import robe_facts
+
+    estudio = [x for x in robe_facts.discography(db) if x.kind == "studio" and x.year]
+    titulos = [_plano(x.title) for x in estudio]
+    if _plano(album.title) not in titulos:
+        return robe_facts.DEATH_SENTENCE + "."
+    i = titulos.index(_plano(album.title))
+    etapa = lambda x: "Robe" if x.artist_slug == "robe" else "Extremoduro"  # noqa: E731
+    este, lineas = f"«{album.title}»", []
+    if i > 0:
+        a = estudio[i - 1]
+        lineas.append(f"El disco de estudio de Robe ANTERIOR a {este} fue «{a.title}» "
+                      f"({a.year}, {etapa(a)}).")
+    if i + 1 < len(estudio):
+        d = estudio[i + 1]
+        lineas.append(f"El disco de estudio de Robe SIGUIENTE a {este} fue «{d.title}» "
+                      f"({d.year}, {etapa(d)}).")
+    else:
+        lineas.append(f"{este} es el ÚLTIMO disco de estudio de Robe.")
+    lineas.append(robe_facts.DEATH_SENTENCE + ".")
+    return "\n".join(lineas)
+
+
+_CITA = re.compile(r"«([^«»]{20,})»")
+_TITULO = re.compile(r"«([^«»]+)»")
+_QUIEN_LO_DICE = re.compile(
+    r"\b(?:Robe|dij[oe]|dec[ií]a|cont[oó]|contaba|explic[oó]|explicaba|añadi[oó]|respondi[oó]"
+    r"|record[oó]|asegur[oó]|reconoci[oó]|resumi[oó]|canta|cantaba|verso|estribillo)\b", re.I)
+
+
+def cierre_falso(texto: str, titulo: str, es_ultimo: bool) -> bool:
+    """¿El cierre llama «último» a otro disco, o a este sin serlo? El 19-11-2026
+    escribió «"Mayéutica" (2021) fue el último disco de estudio de Robe» a partir de
+    «el anterior fue Mayéutica» + «este es el último»."""
+    sin_enlaces = re.sub(r"\]\([^)]*\)", "]", texto or "")
+    # Por cláusulas: «Llegó después de «Mayéutica» y es el último…» es correcto.
+    for frase in re.split(r"(?<=[.!?])\s+|\n+|[,;:]\s*|\s+[ye]\s+", sin_enlaces):
+        if not re.search(r"\b[uú]ltim[oa]\b", frase, re.I):
+            continue
+        otros = [t for t in _TITULO.findall(frase)
+                 if _plano(t.strip("[]")) != _plano(titulo)]
+        if otros or not es_ultimo:
+            return True
+    return False
+
+
+def citas_que_fallan(texto: str, fuente: str, titulos: list[str], *,
+                     no_citable: str = "") -> list[str]:
+    """Lo que la sección pone entre comillas sin estar LITERAL en su fuente, y los
+    párrafos con las comillas descuadradas. Medido el 19-11-2026: el verificador recortó
+    el arranque de una cita de Robe y su final («…que yo tenía guardadas de antes.»)
+    quedó como si lo dijera el narrador."""
+    fallos = []
+    # El subtítulo también es título: «canciones para el final de los tiempos».
+    tit = {_plano(t) for t in titulos} | {_plano(x) for t in titulos for x in t.split(",")}
+    for m in _CITA.finditer(texto or ""):
+        c = m.group(1)
+        if _plano(c) in tit:
+            continue
+        inicio = (texto or "").rfind("\n", 0, m.start()) + 1
+        if not _QUIEN_LO_DICE.search(texto[inicio:m.start()]):
+            fallos.append(f"«{c[:60]}» va sin decir antes quién lo dice")
+            continue
+        if no_citable and _plano(c) in _plano(no_citable):
+            fallos.append(f"«{c[:60]}» es de una entrevista hablada transcrita: cuenta lo "
+                          "que dijo SIN comillas")
+        elif _plano(c) not in _plano(fuente):
+            fallos.append(f"la cita «{c[:80]}» no está literal en el pasaje")
+    for parrafo in (texto or "").split("\n"):
+        if parrafo.count("«") != parrafo.count("»"):
+            fallos.append(f"comillas descuadradas en: {parrafo[:90]}")
+    return fallos
+
+
+_SYS_FIEL = (
+    "Comparas una SECCIÓN de un post con el PASAJE en el que se apoya. Señala SOLO lo que "
+    "la sección atribuye a alguien (lo que dijo, pensaba o hizo) o da como hecho y que el "
+    "pasaje NO dice, o dice al revés. Una explicación o una opinión del autor del post no "
+    "es un fallo; cambiar el sentido de lo que alguien dijo, sí. "
+    'Devuelve JSON {"fallos": ["…"]} (lista vacía si es fiel).'
+)
+
+
+def fallos_de_fidelidad(texto: str, fuente: str) -> list[str]:
+    from app.services.news_research import _json
+
+    try:
+        data = _json(_SYS_FIEL, f'PASAJE:\n"""{fuente[:6000]}"""\n\nSECCIÓN:\n"""{texto}"""',
+                     max_tokens=400, temperature=0)
+    except Exception as exc:  # noqa: BLE001 — sin revisor no se da por buena
+        return [f"no se pudo comprobar la fidelidad: {exc}"]
+    if not isinstance(data, dict) or "fallos" not in data:
+        return ["no se pudo comprobar la fidelidad"]
+    return [str(x) for x in data.get("fallos") or []]
+
+
+_PROCESO = re.compile(
+    r"\bel material\b|\bla (?:conversaci[oó]n|entrevista|fuente) no (?:identifica|permite|"
+    r"recoge|dice|precisa|aclara)|\bno permite (?:asegurar|afirmar|saber)|\bqueda limitad[ao] a "
+    r"lo que|\bentrevista transcrita\b|\bla (?:entrevista|transcripci[oó]n) (?:recoge|permite|"
+    r"menciona|cita|incluye)\b"
+    # Lo que alguien NO dijo: eco de la revisión de fidelidad («pero no explicó que el
+    # aire se lleve las cosas», 19-11-2026). Lo que no sabes, no lo menciones.
+    r"|\bno (?:explic[oó]|afirm[oó]|precis[oó]|aclar[oó]|dijo|detall[oó]|concret[oó]|"
+    r"especific[oó]) (?:que|qu[eé]|cu[aá]l|cu[aá]les|por qu[eé]|c[oó]mo)"
+    r"|\bno (?:viene|va|aparece) acompañad[oa]|\bno present[oó] (?:el|la|los|las) ",
+    re.I)
+
+
+def fallos_de_letra(db, texto: str) -> list[str]:
+    """La guarda de versos sobre la sección: una cita de Robe que parece un verso
+    (porque la canción va al lado y quién habla va detrás) se reescribe AQUÍ, antes de
+    que la pare el gate entero (19-11-2026, dos de cuatro borradores)."""
+    if db is None:
+        return []
+    from app.services.lyric_guard import check_lyrics
+
+    rep = check_lyrics(db, texto)
+    return [f"«{v.quote[:60]}» se lee como verso de «{v.attributed_song}» y no lo es: si es "
+            "una declaración, di ANTES quién la dice y dónde; si es un verso, cópialo literal"
+            for v in rep.blocking + rep.to_review]
+
+
+def _seccion(client, prompt: str, fuente: str, titulos: list[str], *, max_tokens: int,
+             intentos: int = 2, db=None, no_citable: str = "") -> tuple[str, list[str]]:
+    """Escribe, verifica y revisa (citas literales y fidelidad); con los fallos delante
+    reescribe una vez. Si no queda limpia, no entra: mejor una sección menos."""
+    from scripts.seo.generate_deep import _chat, _verify_section
+
+    fallos: list[str] = []
+    for _ in range(intentos):
+        extra = ("\nLA VERSIÓN ANTERIOR TENÍA ESTOS FALLOS, corrígelos:\n- "
+                 + "\n- ".join(fallos)) if fallos else ""
+        data = _chat(client, prompt + extra, max_tokens=max_tokens, temp=0.6)
+        sec = (data.get("body_md") or "").strip()
+        if not sec:
+            fallos = ["vacía"]
+            continue
+        sec = _verify_section(client, sec, fuente).strip()
+        if not sec:
+            fallos = ["el verificador no dejó nada"]
+            continue
+        fallos = (citas_que_fallan(sec, fuente, titulos, no_citable=no_citable)
+                  + [f"habla del proceso: «{m.group(0)}»" for m in _PROCESO.finditer(sec)]
+                  + fallos_de_letra(db, sec))
+        fallos = fallos or fallos_de_fidelidad(sec, fuente)
+        if not fallos:
+            return sec, [str(d) for d in (data.get("datos") or [])][:8]
+    logger.info("[historias] sección fuera: %s", "; ".join(fallos)[:300])
+    return "", []
+
+
 def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
              encargo: str = "") -> str | None:
     """El cuerpo del post, o None si no hay historias afirmables bastantes."""
+    from sqlalchemy import select
+
+    from app.db.models import Song
     from app.services import source_guard
     from app.services.text_sanitizer import strip_ai_tells
-    from scripts.seo.generate_deep import _chat, _verify_section
 
     buenas = [h for h in historias if h.afirmable]
     if len(buenas) < MIN_HISTORIAS:
         logger.info("[historias] «%s»: %d historia(s) afirmable(s), no da para un post",
                     album.title, len(buenas))
         return None
+    # Todo el catálogo: «Lo que aletea en nuestras cabezas» entre comillas es un título,
+    # no una cita (tumbaba los cierres de «Destrozares», 19-11-2026).
+    from app.services import robe_facts
+    titulos = ([album.title] + [x.title for x in robe_facts.discography(db)]
+               + [t for (t,) in db.execute(select(Song.title)).all()])
     indice = "\n".join(f"{i}. {h.gancho}" for i, h in enumerate(buenas, 1))
-    entradilla = _chat(client, (
+    entradilla, usados = _seccion(client, (
         f"Escribe la ENTRADILLA de un post sobre el disco «{album.title}» de Robe. "
         f"{encargo}\nDos o tres frases, sin encabezado: engancha con lo más curioso de "
-        "lo que se va a contar y da la fecha de salida y el sello. No resumas el post.\n"
+        "lo que se va a contar y da la fecha de salida, el sello y quién lo produjo (si está en "
+        "los DATOS DUROS). Nada más: ni listas, ni sencillos, ni grabación, que van en su "
+        "sección. No resumas el post ni digas lo que el post NO cuenta.\n"
         f"{_REGLAS_VOZ}\nLo que se va a contar:\n{indice}\n\nDATOS DUROS:\n{hechos_duros}\n"
-        'Devuelve JSON {"body_md": "..."}'), max_tokens=500, temp=0.6).get("body_md", "")
-    partes = [_verify_section(client, entradilla, hechos_duros).strip()] if entradilla else []
-    usados: list[str] = []
-    for i, h in enumerate(buenas):
+        'Devuelve JSON {"body_md": "...", "datos": ["cada dato concreto que has usado"]}'),
+        hechos_duros, titulos, max_tokens=500)
+    # Es la entradilla: un encabezado aquí («## «Destrozares…»») es ruido. Si va solo en
+    # la primera línea se quita; si la entradilla entera viene como encabezado, se le
+    # quitan las almohadillas.
+    lineas_e = entradilla.strip().split("\n")
+    if lineas_e and lineas_e[0].lstrip().startswith("#"):
+        resto = "\n".join(lineas_e[1:]).strip()
+        entradilla = resto or re.sub(r"^\s*#+\s*", "", lineas_e[0])
+    entradilla = entradilla.strip()
+    partes = [entradilla] if entradilla else []
+    hechas = 0
+    for h in buenas:
         letras = _letras(db, h.canciones, album.id)
         otras = "; ".join(x.gancho for x in buenas if x is not h)
-        data = _chat(client, (
+        fuente = f"{hechos_duros}\n\n{h.contexto}\n\n{letras}"
+        sec, datos = _seccion(client, (
             f"Escribe UNA sección de un post sobre el disco «{album.title}» de Robe. Cuenta "
             f"esta historia: {h.gancho}\n"
             f"Se apoya en: «{h.tramo}» ({h.fuente}).\n"
             f"Las otras secciones cuentan (no las invadas): {otras}\n"
-            + (f"DATOS YA DICHOS en secciones anteriores (NO los repitas): "
+            + (f"DATOS YA DICHOS antes (NO los repitas, ni la fecha ni el sello): "
                f"{'; '.join(usados)}\n" if usados else "")
             + "INSTRUCCIONES:\n- Empieza con «## » y un encabezado natural, como lo escribiría "
             "una persona (sin dos puntos ni «Sujeto: tema»).\n"
-            "- 120-260 palabras. Cuenta la historia con sus detalles concretos y explica por "
-            "qué importa; mete los datos técnicos de los DATOS DUROS que encajen con ESTA "
-            "historia (y solo esos).\n"
+            + ("- 40-120 palabras: es un dato, cuéntalo una vez y con su porqué, sin "
+               "repetirlo con otras palabras." if h.quien == "hechos" else "- 80-220 palabras.")
+            + " Abre con lo curioso, no con el dato. Cuéntalo como se lo "
+            "contarías a otro fan: con sus detalles concretos y por qué importa. Si la "
+            "historia da para poco, que la sección sea corta: NUNCA repitas ni resumas al "
+            "final lo que ya has dicho, ni cuentes una cita y luego la parafrasees.\n"
+            "- Lo que dijo alguien se cuenta con SU sentido, sin darle la vuelta. "
+            + ("Si lo citas, quién lo dice y dónde va DELANTE («Robe contó a RockFM: «…»») y "
+               "la cita va ENTERA entre «» y copiada LITERAL del pasaje.\n" if h.citable else
+               "Es una entrevista hablada transcrita: cuéntalo en tu voz, SIN comillas y sin "
+               "nombrar el programa.\n")
+            + "- Los DATOS DUROS son para no equivocarte: usa solo los que sean de ESTA "
+            "historia y no estén ya dichos.\n"
+            "- Los nombres de giras y de programas van en cursiva y sin comillas "
+            "(*Ahora es cuando*); las comillas «» son para canciones, discos y citas.\n"
             "- Si la historia trae canciones, explica qué quieren decir; como mucho un verso "
             "LITERAL de su [LETRA], nunca uno inventado.\n"
             f"- {_REGLAS_VOZ}\n"
             f"PASAJE:\n\"\"\"{h.contexto}\"\"\"\n\n{letras}\n\nDATOS DUROS:\n{hechos_duros}\n"
             'Devuelve JSON {"body_md": "...", "datos": ["cada dato concreto que has usado"]}'),
-            max_tokens=1500, temp=0.6)
-        sec = (data.get("body_md") or "").strip()
-        if not sec:
-            continue
-        sec = _verify_section(client, sec, f"{hechos_duros}\n\n{h.contexto}\n\n{letras}")
-        if sec.strip():
-            partes.append(sec.strip())
-            usados += [str(d) for d in (data.get("datos") or [])][:8]
+            fuente, titulos, max_tokens=1500, db=db,
+            no_citable="" if h.citable or h.quien == "hechos" else h.contexto)
+        if sec:
+            partes.append(sec)
+            usados += datos
+            hechas += 1
+    if hechas < MIN_HISTORIAS:
+        logger.info("[historias] «%s»: solo %d sección(es) limpias", album.title, hechas)
+        return None
+    tray = trayectoria(db, album)
+    cierre, _ = _seccion(client, (
+        f"Escribe el CIERRE de un post sobre el disco «{album.title}» de Robe: empieza con «## » "
+        "y un encabezado natural, y luego dos a cuatro frases que lo sitúen en su obra (el disco de antes y el de "
+        "después) y, si encaja, que Robe murió, sin convertir el disco en una despedida ni "
+        f"en una profecía. {encargo}\n{_REGLAS_VOZ}\nDATOS (solo estos):\n{tray}\n"
+        f"DATOS YA DICHOS (no los repitas): {'; '.join(usados)}\n"
+        'Devuelve JSON {"body_md": "..."}'), tray, titulos, max_tokens=400)
+    if cierre and cierre_falso(cierre, album.title, "ÚLTIMO" in tray):
+        logger.info("[historias] cierre fuera (confunde el último disco): %s",
+                    cierre.replace("\n", " ⏎ ")[:400])
+        cierre = ""
+    if cierre:
+        partes.append(cierre)
     cuerpo = "\n\n".join(p for p in partes if p)
     cuerpo = strip_ai_tells(cuerpo) or cuerpo
     cuerpo, _ = source_guard.limpiar(cuerpo, source_guard.nombres_de_fuentes(db))
     cuerpo, _ = source_guard.quitar_confesiones(cuerpo)
+    # Última red: un párrafo con las comillas descuadradas pone palabras de alguien en
+    # boca del narrador. Fuera entero.
+    cuerpo = "\n".join(p for p in cuerpo.split("\n") if p.count("«") == p.count("»"))
+    cuerpo = re.sub(r"\n{3,}", "\n\n", cuerpo).strip()
     return cuerpo if len(cuerpo) >= 300 else None

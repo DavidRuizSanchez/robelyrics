@@ -35,13 +35,15 @@ PAUSA_MB = 1.2
 
 @dataclass
 class Dato:
-    campo: str          # sello | productor | grabacion | estudio | sencillo
+    campo: str          # sello | productor | grabacion | estudio | sencillo | listas | seccion
     valor: str
     fuentes: list[dict] = field(default_factory=list)  # {kind, tier, url, cita}
 
     def linea(self) -> str:
         if self.campo == "listas":
             return f"Listas: {self.valor}."
+        if self.campo == "seccion":
+            return self.valor   # «Grabación y producción: …», ya con su rótulo
         if self.campo == "productor":
             # En la rueda de prensa de «Destrozares» la producción se cuenta como cosa de
             # varios, con José Luis Crespo entre ellos: «participó» es lo que sostienen
@@ -156,6 +158,37 @@ def pagina_wikipedia(http, titulo_disco: str, artista: str) -> tuple[str, str] |
                     and _norm(artista) in de:
                 return page.get("title", t), txt
     return None
+
+
+# Apartados del artículo con datos de edición. Criterio de David (19-11-2026): lo que
+# cuentan de grabación, producción y promoción vale como dato del disco (con fecha o
+# nombre propio, nunca sus valoraciones), sin nombrar la fuente. Sin esto, los dos
+# aniversarios caían en el juez por «falta el contexto de grabación», que estaba ahí.
+_SECCIONES_DE_EDICION = re.compile(r"grabaci|producci|composici|promoci|lanzamiento|edici",
+                                   re.I)
+MAX_SECCION = 1200
+VERSION_CACHE = 2
+
+
+def secciones_de_edicion(wikitexto: str) -> list[tuple[str, str]]:
+    """[(título, texto limpio)] de los apartados de grabación, producción, composición
+    y promoción del artículo. Las citas en bloque y las tablas se quitan: no son datos."""
+    out = []
+    partes = re.split(r"^==\s*([^=\n]+?)\s*==\s*$", wikitexto or "", flags=re.M)
+    for titulo, cuerpo in zip(partes[1::2], partes[2::2]):
+        if not _SECCIONES_DE_EDICION.search(titulo):
+            continue
+        cuerpo = re.split(r"^===", cuerpo, flags=re.M)[0]          # sin subapartados
+        cuerpo = re.sub(r"\{\|.*?\|\}", "", cuerpo, flags=re.S)       # tablas
+        cuerpo = re.sub(r"\{\{(?:cita|cquote|quote)[^}]*\}\}", "", cuerpo, flags=re.I | re.S)
+        cuerpo = re.sub(r"<blockquote>.*?</blockquote>", "", cuerpo, flags=re.S)
+        texto = " ".join(_limpiar_wiki(linea) for linea in cuerpo.splitlines()
+                         if linea.strip() and not linea.lstrip().startswith(("[[Archivo",
+                                                                            "[[File", "*")))
+        texto = re.sub(r"\s+", " ", texto).strip()
+        if len(texto) >= 40:
+            out.append((titulo.strip(), texto[:MAX_SECCION]))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -273,6 +306,10 @@ def datos_corroborados(db, album, *, release_group: str | None, sellos_mb: list[
     # Primer sencillo: que la canción esté en el disco no prueba que fuera el sencillo
     # (asesor, 18-11-2026). Hace falta un texto del corpus que nombre la canción como
     # sencillo o adelanto del disco.
+    for titulo, texto in secciones_de_edicion(wiki[1] if wiki else ""):
+        datos.append(Dato("seccion", f"{titulo}: {texto}", [
+            {"kind": "wikipedia", "tier": "T2", "url": wiki_url, "cita": f"== {titulo} =="}]))
+
     sencillo = ficha.get("sencillo")
     if sencillo:
         from sqlalchemy import select
@@ -310,7 +347,9 @@ def datos_del_disco(db, album, *, refrescar: bool = False) -> list[Dato]:
     ruta = _dir_cache() / f"{album.slug}.json"
     if ruta.exists() and not refrescar:
         try:
-            return [Dato(**d) for d in json.loads(ruta.read_text())["datos"]]
+            guardado = json.loads(ruta.read_text())
+            if guardado.get("version") == VERSION_CACHE:
+                return [Dato(**d) for d in guardado["datos"]]
         except Exception:  # noqa: BLE001 — caché rota: se rehace
             pass
     try:
@@ -330,7 +369,8 @@ def datos_del_disco(db, album, *, refrescar: bool = False) -> list[Dato]:
     try:
         ruta.parent.mkdir(parents=True, exist_ok=True)
         ruta.write_text(json.dumps({
-            "album": album.slug, "extraido": datetime.now(UTC).isoformat(timespec="seconds"),
+            "album": album.slug, "version": VERSION_CACHE,
+            "extraido": datetime.now(UTC).isoformat(timespec="seconds"),
             "datos": [asdict(d) for d in datos]}, ensure_ascii=False, indent=1))
     except OSError as exc:
         logger.warning("[album_facts] no se pudo guardar la caché: %s", exc)
