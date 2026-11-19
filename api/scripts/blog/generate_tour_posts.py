@@ -137,7 +137,7 @@ TOURS = [
         "angle": "La gira de despedida de Extremoduro antes de su disolución.",
         "context": "Gira de 'Para todos los públicos' (2013), organizada por El "
         "Dromedario Records, por España y Latinoamérica. Fue la última etapa de "
-        "Extremoduro; el grupo anunció su disolución el 18 de diciembre de 2019.",
+        "Extremoduro; el grupo anunció su disolución el 17 de diciembre de 2019.",
     },
     {
         "slug": "giras-robe-solitario",

@@ -275,7 +275,7 @@ def review(
         "específicos y una mirada diferencial. RECHAZAS sin piedad el relleno, la "
         "redundancia y lo genérico. Devuelves SOLO JSON.\n"
         # Sale de `robe_facts`, no escrito a mano: aquí ponía que Extremoduro se
-        # disolvió «en 2018» cuando la fuente del propio repo dice 18-12-2019, así
+        # disolvió «en 2018» cuando la fuente del propio repo dice 17-12-2019, así
         # que el editor jefe llevaba tiempo juzgando artículos con un dato falso
         # en su contexto. Y antes solo decía «no penalices que lo mencione», que
         # evita el error de tiempo verbal pero no exige contar lo que hay que

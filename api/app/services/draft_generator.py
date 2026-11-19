@@ -65,7 +65,7 @@ def _por_historias(db, album, dossier, framing: str) -> dict | None:
     from app.services.news_research import _news_meta
 
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    historias = historias_disco.inventario(db, album, hechos_duros=dossier.hard_facts)
+    historias = historias_disco.inventario_congelado(db, album, hechos_duros=dossier.hard_facts)
     TRAZA.clear()
     TRAZA.extend({"historia": h.to_dict()} for h in historias)
     encargo = framing.split(" Escribe como un fan")[0][:400]
@@ -994,7 +994,15 @@ def _juzgar(db, p: ContentProposal, hard: str):
     return cascada_en_seco(db, kind=p.kind, subject=(p.target_keyword or p.title or "").strip(),
                            title=p.title or "", body_md=p.body_md or "", hard_facts=hard,
                            tipo_pieza=tipo_pieza_de(p),
-                           material_propio=material_propio_de_propuesta(db, p))
+                           material_propio=material_propio_de_propuesta(db, p),
+                           tensar=not escrita_por_historias(p))
+
+
+def escrita_por_historias(p: ContentProposal) -> bool:
+    """¿Esta propuesta la escribe el redactor por historias? (mismo criterio que
+    `_deep_body`: disco + aniversario o historia de disco + interruptor encendido)."""
+    return bool(POR_HISTORIAS.get() and tipo_pieza_de(p) in ("album-anniversary",
+                                                             "album-historia"))
 
 
 def _corta(p: ContentProposal) -> bool:

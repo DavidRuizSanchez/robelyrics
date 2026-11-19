@@ -238,6 +238,96 @@ def inventario(db, album, *, hechos_duros: str, usar_web: bool = True) -> list[H
     return out
 
 
+_CIFRA = re.compile(r"\b\d{2,}\b|\bn[uú]mero (?:uno|dos|tres|cuatro|cinco|seis|siete|ocho|"
+                    r"nueve|diez)\b|\bn\.º ?\d+", re.I)
+
+
+def cifras_repetidas(texto: str, resto: str, album) -> list[str]:
+    """Cifras de la entradilla que ya da alguna sección (sin contar el día y el año de
+    salida, que la entradilla tiene que dar)."""
+    salida = getattr(album, "release_date", None)
+    propias = {str(salida.day), str(salida.year)} if salida else set()
+    dichas = {m.group(0).lower() for m in _CIFRA.finditer(resto or "")}
+    rep = {m.group(0).lower() for m in _CIFRA.finditer(texto or "")} & dichas
+    return [f"repite «{x}», que ya va en una sección" for x in sorted(rep - propias)]
+
+
+def gancho_fiel(h: Historia) -> Historia:
+    """El gancho es una paráfrasis del editor y la sección se comprueba contra el tramo:
+    si el gancho dice más que el tramo, el redactor acaba matizando («pero no explicó
+    que…», asesor 19-11-2026). Si el tramo no lo sostiene, el gancho pasa a ser el tramo."""
+    if not h.afirmable:
+        return h
+    try:
+        from app.services.web_verify import classify_with_evidence
+        ok = classify_with_evidence(h.gancho, [h.tramo]) == "supported"
+    except Exception:  # noqa: BLE001 — sin juez, el gancho prudente
+        ok = False
+    if not ok:
+        h.gancho = f"Cuenta lo que dice este tramo, sin añadir nada: «{h.tramo[:220]}»"
+    return h
+
+
+_PRIORIDAD_ANCLA = {"declaracion": 0, "grabacion": 1, "testimonio": 2, "portada_titulo": 3,
+                    "video": 4, "directo": 5, "listas": 6, "contexto": 7, "dato": 8}
+RONDAS = 3
+VERSION_INVENTARIO = 1
+
+
+def _dir_inventario():
+    import os
+    import tempfile
+    from pathlib import Path
+    return Path(os.environ.get("HISTORIAS_DIR") or Path(tempfile.gettempdir()) / "historias")
+
+
+def inventario_congelado(db, album, *, hechos_duros: str, rondas: int = RONDAS,
+                         refrescar: bool = False) -> list[Historia]:
+    """El inventario del disco, UNO y estable: la unión de varias pasadas del editor,
+    validada y guardada. Sortear inventario y redacción a la vez impedía ver si el
+    redactor mejoraba (asesor, 19-11-2026). Se rehace con `refrescar` o si cambian los
+    datos duros."""
+    import hashlib
+    import json
+
+    ruta = _dir_inventario() / f"{getattr(album, 'slug', album.id)}.json"
+    firma = hashlib.sha1((hechos_duros or "").encode()).hexdigest()[:12]
+    if ruta.exists() and not refrescar:
+        try:
+            guardado = json.loads(ruta.read_text())
+            if guardado.get("version") == VERSION_INVENTARIO and guardado.get("firma") == firma:
+                return [Historia(**d) for d in guardado["historias"]]
+        except Exception:  # noqa: BLE001 — caché rota: se rehace
+            pass
+    union: list[Historia] = []
+    for _ in range(max(1, rondas)):
+        for h in inventario(db, album, hechos_duros=hechos_duros):
+            t = _plano(h.tramo)
+            if any(t in _plano(x.tramo) or _plano(x.tramo) in t for x in union):
+                continue
+            union.append(h)
+    buenas = sorted((gancho_fiel(h) for h in union if h.afirmable),
+                    key=lambda h: _PRIORIDAD_ANCLA.get(h.ancla, 9))
+    # Una historia por ancla de dato duro (listas, grabación): repetirlas es repetir datos.
+    vistas, elegidas = set(), []
+    for h in buenas:
+        clave = h.ancla if h.quien == "hechos" else id(h)
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        elegidas.append(h)
+    elegidas = elegidas[:MAX_HISTORIAS]
+    fuera = [h for h in union if not h.afirmable]
+    try:
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(json.dumps({"version": VERSION_INVENTARIO, "firma": firma,
+                                    "historias": [asdict(h) for h in elegidas + fuera]},
+                                   ensure_ascii=False, indent=1))
+    except OSError as exc:
+        logger.warning("[historias] no se pudo guardar el inventario: %s", exc)
+    return elegidas + fuera
+
+
 def historia_de_grabacion(hechos_duros: str) -> Historia | None:
     """La historia de cómo y dónde se grabó, si los datos duros la traen."""
     lineas = [x.strip() for x in (hechos_duros or "").splitlines()
@@ -307,17 +397,28 @@ def _validar(db, h: dict, por_id: dict, hechos_duros: str, *, usar_web: bool
     return historia
 
 
+def medio_de(p: dict) -> str:
+    """El medio de una entrevista escrita, del título del corpus: «Entrevista a Robe
+    (Diario de Noticias de Navarra, 2016)» → «Diario de Noticias de Navarra»."""
+    m = re.search(r"\(([^()]+?)(?:,\s*\d{4})?\)\s*$", (p.get("title") or "").strip())
+    return m.group(1).strip() if m else ""
+
+
 def _rotulo(p: dict) -> str:
-    """Cómo se presenta el pasaje al redactor: de quién es y si se puede citar."""
-    kind, titulo = p.get("kind"), (p.get("title") or "").strip()
+    """Cómo se presenta el pasaje al redactor. SIN el título de la fuente: con él delante
+    escribía «en la entrevista transcrita», el nombre del programa o el de quien
+    entrevistaba (asesor, 19-11-2026). Solo una entrevista escrita lleva su medio."""
+    kind = p.get("kind")
     if kind == "robe_interview":
         if es_transcrita(p):
-            return (f"[ENTREVISTA A ROBE TRANSCRITA · {titulo}] (afirma lo que cuenta; "
-                    "PROHIBIDO entrecomillar: la transcripción trae erratas)")
-        return f"[LO QUE DIJO ROBE · {titulo}] (se puede citar entre comillas, con el medio)"
+            return ("[LO QUE CONTÓ ROBE] (cuéntalo en tu voz y SIN comillas; no nombres el "
+                    "programa, el medio ni a quien pregunta)")
+        medio = medio_de(p)
+        return ("[LO QUE DIJO ROBE] (se puede citar entre comillas"
+                + (f"; si lo atribuyes, el medio es {medio}" if medio else "") + ")")
     if kind == "entorno_interview":
-        return "[TESTIMONIO DEL ENTORNO] (se afirma; no se cita ni se nombra la fuente)"
-    return "[DATO DE UN TERCERO, CORROBORADO] (se afirma en nuestra voz; nunca se nombra la fuente)"
+        return "[TESTIMONIO DEL ENTORNO] (se afirma en nuestra voz; no se cita ni se nombra)"
+    return "[DATO CORROBORADO] (se afirma en nuestra voz; nunca se nombra de dónde sale)"
 
 
 # --------------------------------------------------------------------------- #
@@ -479,16 +580,40 @@ def fallos_de_letra(db, texto: str) -> list[str]:
             for v in rep.blocking + rep.to_review]
 
 
+def limpiar_seccion(db, texto: str) -> tuple[str, list[str]]:
+    """Las mismas limpiezas que el cuerpo sufre DESPUÉS (post-proceso del borrador), aquí,
+    antes de comprobar: así lo que se comprueba es lo que se publica. Devuelve el texto y
+    las frases que habrían quitado (con ellas, la sección se reescribe entera; quitarlas a
+    secas dejaba frases cojas como «También vinculó esa imagen…»)."""
+    from app.services import source_guard
+    from app.services.text_sanitizer import strip_ai_tells
+
+    t = strip_ai_tells(texto) or texto
+    quitadas: list[str] = []
+    t, q = source_guard.limpiar(t, source_guard.nombres_de_fuentes(db) if db is not None
+                                else None)
+    quitadas += q
+    t, q = source_guard.quitar_confesiones(t)
+    quitadas += q
+    if db is not None:
+        from app.services.fact_check import corregir_anios_de_disco
+        t, _ = corregir_anios_de_disco(db, t)
+    return t.strip(), quitadas
+
+
 def _seccion(client, prompt: str, fuente: str, titulos: list[str], *, max_tokens: int,
-             intentos: int = 2, db=None, no_citable: str = "") -> tuple[str, list[str]]:
-    """Escribe, verifica y revisa (citas literales y fidelidad); con los fallos delante
-    reescribe una vez. Si no queda limpia, no entra: mejor una sección menos."""
+             intentos: int = 2, db=None, no_citable: str = "",
+             extra_check=None) -> tuple[str, list[str]]:
+    """Escribe, verifica, limpia y revisa (citas literales, proceso, versos y fidelidad);
+    con los fallos delante se reescribe una vez, pidiendo QUITAR lo que falla. Si no queda
+    limpia, no entra: mejor una sección menos."""
     from scripts.seo.generate_deep import _chat, _verify_section
 
     fallos: list[str] = []
     for _ in range(intentos):
-        extra = ("\nLA VERSIÓN ANTERIOR TENÍA ESTOS FALLOS, corrígelos:\n- "
-                 + "\n- ".join(fallos)) if fallos else ""
+        extra = ("\nLA VERSIÓN ANTERIOR TENÍA ESTOS FALLOS. Escríbela de nuevo QUITANDO esas "
+                 "afirmaciones o frases (no las corrijas, no las matices y no digas lo que no "
+                 "se dijo):\n- " + "\n- ".join(fallos)) if fallos else ""
         data = _chat(client, prompt + extra, max_tokens=max_tokens, temp=0.6)
         sec = (data.get("body_md") or "").strip()
         if not sec:
@@ -498,13 +623,17 @@ def _seccion(client, prompt: str, fuente: str, titulos: list[str], *, max_tokens
         if not sec:
             fallos = ["el verificador no dejó nada"]
             continue
-        fallos = (citas_que_fallan(sec, fuente, titulos, no_citable=no_citable)
+        sec, quitadas = limpiar_seccion(db, sec)
+        fallos = ([f"nombra una fuente o habla del proceso: «{q}»" for q in quitadas]
+                  + citas_que_fallan(sec, fuente, titulos, no_citable=no_citable)
                   + [f"habla del proceso: «{m.group(0)}»" for m in _PROCESO.finditer(sec)]
-                  + fallos_de_letra(db, sec))
-        fallos = fallos or fallos_de_fidelidad(sec, fuente)
+                  + fallos_de_letra(db, sec)
+                  + (extra_check(sec) if extra_check else []))
+        fallos = fallos or [f"no lo dice el pasaje: {x}"
+                            for x in fallos_de_fidelidad(sec, fuente)]
         if not fallos:
             return sec, [str(d) for d in (data.get("datos") or [])][:8]
-    logger.info("[historias] sección fuera: %s", "; ".join(fallos)[:300])
+    logger.info("[historias] sección fuera: %s", " || ".join(fallos)[:1500])
     return "", []
 
 
@@ -514,8 +643,6 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
     from sqlalchemy import select
 
     from app.db.models import Song
-    from app.services import source_guard
-    from app.services.text_sanitizer import strip_ai_tells
 
     buenas = [h for h in historias if h.afirmable]
     if len(buenas) < MIN_HISTORIAS:
@@ -528,24 +655,8 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
     titulos = ([album.title] + [x.title for x in robe_facts.discography(db)]
                + [t for (t,) in db.execute(select(Song.title)).all()])
     indice = "\n".join(f"{i}. {h.gancho}" for i, h in enumerate(buenas, 1))
-    entradilla, usados = _seccion(client, (
-        f"Escribe la ENTRADILLA de un post sobre el disco «{album.title}» de Robe. "
-        f"{encargo}\nDos o tres frases, sin encabezado: engancha con lo más curioso de "
-        "lo que se va a contar y da la fecha de salida, el sello y quién lo produjo (si está en "
-        "los DATOS DUROS). Nada más: ni listas, ni sencillos, ni grabación, que van en su "
-        "sección. No resumas el post ni digas lo que el post NO cuenta.\n"
-        f"{_REGLAS_VOZ}\nLo que se va a contar:\n{indice}\n\nDATOS DUROS:\n{hechos_duros}\n"
-        'Devuelve JSON {"body_md": "...", "datos": ["cada dato concreto que has usado"]}'),
-        hechos_duros, titulos, max_tokens=500)
-    # Es la entradilla: un encabezado aquí («## «Destrozares…»») es ruido. Si va solo en
-    # la primera línea se quita; si la entradilla entera viene como encabezado, se le
-    # quitan las almohadillas.
-    lineas_e = entradilla.strip().split("\n")
-    if lineas_e and lineas_e[0].lstrip().startswith("#"):
-        resto = "\n".join(lineas_e[1:]).strip()
-        entradilla = resto or re.sub(r"^\s*#+\s*", "", lineas_e[0])
-    entradilla = entradilla.strip()
-    partes = [entradilla] if entradilla else []
+    usados: list[str] = []
+    partes: list[str] = []
     hechas = 0
     for h in buenas:
         letras = _letras(db, h.canciones, album.id)
@@ -554,9 +665,11 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
         sec, datos = _seccion(client, (
             f"Escribe UNA sección de un post sobre el disco «{album.title}» de Robe. Cuenta "
             f"esta historia: {h.gancho}\n"
-            f"Se apoya en: «{h.tramo}» ({h.fuente}).\n"
+            f"Se apoya en: «{h.tramo}».\n"
             f"Las otras secciones cuentan (no las invadas): {otras}\n"
-            + (f"DATOS YA DICHOS antes (NO los repitas, ni la fecha ni el sello): "
+            + "La fecha de salida, el sello y la producción van en la entradilla: NO los "
+            "repitas aquí.\n"
+            + (f"DATOS YA DICHOS en otras secciones (NO los repitas): "
                f"{'; '.join(usados)}\n" if usados else "")
             + "INSTRUCCIONES:\n- Empieza con «## » y un encabezado natural, como lo escribiría "
             "una persona (sin dos puntos ni «Sujeto: tema»).\n"
@@ -589,6 +702,28 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
     if hechas < MIN_HISTORIAS:
         logger.info("[historias] «%s»: solo %d sección(es) limpias", album.title, hechas)
         return None
+    # La entradilla, la ÚLTIMA: sabiendo qué cuentan ya las secciones. Escrita la primera,
+    # repetía el n.º 1 y las 132 semanas que luego tenían su sección (19-11-2026).
+    resto = "\n\n".join(partes)
+    entradilla, _ = _seccion(client, (
+        f"Escribe la ENTRADILLA de un post sobre el disco «{album.title}» de Robe. "
+        f"{encargo}\nDos o tres frases, sin encabezado: engancha con lo más curioso de "
+        "lo que se va a contar y da la fecha de salida, el sello y quién lo produjo (si está en "
+        "los DATOS DUROS). NO repitas ningún dato de las secciones (ni listas, ni semanas, ni "
+        "grabación, ni sencillos). No resumas el post ni digas lo que el post NO cuenta.\n"
+        f"{_REGLAS_VOZ}\nLAS SECCIONES YA CUENTAN ESTO (no lo repitas):\n{'; '.join(usados)}\n"
+        f"Lo que se va a contar:\n{indice}\n\nDATOS DUROS:\n{hechos_duros}\n"
+        'Devuelve JSON {"body_md": "..."}'),
+        hechos_duros, titulos, max_tokens=500, db=db,
+        extra_check=lambda t: cifras_repetidas(t, resto, album))
+    lineas_e = entradilla.strip().split("\n")
+    if lineas_e and lineas_e[0].lstrip().startswith("#"):
+        # Un encabezado aquí («## «Destrozares…»») es ruido: fuera, o fuera las almohadillas.
+        resto_e = "\n".join(lineas_e[1:]).strip()
+        entradilla = resto_e or re.sub(r"^\s*#+\s*", "", lineas_e[0])
+    entradilla = entradilla.strip()
+    if entradilla:
+        partes.insert(0, entradilla)
     tray = trayectoria(db, album)
     cierre, _ = _seccion(client, (
         f"Escribe el CIERRE de un post sobre el disco «{album.title}» de Robe: empieza con «## » "
@@ -603,10 +738,17 @@ def escribir(db, client, album, historias: list[Historia], *, hechos_duros: str,
         cierre = ""
     if cierre:
         partes.append(cierre)
-    cuerpo = "\n\n".join(p for p in partes if p)
-    cuerpo = strip_ai_tells(cuerpo) or cuerpo
-    cuerpo, _ = source_guard.limpiar(cuerpo, source_guard.nombres_de_fuentes(db))
-    cuerpo, _ = source_guard.quitar_confesiones(cuerpo)
+    # Última red, parte a parte: si alguna limpieza quitaría algo, la parte entera fuera
+    # (quitar la frase dejaría otra coja). Con la limpieza ya dentro de cada sección,
+    # aquí no debería caer nada.
+    finales = []
+    for parte in (p for p in partes if p):
+        limpia, quitadas = limpiar_seccion(db, parte)
+        if quitadas:
+            logger.info("[historias] parte fuera en la red final: %s", " || ".join(quitadas))
+            continue
+        finales.append(limpia)
+    cuerpo = "\n\n".join(finales)
     # Última red: un párrafo con las comillas descuadradas pone palabras de alguien en
     # boca del narrador. Fuera entero.
     cuerpo = "\n".join(p for p in cuerpo.split("\n") if p.count("«") == p.count("»"))

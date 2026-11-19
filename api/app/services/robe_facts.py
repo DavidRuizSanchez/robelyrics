@@ -40,7 +40,11 @@ DEATH_ANTECEDENT = (
     "de un tromboembolismo pulmonar"
 )
 
-EXTREMODURO_DISSOLUTION_DATE = date(2019, 12, 18)
+# 17, no 18 (verificado el 13-11-2026 para el homenaje y vuelto a comprobar el 19-11):
+# tuit de @Oficina_Extremo y El Independiente del 17-12-2019; MusicBrainz, end 2019-12-17.
+# La errata se corrigió en las páginas y quedó aquí, que es lo que se inyecta a todos los
+# motores: la #417 volvió a escribir «18 de diciembre de 2019» el 19-11-2026.
+EXTREMODURO_DISSOLUTION_DATE = date(2019, 12, 17)
 EXTREMODURO_DEBUT = ("Tú en tu casa, nosotros en la hoguera", 1990)
 EXTREMODURO_LAST_ALBUM = ("Para todos los públicos", 2013)
 
