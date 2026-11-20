@@ -150,9 +150,11 @@ def detect(db, pages: dict, *, period: str | None = None,
     `discarded`, `noop`) no se resucitan solas.
     """
     from app.db.models import SeoContent, SeoOpportunity
+    from app.services.cambios_recientes import rutas_en_enfriamiento
     from scripts.seo.gsc_optimize import _resolve_entity
 
     alias = nombre_alias_index(db)
+    frias = rutas_en_enfriamiento(db)
     creadas = []
     for path, queries in pages.items():
         ent = _resolve_entity(db, path)
@@ -197,6 +199,11 @@ def detect(db, pages: dict, *, period: str | None = None,
                 viva.impressions = imp
                 viva.period = period
                 viva.gap_hint = _gap_hint(qs_ord)
+                continue
+            # Una página que cambió sus metadatos hace menos de 28 días no entra en
+            # la cola de `meta`: proponerle otro title es lo que hizo perder su
+            # consulta a «Golfa» (cuatro titles en seis días, 11-17-11-2026).
+            if action == "meta" and "/" + path.strip("/") in frias:
                 continue
             fila = SeoOpportunity(
                 path=path, action=action, status="detected",
@@ -341,6 +348,27 @@ def _entidad(db, entity_type: str, entity_id: int):
     return db.get(modelo, entity_id) if modelo else None
 
 
+def _enfriamiento(db, path: str):
+    """`cambios_recientes.en_enfriamiento`, en un solo punto para todo el circuito."""
+    from app.services.cambios_recientes import en_enfriamiento
+
+    return en_enfriamiento(db, path)
+
+
+def _en_espera(db, opp) -> str | None:
+    """«en_espera» si la página está en enfriamiento, con el motivo anotado.
+
+    No gasta intento ni cambia el estado: la oportunidad sigue aprobada (o con su
+    borrador) y vuelve sola cuando pasan los 28 días. No es un `noop`: no se descarta.
+    """
+    frio = _enfriamiento(db, opp.path)
+    if frio is None:
+        return None
+    opp.error = frio.motivo()
+    db.commit()
+    return "en_espera"
+
+
 def prepare_draft(db, opp) -> str:
     """Prepara el borrador de una oportunidad aprobada. NO publica nada.
 
@@ -351,6 +379,10 @@ def prepare_draft(db, opp) -> str:
     from app.config import get_settings
     from app.db.models import SeoContent
 
+    if opp.action == "meta":
+        espera = _en_espera(db, opp)
+        if espera:
+            return espera
     opp.attempts = (opp.attempts or 0) + 1
     if opp.action == "merge":
         return _prepare_merge(db, opp)
@@ -640,6 +672,15 @@ def apply_draft(db, opp) -> bool:
     """
     if opp.status != "drafted":
         return False
+    # Enfriamiento: un borrador de `meta` espera; una fusión entra, pero sin tocar
+    # el title ni la description de una página que los cambió hace poco.
+    frio = None
+    if opp.action in ("meta", "merge"):
+        frio = _enfriamiento(db, opp.path)
+    if frio and opp.action == "meta":
+        opp.error = frio.motivo()
+        db.commit()
+        return False
     kind, fila = _fila_destino(db, opp)
     if fila is None:
         opp.status = "failed"
@@ -658,7 +699,7 @@ def apply_draft(db, opp) -> bool:
         return False
 
     _guardar_revision(db, opp, kind, fila)
-    if opp.action in ("meta", "merge"):
+    if opp.action in ("meta", "merge") and not frio:
         if opp.draft_title:
             fila.meta_title = opp.draft_title
         if opp.draft_description:
@@ -765,9 +806,10 @@ def run_prepare(ids: list[int] | None = None, *, limit: int = 10,
     """
     from app.db.models import SeoOpportunity
     from app.db.session import SessionLocal
+    from app.services.cambios_recientes import rutas_en_enfriamiento
     from app.services.seo_opportunity_mail import send_drafted
 
-    resumen = {"drafted": 0, "noop": 0, "failed": 0}
+    resumen = {"drafted": 0, "noop": 0, "failed": 0, "en_espera": 0}
     preparadas, sin_material = [], []
     with SessionLocal() as db:
         q = db.query(SeoOpportunity).filter(
@@ -776,8 +818,15 @@ def run_prepare(ids: list[int] | None = None, *, limit: int = 10,
         )
         if ids:
             q = q.filter(SeoOpportunity.id.in_(ids))
-        # Primero lo que más impresiones se juega.
-        filas = q.order_by(SeoOpportunity.impressions.desc()).limit(limit).all()
+        # Primero lo que más impresiones se juega. Las `meta` en enfriamiento se
+        # apartan ANTES del límite: si no, ocuparían las diez plazas en cada pasada
+        # del cron y lo demás no se prepararía nunca.
+        todas = q.order_by(SeoOpportunity.impressions.desc()).all()
+        frias = rutas_en_enfriamiento(db) if not ids else {}
+        en_espera = [o for o in todas
+                     if o.action == "meta" and "/" + o.path.strip("/") in frias]
+        resumen["en_espera"] = len(en_espera)
+        filas = [o for o in todas if o not in en_espera][:limit]
         for opp in filas:
             estado = prepare_draft(db, opp)
             resumen[estado if estado in resumen else "failed"] += 1

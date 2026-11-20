@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.services import ranking_guard, seo_style
+from app.services.cambios_recientes import en_enfriamiento, volcado_caducado
 from app.services.link_policy import ANCHOR
 from app.services.source_guard import quitar_metatexto  # noqa: F401 (API de este módulo)
 
@@ -661,11 +662,21 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     alias = nombre_alias_index(db)
     nombres = source_guard.nombres_de_fuentes(db)
 
-    if gsc_pages is None:
-        from app.services.content_placement import load_gsc_pages
+    from app.services.content_placement import load_gsc_pages
 
-        gsc_pages, _ = load_gsc_pages()
+    # La frescura solo se mide sobre el volcado que carga esta función: quien pasa
+    # el suyo (los tests, una muestra) responde de él.
+    volcado_viejo = None
+    if gsc_pages is None:
+        gsc_pages, periodo_gsc = load_gsc_pages()
+        volcado_viejo = volcado_caducado(periodo_gsc)
     protegidas = ranking_guard.consultas_protegidas(gsc_pages.get(destino.path) or [])
+    # Una página que cambió sus metadatos hace menos de 28 días se amplía, pero no se
+    # le renombra un heading, ni se le reescribe la intro, ni se le toca el title
+    # (`cambios_recientes`). Tampoco si el volcado de GSC es viejo: las consultas
+    # nacidas después no estarían entre las protegidas.
+    frio = en_enfriamiento(db, destino.path)
+    congelado = frio.motivo() if frio else volcado_viejo
 
     material = reunir_material(db, client, destino, consultas)
     if not material.verificable.strip():
@@ -910,7 +921,9 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
             notas["avisos"].append(f"enlaces corregidos en «{sec['heading']}»: {g.summary()}")
 
     # --- Renombres: solo los que no pierden cobertura -------------------------- #
-    for r in (plan.get("rename") or [])[:MAX_RENAMES]:
+    if congelado:
+        notas["avisos"].append(f"sin renombres, intro ni title nuevos: {congelado}")
+    for r in ([] if congelado else (plan.get("rename") or []))[:MAX_RENAMES]:
         viejo, nuevo_h = (r.get("old") or "").strip(), (r.get("new") or "").strip()
         if not viejo or not nuevo_h or _buscar(trocear(destino.body), viejo) is None:
             continue
@@ -930,11 +943,13 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
     nuevas = [i["heading"] for i in ops.inserts]
     borrador = aplicar(destino.body, ops)
     cos = coser(client, destino, borrador, nuevas, material,
-                bool(plan.get("rewrite_intro")) and bool(nuevas))
+                bool(plan.get("rewrite_intro")) and bool(nuevas) and not congelado)
     intro_vieja = next((b.texto for b in trocear(destino.body) if b.heading is None), "")
     intro_nueva = (strip_ai_tells(cos["intro"]) or "").strip() \
         if isinstance(cos.get("intro"), str) else ""
     intro_nueva, _quitadas = source_guard.limpiar(intro_nueva, nombres)
+    if congelado:
+        intro_nueva = ""
     if intro_nueva and intro_vieja and intro_nueva != intro_vieja.strip():
         perdidos = ranking_guard.datos_perdidos(intro_vieja, intro_nueva)
         inventados = seo_style.verify_no_invention(
@@ -1053,7 +1068,9 @@ def merge_page(db, client, opp, *, propuesta: str = "", gsc_pages: dict | None =
         meta_antes = f"{destino.title or ''} {destino.description or ''}"
         meta_despues = f"{t or destino.title or ''} {d or destino.description or ''}"
         vm = ranking_guard.cobertura_conservada(meta_antes, meta_despues, protegidas, alias)
-        if vm.ok:
+        if congelado:
+            notas["descartado"].append(f"title/description: {congelado}")
+        elif vm.ok:
             title, description = t, d
         else:
             notas["descartado"].append(f"title/description retirados: {vm.motivo}")

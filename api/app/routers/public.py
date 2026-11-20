@@ -2830,19 +2830,22 @@ def seo_opportunity_action(
     elif accion == "apply":
         from app.services.seo_opportunities import apply_draft
 
-        fallidas = 0
+        motivos: list[str] = []
         for r in rows:
             if r.status != "drafted":
                 ignoradas += 1
             elif apply_draft(db, r):
                 tocadas.append(r)
             else:
-                fallidas += 1
+                db.refresh(r)
+                motivos.append(f"{r.path}: {r.error or 'no se pudo aplicar'}")
         msg = (f"✓ Publicada{'s' if len(tocadas) != 1 else ''} {len(tocadas)} "
                f"mejora{'s' if len(tocadas) != 1 else ''} en el sitio.")
-        if fallidas:
-            msg += (f" {fallidas} no se pudo aplicar (el contenido cambió después "
-                    "de preparar el borrador); están en el panel.")
+        if motivos:
+            # El motivo real, no uno fijo: una página en enfriamiento no es un
+            # borrador caducado, y decir lo segundo manda a re-prepararla.
+            msg += (f" {len(motivos)} no se ha aplicado y sigue en el panel: "
+                    + "; ".join(motivos[:3]) + ".")
     else:  # discard
         from app.services.content_merge import release_proposal
 

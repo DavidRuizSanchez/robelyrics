@@ -44,6 +44,7 @@ from openai import OpenAI
 from app.db.models import ContentRevision, Post, SeoContent
 from app.db.session import SessionLocal
 from app.services import ranking_guard, seo_style
+from app.services.cambios_recientes import rutas_en_enfriamiento, volcado_caducado
 from app.services.content_placement import load_gsc_pages
 from scripts.seo.humanize_headings import _MODELOS, sujeto_y_ruta
 
@@ -230,7 +231,7 @@ def auditar(db, gsc: dict, todas: list[Pagina]) -> dict:
 
 
 def aplicar_aprobados(db, todas: list[Pagina], ruta_fichero: str, alias: dict,
-                      apply: bool) -> list[str]:
+                      apply: bool, frias: dict | None = None) -> list[str]:
     """Aplica el texto exacto aprobado, revalidado. Devuelve las rutas tocadas."""
     por_clave = {p.clave: p for p in todas}
     posts = {f"post:{p.slug}": p for p in db.query(Post).all()}
@@ -260,6 +261,8 @@ def aplicar_aprobados(db, todas: list[Pagina], ruta_fichero: str, alias: dict,
             antes_cubre = ranking_guard.cubiertas(pg.title, protegidas, alias)
             motivos, _ = _veredicto(pg, texto, protegidas, antes_cubre, alias)
             fila, antes, ruta = pg.fila, pg.title, pg.ruta
+        if ruta in (frias or {}):
+            motivos = [frias[ruta].motivo()]
         aplicado = False
         if apply and not motivos and texto != antes:
             db.add(ContentRevision(
@@ -289,6 +292,9 @@ def main() -> None:
     ap.add_argument("--exposicion", action="store_true",
                     help="lista las páginas con fallo ordenadas por exposición en GSC")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--forzar-enfriamiento", action="store_true",
+                    help="toca también las páginas cambiadas hace menos de 28 días. Solo "
+                         "con el OK de David, página a página (revisión del 28-11-2026)")
     args = ap.parse_args()
 
     gsc, periodo = load_gsc_pages()
@@ -302,8 +308,13 @@ def main() -> None:
             json.dump({"periodo_gsc": periodo, **auditar(db, gsc, todas)},
                       __import__("sys").stdout, ensure_ascii=False, indent=1)
             return
+        # Enfriamiento y frescura del volcado (`cambios_recientes`, 20-11-2026).
+        caducado = volcado_caducado(periodo)
+        if args.apply and caducado:
+            raise SystemExit(caducado)
+        frias = {} if args.forzar_enfriamiento else rutas_en_enfriamiento(db)
         if args.aprobados:
-            rutas = aplicar_aprobados(db, todas, args.aprobados, alias, args.apply)
+            rutas = aplicar_aprobados(db, todas, args.aprobados, alias, args.apply, frias)
             if rutas:
                 from app.services.publishing import revalidate_paths
                 revalidate_paths(rutas + ["/blog"])
@@ -328,6 +339,11 @@ def main() -> None:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         rutas = []
         for pg in objetivo:
+            if pg.ruta in frias:
+                print(json.dumps({"pagina": pg.clave, "ruta": pg.ruta, "antes": pg.title,
+                                  "despues": None, "motivos": [frias[pg.ruta].motivo()],
+                                  "aplicado": False}, ensure_ascii=False), flush=True)
+                continue
             prop = proponer(client, pg, alias)
             aplicado = False
             if args.apply and prop.get("elegido"):

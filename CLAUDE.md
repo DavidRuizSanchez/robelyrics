@@ -566,6 +566,36 @@ Cuatro cosas que conviene no deshacer:
   publicada de Barricada tiene verbos, cabe y cita el diferencial, y aun así es un
   resumen. Eso es un **aviso** que viaja al correo y al panel, nunca un bloqueo.
 
+## Una página cambiada hace poco no se vuelve a tocar
+
+Del 11 al 17-11-2026 se cambió el title de 339 páginas, y 178 lo cambiaron dos o tres
+veces en una semana (Golfa, cuatro en seis días). Cuatro caminos escribían a la vez sin
+verse: titles humanos, su v2, los headings y las oportunidades `meta`. Varias perdieron
+su consulta principal el día exacto del cambio (La vereda de la puerta de atrás, de unas
+90 impresiones al día a unas 10). `ranking_guard` daba el title nuevo por bueno, pero
+sacaba las consultas de un volcado de GSC que acababa el 02-10, y las de La vereda
+nacieron el 03-11.
+
+Criterio de David (20-11-2026): **28 días sin tocar title, description, H1 ni headings**
+de una página que los cambió. `app/services/cambios_recientes.py` es la única respuesta
+a "¿se puede tocar?":
+
+- Lee `page_changes` (lo que el monitor vio cambiar en lo servido) y
+  `content_revisions` (la copia de cada camino, que cubre el día que tarda el monitor).
+- **Oportunidades `meta`**: no se detectan, no se preparan y no se aplican sobre una
+  página en enfriamiento. No es un `noop`: se quedan como están, con el motivo y la
+  fecha, y vuelven solas. En `run_prepare` se apartan antes del límite, o ocuparían
+  las plazas de cada pasada del cron.
+- **Fusiones**: entran, pero sin renombrar headings, sin reescribir la intro y sin
+  title ni description nuevos.
+- **`humanize_titles` y `humanize_headings`** se saltan esas páginas.
+  `--forzar-enfriamiento` existe para la revisión página a página con el OK de David.
+- **Un volcado de GSC de más de 14 días no protege nada** (`volcado_caducado`): con
+  `--apply` los dos scripts se niegan a correr, y la fusión no renombra.
+
+Sin la guarda, a propósito: las ediciones a mano del panel y los scripts manuales de
+regeneración (`optimize_meta`, `flagship_expand`, `regenerate_*`). Ninguno va en el cron.
+
 ## Los headings son para el lector, siempre
 
 Criterio de David (10-11-2026): «Paco Doniga antes de Dosis Letal: su etapa en

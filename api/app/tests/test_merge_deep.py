@@ -241,7 +241,9 @@ def _motor_merge(monkeypatch, *, veredicto, despues=40):
                     "covers": "la gira"}]})
     monkeypatch.setattr("app.services.seo_opportunities.nombre_alias_index", lambda db: {})
     monkeypatch.setattr("app.services.source_guard.nombres_de_fuentes", lambda db=None: [])
-    monkeypatch.setattr("app.services.content_placement.load_gsc_pages", lambda: ({}, None))
+    monkeypatch.setattr("app.services.content_placement.load_gsc_pages",
+                        lambda: ({}, "2026-08-21..2999-01-01"))
+    monkeypatch.setattr(md, "en_enfriamiento", lambda db, path: None)
     llamadas = {"escritas": 0}
 
     def _escribe(*a, **kw):
@@ -366,6 +368,7 @@ def _motor_persona(monkeypatch, plan, *, escritas=None):
     destino = md.Destino("ficha", SimpleNamespace(target_keyword=None),
                          "/personas/manolo-kabezabolo", "Manolo Kabezabolo", "person",
                          object(), FICHA_PERSONA, "Manolo Kabezabolo", "", "manolo-kabezabolo")
+    monkeypatch.setattr(md, "en_enfriamiento", lambda db, path: None)
     monkeypatch.setattr(md, "cargar_destino", lambda db, opp: destino)
     monkeypatch.setattr(md, "reunir_material", lambda db, c, d, q: md.Material(
         escritor="DATOS PROPIOS", verificable="Manolo Kabezabolo 1990 Alicante", hard="",
@@ -461,3 +464,65 @@ def test_planificar_avisa_del_fallo_en_vez_de_devolver_un_plan_vacio(monkeypatch
     destino = md.Destino("ficha", None, "/x", "X", None, None, FICHA_PERSONA, "", "", "x")
     plan = md.planificar(object(), destino, ["q"], [], md.Material("", "", "", 0), "idea")
     assert plan.get("_fallo", "").startswith("plan: TimeoutError")
+
+
+# --------------------------------------------------------------------------- #
+# Enfriamiento (20-11-2026): se amplía, pero no se renombra ni se toca el title
+# --------------------------------------------------------------------------- #
+def _fusion_con_rename_y_title(monkeypatch):
+    opp, _ = _motor_merge(monkeypatch, veredicto="pass", despues=68)
+    monkeypatch.setattr(md, "planificar", lambda *a, **kw: {
+        "insert": [{"after": "El final", "heading": "La gira de despedida",
+                    "covers": "la gira"}],
+        "rename": [{"old": "El final", "new": "El final de la banda"}],
+        "rewrite_intro": True})
+    monkeypatch.setattr("app.services.seo_opportunities.propose_meta", lambda *a, **kw: {
+        "title": "Extremoduro: historia, discos y gira de despedida",
+        "description": "La historia de Extremoduro, de Plasencia a la gira de despedida."})
+    monkeypatch.setattr(md, "title_bloqueado", lambda *a, **kw: None)
+    pedidas = []
+    monkeypatch.setattr(md, "coser", lambda c, d, cuerpo, nuevas, m, intro: (
+        pedidas.append(intro), {"intro": "Extremoduro, de Plasencia, 1987."})[1])
+    monkeypatch.setattr("app.services.entity_resolver.build_corpus_index", lambda db: [])
+    monkeypatch.setattr("app.services.entity_resolver.load_link_stats", lambda: {})
+    monkeypatch.setattr("app.services.url_resolver.guard_internal_links",
+                        lambda db, t: type("G", (), {"body_md": t, "changed": False})())
+    monkeypatch.setattr("app.services.lyric_guard.check_lyrics",
+                        lambda db, t: type("R", (), {"blocking": []})())
+    return opp, pedidas
+
+
+def test_sin_enfriamiento_la_fusion_renombra_y_propone_title(monkeypatch):
+    opp, _ = _fusion_con_rename_y_title(monkeypatch)
+    res = md.merge_page(object(), object(), opp)
+    assert res["noop"] is False, res.get("motivo")
+    assert res["notas"]["renamed"] == [
+        {"old": "El final", "new": "El final de la banda", "why": ""}]
+    assert res["title"] == "Extremoduro: historia, discos y gira de despedida"
+
+
+def test_en_enfriamiento_la_fusion_amplia_sin_renombrar_ni_tocar_el_title(monkeypatch):
+    from datetime import UTC, datetime
+
+    from app.services.cambios_recientes import Enfriamiento
+
+    opp, pedidas = _fusion_con_rename_y_title(monkeypatch)
+    monkeypatch.setattr(md, "en_enfriamiento", lambda db, path: Enfriamiento(
+        "/extremoduro", "title", datetime(2026, 11, 12, tzinfo=UTC)))
+    res = md.merge_page(object(), object(), opp)
+    assert res["noop"] is False, res.get("motivo")
+    assert "## La gira de despedida" in res["after"]          # lo nuevo entra
+    assert "## El final\n" in res["after"]                    # el heading no se renombra
+    assert res["notas"]["renamed"] == [] and res["notas"]["intro_rewritten"] is False
+    assert pedidas == [False]                                 # ni se pide reescribir la intro
+    assert res["title"] is None and res["description"] is None
+    assert any("en enfriamiento" in a for a in res["notas"]["avisos"])
+
+
+def test_con_un_volcado_viejo_tampoco_se_renombra(monkeypatch):
+    opp, _ = _fusion_con_rename_y_title(monkeypatch)
+    monkeypatch.setattr("app.services.content_placement.load_gsc_pages",
+                        lambda: ({}, "2026-07-10..2026-10-02"))
+    res = md.merge_page(object(), object(), opp)
+    assert res["notas"]["renamed"] == [] and res["title"] is None
+    assert any("volcado de GSC acaba el 02-10-2026" in a for a in res["notas"]["avisos"])
