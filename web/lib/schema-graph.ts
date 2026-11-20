@@ -695,7 +695,8 @@ export function imageObjectNode(input: ImageInput): Record<string, unknown> | nu
   } else if (input.license) {
     node.license = input.license;
   }
-  if (input.sourceUrl) node.isBasedOnUrl = input.sourceUrl;
+  // `isBasedOnUrl` está obsoleta en schema.org (lo cazó la auditoría el 20-11-2026).
+  if (input.sourceUrl) node.isBasedOn = input.sourceUrl;
   return node;
 }
 
