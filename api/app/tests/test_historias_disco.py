@@ -382,6 +382,7 @@ def _editor(historias, titulos=()):
 
 def test_en_una_noticia_solo_robe_es_citable(monkeypatch):
     articulo = ARTICULO_CUADRO + " Robe dijo en 2008: «Yo hago canciones, no himnos»."
+    assert hd.habla_robe("Yo hago canciones, no himnos", articulo)
     monkeypatch.setattr("app.services.news_research._json", _editor([
         {"gancho": "El consejero habló de Robe", "ancla": "declaracion", "quien": "tercero",
          "tramo": "«Robe es parte de lo que somos», dijo el consejero durante el acto"},
@@ -612,3 +613,20 @@ def test_un_contexto_de_una_frase_no_entra(monkeypatch):
     texto, _ = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA), _h(hd.FUENTE_NOTICIA, "otro")],
                          [_h(hd.FUENTE_CASA)], seccion="## Un título\n\nUna sola frase.")
     assert texto == CUERPO
+
+
+def test_una_frase_no_es_de_robe_si_el_articulo_no_lo_nombra_al_lado(monkeypatch):
+    """Entrevista a Uoho: el editor marcó como de Robe «vendimos cuatrocientas y pico mil
+    entradas» y salió entrecomillada."""
+    articulo = ("Robe fundó Extremoduro en Plasencia en 1987 y el grupo se disolvió en 2019. "
+                + "El guitarrista repasa en esta entrevista su etapa más reciente con calma. " * 4
+                + "Uoho recuerda: «vendimos cuatrocientas y pico mil entradas en 2020, cuando "
+                "llegó la pandemia». Robe escribió entonces: «Tiembla alcalde, porque no "
+                "conseguirás evitar que la gente disfrute».")
+    monkeypatch.setattr("app.services.news_research._json", _editor([
+        {"gancho": "Las entradas", "ancla": "declaracion", "quien": "robe",
+         "tramo": "vendimos cuatrocientas y pico mil entradas en 2020"},
+        {"gancho": "La carta", "ancla": "declaracion", "quien": "robe",
+         "tramo": "Tiembla alcalde, porque no conseguirás evitar que la gente disfrute"}]))
+    hs = hd.inventario_noticia("x", articulo)
+    assert [(h.quien, h.citable) for h in hs] == [("tercero", False), ("robe", True)]

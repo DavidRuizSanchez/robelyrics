@@ -963,6 +963,19 @@ def titulos_literales(candidatos: list, articulo: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(out))
 
 
+_ROBE = re.compile(r"\b(?:robe|roberto iniesta|iniesta)\b")
+
+
+def habla_robe(tramo: str, articulo: str, *, ventana: int = 220) -> bool:
+    """¿El artículo nombra a Robe en el tramo o justo antes? Es lo mínimo para dar por
+    suya una declaración; sin eso, se cuenta sin comillas como la de cualquier otro."""
+    plano, t = _plano(articulo), _plano(tramo)
+    i = plano.find(t)
+    if i < 0:
+        return False
+    return bool(_ROBE.search(plano[max(0, i - ventana): i + len(t)]))
+
+
 def inventario_de_noticia(titular: str, articulo: str) -> tuple[list[Historia], tuple[str, ...]]:
     """(historias, títulos de obras ajenas) de una noticia, todo del artículo: el tramo
     tiene que estar literal en él."""
@@ -983,6 +996,10 @@ def inventario_de_noticia(titular: str, articulo: str) -> tuple[list[Historia], 
             continue
         quien = (h.get("quien") or "hechos").strip()
         quien = quien if quien in ("robe", "tercero") else "hechos"
+        if quien == "robe" and not habla_robe(tramo, articulo):
+            # En una entrevista a Uoho, el editor marcó como de Robe una frase suya y se
+            # publicó entrecomillada (muestra del 20-11-2026). Sin «Robe» al lado, no.
+            quien = "tercero"
         # Un artículo es texto escrito: lo que dice Robe en él se puede entrecomillar. Lo
         # de los demás, no.
         out.append(Historia(h.get("gancho") or tramo, ancla, FUENTE_NOTICIA, tramo, quien,
