@@ -539,6 +539,22 @@ def _dentro_de_otro(occ: tuple[int, int, str], path: str,
                for a, b, p in largos)
 
 
+_ENTRE_COMILLAS = re.compile(r"«([^«»]+)»")
+
+
+def _dentro_de_titulo(occ: tuple[int, int, str], body_md: str) -> bool:
+    """¿La mención va DENTRO de un título o una cita entre «» que no es ella misma?
+
+    «El rey de [Extremadura](…)» (un cuadro, 19-11-2026) enlazaba el lugar dentro del
+    título de la obra. Si el entrecomillado es exactamente el nombre («Agila»), sí se
+    enlaza: es el título de lo que se enlaza."""
+    ini, fin = occ[0], occ[1]
+    for m in _ENTRE_COMILLAS.finditer(body_md):
+        if m.start(1) <= ini and fin <= m.end(1):
+            return fold(m.group(1).strip()) != fold(body_md[ini:fin].strip())
+    return False
+
+
 def autolink_corpus(
     body_md: str,
     index: list[dict[str, Any]],
@@ -623,7 +639,8 @@ def autolink_corpus(
         if c["hub"] and hubs_puestos >= MAX_HUBS_POR_PAGINA:
             continue
         occ = _ocurrencias(body_md, c["names"], PREFIJOS.get(c["type"], ()), c["type"])
-        occ = [o for o in occ if not _dentro_de_otro(o, c["path"], largos)]
+        occ = [o for o in occ if not _dentro_de_otro(o, c["path"], largos)
+               and not _dentro_de_titulo(o, body_md)]
         if not occ:
             continue
         usados = anchors.get(c["path"], {})

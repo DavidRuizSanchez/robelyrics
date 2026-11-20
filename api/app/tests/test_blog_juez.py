@@ -247,6 +247,23 @@ def test_las_claves_tienen_que_salir_juntas():
     assert not _juntos(lejos, claves)
 
 
+def test_la_localizacion_no_distingue_tildes():
+    """Caso del #553 (20-11-2026): ¡HOLA! escribe «Alen» y la casa «Alén»."""
+    from app.services.corpus_for_queries import _juntos, _plegar, tramos_con
+
+    articulo = ("La reina Letizia entregó en Toledo la Medalla de Oro al Mérito en las "
+                "Bellas Artes, que recogió Alen Ayerdi, viuda de Robe.")
+    hecho = "Alén Ayerdi recogió en Toledo la Medalla de Oro."
+    assert _juntos(articulo, ["Alén", "Toledo"])
+    trozo = tramos_con(articulo, hecho)
+    assert "Alen Ayerdi" in trozo                 # recorta el ORIGINAL, no el plegado
+    # Al revés también: la fuente con tilde y el hecho sin ella.
+    assert tramos_con(articulo.replace("Alen", "Alén"), hecho.replace("Alén", "Alen"))
+    # La ñ no se pliega, y el plegado conserva la longitud (las posiciones valen).
+    assert _plegar("Peña Ángel") == "peña angel"
+    assert len(_plegar("İstanbul Áéü")) == len("İstanbul Áéü")
+
+
 class _DbFuentes:
     def __init__(self, filas):
         self.filas = filas
@@ -601,3 +618,18 @@ def test_el_anio_de_un_disco_se_corrige_con_el_catalogo(monkeypatch):
         None, "Colino entró para «Yo, minoría absoluta» (2001), y se grabó en 2001.")
     assert texto == "Colino entró para «Yo, minoría absoluta» (2002), y se grabó en 2001."
     assert cambios == ["«Yo, minoría absoluta» (2001) → 2002"]
+
+
+def test_un_borrador_que_no_sale_se_retiene_al_segundo_fallo():
+    import sys
+    from types import SimpleNamespace
+
+    sys.path.insert(0, "/app")
+    from scripts.blog.generate_approved_drafts import anotar_fallo
+
+    p = SimpleNamespace(id=1, review_reasons={"nota": "eje: el aniversario"}, review_verdict=None)
+    anotar_fallo(p)
+    assert p.review_verdict is None and p.review_reasons["fallos_borrador"] == 1
+    anotar_fallo(p)
+    assert p.review_verdict == "retenida" and p.review_reasons["bloquea"] == "material"
+    assert p.review_reasons["nota"] == "eje: el aniversario"

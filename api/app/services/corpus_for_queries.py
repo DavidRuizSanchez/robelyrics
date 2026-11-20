@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -262,12 +263,36 @@ _NOMBRE_O_CIFRA = re.compile(r"\b(?:[A-ZÁÉÍÓÚÑ][\wáéíóúñü'-]{2,}|\d
 VENTANA_CORROBORA = 400
 
 
+def _plegar(texto: str) -> str:
+    """Minúsculas y sin tildes, carácter a carácter: MISMA longitud que el original, así
+    que una posición en el plegado vale para recortar el original. La ñ se queda.
+
+    Medido el 20-11-2026: ¡HOLA! escribe «Alen Ayerdi» y la casa «Alén»; sin plegar, la
+    frase de la Medalla de Oro quedaba «sin comprobar» y el día D retenía la noticia."""
+    out = []
+    for c in texto or "":
+        low = c.lower()
+        if len(low) != 1:
+            low = c
+        if low != "ñ":
+            base = "".join(x for x in unicodedata.normalize("NFD", low)
+                           if not unicodedata.combining(x))
+            if len(base) == 1:
+                low = base
+        out.append(low)
+    return "".join(out)
+
+
+def _patron(clave: str) -> str:
+    return r"(?<!\w)" + re.escape(_plegar(clave)) + r"(?!\w)"
+
+
 def _juntos(texto: str, claves: list[str], ventana: int = VENTANA_CORROBORA) -> bool:
     """¿Salen TODAS las claves dentro de un mismo tramo de `ventana` caracteres? Que
-    aparezcan sueltas por un documento largo no corrobora nada (asesor, 18-11-2026)."""
-    low = (texto or "").lower()
-    posiciones = [[m.start() for m in re.finditer(r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)", low)]
-                  for c in claves]
+    aparezcan sueltas por un documento largo no corrobora nada (asesor, 18-11-2026).
+    No distingue tildes (`_plegar`)."""
+    low = _plegar(texto)
+    posiciones = [[m.start() for m in re.finditer(_patron(c), low)] for c in claves]
     if any(not ps for ps in posiciones):
         return False
     return any(all(any(abs(q - p) <= ventana for q in ps) for ps in posiciones)
@@ -309,13 +334,20 @@ def tramos_con(material: str, hecho: str, ventana: int = VENTANA_CORROBORA) -> s
     claves = claves_de(hecho)
     if len(claves) < 2 or not _juntos(material or "", claves, ventana):
         return ""
-    low = (material or "").lower()
+    low = _plegar(material)
     trozos = []
-    for m in re.finditer(r"(?<!\w)" + re.escape(claves[0].lower()) + r"(?!\w)", low):
+    for m in re.finditer(_patron(claves[0]), low):
         ini, fin = max(0, m.start() - ventana), m.end() + ventana
-        if all(re.search(r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)", low[ini:fin]) for c in claves):
+        if all(re.search(_patron(c), low[ini:fin]) for c in claves):
             trozos.append(material[ini:fin])
     return "\n…\n".join(trozos[:3])
+
+
+def sql_contiene(i: int) -> str:
+    """Condición SQL «content_clean contiene la clave :c{i}», sin distinguir tildes
+    (extensión `unaccent`, instalada en el esquema inicial). Mismo criterio que
+    `_juntos`: si el prefiltro distingue tildes, la fuente ni llega a mirarse."""
+    return f"unaccent(content_clean) ~* unaccent(:c{i})"
 
 
 def en_dos_fuentes(db, hecho: str) -> list[str]:
@@ -331,7 +363,7 @@ def en_dos_fuentes(db, hecho: str) -> list[str]:
     claves = claves_de(hecho)
     if len(claves) < 2:
         return []
-    cond = " and ".join(f"content_clean ~* :c{i}" for i in range(len(claves)))
+    cond = " and ".join(sql_contiene(i) for i in range(len(claves)))
     filas = db.execute(text(
         f"select coalesce(author, title) as quien, title, content_clean from interpretation_sources "
         f"where kind <> 'youtube_comment' and {cond} limit 25"),
