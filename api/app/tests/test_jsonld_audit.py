@@ -1,8 +1,13 @@
 """Invariantes del JSON-LD servido (fase 0 del plan de datos estructurados).
 
-La fixture `jsonld_linea_base_2026-11-18b.json.gz` es el JSON-LD REAL de las 409
-URLs del sitemap rastreadas el 18-11-2026 a las 11:33 UTC (`scripts/seo/audit_jsonld.py
---guardar`), ya con el plan de relaciones desplegado (#146), Úbeda (#150) y los 45 posts en
+La fixture `jsonld_linea_base_2026-11-20.json.gz` es el JSON-LD REAL de las 411
+URLs del sitemap rastreadas el 20-11-2026 a las 11:43 UTC (`scripts/seo/audit_jsonld.py
+--guardar`), con los arreglos de Search Console desplegados (#171, #172 y #174): vídeos
+con fecha completa, Úbeda con `location`, portadas con URL absoluta y licencia CC en las
+cabeceras que la tienen. Pérdidas frente a la anterior, todas miradas: el `creditText` de
+8 cabeceras sin licencia (buscada, #174), un vídeo que YouTube ya no devuelve, menciones
+anónimas que pasaron a referencia a su ficha en 14 páginas y un miembro duplicado.
+Antes: la del 18-11 11:33 (409 URLs), con el plan de relaciones (#146), Úbeda (#150) y los 45 posts en
 el sitemap (#152; antes solo iban los 30 últimos). Única pérdida, buscada: el birthPlace en
 texto de Sabina, que pasa a `/lugares/ubeda#place`. Antes: la del 18-11 00:24 (393 URLs),
 donde los 8 lugares sin canciones dejaron de servir un ItemList vacío (#141). Antes: la del 13-11 11:36 (PR #120), donde la
@@ -24,7 +29,7 @@ import pytest
 from app.services import jsonld_audit as ja
 from app.services import page_monitor as pm
 
-FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-18b.json.gz"
+FIXTURE = Path(__file__).parent / "fixtures" / "jsonld_linea_base_2026-11-20.json.gz"
 S = "https://entreinteriores.com"
 
 
@@ -55,15 +60,14 @@ def test_linea_base_solo_tiene_los_fallos_declarados(paginas, voc):
     nuevos, conocidos, sobran = ja.separar(fallos, ja.cargar_excepciones())
     assert [str(f) for f in nuevos] == []
     assert sobran == []          # una excepción que no cubre nada escondería un regreso
-    assert Counter(f.regla for f in conocidos) == {
-        "vocabulario": 154, "colgante": 87, "google": 36, "url_relativa": 50}
+    assert Counter(f.regla for f in conocidos) == {"vocabulario": 154, "colgante": 99}
 
 
 def test_la_huella_congelada_es_la_de_la_fixture(paginas):
     """`data/jsonld/linea_base.json` y la fixture son el mismo rastreo: si alguien
     cambia cómo se calcula la huella, la línea base deja de servir y hay que saberlo."""
     base = json.loads(ja.ruta_data("jsonld/linea_base.json").read_text())
-    assert base["urls"] == len(paginas) == 409
+    assert base["urls"] == len(paginas) == 411
     for path, huella in base["huellas"].items():
         assert sorted(paginas[path].huella) == huella, path
 
