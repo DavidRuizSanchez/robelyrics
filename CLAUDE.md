@@ -1550,8 +1550,9 @@ evento sin lugar ya no entra.
 - **La hora de subida es la de YouTube** (`related_videos.published_at`,
   `scripts/seo/backfill_video_dates.py`). Nunca una medianoche inventada.
 - **Solo se declara una licencia CC que conste escrita** (`image_license`, calculada en
-  la API). Una portada, un cartel o una foto de prensa se quedan con su `creditText`, y
-  el aviso de Google sobre ellas es correcto.
+  la API), y **el `creditText` solo viaja con ella**. Google mete en "Metadatos de
+  imagen" toda imagen con crédito y le reclama los cuatro campos de licencia; una
+  portada, un cartel o una foto de prensa no pueden darlos. Su pie visible no cambia.
 - **Ampliar un nodo literal no lo duplica**: su clave sale del contenido entero, así
   que `seed_relaciones` busca antes el mismo nodo (`_mismo_nodo`) y lo actualiza.
 
