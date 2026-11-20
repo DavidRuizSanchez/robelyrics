@@ -117,6 +117,14 @@ def _catalogo_del_clip(
     return permitidos, catalogo
 
 
+def momento_del_clip(item: InstagramQueueItem) -> str:
+    """El tipo de momento que `propose_clips` dejó en las notas («Momento: solo»)."""
+    for linea in (item.notas_internas or item.summary or "").splitlines():
+        if linea.strip().lower().startswith("momento:"):
+            return linea.split(":", 1)[1].strip().split(" ")[0].lower()
+    return ""
+
+
 def _contexto_clip(db: Session, item: InstagramQueueItem) -> dict | None:
     """Lo que el gate necesita saber de un clip para comprobar que el texto habla
     de ESE clip: quién toca, qué canción es y de qué disco, y qué títulos tiene
@@ -134,6 +142,7 @@ def _contexto_clip(db: Session, item: InstagramQueueItem) -> dict | None:
         "titulos_permitidos": permitidos,
         "titulos_catalogo": catalogo,
         "rotulo": "\n".join(x for x in (clip.overlay, clip.subtitle) if x),
+        "instrumental": momento_del_clip(item) in gate_final.MOMENTOS_INSTRUMENTALES,
     }
 
 
@@ -698,6 +707,12 @@ def _contexto_de_directo(db: Session, item: InstagramQueueItem, topic: dict) -> 
     if datos.get("momento"):
         partes.append(f"Lo que se ve en el clip: {datos['momento']}"
                       + (f" de «{cancion}»" if cancion else ""))
+        if datos["momento"].split(" ")[0].lower() in gate_final.MOMENTOS_INSTRUMENTALES:
+            partes.append(
+                "Es un tramo INSTRUMENTAL. No se sabe quién lo toca ni con qué instrumento: "
+                "NO digas «Robe toca el solo», ni nombres la guitarra, el violín o el saxo, "
+                "ni hables de manos o de dedos. Tampoco cites un verso: aquí no se canta."
+            )
     verso = datos.get("verso (de nuestra letra)")
     if verso:
         partes.append(f"El verso que suena, según NUESTRA letra: «{verso}»")
@@ -761,6 +776,11 @@ def prepare(db: Session, item: InstagramQueueItem) -> InstagramQueueItem:
         # hasta el 09-10-2026 se añadía después de ellas y nadie lo revisaba.
         sid, preferido = robe_quote.cancion_del_post(db, item)
         topic["verse"] = robe_quote.verso_de_cancion(db, sid, preferido) if sid else {}
+        if (item.content_type == "clip"
+                and momento_del_clip(item) in gate_final.MOMENTOS_INSTRUMENTALES):
+            # En un solo no se canta: «El solo de "Nana cruel"» salió con cuatro versos de
+            # la canción debajo (#524, 10-11-2026), y quien ve el clip no los oye.
+            topic["verse"] = {}
 
         # Las noticias se reescriben con voz editorial propia (sin citar al
         # medio); los posts del blog ya traen su texto y su imagen destacada.

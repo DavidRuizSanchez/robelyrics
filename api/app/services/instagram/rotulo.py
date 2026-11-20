@@ -59,7 +59,8 @@ GANCHOS_DE_RESPALDO = (
 # Por tipo de momento, cuando encaja mejor que el genérico.
 GANCHOS_POR_TIPO = {
     "estribillo": ("¡Todos a una!", "¡Menudo coro!", "¡Qué subidón!"),
-    "solo": ("¡Qué manos!", "¡Menudo solo!", "¡Ahí, ahí!"),
+    # Sin «¡Qué manos!»: no se sabe quién toca ni con qué (20-11-2026).
+    "solo": ("¡Vaya solo!", "¡Menudo solo!", "¡Ahí, ahí!"),
     "final": ("¡Qué cierre!", "¡Y remata!", "¡Ahí, ahí!"),
     "arranque": ("¡Y arranca!", "¡Ya empieza!", "¡Atentos!"),
 }

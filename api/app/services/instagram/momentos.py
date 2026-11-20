@@ -251,6 +251,34 @@ def _es(verso: str | None, indice: dict[str, str]) -> bool:
 # caracteres, con «La Carrera» (0,91). El solo heredaba la canción del ÚLTIMO
 # segmento suelto. Ahora un segmento solo nombra su canción si, en su ventana,
 # esa canción tiene al menos `CONSENSO` segmentos y es mayoría.
+# --------------------------------------------------------------------------- #
+# Solos que no lo eran (20-11-2026)
+# --------------------------------------------------------------------------- #
+# «Sin voz» es `no_speech_prob > SIN_VOZ`, y Whisper da ese número por ventana de audio,
+# no por frase: en directo, con el público y la banda encima, marca 0,66-0,75 tramos
+# donde transcribe una línea distinta cada tres segundos. Medido sobre lo publicado:
+# «El solo de "Nana cruel"» (#524: «Yo que te espero», «Otro mundo mejor», «Las noches
+# enteras»… siete líneas) y «El solo de "Segundo movimiento"» (#527, ocho líneas). Ahí
+# se canta. Un solo de verdad deja el texto vacío, «♪ ♪», o a Whisper en bucle con la
+# misma frase (#510: «para que vuelva» cinco veces), que `es_ruido` ya reconoce.
+#
+# Y un solo sin canción justo antes no dice nada: los cuatro que esperaban en la cola
+# ese día llevaban por título el del vídeo de YouTube («¡CONCIERTO COMPLETO!
+# EXTREMODURO (juancaraes)») y por texto «El clip muestra un solo de Robe».
+SOLO_MAX_LINEAS_CON_LETRA = 2
+
+
+def lineas_con_letra(segmentos: list) -> int:
+    """Cuántas líneas DISTINTAS de un bloque parecen letra y no ruido de Whisper."""
+    textos = [(getattr(s, "text", "") or "").strip() for s in segmentos]
+    vistas = set()
+    for k, texto in enumerate(textos):
+        if es_ruido(texto, textos[k - 1] if k else None,
+                    textos[k + 1] if k + 1 < len(textos) else None) is None:
+            vistas.add(lg.normalize(texto))
+    return len(vistas)
+
+
 CONSENSO = 3
 VENTANA_CONSENSO_S = 60.0
 # Un tramo sin voz hereda la canción del bloque aceptado que tiene justo antes,
@@ -325,6 +353,16 @@ def clasificar(segmentos: list, catalogo: Catalogo) -> list[Momento]:
                 despues, ini_despues = vecina(j, +1)
                 hereda = (antes if antes and fin_antes is not None
                           and inicio - fin_antes <= HEREDA_MAX_GAP_S else None)
+                cantadas = lineas_con_letra([crudo[k][1] for k in range(i, j + 1)])
+                if cantadas >= SOLO_MAX_LINEAS_CON_LETRA or not hereda:
+                    fuera.append(Momento(
+                        tipo="dudoso", start_s=inicio, end_s=fin,
+                        motivos=[f"{cantadas} líneas de letra distintas en un tramo «sin voz»: "
+                                 "ahí se canta" if cantadas >= SOLO_MAX_LINEAS_CON_LETRA
+                                 else "sin voz y sin una canción justo antes: no se sabe qué "
+                                      "suena"]))
+                    i = j + 1
+                    continue
                 tipo = "solo"
                 motivos = [f"{j - i + 1} tramos seguidos sin voz"]
                 if hereda:
