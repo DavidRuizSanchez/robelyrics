@@ -172,12 +172,24 @@ def interprete_del_video(video_title: str, channel_title: str = "") -> str | Non
     return None
 
 
+# Un tramo instrumental no dice quién lo toca ni con qué. Publicado: «Robe toca el solo de
+# "Nana cruel"», «Ahí manda la guitarra» y el rótulo «¡Qué manos!» (20-11-2026). En esos
+# conciertos hay guitarras, violín y saxo, y el vídeo de un fan no dice quién es quién.
+_QUIEN_TOCA_EL_SOLO = re.compile(
+    r"\btoca(?:n|ba|ban)? (?:el|un|su) solo\b|\bsolo de (?:guitarra|viol[ií]n|saxo|bajo|"
+    r"bater[ií]a|teclado|piano)\b|\b(?:manda|habla|llora|canta) la guitarra\b"
+    r"|\b(?:la|su|esa|una) guitarra\b|\bel viol[ií]n\b|\bel saxo\b|\bqu[eé] manos\b"
+    r"|\b(?:los|sus|esos) dedos\b", re.I)
+MOMENTOS_INSTRUMENTALES = ("solo", "final")
+
+
 def problemas_de_clip(
     caption: str,
     *,
     interprete: str | None,
     titulos_permitidos: set[str],
     titulos_catalogo: set[str],
+    instrumental: bool = False,
 ) -> list[str]:
     """El texto de un clip habla del clip, y de nada más.
 
@@ -192,6 +204,14 @@ def problemas_de_clip(
         hallados.append("clip: atribuye a Extremoduro un concierto de Robe")
     if interprete == "Extremoduro" and _ATRIBUCION_A_ROBE.search(plano):
         hallados.append("clip: atribuye a Robe en solitario un concierto de Extremoduro")
+
+    if instrumental:
+        m = _QUIEN_TOCA_EL_SOLO.search(plano)
+        if m:
+            hallados.append(f"clip: dice quién o qué instrumento toca («{m.group(0)}») y el "
+                            "vídeo no lo dice")
+        if "🎵" in (caption or ""):
+            hallados.append("clip: lleva un verso, y en este tramo no se canta")
 
     permitidos = {_norm_titulo(t) for t in titulos_permitidos if t}
     catalogo = {_norm_titulo(t) for t in titulos_catalogo if t}
@@ -349,5 +369,6 @@ def revisar(
             interprete=clip.get("interprete"),
             titulos_permitidos=set(clip.get("titulos_permitidos") or ()),
             titulos_catalogo=set(clip.get("titulos_catalogo") or ()),
+            instrumental=bool(clip.get("instrumental")),
         )
     return v

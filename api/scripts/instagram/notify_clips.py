@@ -65,16 +65,31 @@ def preparar_texto(db, item: InstagramQueueItem) -> str | None:
 
     Devuelve None si hay texto publicable, o el motivo si no lo hay.
     """
+    return estado_del_texto(db, item)[1]
+
+
+def estado_del_texto(db, item: InstagramQueueItem) -> tuple[str, str | None]:
+    """(«ok» | «sin_texto» | «fallo», motivo).
+
+    «sin_texto»: las guardas no dejan publicar lo que se ha escrito. Es del clip, y
+    volver a intentarlo da lo mismo. «fallo»: no se pudo ni escribir (el modelo caído,
+    la BD): no es del clip y mañana se vuelve a probar.
+    """
     from app.services.instagram import publisher
 
     if not item.caption:
         try:
             publisher.prepare(db, item)
-        except Exception as exc:  # noqa: BLE001 — incluye TextoRetenido
+        except publisher.TextoRetenido as exc:
             db.rollback()
             item.error = f"Sin texto publicable: {exc}"[:2000]
             db.commit()
-            return str(exc)
+            return "sin_texto", str(exc)
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            item.error = f"No se pudo escribir el texto: {exc}"[:2000]
+            db.commit()
+            return "fallo", str(exc)
         finally:
             item.status = "proposed"
             item.needs_human = True
@@ -83,8 +98,36 @@ def preparar_texto(db, item: InstagramQueueItem) -> str | None:
     if not veredicto.ok:
         item.error = f"Sin texto publicable: {veredicto.motivo}"[:2000]
         db.commit()
-        return veredicto.motivo
-    return None
+        return "sin_texto", veredicto.motivo
+    return "ok", None
+
+
+def repartir(db, pares, *, dry_run: bool = False) -> tuple[list, list, list]:
+    """(aprobables, descartados, en espera).
+
+    Al correo solo va lo que se puede aprobar. Criterio de David (20-11-2026), con cuatro
+    clips en el buzón que no traían botón de publicar: «si no se pueden aprobar, no
+    deberían llegarme». Un clip sin texto publicable se descarta aquí, con su motivo (y
+    se retira de Cloudinary, como al pulsar «Descartar»); el que falló por algo técnico
+    espera a la pasada de mañana, sin correo.
+    """
+    from app.services.instagram import video_clips
+
+    aprobables, descartados, en_espera = [], [], []
+    for clip, item in pares:
+        estado, motivo = estado_del_texto(db, item)
+        if estado == "ok":
+            aprobables.append((clip, item))
+        elif estado == "fallo":
+            en_espera.append((clip, item, motivo))
+        else:
+            descartados.append((clip, item, motivo))
+            if not dry_run:
+                video_clips.descartar(
+                    db, item, f"sin texto publicable: {motivo}"[:300])
+                db.commit()
+            logger.info("Clip %s descartado sin correo: %s", clip.id, (motivo or "")[:200])
+    return aprobables, descartados, en_espera
 
 
 def _ficha_html(clip: VideoClip, item: InstagramQueueItem, site: str,
@@ -202,9 +245,16 @@ def main() -> None:
 
         # El texto se escribe AHORA, antes del correo. En el ensayo también: sin
         # él, el ensayo no enseñaría lo que de verdad se iba a aprobar.
-        problemas = {i.id: preparar_texto(db, i) for _c, i in pares}
+        pares, descartados, en_espera = repartir(db, pares, dry_run=args.dry_run)
+        for _c, i, motivo in descartados:
+            print(f"DESCARTADO sin correo · {i.title} · {(motivo or '')[:160]}")
+        for _c, i, motivo in en_espera:
+            print(f"EN ESPERA (fallo técnico) · {i.title} · {(motivo or '')[:160]}")
+        if not pares:
+            logger.info("Ningún clip se puede aprobar. No se manda nada.")
+            return
         site = os.environ.get("SITE_URL", "https://entreinteriores.com").rstrip("/")
-        html, text = _render(pares, site, problemas)
+        html, text = _render(pares, site)
         if args.dry_run:
             print(text)
             return
