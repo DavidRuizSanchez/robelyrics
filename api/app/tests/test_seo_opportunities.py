@@ -26,6 +26,14 @@ from app.services import seo_opportunities as svc
 # --------------------------------------------------------------------------- #
 # Clasificación
 # --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _sin_enfriamiento(monkeypatch):
+    """Los dobles de BD de este fichero no saben de `page_changes`. El enfriamiento
+    tiene sus tests en `test_cambios_recientes.py`; aquí, salvo que un test lo ponga,
+    ninguna página está en él."""
+    monkeypatch.setattr(svc, "_enfriamiento", lambda db, path: None)
+
+
 def _q(query: str, impressions: int = 100, clicks: int = 0, position: float = 7.0) -> dict:
     return {"query": query, "impressions": impressions, "clicks": clicks,
             "position": position, "ctr": clicks / impressions if impressions else 0}
@@ -393,3 +401,59 @@ def test_un_token_manipulado_no_hace_nada(monkeypatch):
                                       db=_FakeDbLista([opp]))
     assert resp.status_code == 400
     assert opp.status == "drafted"
+
+
+# --------------------------------------------------------------------------- #
+# Enfriamiento: una página cambiada hace poco no se vuelve a tocar (20-11-2026)
+# --------------------------------------------------------------------------- #
+def _frio(monkeypatch):
+    from app.services.cambios_recientes import Enfriamiento
+
+    frio = Enfriamiento("/extremoduro/material-defectuoso/desarraigo", "title",
+                        datetime(2026, 11, 12, tzinfo=UTC))
+    monkeypatch.setattr(svc, "_enfriamiento", lambda db, path: frio)
+    return frio
+
+
+def test_un_borrador_de_meta_espera_en_una_pagina_en_enfriamiento(monkeypatch):
+    """«Golfa» tuvo cuatro titles en seis días y perdió su consulta. El borrador no se
+    aplica, pero tampoco se descarta: sigue `drafted` y dice hasta cuándo espera."""
+    _frio(monkeypatch)
+    sc = _SeoContent(CUERPO)
+    db = _FakeDb(sc)
+    opp = _Opp(action="meta", draft_title="Desarraigo: letra y significado", draft_body=None)
+    assert svc.apply_draft(db, opp) is False
+    assert opp.status == "drafted"
+    assert sc.meta_title == "Desarraigo" and db.added == []
+    assert "en enfriamiento" in opp.error and "10-12-2026" in opp.error
+
+
+def test_una_fusion_entra_en_una_pagina_en_enfriamiento_sin_tocarle_el_title(monkeypatch):
+    monkeypatch.setattr("app.services.publishing.revalidate_paths", lambda *a, **kw: None)
+    monkeypatch.setattr(svc, "_metadatos_de_fusion", lambda *a, **kw: None)
+    monkeypatch.setattr(svc, "_registrar_videos", lambda *a, **kw: None)
+    monkeypatch.setattr(svc, "_aplicar_enlaces_entrantes", lambda *a, **kw: [])
+    _frio(monkeypatch)
+    sc = _SeoContent(CUERPO)
+    opp = _Opp(action="merge", entity_type="song", proposal_id=None,
+               draft_title="Otro title", draft_description="Otra description.")
+    assert svc.apply_draft(_FakeDb(sc), opp) is True
+    assert sc.body_md == opp.draft_body
+    assert (sc.meta_title, sc.meta_description) == ("Desarraigo", "Una canción.")
+
+
+def test_preparar_una_meta_en_enfriamiento_no_gasta_intento_ni_la_descarta(monkeypatch):
+    _frio(monkeypatch)
+    opp = _Opp(action="meta", status="approved", attempts=0)
+    assert svc.prepare_draft(_FakeDb(_SeoContent(CUERPO)), opp) == "en_espera"
+    assert opp.status == "approved" and opp.attempts == 0
+    assert "en enfriamiento" in opp.error
+
+
+def test_el_cuerpo_no_espera(monkeypatch):
+    """El enfriamiento es de title, description, H1 y headings: ampliar el cuerpo de
+    una página cambiada hace poco sigue pudiéndose."""
+    monkeypatch.setattr("app.services.publishing.revalidate_paths", lambda *a, **kw: None)
+    _frio(monkeypatch)
+    sc = _SeoContent(CUERPO)
+    assert svc.apply_draft(_FakeDb(sc), _Opp()) is True

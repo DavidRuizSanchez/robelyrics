@@ -43,6 +43,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.services import headings, ranking_guard, seo_style
+from app.services.cambios_recientes import rutas_en_enfriamiento, volcado_caducado
 from app.services.content_placement import load_gsc_pages
 
 logging.basicConfig(level=logging.WARNING)
@@ -131,7 +132,8 @@ def auditar(db) -> dict:
     return {"con_fallo": len(filas), "filas": filas}
 
 
-def aplicar_aprobados(db, fichero: str, gsc: dict, apply: bool) -> list[str]:
+def aplicar_aprobados(db, fichero: str, gsc: dict, apply: bool,
+                      frias: dict | None = None) -> list[str]:
     from pathlib import Path
 
     por_clave = {c: (f, s, r, co) for c, f, s, r, co in _todas(db)}
@@ -165,6 +167,8 @@ def aplicar_aprobados(db, fichero: str, gsc: dict, apply: bool) -> list[str]:
         motivos += v.motivos
         if not headings.solo_cambian_headings(antes_md, nuevo_md):
             motivos.append("cambiaría algo más que los headings")
+        if ruta in (frias or {}):
+            motivos.append(frias[ruta].motivo())
         aplicado = False
         if apply and not motivos and nuevo_md != antes_md:
             es_post = clave.startswith("post:")
@@ -189,6 +193,9 @@ def main() -> None:
     ap.add_argument("--aprobados", help="v2: JSONL con el texto exacto aprobado")
     ap.add_argument("--sample", type=int)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--forzar-enfriamiento", action="store_true",
+                    help="toca también las páginas cambiadas hace menos de 28 días. Solo "
+                         "con el OK de David, página a página")
     args = ap.parse_args()
     pages = [p.strip() for p in args.pages.split(",")] if args.pages else None
     if args.auditar:
@@ -196,19 +203,30 @@ def main() -> None:
             json.dump(auditar(db), __import__("sys").stdout, ensure_ascii=False, indent=1)
         return
     if args.aprobados:
-        gsc, _ = load_gsc_pages()
+        gsc, periodo = load_gsc_pages()
+        if args.apply and volcado_caducado(periodo):
+            raise SystemExit(volcado_caducado(periodo))
         with SessionLocal() as db:
-            rutas = aplicar_aprobados(db, args.aprobados, gsc, args.apply)
+            frias = {} if args.forzar_enfriamiento else rutas_en_enfriamiento(db)
+            rutas = aplicar_aprobados(db, args.aprobados, gsc, args.apply, frias)
         if rutas:
             from app.services.publishing import revalidate_paths
             revalidate_paths(rutas)
         return
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    gsc, _ = load_gsc_pages()
+    gsc, periodo = load_gsc_pages()
+    if args.apply and volcado_caducado(periodo):
+        raise SystemExit(volcado_caducado(periodo))
     rutas = []
     with SessionLocal() as db:
+        frias = {} if args.forzar_enfriamiento else rutas_en_enfriamiento(db)
         for sc, ent in _objetivos(db, pages, args.sample):
             sujeto, ruta = sujeto_y_ruta(ent, sc.entity_type)
+            if ruta in frias:
+                print(json.dumps({"pagina": f"{sc.entity_type}:{sc.slug}", "ruta": ruta,
+                                  "motivos": [frias[ruta].motivo()], "aplicado": False},
+                                 ensure_ascii=False), flush=True)
+                continue
             protegidas = ranking_guard.consultas_protegidas(gsc.get(ruta) or [])
             prop = headings.proponer(client, body_md=sc.body_md, subject=sujeto,
                                      protegidas=protegidas,
