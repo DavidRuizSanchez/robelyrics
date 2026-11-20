@@ -40,7 +40,11 @@ MIN_WORDS = 250
 # muralista, una corista) no da para 250 palabras de sustancia, y pedírselas era
 # pedir relleno: las fichas del cap. 64 se rechazaban «por cortas» con todo
 # verificado. Criterio de David (10-11-2026): una ficha breve vale si todo es concreto.
-MIN_WORDS_POR_TIPO = {"person": 150}
+# Y una noticia breve vale si dice qué, quién, cuándo y dónde con datos exactos: la del
+# cuadro «El rey de Extremadura», que David aprobó escrita a mano (20-11-2026), no llega
+# a 250 palabras, y la muestra de ese día rechazaba con 58 una noticia correcta solo
+# «por quedar por debajo de las 250 palabras».
+MIN_WORDS_POR_TIPO = {"person": 150, "news": 150}
 
 
 def _min_words(kind: str) -> int:

@@ -639,14 +639,42 @@ def _boost_queries(topic_type: str, subject: str) -> list[str]:
 
 
 MESES_DE_NOTICIAS_DE_CASA = 12
+_MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+          "septiembre", "octubre", "noviembre", "diciembre")
 
 
-def noticias_de_casa(db, *, hoy=None, maximo: int = 20) -> str:
-    """Lo que ya hemos publicado como noticia en el último año, una línea por post.
+def _mes_y_anio(dia) -> str:
+    """«noviembre de 2026» de una fecha (o de su ISO); vacío si no hay."""
+    from datetime import date
+
+    try:
+        d = dia if hasattr(dia, "month") else date.fromisoformat(str(dia)[:10])
+    except (TypeError, ValueError):
+        return ""
+    return f"{_MESES[d.month - 1]} de {d.year}"
+
+
+# Desde esta fecha una noticia se escribe con su artículo delante y se comprueba contra él
+# (`source_grounding`): su cuerpo es afirmable. De las anteriores solo vale el titular.
+NOTICIAS_FIABLES_DESDE = "2026-09-23"
+MAX_FICHAS_DE_CASA = 3
+_NO_SON_CONTEXTO = ("robe", "extremoduro", "robe iniesta", "roberto iniesta")
+
+
+def _sin_markdown(texto: str) -> str:
+    t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", texto or "")
+    t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
+    t = re.sub(r"^https?://\S+\s*$", "", t, flags=re.M)
+    return re.sub(r"\n{3,}", "\n\n", t).strip()
+
+
+def noticias_de_casa(db, *, hoy=None, maximo: int = 12) -> str:
+    """Lo que ya hemos publicado como noticia en el último año.
 
     Es el contexto que David escribió a mano en la noticia del cuadro («Un año de
     homenajes», 19-11-2026): otros hechos del mismo asunto que ya contamos. Solo posts
-    PUBLICADOS: pasaron sus guardas, así que su titular y su entradilla son afirmables.
+    PUBLICADOS. De los escritos con su artículo delante va el cuerpo (ahí están el día
+    y la cifra exactos); de los anteriores, solo titular y entradilla.
     """
     from datetime import UTC, datetime, timedelta
 
@@ -655,25 +683,65 @@ def noticias_de_casa(db, *, hoy=None, maximo: int = 20) -> str:
     if db is None:
         return ""
     ahora = hoy or datetime.now(UTC)
+    fiables = datetime.fromisoformat(NOTICIAS_FIABLES_DESDE).replace(tzinfo=UTC)
     filas = (db.query(Post)
              .filter(Post.status == "published", Post.kind == "news",
                      Post.published_at >= ahora - timedelta(days=30 * MESES_DE_NOTICIAS_DE_CASA))
              .order_by(Post.published_at.desc()).limit(maximo).all())
-    lineas = [f"- {p.published_at:%d-%m-%Y} · {p.title}. {(p.excerpt or '').strip()}".strip()
-              for p in filas if p.published_at]
-    return ("### Noticias que ya hemos publicado (fecha de publicación · titular. "
-            "entradilla)\n" + "\n".join(lineas)) if lineas else ""
+    bloques = []
+    for p in filas:
+        # Sin la fecha de publicación: el redactor la daría por la fecha del hecho.
+        cabecera = f"NOTICIA NUESTRA: {p.title}. {(p.excerpt or '').strip()}".strip()
+        cuerpo = (_sin_markdown(p.body_md)[:1500]
+                  if p.published_at and p.published_at >= fiables else "")
+        bloques.append(f"{cabecera}\n{cuerpo}".strip())
+    return "\n\n".join(bloques)
+
+
+def fichas_nombradas(db, texto: str, *, maximo: int = MAX_FICHAS_DE_CASA) -> str:
+    """Las fichas publicadas de las personas, grupos, sellos y lugares que nombra el
+    texto. Son nuestras y pasaron sus guardas: es lo que sabemos de quien sale en la
+    noticia (la de Uoho y Rebrote no tenía contexto sin la ficha de Uoho, 20-11-2026).
+    Robe y Extremoduro quedan fuera: todo el sitio va de ellos y no sitúan nada."""
+    from app.db.models import SeoContent
+    from app.services.entity_resolver import _normalize, build_corpus_index
+    from scripts.seo.gsc_optimize import _resolve_entity
+
+    if db is None or not (texto or "").strip():
+        return ""
+    plano = f" {_normalize(texto)} "
+    vistos: dict[str, tuple[int, str]] = {}
+    for e in build_corpus_index(db):
+        if e["type"] not in ("person", "band", "place") or e["norm"] in _NO_SON_CONTEXTO:
+            continue
+        pos = plano.find(f" {e['norm']} ")
+        if pos >= 0 and (e["url"] not in vistos or pos < vistos[e["url"]][0]):
+            vistos[e["url"]] = (pos, e["name"])
+    bloques = []
+    for url, (_pos, nombre) in sorted(vistos.items(), key=lambda x: x[1][0]):
+        ent = _resolve_entity(db, "/" + url.split("/", 3)[-1]) if "://" in url else None
+        if not ent:
+            continue
+        sc = (db.query(SeoContent)
+              .filter(SeoContent.entity_type == ent[0], SeoContent.entity_id == ent[1],
+                      SeoContent.published.is_(True)).first())
+        if sc and (sc.body_md or "").strip():
+            bloques.append(f"FICHA NUESTRA de {nombre}:\n{_sin_markdown(sc.body_md)[:1800]}")
+        if len(bloques) >= maximo:
+            break
+    return "\n\n".join(bloques)
 
 
 def material_de_casa(db, texto: str, *, hoy=None) -> str:
-    """El material NUESTRO que puede dar contexto a una noticia: lo propio de los dossieres
-    de las entidades que nombra (letra, créditos, hechos duros, consenso; nunca el fondo
-    de terceros) y las noticias que ya publicamos. Determinista y sin red: el día de
-    publicar se vuelve a reunir igual para comprobar el texto contra él."""
+    """El material NUESTRO que puede dar contexto a una noticia: las fichas de quien
+    nombra, lo propio de los dossieres de sus canciones (letra, créditos, hechos duros,
+    consenso; nunca el fondo de terceros) y las noticias que ya publicamos. Determinista
+    y sin red: el día de publicar se vuelve a reunir igual para comprobar el texto."""
     from app.services.corpus_for_queries import separar_material
 
     propio = separar_material(entity_dossiers(db, texto))[0]
-    return "\n\n".join(x for x in (propio, noticias_de_casa(db, hoy=hoy)) if x.strip())
+    return "\n\n".join(x for x in (fichas_nombradas(db, texto), propio[:5000],
+                                    noticias_de_casa(db, hoy=hoy)) if x.strip())
 
 
 NOTICIAS_POR_HISTORIAS: ContextVar[bool] = ContextVar(
@@ -826,13 +894,16 @@ def research_and_write(
         # El contexto sale de lo que nombra el ARTÍCULO, no de la búsqueda web: una
         # canción que solo aparece en un resultado de Google no es de lo que va la noticia.
         casa = material_de_casa(db, f"{headline}\n{source_excerpt[:6000]}")
-        cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa)
+        cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa,
+                                  fecha=_mes_y_anio(today))
         if not cuerpo:
             return {"title": "", "is_relevant": False,
                     "motivo": "sin historias bastantes en el artículo"}
         return _cerrar_noticia(db, subject=subject, body_md=cuerpo,
                                source_excerpt=source_excerpt, cronica_txt="",
-                               dossier_txt=f"{dossier_txt}\n\n{casa}", target_kw=subject,
+                               dossier_txt="\n\n".join(
+                                   [dossier_txt, casa, *robe_facts.must_facts_lines(db)]),
+                               target_kw=subject,
                                video=video, image=image, event_date=event_date, plan=plan)
 
     # En modo crónica el evento ya ocurrió: redacta en pasado, sin anunciar nada
