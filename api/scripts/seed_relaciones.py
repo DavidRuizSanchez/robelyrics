@@ -45,11 +45,38 @@ def _texto(v) -> str | None:
     return None if v is None else str(v)
 
 
+def _mismo_nodo(db, fila: dict) -> EntityRelation | None:
+    """La fila que ya guarda ESTE nodo literal con otras propiedades.
+
+    La clave de un literal sale de su contenido entero, así que añadirle una propiedad
+    (el `location` de un concierto, 20-11-2026) daba una clave nueva y la fila vieja se
+    quedaba sirviéndose al lado: dos eventos iguales, uno sin `location`. Un nodo es el
+    mismo si coinciden sujeto, predicado, rol, fecha, `@type` y `name`.
+    """
+    literal = fila.get("object_literal")
+    if not isinstance(literal, dict):
+        return None
+    for previa in db.query(EntityRelation).filter(
+            EntityRelation.subject_type == fila["subject_type"],
+            EntityRelation.subject_id == fila["subject_id"],
+            EntityRelation.predicate == fila["predicate"],
+            EntityRelation.object_id.is_(None)).all():
+        viejo = previa.object_literal
+        if (isinstance(viejo, dict) and viejo.get("@type") == literal.get("@type")
+                and viejo.get("name") == literal.get("name")
+                and (previa.role_name, previa.start_date)
+                == (fila["role_name"], fila["start_date"])):
+            return previa
+    return None
+
+
 def aplicar(db, filas: list[dict]) -> dict[str, int]:
     cuenta = {"nuevas": 0, "actualizadas": 0, "iguales": 0, "protegidas": 0}
     ahora = datetime.now(UTC)
     for fila in filas:
         previa = db.query(EntityRelation).filter(EntityRelation.clave == fila["clave"]).first()
+        if previa is None:
+            previa = _mismo_nodo(db, fila)
         if previa is None:
             db.add(EntityRelation(**fila, verified_at=ahora if fila["status"] == "verificada"
                                   else None))

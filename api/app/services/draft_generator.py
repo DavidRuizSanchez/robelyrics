@@ -798,7 +798,9 @@ def _collect_videos(db, p: ContentProposal) -> None:
                     added += 1
                     videos.append({
                         "youtube_id": rv.youtube_id, "title": rv.title,
-                        "upload_date": rv.upload_date.isoformat() if rv.upload_date else None,
+                        "upload_date": (rv.published_at.isoformat() if rv.published_at
+                                        else rv.upload_date.isoformat() if rv.upload_date
+                                        else None),
                         "channel": None,
                     })
                     p.body_md = (p.body_md or "").rstrip() + (

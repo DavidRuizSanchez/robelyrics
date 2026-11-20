@@ -35,6 +35,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 from app.services.text_sanitizer import _RE_ROBE_INIESTA
+from app.services.video_dates import tiene_hora_y_zona
 
 SITE_HOSTS = ("https://entreinteriores.com", "http://entreinteriores.com",
               "https://www.entreinteriores.com")
@@ -191,7 +192,8 @@ def _recorrer(pag: Pagina, nodo: dict, *, clave: str | None, padre_prop: str | N
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class Fallo:
-    regla: str          # contencion | colgante | vocabulario | nombre | rayas | invalido
+    # contencion | colgante | vocabulario | nombre | rayas | invalido | google | url_relativa
+    regla: str
     path: str
     detalle: str
 
@@ -387,11 +389,57 @@ def nombre_y_rayas(pag: Pagina) -> list[Fallo]:
     return out
 
 
+# Lo que schema.org admite y Google no. El vocabulario da por bueno un `VideoObject`
+# con la fecha sola y un evento sin lugar; Search Console no (20-11-2026: «falta
+# uploadDate», «falta la zona horaria», «falta location»). Solo lo OBLIGATORIO de cada
+# resultado enriquecido que servimos: lo recomendado sin fuente (offers, endDate,
+# organizer) no se exige, o habría que inventarlo.
+_PROPS_URL_ABSOLUTA = ("image", "url", "contentUrl", "logo", "thumbnailUrl")
+
+
+def requisitos_google(pag: Pagina) -> list[Fallo]:
+    out = []
+    for clave, nodo, _ in pag.nodos:
+        if _es_ref(nodo):
+            continue
+        ts = tipos(nodo)
+        if "VideoObject" in ts:
+            fecha = nodo.get("uploadDate")
+            if not fecha:
+                out.append(Fallo("google", pag.path, f"{clave}: VideoObject sin uploadDate"))
+            elif not tiene_hora_y_zona(str(fecha)):
+                out.append(Fallo("google", pag.path,
+                                 f"{clave}: uploadDate sin hora y zona «{fecha}»"))
+        if any(t.endswith("Event") for t in ts):
+            lugar = nodo.get("location")
+            if not lugar:
+                out.append(Fallo("google", pag.path, f"{clave}: evento sin location"))
+            elif isinstance(lugar, dict) and not _es_ref(lugar) and not lugar.get("address"):
+                out.append(Fallo("google", pag.path, f"{clave}: location sin address"))
+            if not nodo.get("startDate"):
+                out.append(Fallo("google", pag.path, f"{clave}: evento sin startDate"))
+    return out
+
+
+def urls_relativas(pag: Pagina) -> list[Fallo]:
+    """Una URL de imagen o de página tiene que ir con su dominio: Google no resuelve
+    «/album-covers/x.jpg» contra la página."""
+    out = []
+    for clave, nodo, _ in pag.nodos:
+        for prop in _PROPS_URL_ABSOLUTA:
+            valor = nodo.get(prop)
+            for v in valor if isinstance(valor, list) else [valor]:
+                if isinstance(v, str) and v.startswith("/"):
+                    out.append(Fallo("url_relativa", pag.path, f"{clave} {prop}: «{v[:120]}»"))
+    return out
+
+
 def problemas_de_pagina(pag: Pagina, voc: Vocabulario) -> list[Fallo]:
     """Lo que se puede decir de UNA página sin mirar las demás."""
     out = [Fallo("invalido", pag.path, f"JSON-LD que no es JSON: {t[:80]}")
            for t in pag.invalidos]
-    return out + vocabulario(pag, voc) + nombre_y_rayas(pag)
+    return (out + vocabulario(pag, voc) + nombre_y_rayas(pag) + requisitos_google(pag)
+            + urls_relativas(pag))
 
 
 def auditar(paginas: dict[str, Pagina], voc: Vocabulario) -> list[Fallo]:

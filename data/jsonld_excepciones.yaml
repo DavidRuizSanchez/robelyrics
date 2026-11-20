@@ -3,7 +3,8 @@
 # solo de lo NUEVO. Cada entrada dice por qué está y qué fase la arregla; cuando esa
 # fase lo arregle, la auditoría avisa de que la excepción ya no cubre nada y se quita.
 #
-#   regla:   contencion | colgante | vocabulario | nombre | rayas | invalido
+#   regla:   contencion | colgante | vocabulario | nombre | rayas | invalido | google |
+#            url_relativa
 #   paths:   patrón fnmatch sobre la ruta (/extremoduro/*)
 #   detalle: expresión regular sobre el detalle del fallo
 excepciones:
@@ -39,3 +40,29 @@ excepciones:
       `mentions` es de CreativeWork; en un grupo lo que toca es `subjectOf` (las piezas
       que hablan de él). Hallazgo de la fase 0, no estaba en el plan.
     fase: "fase 2: un solo constructor"
+
+  # --- Requisitos de Google (20-11-2026). Las tres se arreglan en la rama
+  # `fix/datos-estructurados-gsc`; al re-congelar la línea base tras desplegar, la
+  # auditoría dirá que ya no cubren nada y se quitan.
+  - regla: google
+    paths: "*"
+    detalle: "uploadDate"
+    motivo: >-
+      Se servía la fecha de subida sola («2018-11-15») o ninguna, y Google pide hora y
+      zona. 35 vídeos en 29 páginas de la línea base del 18-11.
+    fase: "fix/datos-estructurados-gsc: backfill de fechas + no emitir el vídeo sin fecha"
+
+  - regla: google
+    paths: "/lugares/ubeda"
+    detalle: "evento sin location"
+    motivo: >-
+      El concierto de Robe en Úbeda se guardó sin `location`, que Google exige.
+    fase: "fix/datos-estructurados-gsc: location con su dirección en el evento"
+
+  - regla: url_relativa
+    paths: "*"
+    detalle: "«/album-covers/"
+    motivo: >-
+      Las portadas se servían con ruta relativa («/album-covers/x.jpg») en `image`,
+      `url` y `contentUrl`. 50 en 27 páginas de la línea base del 18-11.
+    fase: "fix/datos-estructurados-gsc: saneado central en buildGraph"

@@ -410,12 +410,54 @@ export function mentionsArray(
 // --------------------------------------------------------------------------- //
 // Graph builder
 // --------------------------------------------------------------------------- //
+// Saneado central: todo JSON-LD del sitio sale por aquí, así que lo que Google da por
+// inválido se arregla una vez y no página a página (GSC, 20-11-2026).
+//  - Un `VideoObject` sin `uploadDate` con hora y zona no se emite: Google marcaba
+//    «falta uploadDate» y «falta la zona horaria». El vídeo sigue en la página.
+//  - Las URLs de imagen relativas («/album-covers/x.jpg») salen absolutas.
+const FECHA_CON_HORA_Y_ZONA =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/;
+const PROPS_URL = new Set(["image", "url", "contentUrl", "logo", "thumbnailUrl"]);
+
+export function tieneHoraYZona(fecha: unknown): boolean {
+  return typeof fecha === "string" && FECHA_CON_HORA_Y_ZONA.test(fecha.trim());
+}
+
+function absoluta(valor: unknown): unknown {
+  return typeof valor === "string" && valor.startsWith("/") && !valor.startsWith("//")
+    ? `${SITE_URL}${valor}`
+    : valor;
+}
+
+function esVideoSinFecha(valor: unknown): boolean {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return false;
+  const nodo = valor as Record<string, unknown>;
+  const tipo = nodo["@type"];
+  const esVideo = Array.isArray(tipo) ? tipo.includes("VideoObject") : tipo === "VideoObject";
+  return esVideo && !tieneHoraYZona(nodo.uploadDate);
+}
+
+function sanear(valor: unknown, prop?: string): unknown {
+  if (Array.isArray(valor)) {
+    return valor.filter((v) => !esVideoSinFecha(v)).map((v) => sanear(v, prop));
+  }
+  if (valor && typeof valor === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(valor as Record<string, unknown>)) {
+      if (esVideoSinFecha(v)) continue;
+      out[k] = sanear(v, k);
+    }
+    return out;
+  }
+  return prop && PROPS_URL.has(prop) ? absoluta(valor) : valor;
+}
+
 export function buildGraph(
   nodes: Record<string, unknown>[],
 ): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
-    "@graph": nodes.filter(Boolean),
+    "@graph": sanear(nodes.filter(Boolean)),
   };
 }
 
@@ -613,6 +655,14 @@ export type ImageInput = {
   attribution?: string | null;
   license?: string | null;
   sourceUrl?: string | null;
+  // Licencia CC que consta escrita (la calcula la API: `image_license`).
+  rights?: {
+    license_name: string;
+    license_url: string;
+    creators?: string[];
+    copyright_notice?: string;
+    acquire_license_page?: string;
+  } | null;
 };
 
 // Imagen como ImageObject con atribución/licencia (contenido CC que conviene
@@ -631,7 +681,20 @@ export function imageObjectNode(input: ImageInput): Record<string, unknown> | nu
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .trim();
   }
-  if (input.license) node.license = input.license;
+  if (input.rights) {
+    node.license = input.rights.license_url;
+    if (input.rights.creators && input.rights.creators.length > 0) {
+      node.creator = input.rights.creators.map((name) => ({ "@type": "Person", name }));
+    }
+    if (input.rights.copyright_notice) {
+      node.copyrightNotice = input.rights.copyright_notice;
+    }
+    if (input.rights.acquire_license_page) {
+      node.acquireLicensePage = input.rights.acquire_license_page;
+    }
+  } else if (input.license) {
+    node.license = input.license;
+  }
   if (input.sourceUrl) node.isBasedOnUrl = input.sourceUrl;
   return node;
 }

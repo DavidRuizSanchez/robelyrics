@@ -260,6 +260,49 @@ def test_la_carga_es_idempotente_y_no_pisa_lo_verificado(cat):
     assert cat.query(EntityRelation).one().status == "verificada"
 
 
+def test_ampliar_un_nodo_literal_actualiza_su_fila_y_no_la_duplica(cat):
+    """El concierto de Úbeda ganó `location` (20-11-2026). La clave de un literal sale
+    de su contenido, así que sin esto quedaban dos eventos: el viejo, sin lugar, y el
+    nuevo."""
+    from scripts.seed_relaciones import aplicar
+
+    dos_t2 = [{"kind": "prensa", "tier": "T2", "url": "https://a.es/x", "evidencia": "…"},
+              {"kind": "prensa", "tier": "T2", "url": "https://b.es/x", "evidencia": "…"}]
+    evento = {"@type": "MusicEvent", "name": "Robe en Plasencia, 06-07-2024",
+              "startDate": "2024-07-06"}
+
+    def fila(objeto):
+        errores, f = rel.validar(cat, _p("place:plasencia", "event", objeto, fuentes=dos_t2,
+                                         estado="verificada", verificado_por="david"), BASE)
+        assert not errores, errores
+        return f
+
+    lugar = {"@type": "Place", "name": "Plasencia",
+             "address": {"@type": "PostalAddress", "addressLocality": "Plasencia",
+                         "addressCountry": "ES"}}
+    # Sin `location` ya no pasa la validación (regla de Google): así no vuelve a entrar.
+    assert "evento sin location" in rel.validar(
+        cat, _p("place:plasencia", "event", evento, fuentes=dos_t2), BASE)[0][0]
+    nueva = fila({**evento, "location": lugar})
+    # La fila de antes del 20-11, tal como quedó guardada: sin lugar y con su clave.
+    vieja = {**nueva, "object_literal": evento,
+             "clave": rel.clave("place", nueva["subject_id"], "event", None, None, evento,
+                                None, None)}
+    assert nueva["clave"] != vieja["clave"]
+    cat.add(EntityRelation(**vieja))
+    cat.commit()
+    assert aplicar(cat, [nueva]) == {"nuevas": 0, "actualizadas": 1, "iguales": 0,
+                                     "protegidas": 0}
+    cat.commit()
+    guardada = cat.query(EntityRelation).one()
+    assert guardada.clave == nueva["clave"]
+    assert guardada.object_literal["location"]["address"]["addressLocality"] == "Plasencia"
+    # Otro concierto en el mismo sitio es otro nodo: no se funde.
+    otro = fila({**evento, "name": "Robe en Plasencia, 07-07-2024", "startDate": "2024-07-07",
+                 "location": lugar})
+    assert aplicar(cat, [otro])["nuevas"] == 1
+
+
 def test_el_yaml_real_carga_y_esta_bien_formado():
     """La validación completa necesita la BD real (`seed_relaciones --dry-run`); aquí,
     lo que se puede comprobar sin ella: que todo verificado trae quién y con qué."""

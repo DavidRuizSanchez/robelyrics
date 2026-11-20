@@ -102,6 +102,8 @@ export default async function BlogPostPage({
         url: post.hero_image_url,
         path: postPath,
         attribution: post.hero_image_attribution,
+        rights: post.hero_image_rights,
+        sourceUrl: post.hero_image_source_url,
       })
     : null;
   // Vídeos: la lista (posts premium con varios) o el único legacy.

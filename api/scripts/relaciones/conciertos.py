@@ -12,8 +12,14 @@ LISTA DE CANDIDATOS. Nada se da por bueno por venir en el CSV ni por su
   guarda como `pendiente`: no se sirve.
 
 Modelo (válido en schema.org: `performerIn` solo admite Person):
-    place:<slug> —event→ {"@type": "MusicEvent", name, startDate,
+    place:<slug> —event→ {"@type": "MusicEvent", name, startDate, eventStatus, description,
+                          location: {"@type": "Place", "@id": …, name, address: PostalAddress},
                           performer: {"@type": "MusicGroup", "@id": …, name}}
+
+Google exige `location` con su dirección en un evento (GSC, 20-11-2026: «falta
+location» en Úbeda). La localidad y la provincia salen del CSV; el país es España
+porque el script no acepta otra cosa. `endDate`, `offers`, `organizer` e `image` no se
+rellenan: no hay fuente.
 
 El lugar se resuelve por nombre SOLO con su provincia española entre paréntesis
 («Úbeda (Jaén)»): sin provincia, o fuera de España, no se toca. Las ciudades sin ficha
@@ -94,6 +100,28 @@ def formas_de_fecha(fecha: str) -> list[str]:
             f"{d}/{m}/{a[2:]}", f"{di}/{mi}/{a[2:]}"]
 
 
+def evento(*, base: str, slug: str, artista: tuple[str, str], ciudad: str,
+           provincia: str, fecha: str) -> dict:
+    """El `MusicEvent` de un concierto ya comprobado. `provincia` tal como se escribe
+    («Jaén»), o vacía si el CSV no la trae."""
+    a, m, d = fecha.split("-")
+    direccion = {"@type": "PostalAddress", "addressLocality": ciudad, "addressCountry": "ES"}
+    if provincia:
+        direccion["addressRegion"] = provincia
+    donde = f"{ciudad} ({provincia})" if provincia else ciudad
+    return {
+        "@type": "MusicEvent", "name": f"{artista[1]} en {ciudad}, {d}-{m}-{a}",
+        "startDate": fecha,
+        "eventStatus": "https://schema.org/EventScheduled",
+        "description": f"Concierto de {artista[1]} en {donde} el {int(d)} de "
+                       f"{MESES[int(m) - 1]} de {a}.",
+        "location": {"@type": "Place", "@id": f"{base}/lugares/{slug}#place",
+                     "name": ciudad, "address": direccion},
+        "performer": {"@type": "MusicGroup", "@id": f"{base}/{artista[0]}#musicgroup",
+                      "name": artista[1]},
+    }
+
+
 def texto_de(http: httpx.Client, url: str) -> str | None:
     try:
         r = http.get(url)
@@ -133,12 +161,13 @@ def main() -> None:
             m = re.match(r"^(.*?)\s*\((.*?)\)\s*$", texto_ciudad)
             if m:
                 ciudad, provincia = m.group(1).strip(), _norm(m.group(2))
+                provincia_escrita = m.group(2).strip()
                 if provincia not in PROVINCIAS:
                     continue
             else:
                 # Sin provincia solo vale si es uno de NUESTROS lugares (todos en España,
                 # salvo los que no son ciudades de aquí).
-                ciudad, provincia = texto_ciudad, ""
+                ciudad, provincia, provincia_escrita = texto_ciudad, "", ""
                 if _norm(ciudad) not in lugares or _norm(ciudad) in FUERA_DE_ESPANA:
                     continue
             slug = lugares.get(_norm(ciudad))
@@ -171,13 +200,10 @@ def main() -> None:
                 informe.append(f"{art[1]} {fecha} {ciudad}: ninguna fuente lo recoge al descargarla")
                 continue
             estado = "verificada" if len(dominios_t2) >= 2 else "pendiente"
-            dd = "-".join(reversed(fecha.split("-")))
             fila = {
                 "sujeto": f"place:{slug}", "predicado": "event",
-                "objeto": {"@type": "MusicEvent", "name": f"{art[1]} en {ciudad}, {dd}",
-                           "startDate": fecha,
-                           "performer": {"@type": "MusicGroup",
-                                         "@id": f"{base}/{art[0]}#musicgroup", "name": art[1]}},
+                "objeto": evento(base=base, slug=slug, artista=art, ciudad=ciudad,
+                                 provincia=provincia_escrita, fecha=fecha),
                 "estado": estado, "fuentes": fuentes,
             }
             if estado == "verificada":

@@ -272,6 +272,15 @@ _YT_EN_CUERPO = re.compile(
 )
 
 
+def fecha_de_subida(v) -> str | None:
+    """`uploadDate` de un vídeo relacionado: con hora y zona si la conocemos
+    (`published_at`, de la YouTube Data API); si no, la fecha sola. El front no emite
+    un `VideoObject` con la fecha sola: Google la da por inválida (GSC, 20-11-2026)."""
+    if getattr(v, "published_at", None):
+        return v.published_at.isoformat()
+    return v.upload_date.isoformat() if v.upload_date else None
+
+
 def _body_videos(db: Session, body_md: str | None) -> list[PublicRelatedVideo]:
     """Los vídeos del cuerpo que tienen metadatos REALES guardados.
 
@@ -292,7 +301,7 @@ def _body_videos(db: Session, body_md: str | None) -> list[PublicRelatedVideo]:
         return []
     return [
         PublicRelatedVideo(youtube_id=v.youtube_id, title=v.title, kind=v.kind,
-                           upload_date=v.upload_date.isoformat() if v.upload_date else None)
+                           upload_date=fecha_de_subida(v))
         for v in filas
     ]
 
@@ -1440,7 +1449,7 @@ def _related_videos_for(
             youtube_id=v.youtube_id,
             title=v.title,
             kind=v.kind,
-            upload_date=v.upload_date.isoformat() if v.upload_date else None,
+            upload_date=fecha_de_subida(v),
         )
         for v in rows
     ]
@@ -2013,6 +2022,10 @@ class PublicPostDetail(PublicPostListItem):
     anniversary_year: int | None = None
     hero_image_alt: str | None = None
     hero_image_attribution: str | None = None
+    # Licencia CC de la cabecera, si consta: {license_name, license_url, creators,
+    # copyright_notice, acquire_license_page}. Ver `image_license`.
+    hero_image_rights: dict | None = None
+    hero_image_source_url: str | None = None
     entities: list[PublicResolvedEntity] = []
     video: PublicPostVideo | None = None
     videos: list[PublicPostVideo] = []
@@ -2163,6 +2176,7 @@ def public_post_detail(
     if not p:
         raise HTTPException(status_code=404, detail="post not found")
     from app.services.entity_resolver import resolve_entities  # lazy
+    from app.services.image_license import derechos_de_imagen
     resolved = resolve_entities(db, p.entities)
     return PublicPostDetail(
         slug=p.slug,
@@ -2179,6 +2193,9 @@ def public_post_detail(
         anniversary_year=p.anniversary_year,
         hero_image_alt=p.hero_image_alt,
         hero_image_attribution=p.hero_image_attribution,
+        hero_image_rights=derechos_de_imagen(
+            p.hero_image_attribution, p.hero_image_license, p.hero_image_source_url),
+        hero_image_source_url=p.hero_image_source_url,
         entities=[PublicResolvedEntity(**e) for e in resolved],
         video=PublicPostVideo(**p.video) if p.video else None,
         videos=[PublicPostVideo(**v) for v in (p.videos or []) if v.get("youtube_id")],
