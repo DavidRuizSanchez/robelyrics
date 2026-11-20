@@ -309,6 +309,36 @@ Robe). Ningún gate del blog miraba el artículo.
   pasa los gates contra las fuentes re-descargadas, guarda `content_revisions` y
   revalida. El `PUT /admin/posts` no hace ninguna de las tres cosas.
 
+### Noticias por historias (detrás de `BLOG_NOTICIAS_HISTORIAS`, apagado)
+
+El motor de siempre hablaba del proceso ("la información disponible no identifica…") y
+montaba secciones sobre lo que no sabía. `historias_disco.escribir_noticia` escribe la
+noticia desde un inventario de historias con su tramo LITERAL del artículo. Medido el
+20-11-2026 sobre noticias reales, montando los ficheros en prod sin desplegar:
+
+- **La forma es la de las dos noticias que David aprobó a mano** (el sello y el cuadro):
+  un cuerpo de dos o tres párrafos SIN encabezados, con cada dato una vez, y una sección
+  de contexto. La primera versión escribía una sección por historia, como en un disco, y
+  salían cinco apartados repitiendo el mismo premio: el juez las tumbaba con 22-42.
+- **El redactor lee los párrafos de sus tramos** (`pasajes_de`), no el artículo entero.
+  Lo que se comprueba se corta a 6.000 caracteres, y un artículo con la nota de prensa
+  pegada pasa de 17.000: lo de más abajo se daba por "no dicho".
+- **Solo se entrecomilla a Robe**, y solo si el artículo lo nombra al lado
+  (`habla_robe`): en una entrevista a Uoho el editor marcó como de Robe una frase suya.
+  Los títulos de obras ajenas salen literales del artículo y no cuentan como cita.
+- **El año va en el pasaje que se comprueba.** Pedírselo al redactor no bastaba: el
+  verificador se lo quitaba porque "el artículo no lo dice".
+- **El contexto es material de casa** (`news_research.material_de_casa`): la lista de
+  reconocimientos a Robe (`data/reconocimientos_robe.yaml`, curada por David, cada hecho
+  con su fuente), las fichas de quien nombra el artículo, lo propio del dossier de sus
+  canciones y el cuerpo de las noticias publicadas desde `NOTICIAS_FIABLES_DESDE`. Lo
+  que repite la noticia no es contexto. El día D se vuelve a reunir igual.
+- **El juez mide una noticia que no es un concierto con vara de noticia breve**, y su
+  suelo de palabras es 150. Antes solo conocía la crónica y el anuncio de un evento.
+
+Sin historia del artículo no hay post. Antes de encenderlo falta medirlo por el camino
+completo (`research_and_write` y la cascada del día D).
+
 ## Canales de YouTube: no todos son monotemáticos
 
 Los canales que se barren viven en `data/sources.yaml` con `ingest: true`, y

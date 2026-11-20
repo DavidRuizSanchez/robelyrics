@@ -732,6 +732,31 @@ def fichas_nombradas(db, texto: str, *, maximo: int = MAX_FICHAS_DE_CASA) -> str
     return "\n\n".join(bloques)
 
 
+CABECERA_RECONOCIMIENTOS = "RECONOCIMIENTOS Y HOMENAJES A ROBE (lista de casa, con fuente):"
+
+
+def reconocimientos_de_casa() -> str:
+    """Los reconocimientos a Robe de `data/reconocimientos_robe.yaml`, una frase por línea.
+
+    La lista la cura David (20-11-2026): es el «año de homenajes» que en las noticias del
+    sello y del cuadro hubo que pegar a mano. Cada frase tiene su fuente en el YAML; aquí
+    solo viaja el hecho, que es lo que el redactor puede afirmar. Sin fichero, vacío.
+    """
+    import yaml
+
+    from app.services.jsonld_audit import ruta_data
+
+    try:
+        datos = yaml.safe_load(ruta_data("reconocimientos_robe.yaml").read_text("utf-8")) or {}
+    except (FileNotFoundError, yaml.YAMLError) as exc:
+        logger.warning("[news_research] sin lista de reconocimientos: %s", exc)
+        return ""
+    hechos = [" ".join(str(r["hecho"]).split())
+              for r in sorted(datos.get("reconocimientos") or [], key=lambda r: str(r["fecha"]))
+              if r.get("hecho") and r.get("fuentes")]
+    return (CABECERA_RECONOCIMIENTOS + "\n" + "\n".join(f"- {h}" for h in hechos)) if hechos else ""
+
+
 def material_de_casa(db, texto: str, *, hoy=None) -> str:
     """El material NUESTRO que puede dar contexto a una noticia: las fichas de quien
     nombra, lo propio de los dossieres de sus canciones (letra, créditos, hechos duros,
@@ -740,8 +765,9 @@ def material_de_casa(db, texto: str, *, hoy=None) -> str:
     from app.services.corpus_for_queries import separar_material
 
     propio = separar_material(entity_dossiers(db, texto))[0]
-    return "\n\n".join(x for x in (fichas_nombradas(db, texto), propio[:5000],
-                                    noticias_de_casa(db, hoy=hoy)) if x.strip())
+    return "\n\n".join(x for x in (reconocimientos_de_casa(), fichas_nombradas(db, texto),
+                                    propio[:5000], noticias_de_casa(db, hoy=hoy))
+                       if x.strip())
 
 
 NOTICIAS_POR_HISTORIAS: ContextVar[bool] = ContextVar(

@@ -1,0 +1,60 @@
+# Reconocimientos y homenajes a Robe, para dar CONTEXTO a las noticias del blog.
+#
+# Lista curada por David (OK del 20-11-2026). El motor de noticias por historias la lee
+# como material de casa (`news_research.reconocimientos_de_casa`): cuando llega la noticia
+# de un homenaje, puede situarla con los demás. Sin esta lista, las dos noticias que se
+# escribieron a mano (el sello y el cuadro) llevaban ese contexto pegado a mano.
+#
+# Reglas:
+#  - Cada `hecho` es UNA frase en nuestra voz, con su fecha y su año, y dice solo lo que
+#    dicen sus fuentes. Se copia literal como tramo: no la escribas con matices que no
+#    estén respaldados.
+#  - Cada entrada lleva sus fuentes (URL y extracto literal) y cuándo se comprobaron.
+#  - Para añadir una: fuente oficial o dos medios; sin fuente no entra.
+reconocimientos:
+  - fecha: "2026-05-26"
+    hecho: >-
+      El 26 de mayo de 2026, «Caída libre», la canción de Leiva con Robe, ganó el premio a
+      la mejor canción pop-rock en los III Premios de la Academia de la Música de España.
+    comprobado: "19-11-2026 (extractos guardados con la noticia del sello, url_ingest_jobs #3)"
+    fuentes:
+      - url: "https://vivirediciones.es/?p=1045736"
+        extracto: "Madrid, 26 may (EFE).- […] los III Premios de la Academia de la Música de España […] Leiva en la pregala al recibir el galardón a «mejor canción pop-rock» por 'Caída libre', su colaboración con el exmiembro de Extremoduro."
+      - url: "https://www.diariodeleon.es/sociedad/gente/260527/2086315/leiva-emociona-premios-academia-musica-2026-conmovedores-discursos-dedicados-robe-iniesta.html"
+        extracto: "al subir de nuevo al escenario para recoger el premio a la mejor canción pop/rock por Caída Libre"
+
+  - fecha: "2026-05-27"
+    hecho: >-
+      El 27 de mayo de 2026, en el Teatro de Rojas de Toledo, Alén Ayerdi, mánager de Robe,
+      recogió la Medalla de Oro al Mérito en las Bellas Artes que se le había concedido
+      por el Real Decreto 1343/2024, de 23 de diciembre de 2024.
+    comprobado: "19-11-2026 (extractos guardados con la noticia del sello, url_ingest_jobs #3)"
+    fuentes:
+      - url: "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-27001"
+        extracto: "Real Decreto 1343/2024, de 23 de diciembre, por el que se concede la Medalla al Mérito en las Bellas Artes, en su categoría de oro […]: Don Roberto Iniesta Ojea (Robe). Cantante y compositor."
+      - url: "https://www.casareal.es/EN/ArchivoMultimedia/Paginas/archivo-multimedia_archivos-videos-detalle.aspx?data=6865"
+        extracto: "Teatro de Rojas. Toledo, 27.5.2026. Don Felipe y Doña Letizia presidieron en Toledo el acto de entrega de las Medallas de Oro al Mérito en las Bellas Artes 2024 […] el cantante y compositor Robe a título póstumo."
+      - url: "https://www.diariodesevilla.es/ocio/sello-robe-iniesta-correos-emite_0_2008500513.html"
+        extracto: "se le concedió a Robe a título póstumo la Medalla de Oro al Mérito en las Bellas Artes, recibida por su mánager, Alén Ayerdi"
+
+  - fecha: "2026-11-14"
+    hecho: >-
+      En noviembre de 2026, el cuadro «El rey de Extremadura», del pintor Gustavo Hernández
+      Puertas e inspirado en Robe, ganó el premio especial «Rasgo Extremeño» del XXV
+      Certamen Internacional de Pintura Zurbarán, en Badalona.
+    comprobado: "19-11-2026 (nota de prensa guardada con la noticia del cuadro, url_ingest_jobs #4)"
+    fuentes:
+      - url: "https://www.juntaex.es/w/el-consejero-laureano-leon-entrega-el-premio-rasgo-extremeno"
+        extracto: "nota de prensa de la Junta de Extremadura, 16/11/2026"
+
+  - fecha: "2026-11-23"
+    hecho: >-
+      Correos pone en circulación el 23 de noviembre de 2026 un sello dedicado a Robe,
+      dentro de su serie Música, con un valor postal de 5 euros y una tirada de 65.000
+      ejemplares.
+    comprobado: "19-11-2026 (artículos guardados con la noticia del sello, url_ingest_jobs #3)"
+    fuentes:
+      - url: "https://www.diariodesevilla.es/ocio/sello-robe-iniesta-correos-emite_0_2008500513.html"
+        extracto: "artículo del sello: fecha de emisión, serie Música, valor postal y tirada"
+      - url: "https://www.laganzua.net/noticias/32914-robe-iniesta-extremoduro-centra-un-sello-de-correos-que-sale-23-de-noviembre-por-valor-de-5-euros"
+        extracto: "Robe Iniesta (Extremoduro) centra un sello de Correos que sale 23 de noviembre por valor de 5 euros"

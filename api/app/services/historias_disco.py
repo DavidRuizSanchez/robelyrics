@@ -900,7 +900,9 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
 #   historia del artículo más el contexto.
 FUENTE_NOTICIA = "artículo de la noticia"
 FUENTE_CASA = "material de casa"
-MAX_CONTEXTO = 2
+# David (20-11-2026), con la primera muestra delante: «me vale, pero es demasiado corta,
+# hay que añadir más contexto». Hasta cuatro hechos de casa en la sección de contexto.
+MAX_CONTEXTO = 4
 
 _SYS_EDITOR_NOTICIA = (
     "Eres el editor de un blog de fans de Robe y Extremoduro. Te dan el ARTÍCULO de una "
@@ -929,10 +931,12 @@ _SYS_EDITOR_NOTICIA = (
 
 _SYS_EDITOR_CONTEXTO = (
     "Eres el editor de un blog de fans de Robe y Extremoduro. Te dan una NOTICIA y el "
-    "MATERIAL DE CASA (nuestras fichas, letras y lo que ya hemos publicado). Eliges como "
-    "mucho DOS historias del material que le den CONTEXTO a la noticia para un fan: la "
-    "canción, el disco, el lugar o la persona de la que va, u otros hechos del mismo "
-    "asunto que ya contamos (otros homenajes, otros premios).\n"
+    "MATERIAL DE CASA (la lista de reconocimientos a Robe, nuestras fichas, letras y lo "
+    "que ya hemos publicado). Eliges entre DOS y CUATRO historias del material que le den "
+    "CONTEXTO a la noticia para un fan: la canción, el disco, el lugar o la persona de la "
+    "que va, u otros hechos del mismo asunto.\n"
+    "- Si la noticia es un homenaje, un premio o un reconocimiento a Robe, elige los OTROS "
+    "reconocimientos de la lista: sitúan este entre los demás.\n"
     "REGLAS:\n"
     "- Solo si tiene que ver DIRECTAMENTE con lo que cuenta la noticia. Si nada del "
     "material viene a cuento, devuelve la lista vacía: es lo correcto.\n"
@@ -1217,8 +1221,9 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
             "de Robe y Extremoduro.\nINSTRUCCIONES:\n"
             "- Empieza con «## » y un encabezado natural, como lo escribiría una persona "
             "(sin dos puntos ni «Sujeto: tema»).\n"
-            "- 50-130 palabras. Sitúa la noticia con estos hechos NUESTROS, y solo con "
-            "ellos:\n" + "\n".join(f"  · «{h.tramo}»" for h in contexto) + "\n"
+            f"- {60 + 40 * len(contexto)}-{110 + 50 * len(contexto)} palabras. Sitúa la "
+            "noticia con estos hechos NUESTROS, con sus fechas y sus datos exactos, y solo "
+            "con ellos:\n" + "\n".join(f"  · «{h.tramo}»" for h in contexto) + "\n"
             "- Se cuentan como hechos, sin decir de dónde salen ni que «ya lo contamos». No "
             "les pongas fecha si el tramo no la trae.\n"
             "- NO repitas lo que ya dice la noticia. Sin frase de cierre.\n"

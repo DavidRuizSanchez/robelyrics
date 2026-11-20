@@ -630,3 +630,32 @@ def test_una_frase_no_es_de_robe_si_el_articulo_no_lo_nombra_al_lado(monkeypatch
          "tramo": "Tiembla alcalde, porque no conseguirás evitar que la gente disfrute"}]))
     hs = hd.inventario_noticia("x", articulo)
     assert [(h.quien, h.citable) for h in hs] == [("tercero", False), ("robe", True)]
+
+
+def test_la_lista_de_reconocimientos_es_material_de_casa():
+    """El «año de homenajes» que en el sello y el cuadro se pegó a mano. Cada hecho va con
+    su año y tiene fuente; sin fuente no viaja."""
+    from pathlib import Path
+
+    import yaml
+
+    from app.services import news_research as nr
+    from app.services.jsonld_audit import ruta_data
+
+    texto = nr.reconocimientos_de_casa()
+    assert texto.startswith(nr.CABECERA_RECONOCIMIENTOS)
+    hechos = [x[2:] for x in texto.splitlines()[1:]]
+    datos = yaml.safe_load(Path(ruta_data("reconocimientos_robe.yaml")).read_text("utf-8"))
+    assert len(hechos) == len(datos["reconocimientos"]) >= 4
+    for r in datos["reconocimientos"]:
+        assert r["fuentes"] and all(f["url"].startswith("https://") and f["extracto"]
+                                    for f in r["fuentes"]), r["hecho"]
+        assert r["fecha"][:4] in r["hecho"], r["hecho"]       # el año, en la frase
+        assert "Robe Iniesta" not in r["hecho"] and "—" not in r["hecho"]
+    # Sirve de tramo literal para el contexto, y el propio hecho de la noticia no entra.
+    sello = next(h for h in hechos if "Correos" in h)
+    articulo = ("Correos emite un sello dedicado a Robe en la serie Música con un valor postal "
+                "de 5 euros y una tirada de 65.000 ejemplares.")
+    assert hd.repite_la_noticia(sello, articulo)
+    medalla = next(h for h in hechos if "Medalla" in h)
+    assert hd.tramo_literal(medalla, texto) and not hd.repite_la_noticia(medalla, articulo)
