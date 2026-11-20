@@ -20,6 +20,7 @@ import yaml
 
 from app.db.models import RelatedVideo, RelatedVideoEntity
 from app.db.session import SessionLocal
+from app.services.video_dates import parse_subida
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -84,7 +85,12 @@ def main() -> None:
                 db.add(video)
             video.title = entry["title"]
             video.kind = entry.get("kind", "official")
-            video.upload_date = _parse_date(entry.get("upload_date"))
+            # El YAML puede traer la fecha sola o el `publishedAt` entero. La hora que
+            # ya haya puesto `backfill_video_dates` no se pisa con una fecha sola.
+            dia, instante = parse_subida(str(entry.get("upload_date") or ""))
+            video.upload_date = dia or _parse_date(entry.get("upload_date"))
+            if instante:
+                video.published_at = instante
             db.flush()
 
             # Reconcilia anclas: el YAML es la fuente de verdad.

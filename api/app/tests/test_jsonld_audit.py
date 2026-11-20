@@ -55,7 +55,8 @@ def test_linea_base_solo_tiene_los_fallos_declarados(paginas, voc):
     nuevos, conocidos, sobran = ja.separar(fallos, ja.cargar_excepciones())
     assert [str(f) for f in nuevos] == []
     assert sobran == []          # una excepción que no cubre nada escondería un regreso
-    assert Counter(f.regla for f in conocidos) == {"vocabulario": 154, "colgante": 87}
+    assert Counter(f.regla for f in conocidos) == {
+        "vocabulario": 154, "colgante": 87, "google": 36, "url_relativa": 50}
 
 
 def test_la_huella_congelada_es_la_de_la_fixture(paginas):
@@ -307,3 +308,68 @@ def test_el_monitor_ve_el_rango_entre_paginas():
            "/robe/x": foto("/robe/x", [{"@type": "MusicAlbum", "@id": f"{S}/robe/x#musicalbum"}])}
     assert [f.detalle for f in cruzados_nuevos({}, hoy)["/libros/x"]] == [
         "/libros/x#book: author → MusicAlbum fuera de rango (Organization/Person)"]
+
+
+# --------------------------------------------------------------------------- #
+# Lo que schema.org admite y Google no (GSC, 20-11-2026)
+# --------------------------------------------------------------------------- #
+def _video(**extra) -> dict:
+    return {"@type": "VideoObject", "name": "v", "thumbnailUrl": ["https://i.ytimg.com/x.jpg"],
+            "contentUrl": "https://www.youtube.com/watch?v=x", **extra}
+
+
+def test_video_necesita_fecha_con_hora_y_zona():
+    def fallos(**extra):
+        return [f.detalle for f in ja.requisitos_google(_pagina([_video(**extra)], "/p"))]
+
+    assert fallos(uploadDate="2018-11-15T17:00:04Z") == []
+    assert fallos(uploadDate="2018-11-15T17:00:04+00:00") == []
+    assert "sin hora y zona" in fallos(uploadDate="2018-11-15")[0]
+    assert "sin uploadDate" in fallos()[0]
+
+
+def test_evento_necesita_lugar_con_direccion():
+    lugar = {"@type": "Place", "@id": f"{S}/lugares/ubeda#place", "name": "Úbeda"}
+    evento = {"@type": "MusicEvent", "name": "Robe en Úbeda", "startDate": "2024-07-06"}
+
+    def fallos(ev):
+        nodo = {"@type": "Place", "@id": f"{S}/lugares/ubeda#place", "name": "Úbeda",
+                "event": ev}
+        return [f.detalle for f in ja.requisitos_google(_pagina([nodo], "/lugares/ubeda"))]
+
+    assert "evento sin location" in fallos(evento)[0]
+    assert "location sin address" in fallos({**evento, "location": lugar})[0]
+    con_direccion = {**lugar, "address": {"@type": "PostalAddress", "addressLocality": "Úbeda",
+                                          "addressRegion": "Jaén", "addressCountry": "ES"}}
+    assert fallos({**evento, "location": con_direccion}) == []
+    # Una referencia a otro nodo vale: la dirección va en el nodo citado.
+    assert fallos({**evento, "location": {"@id": f"{S}/lugares/ubeda#place"}}) == []
+
+
+def test_el_evento_que_escribe_conciertos_pasa_vocabulario_y_google(voc):
+    from scripts.relaciones.conciertos import evento
+
+    ev = evento(base=S, slug="ubeda", artista=("robe", "Robe"), ciudad="Úbeda",
+                provincia="Jaén", fecha="2024-07-06")
+    assert ev["name"] == "Robe en Úbeda, 06-07-2024"
+    assert ev["description"] == "Concierto de Robe en Úbeda (Jaén) el 6 de julio de 2024."
+    assert ev["location"]["address"] == {"@type": "PostalAddress", "addressLocality": "Úbeda",
+                                         "addressCountry": "ES", "addressRegion": "Jaén"}
+    sin_provincia = evento(base=S, slug="plasencia", artista=("robe", "Robe"),
+                           ciudad="Plasencia", provincia="", fecha="2024-07-06")
+    assert "addressRegion" not in sin_provincia["location"]["address"]
+    pag = _pagina([{"@type": "Place", "@id": f"{S}/lugares/ubeda#place", "name": "Úbeda",
+                    "event": ev},
+                   {"@type": "MusicGroup", "@id": f"{S}/robe#musicgroup", "name": "Robe"}],
+                  "/lugares/ubeda")
+    assert [str(f) for f in ja.problemas_de_pagina(pag, voc)] == []
+
+
+def test_url_relativa_en_imagen():
+    pag = _pagina([{"@type": "MusicAlbum", "@id": f"{S}/extremoduro/agila#musicalbum",
+                    "name": "Agila", "image": "/album-covers/agila.jpg"},
+                   {"@type": "ImageObject", "url": f"{S}/album-covers/agila.jpg",
+                    "contentUrl": f"{S}/album-covers/agila.jpg"}], "/extremoduro/agila")
+    fallos = ja.urls_relativas(pag)
+    assert [f.regla for f in fallos] == ["url_relativa"]
+    assert "image: «/album-covers/agila.jpg»" in fallos[0].detalle

@@ -369,7 +369,9 @@ def find_video(query: str, subject: str) -> dict | None:
             ).json()
             sn = v["items"][0]["snippet"]
             return {"youtube_id": vid, "title": sn["title"],
-                    "upload_date": sn["publishedAt"][:10],
+                    # Entero, con hora y zona: Google da por inválido un
+                    # `uploadDate` con la fecha sola (GSC, 20-11-2026).
+                    "upload_date": sn["publishedAt"],
                     "channel": sn["channelTitle"]}
     except Exception as exc:  # noqa: BLE001
         logger.warning("[news_research] vídeo falló '%s': %s", query, exc)

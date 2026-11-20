@@ -1508,6 +1508,23 @@ excepción deja de cubrir algo, la auditoría lo dice y hay que quitarla.
   excepciones y se re-congela la línea base con `--escribir-linea-base`. La fixture del
   test es el mismo rastreo: regenerarlas juntas.
 
+**Lo que schema.org admite y Google no** (20-11-2026). Search Console marcó vídeos sin
+`uploadDate` o con la fecha sola, un evento sin `location` y portadas con ruta relativa,
+y la auditoría no había visto nada: solo miraba el vocabulario. Ahora `jsonld_audit`
+lleva las reglas `google` y `url_relativa`, y como `relations.validar` pasa por ellas, un
+evento sin lugar ya no entra.
+
+- **Todo el JSON-LD sale por `buildGraph`**, que lo sanea una vez: no emite un
+  `VideoObject` sin fecha con hora y zona (el vídeo sigue en la página) y pone el dominio
+  a las URLs relativas. No arreglarlo página a página.
+- **La hora de subida es la de YouTube** (`related_videos.published_at`,
+  `scripts/seo/backfill_video_dates.py`). Nunca una medianoche inventada.
+- **Solo se declara una licencia CC que conste escrita** (`image_license`, calculada en
+  la API). Una portada, un cartel o una foto de prensa se quedan con su `creditText`, y
+  el aviso de Google sobre ellas es correcto.
+- **Ampliar un nodo literal no lo duplica**: su clave sale del contenido entero, así
+  que `seed_relaciones` busca antes el mismo nodo (`_mismo_nodo`) y lo actualiza.
+
 ## Decisiones que NO hay que reabrir
 
 - Corpus solo Extremoduro + Robe (no Extrechinato ni Yacumamba).

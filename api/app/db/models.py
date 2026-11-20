@@ -889,6 +889,9 @@ class RelatedVideo(Base):
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     kind: Mapped[str] = mapped_column(String(20), nullable=False)  # collaboration|interview|official|live
     upload_date: Mapped[date | None] = mapped_column(Date)
+    # La subida con hora y zona (`snippet.publishedAt`), que es lo que pide Google en
+    # `VideoObject.uploadDate`. Ver `scripts.seo.backfill_video_dates`.
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -381,6 +381,14 @@ export type PublicPostDetail = PublicPostListItem & {
   anniversary_year: number | null;
   hero_image_alt: string | null;
   hero_image_attribution: string | null;
+  hero_image_rights?: {
+    license_name: string;
+    license_url: string;
+    creators?: string[];
+    copyright_notice?: string;
+    acquire_license_page?: string;
+  } | null;
+  hero_image_source_url?: string | null;
   entities: PublicResolvedEntity[];
   video: PublicPostVideo | null;
   videos: PublicPostVideo[];

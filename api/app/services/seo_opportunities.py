@@ -594,21 +594,17 @@ def _registrar_videos(db, opp) -> None:
     Sin entidad vinculada a propósito: no se pintan en «vídeos relacionados» (ya
     están en el texto), solo alimentan el `VideoObject` (`public._body_videos`).
     """
-    from datetime import date as _date
-
     from app.db.models import RelatedVideo
+    from app.services.video_dates import parse_subida
 
     for v in (opp.draft_notes or {}).get("videos_added") or []:
         if not isinstance(v, dict) or not v.get("youtube_id") or not v.get("title"):
             continue
         if db.query(RelatedVideo).filter(RelatedVideo.youtube_id == v["youtube_id"]).first():
             continue
-        try:
-            subido = _date.fromisoformat(v["upload_date"]) if v.get("upload_date") else None
-        except ValueError:
-            subido = None
+        dia, instante = parse_subida(v.get("upload_date"))
         db.add(RelatedVideo(youtube_id=v["youtube_id"], title=v["title"][:300],
-                            kind="embed", upload_date=subido))
+                            kind="embed", upload_date=dia, published_at=instante))
 
 
 def _aplicar_enlaces_entrantes(db, opp) -> list[str]:
