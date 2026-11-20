@@ -675,7 +675,12 @@ export function imageObjectNode(input: ImageInput): Record<string, unknown> | nu
     contentUrl: input.url,
   };
   if (input.path) node["@id"] = canonical.primaryImage(input.path);
-  if (input.attribution) {
+  // El crédito solo viaja en el JSON-LD cuando hay una licencia que declarar. Google
+  // mete en "Metadatos de imagen" cualquier imagen con `creditText` y le reclama
+  // `license`, `creator`, `copyrightNotice` y `acquireLicensePage`: una portada de
+  // disco, un cartel o una foto de prensa no pueden darlos, y "Portada de «Agila»"
+  // ni siquiera es un crédito (GSC, 20-11-2026). El pie visible de la página no cambia.
+  if (input.attribution && (input.rights || input.license)) {
     node.creditText = input.attribution
       .replace(/^\*|\*$/g, "")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
