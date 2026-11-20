@@ -178,13 +178,13 @@ def corroborado_en_otra_fuente(db, tramo: str, *, autor: str | None) -> str | No
     entrevista de Radio 3 que nombra a la banda y no dice nada de doce años."""
     from sqlalchemy import text
 
-    from app.services.corpus_for_queries import claves_de, tramos_con
+    from app.services.corpus_for_queries import claves_de, sql_contiene, tramos_con
     from app.services.web_verify import classify_with_evidence
 
     claves = claves_de(tramo)
     if db is None or len(claves) < 2:
         return None
-    cond = " and ".join(f"content_clean ~* :c{i}" for i in range(len(claves)))
+    cond = " and ".join(sql_contiene(i) for i in range(len(claves)))
     params = {f"c{i}": r"\m" + re.escape(c) + r"\M" for i, c in enumerate(claves)}
     params["autor"] = autor or ""
     filas = db.execute(text(
