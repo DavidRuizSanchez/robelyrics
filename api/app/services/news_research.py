@@ -638,6 +638,44 @@ def _boost_queries(topic_type: str, subject: str) -> list[str]:
     return common + by_type.get(topic_type, [f"{subject} qué es contexto detalles"])
 
 
+MESES_DE_NOTICIAS_DE_CASA = 12
+
+
+def noticias_de_casa(db, *, hoy=None, maximo: int = 20) -> str:
+    """Lo que ya hemos publicado como noticia en el último año, una línea por post.
+
+    Es el contexto que David escribió a mano en la noticia del cuadro («Un año de
+    homenajes», 19-11-2026): otros hechos del mismo asunto que ya contamos. Solo posts
+    PUBLICADOS: pasaron sus guardas, así que su titular y su entradilla son afirmables.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.db.models import Post
+
+    if db is None:
+        return ""
+    ahora = hoy or datetime.now(UTC)
+    filas = (db.query(Post)
+             .filter(Post.status == "published", Post.kind == "news",
+                     Post.published_at >= ahora - timedelta(days=30 * MESES_DE_NOTICIAS_DE_CASA))
+             .order_by(Post.published_at.desc()).limit(maximo).all())
+    lineas = [f"- {p.published_at:%d-%m-%Y} · {p.title}. {(p.excerpt or '').strip()}".strip()
+              for p in filas if p.published_at]
+    return ("### Noticias que ya hemos publicado (fecha de publicación · titular. "
+            "entradilla)\n" + "\n".join(lineas)) if lineas else ""
+
+
+def material_de_casa(db, texto: str, *, hoy=None) -> str:
+    """El material NUESTRO que puede dar contexto a una noticia: lo propio de los dossieres
+    de las entidades que nombra (letra, créditos, hechos duros, consenso; nunca el fondo
+    de terceros) y las noticias que ya publicamos. Determinista y sin red: el día de
+    publicar se vuelve a reunir igual para comprobar el texto contra él."""
+    from app.services.corpus_for_queries import separar_material
+
+    propio = separar_material(entity_dossiers(db, texto))[0]
+    return "\n\n".join(x for x in (propio, noticias_de_casa(db, hoy=hoy)) if x.strip())
+
+
 NOTICIAS_POR_HISTORIAS: ContextVar[bool] = ContextVar(
     "NOTICIAS_POR_HISTORIAS", default=os.environ.get("BLOG_NOTICIAS_HISTORIAS") == "1")
 
@@ -785,14 +823,17 @@ def research_and_write(
     # bastantes no hay post: no se cae al motor de siempre.
     if NOTICIAS_POR_HISTORIAS.get() and tense == "informativo":
         from app.services.historias_disco import escribir_noticia
-        cuerpo = escribir_noticia(db, headline, source_excerpt)
+        # El contexto sale de lo que nombra el ARTÍCULO, no de la búsqueda web: una
+        # canción que solo aparece en un resultado de Google no es de lo que va la noticia.
+        casa = material_de_casa(db, f"{headline}\n{source_excerpt[:6000]}")
+        cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa)
         if not cuerpo:
             return {"title": "", "is_relevant": False,
                     "motivo": "sin historias bastantes en el artículo"}
         return _cerrar_noticia(db, subject=subject, body_md=cuerpo,
                                source_excerpt=source_excerpt, cronica_txt="",
-                               dossier_txt=dossier_txt, target_kw=subject, video=video,
-                               image=image, event_date=event_date, plan=plan)
+                               dossier_txt=f"{dossier_txt}\n\n{casa}", target_kw=subject,
+                               video=video, image=image, event_date=event_date, plan=plan)
 
     # En modo crónica el evento ya ocurrió: redacta en pasado, sin anunciar nada
     # a futuro. En informativo, respeta el tiempo del hecho.

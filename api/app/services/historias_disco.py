@@ -570,8 +570,9 @@ def citas_que_fallan(texto: str, fuente: str, titulos: list[str], *,
             fallos.append(f"«{c[:60]}» va sin decir antes quién lo dice")
             continue
         if no_citable and _plano(c) in _plano(no_citable):
-            fallos.append(f"«{c[:60]}» es de una entrevista hablada transcrita: cuenta lo "
-                          "que dijo SIN comillas")
+            fallos.append(f"«{c[:60]}» no se puede entrecomillar (entrevista hablada "
+                          "transcrita o palabras de un tercero): cuenta lo que dijo SIN "
+                          "comillas")
         elif _plano(c) not in _plano(fuente):
             fallos.append(f"la cita «{c[:80]}» no está literal en el pasaje")
     for parrafo in (texto or "").split("\n"):
@@ -715,6 +716,9 @@ class Pieza:
     palabras_dato: str = "40-120"          # largo de una sección de dato duro
     entradilla_fija: str = ""              # primera frase ya verificada (la efeméride)
     min_historias: int = 3                 # sin estas, no hay post
+    cita_pide: str = ""                    # cómo se cita en esta pieza (si no, lo de siempre)
+    no_cita_pide: str = ""                 # cómo se cuenta lo que no se puede citar
+    con_cierre: bool = True                # una noticia con contexto no lleva cierre
 
 
 def pieza_de_disco(db, album) -> Pieza:
@@ -782,10 +786,12 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
             "historia da para poco, que la sección sea corta: NUNCA repitas ni resumas al "
             "final lo que ya has dicho, ni cuentes una cita y luego la parafrasees.\n"
             "- Lo que dijo alguien se cuenta con SU sentido, sin darle la vuelta. "
-            + ("Si lo citas, quién lo dice y dónde va DELANTE («Robe contó a RockFM: «…»») y "
-               "la cita va ENTERA entre «» y copiada LITERAL del pasaje.\n" if h.citable else
-               "Es una entrevista hablada transcrita: cuéntalo en tu voz, SIN comillas y sin "
-               "nombrar el programa.\n")
+            + ((pieza.cita_pide or
+                "Si lo citas, quién lo dice y dónde va DELANTE («Robe contó a RockFM: «…»») y "
+                "la cita va ENTERA entre «» y copiada LITERAL del pasaje.\n") if h.citable else
+               (pieza.no_cita_pide or
+                "Es una entrevista hablada transcrita: cuéntalo en tu voz, SIN comillas y sin "
+                "nombrar el programa.\n"))
             + "- Los DATOS DUROS son para no equivocarte: usa solo los que sean de ESTA "
             "historia y no estén ya dichos.\n"
             "- Los nombres de giras y de programas van en cursiva y sin comillas "
@@ -796,7 +802,10 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
             f"PASAJE:\n\"\"\"{h.contexto}\"\"\"\n\n{letras}\n\nDATOS DUROS:\n{hechos_duros}\n"
             'Devuelve JSON {"body_md": "...", "datos": ["cada dato concreto que has usado"]}'),
             fuente, titulos, max_tokens=1500, db=db,
-            no_citable="" if h.citable or h.quien == "hechos" else h.contexto,
+            # En una noticia solo se entrecomilla a Robe: lo demás del artículo, aunque sea
+            # un dato, se cuenta sin comillas (19-11-2026).
+            no_citable=("" if h.citable or (h.quien == "hechos" and h.fuente != FUENTE_NOTICIA)
+                        else h.contexto),
             extra_check=lambda t, h=h: cifras_ajenas(t, h.contexto, pieza))
         if sec:
             partes.append(sec)
@@ -840,7 +849,7 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
     if entradilla:
         partes.insert(0, entradilla)
     tray = pieza.cierre_datos
-    cierre, _ = _seccion(client, (
+    cierre, _ = ("", []) if not pieza.con_cierre else _seccion(client, (
         f"Escribe el CIERRE de un post sobre {pieza.objeto}: empieza con «## » y un "
         f"encabezado natural, y luego {pieza.cierre_pide}. {encargo}\n{_REGLAS_VOZ}\n"
         f"DATOS (solo estos):\n{tray}\n"
@@ -874,6 +883,24 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
 # --------------------------------------------------------------------------- #
 # Noticias por historias (19-11-2026)
 # --------------------------------------------------------------------------- #
+# El motor de siempre hablaba del proceso («la información disponible no identifica…»),
+# montaba secciones sobre lo que no sabía y copiaba errores del artículo. Aquí la noticia
+# se cuenta con las historias de SU artículo y, detrás, el contexto que solo tenemos
+# nosotros (fichas, letras y lo que ya hemos publicado). Cuatro reglas (David, 19-11):
+#
+# - **Solo se entrecomilla a Robe.** Lo que dice otra persona se cuenta en nuestra voz,
+#   con su nombre, y sin comillas.
+# - **El título de una obra ajena no es una cita**: el cuadro «El rey de Extremadura» o un
+#   libro van entre «» y no hay nadie que «lo diga». El inventario los recoge del
+#   artículo (literales) y la comprobación de citas los deja pasar.
+# - **Una noticia breve lleva contexto**, no se queda en dos párrafos: las historias de
+#   contexto salen del material de casa, con su tramo literal.
+# - **Sin artículo no hay post**, y con un artículo fino hay post breve: una historia del
+#   artículo más una de contexto. Lo que no puede faltar es la del artículo.
+FUENTE_NOTICIA = "artículo de la noticia"
+FUENTE_CASA = "material de casa"
+MAX_CONTEXTO = 2
+
 _SYS_EDITOR_NOTICIA = (
     "Eres el editor de un blog de fans de Robe y Extremoduro. Te dan el ARTÍCULO de una "
     "noticia. Eliges las HISTORIAS que la cuentan: el hecho principal y los detalles que "
@@ -887,14 +914,50 @@ _SYS_EDITOR_NOTICIA = (
     "- El «gancho» dice SOLO lo que dice su tramo, sin añadir nada.\n"
     "- Nada que no esté en el artículo. Cada dato en UNA historia. Entre 2 y 5 historias; "
     "si el artículo da para poco, menos.\n"
+    "- «titulos»: los NOMBRES de obras, premios, festivales, exposiciones o programas que "
+    "el artículo nombra (un cuadro, un libro, un documental, un certamen), copiados "
+    "LITERALES y sin comillas. No metas frases ni declaraciones.\n"
     'Devuelve JSON {"historias": [{"gancho": "...", "ancla": "...", "tramo": "...", '
-    '"quien": "..."}]}'
+    '"quien": "..."}], "titulos": ["..."]}'
+)
+
+_SYS_EDITOR_CONTEXTO = (
+    "Eres el editor de un blog de fans de Robe y Extremoduro. Te dan una NOTICIA y el "
+    "MATERIAL DE CASA (nuestras fichas, letras y lo que ya hemos publicado). Eliges como "
+    "mucho DOS historias del material que le den CONTEXTO a la noticia para un fan: la "
+    "canción, el disco, el lugar o la persona de la que va, u otros hechos del mismo "
+    "asunto que ya contamos (otros homenajes, otros premios).\n"
+    "REGLAS:\n"
+    "- Solo si tiene que ver DIRECTAMENTE con lo que cuenta la noticia. Si nada del "
+    "material viene a cuento, devuelve la lista vacía: es lo correcto.\n"
+    "- «tramo»: copia LITERAL del material, entre 25 y 300 caracteres.\n"
+    "- El «gancho» dice SOLO lo que dice su tramo.\n"
+    "- No repitas lo que ya cuenta la noticia.\n"
+    'Devuelve JSON {"historias": [{"gancho": "...", "tramo": "..."}]}'
 )
 
 
-def inventario_noticia(titular: str, articulo: str) -> list[Historia]:
-    """Las historias de una noticia, todas del artículo: el tramo tiene que estar literal
-    en él y el gancho no puede decir más que el tramo."""
+def _repetida(tramo: str, ya: list[Historia]) -> bool:
+    return any(_plano(tramo) in _plano(x.tramo) or _plano(x.tramo) in _plano(tramo) for x in ya)
+
+
+def titulos_literales(candidatos: list, articulo: str) -> tuple[str, ...]:
+    """Los títulos de obras ajenas que el artículo nombra de verdad. Cortos y literales:
+    una declaración colada aquí dejaría de comprobarse como cita."""
+    out = []
+    for t in candidatos or []:
+        t = str(t).strip().strip("«»\"“”'")
+        # No vale `tramo_literal` (pide 25 caracteres): un título corto que case de más
+        # solo exime a ese texto de la comprobación de citas, que empieza en 20.
+        if (3 <= len(t) <= 90 and not re.search(r"[.;!?]\s", t)
+                and _plano(t) in _plano(articulo)):
+            out.append(t)
+    return tuple(dict.fromkeys(out))
+
+
+def inventario_de_noticia(titular: str, articulo: str) -> tuple[list[Historia], tuple[str, ...]]:
+    """(historias, títulos de obras ajenas) de una noticia, todo del artículo: el tramo
+    tiene que estar literal en él y el gancho no puede decir más que el tramo."""
     from app.services.news_research import _json
 
     data = _json(_SYS_EDITOR_NOTICIA,
@@ -908,20 +971,57 @@ def inventario_noticia(titular: str, articulo: str) -> list[Historia]:
         ancla = (h.get("ancla") or "dato").strip().lower()
         if ancla not in ANCLAS:
             ancla = "declaracion" if re.search(r"declar|dice|cuenta|explica", ancla) else "dato"
-        if not tramo_literal(tramo, articulo):
-            continue
-        if any(_plano(tramo) in _plano(x.tramo) or _plano(x.tramo) in _plano(tramo) for x in out):
+        if not tramo_literal(tramo, articulo) or _repetida(tramo, out):
             continue
         quien = (h.get("quien") or "hechos").strip()
-        historia = Historia(h.get("gancho") or tramo, ancla, "artículo de la noticia", tramo,
-                            "hechos" if quien not in ("robe", "tercero") else quien, True,
+        quien = quien if quien in ("robe", "tercero") else "hechos"
+        historia = Historia(h.get("gancho") or tramo, ancla, FUENTE_NOTICIA, tramo, quien, True,
                             contexto="[ARTÍCULO DE LA NOTICIA] (se cuenta en nuestra voz; no "
-                                     "nombres el medio)\n" + articulo[:6000])
+                                     "nombres el medio)\n" + articulo[:6000],
+                            # Un artículo es texto escrito: lo que dice Robe en él se puede
+                            # entrecomillar. Lo de los demás, no.
+                            citable=quien == "robe")
         out.append(gancho_fiel(historia))
+    return out, titulos_literales((data or {}).get("titulos") or [], articulo)
+
+
+def inventario_noticia(titular: str, articulo: str) -> list[Historia]:
+    return inventario_de_noticia(titular, articulo)[0]
+
+
+def inventario_contexto(titular: str, articulo: str, casa: str,
+                        ya: list[Historia]) -> list[Historia]:
+    """Hasta dos historias de CONTEXTO, del material de casa y con su tramo literal. Si el
+    modelo falla o nada viene a cuento, ninguna: la noticia sale sin contexto, no con uno
+    traído por los pelos."""
+    from app.services.news_research import _json
+
+    if not (casa or "").strip():
+        return []
+    try:
+        data = _json(_SYS_EDITOR_CONTEXTO,
+                     f"NOTICIA: {titular}\n{articulo[:3000]}\n\nMATERIAL DE CASA:\n{casa[:9000]}",
+                     max_tokens=700, temperature=0.2)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[historias] contexto de la noticia: %s", exc)
+        return []
+    out: list[Historia] = []
+    for h in ((data or {}).get("historias") or [])[:MAX_CONTEXTO]:
+        tramo = (h.get("tramo") or "").strip()
+        if not tramo_literal(tramo, casa) or _repetida(tramo, ya + out):
+            continue
+        # Lo que ya dice el artículo no es contexto: es la noticia.
+        if tramo_literal(tramo, articulo):
+            continue
+        out.append(gancho_fiel(Historia(
+            h.get("gancho") or tramo, "contexto", FUENTE_CASA, tramo, "hechos", True,
+            contexto="[MATERIAL DE CASA] (datos nuestros: se cuentan como hechos, sin decir "
+                     "de dónde salen)\n" + casa[:6000])))
     return out
 
 
-def pieza_de_noticia(db, titular: str) -> Pieza:
+def pieza_de_noticia(db, titular: str, *, otros_titulos: tuple[str, ...] = (),
+                     con_contexto: bool = False) -> Pieza:
     from app.services import robe_facts
     datos = "\n".join(robe_facts.must_facts_lines(db))
     return Pieza(
@@ -931,27 +1031,45 @@ def pieza_de_noticia(db, titular: str) -> Pieza:
         aviso_seccion="Lo principal ya va en la entradilla: no lo repitas.",
         cierre_pide=("dos frases que sitúen la noticia en la obra o la vida de Robe con "
                      "ESTOS datos; si no encajan, recuerda solo quién era, sin solemnidad"),
-        cierre_datos=datos, es_ultimo=None, palabras_dato="40-120", min_historias=2)
+        cierre_datos=datos, es_ultimo=None, palabras_dato="40-120", min_historias=2,
+        otros_titulos=otros_titulos,
+        cita_pide=("Si citas a Robe, quién lo dice va DELANTE («Robe dijo: «…»») y la cita "
+                   "va ENTERA entre «» y copiada LITERAL del artículo.\n"),
+        no_cita_pide=("Lo que dice otra persona se cuenta en tu voz y SIN comillas, diciendo "
+                      "quién lo dijo (su nombre y su cargo, si el artículo los da). Los "
+                      "títulos de obras sí van entre «».\n"),
+        # Con contexto detrás, un cierre que «recuerda quién era Robe» es relleno.
+        con_cierre=not con_contexto)
 
 
-def escribir_noticia(db, titular: str, articulo: str) -> str | None:
-    """El cuerpo de una noticia por historias, o None si el artículo no da para ello."""
+def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "") -> str | None:
+    """El cuerpo de una noticia por historias, o None si el artículo no da para ello.
+
+    `casa`: el material nuestro que puede dar contexto (`news_research.material_de_casa`).
+    """
     import os
 
     from openai import OpenAI
 
     if not (articulo or "").strip():
         return None
-    historias = inventario_noticia(titular, articulo)
+    del_articulo, otros_titulos = inventario_de_noticia(titular, articulo)
+    if not del_articulo:
+        logger.info("[historias] noticia «%s»: ninguna historia en el artículo", titular)
+        return None
+    contexto = inventario_contexto(titular, articulo, casa, del_articulo)
+    historias = del_articulo + contexto
     if len(historias) < 2:
-        logger.info("[historias] noticia «%s»: %d historia(s), no da para un post",
-                    titular, len(historias))
+        logger.info("[historias] noticia «%s»: %d historia(s) y sin contexto, no da para un "
+                    "post", titular, len(historias))
         return None
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     from app.services import robe_facts
     hechos = articulo[:6000] + "\n\n" + "\n".join(robe_facts.must_facts_lines(db))
-    return escribir_pieza(db, client, pieza_de_noticia(db, titular), historias,
-                          hechos_duros=hechos,
+    return escribir_pieza(db, client,
+                          pieza_de_noticia(db, titular, otros_titulos=otros_titulos,
+                                           con_contexto=bool(contexto)),
+                          historias, hechos_duros=hechos,
                           encargo="Es una noticia: cuéntala con sus datos exactos, sin "
                                   "inflarla. Los hechos se cuentan como hechos, sin hablar "
                                   "de fuentes.")
