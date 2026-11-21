@@ -351,7 +351,9 @@ def cmd_reply(args) -> int:
     if not asunto.lower().startswith("re:"):
         asunto = f"Re: {asunto}"
     message_id = (original.get("Message-ID") or "").strip()
-    referencias = f"{(original.get('References') or '').strip()} {message_id}".strip()
+    # Un hilo largo trae References plegado en varias líneas, y Resend da 422 con un
+    # salto de línea en una cabecera: se deja en una.
+    referencias = " ".join(f"{original.get('References') or ''} {message_id}".split())
 
     print(f"De:      {REMITENTE['name']} <{REMITENTE['email']}>")
     print(f"Para:    {_decodificar(para)}")
