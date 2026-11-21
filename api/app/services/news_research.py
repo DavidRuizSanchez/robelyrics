@@ -735,6 +735,12 @@ def fichas_nombradas(db, texto: str, *, maximo: int = MAX_FICHAS_DE_CASA) -> str
 CABECERA_RECONOCIMIENTOS = "RECONOCIMIENTOS Y HOMENAJES A ROBE (lista de casa, con fuente):"
 
 
+def hechos_reconocidos() -> tuple[str, ...]:
+    """Las frases de la lista de reconocimientos, de la más antigua a la más reciente."""
+    texto = reconocimientos_de_casa()
+    return tuple(x[2:] for x in texto.splitlines()[1:]) if texto else ()
+
+
 def reconocimientos_de_casa() -> str:
     """Los reconocimientos a Robe de `data/reconocimientos_robe.yaml`, una frase por línea.
 
@@ -921,7 +927,8 @@ def research_and_write(
         # canción que solo aparece en un resultado de Google no es de lo que va la noticia.
         casa = material_de_casa(db, f"{headline}\n{source_excerpt[:6000]}")
         cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa,
-                                  fecha=_mes_y_anio(today))
+                                  fecha=_mes_y_anio(today),
+                                  reconocimientos=hechos_reconocidos())
         if not cuerpo:
             return {"title": "", "is_relevant": False,
                     "motivo": "sin historias bastantes en el artículo"}

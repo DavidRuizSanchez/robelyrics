@@ -925,8 +925,11 @@ _SYS_EDITOR_NOTICIA = (
     "- «titulos»: los NOMBRES de obras, premios, festivales, exposiciones o programas que "
     "el artículo nombra (un cuadro, un libro, un documental, un certamen), copiados "
     "LITERALES y sin comillas. No metas frases ni declaraciones.\n"
+    "- «homenaje»: true si la noticia ES un homenaje, un premio, una distinción o un "
+    "reconocimiento a Robe o a su obra (un sello, una medalla, un festival en su nombre, "
+    "una obra dedicada a él); false en cualquier otro caso.\n"
     'Devuelve JSON {"historias": [{"gancho": "...", "ancla": "...", "tramo": "...", '
-    '"quien": "..."}], "titulos": ["..."]}'
+    '"quien": "..."}], "titulos": ["..."], "homenaje": false}'
 )
 
 _SYS_EDITOR_CONTEXTO = (
@@ -968,21 +971,48 @@ def titulos_literales(candidatos: list, articulo: str) -> tuple[str, ...]:
 
 
 _ROBE = re.compile(r"\b(?:robe|roberto iniesta|iniesta)\b")
+_VERBO_DE_DECIR = (r"(?:recuerda|record[oó]|dijo|dice|explica|explic[oó]|afirma|afirm[oó]|"
+                   r"cuenta|cont[oó]|señala|señal[oó]|añade|añadi[oó]|asegura|asegur[oó]|"
+                   r"reconoce|reconoci[oó]|comenta|coment[oó]|apunta|apunt[oó]|escribe|"
+                   r"escribi[oó]|pregunta|pregunt[oó]|responde|respondi[oó])")
+_NOMBRE = r"[A-ZÁÉÍÓÚÑ][\wáéíóúñü]+"
+# Quién habla: «Uoho recuerda», «afirmó León», «dijo el consejero». Sobre el texto con
+# sus mayúsculas: en minúsculas, cualquier palabra delante de «dijo» parecía un nombre.
+_QUIEN_HABLA = re.compile(rf"\b({_NOMBRE}) {_VERBO_DE_DECIR}\b"
+                          rf"|\b{_VERBO_DE_DECIR} (?:(?:el|la) )?({_NOMBRE}|[a-záéíóúñü]{{5,}})\b")
 
 
-def habla_robe(tramo: str, articulo: str, *, ventana: int = 220) -> bool:
-    """¿El artículo nombra a Robe en el tramo o justo antes? Es lo mínimo para dar por
-    suya una declaración; sin eso, se cuenta sin comillas como la de cualquier otro."""
+def habla_robe(tramo: str, articulo: str, *, ventana: int = 700) -> bool:
+    """¿El artículo nombra a Robe en el tramo o poco antes? Es lo mínimo para dar por suya
+    una declaración; sin eso, se cuenta sin comillas como la de cualquier otro. La
+    ventana es ancha a propósito: con 220 caracteres se quedaban fuera las dos frases de
+    la carta al alcalde de Plasencia, que el artículo cita una detrás de otra."""
     plano, t = _plano(articulo), _plano(tramo)
     i = plano.find(t)
     if i < 0:
         return False
+    # Si lo último que el artículo dice antes es que habla OTRO («Uoho recuerda:»), la
+    # frase es suya, aunque nombre a Robe unas líneas más arriba.
+    limpio = tramo.strip().strip("«»\"“”'")
+    crudo = (articulo or "").find(limpio)
+    if crudo >= 0:
+        # Hasta donde empieza la cita: el tramo puede traer dentro su «Robe dijo:».
+        abre = re.search(r"[«\"“]", limpio)
+        hasta = crudo + (abre.start() if abre else 0)
+        ultimo = None
+        for ultimo in _QUIEN_HABLA.finditer(articulo[max(0, crudo - 200): hasta]):
+            pass
+        if ultimo is not None:
+            quien = (ultimo.group(1) or ultimo.group(2) or "").lower()
+            if not _ROBE.fullmatch(quien) and quien != "roberto":
+                return False
     return bool(_ROBE.search(plano[max(0, i - ventana): i + len(t)]))
 
 
-def inventario_de_noticia(titular: str, articulo: str) -> tuple[list[Historia], tuple[str, ...]]:
-    """(historias, títulos de obras ajenas) de una noticia, todo del artículo: el tramo
-    tiene que estar literal en él."""
+def inventario_de_noticia(titular: str, articulo: str
+                          ) -> tuple[list[Historia], tuple[str, ...], bool]:
+    """(historias, títulos de obras ajenas, ¿es un homenaje a Robe?) de una noticia, todo
+    del artículo: el tramo tiene que estar literal en él."""
     from app.services.news_research import _json
 
     data = _json(_SYS_EDITOR_NOTICIA,
@@ -1008,20 +1038,36 @@ def inventario_de_noticia(titular: str, articulo: str) -> tuple[list[Historia], 
         # de los demás, no.
         out.append(Historia(h.get("gancho") or tramo, ancla, FUENTE_NOTICIA, tramo, quien,
                             True, citable=quien == "robe"))
-    return out, titulos_literales((data or {}).get("titulos") or [], articulo)
+    return (out, titulos_literales((data or {}).get("titulos") or [], articulo),
+            (data or {}).get("homenaje") is True)
 
 
 def inventario_noticia(titular: str, articulo: str) -> list[Historia]:
     return inventario_de_noticia(titular, articulo)[0]
 
 
-def inventario_contexto(titular: str, articulo: str, casa: str,
-                        ya: list[Historia]) -> list[Historia]:
-    """Hasta dos historias de CONTEXTO, del material de casa y con su tramo literal. Si el
-    modelo falla o nada viene a cuento, ninguna: la noticia sale sin contexto, no con uno
-    traído por los pelos."""
+def inventario_contexto(titular: str, articulo: str, casa: str, ya: list[Historia], *,
+                        homenaje: bool = False,
+                        reconocimientos: tuple[str, ...] = ()) -> list[Historia]:
+    """Las historias de CONTEXTO, del material de casa y con su tramo literal.
+
+    Si la noticia es un homenaje a Robe, el contexto son los OTROS reconocimientos de la
+    lista de casa, sin preguntar a nadie: dejárselo al editor dio una Medalla de 2026 como
+    contexto de una carta del año 2000 y ningún reconocimiento para el sello ni para el
+    cuadro (muestra del 20-11-2026). Si no lo es, elige el editor entre las fichas y lo
+    ya publicado, y la lista de reconocimientos ni la ve. Si el modelo falla o nada viene
+    a cuento, ninguna: la noticia sale sin contexto, no con uno traído por los pelos.
+    """
     from app.services.news_research import _json
 
+    if homenaje and reconocimientos:
+        otros = [h for h in reconocimientos
+                 if not repite_la_noticia(h, articulo) and not _repetida(h, ya)]
+        if otros:
+            return [Historia(h, "contexto", FUENTE_CASA, h, "hechos", True)
+                    for h in otros[-MAX_CONTEXTO:]]
+    for h in reconocimientos:
+        casa = (casa or "").replace(f"- {h}", "")
     if not (casa or "").strip():
         return []
     try:
@@ -1145,7 +1191,7 @@ def _titulos_del_catalogo(db) -> list[str]:
 
 
 def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
-                     fecha: str = "") -> str | None:
+                     fecha: str = "", reconocimientos: tuple[str, ...] = ()) -> str | None:
     """El cuerpo de una noticia por historias, o None si el artículo no da para ello.
 
     `casa`: el material nuestro que puede dar contexto (`news_research.material_de_casa`).
@@ -1159,11 +1205,12 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
 
     if not (articulo or "").strip():
         return None
-    del_articulo, otros_titulos = inventario_de_noticia(titular, articulo)
+    del_articulo, otros_titulos, homenaje = inventario_de_noticia(titular, articulo)
     if not del_articulo:
         logger.info("[historias] noticia «%s»: ninguna historia en el artículo", titular)
         return None
-    contexto = inventario_contexto(titular, articulo, casa, del_articulo)
+    contexto = inventario_contexto(titular, articulo, casa, del_articulo,
+                                   homenaje=homenaje, reconocimientos=reconocimientos)
     if len(del_articulo) + len(contexto) < 2:
         logger.info("[historias] noticia «%s»: una historia y sin contexto, no da para un "
                     "post", titular)
@@ -1171,46 +1218,57 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     titulos = [titular, *otros_titulos, *_titulos_del_catalogo(db)]
     de_casa = "\n".join(robe_facts.must_facts_lines(db))
-    citas_de_robe = [h.tramo for h in del_articulo if h.citable]
-    pasaje = pasajes_de(articulo, [h.tramo for h in del_articulo])
-    palabras = min(90 + 50 * len(del_articulo), 380)
-    cuerpo, _ = _seccion(client, (
-        f"Escribe el CUERPO de la noticia «{titular}» para un blog de fans de Robe y "
-        "Extremoduro.\nINSTRUCCIONES:\n"
-        "- SIN encabezados. Dos o tres párrafos. El primero cuenta qué ha pasado, quién, "
-        "cuándo y dónde; los siguientes, los detalles.\n"
-        f"- Como mucho {palabras} palabras. Cada dato UNA sola vez: no lo repitas con otras "
-        "palabras ni lo resumas al final. Sin frase de cierre.\n"
-        "- Cuenta SOLO lo que dicen estos TRAMOS del artículo, con sus datos exactos "
-        "(nombres, cargos, cifras, fechas) y sin inflarlos:\n"
-        + "\n".join(f"  · «{h.tramo}»" for h in del_articulo) + "\n"
-        + (f"- Se escribe en {fecha}. Toda fecha lleva su AÑO, también si el artículo no lo "
-           "escribe («el sábado 14 de noviembre» es «el sábado 14 de noviembre de 2026» si "
-           "es de este año).\n" if fecha else "")
-        + "- No expliques quién era Robe ni recuerdes su biografía: el lector lo sabe.\n"
-        "- Cuéntalo como hechos: nunca «según el artículo», «según la información» ni "
-        "nada que hable de dónde sale el dato.\n"
-        + ("- A Robe se le puede citar: quién lo dice va DELANTE («Robe escribió: «…»») y la "
-           "cita va ENTERA entre «» y copiada LITERAL del artículo.\n" if citas_de_robe else "")
-        + "- Lo que dice otra persona se cuenta en tu voz y SIN comillas, diciendo quién lo "
-        "dijo (su nombre y su cargo, si el artículo los da). Los títulos de obras, premios "
-        "y canciones sí van entre «».\n"
-        "- Los DATOS DE CASA son para no equivocarte (si el artículo dice otra cosa de "
-        "Robe, vale lo de casa): no los añadas si la noticia no habla de ello.\n"
-        f"- {_REGLAS_VOZ}\n"
-        f"ARTÍCULO (no nombres el medio):\n\"\"\"{pasaje}\"\"\"\n\n"
-        f"DATOS DE CASA:\n{de_casa}\n"
-        'Devuelve JSON {"body_md": "..."}'),
-        # Los datos de casa, delante: lo que se comprueba se corta a 6.000 caracteres. Y
-        # la fecha en que se escribe, o el verificador quita el año que se le pide al
-        # redactor porque «el artículo no lo dice» (20-11-2026, tres intentos de tres).
-        f"{de_casa}\n\n"
-        + (f"[El artículo es de {fecha}: un día que da sin año es de ese año.]\n\n"
-           if fecha else "") + pasaje,
-        titulos, max_tokens=1100, db=db, intentos=3,
-        extra_check=lambda t: (citas_ajenas(t, citas_de_robe, titulos)
-                               + (fechas_sin_anio(t) if fecha else [])))
-    cuerpo = sin_encabezados(cuerpo)
+    def _cuerpo(historias: list[Historia]) -> str:
+        citas_de_robe = [h.tramo for h in historias if h.citable]
+        pasaje = pasajes_de(articulo, [h.tramo for h in historias])
+        palabras = min(90 + 50 * len(historias), 380)
+        texto, _ = _seccion(client, (
+            f"Escribe el CUERPO de la noticia «{titular}» para un blog de fans de Robe y "
+            "Extremoduro.\nINSTRUCCIONES:\n"
+            "- SIN encabezados. Dos o tres párrafos. El primero cuenta qué ha pasado, quién, "
+            "cuándo y dónde; los siguientes, los detalles.\n"
+            f"- Como mucho {palabras} palabras. Cada dato UNA sola vez: no lo repitas con otras "
+            "palabras ni lo resumas al final. Sin frase de cierre.\n"
+            "- Cuenta SOLO lo que dicen estos TRAMOS del artículo, con sus datos exactos "
+            "(nombres, cargos, cifras, fechas) y sin inflarlos:\n"
+            + "\n".join(f"  · «{h.tramo}»" for h in historias) + "\n"
+            + (f"- Se escribe en {fecha}. Toda fecha lleva su AÑO, también si el artículo no lo "
+               "escribe («el sábado 14 de noviembre» es «el sábado 14 de noviembre de 2026» si "
+               "es de este año).\n" if fecha else "")
+            + "- No expliques quién era Robe ni recuerdes su biografía: el lector lo sabe.\n"
+            "- Cuéntalo como hechos: nunca «según el artículo», «según la información» ni "
+            "nada que hable de dónde sale el dato.\n"
+            + ("- A Robe se le puede citar: quién lo dice va DELANTE («Robe escribió: «…»») y la "
+               "cita va ENTERA entre «» y copiada LITERAL del artículo.\n" if citas_de_robe else "")
+            + "- Lo que dice otra persona se cuenta en tu voz y SIN comillas, diciendo quién lo "
+            "dijo (su nombre y su cargo, si el artículo los da). Los títulos de obras, premios "
+            "y canciones sí van entre «».\n"
+            "- Los DATOS DE CASA son para no equivocarte (si el artículo dice otra cosa de "
+            "Robe, vale lo de casa): no los añadas si la noticia no habla de ello.\n"
+            f"- {_REGLAS_VOZ}\n"
+            f"ARTÍCULO (no nombres el medio):\n\"\"\"{pasaje}\"\"\"\n\n"
+            f"DATOS DE CASA:\n{de_casa}\n"
+            'Devuelve JSON {"body_md": "..."}'),
+            # Los datos de casa, delante: lo que se comprueba se corta a 6.000 caracteres. Y
+            # la fecha en que se escribe, o el verificador quita el año que se le pide al
+            # redactor porque «el artículo no lo dice» (20-11-2026, tres intentos de tres).
+            f"{de_casa}\n\n"
+            + (f"[El artículo es de {fecha}: un día que da sin año es de ese año.]\n\n"
+               if fecha else "") + pasaje,
+            titulos, max_tokens=1100, db=db, intentos=3,
+            extra_check=lambda t: (citas_ajenas(t, citas_de_robe, titulos)
+                                   + (fechas_sin_anio(t) if fecha else [])))
+        return sin_encabezados(texto)
+
+    cuerpo = _cuerpo(del_articulo)
+    sin_declaraciones = [h for h in del_articulo if h.quien != "tercero"]
+    if len(cuerpo) < 300 and 0 < len(sin_declaraciones) < len(del_articulo):
+        # El redactor se empeña en entrecomillar lo que dijo un tercero (el consejero, en
+        # la noticia del cuadro, tres intentos de tres). Antes de quedarse sin noticia,
+        # se escribe sin esa declaración: lo que se pierde es una frase, no el hecho.
+        logger.info("[historias] noticia «%s»: se reintenta sin las declaraciones de "
+                    "terceros", titular)
+        cuerpo = _cuerpo(sin_declaraciones)
     if len(cuerpo) < 300:
         logger.info("[historias] noticia «%s»: el cuerpo no salió limpio", titular)
         return None

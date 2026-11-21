@@ -415,7 +415,7 @@ def test_el_titulo_de_una_obra_ajena_no_es_una_cita(monkeypatch):
     monkeypatch.setattr("app.services.news_research._json", _editor(
         [], ["La vida que nos dieron las canciones", "Rasgo Extremeño", "La vida es bella",
              "Robe es parte de lo que somos. Y lo será siempre"]))
-    _, titulos = hd.inventario_de_noticia("x", articulo)
+    _, titulos, _homenaje = hd.inventario_de_noticia("x", articulo)
     # Solo los que están literales en el artículo, y ninguna frase.
     assert titulos == ("La vida que nos dieron las canciones", "Rasgo Extremeño")
     assert hd.citas_que_fallan(sec, articulo, list(titulos), no_citable=articulo) == []
@@ -453,8 +453,9 @@ def _escribir(monkeypatch, del_articulo, contexto, *, cuerpo=CUERPO, seccion=SEC
     monkeypatch.setenv("OPENAI_API_KEY", "x")
     monkeypatch.setattr("openai.OpenAI", lambda **k: object())
     monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
-    monkeypatch.setattr(hd, "inventario_de_noticia", lambda t, a: (del_articulo, ("Obra",)))
-    monkeypatch.setattr(hd, "inventario_contexto", lambda t, a, casa, ya: contexto)
+    monkeypatch.setattr(hd, "inventario_de_noticia",
+                        lambda t, a: (del_articulo, ("Obra",), False))
+    monkeypatch.setattr(hd, "inventario_contexto", lambda t, a, casa, ya, **k: contexto)
     monkeypatch.setattr(hd, "_seccion", _sec)
     return hd.escribir_noticia(None, "Titular", ARTICULO_CUADRO, casa=CASA,
                                fecha="noviembre de 2026"), prompts
@@ -659,3 +660,59 @@ def test_la_lista_de_reconocimientos_es_material_de_casa():
     assert hd.repite_la_noticia(sello, articulo)
     medalla = next(h for h in hechos if "Medalla" in h)
     assert hd.tramo_literal(medalla, texto) and not hd.repite_la_noticia(medalla, articulo)
+
+
+RECONOCIMIENTOS = (
+    "El 26 de mayo de 2026, «Caída libre», la canción de Leiva con Robe, ganó el premio a "
+    "la mejor canción pop-rock en los III Premios de la Academia de la Música de España.",
+    "El 27 de mayo de 2026, en el Teatro de Rojas de Toledo, Alén Ayerdi recogió la Medalla "
+    "de Oro al Mérito en las Bellas Artes concedida a Robe.",
+    "Correos pone en circulación el 23 de noviembre de 2026 un sello dedicado a Robe, con un "
+    "valor postal de 5 euros y una tirada de 65.000 ejemplares.")
+ARTICULO_SELLO = ("Correos emite un sello dedicado a Robe en la serie Música con un valor "
+                  "postal de 5 euros y una tirada de 65.000 ejemplares.")
+
+
+def test_el_contexto_de_un_homenaje_son_los_otros_reconocimientos(monkeypatch):
+    """Sin preguntar al editor: dejárselo dio una Medalla de 2026 como contexto de una
+    carta del año 2000 y ningún reconocimiento para el sello."""
+    def _no_se_llama(*a, **k):
+        raise AssertionError("un homenaje no pregunta al editor")
+
+    monkeypatch.setattr("app.services.news_research._json", _no_se_llama)
+    hs = hd.inventario_contexto("Correos dedica un sello a Robe", ARTICULO_SELLO, "casa", [],
+                                homenaje=True, reconocimientos=RECONOCIMIENTOS)
+    assert [h.tramo for h in hs] == list(RECONOCIMIENTOS[:2])     # el sello es la noticia
+    assert all(h.fuente == hd.FUENTE_CASA and h.afirmable for h in hs)
+
+
+def test_lo_que_no_es_un_homenaje_no_ve_la_lista_de_reconocimientos(monkeypatch):
+    vistos = []
+    monkeypatch.setattr("app.services.news_research._json",
+                        lambda sistema, usuario, **k: (vistos.append(usuario), {})[1])
+    casa = ("RECONOCIMIENTOS:\n" + "\n".join(f"- {h}" for h in RECONOCIMIENTOS)
+            + "\n\nFICHA NUESTRA de Plasencia:\nPlasencia es una ciudad de Cáceres.")
+    assert hd.inventario_contexto("La carta de Robe al alcalde", "Robe escribió una carta.",
+                                  casa, [], reconocimientos=RECONOCIMIENTOS) == []
+    assert "Medalla" not in vistos[0] and "FICHA NUESTRA de Plasencia" in vistos[0]
+
+
+def test_si_el_redactor_se_empena_en_citar_a_un_tercero_se_escribe_sin_su_frase(monkeypatch):
+    llamadas = []
+
+    def _sec(client, prompt, fuente, titulos, **k):
+        llamadas.append(prompt)
+        return ("" if "lo que dijo el consejero" in prompt else CUERPO), []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", lambda **k: object())
+    monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
+    monkeypatch.setattr(hd, "inventario_de_noticia", lambda t, a: ([
+        _h(hd.FUENTE_NOTICIA, "entregó el premio en Badalona el 14 de noviembre"),
+        _h(hd.FUENTE_NOTICIA, "ganó el certamen Rasgo Extremeño con el cuadro"),
+        _h(hd.FUENTE_NOTICIA, "lo que dijo el consejero durante el acto", quien="tercero")],
+        (), False))
+    monkeypatch.setattr(hd, "inventario_contexto", lambda *a, **k: [])
+    monkeypatch.setattr(hd, "_seccion", _sec)
+    assert hd.escribir_noticia(None, "Titular", ARTICULO_CUADRO) == CUERPO
+    assert len(llamadas) == 2 and "lo que dijo el consejero" not in llamadas[1]
