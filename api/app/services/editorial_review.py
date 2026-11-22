@@ -44,7 +44,9 @@ MIN_WORDS = 250
 # cuadro «El rey de Extremadura», que David aprobó escrita a mano (20-11-2026), no llega
 # a 250 palabras, y la muestra de ese día rechazaba con 58 una noticia correcta solo
 # «por quedar por debajo de las 250 palabras».
-MIN_WORDS_POR_TIPO = {"person": 150, "news": 150}
+# 120 y no 150: la del sello de Correos, con todos sus datos y un 82 de nota, se quedaba
+# en 139 palabras y salía rechazada solo por el suelo.
+MIN_WORDS_POR_TIPO = {"person": 150, "news": 120}
 
 
 def _min_words(kind: str) -> int:

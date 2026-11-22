@@ -333,8 +333,11 @@ noticia desde un inventario de historias con su tramo LITERAL del artículo. Med
   con su fuente), las fichas de quien nombra el artículo, lo propio del dossier de sus
   canciones y el cuerpo de las noticias publicadas desde `NOTICIAS_FIABLES_DESDE`. Lo
   que repite la noticia no es contexto. El día D se vuelve a reunir igual.
+- **Si la noticia es un homenaje a Robe, el contexto son los otros reconocimientos de la
+  lista, tal cual** y sin pasar por el redactor (los adornaba y les cambiaba el orden).
+  Si no lo es, el editor elige entre las fichas y lo publicado, y la lista ni la ve.
 - **El juez mide una noticia que no es un concierto con vara de noticia breve**, y su
-  suelo de palabras es 150. Antes solo conocía la crónica y el anuncio de un evento.
+  suelo de palabras es 120. Antes solo conocía la crónica y el anuncio de un evento.
 
 Sin historia del artículo no hay post. Antes de encenderlo falta medirlo por el camino
 completo (`research_and_write` y la cascada del día D).
