@@ -898,6 +898,7 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
 # - **Una noticia breve lleva contexto**, del material de casa y con su tramo literal.
 # - **Sin historia del artículo no hay post.** Con un artículo fino hay post breve: una
 #   historia del artículo más el contexto.
+ENCABEZADO_RECONOCIMIENTOS = "Otros reconocimientos a Robe"
 PASADAS_INVENTARIO = 2
 MAX_HISTORIAS_NOTICIA = 9
 FUENTE_NOTICIA = "artículo de la noticia"
@@ -1286,7 +1287,14 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
         logger.info("[historias] noticia «%s»: el cuerpo no salió limpio", titular)
         return None
     partes = [cuerpo]
-    if contexto:
+    if contexto and all(h.tramo in reconocimientos for h in contexto):
+        # Los reconocimientos de la lista de casa van TAL CUAL: son frases nuestras, con su
+        # fuente, y pasarlas por el redactor las adornaba («el premio reconoció una
+        # colaboración concreta») y les cambiaba el orden hasta que la comprobación contra
+        # el artículo dejaba de reconocer los nombres (muestra del 20-11-2026).
+        partes.append(f"## {ENCABEZADO_RECONOCIMIENTOS}\n\n"
+                      + "\n\n".join(h.tramo for h in contexto))
+    elif contexto:
         seccion, _ = _seccion(client, (
             f"Escribe UNA sección de CONTEXTO para la noticia «{titular}» en un blog de fans "
             "de Robe y Extremoduro.\nINSTRUCCIONES:\n"

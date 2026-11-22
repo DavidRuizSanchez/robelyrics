@@ -569,11 +569,13 @@ def test_la_vara_de_una_noticia_que_no_es_un_concierto(monkeypatch):
     monkeypatch.setattr("openai.OpenAI", _Cliente)
     monkeypatch.setattr(er, "discografia_real", lambda: "")
     er.review("Correos emite un sello de Robe el 23 de noviembre.", kind="news", subject="sello")
-    er.review("Crónica.", kind="news", subject="x", event_when="past")
+    er.review("El sello sale el 23.", kind="news", subject="x", event_when="future")
     er.review("Un disco.", kind="album", subject="x")
     textos = [str(v) for v in vistos]
-    assert "NOTICIA BREVE" in textos[0]
-    assert "NOTICIA BREVE" not in textos[1] and "NOTICIA BREVE" not in textos[2]
+    # También con fecha: al sello se le reprochaba «no decir dónde se celebra».
+    assert "NOTICIA BREVE" in textos[0] and "NOTICIA BREVE" in textos[1]
+    assert "ANUNCIO de un evento FUTURO" in textos[1]
+    assert "NOTICIA BREVE" not in textos[2]
 
 
 def test_un_dia_sin_ano_se_devuelve_al_redactor():
@@ -742,3 +744,23 @@ def test_lo_que_el_articulo_recuerda_de_pasada_si_puede_ser_contexto():
     hs = hd.inventario_contexto("Correos dedica un sello a Robe", articulo, "casa", ya,
                                 homenaje=True, reconocimientos=RECONOCIMIENTOS)
     assert [h.tramo for h in hs] == list(RECONOCIMIENTOS[:2])
+
+
+def test_los_reconocimientos_van_tal_cual_sin_pasar_por_el_redactor(monkeypatch):
+    llamadas = []
+
+    def _sec(client, prompt, fuente, titulos, **k):
+        llamadas.append(prompt)
+        return CUERPO, []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", lambda **k: object())
+    monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
+    monkeypatch.setattr(hd, "inventario_de_noticia", lambda t, a: (
+        [_h(hd.FUENTE_NOTICIA, ARTICULO_SELLO)], (), True))
+    monkeypatch.setattr(hd, "_seccion", _sec)
+    texto = hd.escribir_noticia(None, "Correos dedica un sello a Robe", ARTICULO_SELLO,
+                                reconocimientos=RECONOCIMIENTOS)
+    assert len(llamadas) == 1                      # solo el cuerpo
+    assert texto == (f"{CUERPO}\n\n## {hd.ENCABEZADO_RECONOCIMIENTOS}\n\n"
+                     f"{RECONOCIMIENTOS[0]}\n\n{RECONOCIMIENTOS[1]}")

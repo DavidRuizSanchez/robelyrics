@@ -232,11 +232,13 @@ def review(
             "cuándo/dónde.\n"
         )
 
-    elif kind == "news":
+    if kind == "news":
         # Ni crónica ni anuncio de concierto: un premio, un sello, una publicación, una
         # declaración. La rúbrica solo conocía los dos primeros casos y medía estas
         # noticias con la vara de una crónica (rigor 18-38 en tres de tres, 19-11-2026).
-        when_line = (
+        # Va también cuando el hecho tiene fecha: al sello de Correos, que sale el 23-11,
+        # se le reprochaba «no decir dónde se celebra» como a un concierto.
+        when_line += (
             "Si NO es un concierto ni un evento con cartel, sino la noticia de un HECHO "
             "(un premio, una emisión, una publicación, un homenaje institucional, una "
             "declaración), la vara es la de una NOTICIA BREVE: si dice con datos EXACTOS "
