@@ -898,6 +898,8 @@ def escribir_pieza(db, client, pieza: Pieza, historias: list[Historia], *,
 # - **Una noticia breve lleva contexto**, del material de casa y con su tramo literal.
 # - **Sin historia del artículo no hay post.** Con un artículo fino hay post breve: una
 #   historia del artículo más el contexto.
+PASADAS_INVENTARIO = 2
+MAX_HISTORIAS_NOTICIA = 9
 FUENTE_NOTICIA = "artículo de la noticia"
 FUENTE_CASA = "material de casa"
 # David (20-11-2026), con la primera muestra delante: «me vale, pero es demasiado corta,
@@ -1015,11 +1017,18 @@ def inventario_de_noticia(titular: str, articulo: str
     del artículo: el tramo tiene que estar literal en él."""
     from app.services.news_research import _json
 
-    data = _json(_SYS_EDITOR_NOTICIA,
-                 f"TITULAR: {titular}\n\nARTÍCULO:\n{articulo[:9000]}", max_tokens=1500,
-                 temperature=0.2)
+    # Dos pasadas y la unión: de una a otra el editor sacaba cuatro o siete historias del
+    # mismo artículo, y con cuatro la noticia se quedaba en 117 palabras (20-11-2026).
+    pasadas = [_json(_SYS_EDITOR_NOTICIA,
+                     f"TITULAR: {titular}\n\nARTÍCULO:\n{articulo[:9000]}", max_tokens=1500,
+                     temperature=0.2) or {} for _ in range(PASADAS_INVENTARIO)]
+    data = {"historias": [h for d in pasadas for h in d.get("historias") or []],
+            "titulos": [t for d in pasadas for t in d.get("titulos") or []],
+            "homenaje": any(d.get("homenaje") is True for d in pasadas)}
     out: list[Historia] = []
-    for h in (data or {}).get("historias") or []:
+    for h in data["historias"][:2 * MAX_HISTORIAS_NOTICIA]:
+        if len(out) >= MAX_HISTORIAS_NOTICIA:
+            break
         tramo = (h.get("tramo") or "").strip()
         # El modelo a veces escribe una descripción en «ancla»: se interpreta, no se tira
         # la historia (19-11-2026: así salían 0 historias de artículos con material).
@@ -1060,9 +1069,13 @@ def inventario_contexto(titular: str, articulo: str, casa: str, ya: list[Histori
     """
     from app.services.news_research import _json
 
+    # «Lo que ya cuenta la noticia» son sus tramos, no el artículo entero: el del sello
+    # recordaba de pasada la Medalla, y por eso la Medalla se quedaba fuera del contexto
+    # aunque el cuerpo no la contara (muestra del 20-11-2026).
+    contado = (f"{titular}. " + " ".join(h.tramo for h in ya)) if ya else articulo
     if homenaje and reconocimientos:
         otros = [h for h in reconocimientos
-                 if not repite_la_noticia(h, articulo) and not _repetida(h, ya)]
+                 if not repite_la_noticia(h, contado) and not _repetida(h, ya)]
         if otros:
             return [Historia(h, "contexto", FUENTE_CASA, h, "hechos", True)
                     for h in otros[-MAX_CONTEXTO:]]
@@ -1082,8 +1095,8 @@ def inventario_contexto(titular: str, articulo: str, casa: str, ya: list[Histori
         tramo = (h.get("tramo") or "").strip()
         if not tramo_literal(tramo, casa) or _repetida(tramo, ya + out):
             continue
-        # Lo que ya dice el artículo no es contexto: es la noticia.
-        if tramo_literal(tramo, articulo) or repite_la_noticia(tramo, articulo):
+        # Lo que ya cuenta la noticia no es contexto.
+        if tramo_literal(tramo, articulo) or repite_la_noticia(tramo, contado):
             continue
         out.append(Historia(h.get("gancho") or tramo, "contexto", FUENTE_CASA, tramo,
                             "hechos", True))

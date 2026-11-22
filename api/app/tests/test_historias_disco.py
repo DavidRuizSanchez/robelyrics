@@ -716,3 +716,29 @@ def test_si_el_redactor_se_empena_en_citar_a_un_tercero_se_escribe_sin_su_frase(
     monkeypatch.setattr(hd, "_seccion", _sec)
     assert hd.escribir_noticia(None, "Titular", ARTICULO_CUADRO) == CUERPO
     assert len(llamadas) == 2 and "lo que dijo el consejero" not in llamadas[1]
+
+
+def test_el_inventario_une_dos_pasadas_sin_repetir(monkeypatch):
+    respuestas = iter([
+        {"historias": [{"gancho": "a", "ancla": "dato", "quien": "hechos",
+                        "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"}],
+         "titulos": ["Rasgo Extremeño"], "homenaje": False},
+        {"historias": [{"gancho": "a", "ancla": "dato", "quien": "hechos",
+                        "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"},
+                       {"gancho": "b", "ancla": "dato", "quien": "hechos",
+                        "tramo": "ha ganado el certamen Rasgo Extremeño con el cuadro"}],
+         "titulos": ["El rey de Extremadura"], "homenaje": True}])
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: next(respuestas))
+    hs, titulos, homenaje = hd.inventario_de_noticia("x", ARTICULO_CUADRO)
+    assert [h.gancho for h in hs] == ["a", "b"]
+    assert titulos == ("Rasgo Extremeño", "El rey de Extremadura") and homenaje is True
+
+
+def test_lo_que_el_articulo_recuerda_de_pasada_si_puede_ser_contexto():
+    """El artículo del sello nombraba la Medalla; el cuerpo no la contaba, y aun así se
+    quedaba fuera del contexto por «repetir la noticia»."""
+    articulo = ARTICULO_SELLO + " " + RECONOCIMIENTOS[1]
+    ya = [hd.Historia("g", "dato", hd.FUENTE_NOTICIA, ARTICULO_SELLO, "hechos", True)]
+    hs = hd.inventario_contexto("Correos dedica un sello a Robe", articulo, "casa", ya,
+                                homenaje=True, reconocimientos=RECONOCIMIENTOS)
+    assert [h.tramo for h in hs] == list(RECONOCIMIENTOS[:2])
