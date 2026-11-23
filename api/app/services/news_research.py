@@ -926,14 +926,25 @@ def research_and_write(
         # El contexto sale de lo que nombra el ARTÍCULO, no de la búsqueda web: una
         # canción que solo aparece en un resultado de Google no es de lo que va la noticia.
         casa = material_de_casa(db, f"{headline}\n{source_excerpt[:6000]}")
+        from datetime import date as _date
+
+        from app.services.historias_disco import anios_de_fechas, nota_de_fechas
+
+        hoy = (today if hasattr(today, "year")
+               else _date.fromisoformat(str(today)[:10]) if today else _date.today())
         cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa,
-                                  fecha=_mes_y_anio(today),
+                                  fecha=_mes_y_anio(today), hoy=hoy,
                                   reconocimientos=hechos_reconocidos())
         if not cuerpo:
             return {"title": "", "is_relevant": False,
                     "motivo": "sin historias bastantes en el artículo"}
+        # Quien comprueba el cuerpo contra el artículo tiene que saber el año que el
+        # artículo determina sin escribirlo, o retira la frase que lo lleva (la fecha del
+        # concierto de Rebrote, medido el 23-11-2026).
+        nota = nota_de_fechas(anios_de_fechas(f"{headline}\n{source_excerpt}", hoy))
         return _cerrar_noticia(db, subject=subject, body_md=cuerpo,
-                               source_excerpt=source_excerpt, cronica_txt="",
+                               source_excerpt=f"{nota}\n\n{source_excerpt}".strip(),
+                               cronica_txt="",
                                dossier_txt="\n\n".join(
                                    [dossier_txt, casa, *robe_facts.must_facts_lines(db)]),
                                target_kw=subject,
