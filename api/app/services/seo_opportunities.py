@@ -103,12 +103,32 @@ def nombre_alias_index(db) -> dict[str, str]:
     return idx
 
 
+def letra_de(db, entity_type: str, entity_id: int) -> str:
+    """La letra de una canción: está en su ficha aunque no en `body_md`.
+
+    Quien busca «voy a tatuarme azul una casita» llega a la ficha de «A fuego», que
+    trae la letra entera: eso no es un hueco de contenido (23-11-2026).
+    """
+    if entity_type != "song":
+        return ""
+    from app.db.models import Line
+
+    return " ".join(t for (t,) in db.query(Line.text).filter(Line.song_id == entity_id)
+                    .order_by(Line.line_index).all() if t)
+
+
 def classify_queries(
     queries: list[dict], *, body_md: str | None, meta_title: str | None,
     meta_description: str | None, alias: dict[str, str] | None = None,
+    letra: str = "",
 ) -> dict[str, list[dict]]:
-    """Reparte las consultas de una URL en `body`, `meta` y `covered`."""
-    body = seo_style.expandir_alias(flatten(body_md), alias)
+    """Reparte las consultas de una URL en `body`, `meta` y `covered`.
+
+    `letra`: la de la canción, si la página la enseña. Cuenta como cuerpo.
+    """
+    from app.services.kw_normalize import es_descarga
+
+    body = seo_style.expandir_alias(flatten(f"{body_md or ''}\n{letra}"), alias)
     meta = seo_style.expandir_alias(
         flatten(f"{meta_title or ''} {meta_description or ''}"), alias)
     out: dict[str, list[dict]] = {"body": [], "meta": [], "covered": []}
@@ -117,9 +137,15 @@ def classify_queries(
             continue
         if not content_tokens(q.get("query") or ""):
             continue
-        if not cubre(body, q["query"]):
+        # Las búsquedas de descarga están prohibidas en todo el proyecto
+        # («discografia marea megaupload» salía como hueco de contenido de Marea).
+        if es_descarga(q.get("query") or ""):
+            continue
+        # `responde` y no `cubre`: una ficha que dice «se formó en Berriozar» responde
+        # a «de dónde es Marea» sin la palabra «dónde» (23-11-2026).
+        if not seo_style.responde(body, q["query"]):
             out["body"].append(q)
-        elif not cubre(meta, q["query"]):
+        elif not seo_style.responde(meta, q["query"]):
             out["meta"].append(q)
         else:
             out["covered"].append(q)
@@ -172,13 +198,27 @@ def detect(db, pages: dict, *, period: str | None = None,
         reparto = classify_queries(
             queries, body_md=sc.body_md, meta_title=sc.meta_title,
             meta_description=sc.meta_description, alias=alias,
+            letra=letra_de(db, entity_type, entity_id),
         )
         for action in ("meta", "body"):
             qs = reparto[action]
-            if not qs:
-                continue
             imp = sum(int(q.get("impressions") or 0) for q in qs)
-            if imp < min_impressions:
+            if not qs or imp < min_impressions:
+                # Lo que estaba en la cola SIN DECIDIR y ya no es un hueco (la página lo
+                # responde, o se quedó sin impresiones) sale de ella: si no, el correo
+                # lo seguiría ofreciendo cada lunes. Lo ya aprobado no se toca.
+                pendiente = (
+                    db.query(SeoOpportunity)
+                    .filter(SeoOpportunity.path == path,
+                            SeoOpportunity.action == action,
+                            SeoOpportunity.status == "detected")
+                    .first()
+                )
+                if pendiente is not None:
+                    pendiente.status = "discarded"
+                    pendiente.error = ("la página ya responde a estas búsquedas: falta "
+                                       "posición o metadata, no contenido"
+                                       if not qs else "ya no llega al mínimo de impresiones")
                 continue
             viva = (
                 db.query(SeoOpportunity)

@@ -457,3 +457,78 @@ def test_el_cuerpo_no_espera(monkeypatch):
     _frio(monkeypatch)
     sc = _SeoContent(CUERPO)
     assert svc.apply_draft(_FakeDb(sc), _Opp()) is True
+
+
+# --- El detector pregunta si la página RESPONDE, no si repite la palabra (23-11-2026) ---
+# Textos reales de prod: la ficha de Marea respondía a las cuatro búsquedas del correo
+# y el detector las daba por hueco porque no decía «dónde», «componentes»…
+
+from app.services import seo_style  # noqa: E402
+
+MAREA = ("## Cómo se formó Marea y quiénes son sus miembros\n\nMarea, la banda española de "
+         "rock, se formó en Berriozar, Navarra en 1997. Kutxi contactó con Alén Ayerdi, "
+         "batería en Begira, y César Ramallo completó la formación.")
+
+
+@pytest.mark.parametrize("query", ["de donde es marea", "de dónde es el grupo marea",
+                                   "componentes de marea", "marea integrantes",
+                                   "integrante de marea"])
+def test_la_ficha_de_marea_responde_sin_repetir_la_pregunta(query):
+    assert seo_style.responde(seo_style.flatten(MAREA), query)
+    assert not seo_style.cubre(seo_style.flatten(MAREA), query)  # la guarda literal no cambia
+
+
+def test_lo_que_la_ficha_no_dice_sigue_siendo_hueco():
+    plano = seo_style.flatten(MAREA)
+    assert not seo_style.responde(plano, "cantante de marea")
+    assert not seo_style.responde(plano, "eduardo beaumont piñas wikipedia")
+    assert not seo_style.responde(plano, "marea gira 2026")
+
+
+@pytest.mark.parametrize("texto, query", [
+    ("La letra de «Extremaydura» abre el disco.", "extrema y dura letra"),
+    ("«Bri bri bli bli» suena en el disco.", "bribriblibli"),
+    ("«Calle Esperanza S/N» cierra el disco.", "calle esperanza sn"),
+])
+def test_la_misma_cosa_escrita_con_otros_espacios(texto, query):
+    assert seo_style.responde(seo_style.flatten(texto), query)
+
+
+def test_una_palabra_corta_no_casa_dentro_de_otra():
+    # «portada» no es «contraportada»
+    assert not seo_style.responde(seo_style.flatten("La contraportada es negra."),
+                                  "material defectuoso portada")
+
+
+def test_nacer_y_fundar_llevan_su_anio_cerca():
+    con = seo_style.flatten("Robe, nacido como Roberto Iniesta en Plasencia el 16 de mayo de "
+                            "1962, fue músico.")
+    sin = seo_style.flatten("Robe, nacido como Roberto Iniesta en Plasencia, fue músico.")
+    assert seo_style.responde(con, "roberto iniesta nacimiento")
+    assert not seo_style.responde(sin, "roberto iniesta nacimiento")
+    # «fundamental» no es «fundó» (casaba en la ficha de /extremoduro)
+    fund = seo_style.flatten("Esta etapa fue fundamental para Extremoduro en 1989.")
+    assert not seo_style.responde(fund, "cuando se fundo extremoduro")
+    assert seo_style.responde(seo_style.flatten("Extremoduro se formó en 1987 en Plasencia."),
+                              "cuando se fundo extremoduro")
+
+
+def test_un_mensaje_politico_no_explica_un_significado():
+    plano = seo_style.flatten("Reincidentes combina su mensaje político con rock.")
+    assert not seo_style.responde(plano, "reincidentes significado")
+
+
+def test_el_verso_esta_en_la_letra_aunque_no_en_el_cuerpo():
+    q = [_q("voy a tatuarme azul una casita", 42)]
+    sin = svc.classify_queries(q, body_md="## A fuego\n\nUna canción de 2002.",
+                               meta_title="A fuego", meta_description="")
+    con = svc.classify_queries(q, body_md="## A fuego\n\nUna canción de 2002.",
+                               meta_title="A fuego", meta_description="",
+                               letra="Voy a tatuarme azul una casita en el corazón")
+    assert sin["body"] and not con["body"]
+
+
+def test_una_busqueda_de_descarga_no_es_hueco():
+    rep = svc.classify_queries([_q("discografia marea megaupload", 10)], body_md=MAREA,
+                               meta_title="Marea", meta_description="")
+    assert not any(rep.values())

@@ -117,7 +117,7 @@ def is_brand(s: str) -> bool:
 # cualquier keyword, se pidan como se pidan. «descargar discografía extremoduro»
 # llegaba al panel como idea de post y al reparto como ampliación.
 _DESCARGA_RE = re.compile(
-    r"\b(descarg\w*|download\w*|mp3|torrent\w*|flac|mega|zip|rar)\b")
+    r"\b(descarg\w*|download\w*|mp3|torrent\w*|flac|mega|megaupload|mediafire|zip|rar)\b")
 
 
 def es_descarga(s: str) -> bool:
