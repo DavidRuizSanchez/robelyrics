@@ -309,7 +309,7 @@ Robe). Ningún gate del blog miraba el artículo.
   pasa los gates contra las fuentes re-descargadas, guarda `content_revisions` y
   revalida. El `PUT /admin/posts` no hace ninguna de las tres cosas.
 
-### Noticias por historias (detrás de `BLOG_NOTICIAS_HISTORIAS`, apagado)
+### Noticias por historias (`BLOG_NOTICIAS_HISTORIAS`, encendido en prod el 23-11-2026)
 
 El motor de siempre hablaba del proceso ("la información disponible no identifica…") y
 montaba secciones sobre lo que no sabía. `historias_disco.escribir_noticia` escribe la
@@ -342,7 +342,7 @@ noticia desde un inventario de historias con su tramo LITERAL del artículo. Med
 Sin historia del artículo no hay post.
 
 Medido el 23-11-2026 por el camino completo (`research_and_write` más los gates del día
-D, en seco sobre 9 noticias reales). Sigue apagado. Lo que destapó:
+D, en seco sobre 9 noticias reales). Lo que destapó:
 
 - **El año de una fecha se sabe o no se pone** (`anios_de_fechas`): lo escribe el
   artículo, o lo fija su día de la semana entre el año anterior y el siguiente. Dar por
@@ -354,8 +354,13 @@ D, en seco sobre 9 noticias reales). Sigue apagado. Lo que destapó:
   el material de casa entero, y el juez sabe que una sección final de contexto no es
   desvío.
 - **El verbo que abre la frase no es parte del nombre** ("Participaron León y…").
-- Pendiente: el sello se queda en 113 palabras y cae por el suelo de 120; una entrevista
-  y un anuncio de concierto sin contexto de casa no pasan el juez (se retienen).
+- Sin arreglar, a sabiendas (David, 23-11-2026: "el sello lo dejamos como está"): el
+  sello se queda en 113 palabras y cae por el suelo de 120; una entrevista y un anuncio
+  de concierto sin contexto de casa no pasan el juez (se retienen).
+
+Encendido ese mismo día con `BLOG_NOTICIAS_HISTORIAS=1` en el `.env` de prod. La variable
+no llegaba al contenedor hasta añadir su línea en `docker-compose.yml` (mismo caso que
+`CORPUS_AUTO_ENTRY`). Para apagarlo: vaciarla en el `.env` y recrear el api.
 
 ## Canales de YouTube: no todos son monotemáticos
 
