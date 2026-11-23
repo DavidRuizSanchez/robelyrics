@@ -228,6 +228,25 @@ def _norm_titulo(t: str) -> str:
     return re.sub(r"[^a-z0-9ñ]+", " ", s).strip()
 
 
+def discos_del_video(video_title: str, albumes: set[str], canciones: set[str]) -> set[str]:
+    """Los discos que nombra el título del propio vídeo.
+
+    «ROBE | Mayéutica | En Directo | Concierto Completo | Alicante 23/09/2022» es un
+    concierto de la gira de ese disco: decir «Mayéutica» en el texto no es citar otra
+    cosa (23-11-2026, el gate lo rechazaba). Un título que también es canción («Deltoya»,
+    «Pedrá», «Agila») no cuenta: ahí no se sabe si el vídeo nombra el disco o la canción,
+    y dar por buena la canción equivocada es el fallo del #504.
+    """
+    titulo = f" {_norm_titulo(video_title or '')} "
+    de_cancion = {_norm_titulo(c) for c in canciones if c}
+    hallados: set[str] = set()
+    for album in albumes:
+        n = _norm_titulo(album or "")
+        if n and n not in de_cancion and f" {n} " in titulo:
+            hallados.add(album)
+    return hallados
+
+
 # --- La formación: quién tocaba en cada disco ---------------------------------------
 #
 # El 29-09-2026 salió el #297: «"Quemando tus recuerdos" · Somos unos animales (1991).

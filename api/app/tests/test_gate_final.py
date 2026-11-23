@@ -287,3 +287,33 @@ def test_el_momento_sale_de_las_notas_del_selector():
     estribillo = "Momento: estribillo (se localiza escuchando el audio)"
     assert momento_del_clip(SimpleNamespace(notas_internas=estribillo, summary=None)) == "estribillo"
     assert momento_del_clip(SimpleNamespace(notas_internas=None, summary=None)) == ""
+
+
+# --- El disco que nombra el propio vídeo se puede citar (23-11-2026) ----------------
+
+_ALBUMES = {"Mayéutica", "Deltoya", "Agila", "La ley innata"}
+_CANCIONES = {"Deltoya", "Agila", "Destrozares", "La carrera"}
+_ALICANTE = "ROBE | Mayéutica | En Directo | Concierto Completo | Alicante 23/09/2022"
+
+
+def test_el_disco_que_nombra_el_video_se_puede_citar():
+    assert gate_final.discos_del_video(_ALICANTE, _ALBUMES, _CANCIONES) == {"Mayéutica"}
+    permitidos = {"Destrozares"} | gate_final.discos_del_video(_ALICANTE, _ALBUMES, _CANCIONES)
+    texto = "«Destrozares» en Alicante, en la gira de «Mayéutica»."
+    assert gate_final.problemas_de_clip(
+        texto, interprete="Robe", titulos_permitidos=permitidos,
+        titulos_catalogo=_ALBUMES | _CANCIONES) == []
+
+
+def test_un_titulo_que_tambien_es_cancion_no_se_da_por_disco():
+    # «Extremoduro - Deltoya (directo)»: no se sabe si es el disco o la canción.
+    assert gate_final.discos_del_video(
+        "Extremoduro - Deltoya (directo 1993)", _ALBUMES, _CANCIONES) == set()
+
+
+def test_un_disco_que_el_video_no_nombra_sigue_bloqueando():
+    permitidos = {"Destrozares"} | gate_final.discos_del_video(_ALICANTE, _ALBUMES, _CANCIONES)
+    hallados = gate_final.problemas_de_clip(
+        "«Destrozares», como en «La ley innata».", interprete="Robe",
+        titulos_permitidos=permitidos, titulos_catalogo=_ALBUMES | _CANCIONES)
+    assert any("La ley innata" in h for h in hallados)

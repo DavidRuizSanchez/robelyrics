@@ -112,9 +112,12 @@ def _catalogo_del_clip(
         permitidos.add(song.title)
         if song.album is not None:
             permitidos.add(song.album.title)
-    catalogo = set(db.execute(select(Song.title)).scalars().all())
-    catalogo |= set(db.execute(select(Album.title)).scalars().all())
-    return permitidos, catalogo
+    canciones = set(db.execute(select(Song.title)).scalars().all())
+    albumes = set(db.execute(select(Album.title)).scalars().all())
+    # El disco que nombra el propio vídeo («ROBE | Mayéutica | En Directo…») también
+    # se puede citar: es la gira de la que sale el clip.
+    permitidos |= gate_final.discos_del_video(clip.video_title or "", albumes, canciones)
+    return permitidos, canciones | albumes
 
 
 def momento_del_clip(item: InstagramQueueItem) -> str:
