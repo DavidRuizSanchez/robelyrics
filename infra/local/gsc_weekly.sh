@@ -69,6 +69,17 @@ arch -arm64 python3 -c 'import shutil,sys; [shutil.copy(f, sys.argv[-1]) for f i
        robelyrics:/opt/robelyrics/data/ \
   || { avisar "No se pudo subir el volcado de GSC a prod (rsync)"; exit 1; }
 
+# Seguimiento de las fusiones (23-11-2026): prod dice cuáles tienen ya sus 4 semanas
+# de después, la Mac baja de GSC esas 4 semanas y las 4 de antes, y `--watch` compara.
+# Si esto falla, la detección sigue: el seguimiento espera a la semana siguiente.
+echo "[gsc-weekly] ventanas de las fusiones…"
+ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.merge_watch exportar' \
+  > "$STAGING/fusiones.json.tmp" && mv "$STAGING/fusiones.json.tmp" "$STAGING/fusiones.json" \
+  && PYTHONPATH="$REPO/api" arch -arm64 python3 -m scripts.seo.merge_watch descargar \
+       --fusiones "$STAGING/fusiones.json" --out "$STAGING/merge_watch_gsc.json" \
+  && rsync -az "$STAGING/merge_watch_gsc.json" robelyrics:/opt/robelyrics/data/ \
+  || avisar "No se pudieron bajar las ventanas de GSC de las fusiones; el seguimiento espera."
+
 echo "[gsc-weekly] detección de oportunidades en prod (email con botones)…"
 ssh robelyrics 'cd /opt/robelyrics && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -m scripts.seo.seo_queue --detect --watch' \
   || avisar "La detección de oportunidades SEO falló en prod. El volcado de GSC sí se subió."
