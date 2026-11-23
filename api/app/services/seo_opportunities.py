@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.services import seo_style
@@ -152,6 +152,63 @@ def classify_queries(
     return out
 
 
+# Lo que el propio detector retira de la cola lleva uno de estos motivos. Eso no es
+# una decisión: si un volcado nuevo vuelve a verlo como hueco, puede volver.
+_RETIRADAS_DEL_DETECTOR = ("la página ya responde", "ya no llega al mínimo")
+DECISION_VIGENTE_DIAS = 90
+
+
+def ya_decidida(db, path: str, action: str, queries: list[dict]) -> bool:
+    """¿Esto ya se intentó y no salió (`noop`), o lo descartó una persona?
+
+    `detect` solo miraba las filas VIVAS, así que una `noop` o un descarte no paraban
+    nada y el lunes siguiente se creaba otra fila igual: Marea llevaba tres `noop`
+    (16-11, 23-11 a las 08:00 y a las 18:18) y Barricada otras tres, y cada una era
+    un correo de rechazo. Cuenta como lo mismo si al menos la mitad de las
+    impresiones de ahora son de búsquedas que ya estaban en aquella fila.
+    """
+    from app.db.models import SeoOpportunity
+
+    desde = datetime.now(UTC) - timedelta(days=DECISION_VIGENTE_DIAS)
+    previas = (
+        db.query(SeoOpportunity)
+        .filter(SeoOpportunity.path == path, SeoOpportunity.action == action,
+                SeoOpportunity.status.in_(["noop", "discarded"]),
+                SeoOpportunity.updated_at >= desde)
+        .all()
+    )
+    total = sum(int(q.get("impressions") or 0) for q in queries) or 1
+    for previa in previas:
+        if previa.status == "discarded" and (previa.error or "").startswith(
+                _RETIRADAS_DEL_DETECTOR):
+            continue
+        vistas = {flatten(q.get("query") or "") for q in (previa.queries or [])}
+        repetidas = sum(int(q.get("impressions") or 0) for q in queries
+                        if flatten(q.get("query") or "") in vistas)
+        if repetidas * 2 >= total:
+            return True
+    return False
+
+
+def motivo_noop(rigor: dict | None) -> str:
+    """Por qué una ampliación no sale, en palabras, para el correo y el panel.
+
+    Antes todo lo que no era un verso falso salía como «el corpus no respalda nada
+    nuevo», y el 23-11 eso tapó que en Fito & Fitipaldis el editor jefe había subido la
+    nota de 18 a 28 y la rechazó porque la ficha entera seguía sin aprobar.
+    """
+    rigor = rigor or {}
+    if rigor.get("bloqueo_duro"):
+        return "hay versos citados que no están en la letra"
+    if rigor.get("verdict") == "reject" and rigor.get("score") is not None:
+        antes = rigor.get("before_score")
+        nota = f"{antes} → {rigor['score']}" if antes is not None else str(rigor["score"])
+        motivo = next(iter(rigor.get("reasons") or []), "")
+        texto = f"el editor jefe la rechaza (nota de la página {nota})"
+        return f"{texto}: {motivo}" if motivo else texto
+    return "el corpus no respalda nada nuevo sobre eso (no se rellena con generalidades)"
+
+
 def _gap_hint(queries: list[dict]) -> str:
     """Las consultas que sostienen el hueco, en palabras, para `augment_entity`."""
     vistos: list[str] = []
@@ -244,6 +301,8 @@ def detect(db, pages: dict, *, period: str | None = None,
             # la cola de `meta`: proponerle otro title es lo que hizo perder su
             # consulta a «Golfa» (cuatro titles en seis días, 11-17-11-2026).
             if action == "meta" and "/" + path.strip("/") in frias:
+                continue
+            if ya_decidida(db, path, action, qs_ord):
                 continue
             fila = SeoOpportunity(
                 path=path, action=action, status="detected",
@@ -497,12 +556,7 @@ def prepare_draft(db, opp) -> str:
                 rigor = (res or {}).get("rigor") or {}
                 opp.status = "noop"
                 opp.draft_notes = {"rigor": rigor}
-                opp.error = (
-                    "hay versos citados que no están en la letra"
-                    if rigor.get("bloqueo_duro")
-                    else "el corpus no respalda nada nuevo sobre eso "
-                         "(no se rellena con generalidades)"
-                )
+                opp.error = motivo_noop(rigor)
                 db.commit()
                 return "noop"
             rigor = res.get("rigor") or {}

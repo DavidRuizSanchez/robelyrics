@@ -528,6 +528,106 @@ def test_el_verso_esta_en_la_letra_aunque_no_en_el_cuerpo():
     assert sin["body"] and not con["body"]
 
 
+# --- Segunda tanda (23-11-2026, tarde): los 4 rechazos del correo de las 18:18 ---
+# Frases de las fichas de prod, con el nombre del sujeto añadido donde la ficha lo
+# dice en otra frase. Las cuatro respondían ya a su búsqueda.
+
+BARRICADA = ("Barricada fue ideada por El Drogas. La primera alineación incluía a El Drogas "
+             "en voz y bajo, Javier Hernández Boni en voz y guitarra y José Landa en la "
+             "batería.")
+FITO = ("Fito & Fitipaldis nació en 1997 como el proyecto paralelo de Fito Cabrales, "
+        "entonces vocalista de Platero y Tú.")
+MAREA_PINAS = ("A continuación se sumó Edu Beaumont, conocido como el Piñas, a quien Kutxi "
+               "había conocido un año antes.")
+NADA_QUE_PERDER = ("## Qué cuenta «Nada que perder»\n\nLa canción de Robe, en los versos «Me "
+                   "equivoco una y otra vez», se explora la aceptación de los errores.")
+
+
+@pytest.mark.parametrize("texto, query", [
+    (BARRICADA, "cantantes de barricada"),          # plural de «cantante»
+    (BARRICADA, "barricada myspace"),               # navegar no es contenido
+    (BARRICADA, "web barricada"),
+    (FITO, "fito grupo anterior"),                  # «entonces vocalista de»
+    (FITO, "grupo anterior de fito"),
+    (MAREA_PINAS, "eduardo beaumont piñas wikipedia"),  # Edu = Eduardo, mismo apellido
+    (NADA_QUE_PERDER, "nada que perder robe significado"),  # «Qué cuenta…»
+])
+def test_los_rechazos_de_la_tarde_ya_respondian(texto, query):
+    assert seo_style.responde(seo_style.flatten(texto), query)
+
+
+def test_lo_que_sigue_siendo_hueco_tras_la_segunda_tanda():
+    # la ficha de Marea no dice quién canta: eso sí es un hueco
+    assert not seo_style.responde(seo_style.flatten(MAREA_PINAS), "cantante marea")
+    # el nombre abreviado necesita el MISMO apellido detrás
+    assert not seo_style.responde(seo_style.flatten("Edu Ramírez tocó el bajo."),
+                                  "eduardo beaumont")
+    # y la forma corta es un prefijo del nombre: «lucha contra» no es «lucho contra»
+    assert not seo_style.responde(seo_style.flatten("Una lucha contra el enemigo interior."),
+                                  "lucho contra el enemigo")
+    # «explorar géneros» no es explicar de qué va una canción
+    assert not seo_style.responde(seo_style.flatten("Le permitió explorar géneros nuevos."),
+                                  "fito significado")
+    # sin nada de contenido no hay respuesta
+    assert not seo_style.responde(seo_style.flatten(BARRICADA), "web oficial")
+
+
+@pytest.mark.parametrize("texto, query", [
+    # «antes de» a secas no dice de dónde venía Fito: habla de Colino
+    ("Miguel Colino tocó con Fito antes de unirse a Extremoduro en 2001.",
+     "grupo anterior de fito"),
+    # «que cuenta con» no explica una canción
+    ("Robe tiene una banda que cuenta con dos guitarras.", "robe significado"),
+    # la forma corta no puede ser una palabra vacía
+    ("Robe canta con todos en el estribillo.", "contra todos robe"),
+    ("Robe habla del disco Deltoya.", "deltoya robe"),
+])
+def test_los_patrones_nuevos_no_abren_la_mano(texto, query):
+    plano = seo_style.flatten(texto)
+    if query == "deltoya robe":  # control: esto sí responde, por las palabras
+        assert seo_style.responde(plano, query)
+    else:
+        assert not seo_style.responde(plano, query)
+
+
+class _Previa:
+    def __init__(self, status, queries, error=None):
+        self.status, self.queries, self.error = status, queries, error
+
+
+def test_lo_que_ya_salio_noop_no_vuelve_cada_lunes():
+    previa = _Previa("noop", [_q("eduardo beaumont piñas wikipedia", 34)])
+    ahora = [_q("eduardo beaumont piñas wikipedia", 30), _q("cantante marea", 6)]
+    assert svc.ya_decidida(_FakeDbLista([previa]), "/grupos/marea", "body", ahora)
+
+
+def test_lo_que_descartaste_tu_tampoco():
+    previa = _Previa("discarded", [_q("cuchi romero", 65)])
+    assert svc.ya_decidida(_FakeDbLista([previa]), "/personas/kutxi-romero", "body",
+                           [_q("cuchi romero", 70)])
+
+
+def test_lo_que_retiro_el_detector_si_puede_volver():
+    previa = _Previa("discarded", [_q("x y", 40)],
+                     error="la página ya responde a estas búsquedas: falta posición")
+    assert not svc.ya_decidida(_FakeDbLista([previa]), "/p", "body", [_q("x y", 40)])
+
+
+def test_busquedas_nuevas_si_vuelven():
+    previa = _Previa("noop", [_q("eduardo beaumont piñas wikipedia", 34)])
+    ahora = [_q("marea gira 2027", 80), _q("eduardo beaumont piñas wikipedia", 10)]
+    assert not svc.ya_decidida(_FakeDbLista([previa]), "/grupos/marea", "body", ahora)
+
+
+def test_el_motivo_del_noop_dice_quien_lo_tumbo():
+    juez = {"verdict": "reject", "score": 28, "before_score": 18,
+            "reasons": ["El conjunto sigue sin desarrollar la historia."]}
+    texto = svc.motivo_noop(juez)
+    assert "editor jefe" in texto and "18 → 28" in texto and "historia" in texto
+    assert "corpus" in svc.motivo_noop({})
+    assert "versos" in svc.motivo_noop({"bloqueo_duro": True})
+
+
 def test_una_busqueda_de_descarga_no_es_hueco():
     rep = svc.classify_queries([_q("discografia marea megaupload", 10)], body_md=MAREA,
                                meta_title="Marea", meta_description="")
