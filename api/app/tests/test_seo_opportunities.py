@@ -529,7 +529,8 @@ def test_el_verso_esta_en_la_letra_aunque_no_en_el_cuerpo():
 
 
 # --- Segunda tanda (23-11-2026, tarde): los 4 rechazos del correo de las 18:18 ---
-# Trozos literales de las fichas de prod. Las cuatro respondían ya a su búsqueda.
+# Frases de las fichas de prod, con el nombre del sujeto añadido donde la ficha lo
+# dice en otra frase. Las cuatro respondían ya a su búsqueda.
 
 BARRICADA = ("Barricada fue ideada por El Drogas. La primera alineación incluía a El Drogas "
              "en voz y bajo, Javier Hernández Boni en voz y guitarra y José Landa en la "
@@ -569,6 +570,53 @@ def test_lo_que_sigue_siendo_hueco_tras_la_segunda_tanda():
                                   "fito significado")
     # sin nada de contenido no hay respuesta
     assert not seo_style.responde(seo_style.flatten(BARRICADA), "web oficial")
+
+
+@pytest.mark.parametrize("texto, query", [
+    # «antes de» a secas no dice de dónde venía Fito: habla de Colino
+    ("Miguel Colino tocó con Fito antes de unirse a Extremoduro en 2001.",
+     "grupo anterior de fito"),
+    # «que cuenta con» no explica una canción
+    ("Robe tiene una banda que cuenta con dos guitarras.", "robe significado"),
+    # la forma corta no puede ser una palabra vacía
+    ("Robe canta con todos en el estribillo.", "contra todos robe"),
+    ("Robe habla del disco Deltoya.", "deltoya robe"),
+])
+def test_los_patrones_nuevos_no_abren_la_mano(texto, query):
+    plano = seo_style.flatten(texto)
+    if query == "deltoya robe":  # control: esto sí responde, por las palabras
+        assert seo_style.responde(plano, query)
+    else:
+        assert not seo_style.responde(plano, query)
+
+
+class _Previa:
+    def __init__(self, status, queries, error=None):
+        self.status, self.queries, self.error = status, queries, error
+
+
+def test_lo_que_ya_salio_noop_no_vuelve_cada_lunes():
+    previa = _Previa("noop", [_q("eduardo beaumont piñas wikipedia", 34)])
+    ahora = [_q("eduardo beaumont piñas wikipedia", 30), _q("cantante marea", 6)]
+    assert svc.ya_decidida(_FakeDbLista([previa]), "/grupos/marea", "body", ahora)
+
+
+def test_lo_que_descartaste_tu_tampoco():
+    previa = _Previa("discarded", [_q("cuchi romero", 65)])
+    assert svc.ya_decidida(_FakeDbLista([previa]), "/personas/kutxi-romero", "body",
+                           [_q("cuchi romero", 70)])
+
+
+def test_lo_que_retiro_el_detector_si_puede_volver():
+    previa = _Previa("discarded", [_q("x y", 40)],
+                     error="la página ya responde a estas búsquedas: falta posición")
+    assert not svc.ya_decidida(_FakeDbLista([previa]), "/p", "body", [_q("x y", 40)])
+
+
+def test_busquedas_nuevas_si_vuelven():
+    previa = _Previa("noop", [_q("eduardo beaumont piñas wikipedia", 34)])
+    ahora = [_q("marea gira 2027", 80), _q("eduardo beaumont piñas wikipedia", 10)]
+    assert not svc.ya_decidida(_FakeDbLista([previa]), "/grupos/marea", "body", ahora)
 
 
 def test_el_motivo_del_noop_dice_quien_lo_tumbo():

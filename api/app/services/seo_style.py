@@ -162,8 +162,9 @@ _FUNDAR = (r" (?:fund(?:o|ado|ada|ados|aron|acion)|se form(?:o|aron)|se cre(?:o|
            r"formad[oa]s?|nacid[oa]s?)" + _CERCA_UN_ANIO)
 # «Qué cuenta «Nada que perder»» es la sección de la interpretación (medido el 23-11:
 # la ficha se ofreció para «nada que perder robe significado» teniéndola).
+# «que cuenta con» (una banda que cuenta con dos guitarras) no explica nada.
 _DE_QUE_VA = (r" (?:signific|sentido|trata de|habla de|interpret|metafor|simbol|"
-              r"que cuenta |se explora )")
+              r"que cuenta (?!con )|se explora )")
 _RESPUESTAS: dict[str, str] = {
     # dónde: un lugar de origen dicho con su verbo
     "donde": r" (?:naci(?:o|da|do|eron)|se (?:form|fund|cre)\w*|(?:fundad|formad|criad|"
@@ -177,9 +178,11 @@ _RESPUESTAS: dict[str, str] = {
     "cantante": r" (?:cantant|vocalist|voz |a la voz|canta)",
     "vocalista": r" (?:cantant|vocalist|voz |a la voz|canta)",
     # de dónde venía: «Fito Cabrales, entonces vocalista de Platero y Tú» responde a
-    # «grupo anterior de Fito»
-    "anterior": r" (?:entonces|antes de|anterior|previ[oa]s? |venia de|procedente de|"
-                r"tras su paso por|tras (?:dejar|abandonar) )",
+    # «grupo anterior de Fito». Atado a un ROL o a un verbo de procedencia: «entonces» y
+    # «antes de» a secas salen en cualquier ficha («antes de unirse a Extremoduro»).
+    "anterior": r" (?:entonces (?:vocalista|cantante|guitarrista|bajista|bateria|miembro|"
+                r"lider|integrante|componente)|venia de|procedente de|tras su paso por|"
+                r"(?:su|el|la) (?:grupo|banda) anterior|antes (?:habia|militaba|tocaba) en) ",
     # nacer, fundar
     # nacer y fundar llevan su año cerca: «nacido como Roberto Iniesta en Plasencia»
     # no dice cuándo, y «fundamental» no es «fundó» (medido en prod el 23-11).
@@ -227,8 +230,12 @@ def _nombre_abreviado(texto_plano: str, palabras: list[str], i: int) -> bool:
     t = palabras[i]
     if len(t) < 5 or i + 1 >= len(palabras) or len(palabras[i + 1]) < 4:
         return False
+    # La forma corta no puede ser una palabra vacía: «con todos» no es «contra todos».
+    if t in _STOP or palabras[i + 1] in _STOP:
+        return False
     patron = r" (" + re.escape(t[:3]) + r"[a-z]*) " + re.escape(palabras[i + 1]) + " "
     return any(len(m.group(1)) < len(t) and t.startswith(m.group(1))
+               and m.group(1) not in _STOP
                for m in re.finditer(patron, texto_plano))
 
 

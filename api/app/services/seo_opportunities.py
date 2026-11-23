@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.services import seo_style
@@ -150,6 +150,44 @@ def classify_queries(
         else:
             out["covered"].append(q)
     return out
+
+
+# Lo que el propio detector retira de la cola lleva uno de estos motivos. Eso no es
+# una decisión: si un volcado nuevo vuelve a verlo como hueco, puede volver.
+_RETIRADAS_DEL_DETECTOR = ("la página ya responde", "ya no llega al mínimo")
+DECISION_VIGENTE_DIAS = 90
+
+
+def ya_decidida(db, path: str, action: str, queries: list[dict]) -> bool:
+    """¿Esto ya se intentó y no salió (`noop`), o lo descartó una persona?
+
+    `detect` solo miraba las filas VIVAS, así que una `noop` o un descarte no paraban
+    nada y el lunes siguiente se creaba otra fila igual: Marea llevaba tres `noop`
+    (16-11, 23-11 a las 08:00 y a las 18:18) y Barricada otras tres, y cada una era
+    un correo de rechazo. Cuenta como lo mismo si al menos la mitad de las
+    impresiones de ahora son de búsquedas que ya estaban en aquella fila.
+    """
+    from app.db.models import SeoOpportunity
+
+    desde = datetime.now(UTC) - timedelta(days=DECISION_VIGENTE_DIAS)
+    previas = (
+        db.query(SeoOpportunity)
+        .filter(SeoOpportunity.path == path, SeoOpportunity.action == action,
+                SeoOpportunity.status.in_(["noop", "discarded"]),
+                SeoOpportunity.updated_at >= desde)
+        .all()
+    )
+    total = sum(int(q.get("impressions") or 0) for q in queries) or 1
+    for previa in previas:
+        if previa.status == "discarded" and (previa.error or "").startswith(
+                _RETIRADAS_DEL_DETECTOR):
+            continue
+        vistas = {flatten(q.get("query") or "") for q in (previa.queries or [])}
+        repetidas = sum(int(q.get("impressions") or 0) for q in queries
+                        if flatten(q.get("query") or "") in vistas)
+        if repetidas * 2 >= total:
+            return True
+    return False
 
 
 def motivo_noop(rigor: dict | None) -> str:
@@ -263,6 +301,8 @@ def detect(db, pages: dict, *, period: str | None = None,
             # la cola de `meta`: proponerle otro title es lo que hizo perder su
             # consulta a «Golfa» (cuatro titles en seis días, 11-17-11-2026).
             if action == "meta" and "/" + path.strip("/") in frias:
+                continue
+            if ya_decidida(db, path, action, qs_ord):
                 continue
             fila = SeoOpportunity(
                 path=path, action=action, status="detected",
