@@ -160,7 +160,10 @@ _CERCA_UN_ANIO = r"(?: \w+){0,20}? (?:1[89]|20)\d\d "
 _NACER = r" naci(?:o|da|do|dos|das|miento)" + _CERCA_UN_ANIO
 _FUNDAR = (r" (?:fund(?:o|ado|ada|ados|aron|acion)|se form(?:o|aron)|se cre(?:o|aron)|"
            r"formad[oa]s?|nacid[oa]s?)" + _CERCA_UN_ANIO)
-_DE_QUE_VA = r" (?:signific|sentido|trata de|habla de|interpret|metafor|simbol)"
+# «Qué cuenta «Nada que perder»» es la sección de la interpretación (medido el 23-11:
+# la ficha se ofreció para «nada que perder robe significado» teniéndola).
+_DE_QUE_VA = (r" (?:signific|sentido|trata de|habla de|interpret|metafor|simbol|"
+              r"que cuenta |se explora )")
 _RESPUESTAS: dict[str, str] = {
     # dónde: un lugar de origen dicho con su verbo
     "donde": r" (?:naci(?:o|da|do|eron)|se (?:form|fund|cre)\w*|(?:fundad|formad|criad|"
@@ -173,6 +176,10 @@ _RESPUESTAS: dict[str, str] = {
     "miembros": r" (?:component|integrant|miembr|formacion|alineacion|musicos )",
     "cantante": r" (?:cantant|vocalist|voz |a la voz|canta)",
     "vocalista": r" (?:cantant|vocalist|voz |a la voz|canta)",
+    # de dónde venía: «Fito Cabrales, entonces vocalista de Platero y Tú» responde a
+    # «grupo anterior de Fito»
+    "anterior": r" (?:entonces|antes de|anterior|previ[oa]s? |venia de|procedente de|"
+                r"tras su paso por|tras (?:dejar|abandonar) )",
     # nacer, fundar
     # nacer y fundar llevan su año cerca: «nacido como Roberto Iniesta en Plasencia»
     # no dice cuándo, y «fundamental» no es «fundó» (medido en prod el 23-11).
@@ -197,8 +204,32 @@ _RESPUESTAS["naixement"] = _NACER  # «roberto iniesta naixement», en catalán
 _SIN_CONTENIDO_AL_PREGUNTAR = {
     "era", "eran", "son", "fue", "fueron", "quien", "quienes", "cual", "cuales", "como",
     "fotos", "foto", "imagenes", "foro", "logo", "biografia", "bio",
+    "web", "pagina", "oficial", "myspace", "facebook", "instagram", "twitter", "tiktok",
+    "spotify",
     "lletra", "lletres", "canco", "cancons",
 }
+
+
+def _patron_de_respuesta(token: str) -> str | None:
+    """Lo que responde a la palabra de la pregunta, también en plural («cantantes»)."""
+    for forma in (token, token[:-1] if token.endswith("s") else "",
+                  token[:-2] if token.endswith("es") else ""):
+        if forma and forma in _RESPUESTAS:
+            return _RESPUESTAS[forma]
+    return None
+
+
+def _nombre_abreviado(texto_plano: str, palabras: list[str], i: int) -> bool:
+    """«Eduardo Beaumont» es el «Edu Beaumont» de la ficha: el nombre abreviado, seguido
+    del MISMO apellido. Sin el apellido detrás no vale: «edu» solo casaría con cualquier
+    cosa. Y la forma corta tiene que ser un PREFIJO del nombre: «lucha contra» no es
+    «lucho contra» (casaba en el verso de Guerrero)."""
+    t = palabras[i]
+    if len(t) < 5 or i + 1 >= len(palabras) or len(palabras[i + 1]) < 4:
+        return False
+    patron = r" (" + re.escape(t[:3]) + r"[a-z]*) " + re.escape(palabras[i + 1]) + " "
+    return any(len(m.group(1)) < len(t) and t.startswith(m.group(1))
+               for m in re.finditer(patron, texto_plano))
 
 
 def _por_grafia(texto_compacto: str, palabras: list[str]) -> set[int]:
@@ -239,9 +270,9 @@ def responde(texto_plano: str, query: str) -> bool:
         if t in _STOP or t in _MODIFICADORES or t in _SIN_CONTENIDO_AL_PREGUNTAR or len(t) < 2:
             continue
         hay_contenido = True
-        if _token_en(texto_plano, t) or i in por_grafia:
+        if _token_en(texto_plano, t) or i in por_grafia or _nombre_abreviado(texto_plano, palabras, i):
             continue
-        patron = _RESPUESTAS.get(t)
+        patron = _patron_de_respuesta(t)
         if patron and re.search(patron, texto_plano):
             continue
         return False

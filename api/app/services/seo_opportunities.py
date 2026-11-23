@@ -152,6 +152,25 @@ def classify_queries(
     return out
 
 
+def motivo_noop(rigor: dict | None) -> str:
+    """Por qué una ampliación no sale, en palabras, para el correo y el panel.
+
+    Antes todo lo que no era un verso falso salía como «el corpus no respalda nada
+    nuevo», y el 23-11 eso tapó que en Fito & Fitipaldis el editor jefe había subido la
+    nota de 18 a 28 y la rechazó porque la ficha entera seguía sin aprobar.
+    """
+    rigor = rigor or {}
+    if rigor.get("bloqueo_duro"):
+        return "hay versos citados que no están en la letra"
+    if rigor.get("verdict") == "reject" and rigor.get("score") is not None:
+        antes = rigor.get("before_score")
+        nota = f"{antes} → {rigor['score']}" if antes is not None else str(rigor["score"])
+        motivo = next(iter(rigor.get("reasons") or []), "")
+        texto = f"el editor jefe la rechaza (nota de la página {nota})"
+        return f"{texto}: {motivo}" if motivo else texto
+    return "el corpus no respalda nada nuevo sobre eso (no se rellena con generalidades)"
+
+
 def _gap_hint(queries: list[dict]) -> str:
     """Las consultas que sostienen el hueco, en palabras, para `augment_entity`."""
     vistos: list[str] = []
@@ -497,12 +516,7 @@ def prepare_draft(db, opp) -> str:
                 rigor = (res or {}).get("rigor") or {}
                 opp.status = "noop"
                 opp.draft_notes = {"rigor": rigor}
-                opp.error = (
-                    "hay versos citados que no están en la letra"
-                    if rigor.get("bloqueo_duro")
-                    else "el corpus no respalda nada nuevo sobre eso "
-                         "(no se rellena con generalidades)"
-                )
+                opp.error = motivo_noop(rigor)
                 db.commit()
                 return "noop"
             rigor = res.get("rigor") or {}
