@@ -339,8 +339,23 @@ noticia desde un inventario de historias con su tramo LITERAL del artículo. Med
 - **El juez mide una noticia que no es un concierto con vara de noticia breve**, y su
   suelo de palabras es 120. Antes solo conocía la crónica y el anuncio de un evento.
 
-Sin historia del artículo no hay post. Antes de encenderlo falta medirlo por el camino
-completo (`research_and_write` y la cascada del día D).
+Sin historia del artículo no hay post.
+
+Medido el 23-11-2026 por el camino completo (`research_and_write` más los gates del día
+D, en seco sobre 9 noticias reales). Sigue apagado. Lo que destapó:
+
+- **El año de una fecha se sabe o no se pone** (`anios_de_fechas`): lo escribe el
+  artículo, o lo fija su día de la semana entre el año anterior y el siguiente. Dar por
+  hecho el año en curso fechó en 2026 el Flores Amarillas del 15 de mayo de 2027. Quien
+  comprueba el texto contra el artículo recibe esas fechas (`nota_de_fechas`), o quita
+  la frase que lleva el año.
+- **El día D deja en paz el contexto**: el foco no corre sobre una noticia por historias
+  (recortaba "Otros reconocimientos a Robe"), la comprobación contra el artículo recibe
+  el material de casa entero, y el juez sabe que una sección final de contexto no es
+  desvío.
+- **El verbo que abre la frase no es parte del nombre** ("Participaron León y…").
+- Pendiente: el sello se queda en 113 palabras y cae por el suelo de 120; una entrevista
+  y un anuncio de concierto sin contexto de casa no pasan el juez (se retienen).
 
 ## Canales de YouTube: no todos son monotemáticos
 
