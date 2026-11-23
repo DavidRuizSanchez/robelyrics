@@ -781,9 +781,15 @@ truncado». Lo nuevo le llega solo por `spotlight` (si va también en el context
 ve dos veces y lo llama repetido). Cada operación pasa por el juez, y si no mejora se
 reescribe con sus motivos delante (2 vueltas) o se quita. Sin válvula.
 
-`seo_queue --watch` (lo lanza `gsc_weekly.sh`) compara a las 4 semanas las
-consultas protegidas de cada fusión aplicada y avisa si alguna cae más de 5
-puestos. Solo avisa: revertir es un botón.
+`seo_queue --watch` (lo lanza `gsc_weekly.sh`) compara los 28 días de después de
+cada fusión con los 28 de antes, en la misma página y sin el día del cambio. Las
+ventanas las baja la Mac (`scripts.seo.merge_watch exportar/descargar`), porque el
+token de GSC vive allí. Avisa de las protegidas que caen más de 5 puestos y de las
+que desaparecen, y da la página frente al sitio entero, las búsquedas que más
+pierden con su posición, lo que la fusión quería ganar y si la página se volvió a
+tocar dentro de la ventana. Solo avisa: revertir es un botón. Hasta el 23-11-2026
+comparaba contra el volcado de 12 semanas, que mezclaba el antes con el después, y
+callaba lo que desaparecía.
 
 ## Una búsqueda es una intención, y un verso es de su canción
 

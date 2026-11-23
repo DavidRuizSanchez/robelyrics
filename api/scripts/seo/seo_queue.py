@@ -187,11 +187,19 @@ def main() -> None:
         from app.db.session import SessionLocal
         from app.services import merge_watch
 
-        pages, periodo = _load_pages()
+        # Las ventanas de antes y después las baja la Mac (`scripts.seo.merge_watch
+        # descargar`, desde gsc_weekly.sh). Sin ellas no se mide nada: comparar contra
+        # el volcado de 12 semanas mezclaba el antes con el después (23-11-2026).
+        gsc = {}
+        for p in ("/app/data/merge_watch_gsc.json",
+                  str(Path(__file__).resolve().parents[2] / "data" / "merge_watch_gsc.json")):
+            if Path(p).exists():
+                gsc = json.loads(Path(p).read_text(encoding="utf-8")).get("fusiones") or {}
+                break
         with SessionLocal() as db:
-            res = merge_watch.revisar(db, pages, periodo, notify=not args.no_email)
-        logger.info("[merge-watch] %d fusiones revisadas, %d con caídas", len(res),
-                    sum(1 for r in res if r["caidas"]))
+            res = merge_watch.revisar(db, gsc, notify=not args.no_email)
+        logger.info("[merge-watch] %d fusiones revisadas, %d con caídas o desapariciones",
+                    len(res), sum(1 for r in res if r["caidas"] or r["desaparecen"]))
     if args.status or not (args.detect or args.prepare or args.watch):
         cmd_status(args)
 
