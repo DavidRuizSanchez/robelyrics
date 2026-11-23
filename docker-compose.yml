@@ -72,6 +72,9 @@ services:
       BLOG_REPESCA_APROBADAS: ${BLOG_REPESCA_APROBADAS:-}
       # Aniversarios e historias de un disco con el redactor por historias (19-11-2026).
       BLOG_DISCO_HISTORIAS: ${BLOG_DISCO_HISTORIAS:-}
+      # Noticias con el redactor por historias. Sin esta línea, ponerla en el .env no
+      # llegaba al contenedor (23-11-2026).
+      BLOG_NOTICIAS_HISTORIAS: ${BLOG_NOTICIAS_HISTORIAS:-}
       MONITOR_BASE_URL: ${MONITOR_BASE_URL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
