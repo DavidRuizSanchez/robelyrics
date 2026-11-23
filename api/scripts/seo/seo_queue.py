@@ -47,9 +47,10 @@ def _covered_stats(db, pages: dict) -> dict:
     Sin este dato, el informe parece decir que todo lo demás es culpa del contenido.
     """
     from app.db.models import SeoContent
-    from app.services.seo_opportunities import classify_queries
+    from app.services.seo_opportunities import classify_queries, letra_de, nombre_alias_index
     from scripts.seo.gsc_optimize import _resolve_entity
 
+    alias = nombre_alias_index(db)
     n = imp = 0
     for path, queries in pages.items():
         ent = _resolve_entity(db, path)
@@ -61,7 +62,8 @@ def _covered_stats(db, pages: dict) -> dict:
         if not sc or not (sc.body_md or "").strip():
             continue
         cub = classify_queries(queries, body_md=sc.body_md, meta_title=sc.meta_title,
-                               meta_description=sc.meta_description)["covered"]
+                               meta_description=sc.meta_description, alias=alias,
+                               letra=letra_de(db, ent[0], ent[1]))["covered"]
         n += len(cub)
         imp += sum(int(q.get("impressions") or 0) for q in cub)
     return {"queries": n, "impressions": imp}
@@ -82,6 +84,7 @@ def cmd_detect(args) -> None:
             from scripts.seo.gsc_optimize import _resolve_entity
 
             resumen = {"meta": [0, 0], "body": [0, 0], "covered": [0, 0]}
+            alias = svc.nombre_alias_index(db)
             for path, queries in pages.items():
                 ent = _resolve_entity(db, path)
                 if not ent:
@@ -93,7 +96,9 @@ def cmd_detect(args) -> None:
                     continue
                 rep = svc.classify_queries(queries, body_md=sc.body_md,
                                            meta_title=sc.meta_title,
-                                           meta_description=sc.meta_description)
+                                           meta_description=sc.meta_description,
+                                           alias=alias,
+                                           letra=svc.letra_de(db, ent[0], ent[1]))
                 for k, v in rep.items():
                     resumen[k][0] += len(v)
                     resumen[k][1] += sum(int(q.get("impressions") or 0) for q in v)

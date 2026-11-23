@@ -573,7 +573,7 @@ def ya_cubierto(body: str, title: str, description: str, keywords: list[str],
     cuerpo = seo_style.expandir_alias(seo_style.flatten(body), alias)
     meta = seo_style.expandir_alias(seo_style.flatten(f"{title} {description}"), alias)
     for kw in keywords:
-        if not (seo_style.cubre(cuerpo, kw) and seo_style.cubre(meta, kw)):
+        if not (seo_style.responde(cuerpo, kw) and seo_style.responde(meta, kw)):
             return False
         pos = [float(q.get("position") or 100) for q in gsc_page
                if _firma(q.get("query") or "") == _firma(kw)]

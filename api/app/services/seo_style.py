@@ -141,6 +141,113 @@ def cubre(texto_plano: str, query: str) -> bool:
     return bool(toks) and all(_token_en(texto_plano, t) for t in toks)
 
 
+# --------------------------------------------------------------------------- #
+# ¿La página RESPONDE a la búsqueda? (detector de oportunidades, 23-11-2026)
+# --------------------------------------------------------------------------- #
+# `cubre` exige la palabra con la que se pregunta, y una ficha que dice «se formó en
+# Berriozar, Navarra» responde a «de dónde es Marea» sin decir «dónde». El correo de
+# los lunes la daba por hueco de contenido, la ampliación no encontraba nada nuevo
+# que añadir y llegaba un rechazo: medido en prod el 23-11 sobre la ficha de Marea,
+# las cuatro búsquedas del correo fallaban solo por «donde», «componentes»,
+# «integrantes» y «cantante».
+#
+# Cada entrada es la palabra con la que se PREGUNTA y lo que en el texto la
+# responde. Va solo al detector (`seo_opportunities.classify_queries`) y a
+# `content_placement.ya_cubierto`: las guardas que protegen lo que posiciona
+# (`ranking_guard`, títulos) siguen con `cubre`, que es literal a propósito.
+_ANIO = r" (?:1[89]|20)\d\d "
+_CERCA_UN_ANIO = r"(?: \w+){0,20}? (?:1[89]|20)\d\d "
+_NACER = r" naci(?:o|da|do|dos|das|miento)" + _CERCA_UN_ANIO
+_FUNDAR = (r" (?:fund(?:o|ado|ada|ados|aron|acion)|se form(?:o|aron)|se cre(?:o|aron)|"
+           r"formad[oa]s?|nacid[oa]s?)" + _CERCA_UN_ANIO)
+_DE_QUE_VA = r" (?:signific|sentido|trata de|habla de|interpret|metafor|simbol)"
+_RESPUESTAS: dict[str, str] = {
+    # dónde: un lugar de origen dicho con su verbo
+    "donde": r" (?:naci(?:o|da|do|eron)|se (?:form|fund|cre)\w*|(?:fundad|formad|criad|"
+             r"afincad|radicad)[oa]s? en|originari[oa]s?|natural(?:es)? de|procede\w*) ",
+    # cuándo / año: una fecha
+    "cuando": _ANIO, "ano": _ANIO, "anos": _ANIO, "fecha": _ANIO,
+    # quién toca
+    "componentes": r" (?:component|integrant|miembr|formacion|alineacion|musicos )",
+    "integrantes": r" (?:component|integrant|miembr|formacion|alineacion|musicos )",
+    "miembros": r" (?:component|integrant|miembr|formacion|alineacion|musicos )",
+    "cantante": r" (?:cantant|vocalist|voz |a la voz|canta)",
+    "vocalista": r" (?:cantant|vocalist|voz |a la voz|canta)",
+    # nacer, fundar
+    # nacer y fundar llevan su año cerca: «nacido como Roberto Iniesta en Plasencia»
+    # no dice cuándo, y «fundamental» no es «fundó» (medido en prod el 23-11).
+    "nacimiento": _NACER, "nacio": _NACER,
+    "fundo": _FUNDAR, "fundacion": _FUNDAR, "fundaron": _FUNDAR,
+    # de qué va
+    "significado": _DE_QUE_VA,
+    "significa": _DE_QUE_VA,
+    "trata": _DE_QUE_VA,
+    "habla": _DE_QUE_VA,
+    # qué música es
+    "genero": r" (?:genero|estilo|rock|punk|heavy|flamenco|blues)",
+    "tipo": r" (?:genero|estilo|rock|punk|heavy|flamenco|blues)",
+    "estilo": r" (?:genero|estilo|rock|punk|heavy|flamenco|blues)",
+}
+_RESPUESTAS["componente"] = _RESPUESTAS["integrante"] = _RESPUESTAS["miembro"] = (
+    _RESPUESTAS["componentes"])
+_RESPUESTAS["naixement"] = _NACER  # «roberto iniesta naixement», en catalán
+# Lo que no es contenido al preguntar: las palabras de la pregunta («quién era Robe»,
+# «de dónde son»), las de navegar («fotos de Barricada», «foro», «logo»), que una
+# ficha de persona ES su biografía, y las de buscar en catalán («lletra de la cançó»).
+_SIN_CONTENIDO_AL_PREGUNTAR = {
+    "era", "eran", "son", "fue", "fueron", "quien", "quienes", "cual", "cuales", "como",
+    "fotos", "foto", "imagenes", "foro", "logo", "biografia", "bio",
+    "lletra", "lletres", "canco", "cancons",
+}
+
+
+def _por_grafia(texto_compacto: str, palabras: list[str]) -> set[int]:
+    """Índices de las palabras de la búsqueda que el texto escribe JUNTAS.
+
+    «extrema y dura» es «Extremaydura», «bribriblibli» es «Bri bri bli bli» y «calle
+    esperanza sn» es «Calle Esperanza S/N»: la misma cosa escrita con otros espacios.
+    Se compara sin espacios, por tramos de 1 a 4 palabras: de 6 caracteres o más si
+    son varias palabras y de 9 o más si es una sola, porque una palabra corta cabe
+    dentro de otra («portada» en «contraportada»).
+    """
+    cubiertas: set[int] = set()
+    n = len(palabras)
+    for i in range(n):
+        for j in range(i + 1, min(n, i + 4) + 1):
+            trozo = "".join(palabras[i:j])
+            minimo = 9 if j - i == 1 else 6
+            if len(trozo) >= minimo and trozo in texto_compacto:
+                cubiertas.update(range(i, j))
+    return cubiertas
+
+
+def responde(texto_plano: str, query: str) -> bool:
+    """¿Este texto responde a la búsqueda, aunque no use sus mismas palabras?
+
+    Más ancho que `cubre` en tres cosas, y solo en esas: la palabra con la que se
+    pregunta («dónde», «componentes», «significado»…) se da por respondida si el
+    texto trae lo que la responde (`_RESPUESTAS`); una palabra escrita con otros
+    espacios cuenta (`_por_grafia`); y las palabras de preguntar, de navegar o en
+    catalán no son contenido (`_SIN_CONTENIDO_AL_PREGUNTAR`).
+    Todo lo demás —el nombre, el tema— tiene que estar, como en `cubre`.
+    """
+    palabras = [p for p in flatten(query).split() if p]
+    compacto = texto_plano.replace(" ", "")
+    por_grafia = _por_grafia(compacto, palabras)
+    hay_contenido = False
+    for i, t in enumerate(palabras):
+        if t in _STOP or t in _MODIFICADORES or t in _SIN_CONTENIDO_AL_PREGUNTAR or len(t) < 2:
+            continue
+        hay_contenido = True
+        if _token_en(texto_plano, t) or i in por_grafia:
+            continue
+        patron = _RESPUESTAS.get(t)
+        if patron and re.search(patron, texto_plano):
+            continue
+        return False
+    return hay_contenido
+
+
 def clean_to_len(text: str, max_len: int) -> str:
     """Recorta a `max_len` sin partir palabra. Para CONSTRUIR, nunca para validar."""
     text = (text or "").strip().strip('"').strip()
