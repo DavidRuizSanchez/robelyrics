@@ -234,3 +234,56 @@ def test_solo_los_avisos_que_piden_persona_retienen(aviso, informativo):
     """La IA como último recurso sale sin aprobación (David, 09-11-2026); un
     verso dudoso o una foto sin comprobar, no."""
     assert publisher.es_aviso_informativo(aviso) is informativo
+
+
+# --------------------------------------------------------------------------- #
+# Un tramo instrumental no dice quién lo toca ni lleva un verso (20-11-2026)
+# --------------------------------------------------------------------------- #
+CAPTION_524 = (
+    "El solo de «Nana cruel» — Vigo, 09-11-2024\n\n"
+    "En Vigo, el 9 de noviembre de 2024, Robe toca el solo de «Nana cruel», de «Lo que "
+    "aletea en nuestras cabezas».\n\n"
+    "🎵 «Duérmete / Que ya estás a salvo de todo»\n   — Robe, «Nana cruel» (2015)\n")
+CAPTION_510 = (
+    "El solo de «Luce la Oscuridad» — Murcia, 21-10-2022\n\n"
+    "En Murcia, «Luce la Oscuridad» se queda un tramo largo en el solo.\n\n"
+    "Ahí manda la guitarra.\n")
+
+
+def _clip(caption, **k):
+    return gate_final.problemas_de_clip(
+        caption, interprete="Robe",
+        titulos_permitidos={"Nana cruel", "Lo que aletea en nuestras cabezas",
+                            "Luce la Oscuridad"},
+        titulos_catalogo={"Nana cruel", "Luce la Oscuridad"}, **k)
+
+
+def test_un_solo_no_dice_quien_lo_toca_ni_lleva_verso():
+    """Los dos textos se publicaron. En esos conciertos hay guitarras, violín y saxo, y
+    el vídeo de un fan no dice quién toca qué."""
+    problemas = _clip(CAPTION_524, instrumental=True)
+    assert any("toca el solo" in p for p in problemas)
+    assert any("no se canta" in p for p in problemas)
+    assert any("manda la guitarra" in p for p in _clip(CAPTION_510, instrumental=True))
+    assert any("manos" in p.lower()
+               for p in _clip("El solo de «Nana cruel».\n¡Qué manos!", instrumental=True))
+
+
+def test_un_solo_bien_contado_pasa_y_un_estribillo_puede_llevar_su_verso():
+    limpio = ("El solo de «Nana cruel» — Vigo, 09-11-2024\n\nEn Vigo, el 9 de noviembre de "
+              "2024, «Nana cruel» se alarga en un tramo instrumental.\n")
+    assert _clip(limpio, instrumental=True) == []
+    # En un estribillo sí se canta: el verso y «la guitarra» no son asunto de esta regla.
+    assert _clip(CAPTION_524) == []
+
+
+def test_el_momento_sale_de_las_notas_del_selector():
+    from types import SimpleNamespace
+
+    from app.services.instagram.publisher import momento_del_clip
+
+    notas = "Tramo 1695-1723s de «Robe - Vigo»\nMomento: solo\nCanción: Nana cruel"
+    assert momento_del_clip(SimpleNamespace(notas_internas=notas, summary=None)) == "solo"
+    estribillo = "Momento: estribillo (se localiza escuchando el audio)"
+    assert momento_del_clip(SimpleNamespace(notas_internas=estribillo, summary=None)) == "estribillo"
+    assert momento_del_clip(SimpleNamespace(notas_internas=None, summary=None)) == ""

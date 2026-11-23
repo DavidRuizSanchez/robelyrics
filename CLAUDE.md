@@ -1083,6 +1083,28 @@ no sirve: el audio SÍ es el del concierto.
 Tampoco se propone dos veces la misma canción del mismo concierto: un estribillo
 suena varias veces en un bolo y salían dos clips que en el feed se leen igual.
 
+### Un solo se reconoce por lo que NO se transcribe
+
+Auditoría del 20-11-2026 sobre los 28 clips publicados, cruzando lo que decía cada post
+con lo que Whisper transcribió en su tramo:
+
+- **"Sin voz" no es fiable por sí solo.** Es `no_speech_prob > 0,6`, y Whisper da ese
+  número por ventana de audio. En "El solo de Nana cruel" (#524) y "El solo de Segundo
+  movimiento" (#527) marcaba 0,66-0,75 mientras transcribía una línea distinta cada tres
+  segundos: se cantaba. Dos o más líneas de letra distintas en el tramo
+  (`momentos.lineas_con_letra`) → `dudoso`. Whisper en bucle ("para que vuelva" cinco
+  veces) o "♪ ♪" sí son un solo.
+- **Un solo sin canción justo antes no se propone.** Los cuatro que esperaban ese día
+  llevaban por título el del vídeo de YouTube y por texto "el clip muestra un solo".
+- **Un tramo instrumental no dice quién lo toca ni con qué**, ni lleva verso. Se publicó
+  "Robe toca el solo", "ahí manda la guitarra" y el rótulo "¡Qué manos!". Lo sabe el
+  redactor (`_contexto_de_directo`) y lo bloquea `gate_final.problemas_de_clip`.
+- **Al correo solo va lo que se puede aprobar** (`notify_clips.repartir`). Un clip cuyo
+  texto no pasa las guardas se descarta con su motivo; el que falló por algo técnico
+  espera a mañana. Antes llegaban sin botón de publicar, y al día siguiente otra vez.
+
+No se puede oír el audio desde aquí: todo esto sale de la transcripción.
+
 ### El rótulo del vídeo no es el título del post
 
 Eran el mismo string (`solicitar` lo usaba para `instagram_queue.title` y para

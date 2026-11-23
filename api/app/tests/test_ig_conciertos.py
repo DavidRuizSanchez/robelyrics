@@ -181,6 +181,43 @@ def test_sin_voz_y_despues_otra_cosa_es_el_final_no_un_solo():
     assert [m.tipo for m in ms if m.cancion] [-1] == "final"
 
 
+def _con_tramo_sin_voz(textos, *, con_cancion_antes=True):
+    antes = (_bloque("dejo las ventanas sin cerrar", "y me voy a dar un garbeo",
+                     "ama ama ama y ensancha el alma", desde=0) if con_cancion_antes else [])
+    return [*antes,
+            *[_Seg(12 + i * 4, 16 + i * 4, t, no_speech=0.75) for i, t in enumerate(textos)],
+            *_bloque("y me voy a dar un garbeo", "ama ama ama y ensancha el alma",
+                     "dejo las ventanas sin cerrar", desde=12 + len(textos) * 4)]
+
+
+def test_si_whisper_transcribe_letra_distinta_ahi_se_canta():
+    """«El solo de "Nana cruel"» (#524): siete líneas distintas en 28 s, con la
+    probabilidad de no-voz en 0,75. Se publicó como solo y se estaba cantando."""
+    segs = _con_tramo_sin_voz(["Yo que te espero", "Yo que hice cada segundo",
+                               "Otro mundo mejor", "Las noches enteras", "Y no la encuentro"])
+    ms = momentos.clasificar(segs, _catalogo())
+    assert "solo" not in [m.tipo for m in ms]
+    dudoso = [m for m in ms if m.tipo == "dudoso"]
+    assert dudoso and "ahí se canta" in dudoso[0].motivos[0] and dudoso[0].cancion is None
+
+
+def test_whisper_en_bucle_sobre_la_guitarra_sigue_siendo_un_solo():
+    """#510: «para que vuelva» cinco veces seguidas es Whisper en bucle, no letra."""
+    segs = _con_tramo_sin_voz(["Sopla el viento sin parar", "para que vuelva",
+                               "para que vuelva", "para que vuelva", "♪ ♪"])
+    solos = [m for m in momentos.clasificar(segs, _catalogo()) if m.tipo == "solo"]
+    assert solos and solos[0].cancion == "Interludio"
+
+
+def test_un_solo_sin_cancion_antes_no_se_propone():
+    """Los cuatro que esperaban el 20-11-2026 llevaban por título el del vídeo de
+    YouTube: sin canción no hay nada que contar."""
+    segs = _con_tramo_sin_voz(["", "", "", "", ""], con_cancion_antes=False)
+    ms = momentos.clasificar(segs, _catalogo())
+    assert "solo" not in [m.tipo for m in ms]
+    assert any(m.tipo == "dudoso" and "no se sabe qué suena" in m.motivos[0] for m in ms)
+
+
 def test_un_silencio_corto_no_es_un_solo():
     segs = [_Seg(0, 4, "dejo las ventanas sin cerrar"),
             _Seg(4, 8, "", no_speech=0.9),
