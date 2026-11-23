@@ -309,7 +309,13 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     subject = (p.target_keyword or p.title or "").strip()
     # Ya juzgada, o publicada «tal cual» por una persona que la ha leído: el foco no
     # recorta el texto que se aprobó.
-    freport = check_focus(p.body_md, subject) if not (ya_juzgada or p.force_publish) else None
+    # Tampoco en una noticia del redactor por historias: su cuerpo es el hecho y, debajo,
+    # el contexto de casa. El foco tomaba «Otros reconocimientos a Robe» por desvío y lo
+    # recortaba (medido el 23-11-2026 con el cuadro: foco 65, recorte de la sección).
+    from app.services.news_research import NOTICIAS_POR_HISTORIAS
+    por_historias = p.kind == "news" and NOTICIAS_POR_HISTORIAS.get()
+    freport = (check_focus(p.body_md, subject)
+               if not (ya_juzgada or p.force_publish or por_historias) else None)
     if freport is not None and not freport.ok:
         if freport.trimmed_body_md:
             p.body_md = freport.trimmed_body_md
@@ -403,13 +409,13 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     # Con el MISMO material que el juicio al preparar (datos duros + material propio): sin
     # él, un dato de la casa que la web no encuentra («n.º 1 sus dos primeras semanas»)
     # mandaba a revisión una pieza que el juicio previo ya había dado por buena (19-11-2026).
+    casa_noticia = ""
     try:
         from app.services.draft_generator import hechos_de_propuesta, material_propio_de_propuesta
         # En una noticia, también su artículo (o el texto pegado): es la fuente con la
         # que se escribió, y sin él «un valor postal de 5 euros» iba a la web.
         # Y el material de casa con el que se le dio contexto (fichas y noticias ya
         # publicadas): se reúne igual que al escribirla.
-        casa_noticia = ""
         if fuente_noticia:
             from app.services.news_research import material_de_casa
             casa_noticia = material_de_casa(db, f"{post.title}\n{fuente_noticia[:6000]}")
@@ -473,18 +479,24 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
         from app.services.news_research import entity_dossiers, noticias_de_casa
         # Lo propio (fichas, formación, créditos, y las noticias que ya publicamos, que
         # dan el contexto) se puede nombrar aunque la noticia no lo traiga; lo que no
-        # vale es ponerlo en un cartel.
+        # vale es ponerlo en un cartel. Con el material de casa entero, que es de donde
+        # sale el contexto: sin la lista de reconocimientos, «Teatro de Rojas de Toledo»
+        # mandaba a revisión la noticia del cuadro (medido el 23-11-2026).
         try:
             propio = "\n\n".join([
                 entity_dossiers(db, " ".join([p.title or "", fuente_noticia[:4000]])),
-                noticias_de_casa(db)])
+                casa_noticia, noticias_de_casa(db)])
         except Exception as exc:  # noqa: BLE001 — sin dossier, más estricto, no menos
             logger.warning("  dossier para la noticia falló (%s): se comprueba sin él", exc)
             db.rollback()
             propio = ""
+        # Con el año que el artículo determina sin escribirlo («sábado 15 de mayo»), o
+        # la frase que lo lleva se toma por no dicha.
+        from app.services.historias_disco import anios_de_fechas, nota_de_fechas
+        nota = nota_de_fechas(anios_de_fechas(f"{p.title}\n{fuente_noticia}", today))
         grounding = source_grounding.revisar(
-            post.body_md, fuente_noticia, casa=source_grounding.nombres_de_casa(db),
-            propio=propio or "",
+            post.body_md, f"{nota}\n\n{fuente_noticia}".strip(),
+            casa=source_grounding.nombres_de_casa(db), propio=propio or "",
         )
         if grounding.ok:
             grounding = None

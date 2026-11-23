@@ -89,6 +89,10 @@ _DE_CASA_SIEMPRE = {"robe", "roberto iniesta", "extremoduro", "uoho", "iniesta"}
 
 _PALABRA_MAYUS = re.compile(r"^[A-ZÁÉÍÓÚÑÜ][\wÁÉÍÓÚÑÜáéíóúñü'’\-]*$")
 _TOKEN = re.compile(r"[\wÁÉÍÓÚÑÜáéíóúñü'’\-]+|[^\w\s]")
+# Terminaciones de verbo en pasado o futuro que no comparten los nombres de pila
+# («Participaron», «Asistieron», «Entregó», «Actuará», «Estaban»). Fuera a propósito:
+# -an/-en (Juan, Carmen), -ía (María, García) y -é (José).
+_VERBO_INICIAL = re.compile(r"(?:aron|ieron|ó|ará|erá|irá|arán|erán|irán|aba|aban|ían)$")
 
 
 def _texto_plano(body_md: str) -> str:
@@ -113,8 +117,18 @@ def frases(texto: str) -> list[str]:
     return [p.strip() for p in partes if p.strip()]
 
 
-def nombres_en(frase: str) -> list[str]:
-    """Nombres propios de una frase: rachas de palabras con mayúscula."""
+def nombres_en(frase: str, conocido=None) -> list[str]:
+    """Nombres propios de una frase: rachas de palabras con mayúscula.
+
+    `conocido(nombre) -> bool` dice si un nombre consta en algún sitio (el artículo, la
+    casa, lo propio). Sirve para el verbo que abre la frase pegado a un nombre:
+    «Participaron León y representantes…» daba el nombre «Participaron León» y la frase
+    se retiraba de una noticia cuyo artículo sí nombra a León (cuadro, 20-11-2026). Si
+    el nombre entero no consta y sin su primera palabra sí, la primera palabra era el
+    verbo. Solo con terminación de verbo conjugado (`_VERBO_INICIAL`): «Kutxi Romero»
+    no se queda en «Romero» porque el artículo nombre a otro Romero. Lo que quede se
+    comprueba igual que cualquier nombre.
+    """
     tokens = _TOKEN.findall(frase)
     nombres: list[str] = []
     racha: list[str] = []
@@ -134,6 +148,10 @@ def nombres_en(frase: str) -> list[str]:
             palabras = palabras[1:]
             while palabras and _norm(palabras[0]) in _CONECTORES:
                 palabras = palabras[1:]
+        elif (inicio_racha == 0 and conocido is not None and len(palabras) > 1
+              and _VERBO_INICIAL.search(palabras[0])
+              and not conocido(" ".join(palabras)) and conocido(" ".join(palabras[1:]))):
+            palabras = palabras[1:]
         if palabras:
             nombres.append(" ".join(palabras))
 
@@ -265,8 +283,12 @@ def revisar(
     casa_norm = {_norm(c) for c in casa}
     bloqueos: list[Hallazgo] = []
 
+    def consta(nombre: str) -> bool:
+        return bool(_en_fuente(nombre, fuente_norm) or _de_casa(_norm(nombre), casa_norm)
+                    or (propio_norm and _en_fuente(nombre, propio_norm)))
+
     for frase in frases(_texto_plano(body_md)):
-        nombres = nombres_en(frase)
+        nombres = nombres_en(frase, consta)
         participa = bool(_PARTICIPACION.search(frase))
         for nombre in nombres:
             n = _norm(nombre)

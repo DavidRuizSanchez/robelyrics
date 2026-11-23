@@ -247,6 +247,13 @@ def review(
             "qué ha pasado, quién, cuándo y dónde, y lo sitúa para un fan, es ÚTIL → "
             "'pass' aunque sea corta. NO le exijas setlist, invitados ni anécdotas que la "
             "noticia no tiene. 'reject' solo si es vaga, genérica o rellena con loas.\n"
+            # Medido el 23-11-2026 por el camino completo: el juez tomaba por desvío la
+            # sección «Otros reconocimientos a Robe», que es el contexto que David pidió
+            # (cuadro: 58, 42 y 35 con ella; 72 y 72 la semana anterior con otro reparto).
+            "Una sección FINAL de contexto con otros hechos datados del mismo asunto (otros "
+            "reconocimientos a Robe, antecedentes) es lo que se le pide a una noticia para "
+            "situarla: NO es desvío ni relleno, no tiene que explicar su relación con el "
+            "hecho principal y cuenta como desarrollo.\n"
         )
 
     material_block = ""

@@ -128,3 +128,28 @@ def test_lo_propio_se_puede_nombrar_pero_no_pone_a_nadie_en_un_cartel():
     anuncio = "Selu Nieto actuará en Flores Amarillas 2027."
     v = sg.revisar(anuncio, POST_65["articulo"], propio=propio, juez=False)
     assert "Selu Nieto" in _nombres(v)
+
+
+def test_el_verbo_que_abre_la_frase_no_es_parte_del_nombre():
+    """«Participaron León y…» daba el nombre «Participaron León» y la frase se quitaba
+    de la noticia del cuadro (20-11-2026), cuyo artículo sí nombra a León."""
+    articulo = ("Laureano León, consejero de Cultura, entregó el premio. León destacó "
+                "el certamen ante representantes de instituciones extremeñas y catalanas.")
+    frase = "Participaron León y representantes de instituciones extremeñas y catalanas."
+    assert sg.nombres_en(frase) == ["Participaron León"]
+    assert sg.nombres_en(frase, lambda n: n == "León") == ["León"]
+    assert sg.revisar(frase, articulo, juez=False).ok
+
+
+def test_el_verbo_inicial_no_salva_un_nombre_que_no_consta():
+    """Quitar el verbo no da por bueno a nadie: si lo que queda no consta, se bloquea."""
+    v = sg.revisar("Asistieron Fito Cabrales y varios músicos.", POST_65["articulo"],
+                   juez=False)
+    assert any("Fito Cabrales" in n for n in _nombres(v))
+
+
+def test_un_nombre_de_pila_no_se_toma_por_verbo():
+    """«Kutxi Romero» no se queda en «Romero» porque el artículo nombre a otro Romero."""
+    v = sg.revisar("Kutxi Romero recordó a Robe.", "El alcalde Romero abrió el acto.",
+                   juez=False)
+    assert "Kutxi Romero" in _nombres(v)

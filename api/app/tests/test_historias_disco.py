@@ -764,3 +764,46 @@ def test_los_reconocimientos_van_tal_cual_sin_pasar_por_el_redactor(monkeypatch)
     assert len(llamadas) == 1                      # solo el cuerpo
     assert texto == (f"{CUERPO}\n\n## {hd.ENCABEZADO_RECONOCIMIENTOS}\n\n"
                      f"{RECONOCIMIENTOS[0]}\n\n{RECONOCIMIENTOS[1]}")
+
+
+# --- el año de una fecha se sabe o no se pone (23-11-2026) ---
+def test_el_anio_sale_del_dia_de_la_semana():
+    """Flores Amarillas: «sábado 15 de mayo», escrito en noviembre de 2026, es de 2027.
+    El motor lo fechó en 2026 porque daba por hecho el año en curso."""
+    from datetime import date
+
+    hoy = date(2026, 11, 23)
+    art = "El festival será el sábado 15 de mayo. Rebrote toca el sábado 14 de noviembre."
+    assert hd.anios_de_fechas(art, hoy) == {(15, "mayo"): 2027, (14, "noviembre"): 2026}
+
+
+def test_sin_dia_de_la_semana_ni_anio_no_se_sabe():
+    from datetime import date
+
+    assert hd.anios_de_fechas("La cita es el 15 de mayo.", date(2026, 11, 23)) == {}
+    assert hd.anios_de_fechas("Nació el 16 de mayo de 1962.", date(2026, 11, 23)) == {
+        (16, "mayo"): 1962}
+
+
+def test_dos_anios_para_el_mismo_dia_no_se_resuelve():
+    from datetime import date
+
+    art = "Fue el 15 de mayo de 2026 y volverá el 15 de mayo de 2027."
+    assert hd.anios_de_fechas(art, date(2026, 11, 23)) == {}
+
+
+def test_el_cuerpo_no_lleva_un_anio_que_no_se_sabe():
+    anios = {(15, "mayo"): 2027}
+    assert hd.fechas_mal_fechadas("Será el 15 de mayo de 2027.", anios) == []
+    assert "lleva mal el año" in hd.fechas_mal_fechadas("Será el 15 de mayo de 2026.", anios)[0]
+    assert "va sin año" in hd.fechas_mal_fechadas("Será el 15 de mayo.", anios)[0]
+    # Una fecha que no se sabe: sin año vale, con año inventado no, con año que consta sí.
+    assert hd.fechas_mal_fechadas("Llega el 3 de junio.", anios) == []
+    assert "no consta" in hd.fechas_mal_fechadas("Llega el 3 de junio de 2027.", anios)[0]
+    assert hd.fechas_mal_fechadas("Murió el 10 de diciembre de 2025.", anios,
+                                  "Robe murió el 10 de diciembre de 2025") == []
+
+
+def test_la_nota_de_fechas_lleva_cada_dia_con_su_anio():
+    assert hd.nota_de_fechas({}) == ""
+    assert "15 de mayo de 2027" in hd.nota_de_fechas({(15, "mayo"): 2027})

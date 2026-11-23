@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import asdict, dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -1176,6 +1177,79 @@ def fechas_sin_anio(texto: str) -> list[str]:
             for m in _DIA_SIN_ANIO.finditer(texto or "")]
 
 
+_MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+          "septiembre", "octubre", "noviembre", "diciembre")
+_SEMANA = ("lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo")
+_FECHA = re.compile(
+    r"(?:\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s+(?:d[ií]a\s+)?)?"
+    r"\b(\d{1,2}) de (" + "|".join(_MESES) + r")\b(?:\s+de(?:l)?\s+(\d{4}))?", re.I)
+
+
+def _sin_tilde(t: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", t.lower())
+                   if not unicodedata.combining(c))
+
+
+def anios_de_fechas(articulo: str, hoy) -> dict[tuple[int, str], int]:
+    """El año de cada día que nombra el artículo, cuando se puede SABER: porque lo
+    escribe, o porque da el día de la semana y solo cuadra con un año entre el anterior
+    y el siguiente («sábado 15 de mayo», escrito en noviembre de 2026, es de 2027).
+
+    Lo que no se puede saber no entra, y el cuerpo lo escribe sin año. La primera versión
+    daba por hecho que un día sin año era del año en curso: la noticia de Flores
+    Amarillas (15 de mayo de 2027) salió fechada en 2026 (medido el 23-11-2026).
+    """
+    from datetime import date
+
+    vistos: dict[tuple[int, str], set[int]] = {}
+    for m in _FECHA.finditer(articulo or ""):
+        semana, dia, mes, anio = m.group(1), int(m.group(2)), m.group(3).lower(), m.group(4)
+        anios: set[int] = set()
+        if anio:
+            anios = {int(anio)}
+        elif semana and hoy is not None:
+            for y in (hoy.year - 1, hoy.year, hoy.year + 1):
+                try:
+                    d = date(y, _MESES.index(mes) + 1, dia)
+                except ValueError:
+                    continue
+                if _SEMANA[d.weekday()] == _sin_tilde(semana):
+                    anios.add(y)
+        if len(anios) == 1:
+            vistos.setdefault((dia, mes), set()).update(anios)
+    return {k: next(iter(v)) for k, v in vistos.items() if len(v) == 1}
+
+
+def nota_de_fechas(anios: dict[tuple[int, str], int]) -> str:
+    """Las fechas resueltas, para quien comprueba el texto contra el artículo: sin esto
+    le quita al cuerpo un año que el artículo no escribe pero sí determina."""
+    if not anios:
+        return ""
+    return ("[Fechas del artículo con su año (el que escribe o el que fija su día de la "
+            "semana): " + "; ".join(f"{d} de {m} de {y}" for (d, m), y in sorted(
+                anios.items(), key=lambda kv: (kv[1], _MESES.index(kv[0][1]), kv[0][0])))
+            + ".]")
+
+
+def fechas_mal_fechadas(texto: str, anios: dict[tuple[int, str], int],
+                        consta: str = "") -> list[str]:
+    """Las fechas del cuerpo cuyo año no es el que se sabe: le falta, lleva otro, o lleva
+    uno que no consta en ningún sitio (`consta`: el artículo y los datos de casa)."""
+    fallos = []
+    consta_plano = _sin_tilde(consta)
+    for m in _FECHA.finditer(texto or ""):
+        dia, mes, anio = int(m.group(2)), m.group(3).lower(), m.group(4)
+        dicho = f"{dia} de {mes}"
+        sabido = anios.get((dia, mes))
+        if sabido and not anio:
+            fallos.append(f"«{dicho}» va sin año: es «{dicho} de {sabido}»")
+        elif sabido and int(anio) != sabido:
+            fallos.append(f"«{dicho} de {anio}» lleva mal el año: es «{dicho} de {sabido}»")
+        elif anio and not sabido and _sin_tilde(f"{dicho} de {anio}") not in consta_plano:
+            fallos.append(f"el año de «{dicho} de {anio}» no consta: escribe «{dicho}» sin año")
+    return fallos
+
+
 def citas_ajenas(texto: str, de_robe: list[str], titulos: list[str]) -> list[str]:
     """Lo que el cuerpo de una noticia entrecomilla y no es de Robe ni un título. En una
     noticia solo se cita a Robe; lo que dice otra persona se cuenta sin comillas."""
@@ -1205,11 +1279,13 @@ def _titulos_del_catalogo(db) -> list[str]:
 
 
 def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
-                     fecha: str = "", reconocimientos: tuple[str, ...] = ()) -> str | None:
+                     fecha: str = "", reconocimientos: tuple[str, ...] = (),
+                     hoy=None) -> str | None:
     """El cuerpo de una noticia por historias, o None si el artículo no da para ello.
 
     `casa`: el material nuestro que puede dar contexto (`news_research.material_de_casa`).
-    `fecha`: cuándo se escribe («noviembre de 2026»), para que un día sin año lo lleve.
+    `fecha`: cuándo se escribe («noviembre de 2026»). `hoy`: el día, para saber de qué año
+    es un día que el artículo da con su día de la semana (`anios_de_fechas`).
     """
     import os
 
@@ -1232,6 +1308,9 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     titulos = [titular, *otros_titulos, *_titulos_del_catalogo(db)]
     de_casa = "\n".join(robe_facts.must_facts_lines(db))
+    anios = anios_de_fechas(f"{titular}\n{articulo}", hoy)
+    nota = nota_de_fechas(anios)
+
     def _cuerpo(historias: list[Historia]) -> str:
         citas_de_robe = [h.tramo for h in historias if h.citable]
         pasaje = pasajes_de(articulo, [h.tramo for h in historias])
@@ -1246,9 +1325,10 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
             "- Cuenta SOLO lo que dicen estos TRAMOS del artículo, con sus datos exactos "
             "(nombres, cargos, cifras, fechas) y sin inflarlos:\n"
             + "\n".join(f"  · «{h.tramo}»" for h in historias) + "\n"
-            + (f"- Se escribe en {fecha}. Toda fecha lleva su AÑO, también si el artículo no lo "
-               "escribe («el sábado 14 de noviembre» es «el sábado 14 de noviembre de 2026» si "
-               "es de este año).\n" if fecha else "")
+            + (f"- Se escribe en {fecha}.\n" if fecha else "")
+            + (f"- Estas fechas llevan su AÑO aunque el artículo no lo escriba: {nota[1:-1]}\n"
+               if nota else "")
+            + "- A cualquier otra fecha NO le pongas un año que el artículo no escriba.\n"
             + "- No expliques quién era Robe ni recuerdes su biografía: el lector lo sabe.\n"
             "- Cuéntalo como hechos: nunca «según el artículo», «según la información» ni "
             "nada que hable de dónde sale el dato.\n"
@@ -1266,12 +1346,10 @@ def escribir_noticia(db, titular: str, articulo: str, *, casa: str = "",
             # Los datos de casa, delante: lo que se comprueba se corta a 6.000 caracteres. Y
             # la fecha en que se escribe, o el verificador quita el año que se le pide al
             # redactor porque «el artículo no lo dice» (20-11-2026, tres intentos de tres).
-            f"{de_casa}\n\n"
-            + (f"[El artículo es de {fecha}: un día que da sin año es de ese año.]\n\n"
-               if fecha else "") + pasaje,
+            f"{de_casa}\n\n" + (f"{nota}\n\n" if nota else "") + pasaje,
             titulos, max_tokens=1100, db=db, intentos=3,
             extra_check=lambda t: (citas_ajenas(t, citas_de_robe, titulos)
-                                   + (fechas_sin_anio(t) if fecha else [])))
+                                   + fechas_mal_fechadas(t, anios, f"{articulo}\n{de_casa}")))
         return sin_encabezados(texto)
 
     cuerpo = _cuerpo(del_articulo)
