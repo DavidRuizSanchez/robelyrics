@@ -332,3 +332,435 @@ def test_robe_murio_en_barakaldo():
 
     assert "Barakaldo" in robe_facts.DEATH_PLACE
     assert any("Barakaldo" in x for x in robe_facts.must_facts_lines())
+
+
+def test_una_noticia_solo_tiene_historias_de_su_articulo(monkeypatch):
+    articulo = ("Correos lanza un sello dedicado a Robe. La emisión llegará el 23 de noviembre "
+                "de 2026 con un valor postal de 5 euros y una tirada de 65.000 ejemplares.")
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: {"historias": [
+        {"gancho": "Sale el 23 de noviembre", "ancla": "dato", "quien": "hechos",
+         "tramo": "La emisión llegará el 23 de noviembre de 2026 con un valor postal de 5 euros"},
+        {"gancho": "Inspirado en Deltoya", "ancla": "dato", "quien": "hechos",
+         "tramo": "El diseño se inspira en los discos Deltoya y Mayéutica"},   # no está
+    ]})
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_noticia("Correos dedica un sello a Robe", articulo)
+    assert [h.gancho for h in hs] == ["Sale el 23 de noviembre"]
+
+
+def test_el_redactor_de_noticias_por_historias_esta_apagado_por_defecto():
+    from app.services import news_research
+    assert news_research.NOTICIAS_POR_HISTORIAS.get() is False
+
+
+def test_un_ancla_descriptiva_no_tira_la_historia(monkeypatch):
+    articulo = "En los primeros cinco días el capítulo ha superado las 66.000 visualizaciones."
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: {"historias": [
+        {"gancho": "66.000 visualizaciones", "ancla": "Dato de audiencia del documental",
+         "quien": "hechos", "tramo": articulo}]})
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_noticia("x", articulo)
+    assert len(hs) == 1 and hs[0].ancla == "dato"
+
+
+# --------------------------------------------------------------------------- #
+# Noticias por historias: citas, títulos ajenos, contexto y modo breve (20-11-2026)
+# --------------------------------------------------------------------------- #
+ARTICULO_CUADRO = (
+    "El pintor Juan Pérez ha ganado el certamen Rasgo Extremeño con el cuadro El rey de "
+    "Extremadura, un retrato inspirado en Robe. El consejero Laureano León entregó el "
+    "premio en Badalona el 14 de noviembre de 2026. «Robe es parte de lo que somos», dijo "
+    "el consejero durante el acto.")
+CASA = ("### Noticias que ya hemos publicado (titular. entradilla)\n"
+        "- Leiva publica «Caída libre» con Robe. La canción sale con su vídeo.\n"
+        "- Plasencia prepara Flores Amarillas 2027. El festival vuelve en junio.")
+
+
+def _editor(historias, titulos=()):
+    return lambda *a, **k: {"historias": historias, "titulos": list(titulos)}
+
+
+def test_en_una_noticia_solo_robe_es_citable(monkeypatch):
+    articulo = ARTICULO_CUADRO + " Robe dijo en 2008: «Yo hago canciones, no himnos»."
+    assert hd.habla_robe("Yo hago canciones, no himnos", articulo)
+    monkeypatch.setattr("app.services.news_research._json", _editor([
+        {"gancho": "El consejero habló de Robe", "ancla": "declaracion", "quien": "tercero",
+         "tramo": "«Robe es parte de lo que somos», dijo el consejero durante el acto"},
+        {"gancho": "Robe sobre sus canciones", "ancla": "declaracion", "quien": "robe",
+         "tramo": "Robe dijo en 2008: «Yo hago canciones, no himnos»"},
+        {"gancho": "El premio se entregó en Badalona", "ancla": "dato", "quien": "cualquiera",
+         "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"}]))
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_noticia("Un cuadro de Robe gana en Badalona", articulo)
+    assert [(h.quien, h.citable) for h in hs] == [("tercero", False), ("robe", True),
+                                                  ("hechos", False)]
+    assert {h.fuente for h in hs} == {hd.FUENTE_NOTICIA}
+
+
+def test_las_palabras_de_un_tercero_no_se_entrecomillan():
+    sec = "## El acto\n\nEl consejero dijo: «Robe es parte de lo que somos»."
+    fallos = hd.citas_que_fallan(sec, ARTICULO_CUADRO, [], no_citable=ARTICULO_CUADRO)
+    assert fallos and "SIN comillas" in fallos[0]
+    contado = "## El acto\n\nEl consejero Laureano León dijo que Robe es parte de lo que son."
+    assert hd.citas_que_fallan(contado, ARTICULO_CUADRO, [], no_citable=ARTICULO_CUADRO) == []
+
+
+def test_el_titulo_de_una_obra_ajena_no_es_una_cita(monkeypatch):
+    """Un documental o un libro van entre «» y nadie «lo dice». Sin el título en la lista,
+    la sección caía por «va sin decir antes quién lo dice»."""
+    articulo = (ARTICULO_CUADRO
+                + " El acto cerró con el documental La vida que nos dieron las canciones.")
+    sec = "## El acto\n\nSe proyectó «La vida que nos dieron las canciones»."
+    assert hd.citas_que_fallan(sec, articulo, [], no_citable=articulo)
+    monkeypatch.setattr("app.services.news_research._json", _editor(
+        [], ["La vida que nos dieron las canciones", "Rasgo Extremeño", "La vida es bella",
+             "Robe es parte de lo que somos. Y lo será siempre"]))
+    _, titulos, _homenaje = hd.inventario_de_noticia("x", articulo)
+    # Solo los que están literales en el artículo, y ninguna frase.
+    assert titulos == ("La vida que nos dieron las canciones", "Rasgo Extremeño")
+    assert hd.citas_que_fallan(sec, articulo, list(titulos), no_citable=articulo) == []
+
+
+def test_el_contexto_sale_literal_del_material_de_casa(monkeypatch):
+    monkeypatch.setattr("app.services.news_research._json", _editor([
+        {"gancho": "En mayo Leiva publicó una canción con Robe",
+         "tramo": "Leiva publica «Caída libre» con Robe. La canción sale"},
+        {"gancho": "Robe ganó un Grammy", "tramo": "Robe ganó un Grammy en 2020"},   # no está
+        {"gancho": "El premio fue en Badalona",                      # es la noticia
+         "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"}]))
+    monkeypatch.setattr(hd, "gancho_fiel", lambda h: h)
+    hs = hd.inventario_contexto("x", ARTICULO_CUADRO, CASA + "\n" + ARTICULO_CUADRO, [])
+    assert [h.tramo for h in hs] == ["Leiva publica «Caída libre» con Robe. La canción sale"]
+    assert hs[0].fuente == hd.FUENTE_CASA and hs[0].ancla == "contexto" and hs[0].afirmable
+    assert hd.inventario_contexto("x", ARTICULO_CUADRO, "", []) == []
+
+
+CUERPO = ("El pintor Juan Pérez ha ganado el certamen Rasgo Extremeño con un retrato "
+          "inspirado en Robe. " * 4).strip()
+
+
+SECCION = "## Antes\n\n" + ("Un hecho nuestro que sitúa la noticia. " * 8).strip()
+
+
+def _escribir(monkeypatch, del_articulo, contexto, *, cuerpo=CUERPO, seccion=SECCION):
+    """`escribir_noticia` sin red: devuelve el texto y los prompts que recibió el redactor."""
+    prompts = []
+
+    def _sec(client, prompt, fuente, titulos, **k):
+        prompts.append({"prompt": prompt, "fuente": fuente, "titulos": titulos, **k})
+        return (cuerpo if "CUERPO de la noticia" in prompt else seccion), []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", lambda **k: object())
+    monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
+    monkeypatch.setattr(hd, "inventario_de_noticia",
+                        lambda t, a: (del_articulo, ("Obra",), False))
+    monkeypatch.setattr(hd, "inventario_contexto", lambda t, a, casa, ya, **k: contexto)
+    monkeypatch.setattr(hd, "_seccion", _sec)
+    return hd.escribir_noticia(None, "Titular", ARTICULO_CUADRO, casa=CASA,
+                               fecha="noviembre de 2026"), prompts
+
+
+def _h(fuente, tramo="un tramo cualquiera del artículo", **k):
+    return hd.Historia("g", "dato", fuente, tramo, k.pop("quien", "hechos"), True, **k)
+
+
+def test_la_noticia_es_un_cuerpo_sin_encabezados_y_una_seccion_de_contexto(monkeypatch):
+    """La forma de las dos noticias que David aprobó a mano. Con una sección por historia
+    salían cinco apartados repitiendo el mismo premio (muestra del 20-11-2026)."""
+    texto, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA, "tramo uno del artículo"),
+                                             _h(hd.FUENTE_NOTICIA, "tramo dos del artículo")],
+                               [_h(hd.FUENTE_CASA, "tramo de casa")],
+                               cuerpo="## Un encabezado que sobra\n" + CUERPO)
+    assert texto == CUERPO + "\n\n" + SECCION
+    assert len(prompts) == 2                       # un cuerpo y un contexto, no una por historia
+    del_cuerpo, del_contexto = prompts
+    assert "«tramo uno del artículo»" in del_cuerpo["prompt"]
+    assert "«tramo dos del artículo»" in del_cuerpo["prompt"]
+    assert "noviembre de 2026" in del_cuerpo["prompt"]
+    assert "Obra" in del_cuerpo["titulos"]         # el título ajeno no cuenta como cita
+    # El contexto se comprueba contra el material de casa, no contra el artículo.
+    assert "«tramo de casa»" in del_contexto["prompt"]
+    assert ARTICULO_CUADRO not in del_contexto["fuente"]
+
+
+def test_solo_se_puede_entrecomillar_lo_que_dijo_robe(monkeypatch):
+    carta = "Tiembla alcalde, porque no conseguirás evitar que en cada calle suene"
+    _, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA, "entregó el premio en Badalona"),
+                                         _h(hd.FUENTE_NOTICIA, carta, quien="robe", citable=True)],
+                           [])
+    comprobar = prompts[0]["extra_check"]
+    assert "A Robe se le puede citar" in prompts[0]["prompt"]
+    # Robe, aunque la cita sea más larga o más corta que el tramo del inventario.
+    assert comprobar(f"Robe escribió: «{carta} una guitarra».") == []
+    assert comprobar("Robe escribió: «Tiembla alcalde, porque no conseguirás evitar».") == []
+    # Otra persona: sin comillas. El título de una obra no es una cita.
+    fallo = comprobar("El consejero dijo: «Robe es parte de lo que somos».")
+    assert fallo and "no lo dice Robe" in fallo[0]
+    assert comprobar("Ganó con el cuadro «Obra».") == []
+    _, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA), _h(hd.FUENTE_NOTICIA, "otro")], [])
+    assert "A Robe se le puede citar" not in prompts[0]["prompt"]
+
+
+def test_el_redactor_lee_los_parrafos_de_sus_tramos_no_el_articulo_entero():
+    """Con la nota de prensa pegada, un artículo pasa de 17.000 caracteres y lo que se
+    comprueba se corta a 6.000: lo de más abajo se daba por «no dicho»."""
+    relleno = "Párrafo de relleno que no viene a cuento. " * 60
+    articulo = "\n\n".join([
+        "Correos lanza un sello dedicado a Robe el 23 de noviembre de 2026.", relleno, relleno,
+        relleno, "La tirada será de 65.000 ejemplares y el valor postal, de 5 euros.", relleno])
+    assert len(articulo) > 9000
+    pasaje = hd.pasajes_de(articulo, ["Correos lanza un sello dedicado a Robe",
+                                      "La tirada será de 65.000 ejemplares"])
+    assert "65.000 ejemplares" in pasaje and "23 de noviembre" in pasaje
+    assert "relleno" not in pasaje and len(pasaje) < 400
+    # Un artículo en un solo bloque: ventana alrededor del tramo.
+    bloque = relleno * 3 + "La tirada será de 65.000 ejemplares y vale 5 euros. " + relleno * 3
+    corto = hd.pasajes_de(bloque, ["La tirada será de 65.000 ejemplares"])
+    assert "65.000 ejemplares" in corto and len(corto) < 700
+
+
+def test_un_articulo_fino_da_una_noticia_breve_si_hay_contexto(monkeypatch):
+    texto, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA)], [_h(hd.FUENTE_CASA)])
+    assert texto.endswith(SECCION) and len(prompts) == 2
+
+
+def test_un_articulo_fino_sin_contexto_limpio_no_da_para_un_post(monkeypatch):
+    texto, _ = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA)], [_h(hd.FUENTE_CASA)], seccion="")
+    assert texto is None
+    texto, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA)], [])
+    assert texto is None and prompts == []
+
+
+def test_sin_historia_del_articulo_no_hay_noticia_aunque_haya_contexto(monkeypatch):
+    texto, prompts = _escribir(monkeypatch, [], [_h(hd.FUENTE_CASA), _h(hd.FUENTE_CASA)])
+    assert texto is None and prompts == []
+
+
+def test_si_el_cuerpo_no_sale_limpio_no_hay_noticia(monkeypatch):
+    texto, _ = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA), _h(hd.FUENTE_NOTICIA, "otro")],
+                         [_h(hd.FUENTE_CASA)], cuerpo="")
+    assert texto is None
+
+
+def test_dos_historias_del_articulo_bastan_sin_contexto(monkeypatch):
+    texto, prompts = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA), _h(hd.FUENTE_NOTICIA, "otro")],
+                               [])
+    assert texto == CUERPO and len(prompts) == 1
+
+
+def test_la_vara_de_una_noticia_que_no_es_un_concierto(monkeypatch):
+    """La rúbrica solo conocía la crónica y el anuncio de un evento: un sello o un premio
+    se medían con la vara de un concierto."""
+    from app.services import editorial_review as er
+
+    vistos = []
+
+    class _Resp:
+        choices = [type("C", (), {"message": type("M", (), {
+            "content": '{"verdict": "pass", "score": 80, "reasons": []}'})()})()]
+
+    class _Cliente:
+        def __init__(self, **k):
+            self.chat = type("X", (), {"completions": type("Y", (), {
+                "create": lambda *a, **kw: (vistos.append(kw), _Resp())[1]})()})()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", _Cliente)
+    monkeypatch.setattr(er, "discografia_real", lambda: "")
+    er.review("Correos emite un sello de Robe el 23 de noviembre.", kind="news", subject="sello")
+    er.review("El sello sale el 23.", kind="news", subject="x", event_when="future")
+    er.review("Un disco.", kind="album", subject="x")
+    textos = [str(v) for v in vistos]
+    # También con fecha: al sello se le reprochaba «no decir dónde se celebra».
+    assert "NOTICIA BREVE" in textos[0] and "NOTICIA BREVE" in textos[1]
+    assert "ANUNCIO de un evento FUTURO" in textos[1]
+    assert "NOTICIA BREVE" not in textos[2]
+
+
+def test_un_dia_sin_ano_se_devuelve_al_redactor():
+    assert hd.fechas_sin_anio("Actuará el sábado 14 de noviembre en La Bohemia.") == [
+        "«14 de noviembre» va sin año: escríbelo con su año"]
+    assert hd.fechas_sin_anio("Actuará el 14 de noviembre de 2026; volvió el 31 de mayo de "
+                              "2008.") == []
+
+
+def test_hablar_de_donde_sale_el_dato_es_hablar_del_proceso():
+    for frase in ("La información fecha la carta el 11 de mayo de 2000.",
+                  "Según la información del material, la carta era de mayo.",
+                  "Según el artículo, el premio fue en Badalona.",
+                  "El artículo señala que acudieron miles de personas."):
+        assert hd._PROCESO.search(frase), frase
+    assert not hd._PROCESO.search("Robe fechó la carta el 11 de mayo de 2000.")
+
+
+def test_un_parrafo_con_almohadillas_no_se_borra():
+    """La noticia del sello perdió su entradilla: el modelo la escribió con «## » delante
+    y se borró como si fuera un encabezado."""
+    entradilla = ("Correos dedicará a Robe un sello que se emitirá el 23 de noviembre de "
+                  "2026, dentro de la serie Música de su programa filatélico.")
+    texto = hd.sin_encabezados(f"## {entradilla}\n\n## Un encabezado\n\nLas medidas.")
+    assert texto == f"{entradilla}\n\nLas medidas."
+
+
+def test_lo_que_repite_la_noticia_no_es_contexto():
+    articulo = ("Correos emite un sello dedicado a Robe con un valor postal de 5 euros y una "
+                "tirada de 65.000 ejemplares dentro de la serie Música.")
+    assert hd.repite_la_noticia("el 23 de noviembre Correos pondrá en circulación un sello "
+                                "con un valor postal de 5 euros y una tirada de 65.000", articulo)
+    assert not hd.repite_la_noticia("El 26 de mayo, «Caída libre» ganó el premio a la mejor "
+                                    "canción pop-rock", articulo)
+
+
+def test_un_contexto_de_una_frase_no_entra(monkeypatch):
+    texto, _ = _escribir(monkeypatch, [_h(hd.FUENTE_NOTICIA), _h(hd.FUENTE_NOTICIA, "otro")],
+                         [_h(hd.FUENTE_CASA)], seccion="## Un título\n\nUna sola frase.")
+    assert texto == CUERPO
+
+
+def test_una_frase_no_es_de_robe_si_el_articulo_no_lo_nombra_al_lado(monkeypatch):
+    """Entrevista a Uoho: el editor marcó como de Robe «vendimos cuatrocientas y pico mil
+    entradas» y salió entrecomillada."""
+    articulo = ("Robe fundó Extremoduro en Plasencia en 1987 y el grupo se disolvió en 2019. "
+                + "El guitarrista repasa en esta entrevista su etapa más reciente con calma. " * 4
+                + "Uoho recuerda: «vendimos cuatrocientas y pico mil entradas en 2020, cuando "
+                "llegó la pandemia». Robe escribió entonces: «Tiembla alcalde, porque no "
+                "conseguirás evitar que la gente disfrute».")
+    monkeypatch.setattr("app.services.news_research._json", _editor([
+        {"gancho": "Las entradas", "ancla": "declaracion", "quien": "robe",
+         "tramo": "vendimos cuatrocientas y pico mil entradas en 2020"},
+        {"gancho": "La carta", "ancla": "declaracion", "quien": "robe",
+         "tramo": "Tiembla alcalde, porque no conseguirás evitar que la gente disfrute"}]))
+    hs = hd.inventario_noticia("x", articulo)
+    assert [(h.quien, h.citable) for h in hs] == [("tercero", False), ("robe", True)]
+
+
+def test_la_lista_de_reconocimientos_es_material_de_casa():
+    """El «año de homenajes» que en el sello y el cuadro se pegó a mano. Cada hecho va con
+    su año y tiene fuente; sin fuente no viaja."""
+    from pathlib import Path
+
+    import yaml
+
+    from app.services import news_research as nr
+    from app.services.jsonld_audit import ruta_data
+
+    texto = nr.reconocimientos_de_casa()
+    assert texto.startswith(nr.CABECERA_RECONOCIMIENTOS)
+    hechos = [x[2:] for x in texto.splitlines()[1:]]
+    datos = yaml.safe_load(Path(ruta_data("reconocimientos_robe.yaml")).read_text("utf-8"))
+    assert len(hechos) == len(datos["reconocimientos"]) >= 4
+    for r in datos["reconocimientos"]:
+        assert r["fuentes"] and all(f["url"].startswith("https://") and f["extracto"]
+                                    for f in r["fuentes"]), r["hecho"]
+        assert r["fecha"][:4] in r["hecho"], r["hecho"]       # el año, en la frase
+        assert "Robe Iniesta" not in r["hecho"] and "—" not in r["hecho"]
+    # Sirve de tramo literal para el contexto, y el propio hecho de la noticia no entra.
+    sello = next(h for h in hechos if "Correos" in h)
+    articulo = ("Correos emite un sello dedicado a Robe en la serie Música con un valor postal "
+                "de 5 euros y una tirada de 65.000 ejemplares.")
+    assert hd.repite_la_noticia(sello, articulo)
+    medalla = next(h for h in hechos if "Medalla" in h)
+    assert hd.tramo_literal(medalla, texto) and not hd.repite_la_noticia(medalla, articulo)
+
+
+RECONOCIMIENTOS = (
+    "El 26 de mayo de 2026, «Caída libre», la canción de Leiva con Robe, ganó el premio a "
+    "la mejor canción pop-rock en los III Premios de la Academia de la Música de España.",
+    "El 27 de mayo de 2026, en el Teatro de Rojas de Toledo, Alén Ayerdi recogió la Medalla "
+    "de Oro al Mérito en las Bellas Artes concedida a Robe.",
+    "Correos pone en circulación el 23 de noviembre de 2026 un sello dedicado a Robe, con un "
+    "valor postal de 5 euros y una tirada de 65.000 ejemplares.")
+ARTICULO_SELLO = ("Correos emite un sello dedicado a Robe en la serie Música con un valor "
+                  "postal de 5 euros y una tirada de 65.000 ejemplares.")
+
+
+def test_el_contexto_de_un_homenaje_son_los_otros_reconocimientos(monkeypatch):
+    """Sin preguntar al editor: dejárselo dio una Medalla de 2026 como contexto de una
+    carta del año 2000 y ningún reconocimiento para el sello."""
+    def _no_se_llama(*a, **k):
+        raise AssertionError("un homenaje no pregunta al editor")
+
+    monkeypatch.setattr("app.services.news_research._json", _no_se_llama)
+    hs = hd.inventario_contexto("Correos dedica un sello a Robe", ARTICULO_SELLO, "casa", [],
+                                homenaje=True, reconocimientos=RECONOCIMIENTOS)
+    assert [h.tramo for h in hs] == list(RECONOCIMIENTOS[:2])     # el sello es la noticia
+    assert all(h.fuente == hd.FUENTE_CASA and h.afirmable for h in hs)
+
+
+def test_lo_que_no_es_un_homenaje_no_ve_la_lista_de_reconocimientos(monkeypatch):
+    vistos = []
+    monkeypatch.setattr("app.services.news_research._json",
+                        lambda sistema, usuario, **k: (vistos.append(usuario), {})[1])
+    casa = ("RECONOCIMIENTOS:\n" + "\n".join(f"- {h}" for h in RECONOCIMIENTOS)
+            + "\n\nFICHA NUESTRA de Plasencia:\nPlasencia es una ciudad de Cáceres.")
+    assert hd.inventario_contexto("La carta de Robe al alcalde", "Robe escribió una carta.",
+                                  casa, [], reconocimientos=RECONOCIMIENTOS) == []
+    assert "Medalla" not in vistos[0] and "FICHA NUESTRA de Plasencia" in vistos[0]
+
+
+def test_si_el_redactor_se_empena_en_citar_a_un_tercero_se_escribe_sin_su_frase(monkeypatch):
+    llamadas = []
+
+    def _sec(client, prompt, fuente, titulos, **k):
+        llamadas.append(prompt)
+        return ("" if "lo que dijo el consejero" in prompt else CUERPO), []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", lambda **k: object())
+    monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
+    monkeypatch.setattr(hd, "inventario_de_noticia", lambda t, a: ([
+        _h(hd.FUENTE_NOTICIA, "entregó el premio en Badalona el 14 de noviembre"),
+        _h(hd.FUENTE_NOTICIA, "ganó el certamen Rasgo Extremeño con el cuadro"),
+        _h(hd.FUENTE_NOTICIA, "lo que dijo el consejero durante el acto", quien="tercero")],
+        (), False))
+    monkeypatch.setattr(hd, "inventario_contexto", lambda *a, **k: [])
+    monkeypatch.setattr(hd, "_seccion", _sec)
+    assert hd.escribir_noticia(None, "Titular", ARTICULO_CUADRO) == CUERPO
+    assert len(llamadas) == 2 and "lo que dijo el consejero" not in llamadas[1]
+
+
+def test_el_inventario_une_dos_pasadas_sin_repetir(monkeypatch):
+    respuestas = iter([
+        {"historias": [{"gancho": "a", "ancla": "dato", "quien": "hechos",
+                        "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"}],
+         "titulos": ["Rasgo Extremeño"], "homenaje": False},
+        {"historias": [{"gancho": "a", "ancla": "dato", "quien": "hechos",
+                        "tramo": "entregó el premio en Badalona el 14 de noviembre de 2026"},
+                       {"gancho": "b", "ancla": "dato", "quien": "hechos",
+                        "tramo": "ha ganado el certamen Rasgo Extremeño con el cuadro"}],
+         "titulos": ["El rey de Extremadura"], "homenaje": True}])
+    monkeypatch.setattr("app.services.news_research._json", lambda *a, **k: next(respuestas))
+    hs, titulos, homenaje = hd.inventario_de_noticia("x", ARTICULO_CUADRO)
+    assert [h.gancho for h in hs] == ["a", "b"]
+    assert titulos == ("Rasgo Extremeño", "El rey de Extremadura") and homenaje is True
+
+
+def test_lo_que_el_articulo_recuerda_de_pasada_si_puede_ser_contexto():
+    """El artículo del sello nombraba la Medalla; el cuerpo no la contaba, y aun así se
+    quedaba fuera del contexto por «repetir la noticia»."""
+    articulo = ARTICULO_SELLO + " " + RECONOCIMIENTOS[1]
+    ya = [hd.Historia("g", "dato", hd.FUENTE_NOTICIA, ARTICULO_SELLO, "hechos", True)]
+    hs = hd.inventario_contexto("Correos dedica un sello a Robe", articulo, "casa", ya,
+                                homenaje=True, reconocimientos=RECONOCIMIENTOS)
+    assert [h.tramo for h in hs] == list(RECONOCIMIENTOS[:2])
+
+
+def test_los_reconocimientos_van_tal_cual_sin_pasar_por_el_redactor(monkeypatch):
+    llamadas = []
+
+    def _sec(client, prompt, fuente, titulos, **k):
+        llamadas.append(prompt)
+        return CUERPO, []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setattr("openai.OpenAI", lambda **k: object())
+    monkeypatch.setattr("app.services.robe_facts.must_facts_lines", lambda db=None: ["Robe."])
+    monkeypatch.setattr(hd, "inventario_de_noticia", lambda t, a: (
+        [_h(hd.FUENTE_NOTICIA, ARTICULO_SELLO)], (), True))
+    monkeypatch.setattr(hd, "_seccion", _sec)
+    texto = hd.escribir_noticia(None, "Correos dedica un sello a Robe", ARTICULO_SELLO,
+                                reconocimientos=RECONOCIMIENTOS)
+    assert len(llamadas) == 1                      # solo el cuerpo
+    assert texto == (f"{CUERPO}\n\n## {hd.ENCABEZADO_RECONOCIMIENTOS}\n\n"
+                     f"{RECONOCIMIENTOS[0]}\n\n{RECONOCIMIENTOS[1]}")

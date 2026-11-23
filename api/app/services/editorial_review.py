@@ -40,7 +40,13 @@ MIN_WORDS = 250
 # muralista, una corista) no da para 250 palabras de sustancia, y pedírselas era
 # pedir relleno: las fichas del cap. 64 se rechazaban «por cortas» con todo
 # verificado. Criterio de David (10-11-2026): una ficha breve vale si todo es concreto.
-MIN_WORDS_POR_TIPO = {"person": 150}
+# Y una noticia breve vale si dice qué, quién, cuándo y dónde con datos exactos: la del
+# cuadro «El rey de Extremadura», que David aprobó escrita a mano (20-11-2026), no llega
+# a 250 palabras, y la muestra de ese día rechazaba con 58 una noticia correcta solo
+# «por quedar por debajo de las 250 palabras».
+# 120 y no 150: la del sello de Correos, con todos sus datos y un 82 de nota, se quedaba
+# en 139 palabras y salía rechazada solo por el suelo.
+MIN_WORDS_POR_TIPO = {"person": 150, "news": 120}
 
 
 def _min_words(kind: str) -> int:
@@ -226,6 +232,21 @@ def review(
             "setlist, ni 'por qué es relevante', ni un cartel que no se ha anunciado: "
             "decir que aún no hay nombres es correcto. Solo 'reject' si es vago en "
             "cuándo/dónde.\n"
+        )
+
+    if kind == "news":
+        # Ni crónica ni anuncio de concierto: un premio, un sello, una publicación, una
+        # declaración. La rúbrica solo conocía los dos primeros casos y medía estas
+        # noticias con la vara de una crónica (rigor 18-38 en tres de tres, 19-11-2026).
+        # Va también cuando el hecho tiene fecha: al sello de Correos, que sale el 23-11,
+        # se le reprochaba «no decir dónde se celebra» como a un concierto.
+        when_line += (
+            "Si NO es un concierto ni un evento con cartel, sino la noticia de un HECHO "
+            "(un premio, una emisión, una publicación, un homenaje institucional, una "
+            "declaración), la vara es la de una NOTICIA BREVE: si dice con datos EXACTOS "
+            "qué ha pasado, quién, cuándo y dónde, y lo sitúa para un fan, es ÚTIL → "
+            "'pass' aunque sea corta. NO le exijas setlist, invitados ni anécdotas que la "
+            "noticia no tiene. 'reject' solo si es vaga, genérica o rellena con loas.\n"
         )
 
     material_block = ""

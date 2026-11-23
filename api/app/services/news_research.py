@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import time
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
@@ -637,6 +638,200 @@ def _boost_queries(topic_type: str, subject: str) -> list[str]:
     return common + by_type.get(topic_type, [f"{subject} qué es contexto detalles"])
 
 
+MESES_DE_NOTICIAS_DE_CASA = 12
+_MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+          "septiembre", "octubre", "noviembre", "diciembre")
+
+
+def _mes_y_anio(dia) -> str:
+    """«noviembre de 2026» de una fecha (o de su ISO); vacío si no hay."""
+    from datetime import date
+
+    try:
+        d = dia if hasattr(dia, "month") else date.fromisoformat(str(dia)[:10])
+    except (TypeError, ValueError):
+        return ""
+    return f"{_MESES[d.month - 1]} de {d.year}"
+
+
+# Desde esta fecha una noticia se escribe con su artículo delante y se comprueba contra él
+# (`source_grounding`): su cuerpo es afirmable. De las anteriores solo vale el titular.
+NOTICIAS_FIABLES_DESDE = "2026-09-23"
+MAX_FICHAS_DE_CASA = 3
+_NO_SON_CONTEXTO = ("robe", "extremoduro", "robe iniesta", "roberto iniesta")
+
+
+def _sin_markdown(texto: str) -> str:
+    t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", texto or "")
+    t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
+    t = re.sub(r"^https?://\S+\s*$", "", t, flags=re.M)
+    return re.sub(r"\n{3,}", "\n\n", t).strip()
+
+
+def noticias_de_casa(db, *, hoy=None, maximo: int = 12) -> str:
+    """Lo que ya hemos publicado como noticia en el último año.
+
+    Es el contexto que David escribió a mano en la noticia del cuadro («Un año de
+    homenajes», 19-11-2026): otros hechos del mismo asunto que ya contamos. Solo posts
+    PUBLICADOS. De los escritos con su artículo delante va el cuerpo (ahí están el día
+    y la cifra exactos); de los anteriores, solo titular y entradilla.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.db.models import Post
+
+    if db is None:
+        return ""
+    ahora = hoy or datetime.now(UTC)
+    fiables = datetime.fromisoformat(NOTICIAS_FIABLES_DESDE).replace(tzinfo=UTC)
+    filas = (db.query(Post)
+             .filter(Post.status == "published", Post.kind == "news",
+                     Post.published_at >= ahora - timedelta(days=30 * MESES_DE_NOTICIAS_DE_CASA))
+             .order_by(Post.published_at.desc()).limit(maximo).all())
+    bloques = []
+    for p in filas:
+        # Sin la fecha de publicación: el redactor la daría por la fecha del hecho.
+        cabecera = f"NOTICIA NUESTRA: {p.title}. {(p.excerpt or '').strip()}".strip()
+        cuerpo = (_sin_markdown(p.body_md)[:1500]
+                  if p.published_at and p.published_at >= fiables else "")
+        bloques.append(f"{cabecera}\n{cuerpo}".strip())
+    return "\n\n".join(bloques)
+
+
+def fichas_nombradas(db, texto: str, *, maximo: int = MAX_FICHAS_DE_CASA) -> str:
+    """Las fichas publicadas de las personas, grupos, sellos y lugares que nombra el
+    texto. Son nuestras y pasaron sus guardas: es lo que sabemos de quien sale en la
+    noticia (la de Uoho y Rebrote no tenía contexto sin la ficha de Uoho, 20-11-2026).
+    Robe y Extremoduro quedan fuera: todo el sitio va de ellos y no sitúan nada."""
+    from app.db.models import SeoContent
+    from app.services.entity_resolver import _normalize, build_corpus_index
+    from scripts.seo.gsc_optimize import _resolve_entity
+
+    if db is None or not (texto or "").strip():
+        return ""
+    plano = f" {_normalize(texto)} "
+    vistos: dict[str, tuple[int, str]] = {}
+    for e in build_corpus_index(db):
+        if e["type"] not in ("person", "band", "place") or e["norm"] in _NO_SON_CONTEXTO:
+            continue
+        pos = plano.find(f" {e['norm']} ")
+        if pos >= 0 and (e["url"] not in vistos or pos < vistos[e["url"]][0]):
+            vistos[e["url"]] = (pos, e["name"])
+    bloques = []
+    for url, (_pos, nombre) in sorted(vistos.items(), key=lambda x: x[1][0]):
+        ent = _resolve_entity(db, "/" + url.split("/", 3)[-1]) if "://" in url else None
+        if not ent:
+            continue
+        sc = (db.query(SeoContent)
+              .filter(SeoContent.entity_type == ent[0], SeoContent.entity_id == ent[1],
+                      SeoContent.published.is_(True)).first())
+        if sc and (sc.body_md or "").strip():
+            bloques.append(f"FICHA NUESTRA de {nombre}:\n{_sin_markdown(sc.body_md)[:1800]}")
+        if len(bloques) >= maximo:
+            break
+    return "\n\n".join(bloques)
+
+
+CABECERA_RECONOCIMIENTOS = "RECONOCIMIENTOS Y HOMENAJES A ROBE (lista de casa, con fuente):"
+
+
+def hechos_reconocidos() -> tuple[str, ...]:
+    """Las frases de la lista de reconocimientos, de la más antigua a la más reciente."""
+    texto = reconocimientos_de_casa()
+    return tuple(x[2:] for x in texto.splitlines()[1:]) if texto else ()
+
+
+def reconocimientos_de_casa() -> str:
+    """Los reconocimientos a Robe de `data/reconocimientos_robe.yaml`, una frase por línea.
+
+    La lista la cura David (20-11-2026): es el «año de homenajes» que en las noticias del
+    sello y del cuadro hubo que pegar a mano. Cada frase tiene su fuente en el YAML; aquí
+    solo viaja el hecho, que es lo que el redactor puede afirmar. Sin fichero, vacío.
+    """
+    import yaml
+
+    from app.services.jsonld_audit import ruta_data
+
+    try:
+        datos = yaml.safe_load(ruta_data("reconocimientos_robe.yaml").read_text("utf-8")) or {}
+    except (FileNotFoundError, yaml.YAMLError) as exc:
+        logger.warning("[news_research] sin lista de reconocimientos: %s", exc)
+        return ""
+    hechos = [" ".join(str(r["hecho"]).split())
+              for r in sorted(datos.get("reconocimientos") or [], key=lambda r: str(r["fecha"]))
+              if r.get("hecho") and r.get("fuentes")]
+    return (CABECERA_RECONOCIMIENTOS + "\n" + "\n".join(f"- {h}" for h in hechos)) if hechos else ""
+
+
+def material_de_casa(db, texto: str, *, hoy=None) -> str:
+    """El material NUESTRO que puede dar contexto a una noticia: las fichas de quien
+    nombra, lo propio de los dossieres de sus canciones (letra, créditos, hechos duros,
+    consenso; nunca el fondo de terceros) y las noticias que ya publicamos. Determinista
+    y sin red: el día de publicar se vuelve a reunir igual para comprobar el texto."""
+    from app.services.corpus_for_queries import separar_material
+
+    propio = separar_material(entity_dossiers(db, texto))[0]
+    return "\n\n".join(x for x in (reconocimientos_de_casa(), fichas_nombradas(db, texto),
+                                    propio[:5000], noticias_de_casa(db, hoy=hoy))
+                       if x.strip())
+
+
+NOTICIAS_POR_HISTORIAS: ContextVar[bool] = ContextVar(
+    "NOTICIAS_POR_HISTORIAS", default=os.environ.get("BLOG_NOTICIAS_HISTORIAS") == "1")
+
+
+def _cerrar_noticia(db, *, subject, body_md, source_excerpt, cronica_txt, dossier_txt,
+                    target_kw, video, image, event_date, plan) -> dict[str, Any]:
+    """El final común de una noticia: saneado, comprobación contra el artículo, meta,
+    vídeo y cabecera. Lo comparten el motor de siempre y el redactor por historias."""
+    # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
+    from app.services.text_sanitizer import strip_ai_tells
+    body_md = strip_ai_tells(body_md) or body_md
+
+    # Lo que la noticia no dice no se afirma: comparación determinista con el
+    # artículo (y juez CONTRA EL ARTÍCULO para lo que no se ve por texto). Va
+    # DESPUÉS del pulido, que reescribe sin volver a verificar.
+    from app.services import source_grounding
+
+    fuente_check = source_excerpt + (f"\n\n{cronica_txt}" if cronica_txt else "")
+    grounding = source_grounding.revisar(
+        body_md, fuente_check, casa=source_grounding.nombres_de_casa(db), propio=dossier_txt,
+    )
+    if grounding.bloqueos:
+        logger.warning("[news_research] %s", grounding.motivo())
+        body_md = source_grounding.quitar_frases(body_md, grounding)
+
+    # Metadatos del post a partir del cuerpo final.
+    meta = _news_meta(subject, body_md)
+    out = {
+        "title": meta.get("title") or subject,
+        "excerpt": meta.get("excerpt") or "",
+        "body_md": body_md,
+        "meta_title": meta.get("meta_title") or "",
+        "meta_description": meta.get("meta_description") or "",
+        "slug": _slugify(meta.get("title") or subject),
+        "target_keyword": target_kw,
+        # Lo que se retiró por no constar en la noticia (para el panel y el log).
+        "grounding_retirado": grounding.motivo() if grounding.bloqueos else "",
+    }
+
+    # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
+    # detecta) y se publica su VideoObject vía posts.video.
+    if video:
+        out["body_md"] = (out.get("body_md") or "").rstrip() + (
+            f"\n\nhttps://www.youtube.com/watch?v={video['youtube_id']}\n"
+        )
+    out["video"] = video
+    # Paquete hero coherente (url+alt+attribution+license+source) para apply_hero.
+    # `image_url` se mantiene por compatibilidad con lectores antiguos.
+    out["hero"] = image
+    out["image_url"] = image["url"] if image else None
+    out["event_date"] = event_date  # date o None (solo si explícita en la fuente)
+    out["is_event"] = bool(plan.get("is_event"))
+    out["is_relevant"] = True
+    return out
+
+
 def research_and_write(
     *, db, headline: str, source_excerpt: str, matched_term: str,
     today=None, tense: str = "informativo", boost: bool = False,
@@ -721,6 +916,28 @@ def research_and_write(
     dossier_txt = entity_dossiers(
         db, " ".join([headline, source_excerpt[:4000], web_txt])
     )
+
+    # Redactor por historias (19-11-2026), detrás de `BLOG_NOTICIAS_HISTORIAS`: el motor de
+    # siempre hablaba del proceso («la información disponible no identifica…»), montaba
+    # secciones sobre lo que no sabía y copiaba errores del artículo. Sin historias
+    # bastantes no hay post: no se cae al motor de siempre.
+    if NOTICIAS_POR_HISTORIAS.get() and tense == "informativo":
+        from app.services.historias_disco import escribir_noticia
+        # El contexto sale de lo que nombra el ARTÍCULO, no de la búsqueda web: una
+        # canción que solo aparece en un resultado de Google no es de lo que va la noticia.
+        casa = material_de_casa(db, f"{headline}\n{source_excerpt[:6000]}")
+        cuerpo = escribir_noticia(db, headline, source_excerpt, casa=casa,
+                                  fecha=_mes_y_anio(today),
+                                  reconocimientos=hechos_reconocidos())
+        if not cuerpo:
+            return {"title": "", "is_relevant": False,
+                    "motivo": "sin historias bastantes en el artículo"}
+        return _cerrar_noticia(db, subject=subject, body_md=cuerpo,
+                               source_excerpt=source_excerpt, cronica_txt="",
+                               dossier_txt="\n\n".join(
+                                   [dossier_txt, casa, *robe_facts.must_facts_lines(db)]),
+                               target_kw=subject,
+                               video=video, image=image, event_date=event_date, plan=plan)
 
     # En modo crónica el evento ya ocurrió: redacta en pasado, sin anunciar nada
     # a futuro. En informativo, respeta el tiempo del hecho.
@@ -840,49 +1057,7 @@ def research_and_write(
         )
         body_md = verify_facts(oneshot.get("body_md") or body_md, afirmable)
 
-    # Saneado final (anti em-dash + política de nombre: nunca 'Robe Iniesta').
-    from app.services.text_sanitizer import strip_ai_tells
-    body_md = strip_ai_tells(body_md) or body_md
-
-    # Lo que la noticia no dice no se afirma: comparación determinista con el
-    # artículo (y juez CONTRA EL ARTÍCULO para lo que no se ve por texto). Va
-    # DESPUÉS del pulido, que reescribe sin volver a verificar.
-    from app.services import source_grounding
-
-    fuente_check = source_excerpt + (f"\n\n{cronica_txt}" if cronica_txt else "")
-    grounding = source_grounding.revisar(
-        body_md, fuente_check, casa=source_grounding.nombres_de_casa(db), propio=dossier_txt,
-    )
-    if grounding.bloqueos:
-        logger.warning("[news_research] %s", grounding.motivo())
-        body_md = source_grounding.quitar_frases(body_md, grounding)
-
-    # Metadatos del post a partir del cuerpo final.
-    meta = _news_meta(subject, body_md)
-    out = {
-        "title": meta.get("title") or subject,
-        "excerpt": meta.get("excerpt") or "",
-        "body_md": body_md,
-        "meta_title": meta.get("meta_title") or "",
-        "meta_description": meta.get("meta_description") or "",
-        "slug": _slugify(meta.get("title") or subject),
-        "target_keyword": target_kw,
-        # Lo que se retiró por no constar en la noticia (para el panel y el log).
-        "grounding_retirado": grounding.motivo() if grounding.bloqueos else "",
-    }
-
-    # El vídeo se embebe poniendo su URL en su propia línea (MarkdownArticle lo
-    # detecta) y se publica su VideoObject vía posts.video.
-    if video:
-        out["body_md"] = (out.get("body_md") or "").rstrip() + (
-            f"\n\nhttps://www.youtube.com/watch?v={video['youtube_id']}\n"
-        )
-    out["video"] = video
-    # Paquete hero coherente (url+alt+attribution+license+source) para apply_hero.
-    # `image_url` se mantiene por compatibilidad con lectores antiguos.
-    out["hero"] = image
-    out["image_url"] = image["url"] if image else None
-    out["event_date"] = event_date  # date o None (solo si explícita en la fuente)
-    out["is_event"] = bool(plan.get("is_event"))
-    out["is_relevant"] = True
-    return out
+    return _cerrar_noticia(db, subject=subject, body_md=body_md, source_excerpt=source_excerpt,
+                           cronica_txt=cronica_txt, dossier_txt=dossier_txt,
+                           target_kw=target_kw, video=video, image=image,
+                           event_date=event_date, plan=plan)

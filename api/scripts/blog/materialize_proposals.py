@@ -407,7 +407,14 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
         from app.services.draft_generator import hechos_de_propuesta, material_propio_de_propuesta
         # En una noticia, también su artículo (o el texto pegado): es la fuente con la
         # que se escribió, y sin él «un valor postal de 5 euros» iba a la web.
-        material_dia_d = "\n\n".join(x for x in (fuente_noticia, hechos_de_propuesta(db, p),
+        # Y el material de casa con el que se le dio contexto (fichas y noticias ya
+        # publicadas): se reúne igual que al escribirla.
+        casa_noticia = ""
+        if fuente_noticia:
+            from app.services.news_research import material_de_casa
+            casa_noticia = material_de_casa(db, f"{post.title}\n{fuente_noticia[:6000]}")
+        material_dia_d = "\n\n".join(x for x in (fuente_noticia, casa_noticia,
+                                                   hechos_de_propuesta(db, p),
                                                    material_propio_de_propuesta(db, p)) if x)
     except Exception:  # noqa: BLE001 — sin material, la web como siempre
         logger.exception("  no se pudo reunir el material de la propuesta %s", p.id)
@@ -463,11 +470,14 @@ def _materialize_one(db, p: ContentProposal, today) -> str:
     grounding = None
     if p.kind == "news":
         from app.services import source_grounding
-        from app.services.news_research import entity_dossiers
-        # Lo propio (fichas, formación, créditos) se puede nombrar aunque la noticia
-        # no lo traiga; lo que no vale es ponerlo en un cartel.
+        from app.services.news_research import entity_dossiers, noticias_de_casa
+        # Lo propio (fichas, formación, créditos, y las noticias que ya publicamos, que
+        # dan el contexto) se puede nombrar aunque la noticia no lo traiga; lo que no
+        # vale es ponerlo en un cartel.
         try:
-            propio = entity_dossiers(db, " ".join([p.title or "", fuente_noticia[:4000]]))
+            propio = "\n\n".join([
+                entity_dossiers(db, " ".join([p.title or "", fuente_noticia[:4000]])),
+                noticias_de_casa(db)])
         except Exception as exc:  # noqa: BLE001 — sin dossier, más estricto, no menos
             logger.warning("  dossier para la noticia falló (%s): se comprueba sin él", exc)
             db.rollback()
