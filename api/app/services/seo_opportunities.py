@@ -177,17 +177,65 @@ def ya_decidida(db, path: str, action: str, queries: list[dict]) -> bool:
                 SeoOpportunity.updated_at >= desde)
         .all()
     )
-    total = sum(int(q.get("impressions") or 0) for q in queries) or 1
     for previa in previas:
         if previa.status == "discarded" and (previa.error or "").startswith(
                 _RETIRADAS_DEL_DETECTOR):
             continue
-        vistas = {flatten(q.get("query") or "") for q in (previa.queries or [])}
-        repetidas = sum(int(q.get("impressions") or 0) for q in queries
-                        if flatten(q.get("query") or "") in vistas)
-        if repetidas * 2 >= total:
+        if _mismas_busquedas(previa, queries):
             return True
     return False
+
+
+def _mismas_busquedas(previa, queries: list[dict]) -> bool:
+    """Al menos la mitad de las impresiones de ahora son de búsquedas de `previa`."""
+    total = sum(int(q.get("impressions") or 0) for q in queries) or 1
+    vistas = {flatten(q.get("query") or "") for q in (previa.queries or [])}
+    repetidas = sum(int(q.get("impressions") or 0) for q in queries
+                    if flatten(q.get("query") or "") in vistas)
+    return repetidas * 2 >= total
+
+
+# Lo que retira el comprobador final (`ya_responde`). Empieza como las retiradas del
+# detector a propósito: no es una decisión, y si la página cambia puede volver.
+MOTIVO_COMPROBADO = "la página ya responde (comprobado con cita)"
+# Mientras tanto no se vuelve a pagar la comprobación de lo mismo cada lunes.
+COMPROBACION_VIGENTE_DIAS = 28
+
+
+def ya_comprobada(db, path: str, queries: list[dict]) -> bool:
+    """¿El comprobador ya retiró esto hace poco? Ahorra la llamada al modelo."""
+    from app.db.models import SeoOpportunity
+
+    desde = datetime.now(UTC) - timedelta(days=COMPROBACION_VIGENTE_DIAS)
+    previas = (
+        db.query(SeoOpportunity)
+        .filter(SeoOpportunity.path == path, SeoOpportunity.action == "body",
+                SeoOpportunity.status == "discarded",
+                SeoOpportunity.error.like(MOTIVO_COMPROBADO + "%"),
+                SeoOpportunity.updated_at >= desde)
+        .all()
+    )
+    return any(_mismas_busquedas(p, queries) for p in previas)
+
+
+def comprobar_hueco(sujeto: str, texto: str, queries: list[dict], *,
+                    min_impressions: int, llamar=None) -> tuple[list[dict], str | None]:
+    """Última comprobación de un hueco de cuerpo antes de que llegue al correo.
+
+    Devuelve `(lo que sigue siendo hueco, motivo de retirada o None)`. Si la página ya
+    responde a casi todo (lo que queda no llega al mínimo), el motivo lleva cada
+    búsqueda con su cita, para que el panel enseñe por qué salió.
+    """
+    from app.services import ya_responde
+
+    respondidas = ya_responde.revisar(sujeto, texto, queries, llamar=llamar)
+    if not respondidas:
+        return queries, None
+    quedan = [q for q in queries if q.get("query") not in respondidas]
+    if sum(int(q.get("impressions") or 0) for q in quedan) >= min_impressions:
+        return quedan, None
+    pruebas = "; ".join(f"«{b}» → «{c[:140]}»" for b, c in respondidas.items())
+    return [], f"{MOTIVO_COMPROBADO}: {pruebas}"
 
 
 def motivo_noop(rigor: dict | None) -> str:
@@ -225,12 +273,16 @@ def _gap_hint(queries: list[dict]) -> str:
 # Fase 0 — detección
 # --------------------------------------------------------------------------- #
 def detect(db, pages: dict, *, period: str | None = None,
-           min_impressions: int = MIN_OPPORTUNITY_IMPRESSIONS) -> list:
+           min_impressions: int = MIN_OPPORTUNITY_IMPRESSIONS,
+           comprobar: bool = True) -> list:
     """Cruza el volcado de GSC con el contenido publicado y encola lo accionable.
 
     Idempotente: si ya hay una oportunidad VIVA para esa URL y acción, se le
     refresca la evidencia en vez de duplicarla; las ya decididas (`applied`,
     `discarded`, `noop`) no se resucitan solas.
+
+    `comprobar`: un hueco de cuerpo nuevo pasa antes por `ya_responde` (un modelo que
+    tiene que citar el fragmento que responde). Sin él, solo el diccionario.
     """
     from app.db.models import SeoContent, SeoOpportunity
     from app.services.cambios_recientes import rutas_en_enfriamiento
@@ -252,10 +304,10 @@ def detect(db, pages: dict, *, period: str | None = None,
         )
         if not sc or not (sc.body_md or "").strip():
             continue
+        letra = letra_de(db, entity_type, entity_id)
         reparto = classify_queries(
             queries, body_md=sc.body_md, meta_title=sc.meta_title,
-            meta_description=sc.meta_description, alias=alias,
-            letra=letra_de(db, entity_type, entity_id),
+            meta_description=sc.meta_description, alias=alias, letra=letra,
         )
         for action in ("meta", "body"):
             qs = reparto[action]
@@ -304,6 +356,26 @@ def detect(db, pages: dict, *, period: str | None = None,
                 continue
             if ya_decidida(db, path, action, qs_ord):
                 continue
+            if action == "body" and comprobar:
+                if ya_comprobada(db, path, qs_ord):
+                    continue
+                from app.services import ya_responde
+
+                vistas = qs_ord
+                qs_ord, retirada = comprobar_hueco(
+                    f"{path} ({sc.meta_title or ''})",
+                    ya_responde.texto_de_pagina(sc.body_md, letra), qs_ord,
+                    min_impressions=min_impressions)
+                if retirada:
+                    # Se guarda retirada y con su prueba: el panel enseña por qué no
+                    # llegó al correo, y `ya_comprobada` no repite la llamada.
+                    db.add(SeoOpportunity(
+                        path=path, action=action, status="discarded", error=retirada,
+                        entity_type=entity_type, entity_id=entity_id,
+                        seo_content_id=sc.id, queries=vistas, impressions=imp,
+                        period=period, gap_hint=_gap_hint(vistas)))
+                    continue
+                imp = sum(int(q.get("impressions") or 0) for q in qs_ord)
             fila = SeoOpportunity(
                 path=path, action=action, status="detected",
                 entity_type=entity_type, entity_id=entity_id,

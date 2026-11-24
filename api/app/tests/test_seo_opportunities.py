@@ -632,3 +632,101 @@ def test_una_busqueda_de_descarga_no_es_hueco():
     rep = svc.classify_queries([_q("discografia marea megaupload", 10)], body_md=MAREA,
                                meta_title="Marea", meta_description="")
     assert not any(rep.values())
+
+
+# --------------------------------------------------------------------------- #
+# Comprobador final: ¿la página ya responde? (`ya_responde`)
+# --------------------------------------------------------------------------- #
+# La frase que citó el modelo en la ficha de Kutxi Romero de prod (24-11-2026), con un
+# enlace añadido para probar que se lee como su texto. «cuchi romero» (58 impresiones)
+# salía como hueco porque el diccionario no conoce esa grafía.
+KUTXI_TEXTO = (
+    "Kutxi Romero, nacido el 8 de julio de 1975 en Berriozar, Navarra, es el vocalista "
+    "de la banda de rock [Marea](/grupos/marea)."
+)
+
+
+def _modelo(*items):
+    return lambda sujeto, texto, busquedas: {"busquedas": list(items)}
+
+
+def test_la_cita_tiene_que_estar_en_la_pagina():
+    from app.services import ya_responde
+
+    texto = ya_responde.texto_de_pagina(KUTXI_TEXTO)
+    # El enlace se lee como su texto: la cita no lleva la ruta.
+    assert ya_responde.cita_valida("es el vocalista de la banda de rock Marea", texto)
+    # Inventada o parafraseada: no vale.
+    assert not ya_responde.cita_valida("Kutxi es el cantante de Marea desde 1997", texto)
+    # Dos palabras casan en cualquier sitio y no prueban nada.
+    assert not ya_responde.cita_valida("de Marea", texto)
+
+
+def test_sin_cita_comprobable_sigue_siendo_hueco():
+    from app.services import ya_responde
+
+    texto = ya_responde.texto_de_pagina(KUTXI_TEXTO)
+    qs = [_q("cuchi romero", 58), _q("kutxi romero hijos", 9)]
+    r = ya_responde.revisar("/personas/kutxi-romero", texto, qs, llamar=_modelo(
+        {"busqueda": "cuchi romero", "responde": True,
+         "cita": "nacido el 8 de julio de 1975 en Berriozar"},
+        # Dice que sí, pero la cita no está en la página.
+        {"busqueda": "kutxi romero hijos", "responde": True, "cita": "tiene dos hijos"},
+    ))
+    assert r == {"cuchi romero": "nacido el 8 de julio de 1975 en Berriozar"}
+
+
+def test_si_el_modelo_falla_todo_sigue_como_antes():
+    from app.services import ya_responde
+
+    def roto(*_a):
+        raise RuntimeError("timeout")
+
+    qs = [_q("cuchi romero", 58)]
+    assert ya_responde.revisar("x", KUTXI_TEXTO, qs, llamar=roto) is None
+    assert ya_responde.revisar("x", KUTXI_TEXTO, qs, llamar=lambda *a: {"otra": 1}) is None
+    restantes, motivo = svc.comprobar_hueco("x", KUTXI_TEXTO, qs, min_impressions=25,
+                                            llamar=roto)
+    assert restantes == qs and motivo is None
+
+
+def test_lo_respondido_se_retira_con_su_prueba():
+    qs = [_q("cuchi romero", 58), _q("cuchi cantante", 5)]
+    cita = "es el vocalista de la banda de rock Marea"
+    restantes, motivo = svc.comprobar_hueco(
+        "/personas/kutxi-romero", KUTXI_TEXTO, qs, min_impressions=25,
+        llamar=_modelo({"busqueda": "cuchi romero", "responde": True, "cita": cita}))
+    # Lo que queda (5) no llega al mínimo: la oportunidad entera sale del correo.
+    assert restantes == []
+    assert motivo.startswith(svc.MOTIVO_COMPROBADO) and "cuchi romero" in motivo
+    # Y como empieza como las retiradas del detector, no cuenta como decisión.
+    assert motivo.startswith(svc._RETIRADAS_DEL_DETECTOR)
+
+
+def test_si_queda_hueco_suficiente_solo_se_quitan_las_respondidas():
+    qs = [_q("cuchi romero", 58), _q("kutxi romero hijos", 40)]
+    restantes, motivo = svc.comprobar_hueco(
+        "x", KUTXI_TEXTO, qs, min_impressions=25,
+        llamar=_modelo({"busqueda": "cuchi romero", "responde": True,
+                        "cita": "es el vocalista de la banda de rock Marea"},
+                       {"busqueda": "kutxi romero hijos", "responde": False, "cita": ""}))
+    assert motivo is None
+    assert [q["query"] for q in restantes] == ["kutxi romero hijos"]
+
+
+def test_la_cita_trae_el_dato_que_se_pregunta():
+    from app.services import ya_responde
+
+    # Ensayo del 24-11-2026 sobre la ficha de Marea: no dice quién canta.
+    assert not ya_responde.trae_lo_que_pide(
+        "cantante marea", "El proyecto fue iniciado por Kutxi Romero, quien decidió "
+        "embarcarse en esta aventura tras haber participado en varias bandas")
+    assert ya_responde.trae_lo_que_pide(
+        "cuchi cantante", "es el vocalista de la banda de rock Marea")
+    # Un verso con «cuando» no pide una fecha.
+    assert ya_responde.trae_lo_que_pide(
+        "el tiempo pasa despacio cuando no te tengo a mi lado",
+        "El tiempo pasa despacito Cuando no te tengo a mi lado")
+    # Lo que el diccionario no conoce lo juzga el modelo.
+    assert ya_responde.trae_lo_que_pide(
+        "la ley inata", "El título de La ley innata no lo escribió Robe")
