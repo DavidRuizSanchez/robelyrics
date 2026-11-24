@@ -123,8 +123,10 @@ DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 # Cumpleaños Robe — 16 de mayo, 09:00 UTC
 0 9 16 5 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type birth >> /var/log/robelyrics-cron.log 2>&1
 
-# Aniversario muerte Robe — 10 de diciembre, 09:00 UTC
-0 9 10 12 * cd $APP_DIR && $DC exec -T api python -m scripts.blog.publish_anniversary --type death >> /var/log/robelyrics-cron.log 2>&1
+# Aniversario de la muerte de Robe (10-12): RETIRADO el 24-11-2026 por decisión de David.
+# El generador escribía con el LLM sin las guardas del blog, buscaba la foto en Wikimedia por
+# nombre y firmaba «Robe Iniesta». El aniversario lo cubre un post preparado a mano (propuesta
+# #417, programada para el 10-12). Si vuelve, que sea por el motor de historias, no por aquí.
 
 # ============================================================================
 # Alimentación del banco de propuestas del blog (lunes)
