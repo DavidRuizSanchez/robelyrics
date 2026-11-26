@@ -152,3 +152,64 @@ def test_repite_el_aviso_a_los_tres_dias(db):
     enviar, motivo = nh._should_send(db, problemas, firma)
     assert enviar
     assert "recordatorio" in motivo
+
+
+# --- #572 (26-11-2026): el correo decía «pide revisión» y no por qué -----------
+
+@pytest.fixture()
+def db_ev(db):
+    from app.db.models import InstagramPostEvidence
+
+    InstagramPostEvidence.__table__.create(db.get_bind())
+    return db
+
+
+def test_un_retenido_sin_error_dice_el_aviso_que_lo_retiene(db_ev):
+    from app.db.models import InstagramPostEvidence
+
+    it = _item(
+        db_ev, status="prepared", needs_human=True, content_type="news",
+        title="La Fábrica de Moneda estampará un sello de Robe, cantante de Extremoduro",
+    )
+    # Como en prod: la cola va bien, lo único es el retenido.
+    _item(db_ev, status="published", published_at=_hace(2), position=1)
+    _item(db_ev, status="prepared", position=2)
+    db_ev.add(InstagramPostEvidence(item_id=it.id, avisos=[
+        "El texto menciona el fallecimiento de Robe: comprueba el tono.",
+        "El texto se reescribió 1 vez/veces: el primero no pasó las guardas.",
+        "Sin foto acreditada de «X»: va arte propio.",
+    ]))
+    db_ev.commit()
+
+    data = nh._gather(db_ev)
+    problemas = nh._problemas(data)
+    linea = next(p for p in problemas if p.startswith(f"#{it.id} "))
+    assert "menciona el fallecimiento de Robe" in linea
+    # Los avisos informativos no retienen: no se cuentan como motivo.
+    assert "se reescribió" not in linea and "arte propio" not in linea
+    # El título entero, no cortado a media palabra.
+    assert "cantante de Extremoduro" in linea
+    asunto = nh._asunto(data, problemas)
+    assert asunto.startswith(f"#{it.id} retenido: El texto menciona el fallecimiento")
+    assert len(asunto) <= 90
+
+
+def test_el_error_del_gate_manda_sobre_los_avisos(db_ev):
+    from app.db.models import InstagramPostEvidence
+
+    it = _item(db_ev, status="prepared", needs_human=True, error="cita un verso ajeno")
+    db_ev.add(InstagramPostEvidence(item_id=it.id, avisos=["Otro aviso que retiene."]))
+    db_ev.commit()
+    linea = next(p for p in nh._problemas(nh._gather(db_ev)) if p.startswith(f"#{it.id} "))
+    assert "cita un verso ajeno" in linea and "Otro aviso" not in linea
+
+
+def test_un_retenido_sin_motivo_lo_dice(db_ev):
+    it = _item(db_ev, status="prepared", needs_human=True)
+    linea = next(p for p in nh._problemas(nh._gather(db_ev)) if p.startswith(f"#{it.id} "))
+    assert "sin motivo registrado" in linea
+
+
+def test_recorta_por_palabra():
+    assert nh._recorta("uno dos tres cuatro", 12) == "uno dos…"
+    assert nh._recorta("corto", 90) == "corto"
