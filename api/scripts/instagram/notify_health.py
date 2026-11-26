@@ -39,7 +39,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 
 from app.config import get_settings
-from app.db.models import InstagramQueueItem, NotificationDigest
+from app.db.models import InstagramPostEvidence, InstagramQueueItem, NotificationDigest
 from app.db.session import SessionLocal
 from app.services.instagram import config, publisher
 
@@ -65,6 +65,40 @@ def _tramo(dias: float) -> int:
         if dias >= t:
             escalon = t
     return escalon
+
+
+def _motivos_de_retencion(db, ids: list[int]) -> dict[int, str]:
+    """Por qué está retenido cada item que no trae `error`.
+
+    El gate final deja su motivo en `error`, pero una guarda que pide revisión
+    al preparar (p. ej. «menciona el fallecimiento de Robe») lo deja en los
+    avisos de la evidencia, y el correo decía solo «pide revisión» (#572,
+    26-11-2026). Se enseñan los avisos que retienen; los informativos no.
+    """
+    if not ids:
+        return {}
+    filas = db.execute(
+        select(InstagramPostEvidence.item_id, InstagramPostEvidence.avisos).where(
+            InstagramPostEvidence.item_id.in_(ids)
+        )
+    ).all()
+    motivos = {}
+    for item_id, avisos in filas:
+        retienen = [
+            a for a in (avisos or []) if a and not publisher.es_aviso_informativo(a)
+        ]
+        if retienen:
+            motivos[int(item_id)] = " · ".join(retienen)
+    return motivos
+
+
+def _recorta(texto: str, tope: int) -> str:
+    """Recorta por palabra, con «…», para que un título no acabe en «cantante de»."""
+    texto = (texto or "").strip()
+    if len(texto) <= tope:
+        return texto
+    corte = texto[: tope - 1].rsplit(" ", 1)[0].rstrip(" ,;:·—-")
+    return f"{corte}…"
 
 
 def _gather(db) -> dict:
@@ -121,6 +155,7 @@ def _gather(db) -> dict:
         )
         .order_by(InstagramQueueItem.id)
     ).all()
+    motivos = _motivos_de_retencion(db, [int(i) for i, _t, e in retenidos if not e])
 
     # Cuánto de lo publicado esta semana lleva arte IA. Se cuenta solo lo que
     # tiene el origen registrado (desde el 09-11-2026).
@@ -139,7 +174,10 @@ def _gather(db) -> dict:
 
     return {
         "ia_semana": (con_ia, con_origen),
-        "retenidos": [(int(i), t or "", e or "") for i, t, e in retenidos],
+        "retenidos": [
+            (int(i), t or "", e or motivos.get(int(i), ""))
+            for i, t, e in retenidos
+        ],
         "bloqueado": bloqueado,
         "motivo": motivo,
         "desde": desde,
@@ -183,10 +221,23 @@ def _problemas(data: dict) -> list[str]:
         )
     for item_id, titulo, error in data.get("retenidos", []):
         fuera.append(
-            f"#{item_id} «{titulo[:60]}» está retenido y no saldrá hasta que lo "
-            f"revises en el panel: {error[:220] or 'pide revisión'}"
+            f"#{item_id} «{_recorta(titulo, 90)}» está retenido y no saldrá hasta "
+            f"que lo revises en el panel. Motivo: "
+            f"{_recorta(error, 300) or 'pide revisión (sin motivo registrado)'}"
         )
     return fuera
+
+
+def _asunto(data: dict, problemas: list[str]) -> str:
+    """Lo primero que se lee. Si lo único es un retenido, el motivo, no el título."""
+    retenidos = data.get("retenidos") or []
+    if retenidos and problemas and problemas[0].startswith(f"#{retenidos[0][0]} "):
+        item_id, _titulo, motivo = retenidos[0]
+        extra = f" (y {len(retenidos) - 1} más)" if len(retenidos) > 1 else ""
+        return _recorta(
+            f"#{item_id} retenido{extra}: {motivo or 'pide revisión'}", 90
+        )
+    return _recorta(problemas[0], 90)
 
 
 def _signature(data: dict) -> str:
@@ -303,7 +354,7 @@ def main() -> None:
         if not problemas:
             problemas = ["(sin problemas; enviado con --force)"]
 
-        subject = f"[Entre Interiores] Instagram: {problemas[0][:90]}"
+        subject = f"[Entre Interiores] Instagram: {_asunto(data, problemas)}"
         html = _build_html(data, problemas)
         if args.dry_run:
             logger.info("(dry-run) enviaría a %s (%s): %s", to, why, subject)
